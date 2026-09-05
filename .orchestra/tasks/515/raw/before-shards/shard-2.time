@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -vv --tb=short --timeout=30 tests/test_antigravity_readiness.py tests/test_antigravity_usage_frontend.py tests/test_audit0901_db.py tests/test_audit0901_harness.py tests/test_audit0901_session.py tests/test_backend_grok.py tests/test_bug_report_notify.py tests/test_charts.py tests/test_diff_budget.py tests/test_enc_cli_dir.py tests/test_fan_terminal_kind.py tests/test_frontend_context_panel_468.py tests/test_hot_apply.py tests/test_knowledge_runtime_debt_361.py tests/test_limit_wake.py tests/test_limits_card.py tests/test_merge_progress_424.py tests/test_message_provenance_review_433.py tests/test_model_catalog_frontend.py tests/test_openrouter_retry.py tests/test_orchestra_layout_recovery_430.py tests/test_orphan_pid_identity.py tests/test_portfolio_agent_filter_frontend_472.py tests/test_project_context_review_488.py tests/test_project_knowledge_t3_review_412.py tests/test_prompting.py tests/test_quota_map_api.py tests/test_review_coverage_gate_462.py tests/test_review_receipt_safety_436.py tests/test_review_receipt_terminal_436.py tests/test_runtime_history.py tests/test_session_hibernate.py tests/test_tailwind_css.py tests/test_task_binding_418.py tests/test_tg_bridge.py tests/test_tg_file_batch_route.py tests/test_tg_upload.py tests/test_undelivered_queue.py tests/test_usage_readiness.py tests/test_validate_spawn_unknown_role.py"
+	User time (seconds): 58.07
+	System time (seconds): 17.95
+	Percent of CPU this job got: 38%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:15.81
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 263120
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 270
+	Minor (reclaiming a frame) page faults: 628084
+	Voluntary context switches: 49382
+	Involuntary context switches: 26620
+	Swaps: 0
+	File system inputs: 104560
+	File system outputs: 620448
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

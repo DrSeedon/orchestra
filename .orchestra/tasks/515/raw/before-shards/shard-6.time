@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -vv --tb=short --timeout=30 tests/test_auto_report_undelivered.py tests/test_cache_tokens.py tests/test_codex_review_artifact.py tests/test_compact_pending_ack_467.py tests/test_compact_receipt_and_tail.py tests/test_default_pipeline.py tests/test_fan_barrier.py tests/test_fan_completion_modes_407.py tests/test_fan_enable.py tests/test_fan_prompt_407.py tests/test_fdstore.py tests/test_knowledge_runtime_detail_summary.py tests/test_logs_sync.py tests/test_mcp_resolve_operation_423.py tests/test_merge_reason_preservation_416.py tests/test_message_delivery_receipts_380.py tests/test_message_provenance_migration_433.py tests/test_model_flags.py tests/test_orchestra_layout_dirty_430.py tests/test_owned_dirs_migration_473.py tests/test_owner_mode.py tests/test_quota_gate.py tests/test_restart_fd_hygiene.py tests/test_return_to_merged_branch.py tests/test_review_receipt_start_436.py tests/test_run_fan_407.py tests/test_runaway_memory_guard.py tests/test_runtime_handoff_recovery.py tests/test_runtime_registry.py tests/test_seamless_restart.py tests/test_send_provenance_without_auth.py tests/test_subagent_clock.py tests/test_t344_quota_lines_browser.py tests/test_task_create_idempotency_395.py tests/test_task_repair_performance_422.py tests/test_task_write_outbox_426.py tests/test_tg_bridge_instance_guard.py tests/test_tg_ingress_509.py tests/test_undelivered.py tests/test_usage_contract.py tests/test_wf_run.py tests/test_workspace.py"
+	User time (seconds): 74.00
+	System time (seconds): 57.79
+	Percent of CPU this job got: 57%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:48.68
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 241916
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 248
+	Minor (reclaiming a frame) page faults: 1553608
+	Voluntary context switches: 130419
+	Involuntary context switches: 17325
+	Swaps: 0
+	File system inputs: 103728
+	File system outputs: 1301696
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

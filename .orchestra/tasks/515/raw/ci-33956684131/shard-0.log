@@ -1,0 +1,1010 @@
+test (0)	Set up job	﻿2026-09-05T08:57:55.3876960Z Current runner version: '2.337.0'
+test (0)	Set up job	2026-09-05T08:57:55.3912268Z ##[group]Runner Image Provisioner
+test (0)	Set up job	2026-09-05T08:57:55.3913760Z Hosted Compute Agent
+test (0)	Set up job	2026-09-05T08:57:55.3914847Z Version: 20260828.587
+test (0)	Set up job	2026-09-05T08:57:55.3915840Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+test (0)	Set up job	2026-09-05T08:57:55.3917005Z Build Date: 2026-08-28T16:44:25Z
+test (0)	Set up job	2026-09-05T08:57:55.3918298Z Worker ID: {ee377167-d4e4-4861-b5e7-b41ea9dbe915}
+test (0)	Set up job	2026-09-05T08:57:55.3919487Z Azure Region: eastus2
+test (0)	Set up job	2026-09-05T08:57:55.3920470Z ##[endgroup]
+test (0)	Set up job	2026-09-05T08:57:55.3922469Z ##[group]Operating System
+test (0)	Set up job	2026-09-05T08:57:55.3923685Z Ubuntu
+test (0)	Set up job	2026-09-05T08:57:55.3924652Z 24.04.4
+test (0)	Set up job	2026-09-05T08:57:55.3925406Z LTS
+test (0)	Set up job	2026-09-05T08:57:55.3926249Z ##[endgroup]
+test (0)	Set up job	2026-09-05T08:57:55.3927084Z ##[group]Runner Image
+test (0)	Set up job	2026-09-05T08:57:55.3927981Z Image: ubuntu-24.04
+test (0)	Set up job	2026-09-05T08:57:55.3929044Z Version: 20260831.293.1
+test (0)	Set up job	2026-09-05T08:57:55.3930755Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+test (0)	Set up job	2026-09-05T08:57:55.3933983Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+test (0)	Set up job	2026-09-05T08:57:55.3936139Z ##[endgroup]
+test (0)	Set up job	2026-09-05T08:57:55.3938097Z ##[group]GITHUB_TOKEN Permissions
+test (0)	Set up job	2026-09-05T08:57:55.3941058Z Contents: read
+test (0)	Set up job	2026-09-05T08:57:55.3941990Z Metadata: read
+test (0)	Set up job	2026-09-05T08:57:55.3942834Z Packages: read
+test (0)	Set up job	2026-09-05T08:57:55.3943947Z ##[endgroup]
+test (0)	Set up job	2026-09-05T08:57:55.3946777Z Secret source: Actions
+test (0)	Set up job	2026-09-05T08:57:55.3948426Z Prepare workflow directory
+test (0)	Set up job	2026-09-05T08:57:55.4396091Z Prepare all required actions
+test (0)	Set up job	2026-09-05T08:57:55.4464022Z Getting action download info
+test (0)	Set up job	2026-09-05T08:57:55.6409115Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+test (0)	Set up job	2026-09-05T08:57:55.7347441Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+test (0)	Set up job	2026-09-05T08:57:56.1053214Z Complete job name: test (0)
+test (0)	Run actions/checkout@v4	﻿2026-09-05T08:57:56.1749542Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1759040Z ##[group]Run actions/checkout@v4
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1759763Z with:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1760226Z   repository: DrSeedon/orchestra
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1764739Z   token: ***
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1765199Z   ssh-strict: true
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1765661Z   ssh-user: git
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1766134Z   persist-credentials: true
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1766646Z   clean: true
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1767119Z   sparse-checkout-cone-mode: true
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1767672Z   fetch-depth: 1
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1768133Z   fetch-tags: false
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1768601Z   show-progress: true
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1769073Z   lfs: false
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1769511Z   submodules: false
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1770063Z   set-safe-directory: true
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1770610Z   allow-unsafe-pr-checkout: false
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.1771365Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2774232Z Syncing repository: DrSeedon/orchestra
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2776693Z ##[group]Getting Git version info
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2777747Z Working directory is '/home/runner/work/orchestra/orchestra'
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2784067Z [command]/usr/bin/git version
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2891030Z git version 2.55.0
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2925520Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2932042Z Temporarily overriding HOME='/home/runner/work/_temp/175813de-065e-4271-9e4e-8b912ca5f67f' before making global git config changes
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2934480Z Adding repository directory to the temporary git global config as a safe directory
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2937428Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2988443Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2991766Z ##[group]Initializing the repository
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.2996756Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3100684Z hint: Using 'master' as the name for the initial branch. This default branch name
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3102345Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3104644Z hint: to use in all of your new repositories, which will suppress this warning,
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3105921Z hint: call:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3106743Z hint:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3107554Z hint: 	git config --global init.defaultBranch <name>
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3108499Z hint:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3109368Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3110776Z hint: 'development'. The just-created branch can be renamed via this command:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3111540Z hint:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3111975Z hint: 	git branch -m <name>
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3112456Z hint:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3113310Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3114550Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3117004Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3181665Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3182982Z ##[group]Disabling automatic garbage collection
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3186490Z [command]/usr/bin/git config --local gc.auto 0
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3220080Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3221481Z ##[group]Setting up auth
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3228225Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3264998Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3646527Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3687642Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.3980789Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.4026636Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.4303823Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.4355809Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.4356853Z ##[group]Fetching the repository
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:56.4370644Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3b7eb1058839505b06e102d5ede00bccd61000a7:refs/remotes/origin/task-515/fix-ci-green
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4924841Z From https://github.com/DrSeedon/orchestra
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4927068Z  * [new ref]           3b7eb1058839505b06e102d5ede00bccd61000a7 -> origin/task-515/fix-ci-green
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4930660Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4932193Z ##[group]Determining the checkout info
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4934106Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4939773Z [command]/usr/bin/git sparse-checkout disable
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.4995831Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.5029357Z ##[group]Checking out the ref
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:58.5033795Z [command]/usr/bin/git checkout --progress --force -B task-515/fix-ci-green refs/remotes/origin/task-515/fix-ci-green
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.5362780Z Updating files:  96% (17062/17752)
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.5561598Z Updating files:  97% (17220/17752)
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.5803734Z Updating files:  98% (17397/17752)
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.5993590Z Updating files:  99% (17575/17752)
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.5994360Z Updating files: 100% (17752/17752)
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.5995058Z Updating files: 100% (17752/17752), done.
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.6170068Z Switched to a new branch 'task-515/fix-ci-green'
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.6176097Z branch 'task-515/fix-ci-green' set up to track 'origin/task-515/fix-ci-green'.
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.6202587Z ##[endgroup]
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.6254615Z [command]/usr/bin/git log -1 --format=%H
+test (0)	Run actions/checkout@v4	2026-09-05T08:57:59.6283617Z 3b7eb1058839505b06e102d5ede00bccd61000a7
+test (0)	Run astral-sh/setup-uv@v4	﻿2026-09-05T08:57:59.6525907Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6527971Z ##[group]Run astral-sh/setup-uv@v4
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6528300Z with:
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6528559Z   version: latest
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6531727Z   github-token: ***
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6532016Z   enable-cache: false
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6532323Z   cache-dependency-glob: **/uv.lock
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6532673Z   prune-cache: true
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6532955Z   ignore-nothing-to-cache: false
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.6533518Z ##[endgroup]
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.7890232Z (node:2237) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.7891780Z (Use `node --trace-deprecation ...` to show where the warning was created)
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:57:59.9680491Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.12.10/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.1962053Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/23c31436-b075-4769-97fd-41247fe41f76 -f /home/runner/work/_temp/7a04c7d1-aa9b-4df1-aca5-c10fb717bc9b
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.6017121Z Added /opt/hostedtoolcache/uv/0.12.10/x86_64 to the path
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.6018777Z Added /home/runner/.local/bin to the path
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.6041361Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test (0)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.6042046Z Successfully installed uv version 0.12.10
+test (0)	Run uv sync --dev	﻿2026-09-05T08:58:00.6272575Z ##[group]Run uv sync --dev
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6273200Z ^[[36;1muv sync --dev^[[0m
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6320431Z shell: /usr/bin/bash -e {0}
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6320732Z env:
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6321017Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6321361Z ##[endgroup]
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6925740Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6926490Z Creating virtual environment at: .venv
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.6964689Z Resolved 99 packages in 0.63ms
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8050121Z Downloading cryptography (4.5MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8066662Z Downloading pygments (1.2MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8069931Z Downloading pillow (6.3MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8074550Z Downloading uvloop (4.2MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8077437Z Downloading pydantic-core (2.0MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8086979Z Downloading aiohttp (1.7MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8176560Z Downloading playwright (45.3MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:00.8184094Z Downloading claude-agent-sdk (76.7MiB)
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.1159327Z  Downloaded pygments
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.1332042Z  Downloaded aiohttp
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.1455068Z  Downloaded pydantic-core
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.1999480Z  Downloaded uvloop
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.2100416Z  Downloaded cryptography
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.2196433Z  Downloaded pillow
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.6517769Z  Downloaded playwright
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.8821536Z  Downloaded claude-agent-sdk
+test (0)	Run uv sync --dev	2026-09-05T08:58:01.9524659Z Prepared 74 packages in 1.25s
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1663351Z Installed 74 packages in 214ms
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1664288Z  + aiofiles==25.1.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1665030Z  + aiogram==3.28.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1665644Z  + aiohappyeyeballs==2.6.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1666281Z  + aiohttp==3.13.5
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1666811Z  + aiosignal==1.4.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1667350Z  + annotated-doc==0.0.4
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1667912Z  + annotated-types==0.7.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1668471Z  + anyio==4.13.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1669393Z  + attrs==26.1.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1669852Z  + certifi==2026.5.20
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1670330Z  + cffi==2.0.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1670795Z  + charset-normalizer==3.4.7
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1671332Z  + claude-agent-sdk==0.2.114
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1671867Z  + click==8.4.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1672366Z  + croniter==6.2.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1672882Z  + cryptography==48.0.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1673559Z  + fastapi==0.136.3
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1674084Z  + frozenlist==1.8.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1674618Z  + greenlet==3.5.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1675108Z  + h11==0.16.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1675589Z  + httpcore==1.0.9
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1676085Z  + httptools==0.8.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1676582Z  + httpx==0.28.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1677075Z  + httpx-sse==0.4.3
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1677567Z  + idna==3.16
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1678143Z  + iniconfig==2.3.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1678635Z  + jinja2==3.1.6
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1679138Z  + jsonschema==4.26.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1679713Z  + jsonschema-specifications==2025.9.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1680364Z  + magic-filter==1.0.12
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1680896Z  + markdown==3.10.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1681411Z  + markupsafe==3.0.3
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1681923Z  + mcp==1.27.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1682443Z  + multidict==6.7.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1682946Z  + packaging==26.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1683640Z  + pillow==11.3.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1684146Z  + playwright==1.60.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1684616Z  + pluggy==1.6.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1685054Z  + propcache==0.5.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1685500Z  + pycparser==3.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1685954Z  + pydantic==2.13.4
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1686409Z  + pydantic-core==2.46.4
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1686937Z  + pydantic-settings==2.14.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1687431Z  + pyee==13.0.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1687887Z  + pygments==2.20.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1688553Z  + pyjwt==2.13.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1689080Z  + pyromark==0.9.11
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1689591Z  + pytest==9.0.3
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1690095Z  + pytest-asyncio==1.4.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1690666Z  + pytest-base-url==2.1.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1691247Z  + pytest-playwright==0.8.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1692171Z  + pytest-timeout==2.4.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1692748Z  + python-dateutil==2.9.0.post0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1696910Z  + python-dotenv==1.2.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1699213Z  + python-multipart==0.0.29
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1699799Z  + python-slugify==8.0.4
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1700341Z  + pyyaml==6.0.3
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1700863Z  + referencing==0.37.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1701369Z  + requests==2.34.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1701877Z  + rpds-py==0.30.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1702375Z  + six==1.17.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1702865Z  + sniffio==1.3.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1703532Z  + sse-starlette==3.4.4
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1704074Z  + starlette==1.1.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1704668Z  + telegramify-markdown==1.1.5
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1705397Z  + text-unidecode==1.3
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1705987Z  + typing-extensions==4.15.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1706729Z  + typing-inspection==0.4.2
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1707368Z  + urllib3==2.7.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1707759Z  + uvicorn==0.48.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1708092Z  + uvloop==0.22.1
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1708414Z  + watchfiles==1.2.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1708744Z  + websockets==16.0
+test (0)	Run uv sync --dev	2026-09-05T08:58:02.1709058Z  + yarl==1.24.2
+test (0)	Run uv run playwright install --with-deps chromium	﻿2026-09-05T08:58:02.1772211Z ##[group]Run uv run playwright install --with-deps chromium
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.1772694Z ^[[36;1muv run playwright install --with-deps chromium^[[0m
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.1815554Z shell: /usr/bin/bash -e {0}
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.1815821Z env:
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.1816080Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.1816410Z ##[endgroup]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.6766378Z Installing dependencies...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.6826432Z Switching to root user to install dependencies...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.7746472Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8091942Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8093339Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8115118Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8170499Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8196365Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8572572Z Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.9446908Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [394 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.9578157Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [441 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.9933990Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1260 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.9999754Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [292 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0033265Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0038639Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1690 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0137746Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [339 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0164586Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0195242Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1536 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0290627Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [352 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0295502Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0556763Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5740 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1073515Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1086682Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1002 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1146927Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [212 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1165272Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.4 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1177602Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1206 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1254024Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [241 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1281127Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1282591Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1437 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1349138Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [334 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1942285Z Get:29 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1401 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:07.4834658Z Fetched 11.8 MB in 1s (8533 kB/s)
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.2914102Z Reading package lists...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.5197359Z Reading package lists...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.7122127Z Building dependency tree...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.7129746Z Reading state information...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8703412Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8704471Z libasound2t64 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8705192Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8705924Z libatk-bridge2.0-0t64 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8706589Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8707190Z libatk1.0-0t64 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8707783Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8708363Z libatspi2.0-0t64 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8709338Z libcairo2 is already the newest version (1.18.0-3build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8709690Z libcairo2 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8710039Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8710423Z libcups2t64 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8710764Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8711113Z libdbus-1-3 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8711453Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8711824Z libdrm2 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8712157Z libgbm1 is already the newest version (25.2.8-0ubuntu0.24.04.2).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8712510Z libgbm1 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8712839Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.8).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8713449Z libglib2.0-0t64 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8713805Z libnspr4 is already the newest version (2:4.35-1.1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8714152Z libnspr4 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8714468Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8714793Z libnss3 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8715129Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8715492Z libpango-1.0-0 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8715823Z libx11-6 is already the newest version (2:1.8.7-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8716145Z libx11-6 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8716447Z libxcb1 is already the newest version (1.15-1ubuntu2).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8716762Z libxcb1 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8717092Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8717451Z libxcomposite1 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8717786Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8718134Z libxdamage1 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8718460Z libxext6 is already the newest version (2:1.3.4-1build2).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8718790Z libxext6 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8719106Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8719448Z libxfixes3 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8719777Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8720116Z libxkbcommon0 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8720443Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8720766Z libxrandr2 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8721084Z xvfb is already the newest version (2:21.1.12-1ubuntu1.6).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8721554Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8722046Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8722420Z libfontconfig1 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8722787Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8723373Z libfreetype6 set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8723727Z fonts-liberation is already the newest version (1:2.1.5-3).
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8724092Z fonts-liberation set to manually installed.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8724649Z The following additional packages will be installed:
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8724976Z   xfonts-encodings xfonts-utils
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8725245Z Recommended packages:
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.8725500Z   fonts-ipafont-mincho fonts-tlwg-loma
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9272634Z The following NEW packages will be installed:
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9273712Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9278539Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9279218Z   xfonts-utils
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9464086Z 0 upgraded, 9 newly installed, 0 to remove and 38 not upgraded.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9464681Z Need to get 21.1 MB of archives.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9465693Z After this operation, 79.5 MB of additional disk space will be used.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9470297Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9667009Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.9923340Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.0486172Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.0510114Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.0822646Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.1365408Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.1426826Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.1449333Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.1493196Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4117322Z Fetched 21.1 MB in 0s (97.4 MB/s)
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4379249Z Selecting previously unselected package fonts-ipafont-gothic.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4644090Z (Reading database ... 
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4644520Z (Reading database ... 5%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4644814Z (Reading database ... 10%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4645135Z (Reading database ... 15%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4645473Z (Reading database ... 20%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4645851Z (Reading database ... 25%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4646717Z (Reading database ... 30%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4647051Z (Reading database ... 35%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4647308Z (Reading database ... 40%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4647532Z (Reading database ... 45%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4647755Z (Reading database ... 50%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4682716Z (Reading database ... 55%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6666736Z (Reading database ... 60%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.8078021Z (Reading database ... 65%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.9750951Z (Reading database ... 70%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.1108960Z (Reading database ... 75%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.3187813Z (Reading database ... 80%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.5171957Z (Reading database ... 85%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6700353Z (Reading database ... 90%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.8179094Z (Reading database ... 95%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.8179499Z (Reading database ... 100%
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.8179875Z (Reading database ... 201676 files and directories currently installed.)
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.8231207Z Preparing to unpack .../0-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.8325697Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.0719132Z Selecting previously unselected package fonts-freefont-ttf.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.0854744Z Preparing to unpack .../1-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.0861793Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.1730972Z Selecting previously unselected package fonts-tlwg-loma-otf.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.1868546Z Preparing to unpack .../2-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.1875236Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.2099599Z Selecting previously unselected package fonts-unifont.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.2234472Z Preparing to unpack .../3-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.2242876Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.3406744Z Selecting previously unselected package fonts-wqy-zenhei.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.3544244Z Preparing to unpack .../4-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.3652467Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8399735Z Selecting previously unselected package xfonts-encodings.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8534782Z Preparing to unpack .../5-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8541558Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8831098Z Selecting previously unselected package xfonts-utils.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8964054Z Preparing to unpack .../6-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8971537Z Unpacking xfonts-utils (1:7.7+6build3) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.9316306Z Selecting previously unselected package xfonts-cyrillic.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.9450279Z Preparing to unpack .../7-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.9457857Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.9815683Z Selecting previously unselected package xfonts-scalable.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.9949984Z Preparing to unpack .../8-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.9957313Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0375530Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0498776Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0515322Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0531579Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0548091Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0616195Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0629737Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0645358Z Setting up xfonts-utils (1:7.7+6build3) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0688704Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.1009487Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.1301189Z Processing triggers for man-db (2.12.0-4build2) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.1342197Z Not building database; man-db/auto-update is not 'true'.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.1357994Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1652281Z 
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1653456Z Running kernel seems to be up-to-date.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1653882Z 
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1654043Z No services need to be restarted.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1654314Z 
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1654464Z No containers need to be restarted.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1654742Z 
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1654930Z No user sessions are running outdated binaries.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1655262Z 
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1655560Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1104008Z Downloading Chrome for Testing 148.0.7778.96 (playwright chromium v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-linux64.zip
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.0879280Z |                                                                                |   0% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.2548642Z |■■■■■■■■                                                                        |  10% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.3430623Z |■■■■■■■■■■■■■■■■                                                                |  20% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.4358094Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.5068744Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.5873981Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.6461255Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.7188352Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.7922800Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.8691075Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.9474817Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 175.4 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.8636681Z Chrome for Testing 148.0.7778.96 (playwright chromium v1223) downloaded to /home/runner/.cache/ms-playwright/chromium-1223
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.8640214Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8318318Z |                                                                                |   0% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8471997Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8530304Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8580444Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8615273Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8637024Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8675677Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8696765Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8709248Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8725934Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.8741771Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.9306154Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.9309261Z Downloading Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-headless-shell-linux64.zip
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:20.8988923Z |                                                                                |   0% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.2828388Z |■■■■■■■■                                                                        |  10% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.4618217Z |■■■■■■■■■■■■■■■■                                                                |  20% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.5835105Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.6565789Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.6999821Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.7559957Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.8117139Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.8670963Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.9019131Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.9644663Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 113.2 MiB
+test (0)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:24.2610577Z Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1223
+test (0)	pytest shard 0 of 6	﻿2026-09-05T08:58:24.2969275Z ##[group]Run mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.2969848Z ^[[36;1mmapfile -t files < <(git ls-files 'tests/test_*.py' | sort \^[[0m
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.2970297Z ^[[36;1m  | awk -v s='0' -v n=6 '(NR - 1) % n == s')^[[0m
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.2970631Z ^[[36;1mecho "shard 0/6: ${#files[@]} files"^[[0m
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.2970931Z ^[[36;1mtest "${#files[@]}" -gt 0^[[0m
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.2971297Z ^[[36;1m/usr/bin/time -v uv run pytest -q -rf --timeout=30 "${files[@]}"^[[0m
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.3011549Z shell: /usr/bin/bash -e {0}
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.3011820Z env:
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.3012080Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.3012403Z ##[endgroup]
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:24.3125804Z shard 0/6: 42 files
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:48.6700426Z ........................................................................ [ 11%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:58:58.8937537Z ........................................................................ [ 23%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:02.6118945Z ...................................................FF................... [ 35%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:09.2990123Z .......FF...........................................................F... [ 47%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:13.7671100Z ...............s...............................F.........FF...FFF....... [ 59%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:19.3404518Z ........................................................................ [ 71%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:23.0240075Z ....sssssss.........................................FF.................. [ 83%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:28.8759430Z ........................................................................ [ 95%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2443709Z ...........................                                              [100%]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2444535Z =================================== FAILURES ===================================
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2445288Z ________ test_missing_binary_gives_actionable_text_instead_of_exit_127 _________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2445823Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2446266Z mcp = <module 'app.mcp_stdio' from '/home/runner/work/orchestra/orchestra/app/mcp_stdio.py'>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2447244Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd3fc1d2c60>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2448129Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2448522Z     def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypatch):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2449757Z         """Главное требование задачи: вместо `/bin/sh: ...: not found` (exit 127) — текст,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2450817Z         из которого видно, что чинить."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2451385Z         monkeypatch.setattr(mcp.shutil, "which", lambda _: None)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2452037Z         monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2452664Z         monkeypatch.setattr(mcp, "SCOPE", "/home/kesha/orchestra")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2453402Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2453771Z         async def fake_api(method, path, **kwargs):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2454256Z             assert method == "GET"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2454697Z             assert path == "/api/sessions/perf"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2455365Z             return {"id": "test-session", "worktree_path": "/home/kesha/orchestra"}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2455966Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2456313Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2456774Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2457102Z >       out = asyncio.run(mcp.codex_review(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2457823Z             context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2458498Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2458676Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2458850Z tests/test_codex_bin_resolution.py:80: 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2459377Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2459983Z /usr/lib/python3.12/asyncio/runners.py:194: in run
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2460472Z     return runner.run(main)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2460839Z            ^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2461256Z /usr/lib/python3.12/asyncio/runners.py:118: in run
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2462109Z     return self._loop.run_until_complete(task)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2462574Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2463327Z /usr/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2463929Z     return future.result()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2464288Z            ^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2464669Z app/mcp_stdio.py:4087: in codex_review
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2465324Z     project_context, project_context_receipt = _load_review_project_context(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2466051Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2466592Z     repository = _review_repository_root(cwd)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2467043Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2467515Z app/mcp_stdio.py:3617: in _review_repository_root
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2468182Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2488186Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2488805Z app/mcp_stdio.py:3613: in _git_review_text
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2489397Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2489957Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2490414Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2490776Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2491038Z cwd = '/home/kesha/orchestra', args = ('rev-parse', '--git-common-dir')
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2492441Z completed = CompletedProcess(args=['git', '-C', '/home/kesha/orchestra', 'rev-parse', '--git-common-dir'], returncode=128, stdout=b'', stderr=b"fatal: cannot change to '/home/kesha/orchestra': No such file or directory\n")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2496803Z detail = "fatal: cannot change to '/home/kesha/orchestra': No such file or directory"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2497320Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2497570Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2498045Z         completed = subprocess.run(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2498526Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2499226Z         )
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2499518Z         if completed.returncode != 0:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2500003Z             detail = (completed.stderr or completed.stdout).decode(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2500477Z                 "utf-8", "replace",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2500813Z             ).strip()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2501337Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2502208Z E           ValueError: fatal: cannot change to '/home/kesha/orchestra': No such file or directory
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2502746Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2502884Z app/mcp_stdio.py:3608: ValueError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2503605Z ________________ test_resolved_binary_reaches_the_shell_command ________________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2504044Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2504392Z mcp = <module 'app.mcp_stdio' from '/home/runner/work/orchestra/orchestra/app/mcp_stdio.py'>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2505205Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd3fc5933e0>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2506089Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_resolved_binary_reaches_t0')
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2506577Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2506909Z     def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2507821Z         """Позитивный случай: в команду уходит именно разрешённый путь, а не константа."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2508337Z         started = {}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2508620Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2508927Z         async def fake_api(method, path, **kwargs):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2509329Z             if method == "GET":
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2509808Z                 return {"id": "test-session", "worktree_path": str(tmp_path)}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2510319Z             assert method == "POST"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2510696Z             assert path == "/api/bg/jobs"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2511165Z             started["command"] = kwargs["json"]["config"]["command"]
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2511847Z             return {"id": "bg-test"}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2512203Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2512616Z         monkeypatch.setattr(mcp.shutil, "which", lambda _: "/usr/bin/codex")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2513384Z         monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2513878Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2514361Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2514748Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2515027Z >       result = asyncio.run(mcp.codex_review(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2515606Z             context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2516158Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2516306Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2516461Z tests/test_codex_bin_resolution.py:107: 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2516931Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2517457Z /usr/lib/python3.12/asyncio/runners.py:194: in run
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2517919Z     return runner.run(main)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2518267Z            ^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2518624Z /usr/lib/python3.12/asyncio/runners.py:118: in run
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2519088Z     return self._loop.run_until_complete(task)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2519494Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2519997Z /usr/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2520516Z     return future.result()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2520833Z            ^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2521162Z app/mcp_stdio.py:4087: in codex_review
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2521697Z     project_context, project_context_receipt = _load_review_project_context(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2522326Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2522808Z     repository = _review_repository_root(cwd)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2523392Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2523808Z app/mcp_stdio.py:3617: in _review_repository_root
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2524387Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2525159Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2525616Z app/mcp_stdio.py:3613: in _git_review_text
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2526148Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2526674Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2527105Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2527448Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2527715Z cwd = '/tmp/pytest-of-runner/pytest-0/test_resolved_binary_reaches_t0'
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2528254Z args = ('rev-parse', '--git-common-dir')
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2529638Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_resolved_binary_reaches_t0', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2531185Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2531630Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2531818Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2532271Z         completed = subprocess.run(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2532709Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2533339Z         )
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2533622Z         if completed.returncode != 0:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2534092Z             detail = (completed.stderr or completed.stdout).decode(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2534570Z                 "utf-8", "replace",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2534887Z             ).strip()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2535399Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2536207Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2536976Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2537104Z app/mcp_stdio.py:3608: ValueError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2537661Z ______ test_explicit_send_message_keeps_child_text_reachable_via_manifest ______
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2538118Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2538402Z db = <module 'app.db' from '/home/runner/work/orchestra/orchestra/app/db.py'>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2539092Z spy = <tests.test_fan_report_delivery._SpyManager object at 0x7fd3fc6d9ca0>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2539514Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2539843Z     def test_explicit_send_message_keeps_child_text_reachable_via_manifest(db, spy):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2540763Z         """Прод-роут send_message. Текст, который ребёнок передал, обязан быть
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2541418Z         доступен родителю по пути из манифеста. Не вклейкой в пробуждение."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2541879Z         fb = _open_fan(["c1", "c2"])
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2542248Z         _send("c1", LONG_BODY)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2542603Z         _send("c2", "ok")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2542916Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2543528Z >       assert len(spy.sent) == 1, f"пробуждений {len(spy.sent)}, ждали одно"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2544141Z E       AssertionError: пробуждений 0, ждали одно
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2544540Z E       assert 0 == 1
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2544833Z E        +  where 0 = len([])
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2545388Z E        +    where [] = <tests.test_fan_report_delivery._SpyManager object at 0x7fd3fc6d9ca0>.sent
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2545881Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2546082Z tests/test_fan_report_delivery.py:128: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2546684Z _______ test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text ________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2547129Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2547391Z db = <module 'app.db' from '/home/runner/work/orchestra/orchestra/app/db.py'>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2548123Z spy = <tests.test_fan_report_delivery._SpyManager object at 0x7fd3fc5bc9e0>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2548539Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2548837Z     def test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text(db, spy):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2549600Z         """Молчаливый путь не беднее и не богаче явного: те же поля, свой файл."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2550256Z         fb = _open_fan(["c1", "c2"])
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2550613Z         _send("c1", EXPLICIT_MARKER)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2550976Z         _silent("c2", [SILENT_MARKER])
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2551312Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2551563Z         explicit = _member(fb, "c1")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2551920Z         silent = _member(fb, "c2")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2552288Z         assert set(explicit) == set(silent), (
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2552844Z             f"разный набор полей манифеста: explicit={sorted(explicit)} "
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2553446Z             f"silent={sorted(silent)}"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2553781Z         )
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2554289Z >       assert explicit["report_path"], "явный путь оставил report_path пустым"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2554959Z E       AssertionError: явный путь оставил report_path пустым
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2555404Z E       assert None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2555597Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2555791Z tests/test_fan_report_delivery.py:156: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2556410Z __________ test_t4_subscription_auth_is_reachable_from_isolated_home ___________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2556842Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2557083Z     def test_t4_subscription_auth_is_reachable_from_isolated_home():
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2557756Z         """Изолированный home обязан сохранить доступ к подписочной авторизации.
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2558201Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2558660Z         Замерено живым прогоном: `CODEX_HOME=<изолированный>` + symlink на auth.json →
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2559315Z         реальный ход модели проходит. Без этого воркеры не авторизуются вовсе.
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2559761Z         """
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2560017Z         b = _codex_backend()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2560407Z         prepare = getattr(b, "_prepare_codex_home", None)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2561122Z         assert callable(prepare), "CodexBackend._prepare_codex_home ещё не реализован"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2561853Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2562100Z         home = Path(prepare())
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2562455Z         auth = home / "auth.json"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2563238Z >       assert auth.exists(), "в изолированном CODEX_HOME нет auth.json — Codex не авторизуется"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2564082Z E       AssertionError: в изолированном CODEX_HOME нет auth.json — Codex не авторизуется
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2564640Z E       assert False
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2564934Z E        +  where False = exists()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2565584Z E        +    where exists = PosixPath('/home/runner/.orchestra/codex-home/550e8400-default/auth.json').exists
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2566140Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2566343Z tests/test_mcp_config_isolation.py:376: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2566922Z ____________________ test_usage_visible_to_owner_with_login ____________________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2567337Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2567639Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd3fe71f080>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2568112Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2568237Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2568669Z     async def test_usage_visible_to_owner_with_login(monkeypatch):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2569351Z         _set_auth(monkeypatch)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2569706Z         monkeypatch.setenv("OWNER_MODE", "1")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2570075Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2570326Z         async def _fake_usage_data():
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2570778Z             return {"anthropic": {"five_hour": {"utilization": 7}}}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2571218Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2571632Z         monkeypatch.setattr(system_routes, "_get_usage_data", _fake_usage_data)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2572236Z >       assert await system_routes.get_usage() == {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2572716Z             "anthropic": {"five_hour": {"utilization": 7}},
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2573301Z         }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2573793Z E       AssertionError: assert {'anthropic':...adroom': None} == {'anthropic':...ization': 7}}}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2574389Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2574714Z E         Omitting 1 identical items, use -vv to show
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2575136Z E         Left contains 1 more item:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2575500Z E         {'quota_headroom': None}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2575824Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2576068Z E         Full diff:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2576330Z E           {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2576602Z E               'anthropic': {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2576920Z E                   'five_hour': {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2577265Z E                       'utilization': 7,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2577626Z E                   },
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2577908Z E               },
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2578194Z E         +     'quota_headroom': None,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2578543Z E           }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2578697Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2578849Z tests/test_owner_mode.py:74: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2579391Z _________________ test_rule_constants_travel_with_the_payload __________________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2579809Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2580029Z mapped = <function mapped.<locals>.run at 0x7fd3fe002ca0>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2580373Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2580502Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2580968Z     async def test_rule_constants_travel_with_the_payload(mapped):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2581679Z         """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2582185Z         payload = await mapped(_observation(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2582703Z             anthropic=[_window(10080, 4, window_id="seven_day", label="7d")],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2583682Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2583929Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2584152Z >       assert payload["rule"] == {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2584457Z             "hard_stop_pct": 99.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2584731Z             "tolerance_start_pp": 10.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2585023Z             "tolerance_end_pp": 1.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2585275Z         }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2585654Z E       AssertionError: assert {'curve_expon...pp': 1.0, ...} == {'hard_stop_p...art_pp': 10.0}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2586313Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2586554Z E         Omitting 3 identical items, use -vv to show
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2586874Z E         Left contains 2 more items:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2587183Z E         {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2587475Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2587662Z E         Full diff:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2587869Z E           {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2588085Z E         +     'curve_exponent': 2.5,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2588348Z E         +     'curved_lanes': [
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2588595Z E         +         'sol',
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2588811Z E         +     ],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2589030Z E               'hard_stop_pct': 99.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2589301Z E               'tolerance_end_pp': 1.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2589589Z E               'tolerance_start_pp': 10.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2589852Z E           }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2589971Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2590097Z tests/test_quota_map_api.py:167: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2590507Z ______________ test_rule_constants_reflect_environment_overrides _______________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2590967Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2591128Z mapped = <function mapped.<locals>.run at 0x7fd3fe003920>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2591565Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd3fe70b920>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2591852Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2591957Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2592327Z     async def test_rule_constants_reflect_environment_overrides(mapped, monkeypatch):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2592751Z         gate = _reload_quota_gate_with_env(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2593204Z             monkeypatch,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2593468Z             QUOTA_HARD_STOP_PCT="92",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2593747Z             QUOTA_TOLERANCE_START_PP="13",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2594031Z             QUOTA_TOLERANCE_END_PP="2",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2594291Z             QUOTA_GATED_LANES="",
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2594526Z         )
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2594738Z         payload = await mapped(_observation(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2595126Z             codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2595489Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2595667Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2595859Z >       assert payload["rule"] == {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2596139Z             "hard_stop_pct": gate.HARD_STOP_PCT,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2596470Z             "tolerance_start_pp": gate.TOLERANCE_START_PP,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2596814Z             "tolerance_end_pp": gate.TOLERANCE_END_PP,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2597087Z         }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2597435Z E       AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'hard_stop_p...art_pp': 13.0}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2597839Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2598066Z E         Omitting 3 identical items, use -vv to show
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2598367Z E         Left contains 2 more items:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2598661Z E         {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2598948Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2599142Z E         Full diff:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2599349Z E           {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2599553Z E         +     'curve_exponent': 2.5,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2599821Z E         +     'curved_lanes': [
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2600068Z E         +         'sol',
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2600289Z E         +     ],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2600500Z E               'hard_stop_pct': 92.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2600760Z E               'tolerance_end_pp': 2.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2601037Z E               'tolerance_start_pp': 13.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2601295Z E           }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2601400Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2601533Z tests/test_quota_map_api.py:188: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2601929Z ______________ test_release_fields_arrive_for_each_gating_status _______________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2602221Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2602366Z mapped = <function mapped.<locals>.run at 0x7fd3fe032200>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2602598Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2602690Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2603167Z     async def test_release_fields_arrive_for_each_gating_status(mapped):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2603698Z         progress = 0.5
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2603973Z         resets_at = _iso(NOW + 300 * 60 * (1.0 - progress))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2604262Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2604489Z         payload_open = await mapped(_observation(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2604902Z             codex=[_window(300, 55.5, window_id="primary", label="5h", progress=progress)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2605273Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2605537Z         lane_open = _lane(_pool(payload_open, "codex"), "sol")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2605894Z         assert lane_open["release_status"] == "open"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2606229Z         assert lane_open["release_in_seconds"] is None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2606502Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2606727Z         payload_opens_in = await mapped(_observation(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2607129Z             codex=[_window(300, 60.0, window_id="primary", label="5h", progress=progress)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2607503Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2607791Z         lane_opens_in = _lane(_pool(payload_opens_in, "codex"), "sol")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2608292Z         expected_status, expected_seconds = _expected_release_status(60.0, progress, resets_at)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2608924Z >       assert lane_opens_in["release_status"] == expected_status
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2609289Z E       AssertionError: assert 'open' == 'opens_in'
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2609577Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2609763Z E         - opens_in
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2609969Z E         + open
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2610084Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2610215Z tests/test_quota_map_api.py:414: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2610628Z ____________ test_line_point_is_computed_server_side_for_every_pool ____________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2610921Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2611070Z mapped = <function mapped.<locals>.run at 0x7fd3fe031440>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2611301Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2611397Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2611736Z     async def test_line_point_is_computed_server_side_for_every_pool(mapped):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2612142Z         payload = await mapped(_observation(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2612541Z             anthropic=[_window(10080, 4, window_id="seven_day", label="7d", progress=0.5)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2613256Z             codex=[_window(300, 4, window_id="primary", label="5h", progress=0.25)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2613640Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2613820Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2614020Z         claude = _pool(payload, "anthropic")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2614354Z         assert claude["window"]["progress"] == pytest.approx(0.5)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2614727Z >       assert claude["tolerance_pp"] == pytest.approx(5.5)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2615159Z E       assert 7.5 == 5.5 ± 5.5e-06
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2615409Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2615613Z E         comparison failed
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2615833Z E         Obtained: 7.5
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2616099Z E         Expected: 5.5 ± 5.5e-06
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2616252Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.2616383Z tests/test_quota_map_api.py:435: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9379186Z ______________ test_gated_and_free_lanes_split_on_the_same_number ______________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9379838Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9380030Z mapped = <function mapped.<locals>.run at 0x7fd3fe030180>
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9380294Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9380407Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9380763Z     async def test_gated_and_free_lanes_split_on_the_same_number(mapped):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9381646Z         """90% в 10% окна: Sol и Claude стоят, Luna и Spark работают."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9382035Z         payload = await mapped(_observation(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9382467Z             anthropic=[_window(10080, 90, window_id="seven_day", label="7d", progress=0.1)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9383234Z             codex=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9384018Z             codex_spark=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9384611Z         ))
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9385708Z     
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9385933Z         claude = _pool(payload, "anthropic")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9386289Z >       assert _lane(claude, "claude")["gated"] is True
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9386770Z E       assert False is True
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9387002Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9387192Z tests/test_quota_map_api.py:454: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9387882Z _________ test_readiness_endpoint_returns_the_execution_time_decision __________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9388376Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9388520Z isolated_usage = None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9388730Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9388867Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9389468Z     async def test_readiness_endpoint_returns_the_execution_time_decision(isolated_usage):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9390599Z         """95% без разбираемого `resets_at` — линию считать нечем, действует жёсткий стоп."""
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9391347Z         system._usage_cache.update({"data": _anthropic(95), "ts": NOW})
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9392042Z         result = await system.usage_readiness("claude-opus-5[1m]")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9392613Z         assert result["provider"] == "anthropic"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9393685Z >       assert result["lane"] == "claude" and result["gated"] is True
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9394286Z E       AssertionError: assert ('claude' == 'claude'
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9394717Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9395007Z E           claude and False is True)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9395257Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9395448Z tests/test_usage_readiness.py:197: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9396044Z ________________ test_readiness_endpoint_blocks_above_the_line _________________
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9396493Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9396614Z isolated_usage = None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9396814Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9396968Z     @pytest.mark.asyncio
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9397462Z     async def test_readiness_endpoint_blocks_above_the_line(isolated_usage):
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9398029Z         data = _anthropic(95)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9398617Z         # Ровно середина недельного окна: линия 55.5%, факт 95% — выше неё.
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9399200Z         data["seven_day"]["resets_at"] = datetime.fromtimestamp(
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9399719Z             NOW + 10080 * 60 / 2, timezone.utc,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9400102Z         ).isoformat()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9400478Z         system._usage_cache.update({"data": data, "ts": NOW})
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9401040Z         result = await system.usage_readiness("claude-opus-5[1m]")
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9401664Z         assert result["state"] == "blocked" and result["allowed"] is False
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9402245Z >       assert result["limit_pct"] == pytest.approx(55.5)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9402777Z E       assert None == 55.5 ± 5.6e-05
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9403315Z E         
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9403583Z E         comparison failed
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9403913Z E         Obtained: None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9404308Z E         Expected: 55.5 ± 5.6e-05
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9404544Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9404726Z tests/test_usage_readiness.py:213: AssertionError
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9405259Z =============================== warnings summary ===============================
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9406127Z tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9408105Z   /home/runner/work/orchestra/orchestra/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__get for function open_artifact at /home/runner/work/orchestra/orchestra/app/routes/artifacts.py
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9409951Z     warnings.warn(message, stacklevel=1)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9410222Z 
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9410528Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9411208Z =========================== short test summary info ============================
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9412460Z FAILED tests/test_codex_bin_resolution.py::test_missing_binary_gives_actionable_text_instead_of_exit_127 - ValueError: fatal: cannot change to '/home/kesha/orchestra': No such file or directory
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9414686Z FAILED tests/test_codex_bin_resolution.py::test_resolved_binary_reaches_the_shell_command - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9416564Z FAILED tests/test_fan_report_delivery.py::test_explicit_send_message_keeps_child_text_reachable_via_manifest - AssertionError: пробуждений 0, ждали одно
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9417499Z assert 0 == 1
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9417766Z  +  where 0 = len([])
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9418284Z  +    where [] = <tests.test_fan_report_delivery._SpyManager object at 0x7fd3fc6d9ca0>.sent
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9419643Z FAILED tests/test_fan_report_delivery.py::test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text - AssertionError: явный путь оставил report_path пустым
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9420599Z assert None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9421790Z FAILED tests/test_mcp_config_isolation.py::test_t4_subscription_auth_is_reachable_from_isolated_home - AssertionError: в изолированном CODEX_HOME нет auth.json — Codex не авторизуется
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9422849Z assert False
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9423476Z  +  where False = exists()
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9424086Z  +    where exists = PosixPath('/home/runner/.orchestra/codex-home/550e8400-default/auth.json').exists
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9425334Z FAILED tests/test_owner_mode.py::test_usage_visible_to_owner_with_login - AssertionError: assert {'anthropic':...adroom': None} == {'anthropic':...ization': 7}}}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9426287Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9426588Z   Omitting 1 identical items, use -vv to show
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9427002Z   Left contains 1 more item:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9427336Z   {'quota_headroom': None}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9427659Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9427918Z   Full diff:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9428166Z     {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9428423Z         'anthropic': {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9428725Z             'five_hour': {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9429044Z                 'utilization': 7,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9429387Z             },
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9429644Z         },
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9429902Z   +     'quota_headroom': None,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9430226Z     }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9431144Z FAILED tests/test_quota_map_api.py::test_rule_constants_travel_with_the_payload - AssertionError: assert {'curve_expon...pp': 1.0, ...} == {'hard_stop_p...art_pp': 10.0}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9432135Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9432426Z   Omitting 3 identical items, use -vv to show
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9432835Z   Left contains 2 more items:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9433373Z   {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9433767Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9433996Z   Full diff:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9434240Z     {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9434493Z   +     'curve_exponent': 2.5,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9434817Z   +     'curved_lanes': [
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9435110Z   +         'sol',
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9435368Z   +     ],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9435628Z         'hard_stop_pct': 99.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9435981Z         'tolerance_end_pp': 1.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9436343Z         'tolerance_start_pp': 10.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9436682Z     }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9437614Z FAILED tests/test_quota_map_api.py::test_rule_constants_reflect_environment_overrides - AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'hard_stop_p...art_pp': 13.0}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9438618Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9438903Z   Omitting 3 identical items, use -vv to show
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9439300Z   Left contains 2 more items:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9439660Z   {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9440047Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9440276Z   Full diff:
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9440529Z     {
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9440776Z   +     'curve_exponent': 2.5,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9441101Z   +     'curved_lanes': [
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9441397Z   +         'sol',
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9441656Z   +     ],
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9441912Z         'hard_stop_pct': 92.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9442242Z         'tolerance_end_pp': 2.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9442585Z         'tolerance_start_pp': 13.0,
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9443231Z     }
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9443939Z FAILED tests/test_quota_map_api.py::test_release_fields_arrive_for_each_gating_status - AssertionError: assert 'open' == 'opens_in'
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9444747Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9444976Z   - opens_in
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9445226Z   + open
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9446031Z FAILED tests/test_quota_map_api.py::test_line_point_is_computed_server_side_for_every_pool - assert 7.5 == 5.5 ± 5.5e-06
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9446766Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9447004Z   comparison failed
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9447283Z   Obtained: 7.5
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9447607Z   Expected: 5.5 ± 5.5e-06
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9448252Z FAILED tests/test_quota_map_api.py::test_gated_and_free_lanes_split_on_the_same_number - assert False is True
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9449475Z FAILED tests/test_usage_readiness.py::test_readiness_endpoint_returns_the_execution_time_decision - AssertionError: assert ('claude' == 'claude'
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9450375Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9450639Z     claude and False is True)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9451458Z FAILED tests/test_usage_readiness.py::test_readiness_endpoint_blocks_above_the_line - assert None == 55.5 ± 5.6e-05
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9452382Z   
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9452629Z   comparison failed
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9452905Z   Obtained: None
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9453418Z   Expected: 55.5 ± 5.6e-05
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:30.9453905Z 13 failed, 582 passed, 8 skipped, 4 deselected, 1 warning in 65.04s (0:01:05)
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4515722Z Command exited with non-zero status 1
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4524023Z 	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_acceptance.py tests/test_api.py tests/test_audit0901_mcp.py tests/test_auth.py tests/test_backend_routing.py tests/test_catalog_api.py tests/test_codex_bin_resolution.py tests/test_compact_pending_ack_467.py tests/test_delivery_head_of_line_block.py tests/test_fan_barrier.py tests/test_fan_report_delivery.py tests/test_frontend_context_panel_468.py tests/test_hot_apply.py tests/test_kb_promote_facts_script_409.py tests/test_knowledge_runtime_detail_summary.py tests/test_live_broker.py tests/test_mcp_config_isolation.py tests/test_merge_conflict_report_423.py tests/test_merge_stuck.py tests/test_migrate_agent.py tests/test_native_history_import.py tests/test_orchestra_layout_dirty_430.py tests/test_owner_mode.py tests/test_portfolio_attention_418.py tests/test_production_db_isolation.py tests/test_project_roadmap_backend_425.py tests/test_quota_map_api.py tests/test_restart_fd_hygiene.py tests/test_review_coverage_target_drift_474.py tests/test_review_receipt_terminal_436.py tests/test_runtime_history.py tests/test_secret_mask.py tests/test_sessions_conditional.py tests/test_subagents.py tests/test_task_binding_418.py tests/test_task_repair_completion_422.py tests/test_tasks_pm_pipeline.py tests/test_tg_file_deliveries.py tests/test_tm_projection_hotpath_395.py tests/test_undelivered_queue.py tests/test_usage_readiness.py tests/test_workspace.py"
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4532432Z 	User time (seconds): 41.66
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4532946Z 	System time (seconds): 17.38
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4533561Z 	Percent of CPU this job got: 87%
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4534053Z 	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:07.13
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4534575Z 	Average shared text size (kbytes): 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4535059Z 	Average unshared data size (kbytes): 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4535503Z 	Average stack size (kbytes): 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4535888Z 	Average total size (kbytes): 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4536302Z 	Maximum resident set size (kbytes): 243008
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4536770Z 	Average resident set size (kbytes): 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4537276Z 	Major (requiring I/O) page faults: 296
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4537768Z 	Minor (reclaiming a frame) page faults: 1737690
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4538268Z 	Voluntary context switches: 156627
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4538701Z 	Involuntary context switches: 3701
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4539097Z 	Swaps: 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4539414Z 	File system inputs: 125832
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4540163Z 	File system outputs: 1446808
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4540561Z 	Socket messages sent: 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4540940Z 	Socket messages received: 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4541332Z 	Signals delivered: 0
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4541674Z 	Page size (bytes): 4096
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4542039Z 	Exit status: 1
+test (0)	pytest shard 0 of 6	2026-09-05T08:59:31.4552360Z ##[error]Process completed with exit code 1.
+test (0)	Post Run actions/checkout@v4	﻿2026-09-05T08:59:31.4696620Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.4697855Z Post job cleanup.
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5597612Z [command]/usr/bin/git version
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5646298Z git version 2.55.0
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5689799Z Temporarily overriding HOME='/home/runner/work/_temp/a2f011fb-4f0b-4006-8272-cb3a5b16386d' before making global git config changes
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5690822Z Adding repository directory to the temporary git global config as a safe directory
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5696782Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5742496Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.5780816Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.6072019Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.6099399Z http.https://github.com/.extraheader
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.6111246Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.6149437Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.6456190Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (0)	Post Run actions/checkout@v4	2026-09-05T08:59:31.6501386Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (0)	Complete job	﻿2026-09-05T08:59:31.6940261Z Cleaning up orphan processes
+test (0)	Complete job	2026-09-05T08:59:31.7283495Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, astral-sh/setup-uv@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
