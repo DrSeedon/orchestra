@@ -1,0 +1,431 @@
+{
+  "root": "/mnt/data/Projects/Python/orchestra",
+  "head": "7fb6dc66af0d35b319affdc5c8b505110b32032f",
+  "cpu": 12,
+  "test_files": 252,
+  "xdist": false,
+  "shell_rg": "/home/maxim/.npm-global/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-path/rg",
+  "service_path_rg": "/usr/bin/rg",
+  "env_keys_read": 19,
+  "sample": {
+    "id_gt": 505425,
+    "id_lte": 605425,
+    "first_ts": "2026-08-25T17:58:40.633096+00:00",
+    "last_ts": "2026-09-05T10:59:24.961184+00:00",
+    "counts": {
+      "tool_result": 33589,
+      "text": 10004,
+      "status": 14656,
+      "tool": 34217,
+      "bash_has_shell_separator": 13767,
+      "subagent_start": 1478,
+      "subagent_end": 1464,
+      "pytest_mentions_tests_path": 69,
+      "user_message": 4082,
+      "warning": 58,
+      "error": 202,
+      "system": 126,
+      "plan": 14
+    },
+    "tool_counts": {
+      "Bash": 22419,
+      "Edit": 636,
+      "Read": 541,
+      "mcp__orchestra__bg_create": 531,
+      "mcp__orchestra__worker_wip": 150,
+      "mcp__orchestra__merge_worker": 327,
+      "mcp__orchestra__knowledge": 87,
+      "mcp__orchestra__send_message": 1694,
+      "mcp__orchestra__bg_list": 19,
+      "mcp__orchestra__search_memory": 82,
+      "FileChange": 4706,
+      "mcp__orchestra__task_get": 109,
+      "mcp__orchestra__task_update": 48,
+      "mcp__orchestra__send_file": 244,
+      "mcp__orchestra__codex_review": 412,
+      "mcp__orchestra__get_worker_logs": 13,
+      "mcp__orchestra__list_agents": 70,
+      "Write": 160,
+      "mcp__orchestra__report_bug": 27,
+      "mcp__orchestra__spawn_worker": 129,
+      "mcp__orchestra__bg_cancel": 18,
+      "mcp__orchestra__task_create": 165,
+      "mcp__orchestra__switch_worker_branch": 58,
+      "mcp__orchestra__file_delivery_status": 17,
+      "mcp__orchestra__task_list": 15,
+      "mcp__orchestra__update_worker_description": 3,
+      "mcp__orchestra__open_fan": 1,
+      "mcp__orchestra__resolve_merge_operation": 17,
+      "mcp__orchestra__get_worker_info": 22,
+      "mcp__orchestra__update_progress": 24,
+      "mcp__orchestra__check_conflict": 2,
+      "WebSearch": 453,
+      "ViewImage": 711,
+      "mcp__orchestra__send_files": 42,
+      "mcp__orchestra__stop_worker": 15,
+      "mcp__orchestra__kill_worker": 107,
+      "Skill": 23,
+      "mcp__orchestra__run_fan": 11,
+      "ToolSearch": 16,
+      "AskUserQuestion": 2,
+      "mcp__orchestra__acquire_test_lock": 9,
+      "mcp__orchestra__release_test_lock": 9,
+      "mcp__orchestra__publish_artifact": 1,
+      "ImageGeneration": 1,
+      "WebFetch": 1,
+      "mcp__orchestra__test_lock_status": 2,
+      "mcp__orchestra__record_review_outcome": 54,
+      "mcp__orchestra__change_worker_model": 7,
+      "mcp__orchestra__message_delivery_status": 2,
+      "mcp__orchestra__set_worker_owned_dirs": 3,
+      "mcp__orchestra__send_chart": 2
+    },
+    "paired": {
+      "Bash": {
+        "n": 18752,
+        "hours": 21.434,
+        "median_sec": 0.082,
+        "p95_sec": 15.71,
+        "over30": 472
+      }
+    },
+    "shell_categories": {
+      "search": {
+        "n": 5468,
+        "hours": 5.67,
+        "median_sec": 0.036,
+        "p95_sec": 11.239,
+        "over30": 122
+      },
+      "pytest": {
+        "n": 2058,
+        "hours": 4.083,
+        "median_sec": 3.966,
+        "p95_sec": 21.939,
+        "over30": 70
+      },
+      "other": {
+        "n": 10812,
+        "hours": 10.94,
+        "median_sec": 0.062,
+        "p95_sec": 15.254,
+        "over30": 259
+      },
+      "curl": {
+        "n": 335,
+        "hours": 0.328,
+        "median_sec": 0.974,
+        "p95_sec": 11.982,
+        "over30": 6
+      },
+      "sleep": {
+        "n": 70,
+        "hours": 0.387,
+        "median_sec": 8.123,
+        "p95_sec": 90.032,
+        "over30": 15
+      },
+      "install": {
+        "n": 9,
+        "hours": 0.026,
+        "median_sec": 11.547,
+        "p95_sec": 20.229,
+        "over30": 0
+      }
+    },
+    "orchestra_categories": {
+      "search": {
+        "n": 2785,
+        "hours": 0.383,
+        "median_sec": 0.009,
+        "p95_sec": 0.83,
+        "over30": 9
+      },
+      "pytest": {
+        "n": 1879,
+        "hours": 3.91,
+        "median_sec": 4.101,
+        "p95_sec": 23.404,
+        "over30": 70
+      },
+      "other": {
+        "n": 5002,
+        "hours": 1.509,
+        "median_sec": 0.019,
+        "p95_sec": 3.593,
+        "over30": 13
+      },
+      "curl": {
+        "n": 182,
+        "hours": 0.101,
+        "median_sec": 0.738,
+        "p95_sec": 8.024,
+        "over30": 1
+      },
+      "sleep": {
+        "n": 9,
+        "hours": 0.019,
+        "median_sec": 4.14,
+        "p95_sec": 20.073,
+        "over30": 0
+      },
+      "install": {
+        "n": 1,
+        "hours": 0.002,
+        "median_sec": 7.23,
+        "p95_sec": 7.23,
+        "over30": 0
+      }
+    },
+    "recent_orchestra_since_20260829": {
+      "search": {
+        "n": 2350,
+        "hours": 0.341,
+        "median_sec": 0.005,
+        "p95_sec": 0.942,
+        "over30": 8
+      },
+      "other": {
+        "n": 4178,
+        "hours": 0.751,
+        "median_sec": 0.02,
+        "p95_sec": 3.16,
+        "over30": 7
+      },
+      "pytest": {
+        "n": 1568,
+        "hours": 2.971,
+        "median_sec": 4.101,
+        "p95_sec": 21.199,
+        "over30": 44
+      },
+      "curl": {
+        "n": 146,
+        "hours": 0.087,
+        "median_sec": 0.803,
+        "p95_sec": 8.073,
+        "over30": 1
+      },
+      "sleep": {
+        "n": 6,
+        "hours": 0.009,
+        "median_sec": 1.989,
+        "p95_sec": 20.073,
+        "over30": 0
+      },
+      "install": {
+        "n": 1,
+        "hours": 0.002,
+        "median_sec": 7.23,
+        "p95_sec": 7.23,
+        "over30": 0
+      }
+    },
+    "slowest": [
+      {
+        "log_id": 605316,
+        "seconds": 1313.34,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "timeout",
+          "node"
+        ]
+      },
+      {
+        "log_id": 517038,
+        "seconds": 815.19,
+        "category": "other",
+        "orchestra": true,
+        "features": [
+          "python"
+        ]
+      },
+      {
+        "log_id": 517000,
+        "seconds": 630.03,
+        "category": "other",
+        "orchestra": true,
+        "features": [
+          "python"
+        ]
+      },
+      {
+        "log_id": 513904,
+        "seconds": 600.37,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "python",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 531078,
+        "seconds": 600.08,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 517095,
+        "seconds": 598.09,
+        "category": "other",
+        "orchestra": true,
+        "features": [
+          "python"
+        ]
+      },
+      {
+        "log_id": 572813,
+        "seconds": 561.65,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "node"
+        ]
+      },
+      {
+        "log_id": 539172,
+        "seconds": 560.12,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 552259,
+        "seconds": 550.2,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 552357,
+        "seconds": 550.13,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 552502,
+        "seconds": 550.1,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 552418,
+        "seconds": 550.07,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 526532,
+        "seconds": 521.57,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "python",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 557466,
+        "seconds": 512.65,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 583180,
+        "seconds": 509.81,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "python"
+        ]
+      },
+      {
+        "log_id": 572812,
+        "seconds": 504.81,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "node"
+        ]
+      },
+      {
+        "log_id": 513972,
+        "seconds": 441.3,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "python",
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 539817,
+        "seconds": 433.3,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 521820,
+        "seconds": 350.24,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "ssh"
+        ]
+      },
+      {
+        "log_id": 557277,
+        "seconds": 344.04,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "ssh"
+        ]
+      }
+    ],
+    "unmatched_starts": 4983
+  },
+  "method": "Last 100000 log ID positions, all projects; same-session tool_use_id pairs. Arrival timestamp intervals, not CPU time. Categories are command-text heuristics; composite commands overlap semantically."
+}

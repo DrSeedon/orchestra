@@ -1,0 +1,488 @@
+{
+  "root": "/home/kesha/orchestra",
+  "head": "4b8a3c56827668ab26f0e35da334e08c11f77ee1",
+  "cpu": 8,
+  "test_files": 251,
+  "xdist": false,
+  "shell_rg": null,
+  "service_path_rg": null,
+  "env_keys_read": 23,
+  "sample": {
+    "id_gt": 172759,
+    "id_lte": 272759,
+    "first_ts": "2026-08-18T09:13:28.215291+00:00",
+    "last_ts": "2026-09-05T10:54:02.955773+00:00",
+    "counts": {
+      "tool_result": 36307,
+      "text": 7517,
+      "status": 9698,
+      "tool": 37230,
+      "bash_has_shell_separator": 16049,
+      "subagent_end": 2220,
+      "subagent_start": 2265,
+      "user_message": 3983,
+      "error": 354,
+      "pytest_mentions_tests_path": 117,
+      "warning": 341,
+      "plan": 21,
+      "system": 44
+    },
+    "tool_counts": {
+      "Edit": 1251,
+      "Bash": 23591,
+      "Read": 1340,
+      "mcp__orchestra__send_message": 1786,
+      "mcp__orchestra__worker_wip": 340,
+      "mcp__orchestra__kill_worker": 160,
+      "mcp__orchestra__merge_worker": 519,
+      "mcp__orchestra__task_create": 214,
+      "mcp__orchestra__task_update": 131,
+      "ToolSearch": 95,
+      "WebSearch": 501,
+      "WebFetch": 29,
+      "Write": 402,
+      "Skill": 35,
+      "mcp__orchestra__spawn_worker": 195,
+      "mcp__orchestra__update_progress": 23,
+      "mcp__orchestra__search_memory": 195,
+      "mcp__orchestra__send_file": 377,
+      "mcp__orchestra__release_test_lock": 23,
+      "mcp__orchestra__list_agents": 264,
+      "mcp__orchestra__acquire_test_lock": 22,
+      "mcp__orchestra__test_lock_status": 10,
+      "mcp__orchestra__bg_create": 251,
+      "mcp__yandex-direct__get_campaign_spend": 9,
+      "mcp__yandex-direct__get_unified_campaign": 9,
+      "mcp__yandex-direct__manage_unified_campaigns": 2,
+      "mcp__orchestra__notify_user": 8,
+      "mcp__orchestra__change_worker_model": 36,
+      "mcp__orchestra__task_get": 116,
+      "mcp__yandex-direct__get_statistics": 48,
+      "mcp__yandex-direct__get_campaign": 7,
+      "mcp__yandex-direct__get_search_queries": 27,
+      "mcp__yandex-direct__list_unified_ad_groups": 1,
+      "mcp__yandex-direct__get_account_balance": 18,
+      "mcp__orchestra__delivery_status": 8,
+      "mcp__orchestra__bg_list": 24,
+      "mcp__orchestra__bg_cancel": 35,
+      "mcp__yandex-direct__list_campaigns": 21,
+      "mcp__orchestra__get_worker_logs": 17,
+      "mcp__orchestra__task_list": 41,
+      "mcp__orchestra__codex_review": 273,
+      "mcp__orchestra__report_bug": 44,
+      "mcp__yandex-direct__create_unified_campaign": 5,
+      "mcp__yandex-direct__update_unified_campaign": 1,
+      "mcp__yandex-direct__get_campaign_negative_keywords": 3,
+      "mcp__yandex-direct__list_ad_groups": 7,
+      "mcp__yandex-direct__list_keywords": 4,
+      "mcp__yandex-direct__list_ads": 9,
+      "mcp__yandex-direct__create_ad_group": 5,
+      "mcp__yandex-direct__add_keywords": 5,
+      "mcp__yandex-direct__create_text_ad": 15,
+      "mcp__yandex-direct__configure_autotargeting": 5,
+      "mcp__yandex-direct__set_campaign_negative_keywords": 3,
+      "mcp__yandex-direct__moderate_ads": 1,
+      "mcp__orchestra__stop_worker": 43,
+      "FileChange": 2832,
+      "mcp__yandex-direct__get_bid_adjustments": 14,
+      "mcp__yandex-direct__get_changes": 1,
+      "mcp__yandex-direct__list_negative_keyword_shared_sets": 11,
+      "mcp__yandex-direct__manage_negative_keyword_shared_sets": 1,
+      "mcp__yandex-direct__link_negative_keyword_sets": 1,
+      "mcp__websearch__search": 3,
+      "mcp__orchestra__list_orchestrators": 14,
+      "mcp__claude_ai_Google_Drive__get_file_metadata": 1,
+      "bash": 464,
+      "grep": 1,
+      "read": 18,
+      "edit": 132,
+      "file": 155,
+      "send_message": 27,
+      "task_get": 4,
+      "search_memory": 4,
+      "mcp__orchestra__open_fan": 3,
+      "write": 31,
+      "review": 7,
+      "codex_review": 6,
+      "todo_write": 1,
+      "mcp__orchestra__check_conflict": 3,
+      "send_file": 3,
+      "acquire_test_lock": 1,
+      "bg_create": 2,
+      "list_agents": 1,
+      "release_test_lock": 1,
+      "mcp__orchestra__get_worker_info": 26,
+      "mcp__orchestra__switch_worker_branch": 75,
+      "ViewImage": 473,
+      "mcp__orchestra__retry_initial_delivery": 1,
+      "mcp__orchestra__update_worker_description": 1,
+      "mcp__orchestra__resolve_merge_operation": 19,
+      "mcp__orchestra__message_delivery_status": 232,
+      "ImageGeneration": 7,
+      "mcp__orchestra__get_account_balance": 1,
+      "mcp__claude_ai_Google_Drive__search_files": 1,
+      "mcp__orchestra__send_files": 11,
+      "mcp__orchestra__knowledge": 1,
+      "mcp__orchestra__file_delivery_status": 13,
+      "mcp__websearch__generate_image": 1,
+      "mcp__orchestra__run_fan": 8,
+      "mcp__orchestra__task_create_status": 1,
+      "mcp__yandex-direct__manage_campaigns": 2,
+      "mcp__orchestra__record_review_outcome": 3,
+      "mcp__orchestra__send_chart": 3,
+      "mcp__orchestra__set_worker_owned_dirs": 5
+    },
+    "paired": {
+      "Bash": {
+        "n": 20989,
+        "hours": 44.194,
+        "median_sec": 0.378,
+        "p95_sec": 36.573,
+        "over30": 1267
+      }
+    },
+    "shell_categories": {
+      "other": {
+        "n": 11687,
+        "hours": 12.843,
+        "median_sec": 0.265,
+        "p95_sec": 18.614,
+        "over30": 349
+      },
+      "search": {
+        "n": 5562,
+        "hours": 4.953,
+        "median_sec": 0.24,
+        "p95_sec": 7.081,
+        "over30": 140
+      },
+      "pytest": {
+        "n": 2848,
+        "hours": 22.799,
+        "median_sec": 14.371,
+        "p95_sec": 106.709,
+        "over30": 672
+      },
+      "sleep": {
+        "n": 175,
+        "hours": 2.354,
+        "median_sec": 24.065,
+        "p95_sec": 120.639,
+        "over30": 74
+      },
+      "curl": {
+        "n": 680,
+        "hours": 1.19,
+        "median_sec": 1.256,
+        "p95_sec": 25.585,
+        "over30": 31
+      },
+      "install": {
+        "n": 37,
+        "hours": 0.055,
+        "median_sec": 1.731,
+        "p95_sec": 20.429,
+        "over30": 1
+      }
+    },
+    "orchestra_categories": {
+      "other": {
+        "n": 4894,
+        "hours": 2.403,
+        "median_sec": 0.167,
+        "p95_sec": 6.98,
+        "over30": 56
+      },
+      "search": {
+        "n": 2516,
+        "hours": 1.319,
+        "median_sec": 0.196,
+        "p95_sec": 3.326,
+        "over30": 31
+      },
+      "sleep": {
+        "n": 87,
+        "hours": 1.669,
+        "median_sec": 42.348,
+        "p95_sec": 151.544,
+        "over30": 50
+      },
+      "curl": {
+        "n": 247,
+        "hours": 0.408,
+        "median_sec": 0.709,
+        "p95_sec": 13.23,
+        "over30": 6
+      },
+      "pytest": {
+        "n": 1861,
+        "hours": 15.211,
+        "median_sec": 14.858,
+        "p95_sec": 117.299,
+        "over30": 427
+      },
+      "install": {
+        "n": 2,
+        "hours": 0.001,
+        "median_sec": 1.667,
+        "p95_sec": 1.667,
+        "over30": 0
+      }
+    },
+    "recent_orchestra_since_20260829": {
+      "other": {
+        "n": 1565,
+        "hours": 0.727,
+        "median_sec": 0.218,
+        "p95_sec": 7.198,
+        "over30": 11
+      },
+      "search": {
+        "n": 855,
+        "hours": 0.653,
+        "median_sec": 0.207,
+        "p95_sec": 5.658,
+        "over30": 17
+      },
+      "pytest": {
+        "n": 513,
+        "hours": 1.721,
+        "median_sec": 8.812,
+        "p95_sec": 32.747,
+        "over30": 35
+      },
+      "curl": {
+        "n": 87,
+        "hours": 0.323,
+        "median_sec": 0.998,
+        "p95_sec": 57.506,
+        "over30": 6
+      },
+      "sleep": {
+        "n": 36,
+        "hours": 0.277,
+        "median_sec": 20.366,
+        "p95_sec": 60.409,
+        "over30": 10
+      }
+    },
+    "slowest": [
+      {
+        "log_id": 236128,
+        "seconds": 1187.12,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "python"
+        ]
+      },
+      {
+        "log_id": 183489,
+        "seconds": 601.41,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 184210,
+        "seconds": 601.34,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "grep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 184483,
+        "seconds": 601.13,
+        "category": "sleep",
+        "orchestra": true,
+        "features": [
+          "sleep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 184397,
+        "seconds": 600.67,
+        "category": "sleep",
+        "orchestra": true,
+        "features": [
+          "sleep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 180900,
+        "seconds": 600.3,
+        "category": "pytest",
+        "orchestra": false,
+        "features": [
+          "pytest",
+          "grep",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 180770,
+        "seconds": 557.84,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "sleep",
+          "grep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 241304,
+        "seconds": 500.73,
+        "category": "curl",
+        "orchestra": true,
+        "features": [
+          "curl",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 173308,
+        "seconds": 500.37,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "grep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 174241,
+        "seconds": 486.53,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "grep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 175347,
+        "seconds": 460.86,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 183660,
+        "seconds": 450.03,
+        "category": "pytest",
+        "orchestra": false,
+        "features": [
+          "pytest",
+          "grep",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 195556,
+        "seconds": 446.35,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 210742,
+        "seconds": 441.31,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "python"
+        ]
+      },
+      {
+        "log_id": 184662,
+        "seconds": 421.65,
+        "category": "search",
+        "orchestra": true,
+        "features": [
+          "sleep",
+          "grep",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 216588,
+        "seconds": 420.21,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "timeout"
+        ]
+      },
+      {
+        "log_id": 180663,
+        "seconds": 414.08,
+        "category": "search",
+        "orchestra": false,
+        "features": [
+          "grep",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 235831,
+        "seconds": 401.19,
+        "category": "other",
+        "orchestra": false,
+        "features": [
+          "python"
+        ]
+      },
+      {
+        "log_id": 180811,
+        "seconds": 394.83,
+        "category": "pytest",
+        "orchestra": false,
+        "features": [
+          "pytest",
+          "grep",
+          "timeout",
+          "python"
+        ]
+      },
+      {
+        "log_id": 210254,
+        "seconds": 372.26,
+        "category": "pytest",
+        "orchestra": true,
+        "features": [
+          "pytest",
+          "python"
+        ]
+      }
+    ],
+    "unmatched_starts": 3228
+  },
+  "method": "Last 100000 log ID positions, all projects; same-session tool_use_id pairs. Arrival timestamp intervals, not CPU time. Categories are command-text heuristics; composite commands overlap semantically."
+}

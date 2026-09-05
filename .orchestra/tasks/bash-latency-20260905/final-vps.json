@@ -1,0 +1,90 @@
+[
+  {
+    "workers": 0,
+    "seconds": 33.526,
+    "peak_tree_rss_mb": 194.4,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "head": "4b8a3c56827668ab26f0e35da334e08c11f77ee1",
+    "python": "3.12.3",
+    "app_module": "/home/kesha/orchestra/worktrees/bash-latency-20260905/app/__init__.py",
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  },
+  {
+    "workers": 2,
+    "seconds": 23.611,
+    "peak_tree_rss_mb": 428.7,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "head": "4b8a3c56827668ab26f0e35da334e08c11f77ee1",
+    "python": "3.12.3",
+    "app_module": "/home/kesha/orchestra/worktrees/bash-latency-20260905/app/__init__.py",
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  },
+  {
+    "workers": 0,
+    "seconds": 34.787,
+    "peak_tree_rss_mb": 194.5,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "head": "4b8a3c56827668ab26f0e35da334e08c11f77ee1",
+    "python": "3.12.3",
+    "app_module": "/home/kesha/orchestra/worktrees/bash-latency-20260905/app/__init__.py",
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  },
+  {
+    "workers": 2,
+    "seconds": 23.638,
+    "peak_tree_rss_mb": 428.5,
+    "returncode": 0,
+    "files": [
+      "tests/test_merge_test_gate.py",
+      "tests/test_mcp_stdio.py",
+      "tests/test_harness_tools.py",
+      "tests/test_quota_gate.py"
+    ],
+    "head": "4b8a3c56827668ab26f0e35da334e08c11f77ee1",
+    "python": "3.12.3",
+    "app_module": "/home/kesha/orchestra/worktrees/bash-latency-20260905/app/__init__.py",
+    "outcomes": {
+      "passed": 241,
+      "failure": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "outcome_hash": "7076d54260b0257ac5979f09b0eb7edfb1354499a0a82bfd9e2c5e5dc761b344"
+  }
+]
