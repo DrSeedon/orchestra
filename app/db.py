@@ -2502,19 +2502,18 @@ def confirm_runtime_handoff(
         if not attempt or attempt["status"] != "capability_validated":
             raise RuntimeError("runtime handoff attempt was not capability validated")
         expected_candidate_sha256 = handoff["packet_sha256"]
-        ledger_packet = json.loads(handoff["packet_json"])
-        if (
-            attempt["mode"] in {"packet_delta", "fallback_packet"}
-            and ledger_packet.get("integrity")
-        ):
+        if attempt["mode"] in {"packet_delta", "fallback_packet"}:
             # The delivered candidate is a projection of the ledger packet, so its hash
-            # is recomputed here rather than read from the attempt it must verify.
+            # is recomputed here rather than read from the attempt it must verify. The
+            # projection is unconditional in `_stage_runtime_handoff_target`, so it must
+            # be unconditional here too: a ledger packet the staging step still projects
+            # but this one skips would fail confirmation after the source was released.
             from app.runtime_history import (
                 build_runtime_delivery_packet,
                 build_runtime_packet_fallback,
             )
 
-            packet = build_runtime_delivery_packet(ledger_packet)
+            packet = build_runtime_delivery_packet(json.loads(handoff["packet_json"]))
             if attempt["mode"] == "fallback_packet":
                 packet = build_runtime_packet_fallback(packet)
             expected_candidate_sha256 = packet["integrity"]["canonical_sha256"]

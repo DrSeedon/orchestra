@@ -26,9 +26,9 @@ against itself), then delivers `build_runtime_delivery_packet(...)`, plus
 what actually leaves.
 
 `app/db.py` — `confirm_runtime_handoff` recomputes the expected candidate hash from
-`packet_json` for `packet_delta` as well as `fallback_packet`. `native_resume` still
-compares against `packet_sha256`, and a ledger packet with no `integrity` block (legacy
-rows) still falls back to the recorded hash.
+`packet_json` for `packet_delta` as well as `fallback_packet`, unconditionally, because
+the projection in `_stage_runtime_handoff_target` is unconditional. `native_resume` still
+compares against `packet_sha256`.
 
 The ledger packet is untouched: `_prepare_runtime_handoff` still restores
 `frozen_project_docs` from `packet_json` on an idempotent replay, and
@@ -107,6 +107,135 @@ Regression sweep (no full suite): `test_runtime_handoff_recovery`,
 `tests/test_handoff_effect_classification.py::test_change_model_refusal_names_the_blocking_call_not_only_its_code`
 is red **on HEAD 7fb6dc66 as well** (verified in a clean detached worktree: 1 failed,
 67 passed, `KeyError: 'error_code'`). Not this task's; owner said out of scope.
+
+## Not a #507 defect: unblocking the merge test gate
+
+`test_t2_total_context_preflight_refuses_codex_before_source_disconnect` went red on `main`
+and the merge gate, which runs the suite on the merge, refused the operation. Nothing in
+this task caused it, and it is fixed here only because the branch cannot merge past a red
+gate and a separate branch could not merge either.
+
+**Not a migration defect.** The differentiator was run before touching anything: a fresh
+database through the normal path creates the table.
+
+```
+dbmod.DB_PATH = /tmp/507-probe.db; dbmod.init_db()
+runtime_handoffs present: True   runtime_handoff_attempts present: True   (47 tables)
+```
+
+So `sqlite3.OperationalError: no such table: runtime_handoffs` at `app/db.py:2245` is not a
+new installation failing — production initialisation is intact.
+
+**What actually happened.** `e6277e32` ("Use configured catalog-bounded Codex window for
+handoff preflight") made `_model_context_window` read the *installed* Codex config:
+`min(model_context_window, max_context_window) * effective_context_window_percent // 100`.
+On this machine that is 872 000 → 828 400 instead of the catalog's 258 400. The test feeds a
+300 000-byte system prompt to prove the preflight refuses; against an 828 400 window it now
+legitimately fits, so the flow no longer refuses and walks on into
+`_prepare_runtime_handoff`, whose fixture has no ledger schema. Measured through the same
+call the test uses:
+
+```
+_handoff_preflight_manifest("gpt-5.6-sol") -> fits=True window=828400 candidate=300130
+```
+
+The real defect is hermeticity, not arithmetic: the test's verdict came to depend on whether
+the developer's `~/.codex` has a 872 000 window. Fixed by pinning what it means to not fit —
+`monkeypatch.setenv("CODEX_HOME", tmp_path/"codex-home")`, so the target falls back to the
+catalog value `CODEX_CONTEXT_LIMITS["gpt-5.6-sol"] = 258 400` the test was written against.
+No production code touched, no assert weakened, the 300 000-byte prompt kept. Mutation:
+`if not early.fits:` → `if False:` reddens it (1 failed), restored 1 passed.
+
+Same class as the existing `_hermetic_dashboard_env` fixture in `tests/conftest.py`: any
+other test reading the installed Codex config has the same exposure. Left alone deliberately
+— that is a conftest-wide change, out of this task.
+
+## Luna review, round 1 — one blocking, accepted
+
+`codex-review-impl.md`, `app/db.py:2508-2511`, confidence 0.99. The first version of this
+change recomputed the expected candidate hash only when the ledger packet carried an
+`integrity` block, while `_stage_runtime_handoff_target` projects and rehashes
+unconditionally. A ledger row without `integrity` would therefore stage with the
+projected hash and be rejected at `confirm_runtime_handoff` with
+`runtime handoff attempt hash mismatch` — **after the source was already released**,
+i.e. the session lands in `recovery_required` on the last step.
+
+Verified in the code, not taken on trust: `app/session.py:3872-3875` has no such guard,
+and before this task both sides were symmetric (`fallback_packet` recomputed with no
+guard at all). The asymmetry was introduced here, and it was introduced to keep
+`test_t2_confirmation_updates_session_and_ledger_in_one_transaction` green with its
+`packet_json='{}'` fixture — code bent to fit a test.
+
+Fixed by removing the guard: one rule on both sides, the candidate hash is always the
+hash of what actually left. The alternative — mirroring the guard into `session.py` —
+was rejected: the ingress canary would then attest a checksum that does not describe the
+delivered packet.
+
+The fixture described a state production cannot reach (`build_runtime_state_packet`
+always writes `integrity`; the orchestrator also checked the live `runtime_handoffs`
+table read-only: 2 rows, both with `integrity`). Replaced with a real packet, so
+**`packet_delta` now has coverage of the recompute path, which had none** — that is why
+the defect passed 62 green tests. Mutation: reverting the branch to
+`if attempt["mode"] == "fallback_packet":` reddens `…in_one_transaction` (1 failed,
+38 passed), and the restored code is 39 passed.
+
+## Luna review, round 2 — clean, on the final snapshot
+
+`review-receipt:47d4ddd1-a404-4d7f-aaa9-25781cb19dc0`, `worker_head 82d741f8`,
+`coverage_outcome=reviewed`. P1 reported FIXED, no new findings, verdict evidenced by the
+verbatim line `expected_candidate_sha256 = packet["integrity"]["canonical_sha256"]`
+(`app/db.py:2521`, absent from the round-2 request). Author outcome recorded `accepted`
+on both receipts.
+
+### Why the delta was re-reviewed instead of attested — a defect in our own gate
+
+`record_review_outcome(outcome="attested", closed_findings=[...])` cannot succeed on a
+round-1 artifact in this shape. `review_findings` (`app/review_coverage.py:139`) accepts
+exactly two spellings: a `blocking: path:line — …` line (`FINDING_RE`, :33) or a heading
+literally matching `### blocking:` followed by a `**File:**` line
+(`FINDING_HEADING_RE`, :39). Luna wrote `### [P1] Сохранять legacy hash-контракт…` with
+`**File:** \`app/db.py:2508-2511\``, so the heading never arms `finding_heading` and the
+`**File:**` line is skipped. Run against the artifact itself:
+
+```
+review_findings(artifact_text, worktree=<worktree>) -> []
+review_findings(artifact_text)                      -> []
+```
+
+Zero anchors → `attestation_findings_unknown` for any `closed_findings`, and
+`attestation_findings_empty` for an empty one. The cheap route is therefore unusable by
+default, because no review prompt template requires the anchor format the gate parses.
+Two possible owners for the fix: the `context` templates in the `codex-debate` skill, or
+`review_findings` learning the `### [P1]` + `**File:**` shape. Not decided here.
+
+Also undocumented in the tool description: `outcome="attested"` before `outcome="accepted"`
+is refused with `attestation_outcome_not_attestable: unknown` — the author verdict must be
+recorded first.
+
+## Round 3 — not run, Codex weekly quota exhausted
+
+After merging `main` the reviewed bytes were unchanged (`git diff 82d741f8 HEAD -- app/db.py`
+empty) but the coverage binding is `(target_sha, production_snapshot_sha256)`, and both moved
+with `main`. Round 3 was requested on the post-merge snapshot and refused verbatim:
+
+```
+weekly_quota_blocked: New Codex worker turn blocked: Codex quota is 99% —
+utilization 99% is at or above the hard stop 99%. Stop/model change remain available.
+```
+
+`weekly_quota_blocked` is in `MACHINE_UNAVAILABLE_CODES` (`app/review_coverage.py:25`), so the
+platform wrote the coverage outcome itself. Twice, identically — once after the merge of
+`main` (`review-receipt:cc7a89c1-2540-4564-b76e-c32f8892ad8f`, `worker_head c8d38ab5`) and
+once after the test-gate fix (`review-receipt:fe4c12b1-a7c3-41ce-b45e-ec3bfc3faa9a`,
+`worker_head a56a0cfd`, the current head). Both carry
+`subject_kind=implementation`, `status=failed`, `return_code=None`,
+`failure_code=weekly_quota_blocked`, `coverage_outcome=unavailable`, `policy_ref` equal to
+`current_policy_ref()` — every condition of the `unavailable` branch
+(`app/review_coverage.py:459-465`) satisfied. Quota resets 11.09.
+
+Per the round-ceiling rule this is a tool refusal, not a reviewer answer: no round consumed,
+one round of three still available. The substantive verdict remains round 2's, and it applies
+to byte-identical content.
 
 ## Authorized test edits
 
