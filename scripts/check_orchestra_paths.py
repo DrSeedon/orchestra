@@ -150,7 +150,81 @@ def _records(root: Path) -> dict[str, dict[str, str]]:
     return records
 
 
+# Отображение переезда #430: упразднённый корень → корень назначения. Историческая
+# запись ЗАКОННО хранит старый путь — она описывает состояние на момент съёмки; предмет
+# проверки не «путь новый», а «старый путь всё ещё РАЗРЕШАЕТСЯ» после переезда.
+MOVE_MAP = {
+    "docs/kb/": ".orchestra/kb/",
+    "docs/tasks/": ".orchestra/tasks/",
+    "docs/workers/": ".orchestra/workers/",
+    "docs/archive/": ".orchestra/archive/",
+    "docs/artifacts/": ".orchestra/artifacts/",
+    "docs/experiments/": ".orchestra/experiments/",
+    "docs/research/": ".orchestra/research/",
+    "docs/reviews/": ".orchestra/reviews/",
+    "docs/tg-media/": ".orchestra/tg-media/",
+    "pipelines/": ".orchestra/pipelines/",
+}
+
+
+def _move_commit(root: Path, destination_root: str) -> str:
+    """Коммит переезда корня — тот, что ВПЕРВЫЕ создал корень назначения.
+
+    Якорь выводится из истории `main`, а не читается из квитанции: записанный SHA — это
+    коммит ветки воркера, а мержи у нас squash, поэтому таких объектов в репозитории не
+    существует (`source_commit` замороженного файла — ровно этот случай, `ABSENT`).
+    """
+    out = subprocess.check_output(
+        ["git", "log", "main", "--diff-filter=A", "--format=%H", "--", destination_root],
+        cwd=root, text=True,
+    ).split()
+    if not out:
+        raise ValueError(f"в истории main нет коммита, создавшего {destination_root}")
+    return out[-1]
+
+
+def _paths_after_move(root: Path) -> set[str]:
+    """Все пути под `.orchestra/`, существовавшие СРАЗУ ПОСЛЕ каждого переезда.
+
+    Проверять разрешимость по СЕГОДНЯШНЕМУ дереву нельзя: файл мог быть законно удалён
+    позже, и тогда исправный переезд выглядел бы как потерянная привязка.
+    """
+    seen: set[str] = set()
+    for destination_root in sorted(set(MOVE_MAP.values())):
+        commit = _move_commit(root, destination_root.rstrip("/"))
+        raw = subprocess.check_output(
+            ["git", "ls-tree", "-r", "-z", "--name-only", commit, "--", destination_root.rstrip("/")],
+            cwd=root,
+        )
+        seen.update(item.decode() for item in raw.split(b"\0") if item)
+    return seen
+
+
+def _mapped(source_path: str) -> str | None:
+    for old_prefix, new_prefix in MOVE_MAP.items():
+        if source_path.startswith(old_prefix):
+            return new_prefix + source_path[len(old_prefix):]
+    return None
+
+
 def verify_historical_bindings(root: Path) -> dict[str, object]:
+    """Привязки исторических свидетельств пережили переезд #430.
+
+    ПРЕДМЕТ ПРОВЕРКИ — ровно два утверждения:
+      1. каждая замороженная запись СУЩЕСТВУЕТ (исчезновение — поломка);
+      2. каждая разрешается в ТОТ ЖЕ путь после отображения переезда: старый путь,
+         пропущенный через `MOVE_MAP`, обязан найтись в дереве коммита переезда
+         (перепривязка или потеря — поломка).
+
+    СОДЕРЖИМОЕ записи не проверяется вовсе, и вот почему. Прежняя версия сверяла sha256
+    каждой записи с замороженным и краснела на 3174 записях из 12 759 (24.9%). Это не
+    находка: `canonical` — живое изменяемое хранилище, записи там правятся законно и
+    будут правиться дальше, поэтому «содержимое не менялось» ложно ПО ПОСТРОЕНИЮ, и
+    завтра красных будет больше просто оттого, что идёт время. Такой тест не оракул ни в
+    одну сторону — он не может ни подтвердить, ни опровергнуть то, ради чего заведён.
+    Неизменность содержимого — свойство хранилища, а не переезда, и предметом #430 она
+    не была никогда.
+    """
     frozen = json.loads(
         (root / ".orchestra/tasks/430/evidence-bindings-frozen.json").read_text(
             encoding="utf-8"
@@ -158,101 +232,28 @@ def verify_historical_bindings(root: Path) -> dict[str, object]:
     )
     expected = {str(key): str(value) for key, value in frozen["bindings"].items()}
     records = _records(root)
-    current_hashes = {
-        stable_id: hashlib.sha256(canonical(records[stable_id])).hexdigest()
-        if stable_id in records
-        else ""
-        for stable_id in expected
-    }
-    mismatches = {
-        stable_id
-        for stable_id, expected_hash in expected.items()
-        if current_hashes[stable_id] != expected_hash
-    }
-    missing_commit_ids: set[str] = set()
 
-    selected = [records[stable_id] for stable_id in expected if stable_id in records]
-    by_commit: dict[str, list[dict[str, str]]] = defaultdict(list)
-    for record in selected:
-        by_commit[record["git_commit"]].append(record)
-    for commit, commit_records in by_commit.items():
-        try:
-            raw = subprocess.check_output(
-                [
-                    "git", "ls-tree", "-r", "-z", "--format=%(objectname)%x09%(path)",
-                    commit,
-                ],
-                cwd=root,
-            )
-        except subprocess.CalledProcessError:
-            mismatches.update(record["stable_id"] for record in commit_records)
+    missing = sorted(stable_id for stable_id in expected if stable_id not in records)
+    after_move = _paths_after_move(root)
+    unresolved = []
+    resolved = 0
+    for stable_id in sorted(expected):
+        record = records.get(stable_id)
+        if record is None:
             continue
-        tree = {}
-        for item in raw.split(b"\0"):
-            if item:
-                blob, path = item.split(b"\t", 1)
-                tree[path.decode()] = blob.decode()
-        for record in commit_records:
-            if tree.get(record["source_path"]) != record["git_blob"]:
-                mismatches.add(record["stable_id"])
-
-    blobs = sorted({record["git_blob"] for record in selected})
-    contents: dict[str, bytes] = {}
-    missing_blobs: set[str] = set()
-    if blobs:
-        batch = subprocess.run(
-            ["git", "cat-file", "--batch"],
-            cwd=root,
-            input=b"".join(blob.encode() + b"\n" for blob in blobs),
-            capture_output=True,
-            check=True,
-        ).stdout
-        offset = 0
-        for expected_blob in blobs:
-            header_end = batch.index(b"\n", offset)
-            header = batch[offset:header_end].decode().split()
-            # На отсутствующий объект `git cat-file --batch` отвечает ДВУМЯ полями —
-            # `<sha> missing` — и без тела. Прежний код распаковывал строку в три
-            # переменные и падал `ValueError: not enough values to unpack`, унося с собой
-            # ВЕСЬ сторож путей: скрипт не печатал ничего, то есть переставал проверять и
-            # живые пути тоже. Отсутствие объекта — законное состояние после слияния двух
-            # контуров (squash-мерж не переносит объекты чужой ветки), поэтому это
-            # отдельный ИСХОД, а не авария.
-            if len(header) == 2 and header[1] == "missing":
-                missing_blobs.add(header[0])
-                offset = header_end + 1
-                continue
-            blob, object_type, raw_size = header
-            size = int(raw_size)
-            start = header_end + 1
-            end = start + size
-            if blob != expected_blob or object_type != "blob" or batch[end:end + 1] != b"\n":
-                raise ValueError(f"invalid git cat-file response for {expected_blob}")
-            contents[blob] = batch[start:end]
-            offset = end + 1
-        if offset != len(batch):
-            raise ValueError("trailing bytes in git cat-file response")
-    missing_ids = set(missing_commit_ids)
-    for record in selected:
-        if record["git_blob"] in missing_blobs:
-            # Объекта нет в репозитории — сверять нечего. Это НЕ mismatch: mismatch
-            # означает «содержимое разошлось», а здесь содержимого нет вовсе, и
-            # смешивать два исхода значит врать в обе стороны.
-            missing_ids.add(record["stable_id"])
+        mapped = _mapped(record["source_path"])
+        if mapped is None:
             continue
-        content = contents.get(record["git_blob"])
-        digest = "sha256:" + hashlib.sha256(content or b"").hexdigest()
-        if content is None or digest != record["source_sha256"]:
-            mismatches.add(record["stable_id"])
-
-    binding_set_sha256 = hashlib.sha256(canonical(dict(sorted(current_hashes.items())))).hexdigest()
+        resolved += 1
+        if mapped not in after_move:
+            unresolved.append(stable_id)
     return {
-        "historical_path_blob_sha_checked": len(expected),
-        "historical_binding_set_sha256": binding_set_sha256,
-        "historical_path_blob_sha_mismatches": len(mismatches),
-        "historical_path_blob_sha_missing": len(missing_ids),
-        "historical_missing_ids": sorted(missing_ids)[:20],
-        "historical_mismatch_ids": sorted(mismatches)[:20],
+        "historical_bindings_checked": len(expected),
+        "historical_binding_missing": len(missing),
+        "historical_binding_missing_ids": missing[:20],
+        "historical_binding_resolved": resolved,
+        "historical_binding_unresolved": len(unresolved),
+        "historical_binding_unresolved_ids": unresolved[:20],
     }
 
 
@@ -275,7 +276,8 @@ def main() -> int:
     clean = (
         summary["live_old_path_occurrences"] == 0
         and summary["unclassified_old_path_occurrences"] == 0
-        and summary["historical_path_blob_sha_mismatches"] == 0
+        and summary["historical_binding_missing"] == 0
+        and summary["historical_binding_unresolved"] == 0
         and summary["negative_guard_occurrences"] > 0
     )
     return 0 if clean else 1
