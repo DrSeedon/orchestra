@@ -44,6 +44,7 @@ from app.runtime_history import (
     PreparationResult,
     ModelVisibleManifest,
     build_model_visible_manifest,
+    build_runtime_delivery_packet,
     build_runtime_packet_fallback,
     build_runtime_state_packet,
     classify_handoff_effects,
@@ -3857,15 +3858,10 @@ class AgentSession:
         target_model: str,
         mode: str,
     ) -> dict:
-        packet = prepared.packet
-        if mode != "packet":
-            packet = build_runtime_packet_fallback(prepared.packet)
-        candidate_sha256 = (
-            getattr(prepared, "packet_sha256", "")
-            if mode == "packet"
-            else packet["integrity"]["canonical_sha256"]
-        )
-        if packet.get("integrity") and runtime_packet_sha256(packet) != candidate_sha256:
+        ledger_packet = prepared.packet
+        if ledger_packet.get("integrity") and runtime_packet_sha256(
+            ledger_packet
+        ) != getattr(prepared, "packet_sha256", ""):
             return {
                 "ok": False,
                 "failure": {
@@ -3873,6 +3869,10 @@ class AgentSession:
                     "structured": False,
                 },
             }
+        packet = build_runtime_delivery_packet(ledger_packet)
+        if mode != "packet":
+            packet = build_runtime_packet_fallback(packet)
+        candidate_sha256 = packet["integrity"]["canonical_sha256"]
         candidate = SimpleNamespace(
             **{
                 key: getattr(prepared, key)
