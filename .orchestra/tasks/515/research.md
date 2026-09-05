@@ -99,7 +99,7 @@ tests/test_turn_usage.py::test_cached_quota_state_returns_null_without_fresh_dat
 | D | 19 | 9 | диагноз в `app/` не поставлен | к оркестратору |
 
 **A1 (8) — доказательство.** `70547310` (#488) ввёл `_load_review_project_context`
-(`app/mcp_stdio.py:3717`), который через `_review_repository_root` (`:3617`) зовёт
+(`app/mcp_stdio.py:3716`), который через `_review_repository_root` (`:3616`) зовёт
 `git rev-parse --git-common-dir` в переданном `cwd` и падает `ValueError`, если это не репозиторий.
 Единственный файл, где заглушка появилась, — `tests/test_mcp_codex_review.py:27-38`
 (autouse-фикстура `valid_project_context_owner`). `tests/test_mcp_quota_gate.py` (7 падений) и
@@ -214,7 +214,7 @@ tests/test_turn_usage.py::test_cached_quota_state_returns_null_without_fresh_dat
 4. GitHub, «Using GitHub-hosted runners», сохранённая страница — `raw/github-hosted-runners.html`;
    `ubuntu-latest` = 4 CPU / 16 ГБ для публичных репозиториев (тир 2, первоисточник).
 5. `gh repo view DrSeedon/orchestra --json visibility` → `PUBLIC` (тир 1).
-6. Код: `app/mcp_stdio.py:3613-3719`, `app/routes/system.py:1822-1828`, `app/quota_gate.py:79-124`,
+6. Код: `app/mcp_stdio.py:3612-3716`, `app/routes/system.py:1822-1828`, `app/quota_gate.py:79-124`,
    `pyproject.toml:60-75`, `tests/test_turn_usage.py:104-106`,
    `tests/test_quota_map_api.py:151-171`, `tests/test_codex_bin_resolution.py:71-76`,
    `tests/test_mcp_codex_review.py:27-38`, `tests/test_orchestra_layout_430.py:374` (тир 2).
