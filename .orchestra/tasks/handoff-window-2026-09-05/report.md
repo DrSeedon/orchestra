@@ -28,7 +28,10 @@ in-progress #507 packet builder (no service or database write):
 The script uses a small placeholder MCP configuration, so this is a packet/window regression
 reproduction, not a complete live-target proof or exact provider token count.
 
-This branch only changes backend_codex.py and adds focused tests. Packet projection,
-deduplication and ledger integrity changes belong to the already-running fix-handoff-packet
-worker. Both fixes are needed for this large historical session.
+The companion change is e6277e32. The completed worker change 683b30ca was integrated as
+b71e6310 in this branch; both fixes are now together. Combined validation:
+315 passed, 4 deselected, 2 warnings in 13.10s, covering Codex window/backend,
+handoff staging/recovery, packet/history import, Claude backend and DB contracts.
+No live provider handoff was attempted. The legacy fallback still omits recent messages;
+the verified large-window case fits the warm packet and does not need that fallback.
 No model switch, service restart, main merge or VPS deployment was performed.
