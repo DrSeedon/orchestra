@@ -8,7 +8,7 @@
 > чем поймали, во что верили до этого. Формат ниже — исходные пункты дословно, поэтому
 > дата/номер задачи стоят внутри пункта, а не в конце строки.
 
-## Установлено
+## Established
 
 ### Git, файлы, деплой
 
@@ -67,13 +67,13 @@
 - **Код #379 закрывает listener leak без socket recycle:** `seal_activation_fds()` ставит `FD_CLOEXEC` на весь `LISTEN_FDS` range до manager import, сохраняя exact fd 3/4/5 targets и name→fd mapping; combined holder+queue 350 остаётся 200/queue 0, Node/MCP census пуст · `32 passed` T1+T2+seamless; `.orchestra/tasks/379/report.md` · 2026-08-23, #379
 - **Self-SIGINT теперь имеет независимую post-teardown сходимость:** same-UID helper ждёт READY после verified pidfd, не может force до `application_teardown_complete`, затем даёт 5 с на clean exit и только потом SIGKILL target через pidfd; любой unproven helper disarm держит handover/gates fail-closed · `287 passed` focused + 7/7 caught mutations; `.orchestra/tasks/379/report.md` · 2026-08-23, #379
 
-## Отвергнуто
+## Rejected
 
 - (пусто на момент переноса #347 — отозванные утверждения помечены прямо внутри пунктов выше)
 - «Обычная занятость target-ветки другим worktree ломает `merge_worktree_to_main`» · прямой `git checkout main` из worker дал RC 128, но owner-aware production path на той же топологии смержил 1 коммит; два focused теста дали `2 passed` · 2026-08-29, #416
 - «Обычный restart service не помог, потому что socket сохранил старую очередь» · новый PID 1191988 до полного recycle обслужил `/api/usage/readiness` → 200 и `/` → 302; stand с queue 350 дал свежий 200 в 3/3 · 2026-08-23, #379
 
-## Пробелы
+## Gaps
 
 - Raw cause второй `cradle-globe` operation не восстановить: persistent result уже нормализован; для третьей операции dirty target подтверждён log snapshot за 5.4 с до вызова · 2026-08-29, #416
 - Пункты выше не проверялись на дубли между собой построчно: перенос #347 сохранял текст

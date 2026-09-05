@@ -1,6 +1,6 @@
 # test-suite-pruning
 
-## Установлено
+## Established
 
 - На `main` SHA `1d9be7ae8511a1c5657362cc56eef395b4585bf2` pytest-инвентарь содержит 153 test-файла, 78,491 физическую LOC, 2,886 source test definitions, 162 локальные fixture и 3,284 collected nodes включая 3 live-probe nodes · `.orchestra/tasks/313/inventory.json` + `collect-default-patched.txt` · 2026-08-24, #313
 - Непропатченная коллекция на текущем host собрала `3151/3154` и остановилась на восьми `AttributeError: module 'os' has no attribute 'pidfd_open'`; это collection gap, не silent skip · `.orchestra/tasks/313/evidence/collect-default.txt` · 2026-08-24, #313
@@ -10,13 +10,13 @@
 - Merge-stuck targeted run дал 184 passed и 2 failed из-за stale fake без `expected_target_head`, который уже принимает production `execute_merge_session` · `target-manager-acceptance.txt`, `app/routes/sessions.py:1461`, `app/merge_operations.py:1304` · 2026-08-24, #313
 - Proven DELETE/MERGE candidates: zero nodes and zero LOC; static similarity or rarity alone is insufficient under the #250 valid-alternate/mutant rule · `.orchestra/tasks/313/research.md` F10, `candidates.csv` · 2026-08-24, #313
 
-## Отвергнуто
+## Rejected
 
 - «`test_route_surface_is_discoverable` дублирует snapshot и можно удалить» · compound truncated-snapshot mutant passes snapshot but fails minimum-surface guard · 2026-08-24, #313
 - «Длинные или редкие session/runtime-handoff/merge recovery tests избыточны» · targeted evidence identifies unique authority, recovery, receipt, rollback, and cleanup contracts; runtime-handoff red output is model-registry setup failure, not redundancy · 2026-08-24, #313
 - «Static `all/any`, MagicMock, representation, browser, source-shape, or wall-clock signal is a deletion verdict» · static counts include explicit controls and contract-bound checks; `static-signals.json` is candidate generation only · 2026-08-24, #313
 
-## Пробелы
+## Gaps
 
 - Full default test execution remains unmeasured because host collection has eight pidfd import errors and the protocol forbids service/provider runs; no full-suite runtime or removable-node estimate beyond zero proven candidates · 2026-08-24, #313
 - No mutation/selection experiment was run for quota, merge, frontend, prompt, or task candidates because they failed current reachability or require service/live state; future tickets in `research.md` define the repairs · 2026-08-24, #313

@@ -1,6 +1,6 @@
 # feature-usage-audit
 
-## Установлено
+## Established
 
 - The frozen #309 backup at cutoff `2026-08-24T06:12:06.860886+00:00` contained 41 generated MCP tools, 99 OpenAPI paths, 103 unique Starlette paths including framework docs, and 105 static dashboard controls/references · `.orchestra/tasks/309/evidence/cutoff-and-db.json` · 2026-08-24, #309
 - MCP tool usage must normalize only the `mcp__orchestra__` prefix; NULL historical names and wrappers (`Bash`, `Read`, `Edit`) are not safely mergeable into distinct MCP semantics · `.orchestra/tasks/309/evidence/mcp-usage.csv`, `static-callgraph.json` · 2026-08-24, #309
@@ -12,13 +12,13 @@
 - Duplicate `POST /api/models/refresh` definitions emit an OpenAPI duplicate operation-ID warning and are a confirmed MERGE candidate; retain one handler · `app/routes/system.py:388-400`, generator stderr in `evidence/measure_309.py` run · 2026-08-24, #309
 - YouGile and payments are pre-decided removable under #299 and are recorded as such without a new deletion argument or implementation · user task instruction, `.orchestra/tasks/299/research.md`, `decision-matrix.csv` · 2026-08-24, #309
 
-## Отвергнуто
+## Rejected
 
 - Zero named MCP calls imply safe deletion · incomplete wrapper/NULL telemetry and rare recovery/safety callers refute count-only deletion · 2026-08-24, #309
 - A route/UI row with no count is unused · request/click telemetry is absent, so the observation state is UNKNOWN · 2026-08-24, #309
 - The progress bar can be deleted together with its API immediately · five current worker calls plus session persistence/active-session compatibility make UI-only hiding the smaller safe experiment · 2026-08-24, #309
 
-## Пробелы
+## Gaps
 
 - Exact historical MCP semantics before named `tool_name` telemetry began 2026-08-13 remain unresolved · wrapper payloads are intentionally not merged without a semantic parser · 2026-08-24, #309
 - HTTP route and dashboard click usage is unmeasured · add privacy-safe request/event census in future Class-C work · 2026-08-24, #309

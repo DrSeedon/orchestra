@@ -1,6 +1,6 @@
 # tg-media-delivery
 
-## Установлено
+## Established
 
 - `send_file` normal important photos use direct `bot.send_photo`; `_TG_IMPORTANT_ATTEMPTS=3`, each important call is wrapped in a 30 s bridge timeout, and timeout/network/server errors can trigger a new attempt · `app/tg_bridge.py:922-940,1290-1406,2347-2382` · 2026-08-24, #333
 - The 2026-08-24 15:05:35 local `send_photo` attempt timed out at 15:06:05 and 15:06:36, then logged `LOST after 3 timed out attempts` and returned `/api/tg/send_file` HTTP 500 at 15:07:08 · sanitized journal in `.orchestra/tasks/333/evidence/journal-tg-1504-1510.txt` · 2026-08-24, #333
@@ -11,14 +11,14 @@
 - The smallest truthful durable contract is per-file `event_id`/receipt/hash/status with `UNKNOWN` after the provider boundary, no blind retry, bounded outbox/backpressure, and separate primary/mirror outcomes · `.orchestra/tasks/333/contract.md` · 2026-08-24, #333
 - A durable album needs one root manifest receipt plus deterministic per-file child receipts: claim each provider group atomically, map returned message IDs in order, and mark every claimed member `UNKNOWN` when the single `sendMediaGroup` boundary is ambiguous; batch grouping is stable by type and 10, with separate mirror groups · `.orchestra/tasks/402/report.md`; `tests/test_tg_file_deliveries.py`; `tests/test_tg_file_batch_route.py` · 2026-08-26, #402
 
-## Отвергнуто
+## Rejected
 
 - «HTTP 500 proves the file was not sent» · the route only sees `msg is None`; timeout can follow a provider-side acceptance, and no message id/upstream receipt is recorded · `app/routes/tg.py:153-157`, journal 15:06:05–15:07:08 · 2026-08-24, #333
 - «The whole Telegram route was down for the interval» · proxy preflight passed and individual sends later returned 200/message ids during the same window · `.orchestra/tasks/333/evidence/current-controls.txt`, journal · 2026-08-24, #333
 - «Isolated marker/edit already gives exactly-once media» · marker timeout is explicitly not retried, while edit is a second side effect; focused tests prove handoff/ambiguous-marker behavior, not provider exactly-once · `app/tg_bridge.py:2213-2344`, `tests/test_tg_bridge.py:632-840` · 2026-08-24, #333
 - «Raising the timeout or blindly retrying a 500 fixes the incident» · a client can disconnect after the provider boundary, and current 500/timeout has no stable key or receipt to make replay safe · `app/mcp_stdio.py:477-498`, `.orchestra/tasks/380/research.md` · 2026-08-24, #333
 
-## Пробелы
+## Gaps
 
 - Whether any of the three timed-out `send_photo` attempts reached upstream Telegram and whether a duplicate was actually created · local `telegram-bot-api` journal has no usable method-level receipt and current logs lack event/request ids · 2026-08-24, #333
 - Which exact logical file corresponds to successful message ids `162144`, `162147`, `162148` · bridge/access logs do not correlate MCP request id, queue item, and message id · 2026-08-24, #333

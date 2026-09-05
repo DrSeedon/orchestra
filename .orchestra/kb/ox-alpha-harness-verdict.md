@@ -110,7 +110,7 @@ stderr выбрасывался; кириллица объявлялась дв�
 - Вывод «основной исполнитель» ОТОЗВАН как БЕЗУСЛОВНЫЙ: вчерашние 858 tool calls остаются прямым evidence capability, но сегодняшняя endpoint drift требует daily production-shaped canary; после canary — только public/non-confidential work и acceptance по артефакту · два измерения 22.08/23.08, #236
 - Даже зелёный canary НЕ допускает Ox в production free-only pool: ID без `:free`, а нулевая metadata перед POST имеет TOCTOU и не запрещает провайдеру сменить цену; нужен доказанный provider-side atomic zero-spend, которого сейчас нет · review #236 + exact id `stealth/ox-alpha` · 23.08.2026, #236
 
-## Пробелы (обновление #236)
+## Gaps (обновление #236)
 
 - Frozen matrix намеренно не передавала `reasoning.effort`, тогда как production `HarnessBackend` передаёт; это может объяснять пустые Ox ответы, но добор после раскрытия результата был бы exploratory и не меняет frozen verdict · 23.08.2026, #236
 
@@ -124,7 +124,7 @@ stderr выбрасывался; кириллица объявлялась дв�
 - Текущий production-путь выставляет `reasoning.effort=high` для frozen `closed_edit` и `closed_trace` (ключевые слова `Fix`/`Trace`) и `medium` для `open_audit` (391 символ, без high-keyword, worker) через `HarnessBackend.events()` → `AgentLoop` → `OpenRouterClient._build_body`; это source-derived mapping, не live model evidence · `app/backend_harness.py:34-74,241-245`, `app/harness/loop.py:207-216`, `app/harness/llm.py:154-168` · 2026-08-23, #283
 - #236's six Ox turns remain a no-effort experiment: all six `ok=true,end_turn`, one HTTP attempt each, zero tool calls/rounds/cost; #283 therefore cannot attribute empties to effort versus endpoint drift · `.orchestra/tasks/236/evidence/matrix/r{1,2}-*stealth__ox-alpha.json`, `.orchestra/tasks/283/research.md` · 2026-08-23, #283
 
-## Пробелы (обновление #283)
+## Gaps (обновление #283)
 
 - Current production-shaped Ox response under `reasoning.effort` remains unmeasured because the mandatory memory guard fired before metadata and no key was present; rerun requires `MemAvailable≥4 GiB` and guarded credentials · 2026-08-23, #283
 
@@ -140,7 +140,7 @@ stderr выбрасывался; кириллица объявлялась дв�
 - Post-response cost telemetry had 30 explicit `usage.cost=0.0` values and one omitted `usage.cost`; no nonzero cost was observed, so the omitted field remains missing rather than being treated as zero · `.orchestra/tasks/283/evidence/remote-57473bf0/r*.json` · 2026-08-23, #283
 - The first frozen grader was invalid for two reasons: it required qualified names absent from the fixture's function path, and it crashed on evidence-bearing audit category objects; corrected grading used the fixture's exact `create→build→send→complete→post` path and extracted `category` fields without rerunning Ox · `.orchestra/tasks/283/evidence/remote-57473bf0/corrected-grades.json` · 2026-08-23, #283
 
-## Пробелы (обновление #283 Contabo)
+## Gaps (обновление #283 Contabo)
 
 - The runner records production classifier effort (`high/high/medium`) but does not preserve the serialized request body; direct wire-level `reasoning.effort` receipt is therefore source-proven, not independently captured in the raw JSON · runner source + production `app/harness/llm.py:154-168` · 2026-08-23, #283
 

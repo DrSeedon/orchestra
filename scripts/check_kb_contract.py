@@ -17,7 +17,7 @@ HUNK_RE = re.compile(
     r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"
 )
 ANCHOR_RE = re.compile(r"`[^`]+`|«[^»]+»")
-VALID_SECTIONS = {"Установлено", "Отвергнуто"}
+VALID_SECTIONS = {"Established", "Rejected"}
 VALID_RELATIONS = {
     "depends_on",
     "explains",
@@ -26,8 +26,22 @@ VALID_RELATIONS = {
     "evidence_for",
     "related",
 }
-LINK_RE = re.compile(r" · связи: `([^`]+)` → \[[^\]]+\]\(([^)]+)\)")
+LINK_RE = re.compile(r" · links: `([^`]+)` → \[[^\]]+\]\(([^)]+)\)")
 APPROVAL_RE = re.compile(r" · approved: `([^`#]+)#([^`]+)`")
+SCHEMA_RENAMES = (
+    ("\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e", "Established"),
+    ("\u041e\u0442\u0432\u0435\u0440\u0433\u043d\u0443\u0442\u043e", "Rejected"),
+    ("\u041f\u0440\u043e\u0431\u0435\u043b\u044b", "Gaps"),
+    ("\u041e\u0422\u041e\u0417\u0412\u0410\u041d\u041e", "RETRACTED"),
+    ("\u0438\u0441\u043a\u0430\u0442\u044c:", "search:"),
+    ("\u0441\u0432\u044f\u0437\u0438:", "links:"),
+)
+LEGACY_SECTION_NAMES = {
+    "\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043e",
+    "\u041e\u0442\u0432\u0435\u0440\u0433\u043d\u0443\u0442\u043e",
+    "\u041f\u0440\u043e\u0431\u0435\u043b\u044b",
+    "\u041e\u0422\u041e\u0417\u0412\u0410\u041d\u041e",
+}
 
 
 @dataclass(frozen=True)
@@ -135,6 +149,13 @@ def _fact_key(line: str) -> str | None:
     return match.group(1) if match else None
 
 
+def _schema_rename_only(old: str, new: str) -> bool:
+    renamed = old
+    for source, target in SCHEMA_RENAMES:
+        renamed = renamed.replace(source, target)
+    return renamed == new
+
+
 def _repo_root(root: Path) -> Path:
     resolved = root.resolve()
     if resolved.name != "kb" or resolved.parent.name != ".orchestra":
@@ -148,7 +169,7 @@ def validate_link(root: Path, source: Path, line_number: int, line: str, key: st
     if "candidate-link" in line:
         errors.append(f"{prefix}: candidate-link belongs in .orchestra/tasks, not canonical KB")
 
-    has_link = " · связи:" in line
+    has_link = " · links:" in line
     has_approval = " · approved:" in line
     if not has_link:
         if has_approval:
@@ -156,7 +177,7 @@ def validate_link(root: Path, source: Path, line_number: int, line: str, key: st
         return errors
 
     matches = LINK_RE.findall(line)
-    if len(matches) != 1 or line.count(" · связи:") != 1:
+    if len(matches) != 1 or line.count(" · links:") != 1:
         errors.append(f"{prefix}: связи must contain exactly one typed Markdown target")
         return errors
     relation, raw_target = matches[0]
@@ -265,17 +286,18 @@ def validate_fact_line(
         errors.append(f"{prefix}: duplicate fact key fact:{key}")
     if section not in VALID_SECTIONS:
         errors.append(
-            f"{prefix}: structured facts belong only in Установлено or Отвергнуто"
+            f"{prefix}: structured facts belong only in Established or Rejected"
         )
-    if " · искать:" not in line:
-        errors.append(f"{prefix}: missing 'искать:' literal anchors")
+    search_field = re.search(r"(?:^|[ ·;])search:", line)
+    if search_field is None:
+        errors.append(f"{prefix}: missing 'search:' literal anchors")
     else:
-        anchors_field = line.split(" · искать:", 1)[1]
-        for delimiter in (" · evidence:", " · связи:", " · approved:"):
+        anchors_field = line[search_field.end():]
+        for delimiter in (" · evidence:", " · links:", " · approved:"):
             anchors_field = anchors_field.split(delimiter, 1)[0]
         anchors = ANCHOR_RE.findall(anchors_field)
         if not 1 <= len(anchors) <= 6:
-            errors.append(f"{prefix}: 'искать:' requires 1–6 quoted literal anchors")
+            errors.append(f"{prefix}: 'search:' requires 1–6 quoted literal anchors")
     if " · evidence:" not in line:
         errors.append(f"{prefix}: missing inline evidence")
     else:
@@ -342,7 +364,19 @@ def validate(root: Path, diff_path: Path) -> list[str]:
             errors.append(
                 f"{path}:{added.line_number}: candidate-link belongs in .orchestra/tasks, not canonical KB"
             )
+        if added.text.startswith("## ") and added.text[3:].strip() in LEGACY_SECTION_NAMES:
+            errors.append(
+                f"{path}:{added.line_number}: legacy KB section heading; use English schema names"
+            )
         if added.text.startswith(FACT_PREFIX):
+            key = _fact_key(added.text)
+            if key is not None and any(
+                removed.relative_path == added.relative_path
+                and _fact_key(removed.text) == key
+                and _schema_rename_only(removed.text, added.text)
+                for removed in deleted_lines
+            ):
+                continue
             errors.extend(
                 validate_fact_line(
                     root,
@@ -353,7 +387,7 @@ def validate(root: Path, diff_path: Path) -> list[str]:
                     counts,
                 )
             )
-        elif re.match(r"^\s+(?:искать:|evidence:|связи:|approved:)", added.text):
+        elif re.match(r"^\s+(?:search:|evidence:|links:|approved:)", added.text):
             errors.append(
                 f"{path}:{added.line_number}: fact fields must stay on the fact bullet line"
             )
