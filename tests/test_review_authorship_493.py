@@ -32,6 +32,67 @@ Two findings.
 **ACK — no blocking findings.**
 """
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def _real_artifact(relative: str) -> str:
+    return (REPO_ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_review_findings_extracts_real_sol_last_round() -> None:
+    from app.review_coverage import review_findings
+
+    actual = set(review_findings(_real_artifact(".orchestra/tasks/494/codex-review-impl.md")))
+    expected = {"scripts/wf_run.py:809", "scripts/wf_run.py:898"}
+    assert actual == expected, (
+        "real Sol artifact #494 last round must yield both markdown-link locations; "
+        f"expected {sorted(expected)}, got {sorted(actual)}"
+    )
+
+
+@pytest.mark.parametrize(
+    ("relative", "expected"),
+    [
+        (".orchestra/tasks/pipeline-rebase/codex-review-impl.md", set()),
+        (".orchestra/tasks/cleanup/codex-review-super-full-cycle.md", set()),
+    ],
+)
+def test_review_findings_matches_two_largest_zero_census_artifacts(
+    relative: str, expected: set[str],
+) -> None:
+    from app.review_coverage import review_findings
+
+    actual = set(review_findings(_real_artifact(relative)))
+    assert actual == expected, f"{relative}: expected {sorted(expected)}, got {sorted(actual)}"
+
+
+def test_review_findings_rejects_escaping_paths() -> None:
+    from app.review_coverage import _finding_paths, review_findings
+
+    text = "\n".join(
+        [
+            "blocking: ../outside.py:1",
+            "blocking: /etc/passwd:1",
+            "blocking: a\\b.py:1",
+            "### blocking: escaping markdown path",
+            "**File:** [outside](/tmp/../scripts/outside.py:2)",
+            "**File:** [external](https://evil.example/app/admin.py:3)",
+            "**File:** [external-worktree](https://evil.example/worktrees/foo/app/admin.py:4)",
+            "**File:** [escaped-worktree](/tmp/worktrees/foo/../bar/app/admin.py:5)",
+        ]
+    )
+    assert _finding_paths(review_findings(text)) == set()
+
+
+def test_review_findings_ignores_non_trailing_location_mentions() -> None:
+    from app.review_coverage import review_findings
+
+    text = (
+        "### blocking: one issue\n"
+        "**File:** [x](/tmp/worktrees/foo/app/x.py:10) — see :999 in prose"
+    )
+    assert review_findings(text) == ["app/x.py:10"]
+
 
 def _git(repo: Path, *args: str) -> str:
     proc = subprocess.run(
