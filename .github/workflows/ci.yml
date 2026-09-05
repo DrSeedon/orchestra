@@ -1,13 +1,18 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'task-*/**']
   pull_request:
     branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      # Нужен состав падений целиком, а не первый упавший шард.
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
@@ -16,4 +21,20 @@ jobs:
       # шага все браузерные тесты молча скипались бы, и CI был бы зелёным, ничего
       # про фронт не проверив.
       - run: uv run playwright install --with-deps chromium
-      - run: uv run pytest -q --timeout=30
+      # Полный сьют в ОДИН процесс на этом репозитории не проходит физически:
+      # прогон 33893200040 убит `exit code 137` (OOM) на 81%, тот же RC=137
+      # около 80% воспроизводится локально. Течёт не отдельный тест, а
+      # накопление за прогон, поэтому лечится делением на процессы, а не
+      # правкой тестов. Раскладка — round-robin по отсортированному списку
+      # файлов: детерминирована, не требует отдельного манифеста и не устаревает
+      # при добавлении файла. Замер локальных шардов той же нарезки: пиковый RSS
+      # 218–263 МБ на шард против 16 ГБ у ubuntu-latest, запас ~60×;
+      # `/usr/bin/time -v` ниже печатает это число в каждый прогон, чтобы запас
+      # проверялся, а не помнился.
+      - name: pytest shard ${{ matrix.shard }} of 6
+        run: |
+          mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+            | awk -v s='${{ matrix.shard }}' -v n=6 '(NR - 1) % n == s')
+          echo "shard ${{ matrix.shard }}/6: ${#files[@]} files"
+          test "${#files[@]}" -gt 0
+          /usr/bin/time -v uv run pytest -q -rf --timeout=30 "${files[@]}"
