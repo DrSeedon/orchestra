@@ -14,6 +14,14 @@
 числам ниже. Принятые на свою дату выводы сохранены как исторические наблюдения;
 их применение сегодня требует проверки области и актуального источника.
 
+`fact:codex-fresh-worker-state-scan-stall` · искать: _select_managed_codex_state_source, PRAGMA quick_check, codex-home, state_5.sqlite, воркер не стартует, зависает при спавне · Свежий Codex-воркер (любая модель) до старта CLI сканирует КАЖДЫЙ managed home в `~/.orchestra/codex-home` через `PRAGMA quick_check`; при 278 home / 72 GiB это 663 с проекции и 877.6 с замера на `astra-smoke`, без исключения и таймаута, поэтому сессия висит `running` с `session_id = NULL` · py-spy dump pid 450656 06.09 17:31 — 5 потоков в `_inspect_codex_state (app/backend_codex.py:516)` из `_select_managed_codex_state_source (:614)`; замер `quick_check` 2.4 с/БД · 2026-09-06, #520
+
+`fact:codex-state-source-first-healthy` · искать: первый здоровый источник, _select_managed_codex_state_source, seed source, выбор состояния · Выбор источника посева возвращает ПЕРВЫЙ здоровый кандидат (база `~/.codex/state_5.sqlite` идёт первой), запасные managed homes сортируются по mtime; стоимость спавна 278 `quick_check` → 1, 663 с → 3.06 с · замер на живом наборе home, `app/backend_codex.py:602`; тест `test_source_selection_stops_at_first_healthy_source` краснеет при возврате исчерпывающего скана · 2026-09-06, #520
+
+`fact:codex-worker-stall-not-model-specific` · искать: Astra не сломана, gpt-6-astra не стартует, регрессия старта воркера, Luna Sol тоже медленно · Задержка старта Codex-воркера НЕ зависит от модели: `_select_managed_codex_state_source` не принимает model, и та же задержка замерена на Luna (`ege-block-punct` 1293 с, `feat-ingress-watchdog` без треда) и Sol (`fix-tg-ingress` 991 с); `gpt-6-astra` попал под подозрение лишь потому, что был единственной моделью свежих спавнов · чтение `app/backend_codex.py:602`; дельта user_message→`codex thread=` по `logs`, замер Orchestra-orchestrator · 2026-09-06, #520
+
+`fact:codex-home-unbounded-growth` · искать: codex-home размер, 72 GiB, диск заполнен, managed home не чистится · `~/.orchestra/codex-home` не чистится: 289 home, 278 баз по ~224 MiB, 72 GiB, корневой диск занят на 89%; каждый спавн копирует ещё одну базу · `du -sh`, `df -h /` 06.09.2026 · 2026-09-06, #520
+
 ## Historical observations
 
 ### Codex / Sol
@@ -99,6 +107,8 @@
 
 ## Gaps
 
+- Ступень ×6 в дельте старта Codex-воркера (83–227 с до 01.09.2026 ~15:00 CEST → 705–1312 с после) НЕ объяснена: код скана не менялся с 17.08 (`b604ef44`), а число home в том окне выросло лишь 240→278 (×1.15). Правка #520 убирает стоимость скана целиком, поэтому вопрос закрыт практически, но механизм ступени остаётся неизвестен · 2026-09-06, #520, спросил Orchestra-orchestrator
+- Свежий НЕ-Astra codex-воркер под старым кодом не запускался: независимость задержки от модели выведена из чтения кода и чужого замера по `logs`, а не из собственного контрольного плеча · 2026-09-06, #520
 - Пункты выше не проверялись на дубли между собой построчно: перенос #347 сохранял текст
   дословно, слияние формулировок делалось только в `CLAUDE.md` · 2026-08-19, #347
 - Сохраняется ли поздний `agentMessage` в native history, если он успел появиться до обработки `turn/interrupt` · live/provider canary запрещён постановкой; fake доказывает только Orchestra quarantine · 2026-08-23, #385
@@ -127,4 +137,5 @@
 - `.orchestra/tasks/240/research.md` — layered A/B/A/B standalone→app-server→Python→managed prompt/MCP→warm history
 - `.orchestra/tasks/255/research.md` — retrospective active-turn concurrency vs processes, host/proxy/provider/stdio hypotheses
 - `.orchestra/tasks/312/research.md` — matched production evidence for 258 400→828 400 context, latency/failure/quality and subscription consumption
+- `.orchestra/tasks/520/research.md` — стадия зависания старта Codex-воркера по дампу живого процесса, стоимость скана состояния и живой прогон Astra
 - `.orchestra/tasks/505/report.md` — open Astra/Sol long-work A/B, frozen `question_open`, identical scope rejections, descriptive USD ratio and experiment overhead

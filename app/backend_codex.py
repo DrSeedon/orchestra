@@ -599,16 +599,30 @@ def _backup_codex_state(source: Path, destination: Path) -> None:
     os.chmod(destination, 0o600)
 
 
+def _state_source_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> Path:
     base = _base_codex_home() / "state_5.sqlite"
-    candidates: list[tuple[int, int, Path]] = []
     sources = [base]
     if _CODEX_HOME_ROOT.is_dir():
-        sources.extend(
-            candidate
-            for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite")
-            if candidate.parent != target_home
-        )
+        # Freshest first, and STOP at the first healthy source. Ranking every home
+        # meant one `PRAGMA quick_check` per state DB — 278 homes / 72 GiB and ~11 min
+        # of pure I/O per spawn (#520), growing with every worker ever created, so a
+        # fresh worker never reached its CLI. mtime is the cheap stand-in for the old
+        # thread_count ranking: it needs a stat, not a full read of the database.
+        sources.extend(sorted(
+            (
+                candidate
+                for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite")
+                if candidate.parent != target_home
+            ),
+            key=lambda candidate: (-_state_source_mtime(candidate), str(candidate)),
+        ))
     for candidate in sources:
         try:
             info = _inspect_codex_state(candidate, check_integrity=True)
@@ -621,12 +635,10 @@ def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> P
             logger.warning("ignoring invalid Codex state source %s: %s", candidate, exc)
             continue
         if info.status == "complete" and info.last_success_at is not None:
-            candidates.append((info.thread_count, info.last_success_at, candidate))
-    if not candidates:
-        raise RuntimeError(
-            f"no healthy Codex state source validated for CLI {cli_version}"
-        )
-    return max(candidates, key=lambda item: (item[0], item[1], str(item[2])))[2]
+            return candidate
+    raise RuntimeError(
+        f"no healthy Codex state source validated for CLI {cli_version}"
+    )
 
 
 def _prepare_managed_codex_state(

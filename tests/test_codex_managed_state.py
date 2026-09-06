@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -290,22 +291,60 @@ def test_failed_install_rolls_stale_state_back(monkeypatch, tmp_path):
     assert not list(home.glob(".state_5.seed-*"))
 
 
-def test_source_selection_prefers_fullest_healthy_matching_index(monkeypatch, tmp_path):
+def test_source_selection_stops_at_first_healthy_source(monkeypatch, tmp_path):
+    """A healthy base ends the search: every extra candidate costs a full quick_check.
+
+    Ranking all of them read every managed state DB on each fresh spawn (#520:
+    278 homes, 72 GiB, ~11 min), so the worker never reached its CLI.
+    """
     import app.backend_codex as module
 
     base = tmp_path / "base"
     base.mkdir()
     _state_db(base / "state_5.sqlite", threads=("base",))
     root = tmp_path / "managed-root"
-    fullest = root / "fullest"
-    fullest.mkdir(parents=True)
-    _state_db(
-        fullest / "state_5.sqlite",
-        threads=("one", "two", "three"),
+    for name in ("fullest", "other"):
+        home = root / name
+        home.mkdir(parents=True)
+        _state_db(home / "state_5.sqlite", threads=("one", "two", "three"))
+    monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
+    monkeypatch.setattr(module, "_base_codex_home", lambda: base)
+
+    inspected: list[Path] = []
+    real_inspect = module._inspect_codex_state
+
+    def counting_inspect(path, check_integrity=False):
+        inspected.append(path)
+        return real_inspect(path, check_integrity=check_integrity)
+
+    monkeypatch.setattr(module, "_inspect_codex_state", counting_inspect)
+
+    selected = module._select_managed_codex_state_source(
+        root / "new-home",
+        SEED_CLI_VERSION,
     )
-    corrupt = root / "corrupt"
-    corrupt.mkdir()
-    (corrupt / "state_5.sqlite").write_bytes(b"not sqlite")
+
+    assert selected == base / "state_5.sqlite"
+    assert inspected == [base / "state_5.sqlite"]
+
+
+def test_source_selection_prefers_freshest_managed_state_when_base_is_corrupt(
+    monkeypatch, tmp_path,
+):
+    import app.backend_codex as module
+
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "state_5.sqlite").write_bytes(b"not sqlite")
+    root = tmp_path / "managed-root"
+    stale = root / "stale"
+    stale.mkdir(parents=True)
+    _state_db(stale / "state_5.sqlite", threads=("one", "two", "three"))
+    os.utime(stale / "state_5.sqlite", (1_000, 1_000))
+    fresh = root / "fresh"
+    fresh.mkdir()
+    _state_db(fresh / "state_5.sqlite", threads=("only",))
+    os.utime(fresh / "state_5.sqlite", (2_000, 2_000))
     monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
     monkeypatch.setattr(module, "_base_codex_home", lambda: base)
 
@@ -314,7 +353,7 @@ def test_source_selection_prefers_fullest_healthy_matching_index(monkeypatch, tm
         SEED_CLI_VERSION,
     )
 
-    assert selected == fullest / "state_5.sqlite"
+    assert selected == fresh / "state_5.sqlite"
 
 
 def test_source_selection_uses_valid_managed_state_when_base_is_corrupt(
