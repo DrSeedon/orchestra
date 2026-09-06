@@ -1,0 +1,32 @@
+[
+  {
+    "home": "/home/kesha/.orchestra/codex-home/75285d62-98bc-441c-9727-22c54bd8ab97",
+    "plugins/cache": {
+      "bytes": 28090361,
+      "files": 200,
+      "tree_sha256": "d4da2c05abdfe006d7f6ce6df59c449bf02b45f99362609faca81385f143dd7d",
+      "symlink": false
+    },
+    "cache/remote_plugin_catalog": {
+      "bytes": 13695650,
+      "files": 1,
+      "tree_sha256": "8fa61dc9140ea666b69727c82b3586cecfe96b9ca3cc7f577c3866f6065a5719",
+      "symlink": false
+    }
+  },
+  {
+    "home": "/home/kesha/.orchestra/codex-home/3d8c7826-ad55-43c4-99c5-c531f7b29994",
+    "plugins/cache": {
+      "bytes": 28137128,
+      "files": 212,
+      "tree_sha256": "aeb09d4e60dfa7181a59eacd3acdd6897b5d4f1ea57dc736732a3e6c272dea4d",
+      "symlink": false
+    },
+    "cache/remote_plugin_catalog": {
+      "bytes": 17242449,
+      "files": 1,
+      "tree_sha256": "fc87d7b6376dac311eb967af971f7fbbe31b6d612fcee90a2b7d823cc8e7c373",
+      "symlink": false
+    }
+  }
+]

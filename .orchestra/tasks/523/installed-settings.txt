@@ -1,0 +1,33 @@
+binary /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex
+
+ANCHOR CODEX_SQLITE_HOME
+b'ent for \xc0\x00\x16Configured value for `\xc0&` is overridden by the required value \xc0\x06 from \xc0\x01.\x00]Environment value for `$CODEX_SQLITE_HOME` is overridden by the required `sqlite_home` value \xc0\x06 from \xc0\x01.\x005configured values are overridden by requirements for \xc0\x00\x19Configured values under `\xc0&` are overridden by requirements from \xc0\x01.\x00%Using legacy'
+b'uired when auto_compact_fallback_prompt is setfeatures.token_budget.reminder_threshold_tokens must be positiveCODEX_SQLITE_HOMEoss_providerrequirements.toml default_permissions must be set unless allowed_permission_profiles allows both `:workspace` and `:read-only`Your context window is nearly exhausted (only {n_remaining} token'
+b'sandbox_private_desktopevent core/src/config/requirements.rs:98valueevent core/src/config/requirements.rs:157`CODEX_SQLITE_HOME` is overridden by an exact requirement for sqlite_homeevent core/src/config/requirements.rs:178, event core/src/config/managed_features.rs:254codex_core::config::managed_featurescore/src/config/managed_'
+
+ANCHOR sqlite_home
+b' by the required value \xc0\x06 from \xc0\x01.\x00]Environment value for `$CODEX_SQLITE_HOME` is overridden by the required `sqlite_home` value \xc0\x06 from \xc0\x01.\x005configured values are overridden by requirements for \xc0\x00\x19Configured values under `\xc0&` are overridden by requirements from \xc0\x01.\x00%Using legacy `features` requirement `\xc0\x07` from \xc0 ; prefer canon'
+b'ilenamestool_output_token_limitbackground_terminal_max_timeoutjs_repl_node_pathjs_repl_node_module_dirshistorysqlite_homelog_dirfile_openertuihide_agent_reasoningshow_raw_agent_reasoningplan_mode_reasoning_effortmodel_catalog_jsonapps_mcp_product_skuresponses_api_metadataorchestratoropenai_base_urlaudioexperimental_realtime_ws_b'
+b'stool_output_token_limitbackground_terminal_max_timeoutjs_repl_node_pathjs_repl_node_module_dirsprofilehistorysqlite_homelog_dirfile_openertuihide_agent_reasoningshow_raw_agent_reasoningmodel_reasoning_effortplan_mode_reasoning_effortmodel_reasoning_summarymodel_verbositymodel_catalog_jsonservice_tierapps_mcp_product_skuresponse'
+b'oc_max_bytesproject_doc_fallback_filenamestool_output_token_limitbackground_terminal_max_timeoutprofilehistorysqlite_homelog_dirfile_openerhide_agent_reasoningshow_raw_agent_reasoningapps_mcp_product_skuresponses_api_metadataorchestratoropenai_base_urlaudioexperimental_realtime_ws_base_urlexperimental_realtime_webrtc_call_base_u'
+
+ANCHOR remote_plugin_catalog
+b' MCP object overwrote an earlier server definitionplugin MCP file overwrote an earlier server definitioncache/remote_plugin_catalog\xc3 \x00\x00i\x10\x00\x05.json\x00account_idchatgpt_user_idis_workspace_accountscopecollectionfetched_atevent core-plugins/src/remote/catalog_cache.rs:104codex_core_plugins::remote::catalog_cachecache_pathcore-plugins/s'
+
+ANCHOR backfill
+b'mports.rs\x00state/src/runtime/logs.rs\x00state/src/runtime/goals.rs\x00state/src/runtime/threads.rs\x00state/src/runtime/backfill.rs\x00state/src/runtime/memories.rs\x00state/src/runtime/recovery.rs\x000database path does not have a parent directory: \xc0\x00\x07sqlite-\xc0\x01-\xc0\x00"cannot create a backup folder for \xc0\x00:no Codex runtime database files were found to '
+b'le type for \xc0\x02: \xc0\x00\x19failed to read directory \xc0\x02: \xc0\x00%failed to read directory entry under \xc0\x02: \xc0\x00!failed to read backfill state at \xc0\x02: \xc0\x00%state db backfill already running at \xc0\x1b; skipping duplicate worker\x00#failed to claim backfill worker at \xc0\x02: \xc0\x00)failed to read claimed backfill state at \xc0\x02: \xc0\x00#failed to mark backfill running at \xc0\x02'
+b'directory \xc0\x02: \xc0\x00%failed to read directory entry under \xc0\x02: \xc0\x00!failed to read backfill state at \xc0\x02: \xc0\x00%state db backfill already running at \xc0\x1b; skipping duplicate worker\x00#failed to claim backfill worker at \xc0\x02: \xc0\x00)failed to read claimed backfill state at \xc0\x02: \xc0\x00#failed to mark backfill running at \xc0\x02: \xc0\x00&failed to collect rollout pat'
+b' backfill state at \xc0\x02: \xc0\x00%state db backfill already running at \xc0\x1b; skipping duplicate worker\x00#failed to claim backfill worker at \xc0\x02: \xc0\x00)failed to read claimed backfill state at \xc0\x02: \xc0\x00#failed to mark backfill running at \xc0\x02: \xc0\x00&failed to collect rollout paths under \xc0\x02: \xc0\x00!failed to checkpoint backfill at \xc0\x02: \xc0\x00\x19failed to upsert ro'
+
+ANCHOR history.max_bytes
+
+ANCHOR retention_days
+
+ANCHOR log_max
+
+ANCHOR plugins/cache
+b'ith-me-unlistedShared with me (unlisted)limitcollectionpageTokenincludeAppsNeedingAuthworkspace-shared-with-meplugins/cachefailed to persist identity for cached remote installed pluginfailed to download remote installed plugin bundleskipping remote installed plugin bundle downloadfailed to remove stale remote plugin cache entrie'
+b'space DirectoryGLOBALWORKSPACEShared with meShared with me (unlisted)collectionpageTokenincludeAppsNeedingAuthplugins/cachefailed to persist identity for cached remote installed pluginfailed to download remote installed plugin bundleskipping remote installed plugin bundle downloadfailed to remove stale remote plugin cache entrie'
+b'remote plugin install metadata.codex-remote-plugin-install.jsonfailed to remove remote plugin install metadataplugins/cacheplugins/datafailed to resolve Codex homefailed to resolve plugin data rootfailed to resolve plugin cache rootfailed to copy plugin filefailed to inspect plugin source entryfailed to enumerate plugin sourcefa'
+b'infetch_recommended_pluginsinvalid remote plugin id: only ASCII letters, digits, `_`, `-`, and `~` are allowedplugins/cacheevent core-plugins/src/remote/remote_installed_plugin_sync.rs:333codex_core_plugins::remote::remote_installed_plugin_synccore-plugins/src/remote/remote_installed_plugin_sync.rsevent core-plugins/src/remote/r'

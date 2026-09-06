@@ -1,0 +1,60 @@
+[
+  {
+    "home": "private-1788710284481893475",
+    "sizes": {
+      "state_5.sqlite-shm": 32768,
+      "thread_history_1.sqlite": 4096,
+      "logs_2.sqlite-shm": 32768,
+      "goals_1.sqlite-wal": 86552,
+      "thread_history_1.sqlite-wal": 679832,
+      "memories_1.sqlite-shm": 32768,
+      "goals_1.sqlite-shm": 32768,
+      "config.toml": 548,
+      "logs_2.sqlite-wal": 144232,
+      "goals_1.sqlite": 4096,
+      "queue_1.sqlite": 4096,
+      "logs_2.sqlite": 147456,
+      "memories_1.sqlite-wal": 65952,
+      "queue_1.sqlite-wal": 94792,
+      "installation_id": 36,
+      ".sandbox_migration": 3,
+      "models_cache.json": 266702,
+      "state_5.sqlite-wal": 2822232,
+      "state_5.sqlite": 4096,
+      "memories_1.sqlite": 4096,
+      "thread_history_1.sqlite-shm": 32768,
+      "queue_1.sqlite-shm": 32768,
+      "tmp": 0,
+      "skills": 385996,
+      "plugins": 28137128,
+      "shell_snapshots": 9488,
+      "sessions": 105977,
+      "cache": 1257551,
+      "thread-writer-locks": 0
+    },
+    "sessions_link": false
+  },
+  {
+    "home": "shared-1788710328152244143",
+    "sizes": {
+      "state_5.sqlite-shm": 32768,
+      "logs_2.sqlite-shm": 32768,
+      "goals_1.sqlite-wal": 74192,
+      "memories_1.sqlite-shm": 32768,
+      "goals_1.sqlite-shm": 32768,
+      "config.toml": 547,
+      "logs_2.sqlite-wal": 119512,
+      "goals_1.sqlite": 4096,
+      "queue_1.sqlite": 4096,
+      "logs_2.sqlite": 49152,
+      "memories_1.sqlite-wal": 61832,
+      "queue_1.sqlite-wal": 82432,
+      "state_5.sqlite-wal": 4383712,
+      "state_5.sqlite": 225058816,
+      "memories_1.sqlite": 4096,
+      "queue_1.sqlite-shm": 32768,
+      "tmp": 0
+    },
+    "sessions_link": true
+  }
+]

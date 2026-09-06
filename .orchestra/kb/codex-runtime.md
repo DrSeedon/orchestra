@@ -22,12 +22,18 @@
 
 `fact:codex-home-unbounded-growth` · искать: codex-home размер, 72 GiB, диск заполнен, managed home не чистится · `~/.orchestra/codex-home` не чистится: 289 home, 278 баз по ~224 MiB, 72 GiB, корневой диск занят на 89%; каждый спавн копирует ещё одну базу · `du -sh`, `df -h /` 06.09.2026 · 2026-09-06, #520
 
+- `fact:codex-empty-private-home-works` — Codex CLI 0.153.4 с новой state_5.sqlite и личным sessions, сохранив auth/config, выполнил реальные MCP и shell на Luna, затем resume сохранил nonce; подключение 1.861 с, state+WAL 2 826 328 Б после двух ходов, чужие треды для этого сценария не нужны · search: `не сеять вовсе`, `пустой CODEX_HOME`, `личный sessions`, `resume` · evidence: `.orchestra/tasks/523/private.log`, `.orchestra/tasks/523/probe.py` · 2026-09-06, #523
+- `fact:codex-state-triplicated-first-message-size` — В базовой state_5.sqlite размером 232 497 152 Б три поля threads.title, threads.first_user_message и threads.preview занимали по 76 499 063 Б, суммарно 98.71% файла; размер не является обязательным контекстом нового воркера, побайтное равенство полей из сумм не следует · search: `219 МБ`, `state_5.sqlite`, `first_user_message`, `preview` · evidence: `.orchestra/tasks/523/thread-column-bytes.json`, `.orchestra/tasks/523/db-layout.json`, read-only SQL · 2026-09-06, #523
+- `fact:codex-sqlite-home-routing-and-resume` — CLI 0.153.4 создаёт SQLite в sqlite_home, при отсутствии ключа использует CODEX_SQLITE_HOME; в контроле config победил env, а config/read не показал env-derived путь; отдельный пустой home смог выполнить thread/resume тестового треда через sqlite_home исходного home, конкурентность не проверялась · search: `sqlite_home`, `CODEX_SQLITE_HOME`, `общая база`, `config/read` · evidence: `.orchestra/tasks/523/config-probe.log`, `.orchestra/tasks/523/resume-config-probe.log` · 2026-09-06, #523
+- `fact:codex-home-kill-misses-cleanup` — Цепочка kill_worker → DELETE session → SessionManager.remove закрывает backend, удаляет worktree и архивирует строку БД, но не удаляет managed Codex home; periodic cleanup обслуживает только worktrees, отдельного seed/TTL-переключателя managed home нет · search: `kill_worker`, `archive`, `codex-home`, `почему не удаляется` · evidence: `app/mcp_stdio.py:1927`, `app/manager.py:1290`, `app/manager.py:2543`, `app/backend_codex.py:1661`, `.orchestra/tasks/523/home-references.txt` · 2026-09-06, #523
+- `fact:codex-plugin-cache-owned-by-cli` — Orchestra не копирует plugins/cache и cache/remote_plugin_catalog; свежий home наполняет CLI, а два проверенных live home имели разные tree SHA256, 200 против 212 файлов plugins и 13 695 650 против 17 242 449 Б remote_plugin_catalog, поэтому неизменяемость общего writable cache не доказана · search: `plugins/cache`, `remote_plugin_catalog`, `плагины копируются` · evidence: `app/backend_codex.py:2772`, `.orchestra/tasks/523/final-probe-sizes.json`, `.orchestra/tasks/523/plugin-layout.json`, `.orchestra/tasks/523/installed-settings.txt` · 2026-09-06, #523
+- `fact:codex-new-thread-paginated-local-state` — Новый тред CLI 0.153.4 в ограниченной пробе получил history_mode=paginated и локальную thread_history_1.sqlite с thread_turns/thread_items; полнота восстановления такой истории после удаления SQLite из JSONL не проверена, весь home нельзя объявлять доказанно пересобираемым кешем · search: `history_mode`, `paginated`, `thread_history_1.sqlite`, `удалить home` · evidence: `.orchestra/tasks/523/private-history-layout.json`, `.orchestra/tasks/523/schema-excerpt.json` · 2026-09-06, #523
+
 ## Historical observations
 
 ### Managed state (`~/.orchestra/codex-home`)
 
-- `fact:managed-home-grows-273mb-per-spawn` — Каждый спавн Codex-воркера создаёт личный home на ~273 МБ: `state_5.sqlite` 219 МБ (копия базы тредов) + `plugins/cache` 28 МБ + `cache/remote_plugin_catalog` 15 МБ; последние два побайтно одинаковы у всех. Каталог НЕ удаляется при kill/archive. За месяц накопилось 294 каталога на 72 ГБ при диске 90%; сирот (нет живой сессии с этим id) — 259 на 63.8 ГиБ, из них 14 отсутствовали в БД вообще. Критерий сироты, проверенный на живом наборе: имя каталога не входит в `select id from sessions where status!='archived'` · search: `codex-home размер`, `273 МБ на спавн`, `state_5.sqlite копия`, `сироты codex-home` · evidence: `.orchestra/tasks/523/codex-home-snapshot.json` (полный список, размеры) · 2026-09-06, #523
-- `gap:why-seed-219mb-thread-history` — Зачем свежему воркеру копия чужой истории тредов, не установлено. Посев включился коммитом `3f8bffbf` (05.09) вместе с поддержкой CLI 0.153.4; до него ветка посева не срабатывала вовсе, и воркеры работали. Разбирается в #523 · search: `зачем сеять state_5`, `пустой CODEX_HOME`, `needs_seed` · 2026-09-06, #523
+- `fact:managed-home-grows-273mb-per-spawn` — Исторический снимок до чистки: 294 элемента codex-home, 35 keep на 9 260 578 611 Б и 259 orphan на 68 462 303 203 Б (63.76 GiB); критерий orphan — имя отсутствует среди id сессий со status!=archived; в unknown_in_db 14 имён, включая служебный .locks, поэтому 14 не означает 14 неизвестных воркеров; размер ~273 МБ/home относится к исходному срезу, не каждому будущему spawn · search: `codex-home размер`, `273 МБ на спавн`, `сироты codex-home`, `294/35/259` · evidence: `.orchestra/tasks/523/codex-home-snapshot.json`, `.orchestra/tasks/523/snapshot-summary.json` · 2026-09-06, #523
 
 ### Codex / Sol
 
@@ -99,6 +105,9 @@
 
 ## Rejected
 
+- `fact:codex-disable-seed-alone-saves-disk` — Гипотеза «убрать только посев и рост диска исчезнет» отвергнута для штатного общего sessions: CLI 0.153.4 без seed за 43.129 с создал 225 058 816 Б state + 4 383 712 Б WAL, backfill оставался running с 389 тредами, connect ещё не завершился; последующее окончание backfill не измерялось · search: `не сеять`, `общий sessions`, `backfill`, `рост диска` · evidence: `.orchestra/tasks/523/shared.log`, `.orchestra/tasks/523/probe.py shared` · 2026-09-06, #523
+- `fact:codex-empty-private-home-resumes-any-thread` — Произвольный старый thread-id не возобновляется в пустом личном home: CLI вернул no rollout found; сохранение собственного home или адресный доступ к старой истории остаются необходимыми для измеренного resume · search: `пустой home`, `старый тред`, `no rollout found`, `resume` · evidence: `.orchestra/tasks/523/resume-config-probe.log`, cases foreign-private и shared-index · 2026-09-06, #523
+
 - (пусто на момент переноса #347 — отозванные утверждения помечены прямо внутри пунктов выше)
 - «Магический заголовок, роль-теги, `SILENT_TURN` или глобальный фильтр прозы могут быть lifecycle authority» · task #385: те же байты лежали в native `role=assistant`; только отдельный `type=user_message` совпал с `bg.triggered_at` · 2026-08-23, #385
 - «Codex `clientUserMessageId` дедуплицирует повторную доставку» · официальный контракт обещает только echo/correlation, openai/codex#32254 просит idempotency как отсутствующую фичу · 2026-08-23, #385
@@ -111,6 +120,9 @@
 - «После подъёма контекста вырос общий terminal failure rate» для immediate matched окна · `end_turn` 30/31→35/35; 22/25 поздних interrupts лежат в двух fleet-wide server/restart clusters · 2026-08-24, #312
 
 ## Gaps
+
+- Общий sqlite_home проверен на маршрутизации файлов и последовательном cross-home resume, но не на конкуренции нескольких процессов, сбоях и полном наборе SQLite-подсистем; личный sessions не проверен на всех handoff/context% путях · evidence: `.orchestra/tasks/523/research.md` §Варианты; реализация запрещена постановкой · 2026-09-06, #523, спросил владелец
+- Не установлен поддерживаемый TTL/byte-cap state_5.sqlite и общий plugin cache root CLI 0.153.4; официальный config reference не привязан к версии, исходный Rust-текст локально отсутствует, binary strings не доказывают отсутствие любой внутренней уборки · evidence: `.orchestra/tasks/523/research.md` §Реальные переключатели · 2026-09-06, #523
 
 - Ступень ×6 в дельте старта Codex-воркера (83–227 с до 01.09.2026 ~15:00 CEST → 705–1312 с после) НЕ объяснена: код скана не менялся с 17.08 (`b604ef44`), а число home в том окне выросло лишь 240→278 (×1.15). Правка #520 убирает стоимость скана целиком, поэтому вопрос закрыт практически, но механизм ступени остаётся неизвестен · 2026-09-06, #520, спросил Orchestra-orchestrator
 - Свежий НЕ-Astra codex-воркер под старым кодом не запускался: независимость задержки от модели выведена из чтения кода и чужого замера по `logs`, а не из собственного контрольного плеча · 2026-09-06, #520
@@ -132,6 +144,8 @@
 - Остаётся неизвестно, разделит ли Astra и Sol строгий 3/3 accepted comparison и существует ли в нашей реальной работе task shape, где model-generated tokens действительно доминируют fixed prompt: #505 сохранил **91% / 89% input cost share** даже на Astra run `235.016 s / 19 tool_items / 5,387 output_tokens`, поэтому output-dominated workload является open question, не предпосылкой · search: `Astra 3/3`, `output dominated`, `fixed prompt`, `long work gap`, `91% input` · evidence: `.orchestra/tasks/505/raw/benchmark.json`, `.orchestra/tasks/505/report.md` §Token-efficiency finding · 2026-09-05, #505
 
 ## Источники
+
+- `.orchestra/tasks/523/research.md` — пустой home против общего sessions, реальный backfill без seed, размеры полей threads, настройки CLI, отсутствие archive cleanup и варианты на решение владельца
 
 - `CLAUDE.md` — короткие правила «триггер → действие», ссылающиеся сюда
 - `.orchestra/tasks/498/research.md` — доступность Astra на нашей авторизации, общий бакет квоты, измеренная цена 2.23× за закрытый тикет, достижимость возможностей и что ломается при регистрации
