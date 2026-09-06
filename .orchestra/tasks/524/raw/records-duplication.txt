@@ -1,0 +1,15 @@
+records: 12759 distinct source_path: 1612 distinct stable_id: 12759
+copies-per-path histogram: {8: 1581, 6: 4, 7: 2, 2: 5, 4: 3, 5: 4, 3: 9, 1: 4}
+distinct git_commit: 8
+    1612  6cbd918dedd289db86afcc61791939f51c20dd8d
+    1608  d4bacb4a19e45fabd091bb0724ea39552b96fb91
+    1603  8e2b564cdf47ba08dc7d7efcc76b3040c155242e
+    1594  6964839cc693024bc907b4d771673184b8121c45
+    1591  cff6da8a477bcb493c7c228049653e78bbf2d98a
+    1587  13aceafe33838c9f62539dc208d6b7974f50401b
+    1583  f9ab385d1e250edcb8d3ac7e551f562bdef7b5a3
+    1581  236b385fd65a8db40659351c2d1f20016d739fe4
+
+manifest top-level keys: ['project_id', 'record_count', 'records', 'records_sha256', 'schema_version', 'source_head']
+manifest rows: 12759
+row sample: {"destination_relative_path": ".orchestra/kb/records/evidence/0008e48a-af36-5b2b-8c1d-1566c13ef451.json", "sha256": "d6e6351bf466d6e6c3d04580b802f3b252717ee85966cc40f5f48f9ebd9a7870", "size": 586, "source_relative_path": "evidence/orchestra/0008e48a-af36-5b2b-8c1d-1566c13ef451.json", "stable_id": "0008e48a-af36-5b2b-8c1d-1566c13ef451"}

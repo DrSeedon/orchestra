@@ -1,0 +1,52 @@
+# Кандидаты на удаление — сырые прогоны в .orchestra/tasks (>300 КБ)
+
+  5890.6 КБ  .orchestra/tasks/412/git-command-log.jsonl
+  4028.6 КБ  .orchestra/tasks/313/evidence/static-signals.json
+  2946.8 КБ  .orchestra/tasks/430/reference-inventory.tsv
+  2215.4 КБ  .orchestra/tasks/313/inventory.json
+  1846.9 КБ  .orchestra/tasks/285/limits-data.json
+  1681.6 КБ  .orchestra/tasks/106/q6/results/primary.jsonl
+  1470.1 КБ  .orchestra/tasks/106/q5/results/primary.jsonl
+  1350.2 КБ  .orchestra/tasks/106/q4/results/primary.jsonl
+  1320.9 КБ  .orchestra/tasks/430/evidence-bindings-frozen.json
+  1135.2 КБ  .orchestra/tasks/106/results/judge-codex.jsonl
+  1102.0 КБ  .orchestra/tasks/454/eval-run-3.jsonl
+  1024.0 КБ  .orchestra/tasks/106/q4/results/judge-codex.jsonl
+  1019.9 КБ  .orchestra/tasks/106/results/primary.jsonl
+   995.2 КБ  .orchestra/tasks/430/fleet-run/06-orchestra-commit-stat.txt
+   931.8 КБ  .orchestra/tasks/454/eval-run-1.jsonl
+   877.1 КБ  .orchestra/tasks/106/results/failed-attempts/judges-missing-file-evidence-20260801/judge-codex.jsonl
+   798.7 КБ  .orchestra/tasks/454/eval-run-2.jsonl
+   700.7 КБ  .orchestra/tasks/kb-extract/report.html
+   669.8 КБ  .orchestra/tasks/315/acceptance/fixtures/t7_document_inventory.json
+   640.5 КБ  .orchestra/tasks/346/evidence/raw/luna-b2-valid.jsonl
+   593.8 КБ  .orchestra/tasks/313/evidence/import-status.json
+   581.9 КБ  .orchestra/tasks/255/turns.csv
+   513.6 КБ  .orchestra/tasks/506/reviews.json
+   505.2 КБ  .orchestra/tasks/346/evidence/raw/static-b1-valid.json
+   494.6 КБ  .orchestra/tasks/106/q4/results/recompact.jsonl
+   461.8 КБ  .orchestra/tasks/346/evidence/raw/static-b2-valid.json
+   451.1 КБ  .orchestra/tasks/106/q5/results/primary-scores.json
+   420.9 КБ  .orchestra/tasks/248/evidence/commit-task-reconciliation.tsv
+   408.2 КБ  .orchestra/tasks/430/fleet-run/01-COG-second-brain-commit-stat.txt
+   405.0 КБ  .orchestra/tasks/259/current-dashboard-1920.png
+   403.3 КБ  .orchestra/tasks/106/q6/results/primary-scores.json
+   402.9 КБ  .orchestra/tasks/508/sample.json
+   396.5 КБ  .orchestra/tasks/pipeline-rebase/codex-review-impl.md
+   386.6 КБ  .orchestra/tasks/419/raw/final_lexical.jsonl
+   361.5 КБ  .orchestra/tasks/pipeline-rebase/codex-review-plan.md
+   356.2 КБ  .orchestra/tasks/505/raw/events-2-sol.jsonl
+   342.0 КБ  .orchestra/tasks/285/parts/telemetry/evidence.json
+   341.8 КБ  .orchestra/tasks/64/measurements/after-agents.png
+   340.8 КБ  .orchestra/tasks/64/measurements/before-agents.png
+   335.6 КБ  .orchestra/tasks/106/q4/results/primary-scores.json
+   326.1 КБ  .orchestra/tasks/430/baseline-shards/collection.txt
+   306.8 КБ  .orchestra/tasks/312/turns.csv
+   306.2 КБ  .orchestra/tasks/505/raw/events-0-sol.jsonl
+   305.8 КБ  .orchestra/tasks/346/evidence/raw/static-b1.json
+   305.3 КБ  .orchestra/tasks/68/sender-color-branch.png
+   305.3 КБ  .orchestra/tasks/68/sender-color-main.png
+   301.8 КБ  .orchestra/tasks/128/measure/128B-avariya.png
+
+# ИТОГО
+файлов: 47, суммарно 42.3 МБ
