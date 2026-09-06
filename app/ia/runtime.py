@@ -233,8 +233,10 @@ class _RuntimeTaskStore:
         with self._lock:
             _ensure_task_projection(self._store)
             states = self._store._states()
+            # Registering a project in tm_projects later remaps its id; shadow states written
+            # before that keep the legacy id, so both sides are normalised before comparison.
             canonical = {
-                (str(state["project_id"]), int(state["display_number"])): state
+                (self._project(str(state["project_id"])), int(state["display_number"])): state
                 for state in states.values()
             }
             legacy = {
