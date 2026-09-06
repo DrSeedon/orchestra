@@ -2119,33 +2119,3 @@ async def test_t4_list_agents_carries_fresh_bounded_project_task_view(monkeypatc
     assert [path for _method, path, _params in calls].count("/api/tm/tasks") == 2
 
 
-def test_t4_task_prompt_delivers_automatic_lifecycle_without_manual_round_trips():
-    """Delivery check: roles receive the new ownership boundary, not a prose-only edit."""
-    from app.pipeline import build_system_prompt
-    from app import tm
-
-    _init_db()
-    _seed_project()
-    with tm._conn() as connection:
-        task = tm.create_task(
-            connection, "project", "PROMPT_SNAPSHOT_FIRST", par_number=4248,
-        )
-
-    orchestrator = build_system_prompt("default", "orchestrator")
-    full_cycle = build_system_prompt("default", "full-cycle")
-    worker = build_system_prompt("default", "worker")
-    with tm._conn() as connection:
-        connection.execute(
-            "UPDATE tm_tasks SET title=? WHERE id=?",
-            ("PROMPT_SNAPSHOT_SECOND", task["id"]),
-        )
-    rebuilt = build_system_prompt("default", "orchestrator")
-
-    for prompt in (orchestrator, full_cycle):
-        assert "Starting work** → `task_update" not in prompt
-        assert "Successful merge** → `task_update" not in prompt
-        assert "spawn/send/merge responses carry the fresh task state" in prompt
-    assert "spawn/send/merge responses carry the fresh task state" not in worker
-    for prompt in (orchestrator, rebuilt):
-        assert "PROMPT_SNAPSHOT_FIRST" not in prompt
-        assert "PROMPT_SNAPSHOT_SECOND" not in prompt

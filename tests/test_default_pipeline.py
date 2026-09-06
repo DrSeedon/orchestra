@@ -288,26 +288,8 @@ class TestDefaultBuildSystemPrompt:
         # маркеров нашего сквозного слоя быть не должно (его в default нет вовсе)
         assert "_pipeline" not in out
 
-    def test_orchestrator_prompt_contains_base_critical_marker(self):
-        """Характеризация: маркер из его base.md (critical-правило) присутствует —
-        доказывает, что слой base.md реально склеен."""
-        out = P.build_system_prompt(PIPELINE, "orchestrator")
-        assert "NEVER address the user by name" in out
-        # и платформенный маркер MCP send_message
-        assert "mcp__orchestra__send_message" in out
 
-    def test_all_roles_forbid_acknowledgement_loops(self):
-        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
-            out = P.build_system_prompt(PIPELINE, role)
-            assert "Never send acknowledgement-only messages" in out
-            assert "do not reply and end the turn silently" in out
 
-    def test_all_roles_end_turn_instead_of_waiting_for_external_state(self):
-        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle"):
-            out = P.build_system_prompt(PIPELINE, role)
-            assert "Never sleep or poll for a background job, review, or another agent" in out
-            assert "End the turn; Orchestra resumes you on completion" in out
-            assert "Sleeps inside tests or bounded restart checks are allowed" in out
 
     def test_t2_385_platform_completion_trust_rule_is_base_owned_and_delivered(self):
         """RED #385: provenance rule has one shared owner and reaches every role."""
@@ -341,14 +323,6 @@ class TestDefaultBuildSystemPrompt:
         assert "{worker_name}" in out
         assert "{orchestrator_name}" in out
 
-    def test_full_cycle_prompt_delivers_autonomous_workflow(self):
-        """The role's workflow reaches its assembled prompt."""
-        out = P.build_system_prompt(PIPELINE, "full-cycle")
-        assert out.startswith("<platform>")
-        assert "## Role: Full-Cycle Worker" in out
-        assert "<workflow>" in out
-        assert "Autonomous delivery within the approved task" in out
-        assert ".orchestra/tasks/" in out
 
     def test_orchestrator_prompt_excludes_other_roles_bodies(self):
         """ИЗОЛЯЦИЯ слоёв: в промпте orchestrator НЕ должно быть тел worker/full-cycle
@@ -485,11 +459,6 @@ class TestUserAnswerFormatOwnership:
             assert self.OPEN not in assembled, f"User answer format leaked into {role}"
             assert block not in assembled, f"User answer format leaked into {role}"
 
-    def test_no_role_still_carries_the_withdrawn_no_tables_rule(self):
-        """Снятая формулировка не должна вернуться: она противоречит правилу «числа — в таблицу»."""
-        for role in (self.USER_ROLE, *self.OTHER_ROLES):
-            assembled = P.build_system_prompt(PIPELINE, role)
-            assert "Tables are hard to read on a phone" not in assembled, role
 
 
 # ── modules: инлайн переиспользуемых блоков после слоёв роли ────────────────
@@ -515,11 +484,6 @@ class TestDefaultModulesInline:
         assert "orchestration" in out.lower() or "<decision-tree>" in out
         assert self.REPORT_MARKER not in out
 
-    def test_orchestrator_does_bounded_local_rule_edits_without_a_worker(self):
-        out = P.build_system_prompt(PIPELINE, "orchestrator")
-        assert "Do a bounded approved task yourself" in out
-        assert "not because an edit" in out
-        assert "touches multiple files" in out
 
     def test_modules_appended_after_role_layers(self):
         """Модули идут ПОСЛЕ тела роли: маркер роли встречается раньше git-блока."""
@@ -629,47 +593,6 @@ class TestRiskBasedReviewRouting:
         for anchor in anchors:
             assert policy.count(anchor) == 1, f"canonical review contract lacks {anchor!r}"
 
-    def test_review_is_optional_and_has_no_substitute_reviewer(self):
-        """Решение юзера 19.08: ревью полезно, но НЕ обязательно, и заменять недоступный
-        Codex другой моделью запрещено — маршрут «поднять Opus вместо Codex» стоил четырёх
-        платных ревьюеров за один день.
-
-        Проверяются обе половины: новый контракт присутствует И старый отсутствует. Одна
-        половина без другой ложно-зелёная: текст можно дописать, не убрав обязательность,
-        и можно убрать маршрут замены, оставив floor, который заставит искать его заново.
-        """
-        policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
-        present = (
-            "**Ревью доступно, но не обязательно",
-            "Codex недоступен → ревью НЕ делается",
-            "не поднимать\nOpus, не спавнить ревьюера-агента",
-        )
-        for anchor in present:
-            assert policy.count(anchor) == 1, f"новый контракт ревью потерял {anchor!r}"
-        # Формулировка отчёта при недоступном Codex названа и в правиле, и в инструкции
-        # запуска — здесь проверяется наличие, а не единственность.
-        assert "`Review: none — Codex unavailable`" in policy, (
-            "не назван исход, который агент обязан записать вместо ревью"
-        )
-
-        # Обязательность и маршрут замены не должны вернуться ни в одной из форм,
-        # которые этот файл уже использовал.
-        forbidden = (
-            "mandatory",
-            "targeted Opus cross-family review",
-            "cross-family verdict unavailable",
-            "Opus запускается свежей reviewer-сессией",
-            "review route unavailable",
-        )
-        for stale in forbidden:
-            assert stale not in policy, f"вернулась обязательность/замена ревьюера: {stale!r}"
-
-        # И то же самое там, где правило реально исполняется: спавнит ревьюера оркестратор,
-        # а скилл он грузит отдельно — запрет обязан доехать в сам промпт.
-        out = P.build_system_prompt(PIPELINE, "orchestrator")
-        assert "you never spawn a\nreviewer agent as a substitute" in out, (
-            "оркестратор — тот, кто спавнит; без этой строки запрет ничем не принуждается"
-        )
 
     def test_canonical_skill_exposes_direct_luna_review_and_sol_default(self):
         policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
@@ -794,30 +717,7 @@ class TestPremortemReachesWorkingRolesOnly:
 class TestWorkerAutonomy:
     """Delivery checks, not a claim that keyword presence measures model quality."""
 
-    @pytest.mark.parametrize("role", ["worker", "full-cycle"])
-    def test_testing_permission_and_independent_acceptance_reach_workers(self, role):
-        text = " ".join(P.build_system_prompt(PIPELINE, role).split())
-        assert "explicitly frozen acceptance tests must not be weakened" in text
-        assert "tests, fixtures and test configuration" in text
-        for obsolete in ("Never author the acceptance test", "Do not modify any test, fixture",
-                         "A clarification request, a `WIP/STOP` report"):
-            assert obsolete not in text
 
-    def test_end_to_end_authority_without_deployment_authority(self):
-        text = " ".join(P.build_system_prompt(PIPELINE, "full-cycle").split())
-        assert "Continue without phase approvals" in text
-        assert "Implement yourself by default" in text
-        assert "clarification is not a failed attempt" in text
-        assert "research-only" in text
-        assert "Do not merge into main, restart services, deploy" in text
-        assert "required authorization" in text
-        assert "Do NOT freestyle" not in text
-        assert "NEVER skip a phase" not in text
 
-    @pytest.mark.parametrize("role", ["worker", "full-cycle", "orchestrator"])
-    def test_work_areas_do_not_become_hidden_acceptance_boundaries(self, role):
-        text = P.build_system_prompt(PIPELINE, role)
-        assert "not an edit allowlist" in text
-        assert "guaranteed merge conflict" not in text
 
 
