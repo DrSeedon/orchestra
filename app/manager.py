@@ -21,6 +21,7 @@ from typing import Awaitable, Callable, Optional
 from app.session import AgentSession, AgentStatus
 from app.session_state import ACTIVE_SESSION_STATUSES
 from app.events import InjectedMessage, MessageProvenance
+from app.kb_index import kb_index_block
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
@@ -351,6 +352,12 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
     (фильтр ``can_spawn``) + блоки других оркестраторов/воркеров из БД.
 
+    Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+    принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+    эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+    Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+    ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+
     Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
     Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
     """
@@ -361,6 +368,9 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
             f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
             f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
         ) from e
+    kb = kb_index_block(scope)
+    if kb:
+        base += f"\n\n{kb}"
     rr = get_role(pipeline, role)
     is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
     if is_orch:
@@ -753,7 +763,9 @@ class SessionManager:
             base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
             prompt_overlay = "\n\n" + system_prompt if system_prompt else ""
         else:
-            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role)
+            # Воркеру scope нужен ради оглавления KB его проекта; блоки других
+            # оркестраторов/воркеров остаются за `if is_orch` внутри функции.
+            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
             prompt_overlay = ("\n\n" + system_prompt if system_prompt else "")
             prompt_overlay += self._ownership_prompt(owned_dirs)
         prompt = base_prompt + prompt_overlay
@@ -1959,9 +1971,7 @@ class SessionManager:
         выходе означает полную замену промпта оператором — у неё нет границы
         компонентов, и пересобирать её нельзя.
         """
-        current_base = ROLE_SYSTEM_PROMPT(
-            pipeline, role, scope
-        ) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
+        current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
         if not is_orch:
             orch_name = self._find_orchestrator_name(scope)
             current_base = safe_format_prompt(

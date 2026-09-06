@@ -3,49 +3,29 @@ import argparse
 import os
 from pathlib import Path
 import re
+import sys
 import tempfile
+
+_REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from app.kb_index import kb_topic_files, kb_topic_index
 
 MAX_INSTRUCTION_BYTES = 16 * 1024
 FILES = ("AGENTS.md", "CLAUDE.md")
-INDEX_START = "<!-- kb-topics:start -->"
-INDEX_END = "<!-- kb-topics:end -->"
 
 
-def topic_index(root: Path) -> str:
-    kb = root / ".orchestra/kb"
-    topics = {p.relative_to(kb).as_posix() for p in kb.rglob("*.md")
-              if p != kb / "README.md"}
-    entries = {}
-    for line in (kb / "README.md").read_text(encoding="utf-8").splitlines():
-        match = re.fullmatch(r"- \[[^\]]+\]\(([^)]+)\) — (.+)", line)
-        if not match:
-            continue
-        path, description = match.groups()
-        if path.startswith("../"):
-            continue
-        if path not in topics or not (kb / path).resolve().is_relative_to(kb.resolve()):
-            raise ValueError(f"KB index points outside its topic inventory: {path}")
-        if path in entries:
-            raise ValueError(f"KB topic indexed more than once: {path}")
-        if not description.strip():
-            raise ValueError(f"KB topic needs a description: {path}")
-        entries[path] = description.strip()
-    missing = topics - entries.keys()
-    if not entries or missing:
-        raise ValueError(f"KB topics missing from README: {', '.join(sorted(missing)) or 'empty index'}")
-    return "\n".join(f"- [{description}](.orchestra/kb/{path})"
-                     for path, description in entries.items())
+def check_kb_index(root: Path) -> None:
+    """Every topic file must be listed once, with a description, inside ``kb/``.
 
-
-def canonical_body(root: Path) -> bytes:
-    text = _read(root / "AGENTS.md").decode("utf-8")
-    if text.count(INDEX_START) != 1 or text.count(INDEX_END) != 1:
-        raise ValueError("AGENTS.md must contain exactly one generated KB topic block")
-    before, rest = text.split(INDEX_START)
-    if INDEX_END not in rest:
-        raise ValueError("KB topic block markers are reversed")
-    _, after = rest.split(INDEX_END)
-    return (before + INDEX_START + "\n" + topic_index(root) + "\n" + INDEX_END + after).encode("utf-8")
+    The root rules no longer carry the list — the platform injects it from
+    ``kb/README.md`` into the system prompt (:func:`app.kb_index.kb_index_block`). This is
+    what still catches a topic nobody indexed, which no agent would ever be shown.
+    """
+    missing = kb_topic_files(root) - kb_topic_index(root).keys()
+    if missing:
+        raise ValueError(f"KB topics missing from README: {', '.join(sorted(missing))}")
 
 
 def _read(path: Path) -> bytes:
@@ -71,18 +51,17 @@ def check(root: Path) -> None:
         _validate(body, name)
     if bodies[0] != bodies[1]:
         raise ValueError("AGENTS.md and CLAUDE.md differ; run --sync after editing AGENTS.md")
-    if bodies[0] != canonical_body(root):
-        raise ValueError("root KB topic index is stale; update kb/README.md then run --sync")
+    check_kb_index(root)
 
 
 def sync(root: Path) -> None:
-    body = canonical_body(root)
+    body = _read(root / "AGENTS.md")
     _validate(body, "AGENTS.md")
+    check_kb_index(root)  # before any write: a bad index must leave both copies untouched
     for name in FILES:
         if (root / name).is_symlink():
             raise ValueError(f"{name}: refusing to overwrite a symlink")
-    for name in FILES:
-        _write(root / name, body)
+    _write(root / "CLAUDE.md", body)
     check(root)
 
 
