@@ -12,8 +12,10 @@
 Три шага, иначе он невидим и не проходит гейт:
 1. Файл в `.orchestra/kb/<topic>.md`.
 2. Строка `- [<topic>](<topic>.md) — <описание>` в `.orchestra/kb/README.md`.
-3. `python scripts/check_instruction_contract.py --sync` — оглавление в `AGENTS.md`/`CLAUDE.md`
-   генерируется между маркерами `<!-- kb-topics:start/end -->`. Руками не править.
+3. Третьего шага больше нет (#522, 06.09.2026): оглавление собирает платформа из
+   `<scope>/.orchestra/kb/README.md` в системный промпт (`app/kb_index.py`,
+   `ROLE_SYSTEM_PROMPT` в `app/manager.py`). Маркеров `kb-topics` в корне нет,
+   `--sync` индекс не генерирует. Тема доезжает до агента на следующем ходе.
 
 Схема, которую требует `scripts/check_kb_contract.py` (гейт диффовый и ручной — тестовый
 прогон его НЕ вызывает, `tests/test_kb_markdown_contract.py` зелёный и без него):
