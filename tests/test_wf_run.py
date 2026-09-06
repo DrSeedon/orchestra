@@ -171,8 +171,7 @@ def test_default_workflow_module_interface_is_frozen():
     assert DEFAULT_WORKFLOW_MODULES == (
         "communication-style",
         "user-values",
-        "knowledge-and-context",
-        "memory-search",
+        "knowledge",
         "code-quality",
     )
 

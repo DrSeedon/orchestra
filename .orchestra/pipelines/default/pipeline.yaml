@@ -43,7 +43,7 @@ roles:
     model: claude-opus-5[1m]
     effort: &effort_policy {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [html-artifacts, vps-deploy, codex-debate, grill-me, orchestra-agents, eli5]
-    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge-and-context, memory-search, communication-style, user-values]
+    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     tg: {emoji: "👑"}
@@ -59,7 +59,7 @@ roles:
     model: claude-opus-5[1m]
     effort: *effort_policy
     skills: [codex-debate, orchestra-agents, eli5]
-    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge-and-context, memory-search, communication-style, user-values]
+    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     tg: {emoji: "🎯"}
@@ -75,7 +75,7 @@ roles:
     model: claude-opus-5[1m]
     effort: *effort_policy
     skills: [html-artifacts, codex-debate]
-    modules: [code-quality, git-workflow, report-format, self-improvement, knowledge-and-context, memory-search, communication-style, user-values]
+    modules: [code-quality, git-workflow, report-format, self-improvement, knowledge, communication-style, user-values]
     can_spawn: []
     allow_unrouted_workers: false
     tg: {emoji: "⚙️"}
@@ -98,7 +98,7 @@ roles:
     # ступени свои (#214, #373 и основания в комментарии над `roles:`).
     effort: *effort_policy
     skills: [html-artifacts, codex-debate]
-    modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, self-improvement, knowledge-and-context, memory-search, communication-style, user-values]
+    modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, self-improvement, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     tg: {emoji: "🔄"}
@@ -114,7 +114,7 @@ roles:
     order: 4
     model: gpt-5.6-luna
     effort: *effort_policy
-    modules: [knowledge-and-context, communication-style, user-values]
+    modules: [knowledge, communication-style, user-values]
     can_spawn: []
     tg: {emoji: "🧾"}
     when: Collecting fan-out child reports into one lossless handoff for the parent
