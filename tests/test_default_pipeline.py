@@ -144,19 +144,29 @@ class TestDefaultRolesResolve:
         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
         assert P.get_role(PIPELINE, "orchestrator").modules == [
             "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
-            "background-jobs", "task-management", "self-improvement", "memory-search",
+            "background-jobs", "task-management", "self-improvement",
+            "knowledge-and-context", "memory-search", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
             "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
-            "background-jobs", "task-management", "self-improvement", "memory-search",
+            "background-jobs", "task-management", "self-improvement",
+            "knowledge-and-context", "memory-search", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
-            "code-quality", "git-workflow", "report-format", "self-improvement", "memory-search",
+            "code-quality", "git-workflow", "report-format", "self-improvement",
+            "knowledge-and-context", "memory-search", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
             "model-routing", "research-method", "code-quality", "git-workflow", "worker-lifecycle",
-            "report-format", "task-management", "self-improvement", "memory-search",
+            "report-format", "task-management", "self-improvement",
+            "knowledge-and-context", "memory-search", "communication-style", "user-values",
         ]
+
+    def test_shared_conduct_modules_reach_every_role(self):
+        """#490: блоки из base.md стали модулями — роль без них теряет действующие правила."""
+        shared = {"knowledge-and-context", "communication-style", "user-values"}
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            assert shared <= set(P.get_role(PIPELINE, role).modules), role
 
     def test_code_quality_has_one_owner_and_reaches_both_working_roles(self):
         """#prompt-cleanup: блок жил ДВУМЯ дословными копиями в roles/worker.md и
