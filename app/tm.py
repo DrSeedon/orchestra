@@ -56,6 +56,7 @@ class ScopedTaskResolution(TypedDict):
     project_id: str
     tasks: list[TaskIdentity]
     canonical_refs: list[str]
+    unresolved_refs: list[str]
 
 
 def task_dto(task: dict, *, auto_created: bool = False) -> dict:
@@ -757,8 +758,19 @@ def resolve_scoped_task_identities(
     refs: list[str],
     *,
     bound_session_id: str = "",
+    skip_unknown: bool = False,
 ) -> ScopedTaskResolution:
-    """Resolve every task ref through one scope-owned project snapshot."""
+    """Resolve every task ref through one scope-owned project snapshot.
+
+    `skip_unknown=True` — для ссылок, ВЫЧИТАННЫХ из сообщений коммитов: репозиторий может
+    нести собственную нумерацию (переехал с другой площадки), и незнакомый `#N` там не
+    ошибка вызывающего, а факт чужой истории. Такой ref не привязывается, но ОСТАЁТСЯ в
+    `canonical_refs`: тема squash-коммита строится из тех же сообщений и сверяется с этим
+    списком, поэтому выбросить ref значило бы уронить проверку темы. Непривязанные
+    возвращаются в `unresolved_refs` — вызывающий обязан показать их предупреждением.
+    Замер 06.09 (comfy-image-pipeline): коммит `#110: …` в проекте с нумерацией от #3 валил
+    ВСЮ операцию до git-шага с `NO_COMMITS_MERGED`, блокируя работу трёх воркеров.
+    """
     normalized_scope = scope.rstrip("/")
     if not normalized_scope:
         raise ValueError("session scope is required for task assignment")
@@ -768,9 +780,14 @@ def resolve_scoped_task_identities(
             raise ValueError(f"scope '{normalized_scope}' has no task project")
         tasks: list[TaskIdentity] = []
         canonical_refs: list[str] = []
+        unresolved: list[str] = []
         seen_task_ids: set[int] = set()
         for index, ref in enumerate(refs):
             task = resolve_task_ref(conn, ref, project["id"])
+            if not task and skip_unknown:
+                unresolved.append(str(ref))
+                canonical_refs.append(str(ref).lstrip("#"))
+                continue
             if not task:
                 raise ValueError(
                     f"task '{ref}' not found in session project {project['id']}"
@@ -797,6 +814,7 @@ def resolve_scoped_task_identities(
             project_id=project["id"],
             tasks=tasks,
             canonical_refs=canonical_refs,
+            unresolved_refs=unresolved,
         )
 
 

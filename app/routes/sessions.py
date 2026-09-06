@@ -2204,9 +2204,15 @@ async def execute_merge_session(
                 Runs under the repository lock, on the same inspection that guards the
                 emitted subject — a ref this refuses never reaches a commit.
                 """
-                canonical = _tm.resolve_scoped_task_identities(
-                    row_scope, actual_refs,
-                )["canonical_refs"]
+                resolution = _tm.resolve_scoped_task_identities(
+                    row_scope, actual_refs, skip_unknown=True,
+                )
+                canonical = resolution["canonical_refs"]
+                # Незнакомый `#N` в сообщении коммита — факт чужой нумерации репозитория,
+                # а не ошибка: он не привязывается, но мержу не мешает (#comfy 06.09).
+                unresolved = resolution.get("unresolved_refs") or []
+                if unresolved:
+                    finalization["unresolved_task_refs"] = list(unresolved)
                 finalization["candidate_refs"] = canonical
                 return canonical
 
