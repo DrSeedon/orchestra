@@ -30,6 +30,27 @@ depends on the previous result; do not batch mutations or retries merely to save
   reproduce it and add a meaningful check. Use test-first work when the contract is known;
   exploratory diagnosis need not manufacture a frozen test before understanding the failure.
 
+**Test the core, never the wording (owner's decision 06.09.2026, verbatim: «тесты нужны только
+на кор фичи которые не будут меняться… а не хуйню которую мы хотим поменять… ебанные тесты палки
+в колеса»).** This project changes constantly; a test that fails because we deliberately changed
+something is not a guard, it is a brake.
+- **Never assert a literal phrase of a prompt, rule, report or document.** No anchor lists of
+  quotes, no "this exact sentence must be present/absent". Such a test reddens when the OWNER
+  rewrites a rule — it reports his decision back at him as a failure. Measured 06.09: 23 such
+  tests were deleted at once, and not one of them had ever caught a defect; three were red at
+  that moment purely because the wording and the docs had legitimately moved on.
+- **Do test the mechanics that carry the wording**: that a module reaches every role, that one
+  role's prompt does not leak into another, that an index is assembled from its single source.
+  Those catch real loss — a role silently losing an entire layer of rules was found exactly this
+  way (#490).
+- Before adding any test, answer in one line: *what breaks in production if this is missing?*
+  Cannot name it → do not write the test. "It documents the current text" is not an answer.
+- Test the core that must not change: data integrity, authorization, money and quota accounting,
+  lifecycle transitions, concurrency, recovery, external contracts. Leave prose, formatting,
+  ordering of sections and internal naming untested.
+- Finding a brittle wording test while doing something else → delete it in that same change and
+  say so in the report. Do not "fix" it by updating the quote.
+
 **Pit of success.** Code where screwing up is hard.
 - Flat structure, minimal indirection. Reads top to bottom
 - One task = one pattern. Not two helpers for the same thing
