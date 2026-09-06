@@ -2090,7 +2090,6 @@ def add_log(
     и закрыт в live_broker.publish.
     """
     from app.events import MessageProvenance
-    from app.secret_mask import mask_secrets
 
     if type == "user_message" and provenance is None:
         raise ValueError("user_message provenance is required")
@@ -2100,7 +2099,6 @@ def add_log(
         origin, origin_detail = "unknown", '{"senders":["unknown"]}'
     else:
         origin, origin_detail = provenance.to_storage()
-    content = mask_secrets(content)
     with _conn() as c:
         cur = c.execute(
             """INSERT INTO logs (

@@ -288,7 +288,6 @@ def prepare_message_delivery(delivery_id: str) -> dict:
         if row is None:
             raise KeyError(f"message delivery not found: {delivery_id}")
         if row["state"] == "QUEUED":
-            from app.secret_mask import mask_secrets
 
             cursor = connection.execute(
                 """INSERT INTO logs (
@@ -296,7 +295,7 @@ def prepare_message_delivery(delivery_id: str) -> dict:
                    ) VALUES (?, ?, 'user_message', ?, ?, ?)""",
                 (
                     row["target_session_id"], _now(),
-                    mask_secrets(row["rendered_message"]),
+                    row["rendered_message"],
                     row["origin"], row["origin_detail"],
                 ),
             )

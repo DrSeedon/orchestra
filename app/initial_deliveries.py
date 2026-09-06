@@ -256,14 +256,13 @@ def prepare_initial_delivery(delivery_id: str) -> dict:
         if row is None:
             raise KeyError(f"initial delivery not found: {delivery_id}")
         if row["state"] == "QUEUED":
-            from app.secret_mask import mask_secrets
 
             cursor = connection.execute(
                 """INSERT INTO logs (
                        session_id, ts, type, content, origin, origin_detail
                    ) VALUES (?, ?, 'user_message', ?, ?, ?)""",
                 (
-                    row["session_id"], _now(), mask_secrets(row["message"]),
+                    row["session_id"], _now(), row["message"],
                     row["origin"], row["origin_detail"],
                 ),
             )
