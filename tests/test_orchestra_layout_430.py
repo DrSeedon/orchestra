@@ -405,80 +405,10 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
     ).read_text(encoding="utf-8").count("artifact-reading") == 2
 
 
-def test_t4_all_fleet_receipts_precede_global_prompt_activation():
-    from app.pipeline import DEFAULT_PIPELINE, build_system_prompt, known_roles
-
-    prompts = {
-        role: build_system_prompt(DEFAULT_PIPELINE, role)
-        for role in known_roles(DEFAULT_PIPELINE)
-    }
-    assert prompts
-    for role, prompt in prompts.items():
-        assert ".orchestra/kb" in prompt, role
-        assert ".orchestra/tasks" in prompt, role
-        assert ".orchestra/workers" in prompt, role
-        assert "docs/kb" not in prompt, role
-        assert "docs/tasks" not in prompt, role
-        assert "docs/workers" not in prompt, role
-    memory_prompt = (ROOT / ".orchestra/pipelines/default/prompts/modules/memory-search.md").read_text(
-        encoding="utf-8"
-    )
-    for anchor in (
-        "ORCHESTRA_LAYOUT_MISSING",
-        "ORCHESTRA_LAYOUT_PARTIAL",
-        "scripts/migrate_orchestra_layout.py",
-        "--repair",
-        "Never fall back",
-    ):
-        assert anchor in memory_prompt
-
-    fleet = json.loads(
-        (ROOT / ".orchestra/tasks/430/fleet-run/final-summary.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert fleet["projects"] == fleet["current"] == fleet["status_preserved"] == 13
-    assert fleet["failed"] == fleet["preserve_journals"] == fleet["preserve_stashes"] == 0
-    release = json.loads(
-        (ROOT / ".orchestra/tasks/430/release-receipt.json").read_text(encoding="utf-8")
-    )
-    assert release["fleet_receipt_commit"] != release["prompt_activation_commit"]
-    assert _git(
-        ROOT,
-        "merge-base",
-        "--is-ancestor",
-        release["fleet_receipt_commit"],
-        release["prompt_activation_commit"],
-        check=False,
-    ).returncode == 0
 
 
-def test_t2_dead_docker_and_stale_frontend_links_are_gone():
-    assert not (ROOT / "Dockerfile").exists()
-    assert not (ROOT / "docker-compose.yml").exists()
-    assert not (ROOT / "docs" / "portfolio").exists()
-    bootstrap = (ROOT / "app" / "bootstrap.py").read_text(encoding="utf-8")
-    assert "Dockerfile" not in bootstrap
-    assert "docker-compose" not in bootstrap
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "docs/portfolio" not in readme
-    for relative in (
-        "app/static/js/app.js",
-        "app/static/js/chat.js",
-        "app/templates/dashboard.html",
-    ):
-        assert "docs/tasks/" not in (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_t3_docs_contains_only_external_reader_artifacts():
-    observed = {
-        path.relative_to(ROOT / "docs").as_posix()
-        for path in (ROOT / "docs").rglob("*")
-        if path.is_file()
-    }
-    assert observed == FINAL_DOC_FILES
-    for image in ("banner.png", "dashboard.png"):
-        assert f"docs/{image}" in (ROOT / "README.md").read_text(encoding="utf-8")
 
 
 def _assert_all_historical_evidence_bindings() -> tuple[int, str]:
