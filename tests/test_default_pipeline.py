@@ -823,7 +823,9 @@ class TestWorkerAutonomy:
 
 POOL_PRIORITY_ANCHORS = (
     "Luna is the DEFAULT",
-    "Sol when the task is complex and Luna will not manage it",
+    # Owner replaced Sol with Astra in the complexity class on 06.09.2026; the anchor tracks
+    # the rule, not the model that happened to hold the slot.
+    "Astra when the task is complex and Luna will not manage it",
     "Opus only for special complex tasks",
     "the Codex pool is meant to be burned",
     "cost of exhaustion, not the cost of spend",
