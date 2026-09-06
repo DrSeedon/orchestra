@@ -47,13 +47,6 @@ class LiveBroker:
         # Второй шов маскирования (#224): этот путь в БД не пишется вовсе ("NEVER persist"),
         # поэтому маскирование в db.add_log его не закрывает. Маскируем ДО _accum — иначе
         # реплей отдаст новому подписчику сырое значение.
-        content = payload.get("content")
-        if isinstance(content, str):
-            from app.secret_mask import mask_secrets
-            masked = mask_secrets(content)
-            if masked != content:
-                # копия, а не мутация: payload принадлежит вызывающему (session._handle_event)
-                payload = {**payload, "content": masked}
         if payload.get("type") == "stream":
             self._accum[session_id] = self._accum.get(session_id, "") + payload.get("content", "")
         for q in tuple(self._subs.get(session_id, ())):  # snapshot — safe if set mutates
