@@ -72,9 +72,8 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
 
 ## Найти нужное, не прочитать всё
 
-1. Выбери нужную тему из оглавления ниже. Не читай все темы заранее.
-   Новую тему добавляй в .orchestra/kb/README.md с кратким описанием и выполняй
-   python scripts/check_instruction_contract.py --sync; оглавление вручную не правь.
+1. Оглавление тем платформа сама вставляет в системный промпт из .orchestra/kb/README.md —
+   новую тему добавляй туда с кратким описанием. Не читай все темы заранее.
 2. Выбери 1–3 точных якоря: символ, путь, команду, прежнее имя или термин.
    Ищи через rg -n -i -F --glob '*.md' в .orchestra/kb/.
 3. Прочитай найденный факт с его статусом, датой и соседним контекстом.
@@ -85,51 +84,6 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
    доказательство отсутствия факта. Не выдумывай ответ.
 5. Не читай все тематические файлы заранее. Для точной правки, названного теста
    или команды переходи сразу к указанному коду; расширяй чтение по необходимости.
-
-### Темы базы знаний
-
-<!-- kb-topics:start -->
-- [Текущие правила и владельцы](.orchestra/kb/current-operations.md)
-- [Промпты: сборка и доставка](.orchestra/kb/prompt-delivery.md)
-- [Токены: цена и экономия](.orchestra/kb/token-efficiency.md)
-- [Измерения: доказательства и шум](.orchestra/kb/evidence-methods.md)
-- [Тесты: ложные зелёные результаты](.orchestra/kb/test-oracles.md)
-- [Тесты: удаление лишнего](.orchestra/kb/test-suite-pruning.md)
-- [Мёртвый код: достижимость](.orchestra/kb/dead-code-audit.md)
-- [Навигация по коду: Serena/LSP](.orchestra/kb/agent-code-intelligence.md)
-- [Codex: модели, контекст, квоты](.orchestra/kb/codex-runtime.md)
-- [Git, worktree, деплой](.orchestra/kb/repo-ops.md)
-- [Telegram: медиа и повторы](.orchestra/kb/tg-media-delivery.md)
-- [OpenRouter: квоты :free](.orchestra/kb/openrouter-quotas.md)
-- [grep: память на длинных строках](.orchestra/kb/grep-memory-blowup.md)
-- [Harness: встроенные инструменты](.orchestra/kb/harness-tools.md)
-- [Ox Alpha: историческая оценка](.orchestra/kb/ox-alpha-harness-verdict.md)
-- [Выбор модели и reviewer](.orchestra/kb/model-routing-selection.md)
-- [KB: архитектура и источники](.orchestra/kb/knowledge-base-architecture.md)
-- [Задачи: Git и SQLite](.orchestra/kb/task-storage-architecture.md)
-- [Данные: общая архитектура](.orchestra/kb/information-architecture-synthesis.md)
-- [KB: локальность и перенос](.orchestra/kb/data-locality.md)
-- [Чат: свежесть snapshot и SSE](.orchestra/kb/chat-freshness.md)
-- [Сообщения: происхождение](.orchestra/kb/message-provenance.md)
-- [Память: архитектура агентов](.orchestra/kb/agent-memory-architecture.md)
-- [Prime Agent и Hermes](.orchestra/kb/prime-agent.md)
-- [Авторабота: триггеры и границы](.orchestra/kb/auto-work.md)
-- [Проекты: scope и портфолио](.orchestra/kb/project-portfolio.md)
-- [Квоты: сбои отображения](.orchestra/kb/dashboard-quota-map.md)
-- [Функции: аудит использования](.orchestra/kb/feature-usage-audit.md)
-- [Harness: сравнение альтернатив](.orchestra/kb/competitive-landscape.md)
-- [Antigravity: протокол и запуск](.orchestra/kb/antigravity-runtime.md)
-- [Muse Spark: совместимость](.orchestra/kb/muse-spark-runtime.md)
-- [Ревью: ошибки схемы проверки](.orchestra/kb/review-design-defects.md)
-- [Знания: от сырья к фактам](.orchestra/kb/knowledge-pipeline.md)
-- [Намерения владельца](.orchestra/kb/founder-intent.md)
-- [Агенты: кодовые предохранители](.orchestra/kb/agent-guardrails.md)
-- [Код: упрощение без потери смысла](.orchestra/kb/code-simplification.md)
-- [Время инструментов: измерения и ожидания](.orchestra/kb/tool-latency.md)
-- [Текст модели как управляющий сигнал](.orchestra/kb/model-text-control-flow.md)
-- [Самоулучшение: событийный контур](.orchestra/kb/self-improvement-loop.md)
-- [Ревью: калибровка от проекта](.orchestra/kb/review-context.md)
-<!-- kb-topics:end -->
 
 ## Реализация и проверка
 

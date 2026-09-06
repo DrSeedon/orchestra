@@ -1,0 +1,18 @@
+repo scope: /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/kb-index-injection
+topics indexed: 40
+block bytes: 3800 (header 248 + list 3551)
+
+Per-role system prompt, scope='' (no KB) vs scope=repo:
+
+role                 without      with     delta
+full-cycle             61302     65104   +3802 (+6.2%)
+orchestrator           72077     75879   +3802 (+5.3%)
+reducer                17297     21099   +3802 (+22.0%)
+sub-orchestrator       64770     68572   +3802 (+5.9%)
+worker                 36131     39933   +3802 (+10.5%)
+
+--- new topic without a restart (assemble_prompt = what session.py calls) ---
+spawn prompt: 36450 B, 'Сеть' present: False
+next turn:    36454 B, 'Сеть' present: True
+injected line: ['- [Сеть: диагностика](.orchestra/kb/network.md)']
+blocks in prompt: 1

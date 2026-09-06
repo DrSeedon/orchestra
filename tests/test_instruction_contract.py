@@ -4,9 +4,7 @@ import sys
 
 import pytest
 
-from scripts.check_instruction_contract import (
-    INDEX_END, INDEX_START, MAX_INSTRUCTION_BYTES, check, sync,
-)
+from scripts.check_instruction_contract import MAX_INSTRUCTION_BYTES, check, sync
 
 
 @pytest.fixture
@@ -15,20 +13,20 @@ def root(tmp_path):
     kb.mkdir(parents=True)
     (kb / "README.md").write_text("- [runtime](runtime.md) — Runtime: запуск и ошибки\n")
     (kb / "runtime.md").write_text("# Runtime\nDetails remain on demand.\n")
-    (tmp_path / "AGENTS.md").write_text(
-        f"# Rules\nNever restart without authority.\n{INDEX_START}\n{INDEX_END}\n"
-    )
+    (tmp_path / "AGENTS.md").write_text("# Rules\nNever restart without authority.\n")
     (tmp_path / "CLAUDE.md").write_text("old copy")
     sync(tmp_path)
     return tmp_path
 
 
-def test_sync_produces_identical_rules_with_current_topic_description(root):
+def test_sync_mirrors_the_source_without_inlining_the_topic_index(root):
     check(root)
     source = (root / "AGENTS.md").read_bytes()
     assert (root / "CLAUDE.md").read_bytes() == source
     assert b"Never restart without authority." in source
-    assert "[Runtime: запуск и ошибки](.orchestra/kb/runtime.md)" in source.decode()
+    # The topic list is injected by the platform (app.kb_index), so neither the topic
+    # description nor its body may appear in the committed rules.
+    assert "Runtime: запуск и ошибки" not in source.decode()
     assert b"Details remain on demand" not in source
     before = [(root / name).stat().st_mtime_ns for name in ("AGENTS.md", "CLAUDE.md")]
     sync(root)
@@ -44,28 +42,16 @@ def test_one_sided_edit_is_rejected_without_repair(root):
     assert target.read_bytes() == before
 
 
-def test_new_topic_requires_description_then_sync_updates_both_roots(root):
+def test_unindexed_topic_is_rejected_but_needs_no_root_edit(root):
     kb = root / ".orchestra/kb"
     (kb / "network.md").write_text("# Network")
     with pytest.raises(ValueError, match="missing from README"):
         check(root)
+    before = (root / "AGENTS.md").read_bytes()
     index = kb / "README.md"
     index.write_text(index.read_text() + "- [network](network.md) — Сеть: диагностика\n")
-    with pytest.raises(ValueError, match="stale"):
-        check(root)
-    sync(root)
     check(root)
-    for name in ("AGENTS.md", "CLAUDE.md"):
-        assert "[Сеть: диагностика](.orchestra/kb/network.md)" in (root / name).read_text()
-
-
-def test_changed_description_is_not_silently_cached(root):
-    index = root / ".orchestra/kb/README.md"
-    index.write_text(index.read_text().replace("запуск и ошибки", "восстановление"))
-    with pytest.raises(ValueError, match="stale"):
-        check(root)
-    sync(root)
-    assert "восстановление" in (root / "CLAUDE.md").read_text()
+    assert (root / "AGENTS.md").read_bytes() == before
 
 
 def test_equal_utf8_bloat_is_rejected_and_sync_does_not_touch_other_copy(root):
@@ -80,10 +66,11 @@ def test_equal_utf8_bloat_is_rejected_and_sync_does_not_touch_other_copy(root):
         check(root)
 
 
-@pytest.mark.parametrize("mutation", ["empty", "import", "broken_link", "duplicate", "description", "markers"])
+@pytest.mark.parametrize("mutation", ["empty", "import", "broken_link", "duplicate", "description"])
 def test_invalid_sources_fail_before_writes(root, mutation):
     source = root / "AGENTS.md"
     index = root / ".orchestra/kb/README.md"
+    (root / "CLAUDE.md").write_text("stale mirror")
     if mutation == "empty":
         source.write_text("")
     elif mutation == "import":
@@ -92,10 +79,8 @@ def test_invalid_sources_fail_before_writes(root, mutation):
         index.write_text(index.read_text().replace("(runtime.md)", "(missing.md)"))
     elif mutation == "duplicate":
         index.write_text(index.read_text() * 2)
-    elif mutation == "description":
-        index.write_text("- [runtime](runtime.md) —    \n")
     else:
-        source.write_text(source.read_text() + INDEX_START)
+        index.write_text("- [runtime](runtime.md) —    \n")
     before = (source.read_bytes(), (root / "CLAUDE.md").read_bytes())
     with pytest.raises(ValueError):
         sync(root)

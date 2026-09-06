@@ -34,6 +34,7 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
 - Перед закрытием воркера сохрани результат в main либо выводы и причину отказа
   в хронике со ссылкой на исходную ветку. Одна preserve/*-метка не заменяет
   извлечение знаний; полномочия на мерж и удаление проверяются отдельно.
+- **Маскирование секретов снято с пути ОТОБРАЖЕНИЯ и живёт только на границе публикации (решение владельца 06.09.2026, дословно: «журнал наш бд по дефолту должен быть гит игнор и утечки быть не должно, а на фронте мне не ломай секреты отображение»).** `db.add_log`, `live_broker.publish` и копии доставок пишут и отдают содержимое ДОСЛОВНО: `data/` целиком под `.gitignore` (`git check-ignore -v data/orchestra.db` → `.gitignore:11`), в индексе её нет, наружу журнал не публикуется. Маскирование там не предотвращало утечку, а портило рабочие данные — ссылка-приглашение MTProto-прокси приходила изуродованной, потому что её ПУБЛИЧНЫЙ параметр `secret=` попадал под общее правило. `app/secret_mask.py` и его тесты сохранены и остаются владельцем правила: применять их надо к тому, что уезжает В GIT и наружу, а не к тому, что владелец читает у себя. Остаточный риск назван явно: агент, копирующий содержимое лога в трекаемый артефакт, по-прежнему может протащить секрет — поэтому сырые выгрузки проверяются фильтром ПО ФОРМЕ секрета перед коммитом, и это единственное место, где маска обязательна.
 - Не публикуй пароли, OAuth-токены, ключи, содержимое .env или секреты из логов.
   Секрет в собственном локальном хранилище сам по себе не доказывает утечку.
   Не ротируй его и не останавливай работу только из-за существования; публичную
@@ -71,9 +72,8 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
 
 ## Найти нужное, не прочитать всё
 
-1. Выбери нужную тему из оглавления ниже. Не читай все темы заранее.
-   Новую тему добавляй в .orchestra/kb/README.md с кратким описанием и выполняй
-   python scripts/check_instruction_contract.py --sync; оглавление вручную не правь.
+1. Оглавление тем платформа сама вставляет в системный промпт из .orchestra/kb/README.md —
+   новую тему добавляй туда с кратким описанием. Не читай все темы заранее.
 2. Выбери 1–3 точных якоря: символ, путь, команду, прежнее имя или термин.
    Ищи через rg -n -i -F --glob '*.md' в .orchestra/kb/.
 3. Прочитай найденный факт с его статусом, датой и соседним контекстом.
@@ -84,51 +84,6 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
    доказательство отсутствия факта. Не выдумывай ответ.
 5. Не читай все тематические файлы заранее. Для точной правки, названного теста
    или команды переходи сразу к указанному коду; расширяй чтение по необходимости.
-
-### Темы базы знаний
-
-<!-- kb-topics:start -->
-- [Текущие правила и владельцы](.orchestra/kb/current-operations.md)
-- [Промпты: сборка и доставка](.orchestra/kb/prompt-delivery.md)
-- [Токены: цена и экономия](.orchestra/kb/token-efficiency.md)
-- [Измерения: доказательства и шум](.orchestra/kb/evidence-methods.md)
-- [Тесты: ложные зелёные результаты](.orchestra/kb/test-oracles.md)
-- [Тесты: удаление лишнего](.orchestra/kb/test-suite-pruning.md)
-- [Мёртвый код: достижимость](.orchestra/kb/dead-code-audit.md)
-- [Навигация по коду: Serena/LSP](.orchestra/kb/agent-code-intelligence.md)
-- [Codex: модели, контекст, квоты](.orchestra/kb/codex-runtime.md)
-- [Git, worktree, деплой](.orchestra/kb/repo-ops.md)
-- [Telegram: медиа и повторы](.orchestra/kb/tg-media-delivery.md)
-- [OpenRouter: квоты :free](.orchestra/kb/openrouter-quotas.md)
-- [grep: память на длинных строках](.orchestra/kb/grep-memory-blowup.md)
-- [Harness: встроенные инструменты](.orchestra/kb/harness-tools.md)
-- [Ox Alpha: историческая оценка](.orchestra/kb/ox-alpha-harness-verdict.md)
-- [Выбор модели и reviewer](.orchestra/kb/model-routing-selection.md)
-- [KB: архитектура и источники](.orchestra/kb/knowledge-base-architecture.md)
-- [Задачи: Git и SQLite](.orchestra/kb/task-storage-architecture.md)
-- [Данные: общая архитектура](.orchestra/kb/information-architecture-synthesis.md)
-- [KB: локальность и перенос](.orchestra/kb/data-locality.md)
-- [Чат: свежесть snapshot и SSE](.orchestra/kb/chat-freshness.md)
-- [Сообщения: происхождение](.orchestra/kb/message-provenance.md)
-- [Память: архитектура агентов](.orchestra/kb/agent-memory-architecture.md)
-- [Prime Agent и Hermes](.orchestra/kb/prime-agent.md)
-- [Авторабота: триггеры и границы](.orchestra/kb/auto-work.md)
-- [Проекты: scope и портфолио](.orchestra/kb/project-portfolio.md)
-- [Квоты: сбои отображения](.orchestra/kb/dashboard-quota-map.md)
-- [Функции: аудит использования](.orchestra/kb/feature-usage-audit.md)
-- [Harness: сравнение альтернатив](.orchestra/kb/competitive-landscape.md)
-- [Antigravity: протокол и запуск](.orchestra/kb/antigravity-runtime.md)
-- [Muse Spark: совместимость](.orchestra/kb/muse-spark-runtime.md)
-- [Ревью: ошибки схемы проверки](.orchestra/kb/review-design-defects.md)
-- [Знания: от сырья к фактам](.orchestra/kb/knowledge-pipeline.md)
-- [Намерения владельца](.orchestra/kb/founder-intent.md)
-- [Агенты: кодовые предохранители](.orchestra/kb/agent-guardrails.md)
-- [Код: упрощение без потери смысла](.orchestra/kb/code-simplification.md)
-- [Время инструментов: измерения и ожидания](.orchestra/kb/tool-latency.md)
-- [Текст модели как управляющий сигнал](.orchestra/kb/model-text-control-flow.md)
-- [Самоулучшение: событийный контур](.orchestra/kb/self-improvement-loop.md)
-- [Ревью: калибровка от проекта](.orchestra/kb/review-context.md)
-<!-- kb-topics:end -->
 
 ## Реализация и проверка
 
@@ -153,6 +108,27 @@ CLAUDE.md — побайтно одинаковое зеркало для Claude
   TODO содержит действия, а не свалку исследовательских выводов.
 - До закрытия работы: проверь diff, нужные тесты, отсутствие секретов и потерь
   чужих правок. Сообщи результат, фактическую проверку и оставшийся риск.
+
+## Codex CLI 0.153.4 — что изменилось у парка (замер 06.09.2026)
+
+- **Экспериментальный режим контекста подтверждён контрольным плечом, а не декларацией.** С
+  `[features.context_management] experimental_mode = true` агент видит у себя `new_context`
+  и `get_context_remaining`; БЕЗ флага тот же Astra на тот же вопрос отвечает «new_context: нет,
+  get_context_remaining: нет» и перечисляет набор без них. Два прогона на изолированных
+  `CODEX_HOME`, 4 382 и 3 380 токенов. Режим даёт агенту начать новое окно самому вместо
+  ожидания автоматического сжатия; по его же оценке вреден при частых переходах и бесполезен
+  на коротких задачах. В общий конфиг парка НЕ включён: неофициальный источник сообщает о
+  тяжёлом расходе недельного лимита, а замера расхода у нас нет.
+- **У Codex появились СВОИ примитивы многоагентности:** `collaboration.spawn_agent`,
+  `send_message`, `list_agents`, `wait_agent`, `interrupt_agent`, `followup_task` — они в наборе
+  по умолчанию, без наших MCP-инструментов. Это прямо пересекается с тем, что делает Orchestra,
+  и заслуживает отдельного разбора: что они умеют против нашего worktree-изолированного воркера.
+- **Вендорный `bubblewrap` в поставку ВЕРНУЛСЯ** (`vendor/.../codex-resources/bwrap`,
+  «bubblewrap built for Codex»). Системного `bwrap` на машине по-прежнему нет, и CLI печатает
+  об этом предупреждение, но использует свой. Прямая проба даёт `RC=0` при
+  `bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted` — то есть сеть в песочнице
+  не поднимается, а сама изоляция запускается. Прежняя запись «песочницы нет, запускать нечего»
+  верна для 0.150.1 и устарела для 0.153.4.
 
 ## Исторический источник
 
