@@ -21,7 +21,7 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 
 <before-work>
 ## MANDATORY: Before starting work
-Follow the memory-search module's single pre-work order: `pwd` → memory gate → restate the
+Follow the knowledge module's single pre-work order: `pwd` → memory gate → restate the
 task → targeted code reading. Resolve discoverable facts yourself; ask only about material
 scope, authority, cost or external-contract uncertainty.
 

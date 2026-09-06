@@ -1904,8 +1904,10 @@ class KnowledgeRuntime:
                 platform_owned = (
                     "<role>" in old
                     and "</role>" in old
-                    and "<memory-search>" in old
-                    and "</memory-search>" in old
+                    and (
+                        ("<memory-search>" in old and "</memory-search>" in old)
+                        or ("<knowledge>" in old and "</knowledge>" in old)
+                    )
                 )
                 if not platform_owned:
                     continue

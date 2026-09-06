@@ -145,26 +145,26 @@ class TestDefaultRolesResolve:
         assert P.get_role(PIPELINE, "orchestrator").modules == [
             "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
             "background-jobs", "task-management", "self-improvement",
-            "knowledge-and-context", "memory-search", "communication-style", "user-values",
+            "knowledge", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
             "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
             "background-jobs", "task-management", "self-improvement",
-            "knowledge-and-context", "memory-search", "communication-style", "user-values",
+            "knowledge", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
             "code-quality", "git-workflow", "report-format", "self-improvement",
-            "knowledge-and-context", "memory-search", "communication-style", "user-values",
+            "knowledge", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
             "model-routing", "research-method", "code-quality", "git-workflow", "worker-lifecycle",
             "report-format", "task-management", "self-improvement",
-            "knowledge-and-context", "memory-search", "communication-style", "user-values",
+            "knowledge", "communication-style", "user-values",
         ]
 
     def test_shared_conduct_modules_reach_every_role(self):
         """#490: блоки из base.md стали модулями — роль без них теряет действующие правила."""
-        shared = {"knowledge-and-context", "communication-style", "user-values"}
+        shared = {"knowledge", "communication-style", "user-values"}
         for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
             assert shared <= set(P.get_role(PIPELINE, role).modules), role
 
@@ -646,23 +646,22 @@ class TestDefaultValidateSpawn:
             P.validate_spawn(PIPELINE, "phantom", "worker")
 
 
-class TestSubOrchestratorGetsMemorySearch:
-    """#137: sub-orchestrators work in worktrees and search the same project memory."""
+class TestSubOrchestratorGetsKnowledgeModule:
+    """#137: sub-orchestrators work in worktrees and search the same project memory.
+
+    Проверяется ДОСТАВКА модуля целиком, а не его формулировки: текст правил переписывается
+    владельцем, и тест на цитату краснел бы от каждой такой правки (решение 06.09.2026).
+    """
 
     def test_module_text_reaches_the_assembled_prompt(self):
         from app.manager import ROLE_SYSTEM_PROMPT
+        from app import pipeline as P
 
+        module = P.prompt_path(PIPELINE, "modules/knowledge.md").read_text().strip()
         prompt = ROLE_SYSTEM_PROMPT(PIPELINE, "sub-orchestrator", "/tmp")
-        assert "<memory-search>" in prompt, (
-            "listing the module in pipeline.yaml is not enough — its text must assemble in"
-        )
-        assert "Выдели 1–3 отличительных поисковых якоря" in prompt
-        assert (
-            "`search_memory` остаётся compatibility-тулом и не является обязательным шагом"
-            in prompt
-        )
-        assert "/api/sessions/" in prompt, (
-            "the own-transcript recipe added to this module must reach the role too"
+        assert prompt.count(module) == 1, (
+            "listing the module in pipeline.yaml is not enough — its whole text must assemble in "
+            "exactly once"
         )
 
 
