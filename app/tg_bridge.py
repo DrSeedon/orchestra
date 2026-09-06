@@ -124,7 +124,11 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
     return f"{prefix}_{ts}_{msg.message_id}{ext}"
 
 
-UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "1024")) * 1024 * 1024
+# Квота каталога загрузок. 1 ГБ был заполнен на 99% и вытеснял присланное владельцем
+# (492 файла, самый старый от 18.08 — всё, что раньше, уже стёрто). Поднято 06.09.
+# Не безлимит намеренно: под корнем свободно ~36 ГБ при заполнении 88%, а забитый
+# диск роняет сервис целиком, а не одну загрузку.
+UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "10240")) * 1024 * 1024
 
 # @mention of the owner, delivered on the ORCHESTRATOR turn boundary (#158) so a TG push
 # arrives exactly when an orchestrator stopped — but only when that turn explicitly asked
