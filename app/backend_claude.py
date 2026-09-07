@@ -1394,6 +1394,13 @@ class ClaudeBackend:
                 "status",
                 f"RATE_LIMIT_RAW {_json.dumps(raw, ensure_ascii=False)}",
             ))
+            events.append(AgentEvent("provider_limit", metadata={
+                "status": info.status,
+                "rate_limit_type": info.rate_limit_type,
+                "resets_at": info.resets_at,
+                "overage_status": info.overage_status,
+                "event_id": msg.uuid,
+            }))
 
         elif isinstance(msg, ResultMessage):
             sr = getattr(msg, "stop_reason", None) or "unknown"
