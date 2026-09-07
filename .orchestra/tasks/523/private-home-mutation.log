@@ -1,0 +1,60 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_new_home_does_not_read_or_seed_shared_state _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8797/test_new_home_does_not_read_or0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d7d255d4650>
+homes = (PosixPath('/tmp/pytest-of-kesha/pytest-8797/test_new_home_does_not_read_or0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-8797/test_new_home_does_not_read_or0/managed'))
+
+    @pytest.mark.asyncio
+    async def test_new_home_does_not_read_or_seed_shared_state(tmp_path, monkeypatch, homes):
+        # Without this guard every spawn can read/clone the entire shared thread index.
+        base, root = homes
+        be = backend(tmp_path, "fresh")
+        seen = []
+    
+        def unexpected_sqlite(*args, **kwargs):
+            pytest.fail("home preparation accessed SQLite instead of leaving state to Codex")
+    
+        async def provider_start():
+            home = root / "fresh"
+            seen.append(home)
+            assert not (home / "state_5.sqlite").exists()
+    
+        monkeypatch.setattr(sqlite3, "connect", unexpected_sqlite)
+        monkeypatch.setattr(be, "_connect_unlocked", provider_start)
+>       await be.connect()
+
+tests/test_codex_home_lifecycle.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1061: in connect
+    source = await _run_home_io(_select_managed_codex_state_source, home, cli_version)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_codex.py:471: in _run_home_io
+    return await asyncio.shield(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/thread.py:58: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_codex.py:628: in _select_managed_codex_state_source
+    info = _inspect_codex_state(candidate, check_integrity=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_codex.py:496: in _inspect_codex_state
+    with sqlite3.connect(uri, uri=True) as conn:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = ('file:/tmp/pytest-of-kesha/pytest-8797/test_new_home_does_not_read_or0/base/state_5.sqlite?mode=ro',)
+kwargs = {'uri': True}
+
+    def unexpected_sqlite(*args, **kwargs):
+>       pytest.fail("home preparation accessed SQLite instead of leaving state to Codex")
+E       Failed: home preparation accessed SQLite instead of leaving state to Codex
+
+tests/test_codex_home_lifecycle.py:41: Failed
+=========================== short test summary info ============================
+FAILED tests/test_codex_home_lifecycle.py::test_new_home_does_not_read_or_seed_shared_state
+1 failed in 4.65s
