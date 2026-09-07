@@ -46,7 +46,7 @@ _PROCEDURAL_VALUE = re.compile(r"(?i)trivial\s*\(\s*[<>]\s*\d+\s*lines?")
 # The routing table and round policy have one semantic owner.  Roles/modules carry only
 # this pointer so a future edit cannot leave one audience on the old mandatory-Sol rule.
 _REVIEW_POLICY_POINTER = "Apply the review decision gate in the `codex-debate` skill"
-_REVIEW_POLICY_ACTORS = ("orchestrator", "sub-orchestrator", "worker", "full-cycle")
+_REVIEW_POLICY_ACTORS = ("worker", "full-cycle")
 _REVIEW_POLICY_ANCHORS = (
     "## Review decision gate — canonical policy",
     "The author never self-certifies risk or oracle strength",
@@ -108,8 +108,6 @@ def _review_policy_errors(
         consumer_sources.append("roles/worker.md")
     if "full-cycle" in roles:
         consumer_sources.append("roles/full-cycle.md")
-    if "orchestrator" in roles or "sub-orchestrator" in roles:
-        consumer_sources.append("modules/orchestration.md")
     for rel in consumer_sources:
         path = prompt_root / rel
         if not path.is_file():
@@ -132,6 +130,16 @@ def _review_policy_errors(
         skills = spec.get("skills") or []
         if "codex-debate" not in skills:
             errors.append(f"role {role!r}: codex-debate skill is required for review decisions")
+
+    for role in ("orchestrator", "sub-orchestrator"):
+        spec = roles.get(role)
+        if not isinstance(spec, dict):
+            continue
+        if "codex-debate" in (spec.get("skills") or []):
+            errors.append(f"role {role!r}: codex-debate is executor-only")
+        orchestration = prompt_root / "modules" / "orchestration.md"
+        if not orchestration.is_file() or "never launch or resume model review" not in orchestration.read_text():
+            errors.append(f"role {role!r}: model review launch prohibition is missing")
 
     for md in sorted(prompt_root.rglob("*.md")):
         text = md.read_text()

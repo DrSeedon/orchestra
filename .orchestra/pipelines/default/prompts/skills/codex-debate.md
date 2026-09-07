@@ -10,6 +10,14 @@ description: "Optional risk-based review routing: deterministic skip, Luna first
 ревью существует ровно настолько, насколько доступен Codex.
 Основание маршрута и его границы измерений: `.orchestra/tasks/289/research.md`.
 
+## Кто запускает ревью
+
+Заказчик — исполнитель `worker` или `full-cycle`, отвечающий за эту работу. Оркестратор и
+суборкестратор не запускают и не продолжают модельное ревью, в том числе через shell или
+подставного ревьюера. Они читают результат и доказательства, возвращают вопросы исполнителю
+и принимают решение о приёмке или явном skip. `target_worker` в `codex_review` запрещён.
+При передаче работы другому исполнителю передай историю ревью: лимиты не обнуляются.
+
 ## Главный принцип — ВТОРОЕ МНЕНИЕ, НЕ ИСТИНА
 Reviewer — дополнительный sensor, не oracle. Он часто прав, но **не всегда**:
 - **Прислушивайся** к каждому замечанию
@@ -108,7 +116,7 @@ authorized`; не запускай Sol и не проси его постфак�
 ### Как запустить выбранный маршрут
 
 - Luna запускается напрямую через `codex_review(model="gpt5.6luna", ...)`; Sol — через
-  `model="codex"`. Устаревший вызов без `model` детерминированно остаётся Sol.
+  `model="codex"`. Вызов без `model` использует серверный default Luna.
 - `codex_review` принимает только зарегистрированные модели Codex runtime; Spark запрещён для
   review политикой.
 - Выбранный reviewer недоступен → `Review: none — Codex unavailable` в отчёте, и работа идёт
@@ -120,23 +128,23 @@ authorized`; не запускай Sol и не проси его постфак�
 ## MCP tool: codex_review
 
 ```
-codex_review(context, target, output, mode, resume, model)
+codex_review(context, target, output, mode, resume, model, required, base_branch)
 ```
 - `target` — файл для review (для `mode="exec"`). Пусто → git diff (`mode="review"`)
 - `output` — путь для результата, всегда под `.orchestra/tasks/<id>/`
-- `mode` — `"review"` (git diff) или `"exec"` (review конкретного файла)
-- `context` — промпт для Codex: задача + PROJECT CONTEXT (см. ниже). ВСЕГДА передавай
+- `mode` — `"review"` (незакоммиченный diff), `"implementation"` (закоммиченный снимок своей реализации) или `"exec"` (конкретный файл)
+- `context` — задача и точная область проверки. PROJECT CONTEXT инструмент загружает из репозитория сам; контекст задачи обязателен.
 - `resume` — `true` → продолжить debate в той же сессии (ключ = тот же `output`). Для follow-up раундов
 - `model` — reviewer model из live registry. Luna: `gpt5.6luna`; Sol: `codex`. Параметр нужно
-  повторять на resume; если опущен, backward-compatible default всегда Sol
+  повторять на resume; если опущен, серверный default — Luna
 
 Тул сам держит persistent-сессию по `output`-файлу, делает resume, пишет результат. Никакого ручного управления UUID/proxy/timeout.
 
 **Review реализации (diff):**
 ```
-codex_review(mode="review", output=".orchestra/tasks/<id>/codex-review-impl.md",
+codex_review(mode="implementation", output=".orchestra/tasks/<id>/codex-review-impl.md",
              model="gpt5.6luna",
-             context="Review the staged git diff for bugs, security, breaking changes, race conditions. <PROJECT CONTEXT>")
+             context="Review the committed implementation for bugs, security, breaking changes, race conditions. <TASK CONTEXT>")
 ```
 
 **Review плана/файла:**
@@ -147,13 +155,13 @@ codex_review(target=".orchestra/tasks/<id>/plan.md", mode="exec", output=".orche
 
 **Debate / re-review (тот же output, resume):**
 ```
-codex_review(output=".orchestra/tasks/<id>/codex-review-impl.md", resume=True,
+codex_review(mode="implementation", output=".orchestra/tasks/<id>/codex-review-impl.md", resume=True,
              model="<same reviewer model as the prior round>",
              context="<task + current PROJECT CONTEXT>. I fixed X and Y. Re-review: for each prior blocking → FIXED / STILL BROKEN / NEW BUG. Append ## Round N.")
 ```
 
 ## Правила вызова
-- **`mode="review"` смотрит рабочее дерево.** Если работа уже закоммичена: `git diff <merge-base> HEAD > /tmp/<name>.diff`, затем `codex_review(mode="exec", target="/tmp/<name>.diff", ...)`; иначе получишь `no changes to review` и потеряешь раунд
+- **`mode="review"` смотрит незакоммиченные изменения.** Для закоммиченной реализации используй `mode="implementation"`: инструмент фиксирует снимок и квитанцию покрытия. На resume повторяй тот же `mode`, `output` и выбранную модель.
 - **`context` ОБЯЗАТЕЛЕН** — задача + PROJECT CONTEXT. Без него Codex мискалибрует severity
 - **Ограничивай ПЕРВЫЙ вызов, не второй.** В `context` сразу: точные файлы/хунки (или несущие утверждения для ресёрча), запрет уходить в logs/BUGS.md/TODO.md/git history, потолок находок. Неограниченный вызов срывается на транспорте → его приходится перезапускать
 - **Ревью плана судит ТОЛЬКО текст плана.** Явно пиши: код ещё не написан, не оценивай его по текущему рантайму

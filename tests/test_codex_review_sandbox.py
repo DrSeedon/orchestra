@@ -61,6 +61,7 @@ def _fake_api(tmp_path, captured):
             }
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "sandbox-requester", "cwd": str(tmp_path),
                 "worktree_path": str(tmp_path),
             }

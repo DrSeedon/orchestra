@@ -1,0 +1,47 @@
+{
+  "renders": [
+    {
+      "view": "network",
+      "width": 1440,
+      "render": "pass"
+    },
+    {
+      "view": "flow",
+      "width": 1440,
+      "render": "pass"
+    },
+    {
+      "view": "space",
+      "width": 1440,
+      "render": "pass"
+    },
+    {
+      "view": "time",
+      "width": 1440,
+      "render": "pass"
+    },
+    {
+      "view": "network",
+      "width": 390,
+      "render": "pass"
+    },
+    {
+      "view": "flow",
+      "width": 390,
+      "render": "pass"
+    },
+    {
+      "view": "space",
+      "width": 390,
+      "render": "pass"
+    },
+    {
+      "view": "time",
+      "width": 390,
+      "render": "pass"
+    }
+  ],
+  "errors": [],
+  "network": [],
+  "interactions": "linked hover, inspector, tooltip, 3D drag and zoom, heat map, saved votes/export, reduced motion passed"
+}

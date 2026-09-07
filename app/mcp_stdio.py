@@ -4217,7 +4217,7 @@ async def codex_review(
     target_worker: str = "",
     base_branch: str = "",
 ) -> CallToolResult:
-    """Run a registered Codex model review in background. Returns immediately.
+    """Executor-only: run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
@@ -4235,11 +4235,7 @@ async def codex_review(
         review. Pass the model again on resume; it is applied to the resumed Codex thread.
     required: fail-safe implementation-review decision. Only literal JSON false asserts low risk
         and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews.
-    target_worker: review ANOTHER worker's committed work instead of your own. Orchestrator-only
-        and mode='implementation' only. The receipt then names both sides: the reviewed code
-        belongs to the target, the request and its outcome signature belong to you. The artifact
-        is written in YOUR worktree, so it does not travel with the target's merge — quote its
-        path when you report.
+    target_worker: retired; nonempty values are rejected. Only the executor reviews its own work.
     base_branch: pin the subject against this base instead of the session's own. Empty keeps the
         session value, and an empty session value is resolved from the repository rather than
         assumed to be 'main'."""
@@ -4257,6 +4253,21 @@ async def codex_review(
         return mcp_tool_result(
             result=None,
             text=f"Error resolving worker cwd: {info['error']}",
+        )
+    # The server's current session wins over stale or caller-supplied process metadata.
+    role = str(info.get("role") or "")
+    if role not in {"worker", "full-cycle"} or info.get("is_orchestrator"):
+        raise ApiToolError(
+            code="review_requester_forbidden",
+            message="only a worker or full-cycle executor may start or resume a model review; "
+                    "orchestrators inspect the executor's evidence and return questions to it",
+            details={"role": role},
+        )
+    if target_worker.strip():
+        raise ApiToolError(
+            code="review_target_forbidden",
+            message="executors request review of their own work; target_worker is no longer supported",
+            details={"field": "target_worker"},
         )
     requesting_session_id = str(info.get("id") or "").strip()
     if not requesting_session_id:
@@ -4281,15 +4292,6 @@ async def codex_review(
             message="target file required for mode='exec'",
             details={"field": "target"},
         )
-    target_worker = target_worker.strip()
-    if target_worker and mode != "implementation":
-        raise ApiToolError(
-            code="invalid_argument",
-            message="target_worker reviews committed work; use mode='implementation'",
-            details={"field": "target_worker"},
-        )
-    # Владелец предмета и заказчик — разные роли, и обе обязаны быть видны в квитанции.
-    # По умолчанию это одна сессия; `target_worker` их разводит (#509).
     owner = {
         "session_id": requesting_session_id,
         "worker_name": WORKER_NAME,
@@ -4316,54 +4318,25 @@ async def codex_review(
                 details={"field": "target"},
             )
         from app.review_coverage import current_policy_ref, resolve_implementation_subject
+        from app.workspace import resolve_base_branch
 
-        if target_worker:
-            resolved = await _api(
-                "POST",
-                "/api/merge-operations/review-subject",
-                json={
-                    "target_worker": target_worker,
-                    "scope": SCOPE,
-                    "base_branch": base_branch,
-                },
+        try:
+            owner["base_branch"] = resolve_base_branch(
+                cwd, base_branch or owner["base_branch"],
             )
-            pinned = resolved.get("result") if isinstance(resolved, dict) else None
-            if not isinstance(pinned, dict):
-                error = resolved.get("error") if isinstance(resolved, dict) else None
-                code = str(error.get("code") or "review_subject_failed") if isinstance(error, dict) else "review_subject_failed"
-                raise ApiToolError(
-                    code=code,
-                    message=str(error.get("message") or code) if isinstance(error, dict) else code,
-                    details={"target_worker": target_worker},
-                )
-            owner = dict(pinned["owner"])
             subject = {
                 "subject_kind": "implementation",
-                **dict(pinned["subject"]),
+                **resolve_implementation_subject(cwd, owner["base_branch"]),
                 "coverage_outcome": "unknown",
                 "policy_ref": current_policy_ref(),
-                "decision_actor": WORKER_NAME,
+                "decision_actor": "",
             }
-        else:
-            from app.workspace import resolve_base_branch
-
-            try:
-                owner["base_branch"] = resolve_base_branch(
-                    cwd, base_branch or owner["base_branch"],
-                )
-                subject = {
-                    "subject_kind": "implementation",
-                    **resolve_implementation_subject(cwd, owner["base_branch"]),
-                    "coverage_outcome": "unknown",
-                    "policy_ref": current_policy_ref(),
-                    "decision_actor": "",
-                }
-            except ValueError as error:
-                raise ApiToolError(
-                    code="invalid_argument",
-                    message=str(error),
-                    details={"field": "mode"},
-                ) from error
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message=str(error),
+                details={"field": "mode"},
+            ) from error
         subject.pop("production_paths", None)
         subject.pop("production_path_heads", None)
     requested_at = datetime.now(timezone.utc).isoformat()
