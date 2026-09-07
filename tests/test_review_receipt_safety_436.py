@@ -19,9 +19,11 @@ def test_parallel_round_finalizers_keep_both_artifacts_and_session_updates(tmp_p
         round_file = tmp_path / f"{label}.round"
         round_file.write_text(f"## Verdict\n{label}\n")
         jsonl = tmp_path / f"{label}.jsonl"
-        jsonl.write_text(json.dumps({
-            "type": "thread.started", "thread_id": f"{label}-thread",
-        }) + "\n")
+        jsonl.write_text("\n".join(json.dumps(event) for event in [
+            {"type": "thread.started", "thread_id": f"{label}-thread"},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": label}},
+            {"type": "turn.completed"},
+        ]) + "\n")
         jobs.append((round_file, jsonl, label))
     start = Barrier(2)
 

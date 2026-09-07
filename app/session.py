@@ -243,99 +243,6 @@ def _refuse_if_draining(session: "AgentSession") -> None:
         )
 
 
-def _subscription_limit_kind(text: str) -> str | None:
-    """Classify the canonical non-transient subscription-limit messages."""
-    lowered = text.lower()
-    if "monthly spend limit" in lowered:
-        return "monthly"
-    if any(marker in lowered for marker in (
-        "session limit",
-        "hit your session",
-        "hit your usage limit",
-        "usage limit",
-        "subscription limit — ждём сброса квоты",
-        "weekly usage limit",
-        "weekly limit",
-    )):
-        return "timed"
-    return None
-
-
-def _is_terminal_subscription_limit(text: str) -> bool:
-    """Known non-transient subscription limits that must never enter server retry."""
-    return _subscription_limit_kind(text) is not None
-
-
-# Провайдер бракует ФОРМУЛИРОВКУ до модели, а наружу отдаёт тот же безликий
-# `invalid_request`, что и «плохой параметр» — по коду эти случаи неразличимы.
-# Fail-open: не совпало → ведём себя как раньше; ложно принять обычную ошибку за
-# фильтр хуже, чем не распознать фильтр.
-_SAFEGUARD_MARKER = "safeguards flagged this message"
-# Отказ печатает CLI, и он ВСЕГДА начинается с этого префикса, занимая всё событие целиком.
-# Одной фразы-маркера мало: агент, объясняющий инцидент, цитирует её в своём обычном ответе —
-# так и вышло 07.08 в 16:27:01, когда УСПЕШНЫЙ ход (`end_turn`) был принят за отказ и сессии
-# срезали историю. Признак берём из тела: чужая цитата стоит внутри текста, а не открывает его.
-_SAFEGUARD_PREFIX = "api error:"
-_REQUEST_ID_RE = re.compile(r"\breq_[A-Za-z0-9]+")
-
-
-def _is_safeguard_refusal(text: str) -> bool:
-    """Отказ фильтра провайдера на формулировку запроса (#155, ужесточён в #161)."""
-    lowered = text.lstrip().lower()
-    return lowered.startswith(_SAFEGUARD_PREFIX) and _SAFEGUARD_MARKER in lowered
-
-
-def safeguard_request_id(text: str) -> str:
-    """`Request ID` из отказа — единственное, что из него можно безопасно цитировать."""
-    match = _REQUEST_ID_RE.search(text)
-    return match.group(0) if match else ""
-
-
-def safeguard_guidance(request_id: str, dump_path: str) -> str:
-    """Что агенту делать дальше. Признаки проверяемые — агент применяет их к своему тексту.
-
-    ТЕЛА ЗАБРАКОВАННОГО ТЕКСТА ЗДЕСЬ НЕТ И БЫТЬ НЕ ДОЛЖНО. Объяснение едет в контекст
-    следующего хода, поэтому вклеенная цитата травит его заново: агент отвечает, цитируя
-    её, и следующий ход снова срезается. Замер #161 — ровно эта петля у seedon. Наружу
-    только класс отказа, три признака, `Request ID` и ссылка на форму; полный текст лежит
-    файлом, и путь к нему безопасен, а содержимое — нет.
-
-    Основание для признаков — два прошедших хода на формально той же теме (поиск утёкшего
-    секрета `git log -S` по всем ревизиям трёх СВОИХ репозиториев, чтение доки GitHub про
-    удаление чувствительных данных): тема «секреты и доступ» фильтр не роняет, роняет залог
-    и чужая собственность.
-    """
-    tail = f"Request ID: {request_id}\n" if request_id else ""
-    where = f"Полный текст отказа (в контекст не втягивать): {dump_path}\n" if dump_path else ""
-    return (
-        "🛡 Фильтр провайдера забраковал ФОРМУЛИРОВКУ запроса — до модели он не дошёл. "
-        "Смена Claude-модели не поможет: фильтр общий для семейства.\n"
-        "Переформулируй, проверив три признака по своему тексту:\n"
-        "1. система СВОЯ, а не чужая («наши репозитории», «наш сайт»);\n"
-        "2. глагол «убедиться / проверить», а не «получить доступ / обойти»;\n"
-        "3. в задании нет фразы, которая читается как инструкция к действию над защитой.\n"
-        "Не цитируй забракованную формулировку — цитата вернёт отказ.\n"
-        "Не помогло — смени рантайм на не-Anthropic.\n"
-        "Форма исключения: https://claude.com/form/cyber-use-case\n"
-        + tail + where
-    )
-
-
-def store_safeguard_refusal(session_name: str, text: str) -> str:
-    """Сложить сырой отказ ВНЕ рабочего дерева и вернуть путь.
-
-    Не в `.orchestra/tasks/`: auto-written storage must not share the Git working tree with
-    Git-lifecycle — так `report_bug` пачкал чекаут и блокировал все мержи (#114). Адрес тот же,
-    что у инбокса баг-репортов.
-    """
-    directory = Path.home() / ".local/state/orchestra/safeguard-refusals"
-    directory.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
-    path = directory / f"{stamp}-{session_name}.txt"
-    path.write_text(text, encoding="utf-8")
-    return str(path)
-
-
 def _claude_subscription_limit_active() -> bool:
     try:
         from app.routes.system import _usage_cache
@@ -613,7 +520,6 @@ class AgentSession:
     _rate_limit_retries: int = field(default=0, repr=False)
     _server_error_retries: int = field(default=0, repr=False)
     _session_limit_hit: bool = field(default=False, repr=False)
-    _safeguard_refusal: str = field(default="", repr=False)
     _manually_interrupted: bool = field(default=False, repr=False)
     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
     _precompact_timer: dict | None = field(default=None, repr=False)
@@ -1314,6 +1220,7 @@ class AgentSession:
             if retry_generation is not None and (
                 retry_generation != (self._turn_gen, self._turn_start_cancel_gen)
                 or self._manually_interrupted
+                or (self._session_limit_hit and provenance.subtype in {"rate_limit_retry", "server_error_retry"})
                 or (self.status != AgentStatus.IDLE
                     and not (provenance.subtype in {"turn_limit_continue", "runtime_reconnect"}
                              and self.status == AgentStatus.RUNNING))
@@ -1372,7 +1279,6 @@ class AgentSession:
                 self._server_error_retries = 0
             if provenance.subtype != "server_error_retry":
                 self._session_limit_hit = False
-            self._safeguard_refusal = ""
 
             self._note_next_precompact_activity()
             capabilities = get_runtime(self.backend_type).capabilities
@@ -2502,17 +2408,15 @@ class AgentSession:
         if event.type == "text":
             from app.live_broker import broker
             broker.clear_accum(self.id)
-            # Subscription limits arrive as text before the generic rate_limit error.
-            if _is_terminal_subscription_limit(event.content):
-                self._session_limit_hit = True
-            # Отказ фильтра приходит текстом; относительно события `error` его порядок
-            # НЕПОСТОЯНЕН (замер #155: в одном ходе текст раньше, в другом позже), поэтому
-            # здесь только ставим флаг, а решение принимаем на turn_end — он всегда последний.
-            if _is_safeguard_refusal(event.content):
-                self._safeguard_refusal = event.content
             self._log("text", event.content)
             self._turn_logs.append(event.content)
             self._last_text_output = event.content
+        elif event.type == "provider_limit":
+            # This event is produced by the provider adapter, never assistant prose.
+            self._log("provider_limit", json.dumps(event.metadata, ensure_ascii=False))
+            if event.metadata.get("status") == "rejected":
+                self._session_limit_hit = True
+                self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
         elif event.type == "thinking":
             self._log("thinking", event.content)
         elif event.type == "tool_use":
@@ -2547,10 +2451,10 @@ class AgentSession:
         elif event.type == "error":
             # rate_limit → single retry-status log (skip raw error to avoid duplicate
             # "model error: rate_limit" + "rate limited — retry" on one event)
-            if "rate_limit" in event.content:
+            if event.metadata.get("model_error") == "rate_limit":
                 # Terminal subscription/usage limits — never retry
-                if self._session_limit_hit or _is_terminal_subscription_limit(event.content):
-                    self._log("error", "⏳ subscription limit — ждём сброса квоты. НЕ ретраим")
+                if self._session_limit_hit:
+                    return
                 elif self._rate_limit_retries < self.RATE_LIMIT_MAX_RETRIES:
                     self._rate_limit_retries += 1
                     delay = self.RATE_LIMIT_DELAY * self._rate_limit_retries
@@ -2906,8 +2810,6 @@ class AgentSession:
         )
         COMPACT_MAX_RETRIES = 3
         COMPACT_RETRY_DELAY = 30
-        COMPACT_MIN_SUMMARY_LEN = 200
-        _GARBAGE_PATTERNS = ["rate limit", "rate_limit", "api error", "overloaded", "temporarily limiting", "server error", "session limit", "hit your session"]
 
         if self._compacting:
             return {"ok": False, "error": "compact already in progress"}
@@ -2963,6 +2865,9 @@ class AgentSession:
                 if permit[2] != compact_stop_gen:
                     return abort_compact("compaction cancelled by stop", flush_pending=False)
             summary_parts = []
+            summary_turn = None
+            summary_error = ""
+            terminal_limit = False
             backend = self._backend
             need_connect = self._backend is None
             try:
@@ -2982,13 +2887,15 @@ class AgentSession:
                 async for event in backend.events():
                     if event.type == "text":
                         summary_parts.append(event.content)
-                    elif event.type == "tool":
-                        self._log("tool", event.content)
-                        summary_parts.append(f"\n[tool] {event.content[:200]}\n")
-                    elif event.type == "tool_result":
-                        self._log("tool_result", event.content[:500])
-                        summary_parts.append(f"\n[tool_result] {event.content[:200]}\n")
+                    elif event.type in {"tool", "tool_result"}:
+                        self._log(event.type, event.content)
+                    elif event.type == "provider_limit":
+                        terminal_limit |= event.metadata.get("status") == "rejected"
+                        self._handle_event(event)
+                    elif event.type == "error":
+                        summary_error = event.content or "provider error during compact"
                     elif event.type == "turn_end":
+                        summary_turn = event
                         if event.metadata.get("session_id"):
                             self.session_id = event.metadata["session_id"]
                         break
@@ -3026,23 +2933,16 @@ class AgentSession:
 
             summary = "".join(summary_parts).strip()
 
-            summary_lower = summary.lower()
-            terminal_limit = (
-                len(summary) < COMPACT_MIN_SUMMARY_LEN
-                and summary.count("\n") <= 2
-                and _is_terminal_subscription_limit(summary)
-            )
-            provider_error = (
-                len(summary) < COMPACT_MIN_SUMMARY_LEN
-                and summary.count("\n") <= 2
-                and any(pattern in summary_lower for pattern in _GARBAGE_PATTERNS)
-            )
-            if not summary:
-                last_error = "empty summary"
-            elif terminal_limit:
+            if terminal_limit:
                 last_error = "Claude subscription limit active; compact aborted"
-            elif provider_error:
-                last_error = "provider error returned instead of compact summary"
+            elif summary_turn is None:
+                last_error = "compact stream ended without turn_end"
+            elif summary_turn.metadata.get("ok") is not True:
+                last_error = summary_error or "compact summary turn failed"
+            elif summary_error:
+                last_error = summary_error
+            elif not summary:
+                last_error = "empty summary"
             else:
                 last_error = ""
 
@@ -3246,7 +3146,8 @@ class AgentSession:
     async def _rate_limit_retry(self, delay: int, expected_turn_gen: int) -> None:
         generation = (expected_turn_gen, self._turn_start_cancel_gen)
         await asyncio.sleep(delay)
-        if self._manually_interrupted or self._turn_gen != expected_turn_gen:
+        if (self._manually_interrupted or self._turn_gen != expected_turn_gen
+                or self._session_limit_hit):
             return
         try:
             provenance = MessageProvenance(
@@ -3277,7 +3178,8 @@ class AgentSession:
                 if (self._manually_interrupted
                         or self._turn_gen != expected_turn_gen
                         or self.status != AgentStatus.IDLE
-                        or self._compacting):
+                        or self._compacting
+                        or self._session_limit_hit):
                     return
                 await self._disconnect_backend()
             provenance = MessageProvenance(

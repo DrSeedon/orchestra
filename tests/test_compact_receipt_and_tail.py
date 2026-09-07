@@ -185,3 +185,43 @@ async def test_t3_gone_worktree_is_terminal_not_retried(session, tmp_path):
     assert attempts == [1], f"компакт всё ещё ретраит мёртвый каталог: {len(attempts)} попыток"
     assert not [d for d in slept if d >= 30], f"бэкофф всё ещё отрабатывает: {slept}"
     assert "working directory does not exist" in result["error"].lower(), result["error"]
+
+
+@pytest.mark.asyncio
+async def test_summary_can_quote_provider_errors(session, monkeypatch):
+    monkeypatch.setattr(__import__(__name__, fromlist=['SUMMARY']), 'SUMMARY', 'Fix rate limit, api error and overloaded handling.')
+    backend = _CompactBackend({'input': 4000, 'cache_create': 1000})
+    with patch.object(session, '_make_backend', return_value=backend), \
+         patch.object(session, '_ensure_backend', side_effect=_wire(session, backend)):
+        result = await session.compact()
+    assert result['ok'] is True
+    assert result['summary'] == 'Fix rate limit, api error and overloaded handling.'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('terminal', ['failed', 'missing', 'empty', 'error', 'tool_only'])
+async def test_compact_requires_successful_nonempty_result(session, monkeypatch, terminal):
+    from app.events import AgentEvent
+    from unittest.mock import AsyncMock
+    class Backend(_CompactBackend):
+        async def events(self):
+            if terminal not in {'empty', 'tool_only'}:
+                yield AgentEvent('text', 'A perfectly ordinary summary with no error keywords.')
+            if terminal == 'tool_only':
+                yield AgentEvent('tool_result', 'A command output is not the summary')
+            if terminal == 'error':
+                yield AgentEvent('error', 'Upstream disconnected')
+            if terminal != 'missing':
+                yield AgentEvent('turn_end', metadata={'ok': terminal != 'failed', 'session_id': 'candidate'})
+    session.session_id = 'original'
+    session.last_summary = 'previous summary'
+    backend = Backend({})
+    monkeypatch.setattr('app.session.asyncio.sleep', AsyncMock())
+    with patch.object(session, '_make_backend', return_value=backend), \
+         patch.object(session, '_ensure_backend', new_callable=AsyncMock) as acknowledge:
+        result = await session.compact()
+    assert result['ok'] is False
+    assert session.session_id == 'original'
+    assert session.last_summary == 'previous summary'
+    assert session.session_id_history == []
+    acknowledge.assert_not_awaited()

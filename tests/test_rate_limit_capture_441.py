@@ -49,7 +49,7 @@ def test_rate_limit_event_preserves_exact_raw_utilization_and_all_fields():
 
     events = _backend()._convert(message)
 
-    assert len(events) == 1
+    assert len(events) == 2
     assert events[0].type == "status"
     assert events[0].content.startswith("RATE_LIMIT_RAW ")
     assert "0.16327272727272726" in events[0].content

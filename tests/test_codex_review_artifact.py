@@ -10,7 +10,11 @@ from app.codex_review_artifact import _parse_verdict, finalize_review_artifact
 
 
 def _jsonl(path, thread_id="thread-1"):
-    path.write_text(json.dumps({"type": "thread.started", "thread_id": thread_id}) + "\n")
+    path.write_text("\n".join(json.dumps(event) for event in [
+        {"type": "thread.started", "thread_id": thread_id},
+        {"type": "item.completed", "item": {"type": "agent_message", "text": "## Verdict\nPASS"}},
+        {"type": "turn.completed"},
+    ]) + "\n")
 
 
 @pytest.mark.parametrize(
@@ -211,6 +215,7 @@ def test_review_usage_is_persisted_once_for_requesting_agent(tmp_path, monkeypat
     jsonl = tmp_path / "review.jsonl"
     jsonl.write_text("\n".join([
         json.dumps({"type": "thread.started", "thread_id": "thread-usage"}),
+        json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "## Verdict\nAPPROVED"}}),
         json.dumps({"type": "turn.completed", "usage": {
             "input_tokens": 100,
             "cached_input_tokens": 60,
@@ -290,6 +295,7 @@ def test_usage_failure_is_nonfatal_after_review_is_persisted(tmp_path, monkeypat
     jsonl = tmp_path / "review.jsonl"
     jsonl.write_text("\n".join([
         json.dumps({"type": "thread.started", "thread_id": "zero-thread"}),
+        json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "## Verdict\nAPPROVED"}}),
         json.dumps({"type": "turn.completed", "usage": {
             "input_tokens": 0, "output_tokens": 0,
         }}),

@@ -2614,6 +2614,7 @@ async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
             }
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "requester-id",
                 "worktree_path": str(tmp_path),
                 "task_id": "304",
@@ -2671,7 +2672,7 @@ async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypa
                 "valid_until": 2_000_000_300,
             }
         if method == "GET":
-            return {"id": "requester-id", "worktree_path": str(tmp_path)}
+            return {"role": "worker", "id": "requester-id", "worktree_path": str(tmp_path)}
         captured["job"] = kwargs["json"]
         return {"id": "bg-review"}
 

@@ -69,6 +69,7 @@ def api(monkeypatch, tmp_path):
         if path.endswith("/change-model"):
             return {"changed": True, "old_model": "claude-opus-5[1m]", "model": "gpt-5.6-sol"}
         return {
+            "role": "worker",
             "id": "gate-requester", "cwd": str(tmp_path),
             "worktree_path": str(tmp_path), "scope": str(tmp_path),
         }

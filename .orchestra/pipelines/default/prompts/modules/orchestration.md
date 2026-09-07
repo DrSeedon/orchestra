@@ -84,12 +84,14 @@ Answer useful clarification questions; do not count them as model failures.
 Verify the result and actual diff before merge. Keep explicit deployment and destructive-action
 approval separate from permission to edit a worktree.
 
-**Review routing:** Apply the review decision gate in the `codex-debate` skill. It is the only
-owner of skip evidence, reviewer choice, independence and round ceilings; do not restate its table
-in task prompts. Review is available, not obligatory: Codex reachable → it is worth running on the
-risk classes that skill names; Codex unreachable → there is no review, and you never spawn a
-reviewer agent as a substitute. The fallback is the worker's own regression self-check plus your
-own read of the diff.
+**Review ownership:** The accountable `worker` or `full-cycle` executor owns model review and
+uses the `codex-debate` skill for its route, evidence and round limits. You and sub-orchestrators
+never launch or resume model review, including through `codex_review`, a shell command or a
+substitute reviewer agent. Read the executor's artifact, findings and test evidence yourself;
+return concrete questions to that executor instead of starting a second review stream. An
+unavailable executor must hand off the work and prior review history to a replacement executor;
+the handoff does not reset round limits. Review acceptance and an explicit, justified review skip
+remain your responsibility through the existing coverage tools.
 
 ### PROJECT CONTEXT — the severity calibration block (single source of truth)
 Every independent review prompt needs a PROJECT CONTEXT block; without it the reviewer

@@ -3637,36 +3637,6 @@ _CALLER_PROJECT_HEADING_RE = re.compile(
     r"(?:\s*\([^\r\n)]*\))?\s*:?\s*(?:[*_`]\s*)*(?:#{1,6}\s*)?$",
     re.IGNORECASE,
 )
-_CODEX_EXECUTION_FAILURE_PATTERN = (
-    r"bwrap:|failed rtm_newaddr|setting up uid map: permission denied|"
-    r"sandbox.{0,80}(fail|reject)|no files were read|"
-    r"(every|all) (local )?commands? failed|"
-    r"(could not|unable to) (read|inspect|execute|review).{0,120}(sandbox|file)"
-)
-_CODEX_EXECUTION_FAILURE_JSONL_CHECK = """\
-import json
-import re
-import sys
-
-pattern = re.compile(sys.argv[2], re.IGNORECASE)
-with open(sys.argv[1], encoding="utf-8", errors="replace") as source:
-    for line in source:
-        try:
-            event = json.loads(line)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if not isinstance(event, dict):
-            continue
-        item = event.get("item")
-        if (isinstance(item, dict) and item.get("type") == "agent_message"
-                and pattern.search(str(item.get("text", "")))):
-            raise SystemExit(0)
-raise SystemExit(1)
-"""
-_CODEX_EXECUTION_FAILURE_NOTE = (
-    "\n\n> **Execution guard failed:** Codex reported that it could not execute "
-    "workspace commands. The review above is preserved for diagnosis.\n"
-)
 
 
 def _git_review_bytes(cwd: str, *args: str) -> bytes:
@@ -4230,7 +4200,7 @@ async def codex_review(
     target_worker: str = "",
     base_branch: str = "",
 ) -> CallToolResult:
-    """Run a registered Codex model review in background. Returns immediately.
+    """Executor-only: run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
     target: file path for review, or empty for git diff review.
     output: where to write results (relative to your cwd). Also the session key — reuse the SAME
@@ -4248,11 +4218,7 @@ async def codex_review(
         review. Pass the model again on resume; it is applied to the resumed Codex thread.
     required: fail-safe implementation-review decision. Only literal JSON false asserts low risk
         and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews.
-    target_worker: review ANOTHER worker's committed work instead of your own. Orchestrator-only
-        and mode='implementation' only. The receipt then names both sides: the reviewed code
-        belongs to the target, the request and its outcome signature belong to you. The artifact
-        is written in YOUR worktree, so it does not travel with the target's merge — quote its
-        path when you report.
+    target_worker: retired; nonempty values are rejected. Only the executor reviews its own work.
     base_branch: pin the subject against this base instead of the session's own. Empty keeps the
         session value, and an empty session value is resolved from the repository rather than
         assumed to be 'main'."""
@@ -4270,6 +4236,21 @@ async def codex_review(
         return mcp_tool_result(
             result=None,
             text=f"Error resolving worker cwd: {info['error']}",
+        )
+    # The server's current session wins over stale or caller-supplied process metadata.
+    role = str(info.get("role") or "")
+    if role not in {"worker", "full-cycle"} or info.get("is_orchestrator"):
+        raise ApiToolError(
+            code="review_requester_forbidden",
+            message="only a worker or full-cycle executor may start or resume a model review; "
+                    "orchestrators inspect the executor's evidence and return questions to it",
+            details={"role": role},
+        )
+    if target_worker.strip():
+        raise ApiToolError(
+            code="review_target_forbidden",
+            message="executors request review of their own work; target_worker is no longer supported",
+            details={"field": "target_worker"},
         )
     requesting_session_id = str(info.get("id") or "").strip()
     if not requesting_session_id:
@@ -4294,15 +4275,6 @@ async def codex_review(
             message="target file required for mode='exec'",
             details={"field": "target"},
         )
-    target_worker = target_worker.strip()
-    if target_worker and mode != "implementation":
-        raise ApiToolError(
-            code="invalid_argument",
-            message="target_worker reviews committed work; use mode='implementation'",
-            details={"field": "target_worker"},
-        )
-    # Владелец предмета и заказчик — разные роли, и обе обязаны быть видны в квитанции.
-    # По умолчанию это одна сессия; `target_worker` их разводит (#509).
     owner = {
         "session_id": requesting_session_id,
         "worker_name": WORKER_NAME,
@@ -4329,54 +4301,25 @@ async def codex_review(
                 details={"field": "target"},
             )
         from app.review_coverage import current_policy_ref, resolve_implementation_subject
+        from app.workspace import resolve_base_branch
 
-        if target_worker:
-            resolved = await _api(
-                "POST",
-                "/api/merge-operations/review-subject",
-                json={
-                    "target_worker": target_worker,
-                    "scope": SCOPE,
-                    "base_branch": base_branch,
-                },
+        try:
+            owner["base_branch"] = resolve_base_branch(
+                cwd, base_branch or owner["base_branch"],
             )
-            pinned = resolved.get("result") if isinstance(resolved, dict) else None
-            if not isinstance(pinned, dict):
-                error = resolved.get("error") if isinstance(resolved, dict) else None
-                code = str(error.get("code") or "review_subject_failed") if isinstance(error, dict) else "review_subject_failed"
-                raise ApiToolError(
-                    code=code,
-                    message=str(error.get("message") or code) if isinstance(error, dict) else code,
-                    details={"target_worker": target_worker},
-                )
-            owner = dict(pinned["owner"])
             subject = {
                 "subject_kind": "implementation",
-                **dict(pinned["subject"]),
+                **resolve_implementation_subject(cwd, owner["base_branch"]),
                 "coverage_outcome": "unknown",
                 "policy_ref": current_policy_ref(),
-                "decision_actor": WORKER_NAME,
+                "decision_actor": "",
             }
-        else:
-            from app.workspace import resolve_base_branch
-
-            try:
-                owner["base_branch"] = resolve_base_branch(
-                    cwd, base_branch or owner["base_branch"],
-                )
-                subject = {
-                    "subject_kind": "implementation",
-                    **resolve_implementation_subject(cwd, owner["base_branch"]),
-                    "coverage_outcome": "unknown",
-                    "policy_ref": current_policy_ref(),
-                    "decision_actor": "",
-                }
-            except ValueError as error:
-                raise ApiToolError(
-                    code="invalid_argument",
-                    message=str(error),
-                    details={"field": "mode"},
-                ) from error
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message=str(error),
+                details={"field": "mode"},
+            ) from error
         subject.pop("production_paths", None)
         subject.pop("production_path_heads", None)
     requested_at = datetime.now(timezone.utc).isoformat()
@@ -4572,7 +4515,9 @@ async def codex_review(
         review_prompt = (
             f"{review_context}\n\nReview all current uncommitted changes in this worktree "
             "(staged, unstaged, and untracked). Inspect them with git status and git diff. "
-            "Find bugs, security issues, breaking changes, and race conditions."
+            "Find bugs, security issues, breaking changes, and race conditions. "
+            "Format: ## Summary, ## Findings, ## Verdict. Start Verdict with APPROVED, "
+            "NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish; preserve partial findings."
         )
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
@@ -4612,7 +4557,8 @@ async def codex_review(
             "Review the exact committed implementation snapshot pinned by the server.",
             f"Run `{diff_command}` and review that complete diff; do not substitute HEAD or a task file.",
             "Return the complete review in your final response. Do not edit files.",
-            "Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict",
+            "Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. "
+            "Use INCOMPLETE if you could not finish the requested review; preserve partial findings.",
         ]
         if is_resume:
             prompt_parts.insert(
@@ -4653,7 +4599,8 @@ async def codex_review(
                                      "Output a concise re-review (status of prior findings, new findings, verdict).")
         else:
             prompt_parts_exec.append("Return the complete review in your final response. Do not edit files.")
-        prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
+        prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. "
+            "Use INCOMPLETE if you could not finish the requested review; preserve partial findings.")
         exec_prompt = "\n".join(prompt_parts_exec)
 
         subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
@@ -4715,8 +4662,7 @@ async def codex_review(
     ]
     if is_resume:
         finalize_args.append("--resume")
-    if mode in {"implementation", "exec"}:
-        finalize_args.append("--require-verdict")
+    finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
     terminal_recorder = " ".join([
         q(sys.executable), q(finalizer),
@@ -4739,11 +4685,6 @@ async def codex_review(
         f"- < /tmp/codex_review_{WORKER_NAME}_{slug}.txt "
         f"-o {output_abs}.round"
     )
-    failure_check = " ".join([
-        q(sys.executable), "-c", q(_CODEX_EXECUTION_FAILURE_JSONL_CHECK),
-        q(jsonl_file), q(_CODEX_EXECUTION_FAILURE_PATTERN),
-    ])
-
     # Remove stale temp state before each attempt. A service restart can kill the shell after
     # an old .rc=0 was written but before the artifact was persisted; reusing that file caused
     # false success. Codex's real exit code and the artifact validator must both pass.
@@ -4763,13 +4704,7 @@ async def codex_review(
         f"if [ \"$FINALIZE_RC\" -ne 0 ]; then "
         f"{terminal_recorder} --receipt-status failed --receipt-return-code 0 "
         f"--receipt-failure-code artifact_finalize; fi; "
-        f"[ \"$FINALIZE_RC\" -eq 0 ] || exit \"$FINALIZE_RC\"; "
-        f"if {failure_check}; then "
-        f"printf '%s' {q(_CODEX_EXECUTION_FAILURE_NOTE)} >> {q(output_abs)}; "
-        f"{terminal_recorder} --receipt-status failed --receipt-return-code 70 "
-        f"--receipt-failure-code execution_guard; "
-        f"echo 'codex_review failed: Codex could not execute workspace commands' >&2; "
-        f"exit 70; fi"
+        f"[ \"$FINALIZE_RC\" -eq 0 ] || exit \"$FINALIZE_RC\""
     )
 
     action = "resume" if is_resume else mode
@@ -4794,7 +4729,7 @@ async def codex_review(
                 "command": cmd,
                 "success_file": output_abs,
                 "success_pattern": (
-                    r"(?im)^##\s+Verdict\b"
+                    r"(?im)^##\s+(?:Verdict|Вердикт)\b"
                     if mode in {"implementation", "exec"} else ""
                 ),
             },

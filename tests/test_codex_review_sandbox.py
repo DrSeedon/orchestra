@@ -61,6 +61,7 @@ def _fake_api(tmp_path, captured):
             }
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "sandbox-requester", "cwd": str(tmp_path),
                 "worktree_path": str(tmp_path),
             }
@@ -113,7 +114,8 @@ def test_codex_review_disables_unusable_namespace_sandbox(
     assert "--full-auto" not in command
 
 
-def test_codex_review_rejects_blind_verdict_from_successful_process(tmp_path, monkeypatch):
+@pytest.mark.parametrize('outcome,rc', [('completed', 0), ('russian', 0), ('failed', 70), ('incomplete', 70)])
+def test_codex_review_uses_runtime_and_explicit_result(tmp_path, monkeypatch, outcome, rc):
     import app.mcp_stdio as mcp
 
     _prepare_usage_db(tmp_path, monkeypatch)
@@ -133,6 +135,14 @@ printf '%s\\n' '{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"c
 printf '%s\\n' '{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Unable to review: bwrap: setting up uid map: Permission denied\"}}'
 exit 0
 """)
+    script = fake_codex.read_text()
+    if outcome == 'failed':
+        script = script.replace('"type":"turn.completed"', '"type":"turn.failed"')
+    if outcome == 'russian':
+        script = script.replace('## Verdict', '## Вердикт')
+    if outcome == 'incomplete':
+        script = script.replace("'PASS'", "'INCOMPLETE'")
+    fake_codex.write_text(script)
     os.chmod(fake_codex, 0o755)
 
     captured = {}
@@ -150,29 +160,28 @@ exit 0
         capture_output=True, text=True,
     )
 
-    assert result.returncode == 70
-    assert "could not execute workspace commands" in result.stderr
+    assert result.returncode == rc
     review = (tmp_path / "review.md").read_text()
     assert "Unable to review: bwrap: setting up uid map: Permission denied" in review
-    assert "Execution guard failed" in review
+    assert "Execution guard failed" not in review
+    from app.db import review_receipt_get
+    receipt = review_receipt_get(captured["receipt_id"])
+    assert receipt["status"] == ("completed" if outcome in {"completed", "russian"} else "failed")
+    assert receipt["return_code"] == 0
+    assert receipt["failure_code"] == {
+        "completed": "", "russian": "", "failed": "execution_guard", "incomplete": "review_result_missing",
+    }[outcome]
+    assert receipt["artifact_exists"] == 1
+    import re
+    assert re.search(captured["config"]["success_pattern"], review)
 
 
-def test_codex_review_failure_check_skips_scalar_jsonl_rows(tmp_path):
-    import app.mcp_stdio as mcp
 
+def test_codex_review_failure_check_rejects_scalar_jsonl_rows(tmp_path):
+    from app.codex_review_artifact import review_execution_error
     jsonl = tmp_path / "review.jsonl"
-    jsonl.write_text(
-        '[]\n'
-        '{"type":"item.completed","item":{"type":"agent_message",'
-        '"text":"Unable to review: bwrap: permission denied"}}\n'
-    )
-
-    result = subprocess.run([
-        mcp.sys.executable, "-c", mcp._CODEX_EXECUTION_FAILURE_JSONL_CHECK,
-        str(jsonl), mcp._CODEX_EXECUTION_FAILURE_PATTERN,
-    ], capture_output=True, text=True)
-
-    assert result.returncode == 0
+    jsonl.write_text('[]\n')
+    assert review_execution_error(jsonl) == "invalid runtime event"
 
 
 def test_codex_review_ignores_failure_marker_in_command_output(tmp_path, monkeypatch):

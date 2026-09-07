@@ -95,6 +95,7 @@ async def _review(monkeypatch, *, worktree: Path, scope: Path):
             }
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "requester-488",
                 "scope": str(scope),
                 "cwd": str(scope),
@@ -213,6 +214,7 @@ async def test_invalid_project_context_refuses_before_job_and_names_field(
         api_calls.append((method, path))
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "requester-491",
                 "scope": str(tmp_path),
                 "cwd": str(tmp_path),
@@ -251,6 +253,7 @@ async def test_missing_project_context_refuses_with_self_service_template(
         api_calls.append((method, path))
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "requester-491",
                 "scope": str(tmp_path / "different-parent-scope"),
                 "cwd": str(tmp_path / "different-parent-scope"),

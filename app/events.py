@@ -121,6 +121,7 @@ class AgentEvent:
 # "tool_result"       — tool output
 # "file_change"       — file edit (content = "add /path" or "update /path")
 # "turn_end"          — turn completed (metadata: session_id, cost_usd, input_tokens, context_pct, ok, stop_reason, ...)
+# "provider_limit"    — provider-owned quota status (metadata: status, rate_limit_type, resets_at)
 # "error"             — error message
 # "status"            — lifecycle event
 # "subagent_start"    — sub-agent spawned    (metadata: subagent_id, phase, description, task_type, sdk_session_id, tool_use_id)

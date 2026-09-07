@@ -233,3 +233,18 @@ def test_placeholder_template_is_not_a_measured_claim(tmp_path):
     )
 
     assert check._prompt_metric_errors(prompts) == []
+
+
+def test_review_policy_rejects_returning_review_skill_to_orchestrators(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    data = yaml.safe_load(manifest.read_text())
+    data["roles"]["orchestrator"]["skills"].append("codex-debate")
+    manifest.write_text(yaml.safe_dump(data))
+    assert any("executor-only" in error for error in _policy_errors(manifest))
+
+
+def test_review_policy_rejects_dropping_orchestrator_launch_prohibition(tmp_path):
+    manifest = _policy_copy(tmp_path)
+    module = manifest.parent / "prompts/modules/orchestration.md"
+    module.write_text(module.read_text().replace("never launch or resume model review", "may review"))
+    assert any("launch prohibition is missing" in error for error in _policy_errors(manifest))
