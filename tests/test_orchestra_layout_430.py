@@ -60,18 +60,40 @@ MOVE_FILES = {
 FROZEN_EVIDENCE_MANIFEST_SHA256 = "83559af2e573185f5d685f25cefeeb8b94083819f59e91a9b4881e06ddb5b289"
 
 
+def _mainline_ref() -> str:
+    """Имя, под которым mainline РЕАЛЬНО существует в этом чекауте.
+
+    На GitHub-раннере локальной ветки `main` нет даже при `fetch-depth: 0`: checkout
+    создаёт локально только выбранную ветку, а mainline остаётся удалённой
+    (`origin/main`). Голое `git log main` там отвечает `fatal: bad revision 'main'` —
+    то есть тест падал не по предмету, а по имени ссылки.
+    """
+    for candidate in ("main", "origin/main", "refs/remotes/origin/main"):
+        probe = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"{candidate}^{{commit}}"],
+            capture_output=True, text=True,
+        )
+        if probe.returncode == 0 and probe.stdout.strip():
+            return candidate
+    raise AssertionError(
+        "mainline не найден ни как `main`, ни как `origin/main` — чекаут без истории "
+        "(`fetch-depth: 1`) не годится для проверки переезда"
+    )
+
+
 def _commit_that_added(path: str) -> str:
-    """Самый ранний коммит `main`, добавивший путь. Якорь ищется в ИСТОРИИ, а не в файле.
+    """Самый ранний коммит mainline, добавивший путь. Якорь ищется в ИСТОРИИ, а не в файле.
 
     Записанный SHA протухает молча: ветки воркеров мержатся squash, и их коммиты в
-    `main` не попадают вовсе. Производный якорь переживает squash и любую пересборку
+    mainline не попадают вовсе. Производный якорь переживает squash и любую пересборку
     веток — пока в истории есть сам факт добавления пути.
     """
     out = subprocess.check_output(
-        ["git", "-C", str(ROOT), "log", "main", "--diff-filter=A", "--format=%H", "--", path],
+        ["git", "-C", str(ROOT), "log", _mainline_ref(), "--diff-filter=A", "--format=%H",
+         "--", path],
         text=True,
     ).split()
-    assert out, f"в истории main нет коммита, добавившего {path}"
+    assert out, f"в истории mainline нет коммита, добавившего {path}"
     return out[-1]
 
 
