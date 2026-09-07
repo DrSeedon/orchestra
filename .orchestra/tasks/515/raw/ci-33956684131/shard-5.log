@@ -1,0 +1,1514 @@
+test (5)	Set up job	﻿2026-09-05T08:57:55.8300574Z Current runner version: '2.337.0'
+test (5)	Set up job	2026-09-05T08:57:55.8319408Z ##[group]Runner Image Provisioner
+test (5)	Set up job	2026-09-05T08:57:55.8320205Z Hosted Compute Agent
+test (5)	Set up job	2026-09-05T08:57:55.8320686Z Version: 20260828.587
+test (5)	Set up job	2026-09-05T08:57:55.8321250Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+test (5)	Set up job	2026-09-05T08:57:55.8321874Z Build Date: 2026-08-28T16:44:25Z
+test (5)	Set up job	2026-09-05T08:57:55.8322486Z Worker ID: {8f0c7631-ccdb-47e9-9279-e9a212cc24c6}
+test (5)	Set up job	2026-09-05T08:57:55.8323111Z Azure Region: westus3
+test (5)	Set up job	2026-09-05T08:57:55.8323579Z ##[endgroup]
+test (5)	Set up job	2026-09-05T08:57:55.8324599Z ##[group]Operating System
+test (5)	Set up job	2026-09-05T08:57:55.8325152Z Ubuntu
+test (5)	Set up job	2026-09-05T08:57:55.8325622Z 24.04.4
+test (5)	Set up job	2026-09-05T08:57:55.8326063Z LTS
+test (5)	Set up job	2026-09-05T08:57:55.8326492Z ##[endgroup]
+test (5)	Set up job	2026-09-05T08:57:55.8326954Z ##[group]Runner Image
+test (5)	Set up job	2026-09-05T08:57:55.8327485Z Image: ubuntu-24.04
+test (5)	Set up job	2026-09-05T08:57:55.8327933Z Version: 20260831.293.1
+test (5)	Set up job	2026-09-05T08:57:55.8328921Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+test (5)	Set up job	2026-09-05T08:57:55.8330322Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+test (5)	Set up job	2026-09-05T08:57:55.8331134Z ##[endgroup]
+test (5)	Set up job	2026-09-05T08:57:55.8332078Z ##[group]GITHUB_TOKEN Permissions
+test (5)	Set up job	2026-09-05T08:57:55.8334061Z Contents: read
+test (5)	Set up job	2026-09-05T08:57:55.8334572Z Metadata: read
+test (5)	Set up job	2026-09-05T08:57:55.8335092Z Packages: read
+test (5)	Set up job	2026-09-05T08:57:55.8335544Z ##[endgroup]
+test (5)	Set up job	2026-09-05T08:57:55.8337149Z Secret source: Actions
+test (5)	Set up job	2026-09-05T08:57:55.8338001Z Prepare workflow directory
+test (5)	Set up job	2026-09-05T08:57:55.8586545Z Prepare all required actions
+test (5)	Set up job	2026-09-05T08:57:55.8626435Z Getting action download info
+test (5)	Set up job	2026-09-05T08:57:56.1443146Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+test (5)	Set up job	2026-09-05T08:57:56.2344180Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+test (5)	Set up job	2026-09-05T08:57:57.0481727Z Complete job name: test (5)
+test (5)	Run actions/checkout@v4	﻿2026-09-05T08:57:57.1082160Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1090144Z ##[group]Run actions/checkout@v4
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1090901Z with:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1091374Z   repository: DrSeedon/orchestra
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1095016Z   token: ***
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1095485Z   ssh-strict: true
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1095979Z   ssh-user: git
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1096467Z   persist-credentials: true
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1096970Z   clean: true
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1097498Z   sparse-checkout-cone-mode: true
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1098049Z   fetch-depth: 1
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1098748Z   fetch-tags: false
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1099253Z   show-progress: true
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1099740Z   lfs: false
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1100275Z   submodules: false
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1100845Z   set-safe-directory: true
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1101404Z   allow-unsafe-pr-checkout: false
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1102145Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1965534Z Syncing repository: DrSeedon/orchestra
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1967566Z ##[group]Getting Git version info
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1968523Z Working directory is '/home/runner/work/orchestra/orchestra'
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.1969776Z [command]/usr/bin/git version
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2030420Z git version 2.55.0
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2045193Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2062280Z Temporarily overriding HOME='/home/runner/work/_temp/4e888d65-5bcb-47e2-832e-d8084a022d62' before making global git config changes
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2064413Z Adding repository directory to the temporary git global config as a safe directory
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2065996Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2107158Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2126495Z ##[group]Initializing the repository
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2129549Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2230293Z hint: Using 'master' as the name for the initial branch. This default branch name
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2231771Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2232955Z hint: to use in all of your new repositories, which will suppress this warning,
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2233859Z hint: call:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2234336Z hint:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2234905Z hint: 	git config --global init.defaultBranch <name>
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2235542Z hint:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2236175Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2237126Z hint: 'development'. The just-created branch can be renamed via this command:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2237909Z hint:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2238735Z hint: 	git branch -m <name>
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2239312Z hint:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2240064Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2244569Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2257253Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2293686Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2294831Z ##[group]Disabling automatic garbage collection
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2297783Z [command]/usr/bin/git config --local gc.auto 0
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2322151Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2323046Z ##[group]Setting up auth
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2328580Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2355480Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2839179Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.2864018Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.3020236Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.3045553Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.3200023Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.3224889Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.3226427Z ##[group]Fetching the repository
+test (5)	Run actions/checkout@v4	2026-09-05T08:57:57.3233982Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3b7eb1058839505b06e102d5ede00bccd61000a7:refs/remotes/origin/task-515/fix-ci-green
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3381149Z From https://github.com/DrSeedon/orchestra
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3382092Z  * [new ref]           3b7eb1058839505b06e102d5ede00bccd61000a7 -> origin/task-515/fix-ci-green
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3386838Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3388115Z ##[group]Determining the checkout info
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3389326Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3394484Z [command]/usr/bin/git sparse-checkout disable
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3437292Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3460449Z ##[group]Checking out the ref
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:00.3463917Z [command]/usr/bin/git checkout --progress --force -B task-515/fix-ci-green refs/remotes/origin/task-515/fix-ci-green
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:01.0406608Z Switched to a new branch 'task-515/fix-ci-green'
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:01.0409999Z branch 'task-515/fix-ci-green' set up to track 'origin/task-515/fix-ci-green'.
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:01.0430340Z ##[endgroup]
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:01.0467881Z [command]/usr/bin/git log -1 --format=%H
+test (5)	Run actions/checkout@v4	2026-09-05T08:58:01.0488896Z 3b7eb1058839505b06e102d5ede00bccd61000a7
+test (5)	Run astral-sh/setup-uv@v4	﻿2026-09-05T08:58:01.0683475Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0684932Z ##[group]Run astral-sh/setup-uv@v4
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0685197Z with:
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0685454Z   version: latest
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0687299Z   github-token: ***
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0687545Z   enable-cache: false
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0687833Z   cache-dependency-glob: **/uv.lock
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0688132Z   prune-cache: true
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0688693Z   ignore-nothing-to-cache: false
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.0688973Z ##[endgroup]
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.1778819Z (node:2027) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.1779608Z (Use `node --trace-deprecation ...` to show where the warning was created)
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.5559652Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.12.10/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.9814687Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/9a30961e-4a6a-4de4-b154-9805a694d967 -f /home/runner/work/_temp/2526da01-a401-4d7f-9a92-d6e6ad79db48
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:02.4509916Z Added /opt/hostedtoolcache/uv/0.12.10/x86_64 to the path
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:02.4510934Z Added /home/runner/.local/bin to the path
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:02.4531804Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test (5)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:02.4532237Z Successfully installed uv version 0.12.10
+test (5)	Run uv sync --dev	﻿2026-09-05T08:58:02.4641649Z ##[group]Run uv sync --dev
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.4642119Z ^[[36;1muv sync --dev^[[0m
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.4670805Z shell: /usr/bin/bash -e {0}
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.4671189Z env:
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.4671604Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.4672049Z ##[endgroup]
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5181780Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5182544Z Creating virtual environment at: .venv
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5213901Z Resolved 99 packages in 0.53ms
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5735747Z Downloading aiohttp (1.7MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5859790Z Downloading playwright (45.3MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5861812Z Downloading claude-agent-sdk (76.7MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5865613Z Downloading pygments (1.2MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5866243Z Downloading pillow (6.3MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5867048Z Downloading cryptography (4.5MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5868276Z Downloading pydantic-core (2.0MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.5875498Z Downloading uvloop (4.2MiB)
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.7269574Z  Downloaded pygments
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.7279990Z  Downloaded aiohttp
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.7360371Z  Downloaded pydantic-core
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.7744211Z  Downloaded cryptography
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.7745289Z  Downloaded uvloop
+test (5)	Run uv sync --dev	2026-09-05T08:58:02.7768876Z  Downloaded pillow
+test (5)	Run uv sync --dev	2026-09-05T08:58:03.4531842Z  Downloaded playwright
+test (5)	Run uv sync --dev	2026-09-05T08:58:03.7744202Z  Downloaded claude-agent-sdk
+test (5)	Run uv sync --dev	2026-09-05T08:58:03.8035578Z Prepared 74 packages in 1.28s
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6490817Z Installed 74 packages in 845ms
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6491496Z  + aiofiles==25.1.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6491826Z  + aiogram==3.28.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6492236Z  + aiohappyeyeballs==2.6.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6492618Z  + aiohttp==3.13.5
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6493108Z  + aiosignal==1.4.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6493736Z  + annotated-doc==0.0.4
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6494263Z  + annotated-types==0.7.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6495090Z  + anyio==4.13.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6495967Z  + attrs==26.1.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6496478Z  + certifi==2026.5.20
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6496884Z  + cffi==2.0.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6497234Z  + charset-normalizer==3.4.7
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6497694Z  + claude-agent-sdk==0.2.114
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6498067Z  + click==8.4.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6498739Z  + croniter==6.2.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6499136Z  + cryptography==48.0.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6499707Z  + fastapi==0.136.3
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6500086Z  + frozenlist==1.8.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6500484Z  + greenlet==3.5.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6500795Z  + h11==0.16.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6501145Z  + httpcore==1.0.9
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6501505Z  + httptools==0.8.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6501844Z  + httpx==0.28.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6502190Z  + httpx-sse==0.4.3
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6502572Z  + idna==3.16
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6502918Z  + iniconfig==2.3.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6503234Z  + jinja2==3.1.6
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6503611Z  + jsonschema==4.26.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6504067Z  + jsonschema-specifications==2025.9.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6504498Z  + magic-filter==1.0.12
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6504872Z  + markdown==3.10.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6505257Z  + markupsafe==3.0.3
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6505583Z  + mcp==1.27.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6505944Z  + multidict==6.7.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6506360Z  + packaging==26.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6506709Z  + pillow==11.3.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6507124Z  + playwright==1.60.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6507461Z  + pluggy==1.6.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6507831Z  + propcache==0.5.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6508242Z  + pycparser==3.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6508597Z  + pydantic==2.13.4
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6508970Z  + pydantic-core==2.46.4
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6509341Z  + pydantic-settings==2.14.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6509728Z  + pyee==13.0.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6510039Z  + pygments==2.20.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6510344Z  + pyjwt==2.13.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6510756Z  + pyromark==0.9.11
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6511070Z  + pytest==9.0.3
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6511420Z  + pytest-asyncio==1.4.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6511788Z  + pytest-base-url==2.1.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6512152Z  + pytest-playwright==0.8.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6512767Z  + pytest-timeout==2.4.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6513141Z  + python-dateutil==2.9.0.post0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6513518Z  + python-dotenv==1.2.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6513967Z  + python-multipart==0.0.29
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6514349Z  + python-slugify==8.0.4
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6514791Z  + pyyaml==6.0.3
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6515281Z  + referencing==0.37.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6515809Z  + requests==2.34.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6516180Z  + rpds-py==0.30.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6516505Z  + six==1.17.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6516876Z  + sniffio==1.3.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6517207Z  + sse-starlette==3.4.4
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6517537Z  + starlette==1.1.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6517980Z  + telegramify-markdown==1.1.5
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6520305Z  + text-unidecode==1.3
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6520751Z  + typing-extensions==4.15.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6521134Z  + typing-inspection==0.4.2
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6521509Z  + urllib3==2.7.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6521795Z  + uvicorn==0.48.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6522065Z  + uvloop==0.22.1
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6522353Z  + watchfiles==1.2.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6522618Z  + websockets==16.0
+test (5)	Run uv sync --dev	2026-09-05T08:58:04.6523119Z  + yarl==1.24.2
+test (5)	Run uv run playwright install --with-deps chromium	﻿2026-09-05T08:58:04.6592543Z ##[group]Run uv run playwright install --with-deps chromium
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:04.6593095Z ^[[36;1muv run playwright install --with-deps chromium^[[0m
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:04.6613668Z shell: /usr/bin/bash -e {0}
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:04.6614036Z env:
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:04.6614350Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:04.6614722Z ##[endgroup]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.0261864Z Installing dependencies...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.0310424Z Switching to root user to install dependencies...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.2220027Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.2307233Z Get:3 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.3053879Z Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.3589734Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [394 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.3701262Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [441 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.3980300Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.3992898Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.4037231Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.4323135Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.4345971Z Get:10 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1401 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.4843432Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1260 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5144522Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [292 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5246549Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5333049Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1690 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5629576Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [339 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5734884Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5831103Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1536 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5893331Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [352 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5912210Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.5920288Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5740 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6340548Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6351085Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1002 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6394772Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [212 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6410739Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.4 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6439823Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1206 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6475410Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [241 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6492199Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6504623Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1437 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:05.6567729Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [334 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.4762013Z Fetched 11.8 MB in 1s (9041 kB/s)
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.1271304Z Reading package lists...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.1473145Z Reading package lists...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2557150Z Building dependency tree...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2562079Z Reading state information...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3919274Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3920336Z libasound2t64 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3921052Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3921776Z libatk-bridge2.0-0t64 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3922539Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3923254Z libatk1.0-0t64 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3923937Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3924633Z libatspi2.0-0t64 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3925279Z libcairo2 is already the newest version (1.18.0-3build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3925805Z libcairo2 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3926311Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3926732Z libcups2t64 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3927103Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3927668Z libdbus-1-3 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3928049Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3928596Z libdrm2 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3928989Z libgbm1 is already the newest version (25.2.8-0ubuntu0.24.04.2).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3929365Z libgbm1 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3929719Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.8).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3930126Z libglib2.0-0t64 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3930488Z libnspr4 is already the newest version (2:4.35-1.1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3930867Z libnspr4 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3931233Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3931576Z libnss3 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3931997Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3932373Z libpango-1.0-0 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3932707Z libx11-6 is already the newest version (2:1.8.7-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3933079Z libx11-6 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3933401Z libxcb1 is already the newest version (1.15-1ubuntu2).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3933742Z libxcb1 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3934118Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3934486Z libxcomposite1 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3934883Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3935239Z libxdamage1 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3935599Z libxext6 is already the newest version (2:1.3.4-1build2).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3935944Z libxext6 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3936312Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3936697Z libxfixes3 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3937039Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3937380Z libxkbcommon0 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3937770Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3938261Z libxrandr2 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3938629Z xvfb is already the newest version (2:21.1.12-1ubuntu1.6).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3939054Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3939898Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3940321Z libfontconfig1 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3940702Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3941083Z libfreetype6 set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3941448Z fonts-liberation is already the newest version (1:2.1.5-3).
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3941849Z fonts-liberation set to manually installed.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3942358Z The following additional packages will be installed:
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3942710Z   xfonts-encodings xfonts-utils
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3943021Z Recommended packages:
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.3943315Z   fonts-ipafont-mincho fonts-tlwg-loma
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.4854515Z The following NEW packages will be installed:
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.4855424Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.4861682Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.4862398Z   xfonts-utils
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.5009432Z 0 upgraded, 9 newly installed, 0 to remove and 38 not upgraded.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.5010025Z Need to get 21.1 MB of archives.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.5010641Z After this operation, 79.5 MB of additional disk space will be used.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.5011278Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.5904129Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7688355Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.9982928Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.1189830Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.2401166Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.4810573Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.6004453Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.6463270Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.6962171Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.0143958Z Fetched 21.1 MB in 1s (17.5 MB/s)
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.6102809Z Selecting previously unselected package fonts-ipafont-gothic.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7319752Z (Reading database ... 
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7320171Z (Reading database ... 5%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7320470Z (Reading database ... 10%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7320765Z (Reading database ... 15%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7321034Z (Reading database ... 20%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7321361Z (Reading database ... 25%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7321860Z (Reading database ... 30%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7322257Z (Reading database ... 35%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7322774Z (Reading database ... 40%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7323203Z (Reading database ... 45%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7323586Z (Reading database ... 50%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.7357067Z (Reading database ... 55%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.8786836Z (Reading database ... 60%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.2238076Z (Reading database ... 65%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.7090081Z (Reading database ... 70%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.9743200Z (Reading database ... 75%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:16.1759360Z (Reading database ... 80%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:16.4202601Z (Reading database ... 85%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:16.7505631Z (Reading database ... 90%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.0056173Z (Reading database ... 95%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.0056550Z (Reading database ... 100%
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.0057135Z (Reading database ... 201676 files and directories currently installed.)
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.0097221Z Preparing to unpack .../0-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.0173997Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.2722741Z Selecting previously unselected package fonts-freefont-ttf.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.2828913Z Preparing to unpack .../1-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.2839257Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.3736948Z Selecting previously unselected package fonts-tlwg-loma-otf.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.3841624Z Preparing to unpack .../2-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.3953211Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.4106531Z Selecting previously unselected package fonts-unifont.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.4208957Z Preparing to unpack .../3-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.4220066Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.6535634Z Selecting previously unselected package fonts-wqy-zenhei.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.6641126Z Preparing to unpack .../4-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.6717326Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.1606879Z Selecting previously unselected package xfonts-encodings.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.1712747Z Preparing to unpack .../5-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.1724875Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.1961297Z Selecting previously unselected package xfonts-utils.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.2067073Z Preparing to unpack .../6-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.2076279Z Unpacking xfonts-utils (1:7.7+6build3) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.2624025Z Selecting previously unselected package xfonts-cyrillic.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.2714346Z Preparing to unpack .../7-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.2726667Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.2984011Z Selecting previously unselected package xfonts-scalable.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3070959Z Preparing to unpack .../8-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3080185Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3383956Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3496904Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3523612Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3547414Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3571529Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3628444Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3645356Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3668636Z Setting up xfonts-utils (1:7.7+6build3) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3706656Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.3943074Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.4144536Z Processing triggers for man-db (2.12.0-4build2) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.4165956Z Not building database; man-db/auto-update is not 'true'.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:18.4179717Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1690785Z 
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1691724Z Running kernel seems to be up-to-date.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1692173Z 
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1692323Z No services need to be restarted.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1692607Z 
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1692800Z No containers need to be restarted.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1693087Z 
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1693317Z No user sessions are running outdated binaries.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1693609Z 
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.1693918Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:19.9921251Z Downloading Chrome for Testing 148.0.7778.96 (playwright chromium v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-linux64.zip
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:20.9708487Z |                                                                                |   0% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.0840185Z |■■■■■■■■                                                                        |  10% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.1395045Z |■■■■■■■■■■■■■■■■                                                                |  20% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.2014729Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.2410827Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.2971350Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.3536760Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.3898409Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.4433175Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.4994153Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.5328907Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 175.4 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:24.3279402Z Chrome for Testing 148.0.7778.96 (playwright chromium v1223) downloaded to /home/runner/.cache/ms-playwright/chromium-1223
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:24.3281869Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.2705823Z |                                                                                |   0% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.2939191Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3062777Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3121152Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3204707Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3276571Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3290844Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3363911Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3371146Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3438831Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.3478043Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.4069335Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:25.4071356Z Downloading Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-headless-shell-linux64.zip
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.3734969Z |                                                                                |   0% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.5514808Z |■■■■■■■■                                                                        |  10% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.6126756Z |■■■■■■■■■■■■■■■■                                                                |  20% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.6721308Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.7341291Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.7893513Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.8458575Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.9028699Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.9527192Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:27.0048855Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:27.0567637Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 113.2 MiB
+test (5)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:29.0829034Z Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1223
+test (5)	pytest shard 5 of 6	﻿2026-09-05T08:58:29.1032116Z ##[group]Run mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1032645Z ^[[36;1mmapfile -t files < <(git ls-files 'tests/test_*.py' | sort \^[[0m
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1033105Z ^[[36;1m  | awk -v s='5' -v n=6 '(NR - 1) % n == s')^[[0m
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1033448Z ^[[36;1mecho "shard 5/6: ${#files[@]} files"^[[0m
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1033747Z ^[[36;1mtest "${#files[@]}" -gt 0^[[0m
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1034146Z ^[[36;1m/usr/bin/time -v uv run pytest -q -rf --timeout=30 "${files[@]}"^[[0m
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1054485Z shell: /usr/bin/bash -e {0}
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1054796Z env:
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1055126Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1055498Z ##[endgroup]
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:29.1130535Z shard 5/6: 41 files
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:39.3757442Z ssssss.................................................................. [ 10%]
+test (5)	pytest shard 5 of 6	2026-09-05T08:58:39.8726094Z ........................................................................ [ 21%]
+test (5)	pytest shard 5 of 6	2026-09-05T08:59:10.4645020Z .................................................................FF..... [ 31%]
+test (5)	pytest shard 5 of 6	2026-09-05T08:59:47.7103366Z ..........F.........................................s................... [ 42%]
+test (5)	pytest shard 5 of 6	2026-09-05T08:59:50.1348686Z ......................................................................FF [ 52%]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:00.6806975Z FFFF.........F.......................................................... [ 63%]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:08.8484441Z ........................................................................ [ 73%]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:11.9811206Z .........FFFF........................................................... [ 84%]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.1627453Z ........................................................................ [ 94%]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8854787Z ...................................                                      [100%]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8856424Z =================================== FAILURES ===================================
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8857267Z _ test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[normal] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8858068Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8859060Z dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/runner/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8860109Z compact_mode = False
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8860460Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8860928Z     @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8861766Z     def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8862634Z         dashboard_browser: Browser,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8863053Z         compact_mode: bool,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8863447Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8864188Z         """#241: оркестратор зовёт юзера только `notify_user`, и это надо находить глазами.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8864549Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8864951Z         Форма строки — контракт `back`: обычный вызов тула, без новых полей и без нового API.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8865367Z         """
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8865709Z         page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8866124Z         reason = "кеш падает 93.6% → 15%"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8866428Z         page.evaluate(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8866718Z             """reason => {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8868922Z             // Рядом идёт обычная пара вызов/результат: подсветка не должна её задеть.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8869407Z             addChatEntry('tool', 'Bash: {"command":"echo NEIGHBOUR"}', null, null,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8869878Z                 {id:33001, tool_use_id:'toolu_neighbour'});
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8870476Z             addChatEntry('tool_result', 'NEIGHBOUR-RESULT', null, null,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8871658Z                 {id:33002, tool_use_id:'toolu_neighbour'});
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8872228Z             addChatEntry(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8872508Z                 'tool',
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8872851Z                 `mcp__orchestra__notify_user: ${JSON.stringify({reason})}`,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8873527Z                 '2026-08-13T12:00:00+00:00',
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8873831Z                 null,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8874122Z                 {id:33003, tool_use_id:'toolu_notify241'},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8874442Z             );
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8874762Z         }""",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8875012Z             reason,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8875251Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8875667Z         # Свой потолок с диагнозом: без него пропажа зова из списка падает молчаливым
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8876183Z         # 30-секундным таймаутом и не говорит, ЧТО именно сломалось.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8876530Z         try:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8876798Z             page.wait_for_function(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8877272Z                 "() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8877658Z                 timeout=5000,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8877945Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8878378Z         except PlaywrightTimeout:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8878829Z             actual = page.evaluate(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8879374Z                 "() => [document.querySelector('#chat-notify-count')?.textContent,"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8880098Z                 " document.querySelectorAll('#chat-timeline-track .is-notify').length]"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8880652Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8881010Z             page.close()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8881595Z             pytest.fail(f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8881971Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8882234Z >       state = page.evaluate("""() => {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8882555Z             const chat = document.querySelector('#chat');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8883106Z             const card = chat.querySelector('[data-tool-use-id="toolu_notify241"]');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8883611Z             const neighbour = chat.querySelector('[data-tool-use-id="toolu_neighbour"]');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8884099Z             const marker = document.querySelector('#chat-timeline-track .is-notify');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8884546Z             const nav = document.querySelector('#chat-notify-nav');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8885147Z             const styles = getComputedStyle(card);
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8885600Z             return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8886046Z                 cardHighlighted: card.classList.contains('chat-notify-user'),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8886441Z                 cardBorder: styles.borderLeftColor,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8886754Z                 cardText: card.innerText,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8887129Z                 navKind: card.dataset.chatNavKind,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8887600Z                 navLabel: card.dataset.chatNavLabel,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8888037Z                 markers: document.querySelectorAll('#chat-timeline-track .is-notify').length,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8888713Z                 markerTitle: marker?.title || '',
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8889046Z                 navHidden: nav.classList.contains('hidden'),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8889479Z                 navDisabled: document.querySelector('#chat-notify-next').disabled,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8889898Z                 neighbourText: neighbour.innerText,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8890357Z                 neighbourHighlighted: neighbour.classList.contains('chat-notify-user'),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8890840Z                 orphans: chat.querySelectorAll('[data-unmatched-tool-result]').length,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8891201Z             };
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8891496Z         }""")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8891615Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8891757Z tests/test_frontend.py:1753: 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8892086Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8892676Z .venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8893284Z     self._sync(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8893766Z .venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8894201Z     return await self._main_frame.evaluate(expression, arg)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8894564Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8895049Z .venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8895451Z     await self._channel.send(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8895841Z .venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8896236Z     return await self._connection.wrap_api_call(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8896614Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8896853Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8897069Z self = <playwright._impl._connection.Connection object at 0x7f6dd6eb84d0>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8897520Z cb = <function Channel.send.<locals>.<lambda> at 0x7f6dd43d5440>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8897907Z is_internal = False, title = None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8898103Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8898453Z     async def wrap_api_call(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8898865Z         self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8899255Z     ) -> Any:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8899526Z         if self._api_zone.get():
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8899883Z             return await cb()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8900205Z         task = asyncio.current_task(self._loop)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8900574Z         st: List[inspect.FrameInfo] = getattr(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8900905Z             task, "__pw_stack__", None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8901198Z         ) or inspect.stack(0)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8901492Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8901826Z         parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8902248Z         self._api_zone.set(parsed_st)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8902530Z         try:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8902817Z             return await cb()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8903132Z         except Exception as error:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8903545Z >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8904214Z E           playwright._impl._errors.Error: Page.evaluate: TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8904827Z E               at eval (eval at evaluate (:302:30), <anonymous>:7:24)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8905198Z E               at UtilityScript.evaluate (<anonymous>:309:18)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8905619Z E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8905853Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8906078Z .venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8906636Z _ test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8906901Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8907350Z dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/runner/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8907934Z compact_mode = True
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8908246Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8908583Z     @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8909077Z     def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8909507Z         dashboard_browser: Browser,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8909803Z         compact_mode: bool,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8910077Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8910538Z         """#241: оркестратор зовёт юзера только `notify_user`, и это надо находить глазами.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8910897Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8911274Z         Форма строки — контракт `back`: обычный вызов тула, без новых полей и без нового API.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8911654Z         """
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8911990Z         page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8912413Z         reason = "кеш падает 93.6% → 15%"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8912819Z         page.evaluate(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8913085Z             """reason => {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8913507Z             // Рядом идёт обычная пара вызов/результат: подсветка не должна её задеть.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8914039Z             addChatEntry('tool', 'Bash: {"command":"echo NEIGHBOUR"}', null, null,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8914453Z                 {id:33001, tool_use_id:'toolu_neighbour'});
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8914834Z             addChatEntry('tool_result', 'NEIGHBOUR-RESULT', null, null,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8915198Z                 {id:33002, tool_use_id:'toolu_neighbour'});
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8915536Z             addChatEntry(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8915847Z                 'tool',
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8916283Z                 `mcp__orchestra__notify_user: ${JSON.stringify({reason})}`,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8916658Z                 '2026-08-13T12:00:00+00:00',
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8916935Z                 null,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8917278Z                 {id:33003, tool_use_id:'toolu_notify241'},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8917603Z             );
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8917856Z         }""",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8918095Z             reason,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8918472Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8918873Z         # Свой потолок с диагнозом: без него пропажа зова из списка падает молчаливым
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8919346Z         # 30-секундным таймаутом и не говорит, ЧТО именно сломалось.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8919667Z         try:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8919930Z             page.wait_for_function(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8920403Z                 "() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8920821Z                 timeout=5000,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8921102Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8921361Z         except PlaywrightTimeout:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8921738Z             actual = page.evaluate(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8922096Z                 "() => [document.querySelector('#chat-notify-count')?.textContent,"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8922586Z                 " document.querySelectorAll('#chat-timeline-track .is-notify').length]"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8922962Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8923239Z             page.close()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8923661Z             pytest.fail(f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8924032Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8924318Z >       state = page.evaluate("""() => {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8924647Z             const chat = document.querySelector('#chat');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8925039Z             const card = chat.querySelector('[data-tool-use-id="toolu_notify241"]');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8925533Z             const neighbour = chat.querySelector('[data-tool-use-id="toolu_neighbour"]');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8926011Z             const marker = document.querySelector('#chat-timeline-track .is-notify');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8926510Z             const nav = document.querySelector('#chat-notify-nav');
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8926878Z             const styles = getComputedStyle(card);
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8927336Z             return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8927695Z                 cardHighlighted: card.classList.contains('chat-notify-user'),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8928088Z                 cardBorder: styles.borderLeftColor,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8928717Z                 cardText: card.innerText,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8929055Z                 navKind: card.dataset.chatNavKind,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8929388Z                 navLabel: card.dataset.chatNavLabel,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8929853Z                 markers: document.querySelectorAll('#chat-timeline-track .is-notify').length,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8930273Z                 markerTitle: marker?.title || '',
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8930637Z                 navHidden: nav.classList.contains('hidden'),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8931059Z                 navDisabled: document.querySelector('#chat-notify-next').disabled,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8931464Z                 neighbourText: neighbour.innerText,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8931903Z                 neighbourHighlighted: neighbour.classList.contains('chat-notify-user'),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8932389Z                 orphans: chat.querySelectorAll('[data-unmatched-tool-result]').length,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8932825Z             };
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8933069Z         }""")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8933251Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8933391Z tests/test_frontend.py:1753: 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8933728Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8934185Z .venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8934615Z     self._sync(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8934987Z .venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8935421Z     return await self._main_frame.evaluate(expression, arg)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8935895Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8936293Z .venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8936687Z     await self._channel.send(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8937078Z .venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8937482Z     return await self._connection.wrap_api_call(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8937834Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8938084Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8938401Z self = <playwright._impl._connection.Connection object at 0x7f6dd6eb84d0>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8938876Z cb = <function Channel.send.<locals>.<lambda> at 0x7f6dd42d7880>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8939280Z is_internal = False, title = None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8939442Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8939578Z     async def wrap_api_call(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8939930Z         self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8940388Z     ) -> Any:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8940643Z         if self._api_zone.get():
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8940934Z             return await cb()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8941226Z         task = asyncio.current_task(self._loop)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8941542Z         st: List[inspect.FrameInfo] = getattr(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8941925Z             task, "__pw_stack__", None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8942219Z         ) or inspect.stack(0)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8942487Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8942823Z         parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8943213Z         self._api_zone.set(parsed_st)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8943535Z         try:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8943778Z             return await cb()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8944054Z         except Exception as error:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8944433Z >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8945091Z E           playwright._impl._errors.Error: Page.evaluate: TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8945744Z E               at eval (eval at evaluate (:302:30), <anonymous>:7:24)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8946125Z E               at UtilityScript.evaluate (<anonymous>:309:18)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8946498Z E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8946740Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8946934Z .venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8947409Z ________ test_dashboard_polling_equivalent_twelve_minutes_before_after _________
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8947690Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8948256Z dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/runner/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8948988Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_dashboard_polling_equival0')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8949278Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8949482Z     def test_dashboard_polling_equivalent_twelve_minutes_before_after(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8949865Z         dashboard_browser: Browser,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8950163Z         tmp_path: Path,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8950451Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8950794Z         """Use a 100x clock to compare a quiescent hidden window on main and this branch."""
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8951308Z         branch_source = Path(__file__).parent.parent / "app/static/js/app.js"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8951767Z         main_source = tmp_path / "main-app.js"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8952083Z         main_source.write_text(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8952411Z >           subprocess.check_output(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8952751Z                 ["git", "show", "main:app/static/js/app.js"], text=True,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8953068Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8953335Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8953498Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8953747Z tests/test_frontend.py:2563: 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8954128Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8954501Z /usr/lib/python3.12/subprocess.py:466: in check_output
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8954873Z     return run(*popenargs, stdout=PIPE, timeout=timeout, check=True,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8955287Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8955520Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8955684Z input = None, capture_output = False, timeout = None, check = True
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8956108Z popenargs = (['git', 'show', 'main:app/static/js/app.js'],)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8956480Z kwargs = {'stdout': -1, 'text': True}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8956866Z process = <Popen: returncode: 128 args: ['git', 'show', 'main:app/static/js/app.js']>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8957308Z stdout = '', stderr = None, retcode = 128
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8957480Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8957630Z     def run(*popenargs,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8957982Z             input=None, capture_output=False, timeout=None, check=False, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8958564Z         """Run command with arguments and return a CompletedProcess instance.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8959279Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8959619Z         The returned instance will have attributes args, returncode, stdout and
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8960099Z         stderr. By default, stdout and stderr are not captured, and those attributes
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8960599Z         will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8961021Z         or pass capture_output=True to capture both.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8961327Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8961628Z         If check is True and the exit code was non-zero, it raises a
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8962080Z         CalledProcessError. The CalledProcessError object will have the return code
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8962546Z         in the returncode attribute, and output & stderr attributes if those streams
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8962951Z         were captured.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8963202Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8963554Z         If timeout is given, and the process takes too long, a TimeoutExpired
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8963948Z         exception will be raised.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8964211Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8964518Z         There is an optional argument "input", allowing you to
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8964932Z         pass bytes or a string to the subprocess's stdin.  If you use this argument
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8965364Z         you may not also use the Popen constructor's "stdin" argument, as
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8965757Z         it will be used internally.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8966031Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8966365Z         By default, all communication is in bytes, and therefore any "input" should
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8966853Z         be bytes, and the stdout and stderr will be bytes. If in text mode, any
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8967294Z         "input" should be a string, and stdout and stderr will be strings decoded
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8967766Z         according to locale encoding, or by "encoding" if set. Text mode is
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8968389Z         triggered by setting any of text, encoding, errors or universal_newlines.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8968778Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8969073Z         The other arguments are the same as for the Popen constructor.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8969408Z         """
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8969732Z         if input is not None:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8970027Z             if kwargs.get('stdin') is not None:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8970416Z                 raise ValueError('stdin and input arguments may not both be used.')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8970889Z             kwargs['stdin'] = PIPE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8971151Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8971433Z         if capture_output:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8971781Z             if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8972218Z                 raise ValueError('stdout and stderr arguments may not be used '
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8972619Z                                  'with capture_output.')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8972956Z             kwargs['stdout'] = PIPE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8973292Z             kwargs['stderr'] = PIPE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8973559Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8973825Z         with Popen(*popenargs, **kwargs) as process:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8974145Z             try:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8974462Z                 stdout, stderr = process.communicate(input, timeout=timeout)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8974865Z             except TimeoutExpired as exc:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8975168Z                 process.kill()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8975486Z                 if _mswindows:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8975809Z                     # Windows accumulates the output in a single blocking
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8976211Z                     # read() call run on child threads, with the timeout
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8976614Z                     # being done in a join() on those threads.  communicate()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8977011Z                     # _after_ kill() is required to collect that and add it
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8977340Z                     # to the exception.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8977758Z                     exc.stdout, exc.stderr = process.communicate()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8978107Z                 else:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8978534Z                     # POSIX _communicate already populated the output so
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8978907Z                     # far into the TimeoutExpired exception.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8979222Z                     process.wait()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8979530Z                 raise
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8980067Z             except:  # Including KeyboardInterrupt, communicate handled that.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8980459Z                 process.kill()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8980791Z                 # We don't call process.wait() as .__exit__ does that for us.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8981141Z                 raise
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8981475Z             retcode = process.poll()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8981758Z             if check and retcode:
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8982109Z >               raise CalledProcessError(retcode, process.args,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8982477Z                                          output=stdout, stderr=stderr)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8983013Z E               subprocess.CalledProcessError: Command '['git', 'show', 'main:app/static/js/app.js']' returned non-zero exit status 128.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8983422Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8983596Z /usr/lib/python3.12/subprocess.py:571: CalledProcessError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8984007Z ----------------------------- Captured stderr call -----------------------------
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8984427Z fatal: invalid object name 'main'.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8984804Z __ test_codex_review_uses_caller_context_and_declares_success_contract[exec] ___
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8985059Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8985298Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_codex_review_uses_caller_0')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8985821Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dda09ee70>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8986191Z mode = 'exec'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8986341Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8986460Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8986767Z     @pytest.mark.parametrize("mode", ["exec", "review"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8987220Z     async def test_codex_review_uses_caller_context_and_declares_success_contract(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8987649Z         tmp_path, monkeypatch, mode,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8987929Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8988285Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8988575Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8988790Z         captured = {}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8989160Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8989425Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8989754Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8990083Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8990407Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8990722Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8991036Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8991443Z                     "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8991799Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8992065Z             captured.update(kwargs["json"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8992401Z             return {"id": "bg-test"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8992681Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8992970Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8993343Z         monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8993716Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8994142Z         monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8994479Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8994740Z         assert "END YOUR TURN NOW" in mcp.codex_review.__doc__
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8995108Z         result = await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8995406Z             context=PROJECT_CONTEXT,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8995768Z             target="research.md", output="docs/review.md", mode=mode,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8996143Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8996411Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8996670Z         text = _review_text(result)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8996984Z >       assert "bg-test" in text
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8997863Z E       AssertionError: assert 'bg-test' in 'codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. Проверить: `which codex`'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8998462Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8998602Z tests/test_mcp_codex_review.py:91: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8999037Z _ test_codex_review_uses_caller_context_and_declares_success_contract[review] __
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8999328Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.8999581Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_codex_review_uses_caller_1')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9000099Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dd6a4e450>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9000483Z mode = 'review'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9000624Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9000765Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9001084Z     @pytest.mark.parametrize("mode", ["exec", "review"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9001522Z     async def test_codex_review_uses_caller_context_and_declares_success_contract(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9001931Z         tmp_path, monkeypatch, mode,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9002236Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9002497Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9002769Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9003022Z         captured = {}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9003288Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9003534Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9003895Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9004215Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9004517Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9004821Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9005151Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9005582Z                     "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9005927Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9006196Z             captured.update(kwargs["json"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9006528Z             return {"id": "bg-test"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9006803Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9007071Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9007433Z         monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9007796Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9008380Z         monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9008812Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9009110Z         assert "END YOUR TURN NOW" in mcp.codex_review.__doc__
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9009463Z         result = await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9009746Z             context=PROJECT_CONTEXT,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9010129Z             target="research.md", output="docs/review.md", mode=mode,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9010464Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9010691Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9010948Z         text = _review_text(result)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9011260Z >       assert "bg-test" in text
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9012050Z E       AssertionError: assert 'bg-test' in 'codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. Проверить: `which codex`'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9012519Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9012684Z tests/test_mcp_codex_review.py:91: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9013106Z _ test_codex_review_explicit_model_overrides_default_and_readiness[gpt-5.6-terra] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9013523Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9013744Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_codex_review_explicit_mod0')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9014288Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dd6a83f80>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9014690Z requested = 'gpt-5.6-terra'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9014841Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9014974Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9015333Z     @pytest.mark.parametrize("requested", [EXPLICIT_MODEL, "gpt5.6terra"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9015876Z     async def test_codex_review_explicit_model_overrides_default_and_readiness(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9016280Z         tmp_path, monkeypatch, requested,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9016587Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9016835Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9017110Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9017379Z         captured = {}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9017648Z         readiness_params = []
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9018743Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9019009Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9019337Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9019688Z                 readiness_params.append(kwargs.get("params"))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9020045Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9020357Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9020634Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9020973Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9021392Z                     "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9021755Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9022028Z             captured.update(kwargs["json"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9022329Z             return {"id": "bg-test"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9022585Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9022866Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9023243Z         monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9023654Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9024031Z         monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9024346Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9024610Z         result = await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9024995Z             context=PROJECT_CONTEXT, target="research.md", output="review.md",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9025378Z             mode="exec", model=requested,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9025669Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9025896Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9026154Z >       command = captured["config"]["command"]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9026500Z                   ^^^^^^^^^^^^^^^^^^
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9026785Z E       KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9026942Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9027090Z tests/test_mcp_codex_review.py:166: KeyError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9027495Z _ test_codex_review_explicit_model_overrides_default_and_readiness[gpt5.6terra] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9027797Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9028016Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_codex_review_explicit_mod1')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9028684Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dd6a837a0>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9029059Z requested = 'gpt5.6terra'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9029266Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9029400Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9029751Z     @pytest.mark.parametrize("requested", [EXPLICIT_MODEL, "gpt5.6terra"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9030256Z     async def test_codex_review_explicit_model_overrides_default_and_readiness(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9030653Z         tmp_path, monkeypatch, requested,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9030923Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9031191Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9031462Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9031688Z         captured = {}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9031983Z         readiness_params = []
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9032263Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9032541Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9032864Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9033222Z                 readiness_params.append(kwargs.get("params"))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9033573Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9033869Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9034157Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9034467Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9034854Z                     "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9035323Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9035586Z             captured.update(kwargs["json"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9035897Z             return {"id": "bg-test"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9036173Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9036437Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9036830Z         monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9037203Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9037584Z         monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9037959Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9038268Z         result = await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9038670Z             context=PROJECT_CONTEXT, target="research.md", output="review.md",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9039041Z             mode="exec", model=requested,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9039327Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9039563Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9039833Z >       command = captured["config"]["command"]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9040144Z                   ^^^^^^^^^^^^^^^^^^
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9040435Z E       KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9040611Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9040761Z tests/test_mcp_codex_review.py:166: KeyError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9041185Z _ test_codex_review_resume_command_passes_usage_arguments[model_kwargs0-gpt-5.6-luna] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9041492Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9041733Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_codex_review_resume_comma0')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9042234Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dd69fbc20>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9042633Z model_kwargs = {}, expected = 'gpt-5.6-luna'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9042845Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9042935Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9043246Z     @pytest.mark.parametrize(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9043555Z         "model_kwargs, expected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9043940Z         [({}, DEFAULT_MODEL), ({"model": EXPLICIT_MODEL}, EXPLICIT_MODEL)],
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9044283Z     )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9044571Z     async def test_codex_review_resume_command_passes_usage_arguments(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9044988Z         tmp_path, monkeypatch, model_kwargs, expected,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9045314Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9045559Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9045843Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9046074Z         captured = {}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9046383Z         output = tmp_path / "review.md"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9046732Z         sessions = output.parent / "codex_sessions.json"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9047136Z         sessions.write_text('{"sessions": {"review": {"uuid": "stored-uuid"}}}')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9047573Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9047832Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9048565Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9048926Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9049215Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9049525Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9049870Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9050309Z                     "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9050668Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9050919Z             captured.update(kwargs["json"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9051242Z             return {"id": "bg-test"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9051515Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9051778Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9052182Z         monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9052559Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9052970Z         monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9053311Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9053565Z         await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9053932Z             context=PROJECT_CONTEXT, target="research.md", output="review.md",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9054333Z             mode="exec", resume=True, **model_kwargs,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9054707Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9054934Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9055195Z >       command = captured["config"]["command"]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9055559Z                   ^^^^^^^^^^^^^^^^^^
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9055838Z E       KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9056015Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9056191Z tests/test_mcp_codex_review.py:214: KeyError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9056611Z _ test_codex_review_resume_command_passes_usage_arguments[model_kwargs1-gpt-5.6-terra] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9056951Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9057151Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_codex_review_resume_comma1')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9057662Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dcdfa5d90>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9058103Z model_kwargs = {'model': 'gpt-5.6-terra'}, expected = 'gpt-5.6-terra'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9058410Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9058571Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9058856Z     @pytest.mark.parametrize(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9059151Z         "model_kwargs, expected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9059525Z         [({}, DEFAULT_MODEL), ({"model": EXPLICIT_MODEL}, EXPLICIT_MODEL)],
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9059878Z     )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9060186Z     async def test_codex_review_resume_command_passes_usage_arguments(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9060585Z         tmp_path, monkeypatch, model_kwargs, expected,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9060914Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9061178Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9061488Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9061719Z         captured = {}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9062003Z         output = tmp_path / "review.md"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9062351Z         sessions = output.parent / "codex_sessions.json"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9062768Z         sessions.write_text('{"sessions": {"review": {"uuid": "stored-uuid"}}}')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9063135Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9063376Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9063727Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9064063Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9064403Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9064673Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9064968Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9065391Z                     "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9065755Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9066018Z             captured.update(kwargs["json"])
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9066386Z             return {"id": "bg-test"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9066661Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9066974Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9067341Z         monkeypatch.setattr(mcp, "WORKER_NAME", "sol-pilot")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9067721Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9068112Z         monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9068589Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9068869Z         await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9069229Z             context=PROJECT_CONTEXT, target="research.md", output="review.md",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9069621Z             mode="exec", resume=True, **model_kwargs,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9069953Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9070214Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9070494Z >       command = captured["config"]["command"]
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9070793Z                   ^^^^^^^^^^^^^^^^^^
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9071059Z E       KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9071215Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9071378Z tests/test_mcp_codex_review.py:214: KeyError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9071772Z __ test_t1_385_codex_review_success_returns_exact_deferred_control_provenance __
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9072040Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9072260Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_t1_385_codex_review_succe0')
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9072790Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dcdfa4b00>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9073067Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9073184Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9073629Z     async def test_t1_385_codex_review_success_returns_exact_deferred_control_provenance(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9074029Z         tmp_path, monkeypatch,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9074319Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9074654Z         """RED #385 R1: only a successfully created job may arm app-server control."""
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9075036Z         import app.mcp_stdio as mcp
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9075322Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9075575Z         async def fake_api(method, path, **kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9075960Z             if path == "/api/usage/readiness":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9076287Z                 return readiness_response()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9076580Z             if method == "GET":
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9076866Z                 return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9077173Z                     "cwd": str(tmp_path), "worktree_path": str(tmp_path),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9077574Z                     "scope": str(tmp_path), "task_id": "385", "id": "requester-id",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9077942Z                 }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9078272Z             return {"id": "bg-review-385"}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9078605Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9078861Z         monkeypatch.setattr(mcp, "_api", fake_api)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9079245Z         monkeypatch.setattr(mcp, "WORKER_NAME", "review-requester")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9079656Z         monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9079961Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9080210Z         result = await mcp.codex_review(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9080523Z             context=PROJECT_CONTEXT,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9080845Z             target=".orchestra/tasks/385/plan.md",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9081210Z             output=".orchestra/tasks/385/codex-review-plan.md",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9081571Z             mode="exec",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9081826Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9082064Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9082337Z         assert not isinstance(result, str), (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9082777Z             "successful codex_review still returns flattened prose instead of a structured result"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9083184Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9083421Z         assert result.isError is False
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9083844Z         text = "\n".join(block.text for block in result.content if block.type == "text")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9084263Z >       assert "bg-review-385" in text
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9085143Z E       AssertionError: assert 'bg-review-385' in 'codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. Проверить: `which codex`'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9085722Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9085887Z tests/test_mcp_codex_review.py:404: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9086286Z ___ test_t3_claude_target_commits_only_after_canary_and_capability_receipts ____
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9086608Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9087204Z session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9088415Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f6dcdc2f800>
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9088665Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9088830Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9089206Z     async def test_t3_claude_target_commits_only_after_canary_and_capability_receipts(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9089602Z         session, monkeypatch,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9089917Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9090171Z         from app.session import AgentStatus
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9090468Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9090733Z         session.model = "gpt-5.6-sol"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9091050Z         session.backend_type = "codex"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9091411Z         session.session_id = "source-codex-thread"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9091765Z         session.last_summary = "unused prebuilt fallback"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9092102Z         session.status = AgentStatus.IDLE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9092416Z         session._log = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9092731Z         session._activate_backend_tasks = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9093129Z         order = []
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9093384Z         packet_sha = "a" * 64
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9093691Z         config_sha = "b" * 64
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9093975Z         capability_sha = "c" * 64
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9094270Z         prepared = SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9094631Z             handoff_id="h1", packet={"schema_version": 1},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9095039Z             packet_sha256=packet_sha, expected_capability_sha256=capability_sha,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9095402Z             pending_effects=0,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9095683Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9095997Z         session._prepare_runtime_handoff = AsyncMock(return_value=prepared)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9096408Z         session._confirm_runtime_handoff = AsyncMock(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9096832Z             side_effect=lambda *_args, **_kwargs: order.append("db-confirm")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9097165Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9097409Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9097649Z         source = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9097925Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9098227Z         async def disconnect_source():
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9098552Z             order.append("source-disconnect")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9098851Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9099124Z         source.disconnect.side_effect = disconnect_source
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9099498Z         session._backend = source
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9099833Z         session._build_claude_history_import = AsyncMock(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9100247Z             side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9100652Z                 target_id, target_model,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9100930Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9101165Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9101448Z         target = SimpleNamespace(session_id=None)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9101745Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9102032Z         async def connect_target(*, history_import=None, **_kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9102436Z             order.append("target-connect")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9102777Z             target.session_id = history_import.session_id
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9103122Z             session._backend = target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9103412Z             return target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9103661Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9103967Z         session._ensure_backend = AsyncMock(side_effect=connect_target)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9104323Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9104588Z         async def ingress_canary(*_args, **_kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9105013Z             assert _kwargs["expected_packet_sha256"] == packet_sha
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9105403Z             order.append("ingress-canary")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9105721Z             return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9106051Z                 "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9106443Z                 "configuration_sha256": config_sha,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9106738Z             }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9106953Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9107258Z         async def capability_check(*_args, **_kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9107619Z             assert _kwargs["expected_fingerprint"] == capability_sha
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9108024Z             order.append("capability-check")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9108387Z             return {
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9108663Z                 "ok": True, "fingerprint": capability_sha,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9109042Z                 "configuration_sha256": config_sha,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9109338Z             }
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9109568Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9109904Z         session._run_handoff_ingress_canary = AsyncMock(side_effect=ingress_canary)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9110384Z         session._verify_handoff_capabilities = AsyncMock(side_effect=capability_check)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9110788Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9111237Z         # The UI now intentionally uses text_tail_v1 for Codex → Claude.  Keep this
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9111714Z         # oracle on the stricter packet transaction by exercising its owner directly.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9112170Z         result = await session._change_runtime_with_packet_locked(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9112651Z             "claude-sonnet-5[1m]", session.model, session.backend_type,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9113018Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9113244Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9113472Z >       assert result["ok"] is True, result
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9114048Z E       AssertionError: {'error': 'authentication', 'error_code': 'handoff_target_failed', 'handoff_id': 'h1', 'history_transfer': {'mode': 'blocked'}, ...}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9114634Z E       assert False is True
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9114849Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9115046Z tests/test_runtime_handoff_v2.py:742: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9115532Z _ test_t3_invalid_receipt_never_disconnects_or_confirms[ingress0-capability0-handoff_ingress_rejected] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9115883Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9116430Z session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9117563Z ingress = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ok': True, 'state_checksum': 'wrong', 'tools_enabled': False}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9118756Z capability = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'fingerprint': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'ok': True}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9119538Z error_code = 'handoff_ingress_rejected'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9119708Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9119842Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9120115Z     @pytest.mark.parametrize(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9120441Z         ("ingress", "capability", "error_code"),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9120734Z         [
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9120989Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9121307Z                 {"ok": True, "state_checksum": "wrong", "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9121690Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9122045Z                 {"ok": True, "fingerprint": "c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9122387Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9122695Z                 "handoff_ingress_rejected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9122988Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9123226Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9123531Z                 {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9123964Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9124311Z                 {"ok": True, "fingerprint": "c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9124637Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9124944Z                 "handoff_ingress_rejected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9125240Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9125494Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9125786Z                 {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9126169Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9126486Z                 {"ok": False, "fingerprint": "wrong",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9126840Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9127174Z                 "handoff_capability_unsupported",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9127454Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9127712Z         ],
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9127941Z     )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9128386Z     async def test_t3_invalid_receipt_never_disconnects_or_confirms(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9128807Z         session, ingress, capability, error_code,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9129105Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9129374Z         from app.session import AgentStatus
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9129669Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9129948Z         session.model = "gpt-5.6-sol"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9130290Z         session.backend_type = "codex"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9130613Z         session.session_id = "source-codex-thread"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9130991Z         session.last_summary = "legacy summary must remain unused"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9131398Z         session.status = AgentStatus.IDLE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9131680Z         source = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9132007Z         session._backend = source
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9133081Z         session._log = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9133446Z         session._activate_backend_tasks = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9133849Z         session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9134253Z             handoff_id="h1", packet={"schema_version": 1},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9134685Z             packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9135036Z             pending_effects=0,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9135298Z         ))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9135618Z         session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9136076Z         session._verify_handoff_capabilities = AsyncMock(return_value=capability)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9136544Z         session._confirm_runtime_handoff = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9136846Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9137127Z         async def connect_target(*, history_import=None, **_kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9137490Z             target = SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9137873Z                 session_id=getattr(history_import, "session_id", "target-claude-session")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9138342Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9138592Z             session._backend = target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9138865Z             return target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9139151Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9139475Z         session._build_claude_history_import = AsyncMock(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9139897Z             side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9140295Z                 target_id, target_model,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9140566Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9140826Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9141127Z         session._ensure_backend = AsyncMock(side_effect=connect_target)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9141492Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9141788Z         result = await session._change_runtime_with_packet_locked(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9142197Z             "claude-sonnet-5[1m]", session.model, session.backend_type,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9142575Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9142820Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9143054Z         assert result["ok"] is False
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9143374Z >       assert result["error_code"] == error_code
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9143779Z E       AssertionError: assert 'handoff_target_failed' == 'handoff_ingress_rejected'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9144246Z E         
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9144515Z E         - handoff_ingress_rejected
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9144798Z E         + handoff_target_failed
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9145020Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9145183Z tests/test_runtime_handoff_v2.py:822: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9145655Z _ test_t3_invalid_receipt_never_disconnects_or_confirms[ingress1-capability1-handoff_ingress_rejected] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9145975Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9146602Z session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9147917Z ingress = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ok': True, 'state_checksum': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tools_enabled': True}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9149199Z capability = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'fingerprint': 'cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc', 'ok': True}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9150025Z error_code = 'handoff_ingress_rejected'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9150195Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9150326Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9150623Z     @pytest.mark.parametrize(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9150938Z         ("ingress", "capability", "error_code"),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9151282Z         [
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9151532Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9151829Z                 {"ok": True, "state_checksum": "wrong", "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9152192Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9152579Z                 {"ok": True, "fingerprint": "c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9152891Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9153226Z                 "handoff_ingress_rejected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9153518Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9153759Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9154088Z                 {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9154446Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9154780Z                 {"ok": True, "fingerprint": "c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9155095Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9155431Z                 "handoff_ingress_rejected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9155753Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9155988Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9156296Z                 {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9156656Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9156962Z                 {"ok": False, "fingerprint": "wrong",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9157319Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9157638Z                 "handoff_capability_unsupported",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9157979Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9158271Z         ],
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9158499Z     )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9158848Z     async def test_t3_invalid_receipt_never_disconnects_or_confirms(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9159230Z         session, ingress, capability, error_code,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9159530Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9159797Z         from app.session import AgentStatus
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9160090Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9160367Z         session.model = "gpt-5.6-sol"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9160672Z         session.backend_type = "codex"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9161024Z         session.session_id = "source-codex-thread"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9161405Z         session.last_summary = "legacy summary must remain unused"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9161785Z         session.status = AgentStatus.IDLE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9162094Z         source = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9162375Z         session._backend = source
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9162652Z         session._log = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9163057Z         session._activate_backend_tasks = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9163485Z         session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9163951Z             handoff_id="h1", packet={"schema_version": 1},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9164332Z             packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9164677Z             pending_effects=0,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9164969Z         ))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9165303Z         session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9165785Z         session._verify_handoff_capabilities = AsyncMock(return_value=capability)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9166216Z         session._confirm_runtime_handoff = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9166518Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9166846Z         async def connect_target(*, history_import=None, **_kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9167213Z             target = SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9167600Z                 session_id=getattr(history_import, "session_id", "target-claude-session")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9168001Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9168606Z             session._backend = target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9168924Z             return target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9169202Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9169461Z         session._build_claude_history_import = AsyncMock(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9169898Z             side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9170331Z                 target_id, target_model,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9170681Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9170931Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9171221Z         session._ensure_backend = AsyncMock(side_effect=connect_target)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9171587Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9171875Z         result = await session._change_runtime_with_packet_locked(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9172276Z             "claude-sonnet-5[1m]", session.model, session.backend_type,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9172651Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9172885Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9173165Z         assert result["ok"] is False
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9173474Z >       assert result["error_code"] == error_code
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9173875Z E       AssertionError: assert 'handoff_target_failed' == 'handoff_ingress_rejected'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9174293Z E         
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9174538Z E         - handoff_ingress_rejected
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9174838Z E         + handoff_target_failed
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9175022Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9175157Z tests/test_runtime_handoff_v2.py:822: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9175647Z _ test_t3_invalid_receipt_never_disconnects_or_confirms[ingress2-capability2-handoff_capability_unsupported] _
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9176079Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9176674Z session = AgentSession(id='test-290', name='handoff-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9177945Z ingress = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'ok': True, 'state_checksum': 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'tools_enabled': False}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9179132Z capability = {'configuration_sha256': 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb', 'fingerprint': 'wrong', 'ok': False}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9179734Z error_code = 'handoff_capability_unsupported'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9179959Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9180122Z     @pytest.mark.asyncio
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9180421Z     @pytest.mark.parametrize(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9180733Z         ("ingress", "capability", "error_code"),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9181042Z         [
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9181273Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9181557Z                 {"ok": True, "state_checksum": "wrong", "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9181992Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9182316Z                 {"ok": True, "fingerprint": "c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9182690Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9183053Z                 "handoff_ingress_rejected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9183349Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9183611Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9183911Z                 {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9184270Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9184601Z                 {"ok": True, "fingerprint": "c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9184942Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9185263Z                 "handoff_ingress_rejected",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9185577Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9185805Z             (
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9186112Z                 {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9186489Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9186818Z                 {"ok": False, "fingerprint": "wrong",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9187133Z                  "configuration_sha256": "b" * 64},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9187432Z                 "handoff_capability_unsupported",
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9187744Z             ),
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9187998Z         ],
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9188324Z     )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9188640Z     async def test_t3_invalid_receipt_never_disconnects_or_confirms(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9189001Z         session, ingress, capability, error_code,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9189325Z     ):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9189658Z         from app.session import AgentStatus
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9189946Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9190207Z         session.model = "gpt-5.6-sol"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9190514Z         session.backend_type = "codex"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9190848Z         session.session_id = "source-codex-thread"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9191268Z         session.last_summary = "legacy summary must remain unused"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9191631Z         session.status = AgentStatus.IDLE
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9191945Z         source = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9192228Z         session._backend = source
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9192529Z         session._log = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9192860Z         session._activate_backend_tasks = MagicMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9193246Z         session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9193691Z             handoff_id="h1", packet={"schema_version": 1},
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9194073Z             packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9194487Z             pending_effects=0,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9194751Z         ))
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9195050Z         session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9195528Z         session._verify_handoff_capabilities = AsyncMock(return_value=capability)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9195936Z         session._confirm_runtime_handoff = AsyncMock()
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9196237Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9196560Z         async def connect_target(*, history_import=None, **_kwargs):
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9196915Z             target = SimpleNamespace(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9197342Z                 session_id=getattr(history_import, "session_id", "target-claude-session")
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9197719Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9197966Z             session._backend = target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9198360Z             return target
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9198620Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9198907Z         session._build_claude_history_import = AsyncMock(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9199312Z             side_effect=lambda target_id, target_model, _exclude=(): _claude_history(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9199683Z                 target_id, target_model,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9200210Z             )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9200442Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9200754Z         session._ensure_backend = AsyncMock(side_effect=connect_target)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9201098Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9201415Z         result = await session._change_runtime_with_packet_locked(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9201878Z             "claude-sonnet-5[1m]", session.model, session.backend_type,
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9202203Z         )
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9202451Z     
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9202684Z         assert result["ok"] is False
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9203055Z >       assert result["error_code"] == error_code
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9203469Z E       AssertionError: assert 'handoff_target_failed' == 'handoff_capa...y_unsupported'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9203848Z E         
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9204130Z E         - handoff_capability_unsupported
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9204455Z E         + handoff_target_failed
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9204625Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9204773Z tests/test_runtime_handoff_v2.py:822: AssertionError
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9205229Z =============================== warnings summary ===============================
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9205837Z tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9206465Z tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9207577Z   /home/runner/work/orchestra/orchestra/.venv/lib/python3.12/site-packages/starlette/testclient.py:445: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9208719Z     return super().request(
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9208924Z 
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9209186Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9209609Z =========================== short test summary info ============================
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9210507Z FAILED tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[normal] - playwright._impl._errors.Error: Page.evaluate: TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9211389Z     at eval (eval at evaluate (:302:30), <anonymous>:7:24)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9211746Z     at UtilityScript.evaluate (<anonymous>:309:18)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9212098Z     at UtilityScript.<anonymous> (<anonymous>:1:44)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9212935Z FAILED tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact] - playwright._impl._errors.Error: Page.evaluate: TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9213775Z     at eval (eval at evaluate (:302:30), <anonymous>:7:24)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9214180Z     at UtilityScript.evaluate (<anonymous>:309:18)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9214525Z     at UtilityScript.<anonymous> (<anonymous>:1:44)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9215570Z FAILED tests/test_frontend.py::test_dashboard_polling_equivalent_twelve_minutes_before_after - subprocess.CalledProcessError: Command '['git', 'show', 'main:app/static/js/app.js']' returned non-zero exit status 128.
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9217108Z FAILED tests/test_mcp_codex_review.py::test_codex_review_uses_caller_context_and_declares_success_contract[exec] - AssertionError: assert 'bg-test' in 'codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. Проверить: `which codex`'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9218988Z FAILED tests/test_mcp_codex_review.py::test_codex_review_uses_caller_context_and_declares_success_contract[review] - AssertionError: assert 'bg-test' in 'codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. Проверить: `which codex`'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9220137Z FAILED tests/test_mcp_codex_review.py::test_codex_review_explicit_model_overrides_default_and_readiness[gpt-5.6-terra] - KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9220892Z FAILED tests/test_mcp_codex_review.py::test_codex_review_explicit_model_overrides_default_and_readiness[gpt5.6terra] - KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9221727Z FAILED tests/test_mcp_codex_review.py::test_codex_review_resume_command_passes_usage_arguments[model_kwargs0-gpt-5.6-luna] - KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9222498Z FAILED tests/test_mcp_codex_review.py::test_codex_review_resume_command_passes_usage_arguments[model_kwargs1-gpt-5.6-terra] - KeyError: 'config'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9223806Z FAILED tests/test_mcp_codex_review.py::test_t1_385_codex_review_success_returns_exact_deferred_control_provenance - AssertionError: assert 'bg-review-385' in 'codex не найден: ни CODEX_BIN в окружении, ни `codex` в PATH. Поставь Codex CLI или задай CODEX_BIN=/путь/к/codex в .env сервиса. Проверить: `which codex`'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9225194Z FAILED tests/test_runtime_handoff_v2.py::test_t3_claude_target_commits_only_after_canary_and_capability_receipts - AssertionError: {'error': 'authentication', 'error_code': 'handoff_target_failed', 'handoff_id': 'h1', 'history_transfer': {'mode': 'blocked'}, ...}
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9226405Z assert False is True
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9227134Z FAILED tests/test_runtime_handoff_v2.py::test_t3_invalid_receipt_never_disconnects_or_confirms[ingress0-capability0-handoff_ingress_rejected] - AssertionError: assert 'handoff_target_failed' == 'handoff_ingress_rejected'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9227846Z   
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:26.9228125Z   - handoff_ingress_rejected
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2011980Z   + handoff_target_failed
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2013462Z FAILED tests/test_runtime_handoff_v2.py::test_t3_invalid_receipt_never_disconnects_or_confirms[ingress1-capability1-handoff_ingress_rejected] - AssertionError: assert 'handoff_target_failed' == 'handoff_ingress_rejected'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2014890Z   
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2015188Z   - handoff_ingress_rejected
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2015471Z   + handoff_target_failed
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2016247Z FAILED tests/test_runtime_handoff_v2.py::test_t3_invalid_receipt_never_disconnects_or_confirms[ingress2-capability2-handoff_capability_unsupported] - AssertionError: assert 'handoff_target_failed' == 'handoff_capa...y_unsupported'
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2017049Z   
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2017304Z   - handoff_capability_unsupported
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2017611Z   + handoff_target_failed
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.2017940Z 14 failed, 662 passed, 7 skipped, 2 warnings in 117.03s (0:01:57)
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4766191Z Command exited with non-zero status 1
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4771320Z 	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_antigravity_usage_frontend.py tests/test_audit0901_harness.py tests/test_audit0901_workspace.py tests/test_backend_harness_turn_usage_422.py tests/test_cache_tokens.py tests/test_cli_inventory.py tests/test_compact_gate_438.py tests/test_default_pipeline.py tests/test_errtext.py tests/test_fan_prompt_407.py tests/test_frontend.py tests/test_harness_tools.py tests/test_kb_markdown_contract.py tests/test_knowledge_runtime_debt_361.py tests/test_limits_card.py tests/test_mcp_codex_review.py tests/test_merge_branch_drift.py tests/test_merge_ref_gate.py tests/test_message_provenance_review_433.py tests/test_models.py tests/test_orchestra_layout_compat_430.py tests/test_owned_dirs_migration_473.py tests/test_portfolio_agent_filter_frontend_472.py tests/test_process_guard_calibration.py tests/test_project_knowledge_t3_review_412.py tests/test_quota_headroom_447.py tests/test_repair_task_par_collisions_406.py tests/test_review_coverage_gate_462.py tests/test_review_receipt_storage_436.py tests/test_runtime_handoff_v2.py tests/test_secret_commit_gate.py tests/test_session_id_guard.py tests/test_subagent_routes.py tests/test_task_binding_417.py tests/test_task_repair_422.py tests/test_task_write_outbox_426.py tests/test_tg_file_batch_route.py tests/test_tm.py tests/test_undelivered.py tests/test_usage_history_resolution.py tests/test_wf_run.py"
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4776059Z 	User time (seconds): 46.05
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4776580Z 	System time (seconds): 9.62
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4776895Z 	Percent of CPU this job got: 47%
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4777235Z 	Elapsed (wall clock) time (h:mm:ss or m:ss): 1:58.36
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4777874Z 	Average shared text size (kbytes): 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4778294Z 	Average unshared data size (kbytes): 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4778602Z 	Average stack size (kbytes): 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4778948Z 	Average total size (kbytes): 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4779265Z 	Maximum resident set size (kbytes): 261088
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4779586Z 	Average resident set size (kbytes): 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4779899Z 	Major (requiring I/O) page faults: 3353
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4780207Z 	Minor (reclaiming a frame) page faults: 1826232
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4780551Z 	Voluntary context switches: 288263
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4780864Z 	Involuntary context switches: 44998
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4781137Z 	Swaps: 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4781409Z 	File system inputs: 90304
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4781664Z 	File system outputs: 1620328
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4781967Z 	Socket messages sent: 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4782254Z 	Socket messages received: 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4782529Z 	Signals delivered: 0
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4782940Z 	Page size (bytes): 4096
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4783199Z 	Exit status: 1
+test (5)	pytest shard 5 of 6	2026-09-05T09:00:27.4794300Z ##[error]Process completed with exit code 1.
+test (5)	Post Run actions/checkout@v4	﻿2026-09-05T09:00:27.4912839Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.4913827Z Post job cleanup.
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5656560Z [command]/usr/bin/git version
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5690199Z git version 2.55.0
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5716766Z Temporarily overriding HOME='/home/runner/work/_temp/5b314f9a-18b1-4d8a-9e46-7e87d2c66494' before making global git config changes
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5717911Z Adding repository directory to the temporary git global config as a safe directory
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5721859Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5756620Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5777584Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5967950Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5985315Z http.https://github.com/.extraheader
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.5994608Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.6024690Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.6220658Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (5)	Post Run actions/checkout@v4	2026-09-05T09:00:27.6244522Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (5)	Complete job	﻿2026-09-05T09:00:27.6547582Z Cleaning up orphan processes
+test (5)	Complete job	2026-09-05T09:00:27.6903587Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, astral-sh/setup-uv@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

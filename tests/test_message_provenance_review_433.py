@@ -1,3 +1,4 @@
+import asyncio
 import pytest
 import sqlite3
 import json
@@ -298,6 +299,8 @@ async def test_review_live_mcp_receipt_persists_agent_principal(tmp_path, monkey
     class Manager:
         def get_by_name(self, name, requested_scope): return target
         async def preflight_message_delivery(self, session_id): return None
+        def get_session_lock(self, session_id):
+            return asyncio.Lock()
 
     monkeypatch.setattr(routes, "manager", Manager())
     monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda _id: None)

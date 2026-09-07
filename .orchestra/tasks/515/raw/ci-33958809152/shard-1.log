@@ -1,0 +1,1343 @@
+test (1)	Set up job	﻿2026-09-05T09:44:55.8645819Z Current runner version: '2.337.0'
+test (1)	Set up job	2026-09-05T09:44:55.8673345Z ##[group]Runner Image Provisioner
+test (1)	Set up job	2026-09-05T09:44:55.8674437Z Hosted Compute Agent
+test (1)	Set up job	2026-09-05T09:44:55.8675026Z Version: 20260828.587
+test (1)	Set up job	2026-09-05T09:44:55.8676097Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+test (1)	Set up job	2026-09-05T09:44:55.8677243Z Build Date: 2026-08-28T16:44:25Z
+test (1)	Set up job	2026-09-05T09:44:55.8678000Z Worker ID: {90c6e0c7-6b33-4b39-9eee-2c43efb91eaa}
+test (1)	Set up job	2026-09-05T09:44:55.8678785Z Azure Region: eastus2
+test (1)	Set up job	2026-09-05T09:44:55.8679384Z ##[endgroup]
+test (1)	Set up job	2026-09-05T09:44:55.8681249Z ##[group]Operating System
+test (1)	Set up job	2026-09-05T09:44:55.8681971Z Ubuntu
+test (1)	Set up job	2026-09-05T09:44:55.8682593Z 24.04.4
+test (1)	Set up job	2026-09-05T09:44:55.8683196Z LTS
+test (1)	Set up job	2026-09-05T09:44:55.8683744Z ##[endgroup]
+test (1)	Set up job	2026-09-05T09:44:55.8684383Z ##[group]Runner Image
+test (1)	Set up job	2026-09-05T09:44:55.8685027Z Image: ubuntu-24.04
+test (1)	Set up job	2026-09-05T09:44:55.8685601Z Version: 20260831.293.1
+test (1)	Set up job	2026-09-05T09:44:55.8686969Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+test (1)	Set up job	2026-09-05T09:44:55.8688825Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+test (1)	Set up job	2026-09-05T09:44:55.8689821Z ##[endgroup]
+test (1)	Set up job	2026-09-05T09:44:55.8691194Z ##[group]GITHUB_TOKEN Permissions
+test (1)	Set up job	2026-09-05T09:44:55.8693450Z Contents: read
+test (1)	Set up job	2026-09-05T09:44:55.8694158Z Metadata: read
+test (1)	Set up job	2026-09-05T09:44:55.8694768Z Packages: read
+test (1)	Set up job	2026-09-05T09:44:55.8695356Z ##[endgroup]
+test (1)	Set up job	2026-09-05T09:44:55.8698175Z Secret source: Actions
+test (1)	Set up job	2026-09-05T09:44:55.8699329Z Prepare workflow directory
+test (1)	Set up job	2026-09-05T09:44:55.9022908Z Prepare all required actions
+test (1)	Set up job	2026-09-05T09:44:55.9069605Z Getting action download info
+test (1)	Set up job	2026-09-05T09:44:56.0638273Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+test (1)	Set up job	2026-09-05T09:44:56.1744970Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+test (1)	Set up job	2026-09-05T09:44:56.5938506Z Complete job name: test (1)
+test (1)	Run actions/checkout@v4	﻿2026-09-05T09:44:56.6623503Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6632424Z ##[group]Run actions/checkout@v4
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6633370Z with:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6633807Z   fetch-depth: 0
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6634281Z   repository: DrSeedon/orchestra
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6638363Z   token: ***
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6638813Z   ssh-strict: true
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6639267Z   ssh-user: git
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6639729Z   persist-credentials: true
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6640218Z   clean: true
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6640670Z   sparse-checkout-cone-mode: true
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6641195Z   fetch-tags: false
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6641643Z   show-progress: true
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6642090Z   lfs: false
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6642505Z   submodules: false
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6643014Z   set-safe-directory: true
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6643529Z   allow-unsafe-pr-checkout: false
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.6644307Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7692628Z Syncing repository: DrSeedon/orchestra
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7694782Z ##[group]Getting Git version info
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7695553Z Working directory is '/home/runner/work/orchestra/orchestra'
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7697133Z [command]/usr/bin/git version
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7729457Z git version 2.55.0
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7750647Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7765757Z Temporarily overriding HOME='/home/runner/work/_temp/5e6ee14f-d327-435e-a4af-55f47c9e5c92' before making global git config changes
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7768495Z Adding repository directory to the temporary git global config as a safe directory
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7772515Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7821358Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7825943Z ##[group]Initializing the repository
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7830797Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7908625Z hint: Using 'master' as the name for the initial branch. This default branch name
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7910120Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7912220Z hint: to use in all of your new repositories, which will suppress this warning,
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7913792Z hint: call:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7914803Z hint:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7915740Z hint: 	git config --global init.defaultBranch <name>
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7916966Z hint:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7917916Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7919455Z hint: 'development'. The just-created branch can be renamed via this command:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7920665Z hint:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7921326Z hint: 	git branch -m <name>
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7922277Z hint:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7923358Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7925006Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7927843Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7969309Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7970586Z ##[group]Disabling automatic garbage collection
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.7973449Z [command]/usr/bin/git config --local gc.auto 0
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8008207Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8009553Z ##[group]Setting up auth
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8014111Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8049236Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8445795Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8486479Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8792781Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.8834185Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.9099462Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.9144442Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.9145365Z ##[group]Fetching the repository
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:56.9167828Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2267581Z From https://github.com/DrSeedon/orchestra
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2269933Z  * [new branch]        adhoc-315170/fix-topic-flicker -> origin/adhoc-315170/fix-topic-flicker
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2272246Z  * [new branch]        adhoc-572092/research-compact-prompt -> origin/adhoc-572092/research-compact-prompt
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2274717Z  * [new branch]        adhoc-575506/research-compact-prompt -> origin/adhoc-575506/research-compact-prompt
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2277638Z  * [new branch]        adhoc-581995/research-compact-prompt -> origin/adhoc-581995/research-compact-prompt
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2279748Z  * [new branch]        fix/stability-recovery -> origin/fix/stability-recovery
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2281485Z  * [new branch]        laptop-sync            -> origin/laptop-sync
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2282934Z  * [new branch]        main                   -> origin/main
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2284000Z  * [new branch]        refactor/knowledge-delivery -> origin/refactor/knowledge-delivery
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2285322Z  * [new branch]        task-106/research-compact-prompt -> origin/task-106/research-compact-prompt
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2287097Z  * [new branch]        task-515/fix-ci-green  -> origin/task-515/fix-ci-green
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2288174Z  * [new branch]        task-87/feat-wake-on-reset -> origin/task-87/feat-wake-on-reset
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2289228Z  * [new branch]        task-98/grok-test      -> origin/task-98/grok-test
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2291440Z [command]/usr/bin/git branch --list --remote origin/task-515/fix-ci-green
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2332680Z   origin/task-515/fix-ci-green
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2343334Z [command]/usr/bin/git rev-parse refs/remotes/origin/task-515/fix-ci-green
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2378916Z 85c44ca04935ad78be3a305750acfc52c3c3f14a
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2388986Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2390195Z ##[group]Determining the checkout info
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2391470Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2400032Z [command]/usr/bin/git sparse-checkout disable
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2449566Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2481912Z ##[group]Checking out the ref
+test (1)	Run actions/checkout@v4	2026-09-05T09:44:59.2485682Z [command]/usr/bin/git checkout --progress --force -B task-515/fix-ci-green refs/remotes/origin/task-515/fix-ci-green
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.2758088Z Updating files:  95% (17066/17823)
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.2885576Z Updating files:  96% (17111/17823)
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3115672Z Updating files:  97% (17289/17823)
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3383669Z Updating files:  98% (17467/17823)
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3602962Z Updating files:  99% (17645/17823)
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3604426Z Updating files: 100% (17823/17823)
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3605773Z Updating files: 100% (17823/17823), done.
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3789260Z Switched to a new branch 'task-515/fix-ci-green'
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3794269Z branch 'task-515/fix-ci-green' set up to track 'origin/task-515/fix-ci-green'.
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3826878Z ##[endgroup]
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3874526Z [command]/usr/bin/git log -1 --format=%H
+test (1)	Run actions/checkout@v4	2026-09-05T09:45:00.3905527Z 85c44ca04935ad78be3a305750acfc52c3c3f14a
+test (1)	Run astral-sh/setup-uv@v4	﻿2026-09-05T09:45:00.4273663Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4279605Z ##[group]Run astral-sh/setup-uv@v4
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4280777Z with:
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4281669Z   version: latest
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4291554Z   github-token: ***
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4292566Z   enable-cache: false
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4293620Z   cache-dependency-glob: **/uv.lock
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4294816Z   prune-cache: true
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4295839Z   ignore-nothing-to-cache: false
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.4297127Z ##[endgroup]
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.5652444Z (node:2243) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:00.5655650Z (Use `node --trace-deprecation ...` to show where the warning was created)
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:02.5529459Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.12.10/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:02.8329590Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/59b14e90-2a6e-46f8-bc60-66cb774e2391 -f /home/runner/work/_temp/19d9cfbd-6812-431f-a123-cad0835cabec
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:03.2394165Z Added /opt/hostedtoolcache/uv/0.12.10/x86_64 to the path
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:03.2395619Z Added /home/runner/.local/bin to the path
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:03.2420935Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test (1)	Run astral-sh/setup-uv@v4	2026-09-05T09:45:03.2421362Z Successfully installed uv version 0.12.10
+test (1)	Run uv sync --dev	﻿2026-09-05T09:45:03.2561382Z ##[group]Run uv sync --dev
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.2561718Z ^[[36;1muv sync --dev^[[0m
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.2608310Z shell: /usr/bin/bash -e {0}
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.2608611Z env:
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.2608884Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.2609210Z ##[endgroup]
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.3208102Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.3208808Z Creating virtual environment at: .venv
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.3245757Z Resolved 99 packages in 0.59ms
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4268741Z Downloading pygments (1.2MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4273020Z Downloading aiohttp (1.7MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4279864Z Downloading uvloop (4.2MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4283405Z Downloading playwright (45.3MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4291904Z Downloading pydantic-core (2.0MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4304104Z Downloading cryptography (4.5MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4308705Z Downloading pillow (6.3MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.4311140Z Downloading claude-agent-sdk (76.7MiB)
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.7251655Z  Downloaded pygments
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.7396460Z  Downloaded aiohttp
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.7493317Z  Downloaded pydantic-core
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.8017839Z  Downloaded uvloop
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.8047025Z  Downloaded cryptography
+test (1)	Run uv sync --dev	2026-09-05T09:45:03.8199536Z  Downloaded pillow
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.1399349Z  Downloaded playwright
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.3927031Z  Downloaded claude-agent-sdk
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.3929597Z Prepared 74 packages in 1.06s
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4408023Z Installed 74 packages in 47ms
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4409285Z  + aiofiles==25.1.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4409682Z  + aiogram==3.28.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4410101Z  + aiohappyeyeballs==2.6.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4410497Z  + aiohttp==3.13.5
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4410824Z  + aiosignal==1.4.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4411165Z  + annotated-doc==0.0.4
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4411583Z  + annotated-types==0.7.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4411964Z  + anyio==4.13.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4412296Z  + attrs==26.1.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4412635Z  + certifi==2026.5.20
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4413014Z  + cffi==2.0.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4413347Z  + charset-normalizer==3.4.7
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4413792Z  + claude-agent-sdk==0.2.114
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4414182Z  + click==8.4.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4414492Z  + croniter==6.2.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4414875Z  + cryptography==48.0.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4415242Z  + fastapi==0.136.3
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4415600Z  + frozenlist==1.8.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4416060Z  + greenlet==3.5.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4416539Z  + h11==0.16.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4417089Z  + httpcore==1.0.9
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4417467Z  + httptools==0.8.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4417838Z  + httpx==0.28.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4418334Z  + httpx-sse==0.4.3
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4418762Z  + idna==3.16
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4419170Z  + iniconfig==2.3.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4419589Z  + jinja2==3.1.6
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4420108Z  + jsonschema==4.26.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4420515Z  + jsonschema-specifications==2025.9.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4420954Z  + magic-filter==1.0.12
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4421411Z  + markdown==3.10.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4421802Z  + markupsafe==3.0.3
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4422291Z  + mcp==1.27.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4422721Z  + multidict==6.7.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4423113Z  + packaging==26.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4423543Z  + pillow==11.3.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4423995Z  + playwright==1.60.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4424403Z  + pluggy==1.6.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4424830Z  + propcache==0.5.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4425255Z  + pycparser==3.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4425649Z  + pydantic==2.13.4
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4426162Z  + pydantic-core==2.46.4
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4426735Z  + pydantic-settings==2.14.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4427123Z  + pyee==13.0.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4427570Z  + pygments==2.20.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4428071Z  + pyjwt==2.13.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4428538Z  + pyromark==0.9.11
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4428948Z  + pytest==9.0.3
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4429436Z  + pytest-asyncio==1.4.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4429954Z  + pytest-base-url==2.1.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4430368Z  + pytest-playwright==0.8.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4431102Z  + pytest-timeout==2.4.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4431485Z  + python-dateutil==2.9.0.post0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4431898Z  + python-dotenv==1.2.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4432285Z  + python-multipart==0.0.29
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4432810Z  + python-slugify==8.0.4
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4433180Z  + pyyaml==6.0.3
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4433697Z  + referencing==0.37.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4434118Z  + requests==2.34.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4434604Z  + rpds-py==0.30.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4435058Z  + six==1.17.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4435416Z  + sniffio==1.3.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4435975Z  + sse-starlette==3.4.4
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4436573Z  + starlette==1.1.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4436939Z  + telegramify-markdown==1.1.5
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4437328Z  + text-unidecode==1.3
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4437876Z  + typing-extensions==4.15.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4438286Z  + typing-inspection==0.4.2
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4438648Z  + urllib3==2.7.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4439055Z  + uvicorn==0.48.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4439458Z  + uvloop==0.22.1
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4439889Z  + watchfiles==1.2.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4440307Z  + websockets==16.0
+test (1)	Run uv sync --dev	2026-09-05T09:45:04.4440774Z  + yarl==1.24.2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	﻿2026-09-05T09:45:04.4530833Z ##[group]Run sudo apt-get update && sudo apt-get install -y ffmpeg
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.4531358Z ^[[36;1msudo apt-get update && sudo apt-get install -y ffmpeg^[[0m
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.4572513Z shell: /usr/bin/bash -e {0}
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.4572787Z env:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.4573047Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.4573359Z ##[endgroup]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6033064Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6389745Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6394141Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6448606Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6459509Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6527213Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.6649994Z Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.8498650Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [441 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.8635298Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [394 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9011612Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1260 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9104268Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [292 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9125474Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9135691Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1690 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9251464Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [339 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9289757Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9298386Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1536 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9389629Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [352 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9417262Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:04.9569582Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5740 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0090961Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0102974Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1002 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0168749Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [212 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0187618Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0200783Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1206 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0275059Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [241 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0296963Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0309885Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1437 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0400819Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [334 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:05.0958783Z Get:29 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1401 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:12.0220989Z Fetched 11.8 MB in 1s (8045 kB/s)
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:12.7848624Z Reading package lists...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:12.8169625Z Reading package lists...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:12.9882706Z Building dependency tree...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:12.9889737Z Reading state information...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1410670Z The following additional packages will be installed:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1411528Z   i965-va-driver intel-media-va-driver libaacs0 libass9 libasyncns0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1412298Z   libavc1394-0 libavcodec60 libavdevice60 libavfilter9 libavformat60
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1412995Z   libavutil58 libbdplus0 libblas3 libbluray2 libbs2b0 libcaca0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1413744Z   libcdio-cdda2t64 libcdio-paranoia2t64 libcdio19t64 libchromaprint1 libcjson1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1414556Z   libcodec2-1.2 libdav1d7 libdc1394-25 libdecor-0-0 libdecor-0-plugin-1-gtk
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1415260Z   libflac12t64 libflite1 libgme0 libgsm1 libhwy1t64 libiec61883-0 libigdgmm12
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1416889Z   libjack-jackd2-0 libjxl0.7 liblapack3 liblilv-0-0 libmbedcrypto7t64
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1420657Z   libmp3lame0 libmpg123-0t64 libmysofa1 libopenal-data libopenal1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1421350Z   libopenmpt0t64 libopus0 libplacebo338 libpocketsphinx3 libpostproc57
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1422017Z   libpulse0 librav1e0 libraw1394-11 librist4 librsvg2-2 librsvg2-common
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1422713Z   librubberband2 libsamplerate0 libsdl2-2.0-0 libserd-0-0 libshine3
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1423421Z   libsndfile1 libsndio7.0 libsord-0-0 libsoxr0 libspeex1 libsphinxbase3t64
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1424140Z   libsratom-0-0 libsrt1.5-gnutls libssh-gcrypt-4 libsvtav1enc1d1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1424881Z   libswresample4 libswscale7 libtheora0 libtwolame0 libudfread0 libunibreak5
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1425687Z   libva-drm2 libva-x11-2 libva2 libvdpau1 libvidstab1.1 libvorbisenc2 libvpl2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1426707Z   libvpx9 libx264-164 libx265-199 libxcb-shape0 libxv1 libxvidcore4 libzimg2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1427465Z   libzix-0-0 libzvbi-common libzvbi0t64 mesa-va-drivers mesa-vdpau-drivers
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1428239Z   ocl-icd-libopencl1 pocketsphinx-en-us va-driver-all vdpau-driver-all
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1429535Z Suggested packages:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1430066Z   ffmpeg-doc i965-va-driver-shaders libcuda1 libnvcuvid1 libnvidia-encode1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1430753Z   libbluray-bdj jackd2 libportaudio2 opus-tools pulseaudio libraw1394-doc
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.1431226Z   librsvg2-bin serdi sndiod sordi speex opencl-icd libvdpau-va-gl1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2088391Z The following NEW packages will be installed:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2089234Z   ffmpeg i965-va-driver intel-media-va-driver libaacs0 libass9 libasyncns0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2090049Z   libavc1394-0 libavcodec60 libavdevice60 libavfilter9 libavformat60
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2090751Z   libavutil58 libbdplus0 libblas3 libbluray2 libbs2b0 libcaca0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2091492Z   libcdio-cdda2t64 libcdio-paranoia2t64 libcdio19t64 libchromaprint1 libcjson1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2092171Z   libcodec2-1.2 libdav1d7 libdc1394-25 libdecor-0-0 libdecor-0-plugin-1-gtk
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2092884Z   libflac12t64 libflite1 libgme0 libgsm1 libhwy1t64 libiec61883-0 libigdgmm12
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2093653Z   libjack-jackd2-0 libjxl0.7 liblapack3 liblilv-0-0 libmbedcrypto7t64
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2094204Z   libmp3lame0 libmpg123-0t64 libmysofa1 libopenal-data libopenal1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2094690Z   libopenmpt0t64 libopus0 libplacebo338 libpocketsphinx3 libpostproc57
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2095504Z   libpulse0 librav1e0 libraw1394-11 librist4 librsvg2-2 librsvg2-common
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2095959Z   librubberband2 libsamplerate0 libsdl2-2.0-0 libserd-0-0 libshine3
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2096669Z   libsndfile1 libsndio7.0 libsord-0-0 libsoxr0 libspeex1 libsphinxbase3t64
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2097415Z   libsratom-0-0 libsrt1.5-gnutls libssh-gcrypt-4 libsvtav1enc1d1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2098168Z   libswresample4 libswscale7 libtheora0 libtwolame0 libudfread0 libunibreak5
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2098971Z   libva-drm2 libva-x11-2 libva2 libvdpau1 libvidstab1.1 libvorbisenc2 libvpl2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2099747Z   libvpx9 libx264-164 libx265-199 libxcb-shape0 libxv1 libxvidcore4 libzimg2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2100513Z   libzix-0-0 libzvbi-common libzvbi0t64 mesa-va-drivers mesa-vdpau-drivers
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2101163Z   ocl-icd-libopencl1 pocketsphinx-en-us va-driver-all vdpau-driver-all
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2304325Z 0 upgraded, 99 newly installed, 0 to remove and 38 not upgraded.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2304986Z Need to get 94.1 MB of archives.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2305407Z After this operation, 227 MB of additional disk space will be used.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2305835Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2510492Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva2 amd64 2.20.0-2ubuntu0.2 [66.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2548680Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-drm2 amd64 2.20.0-2ubuntu0.2 [7124 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2569341Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-x11-2 amd64 2.20.0-2ubuntu0.2 [12.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2591667Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvdpau1 amd64 1.5-2build1 [27.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2615641Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvpl2 amd64 2023.3.0-1build1 [99.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2645204Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ocl-icd-libopencl1 amd64 2.3.2-1build1 [38.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2682600Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavutil58 amd64 7:6.1.1-3ubuntu5 [401 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.2751060Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcodec2-1.2 amd64 1.2.0-2build1 [8998 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3483513Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdav1d7 amd64 1.4.1-1build1 [604 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3547962Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgsm1 amd64 1.0.22-1build1 [27.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3574634Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libhwy1t64 amd64 1.0.7-8.1build1 [584 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3644510Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libjxl0.7 amd64 0.7.0-10.2ubuntu6.1 [1001 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3739566Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libmp3lame0 amd64 3.100-6build1 [142 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3776695Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libopus0 amd64 1.4-1build1 [208 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3818339Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librav1e0 amd64 0.7.1-2 [1022 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.3915750Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 librsvg2-2 amd64 2.58.0+dfsg-1build1 [2135 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4108026Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libshine3 amd64 3.1.1-2build1 [23.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4128509Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libspeex1 amd64 1.2.1-2ubuntu2.24.04.1 [59.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4604624Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsvtav1enc1d1 amd64 1.7.0+dfsg-2build1 [2425 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4806094Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsoxr0 amd64 0.1.3-4build3 [80.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4835336Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswresample4 amd64 7:6.1.1-3ubuntu5 [63.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4865294Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtheora0 amd64 1.1.1+dfsg.1-16.1build3 [211 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4903139Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtwolame0 amd64 0.4.0-2build3 [52.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4927613Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvorbisenc2 amd64 1.3.7-1build3 [80.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.4957866Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libvpx9 amd64 1.14.0-1ubuntu2.3 [1143 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5077797Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx264-164 amd64 2:0.164.3108+git31e19f9-1 [604 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5145237Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx265-199 amd64 3.5-2build1 [1226 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5258114Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libxvidcore4 amd64 2:1.3.7-1build1 [219 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5297237Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi-common all 0.2.42-2 [42.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5322945Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi0t64 amd64 0.2.42-2 [261 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5366722Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavcodec60 amd64 7:6.1.1-3ubuntu5 [5851 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5823452Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libraw1394-11 amd64 2.1.2-2build3 [26.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5845950Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libavc1394-0 amd64 0.5.4-5build3 [15.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5864396Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libunibreak5 amd64 5.1-2build1 [25.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5885876Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libass9 amd64 1:0.17.1-2build1 [104 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5915163Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libudfread0 amd64 1.1.2-1build1 [19.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.5936900Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbluray2 amd64 1:1.3.4-1build1 [159 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6402414Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libchromaprint1 amd64 1.5.1-5 [30.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6429042Z Get:40 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgme0 amd64 0.6.3-7build1 [134 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6462142Z Get:41 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpg123-0t64 amd64 1.32.5-1ubuntu1.1 [169 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6504769Z Get:42 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenmpt0t64 amd64 0.7.3-1.1build3 [647 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6591651Z Get:43 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcjson1 amd64 1.7.17-1 [24.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6617365Z Get:44 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmbedcrypto7t64 amd64 2.28.8-1 [209 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6659485Z Get:45 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librist4 amd64 0.2.10+dfsg-2 [74.9 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6694217Z Get:46 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsrt1.5-gnutls amd64 1.5.3-1build2 [316 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6758289Z Get:47 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libssh-gcrypt-4 amd64 0.10.6-2ubuntu0.5 [226 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6804756Z Get:48 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavformat60 amd64 7:6.1.1-3ubuntu5 [1153 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6914174Z Get:49 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbs2b0 amd64 3.1.0+dfsg-7build1 [10.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.6939061Z Get:50 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libflite1 amd64 2.2-6build3 [13.6 MB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8429606Z Get:51 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libserd-0-0 amd64 0.32.2-1 [43.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8453135Z Get:52 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzix-0-0 amd64 0.4.2-2build1 [23.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8478713Z Get:53 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsord-0-0 amd64 0.16.16-2build1 [15.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8495963Z Get:54 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsratom-0-0 amd64 0.6.16-1build1 [17.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8518202Z Get:55 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 liblilv-0-0 amd64 0.24.22-1build1 [41.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8543553Z Get:56 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmysofa1 amd64 1.3.2+dfsg-2ubuntu2 [1158 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.8716723Z Get:57 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libplacebo338 amd64 6.338.2-2build1 [2654 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.9518849Z Get:58 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libblas3 amd64 3.12.0-3build1.1 [238 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.9578554Z Get:59 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 liblapack3 amd64 3.12.0-3build1.1 [2646 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:13.9977008Z Get:60 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libasyncns0 amd64 0.8-6build4 [11.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0002081Z Get:61 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libflac12t64 amd64 1.4.3+ds-2.1ubuntu2 [197 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0045567Z Get:62 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsndfile1 amd64 1.2.2-1ubuntu5.24.04.1 [209 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0120251Z Get:63 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpulse0 amd64 1:16.1+dfsg1-2ubuntu10.1 [292 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0180478Z Get:64 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsphinxbase3t64 amd64 0.8+5prealpha+1-17build2 [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0211452Z Get:65 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpocketsphinx3 amd64 0.8.0+real5prealpha+1-15ubuntu5 [133 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0247021Z Get:66 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpostproc57 amd64 7:6.1.1-3ubuntu5 [49.9 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0268541Z Get:67 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libsamplerate0 amd64 0.2.2-4build1 [1344 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0473642Z Get:68 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librubberband2 amd64 3.3.0+dfsg-2build1 [130 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0510978Z Get:69 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswscale7 amd64 7:6.1.1-3ubuntu5 [193 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0552913Z Get:70 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvidstab1.1 amd64 1.1.0-2build1 [38.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0576443Z Get:71 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzimg2 amd64 3.0.5+ds1-1build1 [254 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.0649964Z Get:72 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavfilter9 amd64 7:6.1.1-3ubuntu5 [4235 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1021199Z Get:73 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libcaca0 amd64 0.99.beta20-4ubuntu0.2 [209 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1059463Z Get:74 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libcdio19t64 amd64 2.1.0-4.1ubuntu1.2 [62.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1085756Z Get:75 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdio-cdda2t64 amd64 10.2+2.0.1-1.1build2 [16.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1523046Z Get:76 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdio-paranoia2t64 amd64 10.2+2.0.1-1.1build2 [16.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1547906Z Get:77 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdc1394-25 amd64 2.2.6-4build1 [90.1 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1577614Z Get:78 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libiec61883-0 amd64 1.2.0-6build1 [24.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1606715Z Get:79 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libjack-jackd2-0 amd64 1.9.21~dfsg-3ubuntu3 [289 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1649276Z Get:80 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenal-data all 1:1.23.1-4build1 [161 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1686992Z Get:81 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsndio7.0 amd64 1.9.0-0.3build3 [29.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1720734Z Get:82 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenal1 amd64 1:1.23.1-4build1 [540 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1782976Z Get:83 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libdecor-0-0 amd64 0.2.2-1build2 [16.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1813038Z Get:84 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsdl2-2.0-0 amd64 2.30.0+dfsg-1ubuntu3.1 [686 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1884084Z Get:85 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libxcb-shape0 amd64 1.15-1ubuntu2 [6100 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1904307Z Get:86 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libxv1 amd64 2:1.0.11-1.1build1 [10.7 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1929159Z Get:87 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavdevice60 amd64 7:6.1.1-3ubuntu5 [82.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.1962678Z Get:88 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ffmpeg amd64 7:6.1.1-3ubuntu5 [1879 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2129427Z Get:89 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libigdgmm12 amd64 22.3.17+ds1-1ubuntu1 [145 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2178198Z Get:90 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 intel-media-va-driver amd64 24.1.0+dfsg1-1ubuntu0.2 [3163 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2438600Z Get:91 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libaacs0 amd64 0.11.1-2build1 [62.9 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2466809Z Get:92 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbdplus0 amd64 0.2.0-3build1 [52.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2488878Z Get:93 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libdecor-0-plugin-1-gtk amd64 0.2.2-1build2 [22.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2509504Z Get:94 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 librsvg2-common amd64 2.58.0+dfsg-1build1 [11.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2965220Z Get:95 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 mesa-va-drivers amd64 25.2.8-0ubuntu0.24.04.2 [6784 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.2990339Z Get:96 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 mesa-vdpau-drivers amd64 25.2.8-0ubuntu0.24.04.2 [23.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.3019663Z Get:97 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 i965-va-driver amd64 2.4.1+dfsg1-1ubuntu0.2 [332 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.3065570Z Get:98 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 va-driver-all amd64 2.20.0-2ubuntu0.2 [5014 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.3085224Z Get:99 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 vdpau-driver-all amd64 1.5-2build1 [4414 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.3117276Z Get:100 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 pocketsphinx-en-us all 0.8.0+real5prealpha+1-15ubuntu5 [27.4 MB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9020590Z Fetched 94.1 MB in 1s (71.7 MB/s)
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9251758Z Selecting previously unselected package libva2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9457686Z (Reading database ... 
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9457989Z (Reading database ... 5%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9458368Z (Reading database ... 10%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9458745Z (Reading database ... 15%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9459110Z (Reading database ... 20%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9459626Z (Reading database ... 25%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9460141Z (Reading database ... 30%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9460622Z (Reading database ... 35%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9461107Z (Reading database ... 40%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9461599Z (Reading database ... 45%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9462089Z (Reading database ... 50%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:14.9486391Z (Reading database ... 55%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:15.1126542Z (Reading database ... 60%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:15.2700074Z (Reading database ... 65%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:15.4606141Z (Reading database ... 70%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:15.5578222Z (Reading database ... 75%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:15.7644546Z (Reading database ... 80%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.0147580Z (Reading database ... 85%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.2237566Z (Reading database ... 90%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4079702Z (Reading database ... 95%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4080168Z (Reading database ... 100%
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4080692Z (Reading database ... 201676 files and directories currently installed.)
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4126052Z Preparing to unpack .../00-libva2_2.20.0-2ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4329068Z Unpacking libva2:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4603546Z Selecting previously unselected package libva-drm2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4729438Z Preparing to unpack .../01-libva-drm2_2.20.0-2ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4737570Z Unpacking libva-drm2:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.4988949Z Selecting previously unselected package libva-x11-2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5109415Z Preparing to unpack .../02-libva-x11-2_2.20.0-2ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5117995Z Unpacking libva-x11-2:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5324194Z Selecting previously unselected package libvdpau1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5446677Z Preparing to unpack .../03-libvdpau1_1.5-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5456464Z Unpacking libvdpau1:amd64 (1.5-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5709497Z Selecting previously unselected package libvpl2.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5831566Z Preparing to unpack .../04-libvpl2_2023.3.0-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.5837781Z Unpacking libvpl2 (2023.3.0-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6047332Z Selecting previously unselected package ocl-icd-libopencl1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6167942Z Preparing to unpack .../05-ocl-icd-libopencl1_2.3.2-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6177427Z Unpacking ocl-icd-libopencl1:amd64 (2.3.2-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6459175Z Selecting previously unselected package libavutil58:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6583534Z Preparing to unpack .../06-libavutil58_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6590644Z Unpacking libavutil58:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6830312Z Selecting previously unselected package libcodec2-1.2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6953598Z Preparing to unpack .../07-libcodec2-1.2_1.2.0-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.6959959Z Unpacking libcodec2-1.2:amd64 (1.2.0-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.7742566Z Selecting previously unselected package libdav1d7:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.7871467Z Preparing to unpack .../08-libdav1d7_1.4.1-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.7880709Z Unpacking libdav1d7:amd64 (1.4.1-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8146439Z Selecting previously unselected package libgsm1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8272465Z Preparing to unpack .../09-libgsm1_1.0.22-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8278617Z Unpacking libgsm1:amd64 (1.0.22-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8479423Z Selecting previously unselected package libhwy1t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8602197Z Preparing to unpack .../10-libhwy1t64_1.0.7-8.1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8608777Z Unpacking libhwy1t64:amd64 (1.0.7-8.1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.8925927Z Selecting previously unselected package libjxl0.7:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9051136Z Preparing to unpack .../11-libjxl0.7_0.7.0-10.2ubuntu6.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9058363Z Unpacking libjxl0.7:amd64 (0.7.0-10.2ubuntu6.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9381652Z Selecting previously unselected package libmp3lame0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9507727Z Preparing to unpack .../12-libmp3lame0_3.100-6build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9513716Z Unpacking libmp3lame0:amd64 (3.100-6build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9727031Z Selecting previously unselected package libopus0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9851140Z Preparing to unpack .../13-libopus0_1.4-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:16.9857858Z Unpacking libopus0:amd64 (1.4-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.0073319Z Selecting previously unselected package librav1e0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.0195694Z Preparing to unpack .../14-librav1e0_0.7.1-2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.0201850Z Unpacking librav1e0:amd64 (0.7.1-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.0520331Z Selecting previously unselected package librsvg2-2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.0646397Z Preparing to unpack .../15-librsvg2-2_2.58.0+dfsg-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.0653353Z Unpacking librsvg2-2:amd64 (2.58.0+dfsg-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1100138Z Selecting previously unselected package libshine3:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1230691Z Preparing to unpack .../16-libshine3_3.1.1-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1237968Z Unpacking libshine3:amd64 (3.1.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1433109Z Selecting previously unselected package libspeex1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1559336Z Preparing to unpack .../17-libspeex1_1.2.1-2ubuntu2.24.04.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1565646Z Unpacking libspeex1:amd64 (1.2.1-2ubuntu2.24.04.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1766018Z Selecting previously unselected package libsvtav1enc1d1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1890692Z Preparing to unpack .../18-libsvtav1enc1d1_1.7.0+dfsg-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.1898127Z Unpacking libsvtav1enc1d1:amd64 (1.7.0+dfsg-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.2366723Z Selecting previously unselected package libsoxr0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.2494920Z Preparing to unpack .../19-libsoxr0_0.1.3-4build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.2502225Z Unpacking libsoxr0:amd64 (0.1.3-4build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.2704860Z Selecting previously unselected package libswresample4:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.2826583Z Preparing to unpack .../20-libswresample4_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.2834078Z Unpacking libswresample4:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3040745Z Selecting previously unselected package libtheora0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3162928Z Preparing to unpack .../21-libtheora0_1.1.1+dfsg.1-16.1build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3170169Z Unpacking libtheora0:amd64 (1.1.1+dfsg.1-16.1build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3397556Z Selecting previously unselected package libtwolame0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3519953Z Preparing to unpack .../22-libtwolame0_0.4.0-2build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3527161Z Unpacking libtwolame0:amd64 (0.4.0-2build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3730980Z Selecting previously unselected package libvorbisenc2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3854079Z Preparing to unpack .../23-libvorbisenc2_1.3.7-1build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.3862185Z Unpacking libvorbisenc2:amd64 (1.3.7-1build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4081922Z Selecting previously unselected package libvpx9:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4205981Z Preparing to unpack .../24-libvpx9_1.14.0-1ubuntu2.3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4213198Z Unpacking libvpx9:amd64 (1.14.0-1ubuntu2.3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4537771Z Selecting previously unselected package libx264-164:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4663090Z Preparing to unpack .../25-libx264-164_2%3a0.164.3108+git31e19f9-1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4670905Z Unpacking libx264-164:amd64 (2:0.164.3108+git31e19f9-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.4942556Z Selecting previously unselected package libx265-199:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.5067165Z Preparing to unpack .../26-libx265-199_3.5-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.5074565Z Unpacking libx265-199:amd64 (3.5-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.5732317Z Selecting previously unselected package libxvidcore4:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.5861890Z Preparing to unpack .../27-libxvidcore4_2%3a1.3.7-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.5868064Z Unpacking libxvidcore4:amd64 (2:1.3.7-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.6083745Z Selecting previously unselected package libzvbi-common.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.6209715Z Preparing to unpack .../28-libzvbi-common_0.2.42-2_all.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.6218055Z Unpacking libzvbi-common (0.2.42-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.6783161Z Selecting previously unselected package libzvbi0t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.6909445Z Preparing to unpack .../29-libzvbi0t64_0.2.42-2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.6916164Z Unpacking libzvbi0t64:amd64 (0.2.42-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.7150106Z Selecting previously unselected package libavcodec60:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.7273822Z Preparing to unpack .../30-libavcodec60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.7280813Z Unpacking libavcodec60:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8092665Z Selecting previously unselected package libraw1394-11:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8222192Z Preparing to unpack .../31-libraw1394-11_2.1.2-2build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8229962Z Unpacking libraw1394-11:amd64 (2.1.2-2build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8428971Z Selecting previously unselected package libavc1394-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8554028Z Preparing to unpack .../32-libavc1394-0_0.5.4-5build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8561181Z Unpacking libavc1394-0:amd64 (0.5.4-5build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8760761Z Selecting previously unselected package libunibreak5:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8884395Z Preparing to unpack .../33-libunibreak5_5.1-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.8892236Z Unpacking libunibreak5:amd64 (5.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9098030Z Selecting previously unselected package libass9:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9223091Z Preparing to unpack .../34-libass9_1%3a0.17.1-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9230073Z Unpacking libass9:amd64 (1:0.17.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9437251Z Selecting previously unselected package libudfread0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9560984Z Preparing to unpack .../35-libudfread0_1.1.2-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9569128Z Unpacking libudfread0:amd64 (1.1.2-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9766354Z Selecting previously unselected package libbluray2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9889152Z Preparing to unpack .../36-libbluray2_1%3a1.3.4-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:17.9895920Z Unpacking libbluray2:amd64 (1:1.3.4-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0108907Z Selecting previously unselected package libchromaprint1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0231110Z Preparing to unpack .../37-libchromaprint1_1.5.1-5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0237838Z Unpacking libchromaprint1:amd64 (1.5.1-5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0438544Z Selecting previously unselected package libgme0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0561648Z Preparing to unpack .../38-libgme0_0.6.3-7build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0568630Z Unpacking libgme0:amd64 (0.6.3-7build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0780024Z Selecting previously unselected package libmpg123-0t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0903793Z Preparing to unpack .../39-libmpg123-0t64_1.32.5-1ubuntu1.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.0910382Z Unpacking libmpg123-0t64:amd64 (1.32.5-1ubuntu1.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1125933Z Selecting previously unselected package libopenmpt0t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1249206Z Preparing to unpack .../40-libopenmpt0t64_0.7.3-1.1build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1255801Z Unpacking libopenmpt0t64:amd64 (0.7.3-1.1build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1519995Z Selecting previously unselected package libcjson1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1643863Z Preparing to unpack .../41-libcjson1_1.7.17-1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1650841Z Unpacking libcjson1:amd64 (1.7.17-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1871309Z Selecting previously unselected package libmbedcrypto7t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1975554Z Preparing to unpack .../42-libmbedcrypto7t64_2.28.8-1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.1982764Z Unpacking libmbedcrypto7t64:amd64 (2.28.8-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2204299Z Selecting previously unselected package librist4:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2327306Z Preparing to unpack .../43-librist4_0.2.10+dfsg-2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2334133Z Unpacking librist4:amd64 (0.2.10+dfsg-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2568513Z Selecting previously unselected package libsrt1.5-gnutls:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2690158Z Preparing to unpack .../44-libsrt1.5-gnutls_1.5.3-1build2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2698296Z Unpacking libsrt1.5-gnutls:amd64 (1.5.3-1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.2931512Z Selecting previously unselected package libssh-gcrypt-4:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.3054070Z Preparing to unpack .../45-libssh-gcrypt-4_0.10.6-2ubuntu0.5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.3062172Z Unpacking libssh-gcrypt-4:amd64 (0.10.6-2ubuntu0.5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.3286020Z Selecting previously unselected package libavformat60:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.3409959Z Preparing to unpack .../46-libavformat60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.3417640Z Unpacking libavformat60:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.4688821Z Selecting previously unselected package libbs2b0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.4818237Z Preparing to unpack .../47-libbs2b0_3.1.0+dfsg-7build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.4825924Z Unpacking libbs2b0:amd64 (3.1.0+dfsg-7build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.5049871Z Selecting previously unselected package libflite1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.5176509Z Preparing to unpack .../48-libflite1_2.2-6build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.5182701Z Unpacking libflite1:amd64 (2.2-6build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6267780Z Selecting previously unselected package libserd-0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6398006Z Preparing to unpack .../49-libserd-0-0_0.32.2-1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6405536Z Unpacking libserd-0-0:amd64 (0.32.2-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6606404Z Selecting previously unselected package libzix-0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6733069Z Preparing to unpack .../50-libzix-0-0_0.4.2-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6739796Z Unpacking libzix-0-0:amd64 (0.4.2-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.6938778Z Selecting previously unselected package libsord-0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7061819Z Preparing to unpack .../51-libsord-0-0_0.16.16-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7068839Z Unpacking libsord-0-0:amd64 (0.16.16-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7270485Z Selecting previously unselected package libsratom-0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7395166Z Preparing to unpack .../52-libsratom-0-0_0.6.16-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7401934Z Unpacking libsratom-0-0:amd64 (0.6.16-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7598332Z Selecting previously unselected package liblilv-0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7721905Z Preparing to unpack .../53-liblilv-0-0_0.24.22-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7728208Z Unpacking liblilv-0-0:amd64 (0.24.22-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.7927599Z Selecting previously unselected package libmysofa1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.8050842Z Preparing to unpack .../54-libmysofa1_1.3.2+dfsg-2ubuntu2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.8057962Z Unpacking libmysofa1:amd64 (1.3.2+dfsg-2ubuntu2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.8300159Z Selecting previously unselected package libplacebo338:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.8424414Z Preparing to unpack .../55-libplacebo338_6.338.2-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.8432257Z Unpacking libplacebo338:amd64 (6.338.2-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.8958949Z Selecting previously unselected package libblas3:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.9087357Z Preparing to unpack .../56-libblas3_3.12.0-3build1.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.9116842Z Unpacking libblas3:amd64 (3.12.0-3build1.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.9349002Z Selecting previously unselected package liblapack3:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.9474753Z Preparing to unpack .../57-liblapack3_3.12.0-3build1.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.9504138Z Unpacking liblapack3:amd64 (3.12.0-3build1.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:18.9981085Z Selecting previously unselected package libasyncns0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0110757Z Preparing to unpack .../58-libasyncns0_0.8-6build4_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0118986Z Unpacking libasyncns0:amd64 (0.8-6build4) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0320177Z Selecting previously unselected package libflac12t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0445006Z Preparing to unpack .../59-libflac12t64_1.4.3+ds-2.1ubuntu2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0452049Z Unpacking libflac12t64:amd64 (1.4.3+ds-2.1ubuntu2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0675270Z Selecting previously unselected package libsndfile1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0799835Z Preparing to unpack .../60-libsndfile1_1.2.2-1ubuntu5.24.04.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.0807536Z Unpacking libsndfile1:amd64 (1.2.2-1ubuntu5.24.04.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1041605Z Selecting previously unselected package libpulse0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1165146Z Preparing to unpack .../61-libpulse0_1%3a16.1+dfsg1-2ubuntu10.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1232061Z Unpacking libpulse0:amd64 (1:16.1+dfsg1-2ubuntu10.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1474365Z Selecting previously unselected package libsphinxbase3t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1599748Z Preparing to unpack .../62-libsphinxbase3t64_0.8+5prealpha+1-17build2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1606890Z Unpacking libsphinxbase3t64:amd64 (0.8+5prealpha+1-17build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1820804Z Selecting previously unselected package libpocketsphinx3:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1944117Z Preparing to unpack .../63-libpocketsphinx3_0.8.0+real5prealpha+1-15ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.1951400Z Unpacking libpocketsphinx3:amd64 (0.8.0+real5prealpha+1-15ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2162507Z Selecting previously unselected package libpostproc57:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2285759Z Preparing to unpack .../64-libpostproc57_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2293590Z Unpacking libpostproc57:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2498414Z Selecting previously unselected package libsamplerate0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2623121Z Preparing to unpack .../65-libsamplerate0_0.2.2-4build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2630199Z Unpacking libsamplerate0:amd64 (0.2.2-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.2883717Z Selecting previously unselected package librubberband2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3008003Z Preparing to unpack .../66-librubberband2_3.3.0+dfsg-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3015388Z Unpacking librubberband2:amd64 (3.3.0+dfsg-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3232329Z Selecting previously unselected package libswscale7:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3357305Z Preparing to unpack .../67-libswscale7_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3364323Z Unpacking libswscale7:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3590941Z Selecting previously unselected package libvidstab1.1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3714425Z Preparing to unpack .../68-libvidstab1.1_1.1.0-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3721700Z Unpacking libvidstab1.1:amd64 (1.1.0-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.3922782Z Selecting previously unselected package libzimg2:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.4046089Z Preparing to unpack .../69-libzimg2_3.0.5+ds1-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.4053512Z Unpacking libzimg2:amd64 (3.0.5+ds1-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.4284716Z Selecting previously unselected package libavfilter9:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.4408890Z Preparing to unpack .../70-libavfilter9_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.4415975Z Unpacking libavfilter9:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5117215Z Selecting previously unselected package libcaca0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5248544Z Preparing to unpack .../71-libcaca0_0.99.beta20-4ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5256356Z Unpacking libcaca0:amd64 (0.99.beta20-4ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5495855Z Selecting previously unselected package libcdio19t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5622669Z Preparing to unpack .../72-libcdio19t64_2.1.0-4.1ubuntu1.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5630851Z Unpacking libcdio19t64:amd64 (2.1.0-4.1ubuntu1.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5842362Z Selecting previously unselected package libcdio-cdda2t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5967803Z Preparing to unpack .../73-libcdio-cdda2t64_10.2+2.0.1-1.1build2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.5974581Z Unpacking libcdio-cdda2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6195525Z Selecting previously unselected package libcdio-paranoia2t64:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6318595Z Preparing to unpack .../74-libcdio-paranoia2t64_10.2+2.0.1-1.1build2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6326454Z Unpacking libcdio-paranoia2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6531605Z Selecting previously unselected package libdc1394-25:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6657406Z Preparing to unpack .../75-libdc1394-25_2.2.6-4build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6664837Z Unpacking libdc1394-25:amd64 (2.2.6-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.6902153Z Selecting previously unselected package libiec61883-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7026563Z Preparing to unpack .../76-libiec61883-0_1.2.0-6build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7034741Z Unpacking libiec61883-0:amd64 (1.2.0-6build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7239808Z Selecting previously unselected package libjack-jackd2-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7364420Z Preparing to unpack .../77-libjack-jackd2-0_1.9.21~dfsg-3ubuntu3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7372857Z Unpacking libjack-jackd2-0:amd64 (1.9.21~dfsg-3ubuntu3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7616941Z Selecting previously unselected package libopenal-data.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7742240Z Preparing to unpack .../78-libopenal-data_1%3a1.23.1-4build1_all.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7749826Z Unpacking libopenal-data (1:1.23.1-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.7977009Z Selecting previously unselected package libsndio7.0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8100127Z Preparing to unpack .../79-libsndio7.0_1.9.0-0.3build3_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8109112Z Unpacking libsndio7.0:amd64 (1.9.0-0.3build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8319258Z Selecting previously unselected package libopenal1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8445415Z Preparing to unpack .../80-libopenal1_1%3a1.23.1-4build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8452645Z Unpacking libopenal1:amd64 (1:1.23.1-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8706663Z Selecting previously unselected package libdecor-0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8831208Z Preparing to unpack .../81-libdecor-0-0_0.2.2-1build2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.8839834Z Unpacking libdecor-0-0:amd64 (0.2.2-1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9043267Z Selecting previously unselected package libsdl2-2.0-0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9168240Z Preparing to unpack .../82-libsdl2-2.0-0_2.30.0+dfsg-1ubuntu3.1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9175792Z Unpacking libsdl2-2.0-0:amd64 (2.30.0+dfsg-1ubuntu3.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9577229Z Selecting previously unselected package libxcb-shape0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9728392Z Preparing to unpack .../83-libxcb-shape0_1.15-1ubuntu2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9729132Z Unpacking libxcb-shape0:amd64 (1.15-1ubuntu2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:19.9920278Z Selecting previously unselected package libxv1:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0045035Z Preparing to unpack .../84-libxv1_2%3a1.0.11-1.1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0052813Z Unpacking libxv1:amd64 (2:1.0.11-1.1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0255860Z Selecting previously unselected package libavdevice60:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0379364Z Preparing to unpack .../85-libavdevice60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0386963Z Unpacking libavdevice60:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0594689Z Selecting previously unselected package ffmpeg.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0718019Z Preparing to unpack .../86-ffmpeg_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.0725786Z Unpacking ffmpeg (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.1461248Z Selecting previously unselected package libigdgmm12:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.1589256Z Preparing to unpack .../87-libigdgmm12_22.3.17+ds1-1ubuntu1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.1595602Z Unpacking libigdgmm12:amd64 (22.3.17+ds1-1ubuntu1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.1815609Z Selecting previously unselected package intel-media-va-driver:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.1939610Z Preparing to unpack .../88-intel-media-va-driver_24.1.0+dfsg1-1ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.1946494Z Unpacking intel-media-va-driver:amd64 (24.1.0+dfsg1-1ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.2652400Z Selecting previously unselected package libaacs0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.2782883Z Preparing to unpack .../89-libaacs0_0.11.1-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.2790066Z Unpacking libaacs0:amd64 (0.11.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3001538Z Selecting previously unselected package libbdplus0:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3127404Z Preparing to unpack .../90-libbdplus0_0.2.0-3build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3134767Z Unpacking libbdplus0:amd64 (0.2.0-3build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3335877Z Selecting previously unselected package libdecor-0-plugin-1-gtk:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3461235Z Preparing to unpack .../91-libdecor-0-plugin-1-gtk_0.2.2-1build2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3468093Z Unpacking libdecor-0-plugin-1-gtk:amd64 (0.2.2-1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3666406Z Selecting previously unselected package librsvg2-common:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3789457Z Preparing to unpack .../92-librsvg2-common_2.58.0+dfsg-1build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.3797652Z Unpacking librsvg2-common:amd64 (2.58.0+dfsg-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4071541Z Selecting previously unselected package mesa-va-drivers:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4203716Z Preparing to unpack .../93-mesa-va-drivers_25.2.8-0ubuntu0.24.04.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4211204Z Unpacking mesa-va-drivers:amd64 (25.2.8-0ubuntu0.24.04.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4513633Z Selecting previously unselected package mesa-vdpau-drivers:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4641440Z Preparing to unpack .../94-mesa-vdpau-drivers_25.2.8-0ubuntu0.24.04.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4648432Z Unpacking mesa-vdpau-drivers:amd64 (25.2.8-0ubuntu0.24.04.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4859096Z Selecting previously unselected package i965-va-driver:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4984386Z Preparing to unpack .../95-i965-va-driver_2.4.1+dfsg1-1ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.4991753Z Unpacking i965-va-driver:amd64 (2.4.1+dfsg1-1ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5247941Z Selecting previously unselected package va-driver-all:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5373110Z Preparing to unpack .../96-va-driver-all_2.20.0-2ubuntu0.2_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5380676Z Unpacking va-driver-all:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5568353Z Selecting previously unselected package vdpau-driver-all:amd64.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5692103Z Preparing to unpack .../97-vdpau-driver-all_1.5-2build1_amd64.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5699440Z Unpacking vdpau-driver-all:amd64 (1.5-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.5889317Z Selecting previously unselected package pocketsphinx-en-us.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.6013177Z Preparing to unpack .../98-pocketsphinx-en-us_0.8.0+real5prealpha+1-15ubuntu5_all.deb ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.6020412Z Unpacking pocketsphinx-en-us (0.8.0+real5prealpha+1-15ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.7923657Z Setting up libgme0:amd64 (0.6.3-7build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.7943929Z Setting up libchromaprint1:amd64 (1.5.1-5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.7962607Z Setting up libssh-gcrypt-4:amd64 (0.10.6-2ubuntu0.5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.7979914Z Setting up libhwy1t64:amd64 (1.0.7-8.1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.7996905Z Setting up libudfread0:amd64 (1.1.2-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8013599Z Setting up libraw1394-11:amd64 (2.1.2-2build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8032174Z Setting up libspeex1:amd64 (1.2.1-2ubuntu2.24.04.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8049098Z Setting up libshine3:amd64 (3.1.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8068473Z Setting up libcaca0:amd64 (0.99.beta20-4ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8084993Z Setting up libvpl2 (2023.3.0-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8102987Z Setting up libx264-164:amd64 (2:0.164.3108+git31e19f9-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8122121Z Setting up libtwolame0:amd64 (0.4.0-2build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8138740Z Setting up libmbedcrypto7t64:amd64 (2.28.8-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8157198Z Setting up libgsm1:amd64 (1.0.22-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8176499Z Setting up libsoxr0:amd64 (0.1.3-4build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8193046Z Setting up libzix-0-0:amd64 (0.4.2-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8211104Z Setting up libcodec2-1.2:amd64 (1.2.0-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8227015Z Setting up libmysofa1:amd64 (1.3.2+dfsg-2ubuntu2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8244346Z Setting up libxcb-shape0:amd64 (1.15-1ubuntu2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8261411Z Setting up libcdio19t64:amd64 (2.1.0-4.1ubuntu1.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8278620Z Setting up libsvtav1enc1d1:amd64 (1.7.0+dfsg-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8294277Z Setting up libigdgmm12:amd64 (22.3.17+ds1-1ubuntu1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8313625Z Setting up libmpg123-0t64:amd64 (1.32.5-1ubuntu1.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8329731Z Setting up libcjson1:amd64 (1.7.17-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8351595Z Setting up libxvidcore4:amd64 (2:1.3.7-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8368568Z Setting up librav1e0:amd64 (0.7.1-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8385505Z Setting up libcdio-cdda2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8402751Z Setting up librist4:amd64 (0.2.10+dfsg-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8419997Z Setting up librsvg2-2:amd64 (2.58.0+dfsg-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8438264Z Setting up libblas3:amd64 (3.12.0-3build1.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8503162Z update-alternatives: using /usr/lib/x86_64-linux-gnu/blas/libblas.so.3 to provide /usr/lib/x86_64-linux-gnu/libblas.so.3 (libblas.so.3-x86_64-linux-gnu) in auto mode
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8517994Z Setting up libplacebo338:amd64 (6.338.2-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8536019Z Setting up libva2:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8553579Z Setting up libopus0:amd64 (1.4-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8572401Z Setting up libcdio-paranoia2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8589451Z Setting up libdc1394-25:amd64 (2.2.6-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8608811Z Setting up intel-media-va-driver:amd64 (24.1.0+dfsg1-1ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8626783Z Setting up libxv1:amd64 (2:1.0.11-1.1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8645771Z Setting up libunibreak5:amd64 (5.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8662855Z Setting up libaacs0:amd64 (0.11.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8679538Z Setting up libjxl0.7:amd64 (0.7.0-10.2ubuntu6.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8698722Z Setting up librsvg2-common:amd64 (2.58.0+dfsg-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8842884Z Setting up pocketsphinx-en-us (0.8.0+real5prealpha+1-15ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8859152Z Setting up libx265-199:amd64 (3.5-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8879712Z Setting up libsndio7.0:amd64 (1.9.0-0.3build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8896397Z Setting up libbdplus0:amd64 (0.2.0-3build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8914293Z Setting up libvidstab1.1:amd64 (1.1.0-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8930198Z Setting up libvpx9:amd64 (1.14.0-1ubuntu2.3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8948587Z Setting up libsrt1.5-gnutls:amd64 (1.5.3-1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8966495Z Setting up libflite1:amd64 (2.2-6build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.8983656Z Setting up libdav1d7:amd64 (1.4.1-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9000245Z Setting up libva-drm2:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9018107Z Setting up ocl-icd-libopencl1:amd64 (2.3.2-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9034714Z Setting up libasyncns0:amd64 (0.8-6build4) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9051151Z Setting up libvdpau1:amd64 (1.5-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9075291Z Setting up libbs2b0:amd64 (3.1.0+dfsg-7build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9092829Z Setting up libtheora0:amd64 (1.1.1+dfsg.1-16.1build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9111030Z Setting up libdecor-0-0:amd64 (0.2.2-1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9128174Z Setting up libzimg2:amd64 (3.0.5+ds1-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9144688Z Setting up libopenal-data (1:1.23.1-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9169497Z Setting up libflac12t64:amd64 (1.4.3+ds-2.1ubuntu2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9188017Z Setting up mesa-va-drivers:amd64 (25.2.8-0ubuntu0.24.04.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9206007Z Setting up libbluray2:amd64 (1:1.3.4-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9224348Z Setting up libsamplerate0:amd64 (0.2.2-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9241576Z Setting up libva-x11-2:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9264059Z Setting up libdecor-0-plugin-1-gtk:amd64 (0.2.2-1build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9282437Z Setting up libopenmpt0t64:amd64 (0.7.3-1.1build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9299155Z Setting up libzvbi-common (0.2.42-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9317243Z Setting up libmp3lame0:amd64 (3.100-6build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9334858Z Setting up i965-va-driver:amd64 (2.4.1+dfsg1-1ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9352275Z Setting up libvorbisenc2:amd64 (1.3.7-1build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9369979Z Setting up libiec61883-0:amd64 (1.2.0-6build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9387251Z Setting up libserd-0-0:amd64 (0.32.2-1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9403954Z Setting up libavc1394-0:amd64 (0.5.4-5build3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9424205Z Setting up mesa-vdpau-drivers:amd64 (25.2.8-0ubuntu0.24.04.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9440538Z Setting up liblapack3:amd64 (3.12.0-3build1.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9505507Z update-alternatives: using /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3 to provide /usr/lib/x86_64-linux-gnu/liblapack.so.3 (liblapack.so.3-x86_64-linux-gnu) in auto mode
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9521733Z Setting up libzvbi0t64:amd64 (0.2.42-2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9539790Z Setting up libavutil58:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9557734Z Setting up libopenal1:amd64 (1:1.23.1-4build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9578769Z Setting up libass9:amd64 (1:0.17.1-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9595673Z Setting up libswresample4:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9614842Z Setting up va-driver-all:amd64 (2.20.0-2ubuntu0.2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9638846Z Setting up libavcodec60:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9657656Z Setting up librubberband2:amd64 (3.3.0+dfsg-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9789065Z Setting up libjack-jackd2-0:amd64 (1.9.21~dfsg-3ubuntu3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9807533Z Setting up vdpau-driver-all:amd64 (1.5-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9825013Z Setting up libsord-0-0:amd64 (0.16.16-2build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9841517Z Setting up libpostproc57:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9859459Z Setting up libsratom-0-0:amd64 (0.6.16-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9876026Z Setting up libsndfile1:amd64 (1.2.2-1ubuntu5.24.04.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9894857Z Setting up liblilv-0-0:amd64 (0.24.22-1build1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9912823Z Setting up libswscale7:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:20.9929456Z Setting up libpulse0:amd64 (1:16.1+dfsg1-2ubuntu10.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0000010Z Setting up libavformat60:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0018700Z Setting up libsphinxbase3t64:amd64 (0.8+5prealpha+1-17build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0034620Z Setting up libsdl2-2.0-0:amd64 (2.30.0+dfsg-1ubuntu3.1) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0057653Z Setting up libpocketsphinx3:amd64 (0.8.0+real5prealpha+1-15ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0074785Z Setting up libavfilter9:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0091590Z Setting up libavdevice60:amd64 (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0112016Z Setting up ffmpeg (7:6.1.1-3ubuntu5) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0133431Z Processing triggers for man-db (2.12.0-4build2) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0152633Z Not building database; man-db/auto-update is not 'true'.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.0165147Z Processing triggers for libgdk-pixbuf-2.0-0:amd64 (2.42.10+dfsg-3ubuntu3.3) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:21.2741351Z Processing triggers for libc-bin (2.39-0ubuntu8.8) ...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5175387Z 
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5175979Z Running kernel seems to be up-to-date.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5176589Z 
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5176770Z No services need to be restarted.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5177036Z 
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5177203Z No containers need to be restarted.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5177464Z 
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5177641Z No user sessions are running outdated binaries.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5177975Z 
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-09-05T09:45:22.5178256Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test (1)	Run uv run playwright install --with-deps chromium	﻿2026-09-05T09:45:23.3859661Z ##[group]Run uv run playwright install --with-deps chromium
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.3860128Z ^[[36;1muv run playwright install --with-deps chromium^[[0m
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.3899369Z shell: /usr/bin/bash -e {0}
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.3899644Z env:
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.3899914Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.3900242Z ##[endgroup]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.7931596Z Installing dependencies...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.8022486Z Switching to root user to install dependencies...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.8687366Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.8993372Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.8994869Z Hit:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.9017571Z Hit:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.9026119Z Hit:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.9034374Z Hit:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:23.9287382Z Hit:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.0873008Z Reading package lists...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.1116090Z Reading package lists...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.2803196Z Building dependency tree...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.2811142Z Reading state information...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4308878Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4309727Z libasound2t64 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4310460Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4311158Z libatk-bridge2.0-0t64 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4311844Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4312489Z libatk1.0-0t64 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4313068Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4313619Z libatspi2.0-0t64 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4314111Z libcairo2 is already the newest version (1.18.0-3build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4314571Z libcairo2 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4315071Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4315591Z libcups2t64 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4316101Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4316857Z libdbus-1-3 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4317372Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4317926Z libdrm2 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4318435Z libgbm1 is already the newest version (25.2.8-0ubuntu0.24.04.2).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4318978Z libgbm1 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4319459Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.8).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4320056Z libglib2.0-0t64 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4320602Z libnspr4 is already the newest version (2:4.35-1.1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4321137Z libnspr4 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4321635Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4322145Z libnss3 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4322662Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4323217Z libpango-1.0-0 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4323719Z libx11-6 is already the newest version (2:1.8.7-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4324216Z libx11-6 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4324688Z libxcb1 is already the newest version (1.15-1ubuntu2).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4325169Z libxcb1 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4325689Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4326442Z libxcomposite1 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4326969Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4327486Z libxdamage1 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4328463Z libxext6 is already the newest version (2:1.3.4-1build2).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4328966Z libxext6 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4329456Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4329978Z libxfixes3 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4330484Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4331011Z libxkbcommon0 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4331517Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4332027Z libxrandr2 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4332504Z xvfb is already the newest version (2:21.1.12-1ubuntu1.6).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4333410Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4334149Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4334731Z libfontconfig1 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4335313Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4335867Z libfreetype6 set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4336573Z fonts-liberation is already the newest version (1:2.1.5-3).
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4337129Z fonts-liberation set to manually installed.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4337643Z The following additional packages will be installed:
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4338155Z   xfonts-encodings xfonts-utils
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4338587Z Recommended packages:
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4338989Z   fonts-ipafont-mincho fonts-tlwg-loma
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4472621Z The following NEW packages will be installed:
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4473499Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4479039Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4479460Z   xfonts-utils
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4658048Z 0 upgraded, 9 newly installed, 0 to remove and 38 not upgraded.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4658697Z Need to get 21.1 MB of archives.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4659281Z After this operation, 79.5 MB of additional disk space will be used.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4659950Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.4912404Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.5260854Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.5687530Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.5714162Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.5968415Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.6504185Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.6569834Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.6591933Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.6637102Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9324830Z Fetched 21.1 MB in 0s (99.8 MB/s)
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9531780Z Selecting previously unselected package fonts-ipafont-gothic.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9602355Z (Reading database ... 
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9603063Z (Reading database ... 5%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9604148Z (Reading database ... 10%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9604658Z (Reading database ... 15%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9605165Z (Reading database ... 20%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9605648Z (Reading database ... 25%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9606350Z (Reading database ... 30%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9606855Z (Reading database ... 35%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9607928Z (Reading database ... 40%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9608457Z (Reading database ... 45%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9609021Z (Reading database ... 50%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9635431Z (Reading database ... 55%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9747405Z (Reading database ... 60%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9771911Z (Reading database ... 65%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9814276Z (Reading database ... 70%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9840466Z (Reading database ... 75%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:25.9865292Z (Reading database ... 80%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0001861Z (Reading database ... 85%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0087460Z (Reading database ... 90%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0311682Z (Reading database ... 95%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0312051Z (Reading database ... 100%
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0312725Z (Reading database ... 202390 files and directories currently installed.)
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0353908Z Preparing to unpack .../0-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.0431866Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.2779266Z Selecting previously unselected package fonts-freefont-ttf.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.2911546Z Preparing to unpack .../1-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.2920977Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.3725822Z Selecting previously unselected package fonts-tlwg-loma-otf.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.3857427Z Preparing to unpack .../2-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.3863679Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.4066156Z Selecting previously unselected package fonts-unifont.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.4190647Z Preparing to unpack .../3-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.4197236Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.5293754Z Selecting previously unselected package fonts-wqy-zenhei.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.5425824Z Preparing to unpack .../4-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:26.5526832Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.0180862Z Selecting previously unselected package xfonts-encodings.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.0312550Z Preparing to unpack .../5-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.0319069Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.0611171Z Selecting previously unselected package xfonts-utils.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.0737619Z Preparing to unpack .../6-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.0744491Z Unpacking xfonts-utils (1:7.7+6build3) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.1188311Z Selecting previously unselected package xfonts-cyrillic.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.1315724Z Preparing to unpack .../7-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.1322304Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.1671483Z Selecting previously unselected package xfonts-scalable.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.1794849Z Preparing to unpack .../8-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.1802512Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2222467Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2338234Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2354102Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2373384Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2391988Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2462196Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2475507Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2492049Z Setting up xfonts-utils (1:7.7+6build3) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.2530409Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.3003186Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.3333649Z Processing triggers for man-db (2.12.0-4build2) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.3348829Z Not building database; man-db/auto-update is not 'true'.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:27.3361220Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0568739Z 
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0569376Z Running kernel seems to be up-to-date.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0569636Z 
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0569761Z No services need to be restarted.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0569953Z 
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0570066Z No containers need to be restarted.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0570252Z 
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0570378Z No user sessions are running outdated binaries.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0570603Z 
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.0570804Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:28.9599674Z Downloading Chrome for Testing 148.0.7778.96 (playwright chromium v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-linux64.zip
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:29.9893009Z |                                                                                |   0% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.1747982Z |■■■■■■■■                                                                        |  10% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.2743486Z |■■■■■■■■■■■■■■■■                                                                |  20% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.3696677Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.4502864Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.5555104Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.6410200Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.7198580Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.7831889Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.8900568Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:30.9568016Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 175.4 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:34.0992893Z Chrome for Testing 148.0.7778.96 (playwright chromium v1223) downloaded to /home/runner/.cache/ms-playwright/chromium-1223
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:34.0997176Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.0783392Z |                                                                                |   0% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.0900679Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1002435Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1057892Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1106984Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1132215Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1155446Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1185641Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1211069Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1244954Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1251070Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1867219Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:35.1871249Z Downloading Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-headless-shell-linux64.zip
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.1664803Z |                                                                                |   0% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.2917512Z |■■■■■■■■                                                                        |  10% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.3460737Z |■■■■■■■■■■■■■■■■                                                                |  20% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.4009934Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.4645442Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.5026737Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.5396844Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.5947502Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.6343761Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.6699135Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:36.7243954Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 113.2 MiB
+test (1)	Run uv run playwright install --with-deps chromium	2026-09-05T09:45:38.8896826Z Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1223
+test (1)	pytest shard 1 of 6	﻿2026-09-05T09:45:38.9218003Z ##[group]Run mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9218812Z ^[[36;1mmapfile -t files < <(git ls-files 'tests/test_*.py' | sort \^[[0m
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9219339Z ^[[36;1m  | awk -v s='1' -v n=6 '(NR - 1) % n == s')^[[0m
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9219814Z ^[[36;1mecho "shard 1/6: ${#files[@]} files"^[[0m
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9220319Z ^[[36;1mtest "${#files[@]}" -gt 0^[[0m
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9220852Z ^[[36;1m/usr/bin/time -v uv run pytest -q -rf --timeout=30 "${files[@]}"^[[0m
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9271010Z shell: /usr/bin/bash -e {0}
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9271367Z env:
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9271632Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9271954Z ##[endgroup]
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:38.9384949Z shard 1/6: 41 files
+test (1)	pytest shard 1 of 6	2026-09-05T09:45:56.1383655Z .........................FF............................................. [ 18%]
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:07.0890715Z ........F..................................F............................ [ 36%]
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:16.9963909Z ........................................................................ [ 54%]
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:20.6198725Z .....................................ssssssssssssssssssss.ssssssssssss.. [ 72%]
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:27.0953732Z ...............F........................................................ [ 90%]
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1841983Z ........................................                                 [100%]
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1842547Z =================================== FAILURES ===================================
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1843200Z ________________ test_heartbeat_dead_process_recovery_publishes ________________
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1843646Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1843748Z mock_db = None
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1844251Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f49a15d2a80>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1844754Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1844899Z     @pytest.mark.asyncio
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1845483Z     async def test_heartbeat_dead_process_recovery_publishes(mock_db, monkeypatch):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1846033Z         """Second of the three recovery branches: process-backed runtime found dead.
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1846809Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1847612Z         Its own seam — `process_liveness` + `_process_runtime_dead` — is unreachable for the
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1848134Z         failed-reconnect test above, which pins `_last_msg_time = 0`.
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1848476Z         """
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1848696Z         from app.session import AgentStatus
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1848960Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1849171Z         session = _make_session("codex-dead")
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1849460Z         session.backend_type = "codex"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1849724Z         session._log = MagicMock()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1849983Z         session._persist = MagicMock()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1850278Z         session._disconnect_backend = AsyncMock()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1850632Z         session._backend = SimpleNamespace(is_alive=False)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1851016Z         session._listen_task = SimpleNamespace(done=lambda: True)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1851371Z         session._turns.bump_turn_gen()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1851657Z         session.status = AgentStatus.RUNNING
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1852056Z         session._last_msg_time = asyncio.get_event_loop().time() - 10_000
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1852399Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1852643Z         await _run_one_heartbeat_pass(monkeypatch, session)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1852961Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1853204Z >       assert session._disconnect_backend.await_count == 1
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1853526Z E       AssertionError: assert 0 == 1
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1853843Z E        +  where 0 = <AsyncMock id='139954109072016'>.await_count
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1854991Z E        +    where <AsyncMock id='139954109072016'> = AgentSession(id='audit-codex-dead', name='codex-dead', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._disconnect_backend
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1856559Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1856696Z tests/test_audit0901_session.py:108: AssertionError
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1857096Z ----------------------------- Captured stderr call -----------------------------
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1857473Z [codex-dead] heartbeat started
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1857739Z [codex-dead] heartbeat cancelled
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1858069Z ------------------------------ Captured log call -------------------------------
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1858526Z INFO     app.session:session_hibernate.py:120 [codex-dead] heartbeat started
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1859019Z INFO     app.session:session_hibernate.py:192 [codex-dead] heartbeat cancelled
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1859492Z _______________ test_heartbeat_zombie_without_backend_publishes ________________
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1859768Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1859851Z mock_db = None
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1860337Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f499af4e150>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1860626Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1860722Z     @pytest.mark.asyncio
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1861105Z     async def test_heartbeat_zombie_without_backend_publishes(mock_db, monkeypatch):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1861671Z         """Third recovery branch: persistent runtime silent past the zombie timeout, backend gone.
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1862091Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1862431Z         Reached only by a runtime with `process_liveness=False` and a persistent event stream,
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1862913Z         so neither of the other two branch tests can stand in for it.
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1863236Z         """
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1863448Z         from app.session import AgentStatus
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1863705Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1863917Z         session = _make_session("claude-zombie")
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1864213Z         session._log = MagicMock()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1864470Z         session._persist = MagicMock()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1864732Z         session._backend = None
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1865044Z         session._listen_task = SimpleNamespace(done=lambda: True)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1865385Z         session._turns.bump_turn_gen()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1865651Z         session.status = AgentStatus.RUNNING
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1866005Z         session._last_msg_time = asyncio.get_event_loop().time() - 10_000
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1866550Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1866795Z         await _run_one_heartbeat_pass(monkeypatch, session)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1867095Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1867320Z >       assert session.status is AgentStatus.IDLE
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1867771Z E       AssertionError: assert <AgentStatus.RUNNING: 'running'> is <AgentStatus.IDLE: 'idle'>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1868957Z E        +  where <AgentStatus.RUNNING: 'running'> = AgentSession(id='audit-claude-zombie', name='claude-zombie', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', s...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0).status
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1870030Z E        +  and   <AgentStatus.IDLE: 'idle'> = <enum 'AgentStatus'>.IDLE
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1870292Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1870421Z tests/test_audit0901_session.py:135: AssertionError
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1870808Z ----------------------------- Captured stderr call -----------------------------
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1871178Z [claude-zombie] heartbeat started
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1871454Z [claude-zombie] heartbeat cancelled
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1871789Z ------------------------------ Captured log call -------------------------------
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1872250Z INFO     app.session:session_hibernate.py:120 [claude-zombie] heartbeat started
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1872747Z INFO     app.session:session_hibernate.py:192 [claude-zombie] heartbeat cancelled
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1873214Z ________________ test_message_without_sender_is_never_buffered _________________
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1873488Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1873762Z fanned = <module 'app.fan_barrier' from '/home/runner/work/orchestra/orchestra/app/fan_barrier.py'>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1874300Z spy = <tests.test_fan_barrier_gates._SpyManager object at 0x7f499aebe330>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1874739Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1874912Z     def test_message_without_sender_is_never_buffered(fanned, spy):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1875463Z         """Internal caller без sender не получает человеческое происхождение."""
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1875824Z         response = _send(None)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1876127Z >       assert getattr(response, "status_code", None) == 403, (
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1876779Z             "неаутентифицированный internal caller был принят за человека"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1877089Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1877449Z E       AssertionError: неаутентифицированный internal caller был принят за человека
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1877821Z E       assert None == 403
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1878182Z E        +  where None = getattr({'ok': True, 'parent_name': 'parent'}, 'status_code', None)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1878651Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1878791Z tests/test_fan_barrier_gates.py:186: AssertionError
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1879176Z _______________________ test_lost_log_write_is_reported ________________________
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1879471Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1879673Z db = <module 'app.db' from '/home/runner/work/orchestra/orchestra/app/db.py'>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1880135Z caplog = <_pytest.logging.LogCaptureFixture object at 0x7f499ada3fe0>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1880397Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1880499Z     @pytest.mark.asyncio
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1880781Z     async def test_lost_log_write_is_reported(db, caplog):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1881246Z         """Потеря записи обязана назвать агента, тип записи, класс ошибки и содержимое."""
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1881619Z         from app.session import AgentSession
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1881885Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1882114Z         session = AgentSession.__new__(AgentSession)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1882533Z         session.id = "ghost"  # строки в sessions нет — FK упадёт
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1882897Z         session.name = "Orchestra-orchestrator"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1883192Z         session._log_futures = set()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1883453Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1883690Z         with caplog.at_level("ERROR", logger="app.session"):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1884055Z             session._log("error", "connect failed: TimeoutError")
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1884464Z             await asyncio.gather(*session._log_futures, return_exceptions=True)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1884944Z             await asyncio.sleep(0)  # дать done-callback отработать
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1885255Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1885456Z >       assert "log write lost" in caplog.text
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1886524Z E       assert 'log write lost' in "ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1888228Z E        +  where "ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n" = <_pytest.logging.LogCaptureFixture object at 0x7f499ada3fe0>.text
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1889193Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1889321Z tests/test_log_write_loss.py:45: AssertionError
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1889708Z ------------------------------ Captured log call -------------------------------
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1890526Z ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint failed')>) at /home/runner/work/orchestra/orchestra/app/session.py:5247
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1891539Z handle: <Handle AgentSession._log.<locals>.completed(<Future finis...aint failed')>) at /home/runner/work/orchestra/orchestra/app/session.py:5247>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1892127Z Traceback (most recent call last):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1898182Z   File "/home/runner/work/orchestra/orchestra/app/session.py", line 5253, in completed
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1898709Z     done.result()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1899102Z   File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1899767Z     result = self.fn(*self.args, **self.kwargs)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1900068Z              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1900500Z   File "/home/runner/work/orchestra/orchestra/app/db.py", line 2105, in add_log
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1900906Z     cur = c.execute(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1901118Z           ^^^^^^^^^^
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1901380Z sqlite3.IntegrityError: FOREIGN KEY constraint failed
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1901619Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1901811Z During handling of the above exception, another exception occurred:
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1902079Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1902192Z Traceback (most recent call last):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1902539Z   File "/usr/lib/python3.12/asyncio/events.py", line 88, in _run
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1903039Z     self._context.run(self._callback, *self._args)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1903511Z   File "/home/runner/work/orchestra/orchestra/app/session.py", line 5258, in completed
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1903949Z     self._failed_log_writes[generation] = (
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.1904232Z     ^^^^^^^^^^^^^^^^^^^^^^^
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7268382Z AttributeError: 'AgentSession' object has no attribute '_failed_log_writes'
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7269306Z ____ test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete ____
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7269855Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7270108Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f4999b8c6b0>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7270429Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7270543Z     @pytest.mark.asyncio
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7270936Z     async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7271362Z         monkeypatch,
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7271575Z     ):
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7271919Z         from app import main as app_main
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7272216Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7272498Z         shutdown_runtime = getattr(app_main, "_shutdown_runtime", None)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7272875Z         assert callable(shutdown_runtime), (
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7273294Z             "lifespan teardown is not an observable ordered shutdown sequence"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7273649Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7273832Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7274047Z         order: list[tuple[str, str] | str] = []
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7274339Z         monkeypatch.setattr(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7274613Z             "app.restart_guard.note_shutdown_phase",
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7274988Z             lambda phase, task_class: order.append((phase, task_class)),
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7275317Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7275513Z         monkeypatch.setattr(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7275809Z             "app.merge_operations.shutdown_merge_operations",
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7276552Z             AsyncMock(side_effect=lambda: order.append("merge_done")),
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7277102Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7277449Z         monkeypatch.setattr("app.rag_service.shutdown", lambda: order.append("rag_done"))
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7277871Z         monkeypatch.setattr(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7278129Z             "app.tg_bridge.stop_bridge",
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7278457Z             AsyncMock(side_effect=lambda: order.append("tg_done")),
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7278772Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7278961Z         monkeypatch.setattr(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7279223Z             "app.bg_jobs.bg_manager.shutdown",
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7279550Z             AsyncMock(side_effect=lambda: order.append("bg_done")),
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7279853Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7280041Z         monkeypatch.setattr(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7280277Z             app_main.manager,
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7280512Z             "shutdown_all",
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7280814Z             AsyncMock(side_effect=lambda: order.append("handoff_done")),
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7281144Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7281314Z     
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7281556Z         done_task = asyncio.create_task(asyncio.sleep(0))
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7281859Z         await done_task
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7282096Z >       await shutdown_runtime(
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7282641Z             restart_inbox_drain=None,
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7282907Z             snapshot_task=done_task,
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7283165Z             bridge_task=done_task,
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7283399Z         )
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7283887Z E       TypeError: _shutdown_runtime() missing 2 required positional arguments: 'projection_repair_task' and 'portfolio_watchdog_task'
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7284382Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7284537Z tests/test_restart_generation_liveness.py:853: TypeError
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7284915Z =============================== warnings summary ===============================
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7285468Z tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7286032Z tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7287194Z   /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=4344) is multi-threaded, use of fork() may lead to deadlocks in the child.
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7287877Z     self.pid = os.fork()
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7288031Z 
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7288251Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7288966Z ========================== ПРОПУЩЕН РЕАЛЬНЫЙ СЛОЙ RAG ==========================
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7289878Z 32 теста(ов) не выполнялись: в этом окружении нет эмбеддера. Индексация, чанкинг и поиск заглушками не моделируются — правка RAG этим прогоном НЕ проверена. Ставить deps в worktree НЕ надо, прогнать интерпретатором сервера:
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7290602Z   /home/kesha/orchestra/.venv/bin/python -m pytest tests/test_rag.py
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7294845Z   test_backfill_files_stops_inside_the_slice_on_deadline, test_backfill_indexes_md_only, test_backfill_logs_dedup_second_run, test_backfill_logs_limit_bounds_one_pass, test_backfill_logs_session_name_filter, test_backfill_logs_stops_inside_the_slice_on_deadline, test_backfill_logs_type_and_length_filter, test_backfill_prunes_deleted, test_backfill_second_run_no_changes, test_backfill_skips_git_ignored_files, test_delete_file_removes_all, test_empty_query_returns_empty, test_freshest_file_is_indexed_first, test_index_file_creates_rows, test_index_file_idempotent_same_content, test_index_log_creates_rows, test_index_log_dedup, test_interrupted_pass_resumes_instead_of_restarting, test_pending_files_counts_missing_and_stale, test_prune_runs_before_embedding_so_a_cut_short_pass_still_drops_phantoms, test_readonly_conn_cannot_write, test_readonly_conn_sees_writes_and_searches, test_reindex_changed_content_replaces, test_reindex_reuses_embeddings_of_unchanged_chunks, test_reused_vectors_are_the_same_bytes, test_same_path_different_projects_coexist, test_search_cross_project_optin, test_search_file_and_log_sources, test_search_kinds_filter, test_search_never_returns_a_file_deleted_from_disk, test_search_project_isolation, test_walk_indexes_everything_when_git_is_unavailable
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7299557Z =========================== short test summary info ============================
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7300207Z FAILED tests/test_audit0901_session.py::test_heartbeat_dead_process_recovery_publishes - AssertionError: assert 0 == 1
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7301037Z  +  where 0 = <AsyncMock id='139954109072016'>.await_count
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7302138Z  +    where <AsyncMock id='139954109072016'> = AgentSession(id='audit-codex-dead', name='codex-dead', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._disconnect_backend
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7303733Z FAILED tests/test_audit0901_session.py::test_heartbeat_zombie_without_backend_publishes - AssertionError: assert <AgentStatus.RUNNING: 'running'> is <AgentStatus.IDLE: 'idle'>
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7305194Z  +  where <AgentStatus.RUNNING: 'running'> = AgentSession(id='audit-claude-zombie', name='claude-zombie', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', s...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0).status
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7306586Z  +  and   <AgentStatus.IDLE: 'idle'> = <enum 'AgentStatus'>.IDLE
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7307431Z FAILED tests/test_fan_barrier_gates.py::test_message_without_sender_is_never_buffered - AssertionError: неаутентифицированный internal caller был принят за человека
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7308061Z assert None == 403
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7308392Z  +  where None = getattr({'ok': True, 'parent_name': 'parent'}, 'status_code', None)
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7309634Z FAILED tests/test_log_write_loss.py::test_lost_log_write_is_reported - assert 'log write lost' in "ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7311644Z  +  where "ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n" = <_pytest.logging.LogCaptureFixture object at 0x7f499ada3fe0>.text
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7313362Z FAILED tests/test_restart_generation_liveness.py::test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete - TypeError: _shutdown_runtime() missing 2 required positional arguments: 'projection_repair_task' and 'portfolio_watchdog_task'
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:29.7314443Z 5 failed, 363 passed, 32 skipped, 2 warnings in 49.14s
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2381338Z Command exited with non-zero status 1
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2389360Z 	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_adhoc_switch.py tests/test_artifacts.py tests/test_audit0901_session.py tests/test_auto_report_undelivered.py tests/test_backend_stream.py tests/test_change_model_unloaded.py tests/test_codex_managed_state.py tests/test_compact_pending_rollback_467.py tests/test_dependency_policy.py tests/test_fan_barrier_gates.py tests/test_fan_report_final_selection_480.py tests/test_grok_usage_frontend.py tests/test_identity_drift.py tests/test_knowledge_detail_summary.py tests/test_knowledge_runtime_evidence_link_409.py tests/test_log_write_loss.py tests/test_mcp_proof.py tests/test_merge_operations.py tests/test_merge_target_oracle_386.py tests/test_model_catalog.py tests/test_native_memory.py tests/test_orchestra_layout_fleet_430.py tests/test_p1_union.py tests/test_portfolio_integrity_418.py tests/test_project_context_review_488.py tests/test_project_roadmap_frontend_425.py tests/test_rag.py tests/test_restart_generation_liveness.py tests/test_review_receipt_migration_436.py tests/test_routes_surface.py tests/test_runtime_registry.py tests/test_send_file_open_button.py tests/test_startup_bridge.py tests/test_system_chat_entry.py tests/test_task_completion_421.py tests/test_task_repair_endpoint_422.py tests/test_template_window.py tests/test_tg_ingress_508.py tests/test_toggle_live_agent.py tests/test_usage_analytics.py tests/test_usage_snapshot.py"
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2394202Z 	User time (seconds): 29.16
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2394463Z 	System time (seconds): 11.02
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2394726Z 	Percent of CPU this job got: 78%
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2395041Z 	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:51.29
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2395472Z 	Average shared text size (kbytes): 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2396065Z 	Average unshared data size (kbytes): 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2396693Z 	Average stack size (kbytes): 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2397060Z 	Average total size (kbytes): 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2397465Z 	Maximum resident set size (kbytes): 246728
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2397919Z 	Average resident set size (kbytes): 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2398314Z 	Major (requiring I/O) page faults: 241
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2398880Z 	Minor (reclaiming a frame) page faults: 1147556
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2399194Z 	Voluntary context switches: 126345
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2399471Z 	Involuntary context switches: 9258
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2399860Z 	Swaps: 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2400082Z 	File system inputs: 86224
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2400341Z 	File system outputs: 1128360
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2400591Z 	Socket messages sent: 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2400827Z 	Socket messages received: 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2401070Z 	Signals delivered: 0
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2401292Z 	Page size (bytes): 4096
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2401510Z 	Exit status: 1
+test (1)	pytest shard 1 of 6	2026-09-05T09:46:30.2412704Z ##[error]Process completed with exit code 1.
+test (1)	Post Run actions/checkout@v4	﻿2026-09-05T09:46:30.2555102Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.2556406Z Post job cleanup.
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3432903Z [command]/usr/bin/git version
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3479008Z git version 2.55.0
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3519859Z Temporarily overriding HOME='/home/runner/work/_temp/6c0f18b6-7776-421f-9dd2-be025a41dfde' before making global git config changes
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3521306Z Adding repository directory to the temporary git global config as a safe directory
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3525550Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3566320Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3602745Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3885186Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3911093Z http.https://github.com/.extraheader
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3922610Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.3957859Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.4253967Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (1)	Post Run actions/checkout@v4	2026-09-05T09:46:30.4363249Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (1)	Complete job	﻿2026-09-05T09:46:30.4740053Z Cleaning up orphan processes
+test (1)	Complete job	2026-09-05T09:46:30.5025480Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, astral-sh/setup-uv@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

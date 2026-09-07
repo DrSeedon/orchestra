@@ -34,6 +34,7 @@ from mcp.types import CallToolResult, TextContent
 # stdlib — этот процесс запускается как СКРИПТ (runtime_env: python mcp_stdio.py)
 # и ничего больше из app/ не тянет.
 from app.errtext import err_text
+from app.tool_scoping import parse_disabled_tools
 
 # Logs go to stderr so they don't pollute the JSON-RPC stdout stream
 logging.basicConfig(level=logging.INFO, stream=sys.stderr)
@@ -47,6 +48,7 @@ SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
 # и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
 SEARCH_DEADLINE_S = 5.0
 MESSAGE_FILE_MAX_BYTES = 64 * 1024
+DISABLED_TOOLS = parse_disabled_tools(os.environ.get("ORCHESTRA_DISABLED_TOOLS", "[]"))
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
 WORKER_NAME = os.environ.get("WORKER_NAME", "worker")
 # Имя агента меняется и может быть переиспользовано; id — нет. Нужен там, где
@@ -223,6 +225,14 @@ def _result_from_content(content: list[Any]) -> Any:
 class OrchestraMCP(FastMCP):
     async def call_tool(self, name: str, arguments: dict[str, Any]):
         try:
+            if name in DISABLED_TOOLS:
+                raise ApiToolError(
+                    code="tool_disabled",
+                    message=f"Orchestra tool {name!r} is disabled for worker {WORKER_NAME!r} "
+                            f"(role {ROLE!r}) by role/worker disabled_tools policy. "
+                            "Ask the owner to change the policy and reconnect the worker.",
+                    details={"tool": name, "worker": WORKER_NAME, "role": ROLE},
+                )
             converted = await super().call_tool(name, arguments)
         except Exception as exc:
             error = _find_api_tool_error(exc)
@@ -969,13 +979,15 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        mcp_servers: str = "",
                        owned_dirs: str = "",
                        tg_topic: bool = False,
-                       delivery_id: str = "") -> str:
+                       delivery_id: str = "",
+                       disabled_tools: list[str] | None = None) -> str:
     """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
     base_branch — от какой локальной ветки ответвить worktree. Пусто ("") = авто по
     стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.
     При неоднозначности spawn требует явную ветку.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — необязательный JSON-массив ожидаемых рабочих директорий, например ["app/api/", "tests/"]. Это ориентир для координации, не запрет менять другие нужные задаче файлы. Пересечения допустимы в отдельных worktree.
+    disabled_tools — exact Orchestra tool names to disable for this worker, persisted across restart. Adds to role bans; calls return tool_disabled.
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
         raise ApiToolError(
@@ -993,6 +1005,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         "parent_name": WORKER_NAME,
         "planned_initial_turn": True,
         "initial_task_title": task,
+        "disabled_tools": parse_disabled_tools(disabled_tools),
     }
     if mcp_servers:
         import json
@@ -4716,7 +4729,7 @@ async def codex_review(
                 "command": cmd,
                 "success_file": output_abs,
                 "success_pattern": (
-                    r"(?im)^##\s+Verdict\b"
+                    r"(?im)^##\s+(?:Verdict|Вердикт)\b"
                     if mode in {"implementation", "exec"} else ""
                 ),
             },

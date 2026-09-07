@@ -39,6 +39,7 @@ class _FakeSession:
 class _SpyManager:
     def __init__(self):
         self.sent = []
+        self.provenances = []
 
     async def ensure_loaded(self, name, scope=None):
         return _FakeSession(name)
@@ -46,18 +47,44 @@ class _SpyManager:
     async def ensure_loaded_any(self, name):
         return _FakeSession(name)
 
-    async def send(self, session_id, msg):
+    async def send(self, session_id, msg, *, provenance=None, **kwargs):
+        # `provenance` — обязательный параметр боевого `manager.send` (#433). Двойник
+        # без него ронял доставку уже ПОСЛЕ барьера: `send_message failed for parent:
+        # _SpyManager.send() got an unexpected keyword argument 'provenance'`.
         self.sent.append((session_id, msg))
+        self.provenances.append(provenance)
 
     def _context_warning(self, sender):
         return ""
 
 
 @pytest.fixture
-def spy(monkeypatch):
+def spy(monkeypatch, db):
     m = _SpyManager()
     monkeypatch.setattr("app.routes.sessions.manager", m)
     monkeypatch.setattr("app.deps.manager", m)
+    # Роут `send_message` при непустом `sender` требует ДОЛГОВЕЧНОЙ привязки сессии
+    # (`app/routes/sessions.py:969-971`) и иначе отвечает
+    # `409 {"error":"durable session binding is required"}`. Двойник сессии строки в БД
+    # не создаёт, поэтому оба теста файла падали ещё до барьера: пробуждений 0,
+    # `report_path` пустой. Гейт не обходим — создаём настоящие строки, как в проде.
+    import app.db as db_module
+    from datetime import datetime, timezone
+    for name in ("parent", "c1", "c2"):
+        db_module.save_session({
+            "id": f"sid-{name}", "name": name, "scope": "/repo", "cwd": "/tmp",
+            "model": "claude-sonnet-5[1m]", "system_prompt": "test", "status": "idle",
+            "session_id": None, "cost_usd": 0.0, "worktree_path": "/tmp",
+            "branch": "b", "is_orchestrator": False, "color": "#818cf8",
+            "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+            "parent_name": "" if name == "parent" else "parent",
+            # У получателя обязан быть `task_id`: сообщение С ОТПРАВИТЕЛЕМ безадресному
+            # агенту роут считает НАЗНАЧЕНИЕМ задачи и пускает только его родителя
+            # (`app/routes/sessions.py:972-976`, `403 only the durable parent may assign
+            # a task`). Родитель веера в проде ведёт свою задачу, поэтому это не обход
+            # гейта, а недостающая часть настоящего состояния.
+            "task_id": "275",
+        })
     return m
 
 
@@ -96,6 +123,11 @@ class _SilentChild:
         self.name = name
         self.scope = "/repo"
         self._turn_logs = list(turn_logs)
+        # Молчаливый путь берёт текст ИМЕННО отсюда (`app/session_turns.py:277`,
+        # `final_text = getattr(s, "_last_text_output", None)`), а не из `_turn_logs`.
+        # Двойник, задававший только `_turn_logs`, оставлял `summary=None`, и манифест
+        # получался «ОТЧЁТА НЕТ» — то есть тест мерил собственную неполноту.
+        self._last_text_output = turn_logs[-1] if turn_logs else None
 
     async def on_idle(self, *a):
         return None

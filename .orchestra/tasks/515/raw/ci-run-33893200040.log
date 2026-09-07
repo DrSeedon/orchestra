@@ -1,0 +1,525 @@
+test	UNKNOWN STEP	﻿2026-09-04T16:05:46.5828114Z Current runner version: '2.337.0'
+test	UNKNOWN STEP	2026-09-04T16:05:46.5854017Z ##[group]Runner Image Provisioner
+test	UNKNOWN STEP	2026-09-04T16:05:46.5854994Z Hosted Compute Agent
+test	UNKNOWN STEP	2026-09-04T16:05:46.5855615Z Version: 20260828.587
+test	UNKNOWN STEP	2026-09-04T16:05:46.5856330Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+test	UNKNOWN STEP	2026-09-04T16:05:46.5857174Z Build Date: 2026-08-28T16:44:25Z
+test	UNKNOWN STEP	2026-09-04T16:05:46.5858198Z Worker ID: {475b84e2-734f-4223-aa05-dfd30f41fb0a}
+test	UNKNOWN STEP	2026-09-04T16:05:46.5859056Z Azure Region: centralus
+test	UNKNOWN STEP	2026-09-04T16:05:46.5859668Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:46.5861133Z ##[group]Operating System
+test	UNKNOWN STEP	2026-09-04T16:05:46.5861842Z Ubuntu
+test	UNKNOWN STEP	2026-09-04T16:05:46.5862394Z 24.04.4
+test	UNKNOWN STEP	2026-09-04T16:05:46.5862989Z LTS
+test	UNKNOWN STEP	2026-09-04T16:05:46.5863546Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:46.5864105Z ##[group]Runner Image
+test	UNKNOWN STEP	2026-09-04T16:05:46.5864843Z Image: ubuntu-24.04
+test	UNKNOWN STEP	2026-09-04T16:05:46.5865443Z Version: 20260831.293.1
+test	UNKNOWN STEP	2026-09-04T16:05:46.5866807Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+test	UNKNOWN STEP	2026-09-04T16:05:46.5868500Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+test	UNKNOWN STEP	2026-09-04T16:05:46.5869634Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:46.5870997Z ##[group]GITHUB_TOKEN Permissions
+test	UNKNOWN STEP	2026-09-04T16:05:46.5873285Z Contents: read
+test	UNKNOWN STEP	2026-09-04T16:05:46.5873875Z Metadata: read
+test	UNKNOWN STEP	2026-09-04T16:05:46.5875081Z Packages: read
+test	UNKNOWN STEP	2026-09-04T16:05:46.5875681Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:46.5878202Z Secret source: Actions
+test	UNKNOWN STEP	2026-09-04T16:05:46.5879594Z Prepare workflow directory
+test	UNKNOWN STEP	2026-09-04T16:05:46.6208800Z Prepare all required actions
+test	UNKNOWN STEP	2026-09-04T16:05:46.6255772Z Getting action download info
+test	UNKNOWN STEP	2026-09-04T16:05:46.8813445Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+test	UNKNOWN STEP	2026-09-04T16:05:47.3570283Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+test	UNKNOWN STEP	2026-09-04T16:05:47.9760178Z Complete job name: test
+test	UNKNOWN STEP	2026-09-04T16:05:48.0581987Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test	UNKNOWN STEP	2026-09-04T16:05:48.0591495Z ##[group]Run actions/checkout@v4
+test	UNKNOWN STEP	2026-09-04T16:05:48.0592236Z with:
+test	UNKNOWN STEP	2026-09-04T16:05:48.0592723Z   repository: DrSeedon/orchestra
+test	UNKNOWN STEP	2026-09-04T16:05:48.0597141Z   token: ***
+test	UNKNOWN STEP	2026-09-04T16:05:48.0597872Z   ssh-strict: true
+test	UNKNOWN STEP	2026-09-04T16:05:48.0598369Z   ssh-user: git
+test	UNKNOWN STEP	2026-09-04T16:05:48.0598864Z   persist-credentials: true
+test	UNKNOWN STEP	2026-09-04T16:05:48.0599407Z   clean: true
+test	UNKNOWN STEP	2026-09-04T16:05:48.0599899Z   sparse-checkout-cone-mode: true
+test	UNKNOWN STEP	2026-09-04T16:05:48.0600464Z   fetch-depth: 1
+test	UNKNOWN STEP	2026-09-04T16:05:48.0600929Z   fetch-tags: false
+test	UNKNOWN STEP	2026-09-04T16:05:48.0601418Z   show-progress: true
+test	UNKNOWN STEP	2026-09-04T16:05:48.0601919Z   lfs: false
+test	UNKNOWN STEP	2026-09-04T16:05:48.0602450Z   submodules: false
+test	UNKNOWN STEP	2026-09-04T16:05:48.0602947Z   set-safe-directory: true
+test	UNKNOWN STEP	2026-09-04T16:05:48.0603525Z   allow-unsafe-pr-checkout: false
+test	UNKNOWN STEP	2026-09-04T16:05:48.0604359Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:48.1669217Z Syncing repository: DrSeedon/orchestra
+test	UNKNOWN STEP	2026-09-04T16:05:48.1672028Z ##[group]Getting Git version info
+test	UNKNOWN STEP	2026-09-04T16:05:48.1673302Z Working directory is '/home/runner/work/orchestra/orchestra'
+test	UNKNOWN STEP	2026-09-04T16:05:48.1675174Z [command]/usr/bin/git version
+test	UNKNOWN STEP	2026-09-04T16:05:48.3087795Z git version 2.55.0
+test	UNKNOWN STEP	2026-09-04T16:05:48.3110995Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:48.3123940Z Temporarily overriding HOME='/home/runner/work/_temp/b92409d5-b21a-49fe-b0ff-abbac5052feb' before making global git config changes
+test	UNKNOWN STEP	2026-09-04T16:05:48.3125366Z Adding repository directory to the temporary git global config as a safe directory
+test	UNKNOWN STEP	2026-09-04T16:05:48.3129509Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test	UNKNOWN STEP	2026-09-04T16:05:48.3460012Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test	UNKNOWN STEP	2026-09-04T16:05:48.3464129Z ##[group]Initializing the repository
+test	UNKNOWN STEP	2026-09-04T16:05:48.3469202Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test	UNKNOWN STEP	2026-09-04T16:05:48.4085729Z hint: Using 'master' as the name for the initial branch. This default branch name
+test	UNKNOWN STEP	2026-09-04T16:05:48.4087381Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test	UNKNOWN STEP	2026-09-04T16:05:48.4088924Z hint: to use in all of your new repositories, which will suppress this warning,
+test	UNKNOWN STEP	2026-09-04T16:05:48.4090032Z hint: call:
+test	UNKNOWN STEP	2026-09-04T16:05:48.4090456Z hint:
+test	UNKNOWN STEP	2026-09-04T16:05:48.4091000Z hint: 	git config --global init.defaultBranch <name>
+test	UNKNOWN STEP	2026-09-04T16:05:48.4091632Z hint:
+test	UNKNOWN STEP	2026-09-04T16:05:48.4092223Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test	UNKNOWN STEP	2026-09-04T16:05:48.4093162Z hint: 'development'. The just-created branch can be renamed via this command:
+test	UNKNOWN STEP	2026-09-04T16:05:48.4093897Z hint:
+test	UNKNOWN STEP	2026-09-04T16:05:48.4094321Z hint: 	git branch -m <name>
+test	UNKNOWN STEP	2026-09-04T16:05:48.4094850Z hint:
+test	UNKNOWN STEP	2026-09-04T16:05:48.4095470Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test	UNKNOWN STEP	2026-09-04T16:05:48.4096534Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test	UNKNOWN STEP	2026-09-04T16:05:48.4099148Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test	UNKNOWN STEP	2026-09-04T16:05:48.4421946Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:48.4422782Z ##[group]Disabling automatic garbage collection
+test	UNKNOWN STEP	2026-09-04T16:05:48.4425762Z [command]/usr/bin/git config --local gc.auto 0
+test	UNKNOWN STEP	2026-09-04T16:05:48.4462583Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:48.4463641Z ##[group]Setting up auth
+test	UNKNOWN STEP	2026-09-04T16:05:48.4469109Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	UNKNOWN STEP	2026-09-04T16:05:48.4506309Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	UNKNOWN STEP	2026-09-04T16:05:48.6696230Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	UNKNOWN STEP	2026-09-04T16:05:48.6733927Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	UNKNOWN STEP	2026-09-04T16:05:48.6976805Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	UNKNOWN STEP	2026-09-04T16:05:48.7015186Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	UNKNOWN STEP	2026-09-04T16:05:48.7257350Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test	UNKNOWN STEP	2026-09-04T16:05:48.7298722Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:48.7299533Z ##[group]Fetching the repository
+test	UNKNOWN STEP	2026-09-04T16:05:48.7308824Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +cda2094078d8b5eebd4289933011d611ffb84188:refs/remotes/origin/main
+test	UNKNOWN STEP	2026-09-04T16:05:51.5627838Z From https://github.com/DrSeedon/orchestra
+test	UNKNOWN STEP	2026-09-04T16:05:51.5630802Z  * [new ref]           cda2094078d8b5eebd4289933011d611ffb84188 -> origin/main
+test	UNKNOWN STEP	2026-09-04T16:05:51.5634439Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:51.5635670Z ##[group]Determining the checkout info
+test	UNKNOWN STEP	2026-09-04T16:05:51.5637007Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:51.5639928Z [command]/usr/bin/git sparse-checkout disable
+test	UNKNOWN STEP	2026-09-04T16:05:51.5869099Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test	UNKNOWN STEP	2026-09-04T16:05:51.5904873Z ##[group]Checking out the ref
+test	UNKNOWN STEP	2026-09-04T16:05:51.5916232Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+test	UNKNOWN STEP	2026-09-04T16:05:52.6163907Z Updating files:  96% (17099/17739)
+test	UNKNOWN STEP	2026-09-04T16:05:52.6376616Z Updating files:  97% (17207/17739)
+test	UNKNOWN STEP	2026-09-04T16:05:52.6617210Z Updating files:  98% (17385/17739)
+test	UNKNOWN STEP	2026-09-04T16:05:52.6806156Z Updating files:  99% (17562/17739)
+test	UNKNOWN STEP	2026-09-04T16:05:52.6806722Z Updating files: 100% (17739/17739)
+test	UNKNOWN STEP	2026-09-04T16:05:52.6807257Z Updating files: 100% (17739/17739), done.
+test	UNKNOWN STEP	2026-09-04T16:05:52.6980748Z Switched to a new branch 'main'
+test	UNKNOWN STEP	2026-09-04T16:05:52.6987050Z branch 'main' set up to track 'origin/main'.
+test	UNKNOWN STEP	2026-09-04T16:05:52.7011538Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:52.7060111Z [command]/usr/bin/git log -1 --format=%H
+test	UNKNOWN STEP	2026-09-04T16:05:52.7088817Z cda2094078d8b5eebd4289933011d611ffb84188
+test	UNKNOWN STEP	2026-09-04T16:05:52.7331454Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test	UNKNOWN STEP	2026-09-04T16:05:52.7333173Z ##[group]Run astral-sh/setup-uv@v4
+test	UNKNOWN STEP	2026-09-04T16:05:52.7333444Z with:
+test	UNKNOWN STEP	2026-09-04T16:05:52.7333654Z   version: latest
+test	UNKNOWN STEP	2026-09-04T16:05:52.7336301Z   github-token: ***
+test	UNKNOWN STEP	2026-09-04T16:05:52.7336546Z   enable-cache: false
+test	UNKNOWN STEP	2026-09-04T16:05:52.7336803Z   cache-dependency-glob: **/uv.lock
+test	UNKNOWN STEP	2026-09-04T16:05:52.7337081Z   prune-cache: true
+test	UNKNOWN STEP	2026-09-04T16:05:52.7337311Z   ignore-nothing-to-cache: false
+test	UNKNOWN STEP	2026-09-04T16:05:52.7337750Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:52.8668208Z (node:2248) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+test	UNKNOWN STEP	2026-09-04T16:05:53.1083508Z (Use `node --trace-deprecation ...` to show where the warning was created)
+test	UNKNOWN STEP	2026-09-04T16:05:53.1092777Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.12.9/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test	UNKNOWN STEP	2026-09-04T16:05:53.5358301Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/d0fb48d9-078d-45b3-998d-ceba24d35341 -f /home/runner/work/_temp/2f325559-a48e-4f61-ad0a-a9bd9d07e380
+test	UNKNOWN STEP	2026-09-04T16:05:53.9350266Z Added /opt/hostedtoolcache/uv/0.12.9/x86_64 to the path
+test	UNKNOWN STEP	2026-09-04T16:05:53.9351419Z Added /home/runner/.local/bin to the path
+test	UNKNOWN STEP	2026-09-04T16:05:53.9373329Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test	UNKNOWN STEP	2026-09-04T16:05:53.9373727Z Successfully installed uv version 0.12.9
+test	UNKNOWN STEP	2026-09-04T16:05:53.9608467Z ##[group]Run uv sync --dev
+test	UNKNOWN STEP	2026-09-04T16:05:53.9608817Z ^[[36;1muv sync --dev^[[0m
+test	UNKNOWN STEP	2026-09-04T16:05:53.9655790Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-09-04T16:05:53.9656074Z env:
+test	UNKNOWN STEP	2026-09-04T16:05:53.9656336Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test	UNKNOWN STEP	2026-09-04T16:05:53.9656654Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:54.0254819Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test	UNKNOWN STEP	2026-09-04T16:05:54.0255282Z Creating virtual environment at: .venv
+test	UNKNOWN STEP	2026-09-04T16:05:54.0293232Z Resolved 99 packages in 0.63ms
+test	UNKNOWN STEP	2026-09-04T16:05:54.1511839Z Downloading aiohttp (1.7MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1514139Z Downloading claude-agent-sdk (76.7MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1515463Z Downloading cryptography (4.5MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1518534Z Downloading playwright (45.3MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1521162Z Downloading uvloop (4.2MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1529122Z Downloading pygments (1.2MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1541598Z Downloading pillow (6.3MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.1543364Z Downloading pydantic-core (2.0MiB)
+test	UNKNOWN STEP	2026-09-04T16:05:54.6365608Z  Downloaded pygments
+test	UNKNOWN STEP	2026-09-04T16:05:54.6679355Z  Downloaded aiohttp
+test	UNKNOWN STEP	2026-09-04T16:05:54.6783809Z  Downloaded pydantic-core
+test	UNKNOWN STEP	2026-09-04T16:05:54.7486589Z  Downloaded uvloop
+test	UNKNOWN STEP	2026-09-04T16:05:54.7592536Z  Downloaded cryptography
+test	UNKNOWN STEP	2026-09-04T16:05:54.7816667Z  Downloaded pillow
+test	UNKNOWN STEP	2026-09-04T16:05:55.6762989Z  Downloaded playwright
+test	UNKNOWN STEP	2026-09-04T16:05:56.3737014Z  Downloaded claude-agent-sdk
+test	UNKNOWN STEP	2026-09-04T16:05:56.3863282Z Prepared 74 packages in 2.35s
+test	UNKNOWN STEP	2026-09-04T16:05:56.6898487Z Installed 74 packages in 301ms
+test	UNKNOWN STEP	2026-09-04T16:05:56.6899488Z  + aiofiles==25.1.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6900141Z  + aiogram==3.28.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6900633Z  + aiohappyeyeballs==2.6.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6901165Z  + aiohttp==3.13.5
+test	UNKNOWN STEP	2026-09-04T16:05:56.6901628Z  + aiosignal==1.4.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6902099Z  + annotated-doc==0.0.4
+test	UNKNOWN STEP	2026-09-04T16:05:56.6902617Z  + annotated-types==0.7.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6903115Z  + anyio==4.13.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6903571Z  + attrs==26.1.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6908693Z  + certifi==2026.5.20
+test	UNKNOWN STEP	2026-09-04T16:05:56.6911596Z  + cffi==2.0.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6912401Z  + charset-normalizer==3.4.7
+test	UNKNOWN STEP	2026-09-04T16:05:56.6912935Z  + claude-agent-sdk==0.2.114
+test	UNKNOWN STEP	2026-09-04T16:05:56.6913538Z  + click==8.4.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6913956Z  + croniter==6.2.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6914441Z  + cryptography==48.0.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6914931Z  + fastapi==0.136.3
+test	UNKNOWN STEP	2026-09-04T16:05:56.6915389Z  + frozenlist==1.8.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6915857Z  + greenlet==3.5.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6916310Z  + h11==0.16.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6916742Z  + httpcore==1.0.9
+test	UNKNOWN STEP	2026-09-04T16:05:56.6917195Z  + httptools==0.8.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6917793Z  + httpx==0.28.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6918240Z  + httpx-sse==0.4.3
+test	UNKNOWN STEP	2026-09-04T16:05:56.6918674Z  + idna==3.16
+test	UNKNOWN STEP	2026-09-04T16:05:56.6919104Z  + iniconfig==2.3.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6919541Z  + jinja2==3.1.6
+test	UNKNOWN STEP	2026-09-04T16:05:56.6919991Z  + jsonschema==4.26.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6920491Z  + jsonschema-specifications==2025.9.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6921038Z  + magic-filter==1.0.12
+test	UNKNOWN STEP	2026-09-04T16:05:56.6921523Z  + markdown==3.10.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6921975Z  + markupsafe==3.0.3
+test	UNKNOWN STEP	2026-09-04T16:05:56.6922764Z  + mcp==1.27.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6923283Z  + multidict==6.7.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6923741Z  + packaging==26.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6924178Z  + pillow==11.3.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6924626Z  + playwright==1.60.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6925085Z  + pluggy==1.6.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6925523Z  + propcache==0.5.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6925961Z  + pycparser==3.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6926387Z  + pydantic==2.13.4
+test	UNKNOWN STEP	2026-09-04T16:05:56.6926843Z  + pydantic-core==2.46.4
+test	UNKNOWN STEP	2026-09-04T16:05:56.6927355Z  + pydantic-settings==2.14.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6928004Z  + pyee==13.0.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6928442Z  + pygments==2.20.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6928901Z  + pyjwt==2.13.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6929334Z  + pyromark==0.9.11
+test	UNKNOWN STEP	2026-09-04T16:05:56.6929776Z  + pytest==9.0.3
+test	UNKNOWN STEP	2026-09-04T16:05:56.6930228Z  + pytest-asyncio==1.4.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6930724Z  + pytest-base-url==2.1.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6931500Z  + pytest-playwright==0.8.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6932026Z  + pytest-timeout==2.4.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6932533Z  + python-dateutil==2.9.0.post0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6933063Z  + python-dotenv==1.2.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6933533Z  + python-multipart==0.0.29
+test	UNKNOWN STEP	2026-09-04T16:05:56.6934014Z  + python-slugify==8.0.4
+test	UNKNOWN STEP	2026-09-04T16:05:56.6934523Z  + pyyaml==6.0.3
+test	UNKNOWN STEP	2026-09-04T16:05:56.6935016Z  + referencing==0.37.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6935508Z  + requests==2.34.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6935970Z  + rpds-py==0.30.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6936432Z  + six==1.17.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6936871Z  + sniffio==1.3.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6937345Z  + sse-starlette==3.4.4
+test	UNKNOWN STEP	2026-09-04T16:05:56.6937987Z  + starlette==1.1.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6942707Z  + telegramify-markdown==1.1.5
+test	UNKNOWN STEP	2026-09-04T16:05:56.6943330Z  + text-unidecode==1.3
+test	UNKNOWN STEP	2026-09-04T16:05:56.6943842Z  + typing-extensions==4.15.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6944394Z  + typing-inspection==0.4.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6944899Z  + urllib3==2.7.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6945379Z  + uvicorn==0.48.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6945851Z  + uvloop==0.22.1
+test	UNKNOWN STEP	2026-09-04T16:05:56.6946321Z  + watchfiles==1.2.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6946797Z  + websockets==16.0
+test	UNKNOWN STEP	2026-09-04T16:05:56.6947265Z  + yarl==1.24.2
+test	UNKNOWN STEP	2026-09-04T16:05:56.6994922Z ##[group]Run uv run playwright install --with-deps chromium
+test	UNKNOWN STEP	2026-09-04T16:05:56.6995412Z ^[[36;1muv run playwright install --with-deps chromium^[[0m
+test	UNKNOWN STEP	2026-09-04T16:05:56.7036207Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-09-04T16:05:56.7036463Z env:
+test	UNKNOWN STEP	2026-09-04T16:05:56.7036716Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test	UNKNOWN STEP	2026-09-04T16:05:56.7037034Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:05:57.1347388Z Installing dependencies...
+test	UNKNOWN STEP	2026-09-04T16:05:57.1408453Z Switching to root user to install dependencies...
+test	UNKNOWN STEP	2026-09-04T16:05:57.3099131Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	UNKNOWN STEP	2026-09-04T16:05:57.3449286Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test	UNKNOWN STEP	2026-09-04T16:05:57.4434731Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test	UNKNOWN STEP	2026-09-04T16:05:57.4468216Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.4559045Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.4633569Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.4728953Z Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
+test	UNKNOWN STEP	2026-09-04T16:05:57.4848814Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [394 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.4996827Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [441 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.6337988Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1260 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.6449956Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [292 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.6477142Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.6880333Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1690 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.7024918Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [339 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.7059939Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.7359141Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1536 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8290560Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [352 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8315685Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8324287Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5764 B]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8747246Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8758676Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1002 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8931033Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [212 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8949996Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.4 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.8963399Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1206 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.9038366Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [241 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.9076279Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.2 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.9139346Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1437 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:57.9398090Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [334 kB]
+test	UNKNOWN STEP	2026-09-04T16:05:58.0166120Z Get:29 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1398 B]
+test	UNKNOWN STEP	2026-09-04T16:06:05.0788101Z Fetched 11.8 MB in 2s (7815 kB/s)
+test	UNKNOWN STEP	2026-09-04T16:06:05.8469022Z Reading package lists...
+test	UNKNOWN STEP	2026-09-04T16:06:05.8724032Z Reading package lists...
+test	UNKNOWN STEP	2026-09-04T16:06:06.0506623Z Building dependency tree...
+test	UNKNOWN STEP	2026-09-04T16:06:06.0513812Z Reading state information...
+test	UNKNOWN STEP	2026-09-04T16:06:06.2071458Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2072135Z libasound2t64 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2072815Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2073572Z libatk-bridge2.0-0t64 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2074231Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2074807Z libatk1.0-0t64 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2075406Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2075967Z libatspi2.0-0t64 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2076497Z libcairo2 is already the newest version (1.18.0-3build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2077326Z libcairo2 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2077970Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2078442Z libcups2t64 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2078780Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2079126Z libdbus-1-3 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2079457Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2079818Z libdrm2 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2080142Z libgbm1 is already the newest version (25.2.8-0ubuntu0.24.04.2).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2080475Z libgbm1 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2080874Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.8).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2081345Z libglib2.0-0t64 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2081684Z libnspr4 is already the newest version (2:4.35-1.1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2082041Z libnspr4 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2082385Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2082715Z libnss3 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2083045Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2083413Z libpango-1.0-0 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2083750Z libx11-6 is already the newest version (2:1.8.7-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2084211Z libx11-6 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2084517Z libxcb1 is already the newest version (1.15-1ubuntu2).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2084847Z libxcb1 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2085182Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2085542Z libxcomposite1 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2086054Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2086526Z libxdamage1 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2086996Z libxext6 is already the newest version (2:1.3.4-1build2).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2087687Z libxext6 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2088167Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2088647Z libxfixes3 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2089139Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2089598Z libxkbcommon0 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2089927Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2090268Z libxrandr2 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2090591Z xvfb is already the newest version (2:21.1.12-1ubuntu1.6).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2091035Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2091587Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2092147Z libfontconfig1 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2092709Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2093277Z libfreetype6 set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2093732Z fonts-liberation is already the newest version (1:2.1.5-3).
+test	UNKNOWN STEP	2026-09-04T16:06:06.2094287Z fonts-liberation set to manually installed.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2094630Z The following additional packages will be installed:
+test	UNKNOWN STEP	2026-09-04T16:06:06.2094954Z   xfonts-encodings xfonts-utils
+test	UNKNOWN STEP	2026-09-04T16:06:06.2095204Z Recommended packages:
+test	UNKNOWN STEP	2026-09-04T16:06:06.2095452Z   fonts-ipafont-mincho fonts-tlwg-loma
+test	UNKNOWN STEP	2026-09-04T16:06:06.2584369Z The following NEW packages will be installed:
+test	UNKNOWN STEP	2026-09-04T16:06:06.2589026Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+test	UNKNOWN STEP	2026-09-04T16:06:06.2595713Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+test	UNKNOWN STEP	2026-09-04T16:06:06.2596315Z   xfonts-utils
+test	UNKNOWN STEP	2026-09-04T16:06:06.2796022Z 0 upgraded, 9 newly installed, 0 to remove and 38 not upgraded.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2796448Z Need to get 21.1 MB of archives.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2796811Z After this operation, 79.5 MB of additional disk space will be used.
+test	UNKNOWN STEP	2026-09-04T16:06:06.2797780Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test	UNKNOWN STEP	2026-09-04T16:06:06.3361922Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.4133535Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.5115806Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.5430666Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.6059387Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.7094574Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.7438201Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.7759334Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:06.8089586Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+test	UNKNOWN STEP	2026-09-04T16:06:07.1415127Z Fetched 21.1 MB in 1s (38.9 MB/s)
+test	UNKNOWN STEP	2026-09-04T16:06:07.2671922Z Selecting previously unselected package fonts-ipafont-gothic.
+test	UNKNOWN STEP	2026-09-04T16:06:07.3531046Z (Reading database ... 
+test	UNKNOWN STEP	2026-09-04T16:06:07.3531349Z (Reading database ... 5%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3531606Z (Reading database ... 10%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3531847Z (Reading database ... 15%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3532065Z (Reading database ... 20%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3532290Z (Reading database ... 25%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3532506Z (Reading database ... 30%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3532722Z (Reading database ... 35%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3532941Z (Reading database ... 40%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3533155Z (Reading database ... 45%
+test	UNKNOWN STEP	2026-09-04T16:06:07.3533405Z (Reading database ... 50%
+test	UNKNOWN STEP	2026-09-04T16:06:07.5864168Z (Reading database ... 55%
+test	UNKNOWN STEP	2026-09-04T16:06:09.4417045Z (Reading database ... 60%
+test	UNKNOWN STEP	2026-09-04T16:06:10.6008605Z (Reading database ... 65%
+test	UNKNOWN STEP	2026-09-04T16:06:11.9520950Z (Reading database ... 70%
+test	UNKNOWN STEP	2026-09-04T16:06:13.1550639Z (Reading database ... 75%
+test	UNKNOWN STEP	2026-09-04T16:06:14.9799396Z (Reading database ... 80%
+test	UNKNOWN STEP	2026-09-04T16:06:17.5958945Z (Reading database ... 85%
+test	UNKNOWN STEP	2026-09-04T16:06:20.6705680Z (Reading database ... 90%
+test	UNKNOWN STEP	2026-09-04T16:06:23.6883774Z (Reading database ... 95%
+test	UNKNOWN STEP	2026-09-04T16:06:23.6884134Z (Reading database ... 100%
+test	UNKNOWN STEP	2026-09-04T16:06:23.6884496Z (Reading database ... 201676 files and directories currently installed.)
+test	UNKNOWN STEP	2026-09-04T16:06:23.6931666Z Preparing to unpack .../0-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:23.7028527Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:23.9395921Z Selecting previously unselected package fonts-freefont-ttf.
+test	UNKNOWN STEP	2026-09-04T16:06:23.9525961Z Preparing to unpack .../1-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:23.9534277Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.0386899Z Selecting previously unselected package fonts-tlwg-loma-otf.
+test	UNKNOWN STEP	2026-09-04T16:06:24.0517371Z Preparing to unpack .../2-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.0525723Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.0798184Z Selecting previously unselected package fonts-unifont.
+test	UNKNOWN STEP	2026-09-04T16:06:24.0931038Z Preparing to unpack .../3-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.0939323Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.2253813Z Selecting previously unselected package fonts-wqy-zenhei.
+test	UNKNOWN STEP	2026-09-04T16:06:24.2385775Z Preparing to unpack .../4-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.2496069Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.7302568Z Selecting previously unselected package xfonts-encodings.
+test	UNKNOWN STEP	2026-09-04T16:06:24.7438237Z Preparing to unpack .../5-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.7445764Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.7743652Z Selecting previously unselected package xfonts-utils.
+test	UNKNOWN STEP	2026-09-04T16:06:24.7878250Z Preparing to unpack .../6-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.7887417Z Unpacking xfonts-utils (1:7.7+6build3) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.8983132Z Selecting previously unselected package xfonts-cyrillic.
+test	UNKNOWN STEP	2026-09-04T16:06:24.9113438Z Preparing to unpack .../7-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.9121246Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.9466055Z Selecting previously unselected package xfonts-scalable.
+test	UNKNOWN STEP	2026-09-04T16:06:24.9598602Z Preparing to unpack .../8-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+test	UNKNOWN STEP	2026-09-04T16:06:24.9605670Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0039563Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0160409Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0176367Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0193111Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0210225Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0280112Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+test	UNKNOWN STEP	2026-09-04T16:06:25.0295131Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0311582Z Setting up xfonts-utils (1:7.7+6build3) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.0353199Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.1051917Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.1448712Z Processing triggers for man-db (2.12.0-4build2) ...
+test	UNKNOWN STEP	2026-09-04T16:06:25.1469120Z Not building database; man-db/auto-update is not 'true'.
+test	UNKNOWN STEP	2026-09-04T16:06:25.1484436Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+test	UNKNOWN STEP	2026-09-04T16:06:28.6599207Z 
+test	UNKNOWN STEP	2026-09-04T16:06:28.6599771Z Running kernel seems to be up-to-date.
+test	UNKNOWN STEP	2026-09-04T16:06:28.6600133Z 
+test	UNKNOWN STEP	2026-09-04T16:06:28.6600296Z No services need to be restarted.
+test	UNKNOWN STEP	2026-09-04T16:06:28.6600478Z 
+test	UNKNOWN STEP	2026-09-04T16:06:28.6600591Z No containers need to be restarted.
+test	UNKNOWN STEP	2026-09-04T16:06:28.6600771Z 
+test	UNKNOWN STEP	2026-09-04T16:06:28.6600906Z No user sessions are running outdated binaries.
+test	UNKNOWN STEP	2026-09-04T16:06:28.6601112Z 
+test	UNKNOWN STEP	2026-09-04T16:06:28.6601311Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test	UNKNOWN STEP	2026-09-04T16:06:29.6429247Z Downloading Chrome for Testing 148.0.7778.96 (playwright chromium v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-linux64.zip
+test	UNKNOWN STEP	2026-09-04T16:06:30.6805454Z |                                                                                |   0% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:30.9631923Z |■■■■■■■■                                                                        |  10% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.1298683Z |■■■■■■■■■■■■■■■■                                                                |  20% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.2442924Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.3669131Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.5215935Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.6263981Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.7242298Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:31.8813976Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:32.0574025Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:32.1683192Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 175.4 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:35.3427467Z Chrome for Testing 148.0.7778.96 (playwright chromium v1223) downloaded to /home/runner/.cache/ms-playwright/chromium-1223
+test	UNKNOWN STEP	2026-09-04T16:06:35.3431821Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+test	UNKNOWN STEP	2026-09-04T16:06:36.3261872Z |                                                                                |   0% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.3632458Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.3785914Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.3912075Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4030614Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4084922Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4173614Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4189890Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4295897Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4314056Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4332912Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:36.4940944Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+test	UNKNOWN STEP	2026-09-04T16:06:36.4944623Z Downloading Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-headless-shell-linux64.zip
+test	UNKNOWN STEP	2026-09-04T16:06:37.5291343Z |                                                                                |   0% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:37.7619023Z |■■■■■■■■                                                                        |  10% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:37.8231652Z |■■■■■■■■■■■■■■■■                                                                |  20% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:37.8825749Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:37.9494255Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:37.9885640Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:38.0411677Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:38.1037729Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:38.1386949Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:38.1733681Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:38.2280483Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 113.2 MiB
+test	UNKNOWN STEP	2026-09-04T16:06:40.3378014Z Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1223
+test	UNKNOWN STEP	2026-09-04T16:06:40.3692962Z ##[group]Run uv run pytest -q --timeout=30
+test	UNKNOWN STEP	2026-09-04T16:06:40.3693336Z ^[[36;1muv run pytest -q --timeout=30^[[0m
+test	UNKNOWN STEP	2026-09-04T16:06:40.3732705Z shell: /usr/bin/bash -e {0}
+test	UNKNOWN STEP	2026-09-04T16:06:40.3732968Z env:
+test	UNKNOWN STEP	2026-09-04T16:06:40.3733224Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test	UNKNOWN STEP	2026-09-04T16:06:40.3733564Z ##[endgroup]
+test	UNKNOWN STEP	2026-09-04T16:07:02.9489362Z ............................sssssssssssssssssssssssssssssssssssssss..... [  1%]
+test	UNKNOWN STEP	2026-09-04T16:07:18.1425412Z ........................................................................ [  3%]
+test	UNKNOWN STEP	2026-09-04T16:07:34.6586745Z ........................................................................ [  5%]
+test	UNKNOWN STEP	2026-09-04T16:07:40.8492085Z ................FF...................................................... [  7%]
+test	UNKNOWN STEP	2026-09-04T16:07:41.1357161Z .............s.......................................................... [  9%]
+test	UNKNOWN STEP	2026-09-04T16:07:41.6860392Z ........................................................................ [ 11%]
+test	UNKNOWN STEP	2026-09-04T16:07:42.5403792Z ........................................................................ [ 12%]
+test	UNKNOWN STEP	2026-09-04T16:07:48.3007315Z ........................................................................ [ 14%]
+test	UNKNOWN STEP	2026-09-04T16:07:56.7971985Z ........................................................................ [ 16%]
+test	UNKNOWN STEP	2026-09-04T16:08:01.9079707Z ......................................FF...........................FFFF. [ 18%]
+test	UNKNOWN STEP	2026-09-04T16:08:05.8334786Z ...s.................................................................... [ 20%]
+test	UNKNOWN STEP	2026-09-04T16:08:10.7100007Z ........................................................................ [ 22%]
+test	UNKNOWN STEP	2026-09-04T16:08:11.4429669Z ........................................................................ [ 23%]
+test	UNKNOWN STEP	2026-09-04T16:08:13.3819102Z ........................................................................ [ 25%]
+test	UNKNOWN STEP	2026-09-04T16:08:18.8318204Z ..............F...................FF......................FF............ [ 27%]
+test	UNKNOWN STEP	2026-09-04T16:08:53.0373396Z ...............................................................FF....... [ 29%]
+test	UNKNOWN STEP	2026-09-04T16:09:51.4328464Z ................FF........F...............F.......s..................... [ 31%]
+test	UNKNOWN STEP	2026-09-04T16:09:57.1936726Z ........F............................................................... [ 33%]
+test	UNKNOWN STEP	2026-09-04T16:10:03.0185227Z ........................................................................ [ 35%]
+test	UNKNOWN STEP	2026-09-04T16:10:04.5195753Z ........................................................................ [ 36%]
+test	UNKNOWN STEP	2026-09-04T16:10:09.1638465Z ................................F....................................... [ 38%]
+test	UNKNOWN STEP	2026-09-04T16:10:16.2038864Z ........................................................................ [ 40%]
+test	UNKNOWN STEP	2026-09-04T16:10:22.3775224Z ........................................................................ [ 42%]
+test	UNKNOWN STEP	2026-09-04T16:10:26.2610031Z ...........................FFFFFF.........F........................F.... [ 44%]
+test	UNKNOWN STEP	2026-09-04T16:10:28.6966699Z ......................FFFFFF.....F...................................... [ 46%]
+test	UNKNOWN STEP	2026-09-04T16:10:31.8812581Z ........................................................................ [ 47%]
+test	UNKNOWN STEP	2026-09-04T16:10:38.3803609Z ........................................................................ [ 49%]
+test	UNKNOWN STEP	2026-09-04T16:10:51.6255720Z ........................................................................ [ 51%]
+test	UNKNOWN STEP	2026-09-04T16:10:57.1371666Z ..........................................s............................. [ 53%]
+test	UNKNOWN STEP	2026-09-04T16:11:14.3378111Z ............................................FF..F.............FF........ [ 55%]
+test	UNKNOWN STEP	2026-09-04T16:11:19.6583922Z ...................................F.................................... [ 57%]
+test	UNKNOWN STEP	2026-09-04T16:11:20.1046694Z ........................................................................ [ 59%]
+test	UNKNOWN STEP	2026-09-04T16:11:22.9566674Z ........................................................................ [ 60%]
+test	UNKNOWN STEP	2026-09-04T16:11:34.5748835Z ........................................xxx............................. [ 62%]
+test	UNKNOWN STEP	2026-09-04T16:11:36.1739243Z ........................................................................ [ 64%]
+test	UNKNOWN STEP	2026-09-04T16:11:37.7456628Z ..........................FF...FFF..........................ssssssssssss [ 66%]
+test	UNKNOWN STEP	2026-09-04T16:11:41.6060785Z ssssssss.ssssssssssss.........................................F......... [ 68%]
+test	UNKNOWN STEP	2026-09-04T16:11:48.5292908Z ........................................................................ [ 70%]
+test	UNKNOWN STEP	2026-09-04T16:11:49.6225624Z .........................FFFF........................................... [ 71%]
+test	UNKNOWN STEP	2026-09-04T16:11:52.5918153Z ........................................................................ [ 73%]
+test	UNKNOWN STEP	2026-09-04T16:11:54.1777841Z ........................................................................ [ 75%]
+test	UNKNOWN STEP	2026-09-04T16:11:55.2613832Z ........................................................................ [ 77%]
+test	UNKNOWN STEP	2026-09-04T16:11:57.5858745Z ........................................................................ [ 79%]
+test	UNKNOWN STEP	2026-09-04T16:11:58.8103828Z ...................................................FF.F................. [ 81%]
+test	UNKNOWN STEP	2026-09-04T16:12:05.1393284Z .....................................................
+test	UNKNOWN STEP	2026-09-04T16:12:05.1407005Z ##[error]Process completed with exit code 137.
+test	UNKNOWN STEP	2026-09-04T16:12:05.1542304Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test	UNKNOWN STEP	2026-09-04T16:12:05.1543484Z Post job cleanup.
+test	UNKNOWN STEP	2026-09-04T16:12:05.2405156Z [command]/usr/bin/git version
+test	UNKNOWN STEP	2026-09-04T16:12:05.2439839Z git version 2.55.0
+test	UNKNOWN STEP	2026-09-04T16:12:05.2476193Z Temporarily overriding HOME='/home/runner/work/_temp/1643ccd8-eb57-4193-97ff-b6afbbe16de1' before making global git config changes
+test	UNKNOWN STEP	2026-09-04T16:12:05.2477458Z Adding repository directory to the temporary git global config as a safe directory
+test	UNKNOWN STEP	2026-09-04T16:12:05.2482335Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test	UNKNOWN STEP	2026-09-04T16:12:05.2524693Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test	UNKNOWN STEP	2026-09-04T16:12:05.2561402Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test	UNKNOWN STEP	2026-09-04T16:12:05.2848999Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test	UNKNOWN STEP	2026-09-04T16:12:05.2878384Z http.https://github.com/.extraheader
+test	UNKNOWN STEP	2026-09-04T16:12:05.2894848Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test	UNKNOWN STEP	2026-09-04T16:12:05.2933167Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test	UNKNOWN STEP	2026-09-04T16:12:05.3219284Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test	UNKNOWN STEP	2026-09-04T16:12:05.3256836Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test	UNKNOWN STEP	2026-09-04T16:12:05.3691394Z Cleaning up orphan processes
+test	UNKNOWN STEP	2026-09-04T16:12:05.4013375Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, astral-sh/setup-uv@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

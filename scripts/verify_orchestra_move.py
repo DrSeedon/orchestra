@@ -97,9 +97,23 @@ def blob_contents(root: Path, blobs: list[str]) -> dict[str, bytes]:
     return result
 
 
-def verify(root: Path, before_ref: str, after_ref: str) -> dict:
-    sources = [prefix.rstrip("/") for prefix in PREFIXES] + sorted(FILES)
-    before = tree(root, before_ref, sources)
+# Переезд шёл ТРЕМЯ коммитами, а не одним и не двумя. Проверено по коммитам, которые
+# УДАЛИЛИ исходный путь (`git log main --diff-filter=D -- <источник>`):
+#   498c0d14 — `docs/kb`, `docs/archive`
+#   4f97f176 — `docs/tasks`
+#   f8e00522 — остальные 15 отображений (`pipelines/`, `docs/workers`, `docs/research`,
+#              `docs/reviews`, `docs/artifacts`, `docs/experiments`, `docs/tg-media`
+#              и все одиночные файлы)
+# Одна пара ссылок на всё поэтому недостижима в принципе: на паре одного переезда цели
+# остальных ещё не существуют, а пара, растянутая на все три, включает посторонние правки
+# между ними, и sha256 честно расходятся. Отсюда контракт: пара ссылок задаётся НА КАЖДЫЙ
+# переезд отдельно, вместе с корнем исходных путей, который этот переезд трогал.
+
+
+def verify_move(root: Path, source_root: str, before_ref: str, after_ref: str) -> dict:
+    before = tree(root, before_ref, [source_root])
+    if not before:
+        raise ValueError(f"{source_root!r} is empty at {before_ref!r} — wrong ref pair")
     after = tree(root, after_ref, [".orchestra"])
     contents = blob_contents(root, [blob for _, blob in before.values()])
     mismatches = []
@@ -107,36 +121,70 @@ def verify(root: Path, before_ref: str, after_ref: str) -> dict:
         new_path = destination(old_path)
         observed = after.get(new_path)
         if observed != (old_mode, old_blob):
-            mismatches.append(
-                {"old": old_path, "new": new_path, "expected": [old_mode, old_blob], "observed": observed}
-            )
+            # Два РАЗНЫХ дефекта, и путать их нельзя: `missing` означает, что отображение
+            # путей не сработало (файл не доехал), `content` — что доехал, но с другими
+            # байтами. Первое — всегда поломка переезда. Второе законно ровно там, где
+            # переезд по замыслу правил содержимое: `pipelines/` переехал вместе с заменой
+            # ссылок `docs/` → `.orchestra/` внутри самих промптов (16 файлов из 24,
+            # похожесть 83–99% по `git diff -M`).
+            mismatches.append({
+                "kind": "missing" if observed is None else "content",
+                "old": old_path, "new": new_path,
+                "expected": [old_mode, old_blob], "observed": observed,
+            })
             continue
         data = contents[old_blob]
         # Compute every requested field from the immutable source blob; blob equality proves after parity.
         _ = (len(data), data.count(b"\n"), hashlib.sha256(data).hexdigest())
-    prompt = git(
-        root,
-        "show",
-        f"{after_ref}:.orchestra/pipelines/default/prompts/roles/orchestrator.md",
-    )
     return {
+        "source_root": source_root,
         "before_ref": before_ref,
         "after_ref": after_ref,
         "checked_files": len(before),
-        "fields": FIELDS,
+        "missing": sum(1 for item in mismatches if item["kind"] == "missing"),
+        "content": sum(1 for item in mismatches if item["kind"] == "content"),
         "mismatches": mismatches,
-        "artifact_reading_count": prompt.count("artifact-reading"),
+    }
+
+
+def verify(root: Path, moves: list[tuple[str, str, str]]) -> dict:
+    results = [verify_move(root, *move) for move in moves]
+    flat = [
+        {"move": item["source_root"], **entry}
+        for item in results
+        for entry in item["mismatches"]
+    ]
+    # Промпт лежит под `.orchestra/pipelines/`, поэтому читается по ссылке ИМЕННО того
+    # переезда, который его туда перенёс. На ссылках остальных переездов пути ещё нет.
+    prompt_refs = [item["after_ref"] for item in results if item["source_root"].startswith("pipelines")]
+    artifact_reading_count = None
+    if prompt_refs:
+        prompt = git(
+            root,
+            "show",
+            f"{prompt_refs[0]}:.orchestra/pipelines/default/prompts/roles/orchestrator.md",
+        )
+        artifact_reading_count = prompt.count("artifact-reading")
+    return {
+        "moves": results,
+        "checked_files": sum(item["checked_files"] for item in results),
+        "fields": FIELDS,
+        "mismatches": flat,
+        "artifact_reading_count": artifact_reading_count,
     }
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, required=True)
-    parser.add_argument("--before-ref", required=True)
-    parser.add_argument("--after-ref", required=True)
+    parser.add_argument(
+        "--move", nargs=3, action="append", required=True,
+        metavar=("SOURCE_ROOT", "BEFORE_REF", "AFTER_REF"),
+        help="один переезд: корень исходных путей и пара ссылок вокруг него",
+    )
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = verify(args.root.resolve(), args.before_ref, args.after_ref)
+    result = verify(args.root.resolve(), [tuple(move) for move in args.move])
     print(json.dumps(result, ensure_ascii=False, sort_keys=True))
     return 0 if not result["mismatches"] else 1
 

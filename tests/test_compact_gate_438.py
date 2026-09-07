@@ -76,6 +76,23 @@ def _capture_spawn(session: AgentSession):
     return spawned
 
 
+
+@pytest.fixture(autouse=True)
+def auto_compact_window_always_open(monkeypatch):
+    """Окно автокомпакта пинуется на все сутки — иначе тест меряет ЧАСЫ, а не порог.
+
+    `_auto_compact_window_blocked` (`app/session.py:691`) для оркестратора спрашивает
+    `_auto_compact_window_state`, а тот считает окно от НАСТОЯЩИХ часов и
+    `AUTO_COMPACT_WINDOW_START/END`. Поэтому «оркестратор компактится на 96%» проходило
+    или падало в зависимости от времени суток: на CI совпадало с разрешённым окном,
+    локально — нет. Зелёный по совпадению хуже красного, он даёт ложную уверенность.
+    Здесь окно открыто всегда, и проверяется ровно ПОРОГ — обе его стороны.
+    """
+    monkeypatch.setenv("AUTO_COMPACT_ENABLED", "1")
+    monkeypatch.setenv("AUTO_COMPACT_WINDOW_START", "00:00")
+    monkeypatch.setenv("AUTO_COMPACT_WINDOW_END", "23:59")
+    monkeypatch.setenv("AUTO_COMPACT_TIMEZONE", "UTC")
+
 def test_orchestrator_compacts_at_96_but_not_94():
     session = _orchestrator()
     session._last_context = {"percentage": 96, "max_tokens": 1_000_000}

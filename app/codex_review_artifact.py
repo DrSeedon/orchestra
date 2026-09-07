@@ -21,9 +21,7 @@ class ReviewResultError(ValueError):
 
 def review_verdict(review: str) -> str:
     """Read the explicitly requested section; never infer a verdict from prose."""
-    review = re.split(r"(?im)^##[ \t]+Round\b", review)[-1]
-    match = re.search(r"(?ims)^##[ \t]+Verdict[ \t]*\n(.*?)(?=^##[ \t]|\Z)", review)
-    return " ".join(match.group(1).split()) if match else ""
+    return _parse_verdict(review)[1]
 
 
 def review_result_error(review: str) -> str:
@@ -68,6 +66,32 @@ def review_execution_error(jsonl_path: Path) -> str:
     if not response:
         return "review runtime has no final response"
     return ""
+
+
+_VERDICT_HEADING_RE = re.compile(r"(?im)^##\s+(?:Verdict|Вердикт)\s*$")
+_NO_VERDICT_RE = re.compile(
+    r"(?iu)^(?:"
+    r"no\s+verdict(?:\s+was\s+(?:reached|given|provided))?"
+    r"|(?:the\s+)?verdict\s+(?:was\s+)?not\s+(?:reached|given|provided)"
+    r"|(?:нет|не\s+было)\s+(?:вынесенного\s+)?вердикта"
+    r"|вердикт\s+не\s+(?:вынесен|достигнут|предоставлен)"
+    r")\.?$"
+)
+
+
+def _parse_verdict(content: str) -> tuple[bool, str]:
+    """Return a meaningful verdict from a localized review section."""
+    content = re.split(r"(?im)^##[ \t]+Round\b", content)[-1]
+    heading = _VERDICT_HEADING_RE.search(content)
+    if heading is None:
+        return False, ""
+    remainder = content[heading.end():]
+    next_heading = re.search(r"(?im)^##\s+", remainder)
+    section = remainder if next_heading is None else remainder[:next_heading.start()]
+    value = " ".join(section.split())
+    if not value or _NO_VERDICT_RE.fullmatch(value):
+        return False, ""
+    return True, value
 
 
 def _last_thread_id(jsonl_path: Path) -> str:

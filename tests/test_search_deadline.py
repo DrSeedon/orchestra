@@ -123,7 +123,9 @@ def test_timeout_busy_stale_tell_agent_to_stop_waiting(mcp, monkeypatch, code, m
     out = _call(mcp, monkeypatch, raises=err)
     assert marker in out
     assert "Не жди и не повторяй" in out
-    assert 'rg "как чинили таймаут"' in out
+    assert "rg -n -i -F" in out
+    assert "как чинили таймаут" in out
+    assert ".orchestra/kb/" in out
 
 
 def test_disabled_rag_names_the_flag(mcp, monkeypatch):

@@ -1311,6 +1311,8 @@ def _migrate(c) -> None:
     if "template_hash" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN template_hash TEXT DEFAULT ''")
     _adopt_legacy_inflight_task_runs(c)
+    if "disabled_tools" not in cols:
+        c.execute("ALTER TABLE sessions ADD COLUMN disabled_tools TEXT DEFAULT '[]'")
     if "mcp_servers_custom" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN mcp_servers_custom TEXT DEFAULT ''")
     bg_ddl = c.execute(
@@ -1733,6 +1735,7 @@ def save_session(
     s.setdefault("parent_name", "")
     s.setdefault("pipeline", "")
     s.setdefault("profile", "")
+    s.setdefault("disabled_tools", "[]")
     s.setdefault("mcp_servers_custom", "")
     s.setdefault("owned_dirs", "")
     s.setdefault("tg_topic", 0)
@@ -1757,7 +1760,7 @@ def save_session(
                 cost_usd_cached, context_cost,
                 total_turns, total_input_tokens, total_output_tokens,
                 total_cache_read_tokens, total_cache_create_tokens, total_tool_calls,
-                template_hash, role, parent_id, parent_name, mcp_servers_custom, pipeline,
+                template_hash, role, parent_id, parent_name, mcp_servers_custom, disabled_tools, pipeline,
                 profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff,
                 history_import_source, last_summary)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt, :prompt_overlay,
@@ -1768,7 +1771,7 @@ def save_session(
                 :cost_usd_cached, :context_cost,
                 :total_turns, :total_input_tokens, :total_output_tokens,
                 :total_cache_read_tokens, :total_cache_create_tokens, :total_tool_calls,
-                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :pipeline,
+                :template_hash, :role, :parent_id, :parent_name, :mcp_servers_custom, :disabled_tools, :pipeline,
                 :profile, :owned_dirs, :tg_topic, :session_id_history, :effort,
                 :runtime_handoff, :history_import_source, :last_summary)
             ON CONFLICT(id) DO UPDATE SET
@@ -1806,6 +1809,7 @@ def save_session(
                 parent_id=excluded.parent_id,
                 parent_name=excluded.parent_name,
                 mcp_servers_custom=excluded.mcp_servers_custom,
+                disabled_tools=excluded.disabled_tools,
                 pipeline=excluded.pipeline,
                 profile=excluded.profile,
                 owned_dirs=excluded.owned_dirs,

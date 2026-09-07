@@ -91,6 +91,17 @@ async def test_heartbeat_dead_process_recovery_publishes(mock_db, monkeypatch):
     failed-reconnect test above, which pins `_last_msg_time = 0`.
     """
     from app.session import AgentStatus
+    import app.session_hibernate as hibernate
+
+    monkeypatch.setattr(
+        hibernate,
+        "get_runtime",
+        lambda _runtime: SimpleNamespace(
+            capabilities=SimpleNamespace(
+                process_liveness=True, event_stream="per_turn", reconnect=False,
+            )
+        ),
+    )
 
     session = _make_session("codex-dead")
     session.backend_type = "codex"
@@ -120,6 +131,17 @@ async def test_heartbeat_zombie_without_backend_publishes(mock_db, monkeypatch):
     so neither of the other two branch tests can stand in for it.
     """
     from app.session import AgentStatus
+    import app.session_hibernate as hibernate
+
+    monkeypatch.setattr(
+        hibernate,
+        "get_runtime",
+        lambda _runtime: SimpleNamespace(
+            capabilities=SimpleNamespace(
+                process_liveness=False, event_stream="persistent", reconnect=False,
+            )
+        ),
+    )
 
     session = _make_session("claude-zombie")
     session._log = MagicMock()

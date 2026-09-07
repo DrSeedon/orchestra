@@ -51,7 +51,11 @@ function showPendingBubble() {
     if (!pendingBubble) {
         pendingBubble = document.createElement('div');
         pendingBubble.className = 'chat-user ml-16 px-3 py-2 rounded-lg text-sm break-words';
-        chat.appendChild(pendingBubble);
+        if (streamBubble && streamBubble.parentNode === chat) {
+            chat.insertBefore(pendingBubble, streamBubble);
+        } else {
+            chat.appendChild(pendingBubble);
+        }
     }
     pendingBubble.textContent = pendingUserMsgs.join('\n');
     const oldRing = pendingBubble.querySelector('.debounce-ring');
