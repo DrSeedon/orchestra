@@ -1,0 +1,52 @@
+Running as unit: run-p1877892-i1885036.scope; invocation ID: af7d50f1a0634d378bd52c5a40f62db9
+.E                                                                       [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_model_xml_is_displayed_without_execution_verdict[chromium] _
+
+fixturedef = <FixtureDef argname='playwright' scope='module' baseid='tests'>
+request = <SubRequest 'playwright' for <Function test_model_xml_is_displayed_without_execution_verdict[chromium]>>
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(fixturedef: FixtureDef, request) -> object | None:
+        if (
+            fixturedef.argname == "event_loop_policy"
+            and fixturedef.func.__module__ != __name__
+        ):
+            warnings.warn(
+                PytestDeprecationWarning(_EVENT_LOOP_POLICY_FIXTURE_DEPRECATION_WARNING),
+            )
+        asyncio_mode = _get_asyncio_mode(request.config)
+        if not _is_asyncio_fixture_function(fixturedef.func):
+            if asyncio_mode == Mode.STRICT:
+                # Ignore async fixtures without explicit asyncio mark in strict mode
+                # This applies to pytest_trio fixtures, for example
+>               return (yield)
+                        ^^^^^
+
+../orchestra/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:924:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+tests/conftest.py:253: in playwright
+    with sync_playwright() as instance:
+         ^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <playwright.sync_api._context_manager.PlaywrightContextManager object at 0x7a0f31e83860>
+
+        def __enter__(self) -> SyncPlaywright:
+            try:
+                self._loop = asyncio.get_running_loop()
+            except RuntimeError:
+                self._loop = asyncio.new_event_loop()
+                self._own_loop = True
+            if self._loop.is_running():
+>               raise Error(
+                    """It looks like you are using Playwright Sync API inside the asyncio loop.
+    Please use the Async API instead."""
+                )
+E               playwright._impl._errors.Error: It looks like you are using Playwright Sync API inside the asyncio loop.
+E               Please use the Async API instead.
+
+../orchestra/.venv/lib/python3.12/site-packages/playwright/sync_api/_context_manager.py:47: Error
+=========================== short test summary info ============================
+ERROR tests/test_frontend.py::test_model_xml_is_displayed_without_execution_verdict[chromium]
+1 passed, 1 error in 13.25s

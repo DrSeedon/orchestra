@@ -11,6 +11,7 @@ import os
 import re
 import socket
 import subprocess
+import tempfile
 import sys
 import time
 import urllib.error
@@ -137,7 +138,8 @@ def _dashboard_output_tail(proc: subprocess.Popen) -> str:
     if proc.stdout is None:
         return "<stdout unavailable>"
     try:
-        os.set_blocking(proc.stdout.fileno(), False)
+        proc.stdout.seek(0, os.SEEK_END)
+        proc.stdout.seek(max(0, proc.stdout.tell() - 4000))
         output = proc.stdout.read() or b""
     except (BlockingIOError, OSError, ValueError) as exc:
         return f"<stdout unreadable: {type(exc).__name__}: {exc}>"
@@ -187,17 +189,24 @@ def _start_dashboard_server(db_path: Path) -> tuple[subprocess.Popen, str]:
     env["SSH_TUNNELS"] = ""
     port = _free_port()
     root = Path(__file__).resolve().parent.parent
-    proc = subprocess.Popen(
-        [
-            sys.executable, "-m", "uvicorn", "app.main:app",
-            "--host", "127.0.0.1", "--port", str(port),
-            "--log-level", "warning",
-        ],
-        cwd=str(root),
-        env=env,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-    )
+    # A pipe fills across tests and blocks the server event loop on logging.
+    output = tempfile.TemporaryFile(dir=db_path.parent)
+    try:
+        proc = subprocess.Popen(
+            [
+                sys.executable, "-m", "uvicorn", "app.main:app",
+                "--host", "127.0.0.1", "--port", str(port),
+                "--log-level", "warning",
+            ],
+            cwd=str(root),
+            env=env,
+            stdout=output,
+            stderr=subprocess.STDOUT,
+        )
+    except BaseException:
+        output.close()
+        raise
+    proc.stdout = output
     origin = f"http://127.0.0.1:{port}"
     started = time.monotonic()
     deadline = started + _DASHBOARD_START_TIMEOUT_S
@@ -537,7 +546,8 @@ def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
     page.close()
 
 
-def test_model_xml_is_displayed_without_execution_verdict(browser: Browser):
+def test_model_xml_is_displayed_without_execution_verdict(dashboard_browser: Browser):
+    browser = dashboard_browser
     root = Path(__file__).parent.parent / "app/static"
     source = (root / "js/chat.js").read_text()
     app_source = (root / "js/app.js").read_text()

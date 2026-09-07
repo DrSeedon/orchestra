@@ -1,0 +1,47 @@
+baseline1
+=========== 104 passed, 1 skipped, 7 deselected in 136.74s (0:02:16) ===========
+max_sampled_rss_bytes=1198587904 max_contexts_pages=(1, 1)
+reverse2
+=========== 104 passed, 1 skipped, 7 deselected in 132.85s (0:02:12) ===========
+max_sampled_rss_bytes=1196265472 max_contexts_pages=(1, 1)
+reverse_actual2
+========== 208 passed, 2 skipped, 14 deselected in 494.39s (0:08:14) ===========
+max_sampled_rss_bytes=1263828992 max_contexts_pages=(1, 1)
+pipe4096
+max_sampled_rss_bytes=1294282752 max_contexts_pages=(3, 3)
+1175249 S 156659712 pipe_write /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-browser-fixture/.venv/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 36403 --log-level warning 
+1175249 S 166883328 pipe_write /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-browser-fixture/.venv/bin/python3 -m uvicorn app.main:app --host 127.0.0.1 --port 36403 --log-level warning 
+blocked-snapshot.txt
+time=3043201.434750003 pid=1175249 pipe_bytes=3934 capacity=4096 wchan=pipe_write
+
+drain-recovery.txt
+before: TimeoutError, elapsed=2.039s
+before drain: bytes=3934 capacity=4096 wchan=pipe_write
+drained=3934
+after: HTTP 200, elapsed=0.313s
+
+=========================== short test summary info ============================
+FAILED tests/test_dashboard_server_output.py::test_dashboard_server_handles_output_larger_than_pipe
+FAILED tests/test_dashboard_server_output.py::test_dashboard_server_preserves_failure_tail
+2 failed in 15.85s
+
+fixed1
+=========== 105 passed, 1 skipped, 7 deselected in 161.01s (0:02:41) ===========
+max_sampled_rss_bytes=1153175552 max_contexts_pages=(1, 1)
+fixed2
+=========== 105 passed, 1 skipped, 7 deselected in 159.67s (0:02:39) ===========
+max_sampled_rss_bytes=1150205952 max_contexts_pages=(1, 1)
+fixed3
+=========== 105 passed, 1 skipped, 7 deselected in 181.95s (0:03:01) ===========
+max_sampled_rss_bytes=1180405760 max_contexts_pages=(1, 1)
+fixed_reverse
+=========== 105 passed, 1 skipped, 7 deselected in 148.33s (0:02:28) ===========
+max_sampled_rss_bytes=1202958336 max_contexts_pages=(1, 1)
+fixed_random
+=========== 105 passed, 1 skipped, 7 deselected in 186.36s (0:03:06) ===========
+max_sampled_rss_bytes=1257472000 max_contexts_pages=(1, 1)
+ORDER_CHECK: three identical normal orders; exact reverse; random same node set with different order; 106 START nodes per run
+
+FINAL_CHECK: uv run --frozen python -m pytest tests/test_dashboard_server_output.py tests/test_merge_test_gate.py::test_browser_inventory_is_explicit -q
+...                                                                      [100%]
+3 passed in 26.58s

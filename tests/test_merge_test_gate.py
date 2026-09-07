@@ -660,6 +660,8 @@ def test_browser_inventory_is_explicit():
 
     root = Path(__file__).resolve().parent.parent
     expected = {
+    # Collection includes the voice-input test explicitly skipped since #365;
+    # 104 passing tests plus that retained node make 105, regardless of execution.
     "tests/test_frontend.py": 105,
     "tests/test_t344_quota_lines_browser.py": 17,
     "tests/test_usage_analytics_frontend.py": 14,

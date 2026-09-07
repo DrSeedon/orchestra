@@ -35,3 +35,21 @@
 Работающие соседние воркеры и фоновые проверки отслеживаются перед выкладкой. После обновления сервисов проверяются новый PID, HTTP и cut_names. Фактические квитанции выкладки сохраняются локально в игнорируемом `data/deployments/`, чтобы не добавлять ещё один коммит после изменения работающего сервиса.
 
 В унаследованных сырьевых логах upstream есть trailing whitespace; они сохранены без постороннего форматирования. Проверка наших исходников и доказательств проходит.
+
+## Проверка CI после первого push
+
+CI `34135698236` выявил межтестовое загрязнение, которого не видно в раздельных группах. Исправлены только фикстуры:
+- новый XML-тест использует уже работающий `dashboard_browser`, вместо запуска второго Playwright Sync API внутри его event loop. До исправления: 1 passed / 1 error при последовательности `test_dashboard_loads` → XML-тест;
+- `_reload_quota_gate_with_env` загружает отдельный экземпляр модуля, не заменяя `QuotaGateError` под уже импортированным `app.session`. До исправления: 3 failed / 5 passed при прогоне теста сессии, загрузки env и TestQuotaGatedDeferredTurns в таком порядке.
+
+После исправления: 69 passed за 14.41 s — тест сессии, весь test_quota_gate.py, TestQuotaGatedDeferredTurns и оба браузерных теста в одном процессе. Доказательства: `ci-order-red.txt`, `ci-browser-red.txt`, `ci-fixtures-green.txt`. Production-код не менялся.
+
+Два падения heartbeat в `test_audit0901_session.py` воспроизводились и в CI предыдущего upstream SHA `495db03a`; они не объявляются результатом нашей правки и не исправляются этой задачей. Прочие браузерные падения вне XML-теста принадлежат текущей соседней задаче исправления browser fixture. Исходный и предыдущий CI-логи сохранены в игнорируемом `data/deployments/model-text-control-flow/` на ноутбуке.
+
+## Последняя синхронизация завершившихся VPS-задач
+
+Пока ожидалось безопасное окно, VPS завершил #534/#535 и опубликовал `4fcc9d8a` (уже включает наш `ad5d1766`). В интеграцию сохранены live quota policy, её API-представление и исправление вывода тестового сервера. Конфликт импортов test_quota_gate.py разрешён объединением importlib.util, os и sys.
+
+Новые upstream-тесты тоже перезагружали общий quota_gate в teardown, как и старая фикстура test_quota_map_api.py. Вместо reload использован штатный monkeypatch с восстановлением снимка окружения и кешей; API-тест проверяет числовые литералы через реальный quota_policy. Семантические проверки live .env сохранены, production-код соседней задачи не изменён.
+
+Итоговая совместная проверка: 126 passed за 11.11 s — test_quota_gate.py, test_quota_map_api.py, test_usage_readiness.py, test_model_text_control_flow.py, TestQuotaGatedDeferredTurns, test_dashboard_loads, XML browser test, test_dashboard_server_output.py. Файл: `vps-latest-tests.txt`. Перед выкладкой подтверждено отсутствие running/starting агентов на VPS.
