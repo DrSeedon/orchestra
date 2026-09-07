@@ -51,3 +51,7 @@ manage them; the available types and their parameters are in the `bg_create` too
 ## Standard rules
 - Running or skipping a model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
 </rules>
+
+<artifact-skill>
+For HTML artifacts, diagrams and visual explainers, use only the `html-artifacts` skill available to every role. Standalone visual-design and ELI5 skills are superseded for this work, even if an ambient CLI catalog still lists them. Do not stack their conflicting style rules on the unified skill.
+</artifact-skill>

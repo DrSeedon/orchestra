@@ -1,0 +1,1042 @@
+[
+  {
+    "name": "xlsx",
+    "path": "/home/kesha/.claude/skills/xlsx/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/xlsx/SKILL.md",
+    "sha256": "dd316db7785a6be12966c2a2d848931fbf5f518b3cdb0a66fa62ee835ead1cfc",
+    "bytes": 11463,
+    "description": "\"Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .csv, or .tsv file (e.g., adding columns, computing formulas, formatting, charting, cleaning messy data); create a new spreadsheet from scratch or from other data sources; or convert between tabular file formats. Trigger especially when the user references a spreadsheet file by name or path — even casually (like \\\"the xlsx in my downloads\\\") — and wants something done to it or produced from it. Also trigger for cleaning or r"
+  },
+  {
+    "name": "sfu-report",
+    "path": "/home/kesha/.claude/skills/sfu-report/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/sfu-report/SKILL.md",
+    "sha256": "3fedc428d054c6d75db677f1c8adcf06eded04ca6cc3120e87fe515dc6a77a20",
+    "bytes": 11731,
+    "description": "\"Генерация академических отчётов СФУ ИКИТ: НИР, практика, магистерская диссертация, курсовая. Пайплайн markdown → xelatex → PDF с правильным форматированием по СТУ 7.5-07. Триггеры: 'отчёт по практике', 'НИР отчёт', 'сгенерируй отчёт', 'пересобери PDF', 'титульник', 'титульный лист', 'отчёт СФУ', 'магистерская диссертация', 'оформление по ГОСТу', 'xelatex отчёт', 'academic report', 'practice report'. Используй при ЛЮБОЙ генерации академических документов для университета.\""
+  },
+  {
+    "name": "mcp-builder",
+    "path": "/home/kesha/.claude/skills/mcp-builder/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/mcp-builder/SKILL.md",
+    "sha256": "0f4592dcb53cf2b5d6b7febee6b4152018b565551a1c29e3c612f57b218ab295",
+    "bytes": 9092,
+    "description": "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP) or Node/TypeScript (MCP SDK)."
+  },
+  {
+    "name": "frontend-design",
+    "path": "/home/kesha/.claude/skills/frontend-design/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/frontend-design/SKILL.md",
+    "sha256": "b81e2ff87ed8fa4d6c377ccb127a7254c9e6a77e3ae94f21e6b514f7bb2945a0",
+    "bytes": 4440,
+    "description": "Create distinctive, production-grade frontend interfaces with high design quality. Use this skill when the user asks to build web components, pages, artifacts, posters, or applications (examples include websites, landing pages, dashboards, React components, HTML/CSS layouts, or when styling/beautifying any web UI). Generates creative, polished code and UI design that avoids generic AI aesthetics."
+  },
+  {
+    "name": "webapp-testing",
+    "path": "/home/kesha/.claude/skills/webapp-testing/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/webapp-testing/SKILL.md",
+    "sha256": "51b7349e77ec63b7744a6f63647e7566a0b4d2e301121cc10e8c2113af6556a2",
+    "bytes": 3913,
+    "description": "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs."
+  },
+  {
+    "name": "teach-me",
+    "path": "/home/kesha/.claude/skills/teach-me/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/teach-me/SKILL.md",
+    "sha256": "db5ba83e686c2c14319f1ef7f6e93e9cbe54b3a5211506e7c6dc82e0228864cc",
+    "bytes": 25851,
+    "description": "\"Протокол объяснения новой темы Максиму и фиксации того, что он реально понял. Использовать ВСЕГДА, когда он спрашивает про незнакомую ему вещь — не только по прямой просьбе учить. Триггеры: 'объясни', 'объясни по простому', 'поясни', 'поясни по простому', 'научи меня', 'разбери тему', 'в чём разница между', 'чем отличается', 'почему так', 'почему это работает', 'а это вообще как работает', 'что такое', 'как устроен', 'я не понимаю', 'не догоняю', 'растолкуй', 'введи в курс', 'с чего начать в', 'хочу разобраться в', 'дай вводную'. Работает на ЛЮБОЙ теме — электроника, налоги, английский, ML, ю"
+  },
+  {
+    "name": "agent-teams",
+    "path": "/home/kesha/.claude/skills/agent-teams/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/agent-teams/SKILL.md",
+    "sha256": "0b7c12c9308edfe4a2b8cf5e6be64709d28c54603806889e4e5d4a1ae918c3fa",
+    "bytes": 23260,
+    "description": "Как запускать ИИ-агентов для параллельной работы в Claude Code — Agent Teams (команда из Opus-architect + Sonnet teammates, shared task list, peer-to-peer SendMessage, worktree-изоляция) или одиночные встроенные Agent. Триггеры — \"запусти агентов\", \"запусти команду\", \"agent team\", \"параллельно сделай\", \"командой агентов\", \"можно это через агентов\", \"ебашь с агентами\", спавн teammates/teammate, TeamCreate, isolation worktree, shared task list. НЕ использовать для одиночных мелких правок (правлю сам). ОБЯЗАТЕЛЬНО читать перед любой работой с агентами — чтобы не повторять race condition без workt"
+  },
+  {
+    "name": "quick-skill",
+    "path": "/home/kesha/.claude/skills/quick-skill/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/quick-skill/SKILL.md",
+    "sha256": "d89dfca45b8c770e45c8e21e0f6d4e74df70d2b2fe3d673fbf6202e5975a3e64",
+    "bytes": 3354,
+    "description": "\"Быстро создать новый скилл для Claude Code. Используй когда просят 'создай скилл', 'сделай скилл', 'new skill', 'запомни как делать X навсегда'. НЕ использовать skill-creator (тяжёлый) — этот скилл для быстрого создания без eval loop.\""
+  },
+  {
+    "name": "docx",
+    "path": "/home/kesha/.claude/skills/docx/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/docx/SKILL.md",
+    "sha256": "cfbabd72b1aec7dfaad988fb6e5e16b27dc744b9a00cae15db9045e95f53903e",
+    "bytes": 20084,
+    "description": "\"Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files). Triggers include: any mention of 'Word doc', 'word document', '.docx', or requests to produce professional documents with formatting like tables of contents, headings, page numbers, or letterheads. Also use when extracting or reorganizing content from .docx files, inserting or replacing images in documents, performing find-and-replace in Word files, working with tracked changes or comments, or converting content into a polished Word document. If the user asks for a 'report', 'memo', 'lett"
+  },
+  {
+    "name": "close",
+    "path": "/home/kesha/.claude/skills/close/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/close/SKILL.md",
+    "sha256": "f5f68045d90e0c6a0e7d628412029bbce951be03eb2793eae6532127616356b3",
+    "bytes": 4334,
+    "description": "\"Закрытие рабочей сессии — ретроспектива, сохранение контекста, git commit, session log. Триггеры: '/close', 'закрой сессию', 'заверши работу', 'на сегодня всё', 'закругляемся', 'конец сессии', 'сохрани контекст'. Запускать в конце рабочего дня или при смене большой темы.\""
+  },
+  {
+    "name": "pdf",
+    "path": "/home/kesha/.claude/skills/pdf/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/pdf/SKILL.md",
+    "sha256": "9f78b8359fbd4943ad260a7a1e436e5a96503406d6c34e99f69223d647d85b9c",
+    "bytes": 8072,
+    "description": "Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or asks to produce one, use this skill."
+  },
+  {
+    "name": "pptx",
+    "path": "/home/kesha/.claude/skills/pptx/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/pptx/SKILL.md",
+    "sha256": "e5b0df918cbe9d62508b3cf808d73899633f82fc19f6258a25ef9f0de7e62125",
+    "bytes": 9182,
+    "description": "\"Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted content will be used elsewhere, like in an email or summary); editing, modifying, or updating existing presentations; combining or splitting slide files; working with templates, layouts, speaker notes, or comments. Trigger whenever the user mentions \\\"deck,\\\" \\\"slides,\\\" \\\"presentation,\\\" or references a .pptx filename, regardless of what they plan to do with "
+  },
+  {
+    "name": "codex-review",
+    "path": "/home/kesha/.claude/skills/codex-review/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/codex-review/SKILL.md",
+    "sha256": "568218c34343027f82bbc37832bd3821df03973a3b0babd33a55c227f7258b49",
+    "bytes": 17951,
+    "description": "\"Cross-LLM ревью через Codex CLI (GPT-5.5). Codex ревьюит план/код/diff, запускает тесты, пишет результат в CODEX_REVIEW_*.md. Персистентные сессии для debate. Триггеры: 'спроси кодекса', 'кодекс ревью', 'ревьюй через кодекса', 'второе мнение', 'cross-review', 'переспроси кодекса', 'уточни у кодекса', '/codex'. НЕ юзать на тривиальных задачах.\""
+  },
+  {
+    "name": "youtube-deep",
+    "path": "/home/kesha/.claude/skills/youtube-deep/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/youtube-deep/SKILL.md",
+    "sha256": "2ba92218305eed02baa982d11fada32b0e02af36fed9e05c0de1f2fe8d906450",
+    "bytes": 18587,
+    "description": "\"Полный разбор видео и подкастов: скачать аудио через yt-dlp, расшифровать через Deepgram с разделением спикеров и таймкодами, вытащить описание, главы и массово комментарии, выдать разбор по тезисам и записать в vault. Триггеры: ссылка youtube.com или youtu.be вместе с просьбой разобрать/расшифровать/пересказать, ссылка на bigthink/TED/подкаст, 'разбери видео', 'разбор видео', 'о чём это видео', 'что там говорят', 'расшифруй ютуб', 'сделай текст из видео', 'транскрипт видео', 'кто что сказал', 'по спикерам', 'таймкоды видео', 'что в комментах', 'почитай комментарии', 'что пишут под видом', 'р"
+  },
+  {
+    "name": "html-artifacts",
+    "path": "/home/kesha/.claude/skills/html-artifacts/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/html-artifacts/SKILL.md",
+    "sha256": "44a896b82b64d229c84512e252a46330540dfe0c18aaf1e242c93d74c2a91919",
+    "bytes": 12219,
+    "description": "\"Generate self-contained interactive HTML artifacts instead of markdown when the output benefits from spatial layout, color, diagrams, interactivity, or rich formatting. Trigger AGGRESSIVELY on: 'artifact', 'html', 'report', 'dashboard', 'comparison', 'diagram', 'flowchart', 'deck', 'slides', 'status update', 'post-mortem', 'explainer', 'spec', 'plan', 'writeup', 'PR review', 'diff view', 'editor', 'playground', 'визуализация', 'артифакт', 'интерактивный отчёт', 'покажи визуально', 'сравни варианты', 'дашборд', 'диаграмма', 'слайды', 'презентация'. Also trigger when asked to 'explain', 'compar"
+  },
+  {
+    "name": "laptop-access",
+    "path": "/home/kesha/.claude/skills/laptop-access/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/laptop-access/SKILL.md",
+    "sha256": "9f5b5518d8546cf9ef1fce4dbbefdb462fbbd75d15c11cdb21d4e174fcd8f992",
+    "bytes": 5945,
+    "description": "\"Доступ к ноутбуку Максима через reverse SSH (run_on_laptop) + карта его проектов. Триггеры: 'проверь ноут', 'запусти на ноуте', 'что там с Parsing', 'спроси у проекта X', 'статус проекта', 'логи на ноуте', laptop. НЕ про Orchestra — она живёт на VPS, ходить к ней напрямую по HTTP.\""
+  },
+  {
+    "name": "youtube-reader",
+    "path": "/home/kesha/.claude/skills/youtube-reader/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/youtube-reader/SKILL.md",
+    "sha256": "44cd855ffab6f84fe24ae6c8b854f5a8d97b14405bafeecf8fef6827c702bc19",
+    "bytes": 3910,
+    "description": "\"Чтение метаданных YouTube видео и шортсов — название, автор, описание. Триггеры: ссылка youtube.com, youtu.be, 'шортс', 'shorts', 'что за видео', 'посмотри видео', 'описание видео'. Видео смотреть не умеем, но метаданные вытаскиваем через oEmbed API.\""
+  },
+  {
+    "name": "transcribe",
+    "path": "/home/kesha/.claude/skills/transcribe/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/transcribe/SKILL.md",
+    "sha256": "53ffd49941a5ceb661cb853a14346570e7f06e1e1779bce211a5907c5c17a4fb",
+    "bytes": 6057,
+    "description": "\"Транскрипция ЛЮБОГО аудио и видео в текст через Deepgram nova-2. Использовать ВСЕГДА когда нужен текст из звука. Триггеры: 'транскрипция', 'транскрибируй', 'расшифруй', 'расшифровка', 'что в видео', 'что говорят', 'о чём видео', 'посмотри видео', 'послушай', 'сделай текст из', 'субтитры', 'голосовое', 'войс', 'voice message', 'аудио в текст', 'speech to text', 'STT', любой путь к .mp4/.mp3/.oga/.ogg/.wav/.m4a/.webm/.mkv/.mov/.flac, видео с Яндекс.Диска или Loom, голосовые из Telegram. ЗАПРЕЩЁН whisper в любом виде — только Deepgram.\""
+  },
+  {
+    "name": "reddit-reader",
+    "path": "/home/kesha/.claude/skills/reddit-reader/SKILL.md",
+    "canonical": "/home/kesha/.claude/skills/reddit-reader/SKILL.md",
+    "sha256": "6a453eef89e31ebd4b1a3001a1564585c2d6a506a2a2a5555a1ce70f75e768d3",
+    "bytes": 3827,
+    "description": "\"Чтение постов и комментариев Reddit. Триггеры: ссылка reddit.com, 'прочитай реддит', 'что на реддите', 'r/subreddit', 'реддит', reddit URL. Reddit блокирует ВСЕ серверные запросы — работает только связка rxddit.com (резолв ссылки) + Perplexity (контент). Прокси, curl к JSON API и Playwright не работают, не пробовать.\""
+  },
+  {
+    "name": "plugin-creator",
+    "path": "/home/kesha/.codex/skills/.system/plugin-creator/SKILL.md",
+    "canonical": "/home/kesha/.codex/skills/.system/plugin-creator/SKILL.md",
+    "sha256": "71b95b8219644f95d633721e7f7cd3c469edfc8fe50f8415d400dfb2d74bc7b9",
+    "bytes": 11467,
+    "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow."
+  },
+  {
+    "name": "skill-installer",
+    "path": "/home/kesha/.codex/skills/.system/skill-installer/SKILL.md",
+    "canonical": "/home/kesha/.codex/skills/.system/skill-installer/SKILL.md",
+    "sha256": "d68b77e5bbb34dedab89d134da52855f140fc4b4299b80104f534e3b9e98f8ee",
+    "bytes": 3367,
+    "description": "Install Codex skills into $CODEX_HOME/skills from a curated list or a GitHub repo path. Use when a user asks to list installable skills, install a curated skill, or install a skill from another repo (including private repos)."
+  },
+  {
+    "name": "skill-creator",
+    "path": "/home/kesha/.codex/skills/.system/skill-creator/SKILL.md",
+    "canonical": "/home/kesha/.codex/skills/.system/skill-creator/SKILL.md",
+    "sha256": "6656e54755638e8efcf275a472b9672eaa8a9a1b9e59dc210e275b03b59e1e66",
+    "bytes": 15311,
+    "description": "Create or update a Codex skill with appropriately scoped instructions and any needed supporting resources."
+  },
+  {
+    "name": "openai-docs",
+    "path": "/home/kesha/.codex/skills/.system/openai-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/skills/.system/openai-docs/SKILL.md",
+    "sha256": "7cb8fa1b2a0c635b5c61ffe1da7b8594a7ea0fce5b71e8d523e2025d88b2a05e",
+    "bytes": 5446,
+    "description": "\"Use for Codex models/pricing, scheduled tasks, skills, settings, setup, troubleshooting, customization, automations, and self-knowledge—including 'you,' 'your,' 'this app,' or 'this coding agent' when they refer to Codex—and for OpenAI APIs/products and ChatGPT Work. Also use for model choice/migration, prompting, SDKs, Responses, Realtime, agents, evals, and Chat/Work/Codex comparisons. Do not use for generic app/software tasks that merely mention Codex.\""
+  },
+  {
+    "name": "review-agent",
+    "path": "/home/kesha/.codex/skills/.system/review-agent/SKILL.md",
+    "canonical": "/home/kesha/.codex/skills/.system/review-agent/SKILL.md",
+    "sha256": "07079efd0dc76f05fade424e5dfb048dce1de2df7626e1a4f56292a4f3f92228",
+    "bytes": 2661,
+    "description": "Perform a read-only, defect-first review of a specified code change and return every actionable finding. Use when another agent delegates review of uncommitted changes, a base-branch diff, a commit, or custom review instructions."
+  },
+  {
+    "name": "imagegen",
+    "path": "/home/kesha/.codex/skills/.system/imagegen/SKILL.md",
+    "canonical": "/home/kesha/.codex/skills/.system/imagegen/SKILL.md",
+    "sha256": "681ddb4ad6d06a2acc78a3535b583f8d0c1ea800ecda3d56370d3310fd2cd4ba",
+    "bytes": 19201,
+    "description": "\"Generate or edit raster images when the task benefits from AI-created bitmap visuals such as photos, illustrations, textures, sprites, mockups, or transparent-background cutouts. Use when Codex should create a brand-new image, transform an existing image, or derive visual variants from references, and the output should be a bitmap asset rather than repo-native code or vector. Do not use when the task is better handled by editing existing SVG/vector/code-native assets, extending an established icon or logo system, or building the visual directly in HTML/CSS/canvas.\""
+  },
+  {
+    "name": "eli5",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/eli5/skills/eli5/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/eli5/skills/eli5/SKILL.md",
+    "sha256": "3bb95cd13852051c5a1862e8b94da1de7cfba7415d418ab0ca4d762527d1b9a5",
+    "bytes": 321,
+    "description": "Explain a topic like I'm a 5 year old. Use when the user types /eli5 <topic> or asks for a dead-simple picture explainer of how something works."
+  },
+  {
+    "name": "quickdesign",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/quickdesign/skills/quickdesign/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/quickdesign/skills/quickdesign/SKILL.md",
+    "sha256": "3329eb8e1c45957136b7d9875184f04ba6c110f67921fc6a1415cfc04d49e231",
+    "bytes": 20340,
+    "description": "Use the `quickdesign` CLI to generate AI media — UGC promo videos, image edits, product creatives, video upscales — through Seedance, Kling, Sora2, Nano Banana, and GPT Image. Invoke this skill whenever the user asks for a talking-avatar video, multi-segment ad / promo / explainer, image edit (object swap, angle change, state change), product photoshoot, or video upscale via QuickDesign."
+  },
+  {
+    "name": "tres-rollup-rules",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-rollup-rules/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-rollup-rules/SKILL.md",
+    "sha256": "a30935122269391273288a66b5f047bdb4486347dd69cff80c9be7124429b04c",
+    "bytes": 24575,
+    "description": ">"
+  },
+  {
+    "name": "tres-report-analyzer",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-report-analyzer/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-report-analyzer/SKILL.md",
+    "sha256": "6ae14e7530059e6863cb4930464ae0472cca66f589992df690d8c06ba20e47f0",
+    "bytes": 6603,
+    "description": "Analyze any TRES Finance report XLSX and produce an automatic findings summary. Trigger this skill whenever a user uploads a .xlsx file that came from TRES Finance and asks to \"analyze\", \"summarize\", \"review\", \"check\", \"audit\", \"look at\", \"what does this show\", \"any issues\", \"anything interesting\", or \"walk me through\" the report. Also trigger when the user uploads an Excel file and mentions TRES, reconciliation, balances, transactions, cost basis, roll forward, or ERP sync. The skill identifies the report type from the file structure, runs targeted analysis based on report-specific logic, and"
+  },
+  {
+    "name": "tres-asset-balance-validation",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-asset-balance-validation/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-asset-balance-validation/SKILL.md",
+    "sha256": "8507e78cdd6b1b5de6ff1e70c9005a0ab35bcc19a2ea9a0491b5583e5ac87f2a",
+    "bytes": 18087,
+    "description": ">"
+  },
+  {
+    "name": "tres-import-contacts",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-import-contacts/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-import-contacts/SKILL.md",
+    "sha256": "34000bdbde90eb2eaa6ffb9162744dd200c88ea173ac3e538bc175e924bf6685",
+    "bytes": 9580,
+    "description": "\"Import contacts (address book entries) into TRES Finance from a CSV or XLSX file. Use this skill whenever the user wants to import, upload, or bulk-add contacts, address labels, or address book entries into TRES — whether from a file they filled in after using the export-3rd-party-contacts skill, or from any CSV/XLSX that maps addresses to names. Trigger phrases include: 'import contacts', 'upload contacts', 'add contacts from file', 'import address book', 'load contacts into TRES', 'bulk label addresses', 'import the contacts file', 'upload the filled contacts sheet'. Also trigger when the u"
+  },
+  {
+    "name": "tres-data-collection-commit",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-data-collection-commit/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-data-collection-commit/SKILL.md",
+    "sha256": "d34e5a4db2db4c55a831a8f4b542fb370a091b3823837102c86afc7a8d4f6349",
+    "bytes": 13353,
+    "description": ">"
+  },
+  {
+    "name": "tres-report-create",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-report-create/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-report-create/SKILL.md",
+    "sha256": "20dd533b06ea01362b59536db3bf6a99bec91ca16352692ee48d93a0746ded5a",
+    "bytes": 19694,
+    "description": "Create (generate) any TRES Finance report end-to-end via the tres-mcp MCP server and GraphQL — trigger the export, verify a report row was actually created (guarding against silent failures), poll until done, and return the download link. Trigger this skill on ANY report creation request, including phrases like \"create a report\", \"generate a report\", \"export\", \"run a report\", \"I need a Transaction Ledger / Balances / Reconciliation / Cost Basis / Roll Forward / Staking / Audit report\", \"pull the data for\", \"download a report for\", \"give me a CSV/XLSX of\", or whenever the user wants TRES to pro"
+  },
+  {
+    "name": "tres-request-skill-update",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-request-skill-update/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-request-skill-update/SKILL.md",
+    "sha256": "ef5afb6a4349e1ea6a7be8abba7333b93498d8c159ad7d0e9fe1fa510a9f2b78",
+    "bytes": 11058,
+    "description": ">"
+  },
+  {
+    "name": "tres-onboarding",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-onboarding/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-onboarding/SKILL.md",
+    "sha256": "507658702b7ed146590ca965150e439b80ad389c699c0021b9fb1099531f82b4",
+    "bytes": 8999,
+    "description": ">"
+  },
+  {
+    "name": "tres-tx-story",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-tx-story/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-tx-story/SKILL.md",
+    "sha256": "bb01d33e3e7413cf1e9426332fe33de42d0670e22090d6a86c48c59b621f5d4a",
+    "bytes": 11652,
+    "description": ">"
+  },
+  {
+    "name": "tres-upload-tx-header-validation",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-upload-tx-header-validation/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-upload-tx-header-validation/SKILL.md",
+    "sha256": "301f67fdaf5f7a92d2d83b5220ec4dc402bf6d155e9ee13fe72899260c14f97d",
+    "bytes": 2427,
+    "description": "\"The exact column header names required by the TRES Finance bulk transaction CSV upload. Use whenever building, fixing, or validating the header row of a TRES manual transaction or sub-transaction upload CSV — especially after an upload fails with \\\"Missing required column(s): ...\\\". Trigger phrases include: 'fix my CSV headers', 'bulk transaction upload failed', 'missing required columns', 'validate TRES upload CSV', 'transaction CSV template headers'. This skill is ONLY about the header naming convention; it does not cover row values or upload workflow. Do NOT trigger for contacts import CSV"
+  },
+  {
+    "name": "tres-rollup-review",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-rollup-review/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-rollup-review/SKILL.md",
+    "sha256": "8b125c1735ad77575c26cb609876d82a17a7bca852039f6bb7d0c473da1d8e4a",
+    "bytes": 11420,
+    "description": ">"
+  },
+  {
+    "name": "tres-cost-basis",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-cost-basis/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-cost-basis/SKILL.md",
+    "sha256": "5bc4c0c3fde2d3077cb11d0763a9913f7103b90c1780fa040cb79db4f4ceb723",
+    "bytes": 27652,
+    "description": ">"
+  },
+  {
+    "name": "tres-wallets-upload",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-wallets-upload/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-wallets-upload/SKILL.md",
+    "sha256": "a64f3fb38be82863d74339849bea507f143d3b5280c15d5e95f97718943e37f7",
+    "bytes": 16770,
+    "description": ">"
+  },
+  {
+    "name": "tres-explorer-tx-to-ledger",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-explorer-tx-to-ledger/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-explorer-tx-to-ledger/SKILL.md",
+    "sha256": "99a7013400c35c0e1e0d025740bd9e90ede37924ae12d82cf474968ffb2a0d10",
+    "bytes": 12041,
+    "description": ">"
+  },
+  {
+    "name": "tres-export-3rd-party-contacts",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-export-3rd-party-contacts/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-export-3rd-party-contacts/SKILL.md",
+    "sha256": "aadd50d321af4a83ae5e32127c6b5bebf92342d8b702a6d65906c05896057871",
+    "bytes": 8180,
+    "description": "\"Extract all 3rd-party (non-owned) addresses from a TRES Finance environment and export them as an XLSX workbook to help users build their contacts list. Use this skill whenever the user wants to export, list, or identify 3rd-party addresses, counterparties, or external addresses from their transactions — even if they don't say 'contacts'. Also trigger when the user asks to prepare a contacts import file, find unknown addresses, or build an address book from transaction history. Do NOT trigger for viewing existing contacts or searching the address book — only for extracting NEW 3rd-party addre"
+  },
+  {
+    "name": "tres-report-advisor",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-report-advisor/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-report-advisor/SKILL.md",
+    "sha256": "365cb0c16f432baa66df6335c11b445c372a422d59b141776f01c3f79f63682a",
+    "bytes": 9545,
+    "description": "Recommend the right TRES Finance report for any user question. Trigger this skill whenever a user asks which report to use, what report contains certain data, how to get specific information out of TRES, or compares two reports. Also trigger when the user describes a goal (e.g. \"month-end close\", \"auditor needs proof\", \"tax filing\", \"reconciliation\") without naming a specific report. Trigger phrases include \"which report\", \"what report\", \"how do I export\", \"where can I find\", \"I need a report for\", \"what's the difference between\", \"best report for\", \"auditor asked for\", or any question about g"
+  },
+  {
+    "name": "tres-ledger-link",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-ledger-link/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-ledger-link/SKILL.md",
+    "sha256": "c18ecbdc43668c935ed9bcac94f92e2fe886cd0bee2e449240979ab9bb271583",
+    "bytes": 8538,
+    "description": ">"
+  },
+  {
+    "name": "tres-erp-rule-suggestions",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-erp-rule-suggestions/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-erp-rule-suggestions/SKILL.md",
+    "sha256": "0c49a684b55e22cd32a449aa6a929037b3332f830c4fd27d73333660a4ac7e31",
+    "bytes": 24556,
+    "description": ">"
+  },
+  {
+    "name": "tres-settings-management",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-settings-management/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-settings-management/SKILL.md",
+    "sha256": "df085b696c8ab681b947657385528c79841e7ac21bb402346c2db909bc980ab0",
+    "bytes": 12698,
+    "description": "Manage Organization Settings and Platform Settings via the TRES MCP GraphQL API. Use when users ask about org settings, platform settings, configuration, feature flags, enable/disable platforms, balance diff, commit strategy, cost basis, ERP, pricing, sync boundaries, or any setting read/write operation. Trigger phrases include \"get settings\", \"show settings\", \"update settings\", \"change settings\", \"enable platform\", \"disable platform\", \"balance diff\", \"commit strategy\", \"cost basis strategy\", \"set min sync date\", \"configure\", \"turn on\", \"turn off\"."
+  },
+  {
+    "name": "tres-asc845-swap-reprice-skill",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-asc845-swap-reprice-skill/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-asc845-swap-reprice-skill/SKILL.md",
+    "sha256": "1a4e0cab10869a6fe04fe5021dbc74b7cd6d57aeb088b74a58ba011c9812ccff",
+    "bytes": 8962,
+    "description": ">"
+  },
+  {
+    "name": "tres-recon-gaps",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-recon-gaps/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-recon-gaps/SKILL.md",
+    "sha256": "ab6b55187415ae3e3757959e144716d064df50910fd98a091f7ed7c71dc735d5",
+    "bytes": 10241,
+    "description": ">"
+  },
+  {
+    "name": "tres-invoice-bill-matching",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-invoice-bill-matching/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/tres-finance-plugin/skills/tres-invoice-bill-matching/SKILL.md",
+    "sha256": "f5b07351d110bb5ecde7af8bb7c7aec20be6f47289db38ab51839461b2c8abdc",
+    "bytes": 19458,
+    "description": ">"
+  },
+  {
+    "name": "testdino-releases",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-releases/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-releases/SKILL.md",
+    "sha256": "5cb1f3a16ddb20c65942dda89f1d481b1a82963137cebda70a93ba40b01b3081",
+    "bytes": 1150,
+    "description": "Use when the user wants to browse, inspect, create, or update releases/milestones in a TestDino project. Covers list_releases, get_release, create_release, and update_release. Accepts counter-style IDs like MS-12."
+  },
+  {
+    "name": "testdino-health",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-health/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-health/SKILL.md",
+    "sha256": "15412b7e7aa36990d5e0dced5cdf1bc4a9fe14e0406bff21907225f0b7a7da57",
+    "bytes": 1017,
+    "description": "Use when the user wants to check TestDino connection status, validate their PAT, discover available organizations and projects, or find the right projectId. Always call this first when the project context is ambiguous before any other TestDino tool."
+  },
+  {
+    "name": "testdino-manual-tests",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-manual-tests/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-manual-tests/SKILL.md",
+    "sha256": "cdb1197e016b92111f58d1ae7fda8db5655482d9b25094e3130ce3ca52c02321",
+    "bytes": 1548,
+    "description": "Use when the user wants to create, update, or browse manual QA test cases and suites in TestDino — not execution runs. Covers list_manual_test_suites, list_manual_test_cases, get_manual_test_case, create_manual_test_case, update_manual_test_case, create_manual_test_suite."
+  },
+  {
+    "name": "testdino-audit",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-audit/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-audit/SKILL.md",
+    "sha256": "c7be610b4a647c2d89bf63642393d648092e00fa8807d41aeebf2ff58d93fdb5",
+    "bytes": 2173,
+    "description": "Use only when the user explicitly asks for a TestDino audit of Playwright automated test code. Routes through the audit tools the TestDino MCP server exposes (get_audit_report + submit_audit_report, or the legacy test_audit). For generic code review or non-Playwright targets, do a normal review instead."
+  },
+  {
+    "name": "testdino-runs",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-runs/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-runs/SKILL.md",
+    "sha256": "16e1f5efc134397eb8d914da8ccd781d5a5352291b7c42f91faed32af166dbf3",
+    "bytes": 1369,
+    "description": "Use when the user wants to inspect automated test runs, list failed or flaky tests, debug a failing testcase with historical context, or filter runs by branch, commit, author, environment, browser, status, or tags. Includes list_testruns, get_run_details, list_testcase, get_testcase_details, and debug_testcase."
+  },
+  {
+    "name": "testdino-manual-runs",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-manual-runs/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-manual-runs/SKILL.md",
+    "sha256": "0a6cf0872ee8147746f6b0c50d0e67fdf33bbbbc0b851bd1b0e92df0872227ec",
+    "bytes": 1696,
+    "description": "Use when the user wants to manage a manual execution run or update case-level results inside a run — listing runs, creating runs for a release, inspecting a run, assigning cases, or marking case results (passed/failed/blocked/skipped/retest/untested). Accepts counter-style IDs like RUN-12 and TC-156."
+  },
+  {
+    "name": "testdino-sessions",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-sessions/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-community/testdino/skills/testdino-sessions/SKILL.md",
+    "sha256": "b2216fd01b2b59133513b59a1464a4bf031c2a54c51988e4e9abeb5906434399",
+    "bytes": 1298,
+    "description": "Use when the user wants to browse, inspect, create, or update exploratory testing sessions in TestDino — by state, status, session type, assignee, release, or tags. Covers list_sessions, get_session, create_session, and update_session. Accepts counter-style IDs like SES-12."
+  },
+  {
+    "name": "access",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/skills/access/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/skills/access/SKILL.md",
+    "sha256": "6c87f59841c55a4a4f1b732c7427959581e47234f1b8c6fd633e4a5256ce6a3c",
+    "bytes": 4463,
+    "description": "Manage Telegram channel access — approve pairings, edit allowlists, set DM/group policy. Use when the user asks to pair, approve someone, check who's allowed, or change policy for the Telegram channel."
+  },
+  {
+    "name": "configure",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/skills/configure/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/telegram/skills/configure/SKILL.md",
+    "sha256": "16b06bf2ac5ede250d0c620ce4e6cf3878c9704246b8f52390fde5f280a17f73",
+    "bytes": 4308,
+    "description": "Set up the Telegram channel — save the bot token and review access policy. Use when the user pastes a Telegram bot token, asks to configure Telegram, asks \"how do I set this up\" or \"who can reach me,\" or wants to check channel status."
+  },
+  {
+    "name": "access",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/discord/skills/access/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/discord/skills/access/SKILL.md",
+    "sha256": "4fc3da872e033c37576a904b15a1bcac6b1ce6c7bc43f1f96abd7cad4855ac7a",
+    "bytes": 4357,
+    "description": "Manage Discord channel access — approve pairings, edit allowlists, set DM/group policy. Use when the user asks to pair, approve someone, check who's allowed, or change policy for the Discord channel."
+  },
+  {
+    "name": "configure",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/discord/skills/configure/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/discord/skills/configure/SKILL.md",
+    "sha256": "9364d7895d6f38b917a711128e7b391884fb8b8d69a62c7d72a81e95b6e2b948",
+    "bytes": 4324,
+    "description": "Set up the Discord channel — save the bot token and review access policy. Use when the user pastes a Discord bot token, asks to configure Discord, asks \"how do I set this up\" or \"who can reach me,\" or wants to check channel status."
+  },
+  {
+    "name": "access",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/imessage/skills/access/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/imessage/skills/access/SKILL.md",
+    "sha256": "ac994a86aab3a2724651a13a62ee9deae985196c8687a33bb79c4b7898aa5be7",
+    "bytes": 4754,
+    "description": "Manage iMessage channel access — approve pairings, edit allowlists, set DM/group policy. Use when the user asks to pair, approve someone, check who's allowed, or change policy for the iMessage channel."
+  },
+  {
+    "name": "configure",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/imessage/skills/configure/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/external_plugins/imessage/skills/configure/SKILL.md",
+    "sha256": "3afdc7e9faa36aa0ba9813dce68509c45014a75b316d366ba44c46ebd8b098aa",
+    "bytes": 3546,
+    "description": "Check iMessage channel setup and review access policy. Use when the user asks to configure iMessage, asks \"how do I set this up\" or \"who can reach me,\" or wants to know why texts aren't reaching the assistant."
+  },
+  {
+    "name": "writing-hookify-rules",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/skills/writing-rules/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/hookify/skills/writing-rules/SKILL.md",
+    "sha256": "2994b5d3152243b1a1cbf8358e9d7c18f290f31a23920647f31053c3efdf990d",
+    "bytes": 8423,
+    "description": "This skill should be used when the user asks to \"create a hookify rule\", \"write a hook rule\", \"configure hookify\", \"add a hookify rule\", or needs guidance on hookify rule syntax and patterns."
+  },
+  {
+    "name": "claude-md-improver",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/claude-md-management/skills/claude-md-improver/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/claude-md-management/skills/claude-md-improver/SKILL.md",
+    "sha256": "b06c7420be08ca1c7f6d75f7f4709fdb787624a2d363e2f8052216d8c780f85b",
+    "bytes": 6028,
+    "description": "Audit and improve CLAUDE.md files in repositories. Use when user asks to check, audit, update, improve, or fix CLAUDE.md files. Scans for all CLAUDE.md files, evaluates quality against templates, outputs quality report, then makes targeted updates. Also use when the user mentions \"CLAUDE.md maintenance\" or \"project memory optimization\"."
+  },
+  {
+    "name": "playground",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/playground/skills/playground/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/playground/skills/playground/SKILL.md",
+    "sha256": "521a3d62211e5f47b65ed17b660e001b15cf8d88d058cbf31bc00e889bcb63cc",
+    "bytes": 3824,
+    "description": "Creates interactive HTML playgrounds — self-contained single-file explorers that let users configure something visually through controls, see a live preview, and copy out a prompt. Use when the user asks to make a playground, explorer, or interactive tool for a topic."
+  },
+  {
+    "name": "session-report",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/session-report/skills/session-report/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/session-report/skills/session-report/SKILL.md",
+    "sha256": "ef0fbc4259a41b7fd61b517fb1c9a95f02b83ea3c79ba0b3afbeee4942570397",
+    "bytes": 3149,
+    "description": "Generate an explorable HTML report of Claude Code session usage (tokens, cache, subagents, skills, expensive prompts) from ~/.claude/projects transcripts."
+  },
+  {
+    "name": "skill-creator",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/skill-creator/skills/skill-creator/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/skill-creator/skills/skill-creator/SKILL.md",
+    "sha256": "dcd4803e61e913e6fc27294184cd3a71f09f5e924ff20c8a9a20173e7b3c2bcf",
+    "bytes": 33168,
+    "description": "Create new skills, modify and improve existing skills, and measure skill performance. Use when users want to create a skill from scratch, edit, or optimize an existing skill, run evals to test a skill, benchmark skill performance with variance analysis, or optimize a skill's description for better triggering accuracy."
+  },
+  {
+    "name": "project-artifact",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/project-artifact/skills/project-artifact/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/project-artifact/skills/project-artifact/SKILL.md",
+    "sha256": "34e13249dba8a066f33c5f723dbb7b9cb6174b80cc490dd866fbfd1736f0577f",
+    "bytes": 20425,
+    "description": "Generate and publish a project status artifact — an opinionated, tabbed status page for a project too big for one update (overview & success criteria, the workstream sequence, next steps, plus background, plan, risks & open questions, and decisions/FAQ when they earn a tab) — published with the built-in Artifact tool to a default-private claude.ai page the user can share with teammates. Use when a piece of work spans several workstreams and you want a shareable overview kept current. Each artifact is backed by a small per-project config in the plugin data dir, so refreshing it re-gathers live "
+  },
+  {
+    "name": "m5-onboard",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/cwc-makers/skills/m5-onboard/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/cwc-makers/skills/m5-onboard/SKILL.md",
+    "sha256": "c6ba88fd06f59a3e902fead2bb863b6834f189672cfcc75248941c23ae39bd2d",
+    "bytes": 23913,
+    "description": "End-to-end onboarding for a freshly-plugged-in M5Stack ESP32 device (Cardputer, Cardputer-Adv, Core, CoreS3, Stick) — detect on USB, flash UIFlow 2.0 firmware, and install the Claude Buddy MicroPython app bundle. Use whenever the user plugs in or wants to flash/provision/reset an M5Stack or ESP32 board, or says \"m5-onboard go\"."
+  },
+  {
+    "name": "cardputer-buddy",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/cwc-makers/skills/cardputer-buddy/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/cwc-makers/skills/cardputer-buddy/SKILL.md",
+    "sha256": "dae31d1459c8ee7b4a03d04bf55485f4ece04bdd4f5a2650ad39eb3d07d9be10",
+    "bytes": 1887,
+    "description": "Iterate on the Cardputer-Adv MicroPython app bundle (Claude Buddy, Snake, Hello) after the device is already provisioned via m5-onboard. Use when the user wants to add a new app, push a single changed .py without re-flashing, watch device serial logs, or run a one-shot REPL command. Trigger on \"add an app\", \"push to the cardputer\", \"tail the device\", \"run on the device\", or follow-up work after /maker-setup."
+  },
+  {
+    "name": "frontend-design",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/frontend-design/skills/frontend-design/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/frontend-design/skills/frontend-design/SKILL.md",
+    "sha256": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3",
+    "bytes": 9390,
+    "description": "Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated defaults."
+  },
+  {
+    "name": "build-mcp-app",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-app/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-app/SKILL.md",
+    "sha256": "d2fd94f0096506469ec855c581e48293d35480e58e6405b2bfcdba0486a0c218",
+    "bytes": 19391,
+    "description": "This skill should be used when the user wants to build an \"MCP app\", add \"interactive UI\" or \"widgets\" to an MCP server, \"render components in chat\", build \"MCP UI resources\", make a tool that shows a \"form\", \"picker\", \"dashboard\" or \"confirmation dialog\" inline in the conversation, or mentions \"apps SDK\" in the context of MCP. Use AFTER the build-mcp-server skill has settled the deployment model, or when the user already knows they want UI widgets."
+  },
+  {
+    "name": "build-mcp-server",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-server/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcp-server/SKILL.md",
+    "sha256": "088cd04be7f03ebbdfd24973cbcbf93c7a2e09117c4bba7b2b06bcc3e0a556f6",
+    "bytes": 12084,
+    "description": "This skill should be used when the user asks to \"build an MCP server\", \"create an MCP\", \"make an MCP integration\", \"wrap an API for Claude\", \"expose tools to Claude\", \"make an MCP app\", or discusses building something with the Model Context Protocol. It is the entry point for MCP server development — it interrogates the user about their use case, determines the right deployment model (remote HTTP, MCPB, local stdio), picks a tool-design pattern, and hands off to specialized skills."
+  },
+  {
+    "name": "build-mcpb",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcpb/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/mcp-server-dev/skills/build-mcpb/SKILL.md",
+    "sha256": "6bb90afd0415754e13f353ee5982d13857c14826edbcbdf5f1481fa5563cd56b",
+    "bytes": 7867,
+    "description": "This skill should be used when the user wants to \"package an MCP server\", \"bundle an MCP\", \"make an MCPB\", \"ship a local MCP server\", \"distribute a local MCP\", discusses \".mcpb files\", mentions bundling a Node or Python runtime with their MCP server, or needs an MCP server that interacts with the local filesystem, desktop apps, or OS and must be installable without the user having Node/Python set up."
+  },
+  {
+    "name": "claude-automation-recommender",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/claude-code-setup/skills/claude-automation-recommender/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/claude-code-setup/skills/claude-automation-recommender/SKILL.md",
+    "sha256": "441c57e26f0931b64dd085deaad9213c4e3efea27d916dd7443cd33c7e338227",
+    "bytes": 10995,
+    "description": "Analyze a codebase and recommend Claude Code automations (hooks, subagents, skills, plugins, MCP servers). Use when user asks for automation recommendations, wants to optimize their Claude Code setup, mentions improving Claude Code workflows, asks how to first set up Claude Code for a project, or wants to know what Claude Code features they should use."
+  },
+  {
+    "name": "receipts",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/receipts/skills/receipts/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/receipts/skills/receipts/SKILL.md",
+    "sha256": "5b2f407ff40639727310236f4b34986cacd4bf616c07d2e4198846726842e346",
+    "bytes": 17254,
+    "description": "Generate a personal Claude Code usage & impact report (\"receipts\") from this machine's local session transcripts — for justifying Claude Code usage/spend to a manager, self-review, or \"what have I been using this for\" check-ins. Mines ~/.claude/projects locally (no extra API calls beyond one final write-up), cross-references local git history, and writes a markdown report plus a self-contained HTML receipt to your home directory. Use when the user asks for \"receipts\", an \"impact report\", \"usage report\", wants to \"show my Claude Code activity\", \"prove the value of Claude Code\", or runs `/receip"
+  },
+  {
+    "name": "plugin-structure",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/plugin-structure/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/plugin-structure/SKILL.md",
+    "sha256": "a2dbc1e5502aacb360d0ca74732cdd7be4f6a12a49edf4f2ade4134fbc026247",
+    "bytes": 13796,
+    "description": "This skill should be used when the user asks to \"create a plugin\", \"scaffold a plugin\", \"understand plugin structure\", \"organize plugin components\", \"set up plugin.json\", \"use ${CLAUDE_PLUGIN_ROOT}\", \"add commands/agents/skills/hooks\", \"configure auto-discovery\", or needs guidance on plugin directory layout, manifest configuration, component organization, file naming conventions, or Claude Code plugin architecture best practices."
+  },
+  {
+    "name": "agent-development",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/agent-development/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/agent-development/SKILL.md",
+    "sha256": "6a2826571320828cc6f8f21ccd8e6eefd2bced62000c8c5e43a712c12e2d83a1",
+    "bytes": 11168,
+    "description": "This skill should be used when the user asks to \"create an agent\", \"add an agent\", \"write a subagent\", \"agent frontmatter\", \"when to use description\", \"agent examples\", \"agent tools\", \"agent colors\", \"autonomous agent\", or needs guidance on agent structure, system prompts, triggering conditions, or agent development best practices for Claude Code plugins."
+  },
+  {
+    "name": "plugin-settings",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/plugin-settings/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/plugin-settings/SKILL.md",
+    "sha256": "028b955244b937ebc1a5c268a12776b8ceae4cbfb60928fbca927227f4c8851d",
+    "bytes": 12097,
+    "description": "This skill should be used when the user asks about \"plugin settings\", \"store plugin configuration\", \"user-configurable plugin\", \".local.md files\", \"plugin state files\", \"read YAML frontmatter\", \"per-project plugin settings\", or wants to make plugin behavior configurable. Documents the .claude/plugin-name.local.md pattern for storing plugin-specific configuration with YAML frontmatter and markdown content."
+  },
+  {
+    "name": "hook-development",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/hook-development/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/hook-development/SKILL.md",
+    "sha256": "f47e2d42f6360294216a859ae0c30b93caafdd2b2e5ffc007489ba4ca447fa5c",
+    "bytes": 16246,
+    "description": "This skill should be used when the user asks to \"create a hook\", \"add a PreToolUse/PostToolUse/Stop hook\", \"validate tool use\", \"implement prompt-based hooks\", \"use ${CLAUDE_PLUGIN_ROOT}\", \"set up event-driven automation\", \"block dangerous commands\", or mentions hook events (PreToolUse, PostToolUse, Stop, SubagentStop, SessionStart, SessionEnd, UserPromptSubmit, PreCompact, Notification). Provides comprehensive guidance for creating and implementing Claude Code plugin hooks with focus on advanced prompt-based hooks API."
+  },
+  {
+    "name": "skill-development",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/skill-development/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/skill-development/SKILL.md",
+    "sha256": "d51b4e20043b13e462aa86c47ea82d43e216eb292871538127f4b12a54e4944f",
+    "bytes": 22825,
+    "description": "This skill should be used when the user wants to \"create a skill\", \"add a skill to plugin\", \"write a new skill\", \"improve skill description\", \"organize skill content\", or needs guidance on skill structure, progressive disclosure, or skill development best practices for Claude Code plugins."
+  },
+  {
+    "name": "command-development",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/command-development/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/command-development/SKILL.md",
+    "sha256": "c55ad02cfe4cbb2a947eea3b1ed5fa1871e722d627c3c6792c3ed87c10c4d7a8",
+    "bytes": 19233,
+    "description": "This skill should be used when the user asks to \"create a slash command\", \"add a command\", \"write a custom command\", \"define command arguments\", \"use command frontmatter\", \"organize commands\", \"create command with file references\", \"interactive command\", \"use AskUserQuestion in command\", or needs guidance on slash command structure, YAML frontmatter fields, dynamic arguments, bash execution in commands, user interaction patterns, or command development best practices for Claude Code."
+  },
+  {
+    "name": "mcp-integration",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/mcp-integration/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/plugin-dev/skills/mcp-integration/SKILL.md",
+    "sha256": "b9319d8e44c8f058c1c4f003168295ab2582567fd6329c8b933409116e938bc6",
+    "bytes": 12530,
+    "description": "This skill should be used when the user asks to \"add MCP server\", \"integrate MCP\", \"configure MCP in plugin\", \"use .mcp.json\", \"set up Model Context Protocol\", \"connect external service\", mentions \"${CLAUDE_PLUGIN_ROOT} with MCP\", or discusses MCP server types (SSE, stdio, HTTP, WebSocket). Provides comprehensive guidance for integrating Model Context Protocol servers into Claude Code plugins for external tool and service integration."
+  },
+  {
+    "name": "example-skill",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/example-plugin/skills/example-skill/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/example-plugin/skills/example-skill/SKILL.md",
+    "sha256": "87d90442621ace039aa3379805f99c3f95bf500e9f7b96f9e7876ac2dcf804f5",
+    "bytes": 2725,
+    "description": "This skill should be used when the user asks to \"demonstrate skills\", \"show skill format\", \"create a skill template\", or discusses skill development patterns. Provides a reference template for creating Claude Code plugin skills."
+  },
+  {
+    "name": "example-command",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/example-plugin/skills/example-command/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/example-plugin/skills/example-command/SKILL.md",
+    "sha256": "d561981660827f3818b0daec456ae5b31894f68c22407d8c495a77b3105ba96d",
+    "bytes": 1226,
+    "description": "An example user-invoked skill that demonstrates frontmatter options and the skills/<name>/SKILL.md layout"
+  },
+  {
+    "name": "claude-security",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/claude-security/skills/claude-security/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/claude-security/skills/claude-security/SKILL.md",
+    "sha256": "7e7b345240a34339d58da49dec690232023fe2382c1f9113bf3af5a46cf64ce1",
+    "bytes": 5246,
+    "description": "\"The Claude Security menu — pick a job: scan the codebase (the whole repository or a scoped part of it), scan changes (this branch's or a pull request's diff, or one commit), or suggest patches (findings turned into targeted patch files, each verified by a panel of agents, that you apply when you choose).\""
+  },
+  {
+    "name": "math-olympiad",
+    "path": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/math-olympiad/skills/math-olympiad/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/marketplaces/claude-plugins-official/plugins/math-olympiad/skills/math-olympiad/SKILL.md",
+    "sha256": "f697e195d343520f3db551bd4fb44c5120504ee2c47a9cc2016cd57767f23403",
+    "bytes": 19961,
+    "description": "\"Solve competition math problems (IMO, Putnam, USAMO, AIME) with adversarial"
+  },
+  {
+    "name": "eli5",
+    "path": "/home/kesha/.claude/plugins/cache/claude-community/eli5/1.0.0/skills/eli5/SKILL.md",
+    "canonical": "/home/kesha/.claude/plugins/cache/claude-community/eli5/1.0.0/skills/eli5/SKILL.md",
+    "sha256": "3bb95cd13852051c5a1862e8b94da1de7cfba7415d418ab0ca4d762527d1b9a5",
+    "bytes": 321,
+    "description": "Explain a topic like I'm a 5 year old. Use when the user types /eli5 <topic> or asks for a dead-simple picture explainer of how something works."
+  },
+  {
+    "name": "google-drive-comments",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-drive-comments/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-drive-comments/SKILL.md",
+    "sha256": "a3077375a8f7558b9e052c98047747b8a4a1a90a9a90b552009c28fcdadfe94a",
+    "bytes": 4315,
+    "description": "Write, reply to, and resolve Google Drive comments on Docs, Sheets, Slides, and Drive files with evidence-backed location context. Use when the user asks to leave comments, review a file with comments, respond to comment threads, or resolve Drive comments."
+  },
+  {
+    "name": "google-slides",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-slides/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-slides/SKILL.md",
+    "sha256": "fd14974d7c4ea9ff134bcc21cd32b2b1d61eeaa77c6dc757075b07eef6bedbdb",
+    "bytes": 15364,
+    "description": "Route Google Slides authoring requests and derive a design system from a native template or reference deck. Use this skill when the user provides an existing native Google Slides deck as a template, reference, or prior-period source, or asks to edit, update, repair, restyle, or clean up an existing native Google Slides deck. Use the Presentations skill instead for net-new presentation creation when no existing native Google Slides deck must be followed."
+  },
+  {
+    "name": "google-docs",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-docs/SKILL.md",
+    "sha256": "8e5c26053d800e2980b74ab82c2ce95db94a17fbb443f8f6e30baeb442f1d464",
+    "bytes": 28178,
+    "description": "Prompt- and template-complete Google Docs creation and editing with explicit-instruction-authoritative structural preservation, including semantic roles, relationships, comparison dimensions, and instructed extensions; full-topology native-copy routing; source-grounded per-tab adaptation for past/example references; style-preserving hyperlink and table edits; canonical smart-chip-first authoring for dates and relevant supported people or Google resources; a file-backed advisory trusted read before existing-document writes; automatic protected-control awareness; direct connector APIs by default"
+  },
+  {
+    "name": "google-sheets",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-sheets/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-sheets/SKILL.md",
+    "sha256": "54d160c27532e4ff610e9c5a7870fb80dc496b2d1d3f302996c21c505419c862",
+    "bytes": 9073,
+    "description": "Analyze and edit connected Google Sheets with range precision. Use when the user wants to create Google Sheets, find a spreadsheet, inspect tabs or ranges, search rows, plan formulas, create or repair charts, clean or restructure tables, write concise summaries, or make explicit cell-range updates."
+  },
+  {
+    "name": "google-drive",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-drive/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-wtNxbs/skills/google-drive/SKILL.md",
+    "sha256": "dabae8a192c861b76cf7b5742bdf14f8ed35e67d8e6cacfd5f746ffbefd6da5c",
+    "bytes": 8383,
+    "description": "Use connected Google Drive as the single entrypoint for Drive, Docs, Sheets, and Slides work. Use when the user wants to find, fetch, organize, share, export, copy, or delete Drive files, or summarize and edit Google Docs, Google Sheets, and Google Slides through one unified Google Drive plugin."
+  },
+  {
+    "name": "google-drive-comments",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-drive-comments/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-drive-comments/SKILL.md",
+    "sha256": "a3077375a8f7558b9e052c98047747b8a4a1a90a9a90b552009c28fcdadfe94a",
+    "bytes": 4315,
+    "description": "Write, reply to, and resolve Google Drive comments on Docs, Sheets, Slides, and Drive files with evidence-backed location context. Use when the user asks to leave comments, review a file with comments, respond to comment threads, or resolve Drive comments."
+  },
+  {
+    "name": "google-slides",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-slides/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-slides/SKILL.md",
+    "sha256": "fd14974d7c4ea9ff134bcc21cd32b2b1d61eeaa77c6dc757075b07eef6bedbdb",
+    "bytes": 15364,
+    "description": "Route Google Slides authoring requests and derive a design system from a native template or reference deck. Use this skill when the user provides an existing native Google Slides deck as a template, reference, or prior-period source, or asks to edit, update, repair, restyle, or clean up an existing native Google Slides deck. Use the Presentations skill instead for net-new presentation creation when no existing native Google Slides deck must be followed."
+  },
+  {
+    "name": "google-docs",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-docs/SKILL.md",
+    "sha256": "8e5c26053d800e2980b74ab82c2ce95db94a17fbb443f8f6e30baeb442f1d464",
+    "bytes": 28178,
+    "description": "Prompt- and template-complete Google Docs creation and editing with explicit-instruction-authoritative structural preservation, including semantic roles, relationships, comparison dimensions, and instructed extensions; full-topology native-copy routing; source-grounded per-tab adaptation for past/example references; style-preserving hyperlink and table edits; canonical smart-chip-first authoring for dates and relevant supported people or Google resources; a file-backed advisory trusted read before existing-document writes; automatic protected-control awareness; direct connector APIs by default"
+  },
+  {
+    "name": "google-sheets",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-sheets/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-sheets/SKILL.md",
+    "sha256": "54d160c27532e4ff610e9c5a7870fb80dc496b2d1d3f302996c21c505419c862",
+    "bytes": 9073,
+    "description": "Analyze and edit connected Google Sheets with range precision. Use when the user wants to create Google Sheets, find a spreadsheet, inspect tabs or ranges, search rows, plan formulas, create or repair charts, clean or restructure tables, write concise summaries, or make explicit cell-range updates."
+  },
+  {
+    "name": "google-drive",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-drive/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-beVpty/skills/google-drive/SKILL.md",
+    "sha256": "dabae8a192c861b76cf7b5742bdf14f8ed35e67d8e6cacfd5f746ffbefd6da5c",
+    "bytes": 8383,
+    "description": "Use connected Google Drive as the single entrypoint for Drive, Docs, Sheets, and Slides work. Use when the user wants to find, fetch, organize, share, export, copy, or delete Drive files, or summarize and edit Google Docs, Google Sheets, and Google Slides through one unified Google Drive plugin."
+  },
+  {
+    "name": "google-docs",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-IX79B4/skills/google-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-IX79B4/skills/google-docs/SKILL.md",
+    "sha256": "8e5c26053d800e2980b74ab82c2ce95db94a17fbb443f8f6e30baeb442f1d464",
+    "bytes": 28178,
+    "description": "Prompt- and template-complete Google Docs creation and editing with explicit-instruction-authoritative structural preservation, including semantic roles, relationships, comparison dimensions, and instructed extensions; full-topology native-copy routing; source-grounded per-tab adaptation for past/example references; style-preserving hyperlink and table edits; canonical smart-chip-first authoring for dates and relevant supported people or Google resources; a file-backed advisory trusted read before existing-document writes; automatic protected-control awareness; direct connector APIs by default"
+  },
+  {
+    "name": "plugin-management",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-ROLn15/skills/plugin-management/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-ROLn15/skills/plugin-management/SKILL.md",
+    "sha256": "653841cc21205269f08b0ce135891e1518dac616a766bcfb0b57d788d3f68b10",
+    "bytes": 2983,
+    "description": "Discover and suggest relevant plugins, inspect app permissions and dependencies, and manage plugin connections or removal. Use when the user asks about plugins or when a task would materially benefit from an external app, account, service, or data source that available tools cannot access."
+  },
+  {
+    "name": "google-docs",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-ZEl4W6/skills/google-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-ZEl4W6/skills/google-docs/SKILL.md",
+    "sha256": "8e5c26053d800e2980b74ab82c2ce95db94a17fbb443f8f6e30baeb442f1d464",
+    "bytes": 28178,
+    "description": "Prompt- and template-complete Google Docs creation and editing with explicit-instruction-authoritative structural preservation, including semantic roles, relationships, comparison dimensions, and instructed extensions; full-topology native-copy routing; source-grounded per-tab adaptation for past/example references; style-preserving hyperlink and table edits; canonical smart-chip-first authoring for dates and relevant supported people or Google resources; a file-backed advisory trusted read before existing-document writes; automatic protected-control awareness; direct connector APIs by default"
+  },
+  {
+    "name": "google-docs",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-YejyXw/skills/google-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-YejyXw/skills/google-docs/SKILL.md",
+    "sha256": "8e5c26053d800e2980b74ab82c2ce95db94a17fbb443f8f6e30baeb442f1d464",
+    "bytes": 28178,
+    "description": "Prompt- and template-complete Google Docs creation and editing with explicit-instruction-authoritative structural preservation, including semantic roles, relationships, comparison dimensions, and instructed extensions; full-topology native-copy routing; source-grounded per-tab adaptation for past/example references; style-preserving hyperlink and table edits; canonical smart-chip-first authoring for dates and relevant supported people or Google resources; a file-backed advisory trusted read before existing-document writes; automatic protected-control awareness; direct connector APIs by default"
+  },
+  {
+    "name": "google-drive",
+    "path": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-YejyXw/skills/google-drive/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/.remote-plugin-install-staging/remote-plugin-bundle-YejyXw/skills/google-drive/SKILL.md",
+    "sha256": "dabae8a192c861b76cf7b5742bdf14f8ed35e67d8e6cacfd5f746ffbefd6da5c",
+    "bytes": 8383,
+    "description": "Use connected Google Drive as the single entrypoint for Drive, Docs, Sheets, and Slides work. Use when the user wants to find, fetch, organize, share, export, copy, or delete Drive files, or summarize and edit Google Docs, Google Sheets, and Google Slides through one unified Google Drive plugin."
+  },
+  {
+    "name": "artifact-template-simple-light-mode",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode/SKILL.md",
+    "sha256": "7c68430c6cf57b55b457d4735dbd1a46b889bef135a32222902dd0848b6e1752",
+    "bytes": 1487,
+    "description": "\"Create a presentation using the Simple Light Mode template and its retained reference file. Use when the user selects or names Simple Light Mode. Create clean light-mode presentations with spacious typography, simple sections, charts, and imagery.\""
+  },
+  {
+    "name": "artifact-template-design-report",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report/SKILL.md",
+    "sha256": "563722f53854e606f8a9f87e37e72d7ef70a22d46d5836b8e4d6abfb1b79e9e0",
+    "bytes": 1437,
+    "description": "\"Create a document using the Design Report template and its retained reference file. Use when the user selects or names Design Report. Produce design reports with an executive summary, key findings, implications, recommendations, and appendix.\""
+  },
+  {
+    "name": "artifact-template-experiment-analysis",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis/SKILL.md",
+    "sha256": "0b05effc47df0a14f8e0c3e3597e6722224747435546385d38a2cae279bd20b9",
+    "bytes": 1456,
+    "description": "\"Create a document using the Experiment Analysis template and its retained reference file. Use when the user selects or names Experiment Analysis. Analyze experiments with hypotheses, methodology, results, interpretation, limitations, and next steps.\""
+  },
+  {
+    "name": "artifact-template-analytics-dashboard",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard/SKILL.md",
+    "sha256": "cf5360fd8b197673bb237c52c603c97fa319c875c3dfa2cd8efff52d4422f513",
+    "bytes": 1497,
+    "description": "\"Create a spreadsheet using the Analytics Dashboard template and its retained reference file. Use when the user selects or names Analytics Dashboard. Monitor acquisition, engagement, retention, revenue, and conversion funnel KPIs with charts.\""
+  },
+  {
+    "name": "artifact-template-system-design",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design/SKILL.md",
+    "sha256": "87f7b7ed1b0d8410f5e5971cd7f7db9a4165e2f37069e97e52dbfb469b75a57c",
+    "bytes": 1445,
+    "description": "\"Create a document using the System Design template and its retained reference file. Use when the user selects or names System Design. Document system architecture, requirements, components, data flows, APIs, tradeoffs, and operational considerations.\""
+  },
+  {
+    "name": "artifact-template-sales-pipeline",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline/SKILL.md",
+    "sha256": "15cfeeedf440021f16ed3f3ad8c7c1ef6d48898b9447741e223d2fb41cfc9800",
+    "bytes": 1482,
+    "description": "\"Create a spreadsheet using the Sales Pipeline template and its retained reference file. Use when the user selects or names Sales Pipeline. Track opportunities, stages, owners, deal sizes, probabilities, forecasts, next steps, and risks.\""
+  },
+  {
+    "name": "artifact-template-operating-calendar",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar/SKILL.md",
+    "sha256": "33bb660791a0b9a21628a42c34934932220203b6aabd84e98cb1b45327d0384c",
+    "bytes": 1500,
+    "description": "\"Create a spreadsheet using the Operating Calendar template and its retained reference file. Use when the user selects or names Operating Calendar. Plan annual and monthly operating milestones, campaigns, launches, deadlines, and recurring events.\""
+  },
+  {
+    "name": "artifact-template-market-trends-report",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report/SKILL.md",
+    "sha256": "d58d019b89cb6f292ac3ab991d561489eef477ff53ce05fb024a0c936f5af26a",
+    "bytes": 1498,
+    "description": "\"Create a presentation using the Market Trends Report template and its retained reference file. Use when the user selects or names Market Trends Report. Communicate market or industry trends, supporting evidence, implications, and recommended responses.\""
+  },
+  {
+    "name": "artifact-template-three-statement-forecast",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast/SKILL.md",
+    "sha256": "74f4a5cccec0107b861548b157e04c51d9b58ec13a990c86394b4c529b8ecf41",
+    "bytes": 1552,
+    "description": "\"Create a spreadsheet using the Three-Statement Forecast template and its retained reference file. Use when the user selects or names Three-Statement Forecast. Build an integrated income statement, balance sheet, and cash flow forecast with assumptions, checks, and an executive summary.\""
+  },
+  {
+    "name": "artifact-template-minimal-letterhead",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead/SKILL.md",
+    "sha256": "880ef094d4d0c89a7bde5ce9bbe4086625c186651e9e6efc8ba8bdd7cc77f9d5",
+    "bytes": 1470,
+    "description": "\"Create a document using the Minimal Letterhead template and its retained reference file. Use when the user selects or names Minimal Letterhead. Write professional business letters with sender, recipient, message, and signature fields in a minimal letterhead layout.\""
+  },
+  {
+    "name": "artifact-template-project-kickoff",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff/SKILL.md",
+    "sha256": "aa893ebd89e7c8d1db4261d01cc2b1add35d78d00785871ccaaa5fc8db783ec9",
+    "bytes": 1463,
+    "description": "\"Create a presentation using the Project Kickoff template and its retained reference file. Use when the user selects or names Project Kickoff. Align teams on project goals, scope, roles, milestones, risks, and the working model.\""
+  },
+  {
+    "name": "artifact-template-investment-committee-memo",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo/SKILL.md",
+    "sha256": "68abd08cfe5e073e3c446a3f675f44c5bf98f57434dba679e8acd8a763379a8b",
+    "bytes": 1496,
+    "description": "\"Create a document using the Investment Committee Memo template and its retained reference file. Use when the user selects or names Investment Committee Memo. Prepare investment committee memos with the thesis, transaction details, financial analysis, risks, and recommendation.\""
+  },
+  {
+    "name": "artifact-template-project-tracker",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker/SKILL.md",
+    "sha256": "d97d5be20189b7f53dd269b6e1c5f694eaf53e5a72f6559fcb1578911b7cda82",
+    "bytes": 1484,
+    "description": "\"Create a spreadsheet using the Project Tracker template and its retained reference file. Use when the user selects or names Project Tracker. Manage workstreams, tasks, owners, status, priority, dates, launch pulse, and a Gantt schedule.\""
+  },
+  {
+    "name": "artifact-template-strategy-memorandum",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum/SKILL.md",
+    "sha256": "51d7882ac94e8e57b323394825728c33925af878806e37277217c2dc12a912e5",
+    "bytes": 1446,
+    "description": "\"Create a document using the Strategy Memorandum template and its retained reference file. Use when the user selects or names Strategy Memorandum. Present strategic context, choices, rationale, risks, milestones, and a clear recommendation.\""
+  },
+  {
+    "name": "artifact-template-financial-budget",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget/SKILL.md",
+    "sha256": "c0b6b7a62a15597aaf2b1ec679e21da48f533b756127f0aef957cdfe9f3da738",
+    "bytes": 1486,
+    "description": "\"Create a spreadsheet using the Financial Budget template and its retained reference file. Use when the user selects or names Financial Budget. Model actuals, budget and scenario forecasts, variances, cash runway, and departmental plans.\""
+  },
+  {
+    "name": "artifact-template-legal-memorandum",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum/SKILL.md",
+    "sha256": "51fb9d21baf6119c4ccb1903638a6bac0e859210de63460fffa7025d52e997e0",
+    "bytes": 1434,
+    "description": "\"Create a document using the Legal Memorandum template and its retained reference file. Use when the user selects or names Legal Memorandum. Draft legal memoranda with the issue, brief answer, relevant facts, analysis, and conclusion.\""
+  },
+  {
+    "name": "artifact-template-operating-review",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review/SKILL.md",
+    "sha256": "6d63c5cd025ffe936e7bab5db3023672bbaec26af55c2bb8b057d38c202c9c32",
+    "bytes": 1483,
+    "description": "\"Create a presentation using the Operating Review template and its retained reference file. Use when the user selects or names Operating Review. Run weekly operating reviews with scorecards, functional updates, risks, decisions, and action items.\""
+  },
+  {
+    "name": "artifact-template-business-review",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review/SKILL.md",
+    "sha256": "27721fc1d67d1b41949caa75ac8f94f81952ff124406878af6524047929e60d2",
+    "bytes": 1475,
+    "description": "\"Create a presentation using the Business Review template and its retained reference file. Use when the user selects or names Business Review. Review business performance, KPIs, segment results, strategic priorities, decisions, and outlook.\""
+  },
+  {
+    "name": "artifact-template-team-alignment",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment/SKILL.md",
+    "sha256": "26d7cafdcd1899a937b325c5d02ac57c162d45002153be33a934d35f81eb6110",
+    "bytes": 1473,
+    "description": "\"Create a presentation using the Team Alignment template and its retained reference file. Use when the user selects or names Team Alignment. Facilitate team offsites and planning with context, goals, priorities, decisions, and action items.\""
+  },
+  {
+    "name": "artifact-template-simple-dark-mode",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode/SKILL.md",
+    "sha256": "b7c8d0c05f75878b9bc21e56a57c41ec1aa29700aca0a24822be0f9f1bd53207",
+    "bytes": 1478,
+    "description": "\"Create a presentation using the Simple Dark Mode template and its retained reference file. Use when the user selects or names Simple Dark Mode. Create clean dark-mode presentations with bold typography, simple sections, charts, and imagery.\""
+  },
+  {
+    "name": "google-drive-comments",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-drive-comments/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-drive-comments/SKILL.md",
+    "sha256": "a3077375a8f7558b9e052c98047747b8a4a1a90a9a90b552009c28fcdadfe94a",
+    "bytes": 4315,
+    "description": "Write, reply to, and resolve Google Drive comments on Docs, Sheets, Slides, and Drive files with evidence-backed location context. Use when the user asks to leave comments, review a file with comments, respond to comment threads, or resolve Drive comments."
+  },
+  {
+    "name": "google-slides",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-slides/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-slides/SKILL.md",
+    "sha256": "fd14974d7c4ea9ff134bcc21cd32b2b1d61eeaa77c6dc757075b07eef6bedbdb",
+    "bytes": 15364,
+    "description": "Route Google Slides authoring requests and derive a design system from a native template or reference deck. Use this skill when the user provides an existing native Google Slides deck as a template, reference, or prior-period source, or asks to edit, update, repair, restyle, or clean up an existing native Google Slides deck. Use the Presentations skill instead for net-new presentation creation when no existing native Google Slides deck must be followed."
+  },
+  {
+    "name": "google-docs",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-docs/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-docs/SKILL.md",
+    "sha256": "8e5c26053d800e2980b74ab82c2ce95db94a17fbb443f8f6e30baeb442f1d464",
+    "bytes": 28178,
+    "description": "Prompt- and template-complete Google Docs creation and editing with explicit-instruction-authoritative structural preservation, including semantic roles, relationships, comparison dimensions, and instructed extensions; full-topology native-copy routing; source-grounded per-tab adaptation for past/example references; style-preserving hyperlink and table edits; canonical smart-chip-first authoring for dates and relevant supported people or Google resources; a file-backed advisory trusted read before existing-document writes; automatic protected-control awareness; direct connector APIs by default"
+  },
+  {
+    "name": "google-sheets",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-sheets/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-sheets/SKILL.md",
+    "sha256": "54d160c27532e4ff610e9c5a7870fb80dc496b2d1d3f302996c21c505419c862",
+    "bytes": 9073,
+    "description": "Analyze and edit connected Google Sheets with range precision. Use when the user wants to create Google Sheets, find a spreadsheet, inspect tabs or ranges, search rows, plan formulas, create or repair charts, clean or restructure tables, write concise summaries, or make explicit cell-range updates."
+  },
+  {
+    "name": "google-drive",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-drive/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/google-drive/0.1.16/skills/google-drive/SKILL.md",
+    "sha256": "dabae8a192c861b76cf7b5742bdf14f8ed35e67d8e6cacfd5f746ffbefd6da5c",
+    "bytes": 8383,
+    "description": "Use connected Google Drive as the single entrypoint for Drive, Docs, Sheets, and Slides work. Use when the user wants to find, fetch, organize, share, export, copy, or delete Drive files, or summarize and edit Google Docs, Google Sheets, and Google Slides through one unified Google Drive plugin."
+  },
+  {
+    "name": "deep-research",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/deep-research-work/0.1.14/skills/deep-research/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/deep-research-work/0.1.14/skills/deep-research/SKILL.md",
+    "sha256": "c7b924a736d715bf90941c5e75460b3387ec90b1fdb3a7c79d3e9bfb10427dc6",
+    "bytes": 12344,
+    "description": "Conduct thorough research using authoritative sources and produce evidence-backed findings with citations. Use this skill only when the user asks specifically for Deep research, uses $deep-research, or selects Deep research in Work mode. Do not use it for ordinary research requests."
+  },
+  {
+    "name": "plugin-management",
+    "path": "/home/kesha/.codex/plugins/cache/openai-curated-remote/plugin-management/0.1.0/skills/plugin-management/SKILL.md",
+    "canonical": "/home/kesha/.codex/plugins/cache/openai-curated-remote/plugin-management/0.1.0/skills/plugin-management/SKILL.md",
+    "sha256": "653841cc21205269f08b0ce135891e1518dac616a766bcfb0b57d788d3f68b10",
+    "bytes": 2983,
+    "description": "Discover and suggest relevant plugins, inspect app permissions and dependencies, and manage plugin connections or removal. Use when the user asks about plugins or when a task would materially benefit from an external app, account, service, or data source that available tools cannot access."
+  }
+]
