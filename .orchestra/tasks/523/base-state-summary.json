@@ -1,0 +1,34 @@
+{
+  "path": "/home/kesha/.codex/state_5.sqlite",
+  "bytes": 232497152,
+  "pages": 56762,
+  "free_pages": 123,
+  "page_size": 4096,
+  "tables": [
+    "_sqlx_migrations",
+    "threads",
+    "sqlite_sequence",
+    "thread_dynamic_tools",
+    "backfill_state",
+    "thread_spawn_edges",
+    "remote_control_enrollments",
+    "external_agent_config_imports",
+    "thread_sections",
+    "rollout_migration_state",
+    "rollout_migration_skipped_rollouts",
+    "projects",
+    "project_roots",
+    "project_idempotency_keys",
+    "thread_artifacts"
+  ],
+  "threads": 794,
+  "backfill": [
+    [
+      1,
+      "complete",
+      null,
+      1785740237,
+      1785740237
+    ]
+  ]
+}

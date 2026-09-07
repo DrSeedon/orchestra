@@ -1,0 +1,9 @@
+{
+  "base_bytes": 232497152,
+  "private_state_plus_wal_bytes": 2826328,
+  "saved_bytes": 229670824,
+  "saved_decimal_MB": 229.670824,
+  "saved_MiB": 219.03116607666016,
+  "private_home_total_bytes": 34421565,
+  "shared_timeout_state_plus_wal_bytes": 229442528
+}

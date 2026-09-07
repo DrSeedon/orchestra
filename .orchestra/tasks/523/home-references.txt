@@ -1,0 +1,26 @@
+app/backend_codex.py:311:_CODEX_HOME_ROOT = Path.home() / ".orchestra" / "codex-home"
+app/backend_codex.py:402:def _base_codex_home() -> Path:
+app/backend_codex.py:610:    base = _base_codex_home() / "state_5.sqlite"
+app/backend_codex.py:612:    if _CODEX_HOME_ROOT.is_dir():
+app/backend_codex.py:621:                for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite")
+app/backend_codex.py:747:    base = _base_codex_home() / "config.toml"
+app/backend_codex.py:813:        # #224: приватный CODEX_HOME этого агента; готовится лениво в _prepare_codex_home,
+app/backend_codex.py:815:        self._codex_home: Path | None = None
+app/backend_codex.py:903:            catalog = json.loads((_base_codex_home() / "models_cache.json").read_text())
+app/backend_codex.py:1033:        home = self._managed_codex_home_path()
+app/backend_codex.py:2629:            root = Path(self._codex_home or _base_codex_home()).expanduser()
+app/backend_codex.py:2696:        `$CODEX_HOME/config.toml` с правами 600 (`_prepare_codex_home`). Держать вторую
+app/backend_codex.py:2757:    def _managed_codex_home_path(self) -> Path | None:
+app/backend_codex.py:2770:        return _CODEX_HOME_ROOT / session_id
+app/backend_codex.py:2772:    def _prepare_codex_home(self) -> Path:
+app/backend_codex.py:2779:        home = self._managed_codex_home_path()
+app/backend_codex.py:2787:            self._codex_home = _base_codex_home()
+app/backend_codex.py:2788:            return self._codex_home
+app/backend_codex.py:2790:        os.chmod(_CODEX_HOME_ROOT, 0o700)
+app/backend_codex.py:2800:        base_sessions = _base_codex_home() / "sessions"
+app/backend_codex.py:2819:        base_auth = _base_codex_home() / "auth.json"
+app/backend_codex.py:2836:        self._codex_home = home
+app/backend_codex.py:2841:        home = self._prepare_codex_home()
+app/backend_codex.py:2852:        if self._managed_codex_home_path() is None:
+app/backend_codex.py:2878:        env["CODEX_HOME"] = str(self._codex_home or self._prepare_codex_home())
+scripts/wf_adapters.py:284:        private_home = root / f".wf-codex-home-{uuid4().hex}"

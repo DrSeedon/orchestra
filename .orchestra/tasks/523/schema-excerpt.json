@@ -1,0 +1,30 @@
+{
+  "source_command": "codex app-server generate-json-schema --experimental --out data/523/schema",
+  "CLI": "0.153.4",
+  "ThreadStartParams": {
+    "ephemeral": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "historyMode": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/ThreadHistoryMode"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Persisted thread history contract to use for this new thread."
+    }
+  },
+  "ThreadHistoryMode": {
+    "enum": [
+      "legacy",
+      "paginated"
+    ],
+    "type": "string"
+  }
+}

@@ -1,0 +1,4 @@
+{"module": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/codex-home-audit/app/backend_codex.py", "home": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/codex-home-audit/data/523/homes/shared-1788710328152244143", "mode": "shared", "initial": {"state_5.sqlite": 0, "state_5.sqlite-wal": 0}}
+Codex verified process scope unavailable; direct launch remains enabled but hibernation is disabled: RuntimeError: systemd user bus is unavailable: /run/user/1001/bus
+{"error": "TimeoutError", "detail": ""}
+{"elapsed": 43.12916574021801, "final": {"state_5.sqlite": 225058816, "state_5.sqlite-wal": 4383712, "threads": 389, "backfill": [[1, "running", "sessions/2026/08/11/rollout-2026-08-11T20-17-53-019ff20b-9730-7180-a737-79ac4ecef03a.jsonl", null, 1788710354]]}}

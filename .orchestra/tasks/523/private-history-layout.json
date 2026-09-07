@@ -1,0 +1,77 @@
+{
+  "state_5.sqlite": {
+    "tables": [
+      [
+        "_sqlx_migrations"
+      ],
+      [
+        "threads"
+      ],
+      [
+        "sqlite_sequence"
+      ],
+      [
+        "thread_dynamic_tools"
+      ],
+      [
+        "backfill_state"
+      ],
+      [
+        "thread_spawn_edges"
+      ],
+      [
+        "remote_control_enrollments"
+      ],
+      [
+        "external_agent_config_imports"
+      ],
+      [
+        "thread_sections"
+      ],
+      [
+        "rollout_migration_state"
+      ],
+      [
+        "rollout_migration_skipped_rollouts"
+      ],
+      [
+        "projects"
+      ],
+      [
+        "project_roots"
+      ],
+      [
+        "project_idempotency_keys"
+      ],
+      [
+        "thread_artifacts"
+      ]
+    ],
+    "threads": [
+      [
+        "01a07770-f335-7eb1-81dc-8c3f2ef19b34",
+        "paginated",
+        "/home/kesha/orchestra/worktrees/home-kesha-orchestra/codex-home-audit/data/523/homes/private-1788710284481893475/sessions/2026/09/06/rollout-2026-09-06T17-58-06-01a07770-f335-7eb1-81dc-8c3f2ef19b34.jsonl"
+      ]
+    ]
+  },
+  "thread_history_1.sqlite": {
+    "tables": [
+      [
+        "_sqlx_migrations"
+      ],
+      [
+        "thread_turns"
+      ],
+      [
+        "thread_items"
+      ],
+      [
+        "thread_history_projection_state"
+      ],
+      [
+        "thread_realtime_items"
+      ]
+    ]
+  }
+}
