@@ -1538,18 +1538,13 @@ async def build_quota_map() -> dict:
         return {"data_available": False, "error": "owner_mode_only"}
     from app.models import MODELS
     from app.quota_gate import (
-        HARD_STOP_PCT,
         QUOTA_OBSERVATION_MAX_AGE,
-        TOLERANCE_END_PP,
-        TOLERANCE_START_PP,
-        GATED_LANES,
-        CURVED_LANES,
-        CURVE_EXPONENT,
         LANE_LABELS,
         deciding_window,
         evaluate_worker_admission,
         line_limit,
         parse_quota_timestamp,
+        quota_policy,
         tolerance_pp,
         window_progress,
     )
@@ -1559,6 +1554,7 @@ async def build_quota_map() -> dict:
     providers = observation.get("providers") or {}
     timestamps = observation.get("observed_at_by_provider") or {}
     now = time.time()
+    policy = quota_policy()
 
     bucket_labels = {
         "anthropic": "Claude", "codex": "Codex", "codex_spark": "Codex Spark",
@@ -1568,7 +1564,9 @@ async def build_quota_map() -> dict:
     lanes_by_bucket: dict[str, dict[str, dict]] = {}
     outside_policy = []
     for model_id, model_label in MODELS.items():
-        decision = evaluate_worker_admission(model_id, providers, timestamps, now=now)
+        decision = evaluate_worker_admission(
+            model_id, providers, timestamps, now=now, policy=policy,
+        )
         item = {
             **decision.to_dict(),
             "label": model_label,
@@ -1583,10 +1581,10 @@ async def build_quota_map() -> dict:
             {
                 "lane": decision.lane,
                 "label": LANE_LABELS.get(decision.lane, decision.lane),
-                "gated": decision.lane in GATED_LANES,
+                "gated": decision.lane in policy.gated_lanes,
                 # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
-                "curved": decision.lane in CURVED_LANES,
+                "curved": decision.lane in policy.curved_lanes,
                 "limit_pct": decision.limit_pct,
                 "headroom_pp": (
                     None
@@ -1798,11 +1796,11 @@ async def build_quota_map() -> dict:
             and isinstance(gating.get("utilization"), (int, float)),
             "window": gating,
             "reference_windows": reference,
-            "tolerance_pp": None if progress is None else tolerance_pp(progress),
+            "tolerance_pp": None if progress is None else tolerance_pp(progress, policy),
             # Справочная прямая пула, а НЕ порог, по которому блокируют: полосы у него
             # разные (Sol идёт по кривой), и оба потребителя — гейт и панель — читают
             # `lanes[].limit_pct`. Нарисовать это число значит вернуть то самое расхождение.
-            "limit_pct": None if progress is None else line_limit(progress),
+            "limit_pct": None if progress is None else line_limit(progress, policy=policy),
             "trace": {},
             "lanes": sorted(
                 lanes_by_bucket.get(bucket, {}).values(),
@@ -1820,11 +1818,11 @@ async def build_quota_map() -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
         "rule": {
-            "hard_stop_pct": HARD_STOP_PCT,
-            "tolerance_start_pp": TOLERANCE_START_PP,
-            "tolerance_end_pp": TOLERANCE_END_PP,
-            "curve_exponent": CURVE_EXPONENT,
-            "curved_lanes": sorted(CURVED_LANES),
+            "hard_stop_pct": policy.hard_stop_pct,
+            "tolerance_start_pp": policy.tolerance_start_pp,
+            "tolerance_end_pp": policy.tolerance_end_pp,
+            "curve_exponent": policy.curve_exponent,
+            "curved_lanes": sorted(policy.curved_lanes),
         },
         "buckets": buckets,
         "outside_policy": outside_policy,
