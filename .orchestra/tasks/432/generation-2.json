@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "generation": "g2-clean-20260901",
+  "status": "FROZEN_WAITING_FOR_MAIN_GREEN",
+  "authorized_by": "Orchestra-orchestrator",
+  "model": "gpt-5.6-luna",
+  "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+  "oracle_manifest": "docs/tasks/432/oracles/manifest.json",
+  "oracle_manifest_sha256": "29cbc390dbc01adbbcf628f35bf2b74e934d7e8dec35780fb2d4f9913a7df2b9",
+  "bundle_cap_bytes": 262144,
+  "denominator_pairs": 24,
+  "role_jobs": {
+    "canary": 1,
+    "positive_control": 3,
+    "baseline_noise": 12,
+    "main_pairs": 72,
+    "cold_controls": 9,
+    "zero_retrieval_control": 3,
+    "total": 100
+  },
+  "chunk_contract": {
+    "unit": "one Luna role session plus its deterministic judge",
+    "max_roles_per_bg_job": 1,
+    "checkpoint_before_provider": "STARTED",
+    "checkpoint_after_terminal_and_judge": "COMPLETED",
+    "started_after_restart": "AMBIGUOUS; never auto-retry",
+    "mix_prior_generation": false
+  },
+  "empirical_role_duration_minutes": {
+    "n": 20,
+    "median": 5.21,
+    "p90": 16.29,
+    "max": 19.81
+  },
+  "estimated_api_equivalent_usd": {
+    "median_role_projection": 7.41084684,
+    "mean_role_projection": 7.935403393333333,
+    "observed_role_minmax_projection": [4.31255308, 12.35545452],
+    "basis": {
+      "A_main_samples": 8,
+      "B_scout_samples": 3,
+      "B_main_samples": 3
+    }
+  }
+}

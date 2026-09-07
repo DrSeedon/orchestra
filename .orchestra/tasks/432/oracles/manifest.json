@@ -1,0 +1,332 @@
+{
+  "schema_version": 1,
+  "episodes": [
+    {
+      "task": 364,
+      "snapshot": "aa9bfb524bfa02f452476d55e6a6ccba25dc2a54",
+      "result_commit": "382bd22",
+      "oracle_id": "oracle-364-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state tests/test_frontend.py::test_indexeddb_record_epoch_rejects_old_tab_recontamination tests/test_frontend.py::test_indexeddb_schema_repair_runs_for_each_origin",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/364/tests/test_frontend.py",
+          "target": "tests/test_frontend.py",
+          "sha256": "46cb2e3b146d202452b4225a4686c02bbbf28e156ab114e52a0db84fb0d04bb4"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "aa9bfb524bfa02f452476d55e6a6ccba25dc2a54",
+        "trigger_prompt_sha": "32d742b5560d"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       assert [1, 2, 3, 4, 5, 6, ...] == [1001, 1002, ...05, 1006, ...]"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "4 passed in 25.89s"
+      }
+    },
+    {
+      "task": 396,
+      "snapshot": "10ea6f0a2994c05c57190dbe8598f9a3ba4f6e10",
+      "result_commit": "4c1dfe9",
+      "oracle_id": "oracle-396-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_limits_card.py::test_card_and_chat_use_the_same_headroom_window_count tests/test_limits_card.py::test_quota_headroom_rejects_non_finite_or_boolean_values tests/test_limits_card.py::test_quota_headroom_caches_history_for_sixty_seconds",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/396/tests/test_limits_card.py",
+          "target": "tests/test_limits_card.py",
+          "sha256": "4fecb1ec8c101eebe68be7dae310abff021d986daf3458562dd68bc70ecd3922"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "10ea6f0a2994c05c57190dbe8598f9a3ba4f6e10",
+        "trigger_prompt_sha": "d8b46d33f24b"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       KeyError: 'week'"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "3 passed in 5.61s"
+      }
+    },
+    {
+      "task": 397,
+      "snapshot": "ea27d1adeef82da9c4f71716787a65fac8a3ca7a",
+      "result_commit": "33660cf",
+      "oracle_id": "oracle-397-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_frontend.py::test_chat_timeline_navigates_final_agent_answers_only",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/397/tests/test_frontend.py",
+          "target": "tests/test_frontend.py",
+          "sha256": "f83a9b9ec7687d8aad8cf5088803a78b2601e613925c6d9223684eee3fdcc77f"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "ea27d1adeef82da9c4f71716787a65fac8a3ca7a",
+        "trigger_prompt_sha": "913acfb440d3"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms exceeded."
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "1 passed in 21.11s"
+      }
+    },
+    {
+      "task": 398,
+      "snapshot": "da35ecb1d96b6155ac5124bb34b1dd83c1671c19",
+      "result_commit": "41d7182",
+      "oracle_id": "oracle-398-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_merge_operations.py::test_post_commit_failure_keeps_git_status_succeeded tests/test_task_tracker_integration.py::test_t3_links_survive_late_finalizer_failure",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/398/tests/test_merge_operations.py",
+          "target": "tests/test_merge_operations.py",
+          "sha256": "c8bb4fc0dc051e22a43f48b967a44fb7ab24a17502ad7dd8fb8b5534e2b5c7af"
+        },
+        {
+          "path": ".orchestra/tasks/432/oracles/398/tests/test_task_tracker_integration.py",
+          "target": "tests/test_task_tracker_integration.py",
+          "sha256": "7d6d9521cd99aab1ff10a69257665b46ea96b1329fda19ae1179c2e654ae7f0a"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "da35ecb1d96b6155ac5124bb34b1dd83c1671c19",
+        "trigger_prompt_sha": "56ee7b1c93a4"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       AssertionError: assert 'FAILED' == 'SUCCEEDED'"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "2 passed in 7.72s"
+      }
+    },
+    {
+      "task": 401,
+      "snapshot": "7800ef33ee202cdf672fd7451c35393f30194aa4",
+      "result_commit": "507b63d",
+      "oracle_id": "oracle-401-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_delivery_head_of_line_block.py::test_delivery_unknown_head_does_not_send_later_message tests/test_message_delivery_receipts_380.py::test_t401_quota_refusal_is_returned_before_receipt_or_user_log",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/401/tests/test_delivery_head_of_line_block.py",
+          "target": "tests/test_delivery_head_of_line_block.py",
+          "sha256": "1d2c1dd56a95fe7e2e91e1a6f10ffc27861a05e64af3fc3ef3341ab079c49b4c"
+        },
+        {
+          "path": ".orchestra/tasks/432/oracles/401/tests/test_message_delivery_receipts_380.py",
+          "target": "tests/test_message_delivery_receipts_380.py",
+          "sha256": "0335beb41869a6e81ed241029a8be6e9080044c3f6c45cedb18d362c26d9c6f1"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "7800ef33ee202cdf672fd7451c35393f30194aa4",
+        "trigger_prompt_sha": "bd1bc4a59b31"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       AssertionError: assert 202 == 429"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "2 passed in 9.10s"
+      }
+    },
+    {
+      "task": 412,
+      "snapshot": "9664a9b009df5eb8a68d40c37d1810db7ac15bb1",
+      "result_commit": "9d55266",
+      "oracle_id": "oracle-412-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_tg_bridge.py::TestTurnEndMention::test_exact_silent_turn_marker_is_not_delivered_or_mentioned tests/test_tg_bridge.py::TestTurnEndMention::test_silent_turn_with_actions_keeps_completion_anchor",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/412/tests/test_tg_bridge.py",
+          "target": "tests/test_tg_bridge.py",
+          "sha256": "abc6471686a719c31480631a509afcd3232c9e99c5b6348f73b59c382dbf8142"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "9664a9b009df5eb8a68d40c37d1810db7ac15bb1",
+        "trigger_prompt_sha": "1950e55576c8"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       AssertionError: [{'entities': None, 'important': True, 'text': '━━━━━━━━━━━━━━━━━━━"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "2 passed in 5.56s"
+      }
+    },
+    {
+      "task": 413,
+      "snapshot": "9664a9b009df5eb8a68d40c37d1810db7ac15bb1",
+      "result_commit": "43a96ed",
+      "oracle_id": "oracle-413-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_merge_operations.py::test_normalize_rejects_zero_commit_noop_even_when_upstream_is_failed tests/test_workspace.py::TestMergeTarget::test_same_target_and_worker_tip_is_rejected_with_both_branches",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/413/tests/test_merge_operations.py",
+          "target": "tests/test_merge_operations.py",
+          "sha256": "0e628075bda727097674dc05d0833639efd7d5a044d16b072fc6874042b5ac81"
+        },
+        {
+          "path": ".orchestra/tasks/432/oracles/413/tests/test_workspace.py",
+          "target": "tests/test_workspace.py",
+          "sha256": "9735c5b83958933a46fb6ad81f465e780476403c371a981d86fa79230aae772d"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "9664a9b009df5eb8a68d40c37d1810db7ac15bb1",
+        "trigger_prompt_sha": "341a46640127"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       AssertionError: assert 'PARTIAL' == 'FAILED'"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "2 passed in 7.55s"
+      }
+    },
+    {
+      "task": 415,
+      "snapshot": "a10f145178d278e3a6282e760bdb9b6ea41397ef",
+      "result_commit": "e896a4b",
+      "oracle_id": "oracle-415-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python docs/tasks/432-oracle/test_oracle_415.py",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/415/docs/tasks/432-oracle/test_oracle_415.py",
+          "target": "docs/tasks/432-oracle/test_oracle_415.py",
+          "sha256": "e7f8f61e220166dd59bb56f56af3b621b7406924caad76fe407f6273eddffb69"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "a10f145178d278e3a6282e760bdb9b6ea41397ef",
+        "trigger_prompt_sha": "b3fa64fa9b77"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: AssertionError: missing behavior: test_send_delegates_auto_switch_to_manager does not request isolated db fixture"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": ""
+      }
+    },
+    {
+      "task": 416,
+      "snapshot": "7b88364629283fdf322444102874503146541a80",
+      "result_commit": "68a6c12",
+      "oracle_id": "oracle-416-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_api.py::TestTaskProjectIdentity::test_create_defaults_to_callers_mapped_scope tests/test_api.py::TestTaskProjectIdentity::test_create_accepts_registered_scope_as_explicit_project",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/416/tests/test_api.py",
+          "target": "tests/test_api.py",
+          "sha256": "976419f9749141f4c765959b2812ba94de97ffbcdb291326c0d9ad6039d05a04"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "7b88364629283fdf322444102874503146541a80",
+        "trigger_prompt_sha": "b8b036eb37a6"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       assert 400 == 200"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "2 passed in 15.45s"
+      }
+    },
+    {
+      "task": 417,
+      "snapshot": "697e24c21f93ff7b26c325195e17ef9be38ab041",
+      "result_commit": "96522c9",
+      "oracle_id": "oracle-417-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_task_binding_417.py::test_bind_task_repairs_split_session_binding tests/test_task_binding_417.py::test_bind_task_rejects_session_bound_to_another_task tests/test_task_binding_417.py::test_inferred_binding_rejects_owner_changed_before_task_write",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/417/tests/test_task_binding_417.py",
+          "target": "tests/test_task_binding_417.py",
+          "sha256": "1340877987114b000a9d4cab99f924b3561138a662c9084c1483e294d562a9ca"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "697e24c21f93ff7b26c325195e17ef9be38ab041",
+        "trigger_prompt_sha": "22f266c30279"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       AssertionError: assert None == 'split-worker'"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "3 passed in 8.42s"
+      }
+    },
+    {
+      "task": 418,
+      "snapshot": "30a36cc3773f886b8c0134f404cb9d9adcff730a",
+      "result_commit": "16e6b90",
+      "oracle_id": "oracle-418-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_task_binding_418.py::test_missing_stable_id_is_loud_and_names_task_identity tests/test_task_binding_418.py::test_healthy_session_has_same_canonical_identity_failure tests/test_task_binding_418.py::test_two_readers_must_agree_on_project_and_display_identity tests/test_task_binding_418.py::test_canonical_reader_failure_is_not_downgraded_to_legacy_identity",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/418/tests/test_task_binding_418.py",
+          "target": "tests/test_task_binding_418.py",
+          "sha256": "db366c27a5abb3d54ce780b0b7b9f35cb840fea06f575fc766b982f711544eea"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "30a36cc3773f886b8c0134f404cb9d9adcff730a",
+        "trigger_prompt_sha": "1d98bb4bb9bd"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E           KeyError: 'stable_id'"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "4 passed in 15.86s"
+      }
+    },
+    {
+      "task": 424,
+      "snapshot": "3b6deb556b4692f3f2282337a13f1da0c8a7332a",
+      "result_commit": "caf2e7d",
+      "oracle_id": "oracle-424-v1",
+      "command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_merge_progress_424.py::test_running_snapshot_requires_original_payload_on_retry",
+      "oracle_files": [
+        {
+          "path": ".orchestra/tasks/432/oracles/424/tests/test_merge_progress_424.py",
+          "target": "tests/test_merge_progress_424.py",
+          "sha256": "b1246d7a3442fd46a4f7d09dfb3cc37d576798e52cee7de3b251129679730214"
+        }
+      ],
+      "model_inputs": {
+        "snapshot": "3b6deb556b4692f3f2282337a13f1da0c8a7332a",
+        "trigger_prompt_sha": "1bfecbf5af18"
+      },
+      "baseline_red": {
+        "rc": 1,
+        "failure_line": "missing behavior: E       AssertionError: assert 'original payload' in 'STILL RUNNING — NOT a failure, nothing was lost, do NOT report an error. Merge operation op-424 is still running on t...r branch, the refusal names the actual branch — check worker_wip there and start a new operation without operation_id.'"
+      },
+      "result_green": {
+        "rc": 0,
+        "last_line": "1 passed in 7.11s"
+      }
+    }
+  ]
+}
