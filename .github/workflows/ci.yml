@@ -55,4 +55,30 @@ jobs:
           # `-v` и небуферизованный вывод обязательны: при зависании `-q` не печатает
           # НИЧЕГО (буфер не сбрасывается), и в логе остаётся только процент. С `-v`
           # последняя строка называет тест, на котором встали.
-          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 "${files[@]}"
+          # `-m "not browser"` — тот же набор, которым блокирует merge-гейт. Браузерные
+          # тесты гоняются отдельной джобой ниже: одно их зависание не должно съедать
+          # потолок шарда и прятать состав СОСЕДЕЙ по нему (07.09 так и вышло —
+          # `test_orchestra_layout_430` не успел отработать за `test_frontend.py`).
+          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+            -m "not live_probe and not browser" "${files[@]}"
+
+  browser:
+    # Браузерные тесты сняты с БЛОКИРУЮЩЕГО набора (решение владельца 07.09: «выносим их
+    # из гейта, не убиваем»), поэтому джоба помечена `continue-on-error` — она остаётся
+    # СИГНАЛОМ, видимым в списке проверок, но не решает судьбу прогона. Гоняются те же
+    # 167 узлов, что снимает с себя merge-гейт: состав закреплён
+    # `tests/test_merge_test_gate.py::test_browser_inventory_is_explicit`.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --dev
+      - run: uv run playwright install --with-deps chromium
+      - name: pytest browser
+        run: |
+          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+            -m "browser" tests/

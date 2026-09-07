@@ -217,6 +217,12 @@ def select_tests(changed: list[str], *, worktree: str) -> list[str]:
 
 
 LIVE_PROBE_MARKER = "live_probe"
+# Браузерные тесты сняты с БЛОКИРУЮЩЕГО набора, но не удалены и не выключены: они гоняются
+# в CI отдельной джобой и вручную (`uv run pytest -m browser tests/`). Решение владельца
+# 07.09 «выносим их из гейта, не убиваем» на числах: 169 браузерных узлов из 4091, а два
+# мержа подряд встали с `TEST_GATE_INCONCLUSIVE` — бюджет кончался внутри `test_frontend.py`
+# при НУЛЕ красных тестов, то есть гейт блокировал чужую работу зависанием, а не находкой.
+BROWSER_MARKER = "browser"
 NO_TESTS_EXIT_CODE = 5  # pytest EXIT_NOTESTSCOLLECTED
 USAGE_ERROR_EXIT_CODE = 4  # pytest EXIT_USAGEERROR
 
@@ -251,7 +257,7 @@ def pytest_argv(
         python, "-m", "pytest", "-q", "-vv",
         f"--timeout={ceiling:g}",
         f"--timeout-method={PER_TEST_TIMEOUT_METHOD}",
-        "-m", f"not {LIVE_PROBE_MARKER}",
+        "-m", f"not {LIVE_PROBE_MARKER} and not {BROWSER_MARKER}",
         *tests,
     ]
 

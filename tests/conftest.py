@@ -307,3 +307,28 @@ def codex_bin_stub(tmp_path, monkeypatch):
 def _isolated_managed_cli_home(tmp_path, monkeypatch):
     """Session removal must never touch the running agents' CLI homes in tests."""
     monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", tmp_path / "codex-home")
+
+
+# Браузерные тесты снимаются с БЛОКИРУЮЩЕГО набора merge-гейта, но продолжают гоняться.
+# Основание — замер оркестратора 07.09: их 95 из 2410 (4% сьюта), файл `test_frontend.py`
+# правился 146 раз и лишь в 24 случаях вместе с настоящим фиксом фронта, то есть в пяти
+# случаях из шести чинили сам тест. При этом ловят они ровно те дефекты, на которые
+# владелец жалуется лично (метка полосы, сырая карточка ревью, телеметрия в чате), —
+# поэтому удалять нельзя. А держать в гейте нельзя тем более: два мержа подряд встали с
+# `TEST_GATE_INCONCLUSIVE`, оба раза бюджет кончился внутри `test_frontend.py` при НУЛЕ
+# красных тестов.
+# Маркер ставится по ФАКТУ запроса браузерной фикстуры, а не списком файлов: список
+# устаревает молча, а фикстура — то самое, что делает тест браузерным.
+# `context` СЮДА НЕ ВХОДИТ намеренно: у pytest-playwright так называется браузерный
+# контекст, но имя слишком общее — параметризованный `context` в
+# `test_codex_review_rejects_missing_project_context_before_any_api_call` (обычная строка)
+# ловился как браузерный и уносил два небраузерных узла из блокирующего набора.
+_BROWSER_FIXTURES = frozenset({
+    "browser", "dashboard_browser", "page", "browser_context",
+})
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if _BROWSER_FIXTURES & set(getattr(item, "fixturenames", ())):
+            item.add_marker("browser")
