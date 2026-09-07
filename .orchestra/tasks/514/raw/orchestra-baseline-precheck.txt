@@ -1,0 +1,4 @@
+SAME .orchestra/tasks/430/move-receipt.json
+SAME .orchestra/tasks/430/release-receipt.json
+=== sessions row count BEFORE main-checkout run ===
+503

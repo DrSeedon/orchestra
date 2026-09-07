@@ -21,6 +21,7 @@ from typing import Awaitable, Callable, Optional
 from app.session import AgentSession, AgentStatus
 from app.session_state import ACTIVE_SESSION_STATUSES
 from app.events import InjectedMessage, MessageProvenance
+from app.kb_index import kb_index_block
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
     prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
@@ -31,7 +32,7 @@ from app.prompting import (
 _TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
 from app.workspace import (
     create_worktree, discard_prepared_worktree, remove_worktree,
-    parse_owned_dirs, dirs_overlap,
+    parse_owned_dirs,
     validate_repo_root, resolve_base_branch as resolve_git_base_branch,
     repo_root,
 )
@@ -103,6 +104,26 @@ class LockBusy(RuntimeError):
             f"{waited:.0f}s (message delivery or merge in flight). Nothing was changed — "
             f"retry {what} in ~30s."
         )
+
+
+class LifecycleQuarantineError(RuntimeError):
+    """A durable task/branch binding blocks delivery until an explicit repair."""
+
+    def __init__(self, lifecycle: dict):
+        self.lifecycle = lifecycle
+        super().__init__(str(lifecycle["message"]))
+
+    def envelope(self) -> dict:
+        return {
+            "code": self.lifecycle["code"],
+            "message": self.lifecycle["message"],
+            "retryable": False,
+            "outcome_unknown": False,
+            "details": {
+                "task_id": self.lifecycle["task_id"],
+                "repair": self.lifecycle["repair"],
+            },
+        }
 
 
 @asynccontextmanager
@@ -331,6 +352,12 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
     :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
     (фильтр ``can_spawn``) + блоки других оркестраторов/воркеров из БД.
 
+    Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
+    принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
+    эта функция зовётся и при спавне, и при переинжекте (:meth:`assemble_prompt`).
+    Блока нет ни в одном ``prompts/modules/*.md``, поэтому роль с коротким списком
+    ``modules`` (reducer) не может его потерять — на этом #490 терял вынесенные блоки.
+
     Fail loud: нет манифеста или роли нет в манифесте → :class:`ValueError`.
     Legacy-fallback на ``app/prompts/`` удалён (единый источник = pipelines).
     """
@@ -341,6 +368,9 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
             f"role '{role}' not resolvable in pipeline '{pipeline}': {e!r}. "
             f"Define it in .orchestra/pipelines/{pipeline}/pipeline.yaml + prompts/roles/{role}.md"
         ) from e
+    kb = kb_index_block(scope)
+    if kb:
+        base += f"\n\n{kb}"
     rr = get_role(pipeline, role)
     is_orch = rr.is_orchestrator if rr is not None else is_orchestrator_role(role)
     if is_orch:
@@ -472,10 +502,10 @@ def ownership_block(owned_dirs: list[str]) -> str:
         return ""
     lines = "\n".join(f"- {d}/" for d in owned_dirs)
     return (OWNERSHIP_MARKER +
-            "You OWN these directories — edit ONLY files under them:\n"
+            "Expected work areas (advisory, not an edit allowlist):\n"
             f"{lines}\n"
-            "Do NOT touch files outside your owned directories. "
-            "If the task requires it — STOP and ask the orchestrator.")
+            "Edit other files needed for the approved task within your worktree. "
+            "Respect explicit task exclusions and coordinate overlapping changes.")
 
 
 def replace_ownership_block(
@@ -502,7 +532,15 @@ def replace_ownership_block(
     # keeps — untouched. Only the region before the memory can hold the generated block.
     body, memory_separator, memory = prompt.partition(WORKER_MEMORY_MARKER)
     if old_block not in body:
-        return prompt, False
+        # Upgrade only the exact historical generated suffix, never free-form exclusions.
+        lines = "\n".join(f"- {d}/" for d in before)
+        old_block = (OWNERSHIP_MARKER +
+                     "You OWN these directories — edit ONLY files under them:\n"
+                     f"{lines}\n"
+                     "Do NOT touch files outside your owned directories. "
+                     "If the task requires it — STOP and ask the orchestrator.")
+        if old_block not in body:
+            return prompt, False
     head, _, tail = body.rpartition(old_block)
     return head + ownership_block(after) + tail + memory_separator + memory, True
 
@@ -575,43 +613,8 @@ class SessionManager:
     def validate_owned_dirs_transition(
         self, session: AgentSession, owned_dirs: list[str],
     ) -> list[str]:
-        """Normalize and collision-check ownership for a new task.
-
-        The current session is excluded so a worker may keep or replace its own
-        directories without colliding with its previous DB row.
-        """
-        normalized = parse_owned_dirs(owned_dirs)
-        if not normalized:
-            return normalized
-        seen_ids: set[str] = set()
-        for candidate in self.sessions.values():
-            if candidate.id == session.id:
-                continue
-            if (
-                candidate.scope == session.scope
-                and candidate.status.value in ACTIVE_SESSION_STATUSES
-                and candidate.owned_dirs
-            ):
-                seen_ids.add(candidate.id)
-                overlap = dirs_overlap(normalized, candidate.owned_dirs)
-                if overlap:
-                    raise ValueError(
-                        f"owned_dirs overlap with '{candidate.name}': {', '.join(overlap)}. "
-                        f"Use different dirs or kill '{candidate.name}' first"
-                    )
-        for row in get_all_sessions(session.scope):
-            if row["id"] in seen_ids or row["id"] == session.id:
-                continue
-            if (row.get("status") or "") not in ACTIVE_SESSION_STATUSES:
-                continue
-            row_dirs = parse_owned_dirs(row.get("owned_dirs"))
-            overlap = dirs_overlap(normalized, row_dirs)
-            if overlap:
-                raise ValueError(
-                    f"owned_dirs overlap with '{row['name']}': {', '.join(overlap)}. "
-                    f"Use different dirs or kill '{row['name']}' first"
-                )
-        return normalized
+        """Normalize advisory work areas; overlap is not an authorization failure."""
+        return parse_owned_dirs(owned_dirs)
 
     def _transition_prompt(
         self, session: AgentSession, owned_dirs: list[str],
@@ -741,37 +744,8 @@ class SessionManager:
         # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
         is_orch = self._role_is_orchestrator(pipeline, role)
 
-        # Ownership (upstream): нормализуем owned_dirs и предупреждаем о пересечении
-        # с другими живыми воркерами в этом scope (warning, НЕ блок).
+        # Work areas describe expected edits; separate worktrees may overlap.
         owned_dirs = parse_owned_dirs(owned_dirs)
-        if owned_dirs:
-            seen_ids: set[str] = set()
-            for s in self.sessions.values():
-                if (
-                    s.scope == scope
-                    and s.status.value in ACTIVE_SESSION_STATUSES
-                    and s.owned_dirs
-                ):
-                    seen_ids.add(s.id)
-                    ov = dirs_overlap(owned_dirs, s.owned_dirs)
-                    if ov:
-                        raise ValueError(
-                            f"owned_dirs overlap with '{s.name}': {', '.join(ov)}. "
-                            f"Use different dirs or kill '{s.name}' first"
-                        )
-            for row in get_all_sessions(scope):
-                if row["id"] in seen_ids:
-                    continue
-                if (row.get("status") or "") not in ACTIVE_SESSION_STATUSES:
-                    continue
-                row_dirs = parse_owned_dirs(row.get("owned_dirs"))
-                if row_dirs:
-                    ov = dirs_overlap(owned_dirs, row_dirs)
-                    if ov:
-                        raise ValueError(
-                            f"owned_dirs overlap with '{row['name']}': {', '.join(ov)}. "
-                            f"Use different dirs or kill '{row['name']}' first"
-                        )
 
         if not parent_name and not is_orch:
             parent_name = self._find_orchestrator_name(scope) or ""
@@ -789,7 +763,9 @@ class SessionManager:
             base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
             prompt_overlay = "\n\n" + system_prompt if system_prompt else ""
         else:
-            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role)
+            # Воркеру scope нужен ради оглавления KB его проекта; блоки других
+            # оркестраторов/воркеров остаются за `if is_orch` внутри функции.
+            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
             prompt_overlay = ("\n\n" + system_prompt if system_prompt else "")
             prompt_overlay += self._ownership_prompt(owned_dirs)
         prompt = base_prompt + prompt_overlay
@@ -1025,20 +1001,9 @@ class SessionManager:
                 session.needs_switch = bool(durable.get("needs_switch") or 0)
         if not session.needs_switch:
             return
-        if str(session.task_id or ""):
-            from app.tm import task_binding_requires_quarantine
-
-            blocked = await asyncio.to_thread(
-                task_binding_requires_quarantine,
-                session.scope,
-                session.id,
-                str(session.task_id),
-            )
-            if blocked:
-                raise RuntimeError(
-                    f"worker lifecycle is quarantined for task #{session.task_id}; "
-                    "repair the task/branch binding before delivery"
-                )
+        lifecycle = await asyncio.to_thread(self.lifecycle_quarantine, session)
+        if lifecycle:
+            raise LifecycleQuarantineError(lifecycle)
         if session.status != AgentStatus.IDLE:
             raise RuntimeError(
                 f"worker is {session.status.value} — cannot auto-switch before delivery"
@@ -1247,7 +1212,47 @@ class SessionManager:
             session = self._hydrate_row(row) if row else None
         if session is None:
             raise KeyError(f"session not found: {session_id}")
+        await self._auto_switch_before_delivery(session)
         await session.preflight_delivery_admission()
+
+    @staticmethod
+    def lifecycle_quarantine(session) -> dict:
+        """Project the delivery gate's derived quarantine state for every reader."""
+        get = session.get if isinstance(session, dict) else lambda key, default="": getattr(
+            session, key, default,
+        )
+        task_id = str(get("task_id", "") or "")
+        if not bool(get("needs_switch", False)) or not task_id:
+            return {}
+        from app.tm import task_binding_requires_quarantine
+
+        scope = str(get("scope", "") or "")
+        session_id = str(get("id", "") or "")
+        if not task_binding_requires_quarantine(scope, session_id, task_id):
+            return {}
+        name = str(get("name", "") or "")
+        base_branch = str(get("base_branch", "") or "main")
+        call = (
+            f'switch_worker_branch(name="{name}", task_id="{task_id}", '
+            f'from_ref="{base_branch}")'
+        )
+        return {
+            "code": "LIFECYCLE_QUARANTINED",
+            "task_id": task_id,
+            "repair": {
+                "tool": "switch_worker_branch",
+                "arguments": {
+                    "name": name,
+                    "task_id": task_id,
+                    "from_ref": base_branch,
+                },
+                "call": call,
+            },
+            "message": (
+                f"worker lifecycle is quarantined for task #{task_id}; repair with "
+                f"{call}. The call is idempotent when the binding is already healthy."
+            ),
+        }
 
     async def interrupt(self, session_id: str) -> None:
         session = self.sessions.get(session_id)
@@ -1966,9 +1971,7 @@ class SessionManager:
         выходе означает полную замену промпта оператором — у неё нет границы
         компонентов, и пересобирать её нельзя.
         """
-        current_base = ROLE_SYSTEM_PROMPT(
-            pipeline, role, scope
-        ) if is_orch else ROLE_SYSTEM_PROMPT(pipeline, role)
+        current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
         if not is_orch:
             orch_name = self._find_orchestrator_name(scope)
             current_base = safe_format_prompt(
@@ -1987,8 +1990,10 @@ class SessionManager:
             elif (
                 "<role>" in old_without_memory
                 and "</role>" in old_without_memory
-                and "<memory-search>" in old_without_memory
-                and "</memory-search>" in old_without_memory
+                and (
+                    ("<memory-search>" in old_without_memory and "</memory-search>" in old_without_memory)
+                    or ("<knowledge>" in old_without_memory and "</knowledge>" in old_without_memory)
+                )
             ):
                 # Pre-overlay pipeline prompts are identifiable by their complete platform
                 # envelopes. They are not operator overrides: rebuild the current base while
@@ -2003,6 +2008,10 @@ class SessionManager:
                 prompt_without_memory = old_without_memory
         else:
             prompt_overlay = strip_worker_memory(stored_overlay)
+            prompt_without_memory = current_base + prompt_overlay
+        if prompt_overlay is not None:
+            areas = parse_owned_dirs(owned_dirs)
+            prompt_overlay, _ = replace_ownership_block(prompt_overlay, areas, areas)
             prompt_without_memory = current_base + prompt_overlay
         return refresh_worker_memory(
             prompt_without_memory, name, role, scope, repository_path,
@@ -2312,6 +2321,7 @@ class SessionManager:
 
     def list_sessions(self, scope: str | None = None) -> list[dict]:
         from app.db import get_last_turn_map
+        from app.message_deliveries import targets_with_uncertain_delivery
         result = []
         seen = set()
         for s in self.sessions.values():
@@ -2323,9 +2333,17 @@ class SessionManager:
                 result.append(row)
         # Cache-timer metadata is runtime-derived; Codex exposes only an approximate window.
         turn_map = get_last_turn_map()
+        uncertain_targets = targets_with_uncertain_delivery()
         for r in result:
+            r.setdefault("runtime_connection", "not_loaded")
+            if r["id"] in uncertain_targets:
+                r["delivery_uncertain"] = True
             r["last_turn_ts"] = turn_map.get(r["id"])
             r.update(cache_policy_for_runtime(runtime_for_record(r)))
+            lifecycle = self.lifecycle_quarantine(r)
+            if lifecycle:
+                r["status"] = "quarantined"
+                r["lifecycle_status"] = lifecycle
             for omit in self._LIST_OMIT:
                 r.pop(omit, None)
         return result

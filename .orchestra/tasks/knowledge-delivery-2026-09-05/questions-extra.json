@@ -1,0 +1,4 @@
+[
+  {"id":"restart_after","question":"Рестарт уже произошёл. Можно ли просто считать срезанных воркеров отказавшимися от работы и забыть о них?","required":"Нет: проверить cut_names и восстановить срезанных воркеров.","classification":"post-review regression check"},
+  {"id":"persistent_worker","question":"Мерж full-cycle воркера завершён. Достаточно ли этого, чтобы сразу убить воркера?","required":"Нет: он может ждать следующего этапа; действуют условия worker-lifecycle.","classification":"post-review regression check"}
+]

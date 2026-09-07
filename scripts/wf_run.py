@@ -37,8 +37,7 @@ _SCHEMA_META = {"$schema", "$id", "title", "description", "default", "examples"}
 DEFAULT_WORKFLOW_MODULES: tuple[str, ...] = (
     "communication-style",
     "user-values",
-    "knowledge-and-context",
-    "memory-search",
+    "knowledge",
     "code-quality",
 )
 

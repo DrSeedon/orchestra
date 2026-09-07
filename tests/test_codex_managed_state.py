@@ -1,4 +1,5 @@
 import asyncio
+import os
 import sqlite3
 import sys
 from pathlib import Path
@@ -7,12 +8,13 @@ import pytest
 
 from app.runtime_history import CODEX_CLI_HISTORY_VERSION
 
+SEED_CLI_VERSION = "0.150.1"
+
 
 def test_codex_01501_state_signature_is_pinned_exactly():
     from app.backend_codex import _CODEX_STATE_MIGRATIONS_BY_CLI
 
-    assert CODEX_CLI_HISTORY_VERSION == "0.150.1"
-    migrations = _CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+    migrations = _CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION]
     assert migrations[-1] == (
         51,
         bytes.fromhex(
@@ -33,7 +35,7 @@ def _state_db(
     if migrations is None:
         from app.backend_codex import _CODEX_STATE_MIGRATIONS_BY_CLI
 
-        migrations = _CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+        migrations = _CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION]
     with sqlite3.connect(path) as conn:
         conn.executescript(
             """
@@ -77,7 +79,7 @@ def _prepare(home: Path, source: Path):
     return module._prepare_managed_codex_state(
         home,
         source,
-        cli_version=CODEX_CLI_HISTORY_VERSION,
+        cli_version=SEED_CLI_VERSION,
     )
 
 
@@ -169,7 +171,7 @@ def test_state_seed_refuses_unpinned_cli_version(tmp_path):
     home = tmp_path / "managed"
     home.mkdir()
 
-    with pytest.raises(RuntimeError, match=CODEX_CLI_HISTORY_VERSION):
+    with pytest.raises(RuntimeError, match="has no verified schema"):
         module._prepare_managed_codex_state(home, source, cli_version="0.999.0")
 
     assert not (home / "state_5.sqlite").exists()
@@ -180,7 +182,7 @@ def test_healthy_state_with_validated_older_prefix_is_left_for_provider_migratio
 ):
     import app.backend_codex as module
 
-    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION]
     assert len(migrations) > 4
     home = tmp_path / "managed"
     home.mkdir()
@@ -189,7 +191,7 @@ def test_healthy_state_with_validated_older_prefix_is_left_for_provider_migratio
 
     assert module._managed_codex_state_needs_seed(
         home,
-        CODEX_CLI_HISTORY_VERSION,
+        SEED_CLI_VERSION,
     ) is False
     assert _thread_ids(target) == ["old-thread"]
 
@@ -197,7 +199,7 @@ def test_healthy_state_with_validated_older_prefix_is_left_for_provider_migratio
 def test_fresh_state_can_seed_from_validated_older_prefix(tmp_path):
     import app.backend_codex as module
 
-    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION]
     source = tmp_path / "source.sqlite"
     _state_db(source, migrations=migrations[:-4], threads=("old-thread",))
     home = tmp_path / "managed"
@@ -214,7 +216,7 @@ def test_state_seed_refuses_unsupported_pinned_migration_signature(
     import app.backend_codex as module
 
     migrations = list(
-        module._CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+        module._CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION]
     )
     if mutation == "changed":
         version, checksum = migrations[-1]
@@ -238,7 +240,7 @@ def test_stale_target_with_unsupported_migration_is_preserved(tmp_path):
     source = tmp_path / "source.sqlite"
     _state_db(source)
     migrations = list(
-        module._CODEX_STATE_MIGRATIONS_BY_CLI[CODEX_CLI_HISTORY_VERSION]
+        module._CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION]
     )
     migrations.append((migrations[-1][0] + 1, b"unsupported-migration"))
     home = tmp_path / "managed"
@@ -289,31 +291,69 @@ def test_failed_install_rolls_stale_state_back(monkeypatch, tmp_path):
     assert not list(home.glob(".state_5.seed-*"))
 
 
-def test_source_selection_prefers_fullest_healthy_matching_index(monkeypatch, tmp_path):
+def test_source_selection_stops_at_first_healthy_source(monkeypatch, tmp_path):
+    """A healthy base ends the search: every extra candidate costs a full quick_check.
+
+    Ranking all of them read every managed state DB on each fresh spawn (#520:
+    278 homes, 72 GiB, ~11 min), so the worker never reached its CLI.
+    """
     import app.backend_codex as module
 
     base = tmp_path / "base"
     base.mkdir()
     _state_db(base / "state_5.sqlite", threads=("base",))
     root = tmp_path / "managed-root"
-    fullest = root / "fullest"
-    fullest.mkdir(parents=True)
-    _state_db(
-        fullest / "state_5.sqlite",
-        threads=("one", "two", "three"),
+    for name in ("fullest", "other"):
+        home = root / name
+        home.mkdir(parents=True)
+        _state_db(home / "state_5.sqlite", threads=("one", "two", "three"))
+    monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
+    monkeypatch.setattr(module, "_base_codex_home", lambda: base)
+
+    inspected: list[Path] = []
+    real_inspect = module._inspect_codex_state
+
+    def counting_inspect(path, check_integrity=False):
+        inspected.append(path)
+        return real_inspect(path, check_integrity=check_integrity)
+
+    monkeypatch.setattr(module, "_inspect_codex_state", counting_inspect)
+
+    selected = module._select_managed_codex_state_source(
+        root / "new-home",
+        SEED_CLI_VERSION,
     )
-    corrupt = root / "corrupt"
-    corrupt.mkdir()
-    (corrupt / "state_5.sqlite").write_bytes(b"not sqlite")
+
+    assert selected == base / "state_5.sqlite"
+    assert inspected == [base / "state_5.sqlite"]
+
+
+def test_source_selection_prefers_freshest_managed_state_when_base_is_corrupt(
+    monkeypatch, tmp_path,
+):
+    import app.backend_codex as module
+
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "state_5.sqlite").write_bytes(b"not sqlite")
+    root = tmp_path / "managed-root"
+    stale = root / "stale"
+    stale.mkdir(parents=True)
+    _state_db(stale / "state_5.sqlite", threads=("one", "two", "three"))
+    os.utime(stale / "state_5.sqlite", (1_000, 1_000))
+    fresh = root / "fresh"
+    fresh.mkdir()
+    _state_db(fresh / "state_5.sqlite", threads=("only",))
+    os.utime(fresh / "state_5.sqlite", (2_000, 2_000))
     monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
     monkeypatch.setattr(module, "_base_codex_home", lambda: base)
 
     selected = module._select_managed_codex_state_source(
         root / "new-home",
-        CODEX_CLI_HISTORY_VERSION,
+        SEED_CLI_VERSION,
     )
 
-    assert selected == fullest / "state_5.sqlite"
+    assert selected == fresh / "state_5.sqlite"
 
 
 def test_source_selection_uses_valid_managed_state_when_base_is_corrupt(
@@ -333,7 +373,7 @@ def test_source_selection_uses_valid_managed_state_when_base_is_corrupt(
 
     selected = module._select_managed_codex_state_source(
         root / "new-home",
-        CODEX_CLI_HISTORY_VERSION,
+        SEED_CLI_VERSION,
     )
 
     assert selected == healthy / "state_5.sqlite"
@@ -414,7 +454,7 @@ async def test_same_managed_home_connect_is_single_flight_and_repeatable(
     monkeypatch.setattr(
         module.CodexBackend,
         "_managed_state_cli_version",
-        lambda _self: asyncio.sleep(0, result=CODEX_CLI_HISTORY_VERSION),
+        lambda _self: asyncio.sleep(0, result=SEED_CLI_VERSION),
     )
 
     for _ in range(10):
@@ -435,14 +475,19 @@ async def test_same_managed_home_connect_is_single_flight_and_repeatable(
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("cli_version", [CODEX_CLI_HISTORY_VERSION, "999.0.0", "probe_error", SEED_CLI_VERSION])
 async def test_newer_cli_defers_managed_state_migration_to_provider(
-    monkeypatch, tmp_path,
+    monkeypatch, tmp_path, cli_version,
 ):
     import app.backend_codex as module
 
     root = tmp_path / "managed-root"
     session_id = "newer-cli-home"
     home = root / session_id
+    home.mkdir(parents=True)
+    migrations = module._CODEX_STATE_MIGRATIONS_BY_CLI[SEED_CLI_VERSION] + ((52, b"new-provider-migration"),)
+    _state_db(home / "state_5.sqlite", migrations=migrations)
+    original = (home / "state_5.sqlite").read_bytes()
     connected = 0
 
     def prepare_home(_self):
@@ -454,7 +499,14 @@ async def test_newer_cli_defers_managed_state_migration_to_provider(
         connected += 1
 
     def unexpected_seed_check(*_args):
+        if cli_version in module._CODEX_STATE_MIGRATIONS_BY_CLI:
+            raise RuntimeError("unsupported newer schema; no writes attempted")
         pytest.fail("an unvalidated CLI state must be migrated by Codex itself")
+
+    async def version(_self):
+        if cli_version == "probe_error":
+            raise RuntimeError("version probe failed")
+        return cli_version
 
     monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
     monkeypatch.setattr(module.CodexBackend, "_prepare_codex_home", prepare_home)
@@ -467,7 +519,7 @@ async def test_newer_cli_defers_managed_state_migration_to_provider(
     monkeypatch.setattr(
         module.CodexBackend,
         "_managed_state_cli_version",
-        lambda _self: asyncio.sleep(0, result="999.0.0"),
+        version,
     )
     monkeypatch.setattr(
         module,
@@ -486,6 +538,7 @@ async def test_newer_cli_defers_managed_state_migration_to_provider(
     await backend.connect()
 
     assert connected == 1
+    assert (home / "state_5.sqlite").read_bytes() == original
 
 
 @pytest.mark.asyncio
@@ -525,7 +578,7 @@ async def test_cancelled_managed_home_connect_releases_single_flight_waiter(
     monkeypatch.setattr(
         module.CodexBackend,
         "_managed_state_cli_version",
-        lambda _self: asyncio.sleep(0, result=CODEX_CLI_HISTORY_VERSION),
+        lambda _self: asyncio.sleep(0, result=SEED_CLI_VERSION),
     )
 
     def backend():

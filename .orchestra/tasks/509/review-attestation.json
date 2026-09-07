@@ -1,0 +1,12 @@
+{
+  "receipt_id": "review-receipt:4a345dd2-e6d2-4795-8e10-572c7a278a0c",
+  "reviewed_worker_head": "766dd1eef3fd056f88f4f103bfb5cfee639b9d76",
+  "artifact_sha256": "19edebcef58627939defc3952c261e6e86b418f3834fa3407f4cac6a1cd6dc29",
+  "production_diff_sha256": "603e2117329c1331960784c06b9720f59a73cbc7549f9dc0fecb0ad548d5a2f2",
+  "closed_findings": [
+    "app/review_coverage.py:108",
+    "app/mcp_stdio.py:4479"
+  ],
+  "statement": "Delta 20f929e0 closes the two accepted blocking findings. app/review_coverage.py:108 — the reviewed identity is now \"mode:object-id\", so chmod +x and a symlink swap over an identical blob both refuse; test_same_blob_with_a_changed_file_mode_revokes_the_coverage was red (satisfied instead of blocked) before the fix and reverting the value to parts[3] reddens it again. app/mcp_stdio.py:4479 — _write_delta_attestation refuses a cross-worker receipt by name with attestation_cross_worker_unsupported instead of the misleading \"attestation needs a bound task\"; removing the guard reddens test_cross_worker_attestation_refuses_by_name_not_by_missing_task. app/db.py:3324 is disputed, not closed, and stays open in the artifact. Targeted run 389 passed; frozen #508 negative control unchanged at 20 / 0 / 12 of 12.",
+  "recorded_at": "2026-09-05T14:29:13.450465+00:00"
+}

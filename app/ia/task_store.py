@@ -1473,12 +1473,15 @@ class TaskStore:
             raise ValueError("task identity must be a mapping")
         project_id = str(identity.get("project_id") or "")
         display_number = int(identity.get("display_number") or identity.get("par_number") or 0)
+        # Snapshot the global CAS before validating this task. An unrelated earlier
+        # generation is harmless, but any generation committed after this point must
+        # make task_update() reject rather than letting a stale same-task caller adopt it.
+        expected_head = identity.get("canonical_head") or self.canonical_head
         state = self._find_state(str(display_number), project_id)
         if identity.get("stable_id") and identity["stable_id"] != state["stable_id"]:
             return {"ok": False, "error": "prevalidated task stable identity changed"}
         if int(identity.get("sync_revision", -1)) != int(state.get("sync_revision", 0)):
             return {"ok": False, "error": "prevalidated task revision changed"}
-        expected_head = identity.get("canonical_head") or state["canonical_head"]
         updated = self.task_update(
             str(display_number),
             project=project_id,

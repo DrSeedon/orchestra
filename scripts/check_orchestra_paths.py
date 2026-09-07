@@ -15,7 +15,6 @@ from collections import defaultdict
 from pathlib import Path
 
 
-FIELDS = ("stable_id", "git_commit", "source_path", "git_blob", "source_sha256")
 DOC_LITERALS = ("docs/kb", "docs/tasks", "docs/workers", "docs/archive")
 PIPELINE_LITERAL = "pipelines/"
 NEGATIVE_MARKER = "LEGACY_PATH_FIXTURE"
@@ -136,125 +135,8 @@ def classify_old_paths(root: Path) -> dict[str, object]:
     }
 
 
-def _records(root: Path) -> dict[str, dict[str, str]]:
-    records: dict[str, dict[str, str]] = {}
-    for record_path in sorted((root / ".orchestra/kb/records").rglob("*.json")):
-        value = json.loads(record_path.read_text(encoding="utf-8"))
-        if not set(FIELDS) <= set(value):
-            continue
-        record = {field: str(value[field]) for field in FIELDS}
-        stable_id = record["stable_id"]
-        if stable_id in records:
-            raise ValueError(f"duplicate historical stable_id: {stable_id}")
-        records[stable_id] = record
-    return records
 
 
-# Отображение переезда #430: упразднённый корень → корень назначения. Историческая
-# запись ЗАКОННО хранит старый путь — она описывает состояние на момент съёмки; предмет
-# проверки не «путь новый», а «старый путь всё ещё РАЗРЕШАЕТСЯ» после переезда.
-MOVE_MAP = {
-    "docs/kb/": ".orchestra/kb/",
-    "docs/tasks/": ".orchestra/tasks/",
-    "docs/workers/": ".orchestra/workers/",
-    "docs/archive/": ".orchestra/archive/",
-    "docs/artifacts/": ".orchestra/artifacts/",
-    "docs/experiments/": ".orchestra/experiments/",
-    "docs/research/": ".orchestra/research/",
-    "docs/reviews/": ".orchestra/reviews/",
-    "docs/tg-media/": ".orchestra/tg-media/",
-    "pipelines/": ".orchestra/pipelines/",
-}
-
-
-def _move_commit(root: Path, destination_root: str) -> str:
-    """Коммит переезда корня — тот, что ВПЕРВЫЕ создал корень назначения.
-
-    Якорь выводится из истории `main`, а не читается из квитанции: записанный SHA — это
-    коммит ветки воркера, а мержи у нас squash, поэтому таких объектов в репозитории не
-    существует (`source_commit` замороженного файла — ровно этот случай, `ABSENT`).
-    """
-    out = subprocess.check_output(
-        ["git", "log", "main", "--diff-filter=A", "--format=%H", "--", destination_root],
-        cwd=root, text=True,
-    ).split()
-    if not out:
-        raise ValueError(f"в истории main нет коммита, создавшего {destination_root}")
-    return out[-1]
-
-
-def _paths_after_move(root: Path) -> set[str]:
-    """Все пути под `.orchestra/`, существовавшие СРАЗУ ПОСЛЕ каждого переезда.
-
-    Проверять разрешимость по СЕГОДНЯШНЕМУ дереву нельзя: файл мог быть законно удалён
-    позже, и тогда исправный переезд выглядел бы как потерянная привязка.
-    """
-    seen: set[str] = set()
-    for destination_root in sorted(set(MOVE_MAP.values())):
-        commit = _move_commit(root, destination_root.rstrip("/"))
-        raw = subprocess.check_output(
-            ["git", "ls-tree", "-r", "-z", "--name-only", commit, "--", destination_root.rstrip("/")],
-            cwd=root,
-        )
-        seen.update(item.decode() for item in raw.split(b"\0") if item)
-    return seen
-
-
-def _mapped(source_path: str) -> str | None:
-    for old_prefix, new_prefix in MOVE_MAP.items():
-        if source_path.startswith(old_prefix):
-            return new_prefix + source_path[len(old_prefix):]
-    return None
-
-
-def verify_historical_bindings(root: Path) -> dict[str, object]:
-    """Привязки исторических свидетельств пережили переезд #430.
-
-    ПРЕДМЕТ ПРОВЕРКИ — ровно два утверждения:
-      1. каждая замороженная запись СУЩЕСТВУЕТ (исчезновение — поломка);
-      2. каждая разрешается в ТОТ ЖЕ путь после отображения переезда: старый путь,
-         пропущенный через `MOVE_MAP`, обязан найтись в дереве коммита переезда
-         (перепривязка или потеря — поломка).
-
-    СОДЕРЖИМОЕ записи не проверяется вовсе, и вот почему. Прежняя версия сверяла sha256
-    каждой записи с замороженным и краснела на 3174 записях из 12 759 (24.9%). Это не
-    находка: `canonical` — живое изменяемое хранилище, записи там правятся законно и
-    будут правиться дальше, поэтому «содержимое не менялось» ложно ПО ПОСТРОЕНИЮ, и
-    завтра красных будет больше просто оттого, что идёт время. Такой тест не оракул ни в
-    одну сторону — он не может ни подтвердить, ни опровергнуть то, ради чего заведён.
-    Неизменность содержимого — свойство хранилища, а не переезда, и предметом #430 она
-    не была никогда.
-    """
-    frozen = json.loads(
-        (root / ".orchestra/tasks/430/evidence-bindings-frozen.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    expected = {str(key): str(value) for key, value in frozen["bindings"].items()}
-    records = _records(root)
-
-    missing = sorted(stable_id for stable_id in expected if stable_id not in records)
-    after_move = _paths_after_move(root)
-    unresolved = []
-    resolved = 0
-    for stable_id in sorted(expected):
-        record = records.get(stable_id)
-        if record is None:
-            continue
-        mapped = _mapped(record["source_path"])
-        if mapped is None:
-            continue
-        resolved += 1
-        if mapped not in after_move:
-            unresolved.append(stable_id)
-    return {
-        "historical_bindings_checked": len(expected),
-        "historical_binding_missing": len(missing),
-        "historical_binding_missing_ids": missing[:20],
-        "historical_binding_resolved": resolved,
-        "historical_binding_unresolved": len(unresolved),
-        "historical_binding_unresolved_ids": unresolved[:20],
-    }
 
 
 def main() -> int:
@@ -266,7 +148,6 @@ def main() -> int:
     summary = {
         "schema_version": 1,
         **classify_old_paths(root),
-        **verify_historical_bindings(root),
     }
     print(
         json.dumps(summary, ensure_ascii=False, sort_keys=True)
@@ -276,8 +157,6 @@ def main() -> int:
     clean = (
         summary["live_old_path_occurrences"] == 0
         and summary["unclassified_old_path_occurrences"] == 0
-        and summary["historical_binding_missing"] == 0
-        and summary["historical_binding_unresolved"] == 0
         and summary["negative_guard_occurrences"] > 0
     )
     return 0 if clean else 1

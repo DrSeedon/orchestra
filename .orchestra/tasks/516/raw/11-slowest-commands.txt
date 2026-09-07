@@ -1,0 +1,63 @@
+вызовов >30c с текстом команды: 2761
+
+=== 60 самых долгих (dur, первые 150 символов) ===
+  590.3  LOG=/home/kesha/orchestra-scratch/230/fullsuite-$(date +%s).log; echo "log: $LOG"; timeout 590 uv run python -m pytest -q > "$LOG" 2>&1; echo "exit=$?
+  580.2  timeout 580 uv run pytest -q > /tmp/lander-base-main.log 2>&1; echo "exit=$?"; tail -25 /tmp/lander-base-main.log
+  571.8  /bin/bash -lc 'EXCLUDED_IPS=127.0.0.1 uv run --no-project --with-requirements tests/landings/requirements.txt python -m pytest -q tests/landings/test_
+  562.2  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 145 -l 180 -r 160 -png '"'/home/kesha/orchestra/data/uploads/Отличный результат 2026.pdf' \""'$tmp/e" >/
+  561.0  git switch -c scratch/290b main >/dev/null 2>&1 && git -c core.commentChar=';' cherry-pick 8e274ca9^..b83f753a > /tmp/lander-cp290b.log 2>&1; echo "pi
+  557.8  for i in $(seq 1 55); do if ! pgrep -f "pytest -q --timeout=180" >/dev/null; then break; fi; sleep 10; done; tail -40 /tmp/pytest-314-regress.log
+  541.3  /bin/bash -lc "claude -p --model 'claude-opus-5[1m]' --output-format json --strict-mcp-config --mcp-config '{\"mcpServers\":{}}' --tools 'Read,Grep,Ba
+  540.1  timeout 540 python3 /tmp/pdscan/hist.py 2>&1 | tail -30
+  503.5  /bin/bash -lc "awk 'BEGIN {print \"I accepted all nine remaining findings and revised the full artifact pasted below: authoritative explicit/awaiting 
+  500.7  curl -s -m 500 -o /tmp/repair_resp.json -w "http=%{http_code} time=%{time_total}s\n" -X POST -H "Authorization: Bearer [secret len=17 tail=EN"] -H "Co
+  500.6  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 500 uv run pytest -q tests/test_frontend.py --tb=line > /tmp/f
+  500.4  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 500 uv run pytest -q tests/test_frontend.py --tb=line 2>&1 | g
+  500.4  cd /home/kesha/orchestra && timeout 500 uv run pytest -q tests/test_frontend.py > /tmp/fe_main.log 2>&1; echo exit=$?; tail -2 /tmp/fe_main.log
+  500.4  timeout 500 uv run pytest -q tests/test_manager.py tests/test_session.py tests/test_frontend.py tests/test_db.py > /tmp/lander-t290b3.log 2>&1; echo e
+  500.3  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 500 uv run pytest -q tests/test_frontend.py 2>&1 | tail -3
+  500.3  git add -A && git commit -q -m "#30 T1-T4: недоставка видна юзеру и оркестратору, фоновые задачи не глотают падения" && git log --oneline -1; UV_CACHE
+  500.2  UV_CACHE_DIR=/tmp/uv-cache timeout 500 uv run python -m pytest tests/test_api.py -q 2>&1 | grep -E "^FAILED|passed|failed" | head
+  497.7  cd /tmp && nice -n 15 timeout 120 python3 /tmp/perf_canary.py 90 2>&1 | tail -20
+  495.0  /bin/bash -lc 'tmp=$(mktemp -d); pdftoppm -f 120 -l 145 -r 180 -png '"'/home/kesha/orchestra/data/uploads/Отличный результат 2026.pdf' \""'$tmp/e" >/
+  486.5  timeout 580 uv run pytest -q -rf tests/test_db.py tests/test_frontend.py tests/test_manager.py > /tmp/lander-t290c-b.log 2>&1; echo exit=$?; grep -E "
+  465.1  timeout 500 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'bash -s' <<'EOF' 2>&1 | tail -14 cd /mnt/data/perf60 B=https://orchestra.seedon.ru fo
+  460.9  PYTHONPATH=$PWD timeout 560 /home/kesha/orchestra/.venv/bin/python -m pytest -q -m "not live_probe" --durations=15 tests/test_db.py tests/test_manager
+  450.0  NODE="tests/landings/test_browser_acceptance.py::test_t7_accessibility_keyboard_and_fallback" { for i in $(seq 1 20); do L=$(cut -d' ' -f1 /proc/loada
+  446.4  cd /home/kesha/katya-work/artifacts/task-10-video && python3 - <<'PY' import pathlib p=pathlib.Path("build.py"); s=p.read_text() # первые три секунды 
+  446.1  /bin/bash -lc "ls -l docs/tasks/110/codex-review-research.md 2>/dev/null || true if [ -f docs/tasks/110/codex-review-research.md ]; then sed -n '1,240
+  441.3  /bin/bash -lc 'uv run --frozen python -m pytest -q tests/test_tm.py tests/test_acceptance.py tests/test_mcp_proof.py tests/test_merge_operations.py te
+  434.6  /bin/bash -lc 'python3 -m pytest -q --ignore=tests/test_activity_ingress.py python3 -m py_compile bot.py codex_session.py runtime_registry.py kesha_mc
+  429.9  timeout 500 ssh -p 2222 -i ~/.ssh/tunnel_laptop maxim@localhost 'cd /mnt/data/perf60 && B=https://orchestra.seedon.ru; for u in "/api/sessions?scope=%
+  421.6  sleep 420; grep -E "^FAILED|^ERROR|passed|failed|^EXIT" /tmp/343-final.txt | tail -20
+  420.2  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-limits-card; timeout 420 uv run pytest -q -vv -m "not live_probe" tests/test_limits_card.p
+  414.1  timeout 570 /tmp/t212-venv/bin/python docs/tasks/212/probe-t7.py 16 2>&1 | tee -a docs/tasks/212/evidence-probe-t7-batch1.log | grep -E '^\{|ANOMALY'
+  402.0  /bin/bash -lc "awk 'BEGIN {print \"Round 5. I accepted all seven remaining findings. Below is the revised target-contract excerpt only; the evidence s
+  402.0  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 400 uv run pytest -q tests/test_frontend.py 2>&1 | grep -E "^(
+  401.2  /bin/bash -lc 'test -f /tmp/task253-russian-root.crt && PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/service-demo-bot:$PWD/service-demo-bot/tests" /home
+  400.4  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 400 uv run pytest -q tests/test_frontend.py tests/test_static_
+  400.3  cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-harness-bubbles && timeout 400 uv run pytest -q tests/test_frontend.py > /tmp/fe369.log 2
+  400.0  cat > /tmp/search_during_reindex.py << 'PY' """Латентность поиска, ПОКА идёт индексация. Дедлайн должен переживать этот случай, иначе будет ложно отка
+  399.6  /bin/bash -lc "claude -p --model 'claude-opus-5[1m]' --output-format json --strict-mcp-config --mcp-config '{\"mcpServers\":{}}' --tools 'Read,Grep,Ba
+  397.0  timeout 300 uv run pytest tests/test_ws_game_protocol.py -q 2>&1 | tail -20
+  396.3  uv run python -m pytest -q > /tmp/216-t1-full.log 2>&1; echo "exit=$?"; tail -20 /tmp/216-t1-full.log
+  394.8  for i in $(seq 1 11); do L=$(cut -d' ' -f1 /proc/loadavg) OUT=$(EXCLUDED_IPS=127.0.0.1 timeout 300 /tmp/t212-venv/bin/python -m pytest -vv --no-header
+  392.6  cp app/static/js/app.js /tmp/app5_after.js && IMG=/tmp/retina_shot.png timeout 200 python3 /tmp/test_paste.py 2>&1 | tail -8
+  385.2  UV_CACHE_DIR=/home/kesha/.cache/uv timeout 3000 uv run python -m pytest -q --timeout=300 > /tmp/pytest-80-full.log 2>&1; echo "exit=$?"; tail -25 /tmp
+  377.2  grep -A3 -i "github" ~/.ssh/config 2>/dev/null; echo "---"; git remote set-url origin git@github.com:DrSeedon/Claude-Code-Game-Master.git && GIT_SSH_C
+  374.1  timeout 560 uv run pytest -q tests/test_auth.py tests/test_backend_claude.py tests/test_backend_codex.py tests/test_backend_grok.py tests/test_db.py t
+  372.3  /bin/bash -lc "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest -q -vv -m 'not live_probe' tests/test_db.py tests/test_mana
+  372.2  T="tests/test_fd_adopt.py tests/test_frontend.py" echo "=== МОЯ ВЕТКА ===" cd /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-hot-reload tim
+  370.6  /bin/bash -lc "uv run python -m pytest -q tests/test_task_tracker_integration.py tests/test_merge_recovery_wedge.py tests/test_merge_ref_gate.py tests
+  356.9  /bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/service-demo-bot" /home/kesha/projects/seedon/service-demo-bot/.venv/bin/python docs/tasks/2
+  355.6  /bin/bash -c 'started_at=$SECONDS claude -p --model '"'claude-opus-5[1m]' --output-format json --safe-mode --no-session-persistence --strict-mcp-confi
+  352.3  /bin/bash -lc "codex exec --ephemeral --sandbox read-only -m gpt-5.6-sol -C /home/kesha/orchestra/worktrees/home-kesha-projects-dnd-game-master/resear
+  350.5  python3 - <<'EOF' import pathlib p = pathlib.Path("docs/tasks/212/probe-t7.py") s = p.read_text() s = s.replace("from playwright.sync_api import sync_
+  350.2  /bin/bash -lc 'VIRTUAL_ENV=/home/kesha/orchestra/.venv uv run --active python -m pytest -x -q > /tmp/pytest-385.log 2>&1'
+  347.7  PY=/home/kesha/orchestra/.venv/bin/python; for f in test_db test_manager test_pipeline; do s=$(date +%s.%N); PYTHONPATH=$PWD timeout 400 $PY -m pytest
+  341.2  /bin/bash -lc 'PYTHONDONTWRITEBYTECODE=1 PYTHONPATH="$PWD/service-demo-bot" /home/kesha/projects/seedon/service-demo-bot/.venv/bin/python docs/tasks/2
+  339.9  python3 - <<'EOF' import pathlib, os p = pathlib.Path("docs/tasks/212/probe-t7.py") s = p.read_text() s = s.replace(' context.route("https://mc.yandex
+  337.6  T="tests/test_fd_adopt.py tests/test_frontend.py" cd /home/kesha/orchestra for i in 1 2; do timeout 600 uv run python -m pytest $T -q -p no:randomly -
+  334.2  cd /tmp/vid && ffmpeg -v error -ss 319.3 -t 14.5 -i md1.mp4 -vf "crop=1150:900:145:0,scale=720:563,pad=720:1280:0:300:0x14100E,fps=30,format=yuv420p,s
+  329.7  cd /home/kesha/katya-work/artifacts/task-10-video && python3 build.py 2>&1 | tail -3 && git -C /home/kesha/katya-work add -A && git -C /home/kesha/kat
+  317.7  UV_CACHE_DIR=/home/kesha/.cache/uv timeout 900 uv run python -m pytest -q --timeout=300 > /tmp/pytest-82-full.log 2>&1; echo "exit=$?"; grep -E "passe

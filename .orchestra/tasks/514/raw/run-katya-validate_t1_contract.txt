@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/home/kesha/katya-work/artifacts/task-4/tests/validate_t1_contract.py", line 481, in <module>
+    main()
+  File "/home/kesha/katya-work/artifacts/task-4/tests/validate_t1_contract.py", line 277, in main
+    evidence = load_json(EVIDENCE_MANIFEST)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/katya-work/artifacts/task-4/tests/test_support.py", line 42, in load_json
+    require_file(path, "missing JSON artifact")
+  File "/home/kesha/katya-work/artifacts/task-4/tests/test_support.py", line 37, in require_file
+    raise AssertionError(f"{message}: {path}")
+AssertionError: missing JSON artifact: /home/kesha/katya-work/docs/tasks/4/evidence/master-manifest.json
+RC=1

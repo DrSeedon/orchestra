@@ -73,6 +73,26 @@ def test_encoding_matches_real_cli_directories():
 
 # ── target_service_user / give_to_service_user ──
 
+def test_scope_copy_delivers_canonical_rules_before_claude_adapter(monkeypatch):
+    copied = {}
+    files = {"AGENTS.md": "canonical safety rules", "CLAUDE.md": "@AGENTS.md",
+             ".orchestra/workers/worker.md": "worker checkpoint"}
+
+    def ssh(host, command, **kwargs):
+        return subprocess.CompletedProcess([], 0, stdout="yes\n", stderr="")
+
+    def relay(source_host, target_host, source, target):
+        relative = source.removeprefix("/source/")
+        if relative == "CLAUDE.md":
+            assert copied["AGENTS.md"] == "canonical safety rules"
+        copied[relative] = files[relative]
+
+    monkeypatch.setattr(migrate_agent, "ssh", ssh)
+    monkeypatch.setattr(migrate_agent, "_relay_file", relay)
+    monkeypatch.setattr(migrate_agent, "give_to_service_user", lambda *args: None)
+    migrate_agent.copy_scope_files("source", "target", "/source", "/target", ["worker"], "service")
+    assert copied == files
+
 def _fake_ssh(monkeypatch, replies: dict, calls: list | None = None):
     def _ssh(host, cmd, *, check=True, capture=True):
         if calls is not None:

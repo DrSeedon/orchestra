@@ -1,0 +1,26 @@
+=== какие тест-файлы называются в командах (по сумме времени) ===
+файл                                         упоминаний  часы(дел.)
+test_frontend.py                                    558        7.12
+test_manager.py                                     224        1.75
+test_session.py                                     353        1.49
+test_browser_acceptance.py                           80        1.43
+test_api.py                                         193        1.25
+test_fd_adopt.py                                    189        0.82
+test_message_delivery_receipts_380.py               126        0.80
+test_mcp_stdio.py                                   238        0.77
+test_i1_three_surfaces.py                            64        0.76
+test_task_tracker_integration.py                    154        0.74
+test_routes_surface.py                              186        0.68
+test_db.py                                          104        0.66
+test_default_pipeline.py                            228        0.61
+test_tg_bridge.py                                   156        0.52
+test_i1_provenance_closure.py                        48        0.51
+ ...всего разных файлов: 451
+
+=== ПОВТОРЫ одинаковой команды в одной сессии (v4) ===
+групп с повтором 584, лишних вызовов 1205
+время сверх первого прогона: 8.03 ч = 16.1% класса tests = 6.7% всего времени
+
+=== сколько времени tests потрачено на прогоны, ЗАКОНЧИВШИЕСЯ падением ===
+  is_error= 0 n= 5362 часы= 41.16
+  is_error= 1 n= 1282 часы= 8.75

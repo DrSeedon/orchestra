@@ -435,6 +435,12 @@ def sync_agents_md(worktree_path: str) -> bool:
     agents_md = wt / "AGENTS.md"
     if not claude_md.is_file():
         return False
+    # Native Claude imports the canonical AGENTS.md. Mirroring this adapter back
+    # into its own target would replace the rules with a circular import.
+    if re.search(r"(?m)^@(?:\./)?AGENTS\.md\s*$", claude_md.read_text()):
+        if not agents_md.is_file():
+            raise RuntimeError(f"CLAUDE.md imports missing AGENTS.md in {wt}")
+        return False
     try:
         tracked = tracked_paths(wt, ["AGENTS.md"])
     except RuntimeError as exc:
@@ -890,6 +896,10 @@ def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
 _RESERVED_OPERATION_TRAILER_RE = re.compile(
     r"^[ \t]*Orchestra-Operation[ \t]*:", re.IGNORECASE | re.MULTILINE,
 )
+_RESERVED_OPERATION_TRAILER_VALUE_RE = re.compile(
+    r"^[ \t]*Orchestra-Operation[ \t]*:[ \t]*(.*?)[ \t]*$",
+    re.IGNORECASE | re.MULTILINE,
+)
 
 
 _HEADER_TASK_REFS_RE = re.compile(
@@ -947,11 +957,21 @@ def _inspect_candidate_commits(repo: str, base_ref: str, worker_head: str) -> di
         raise RuntimeError("cannot inspect candidate commits: malformed git log output")
     subjects: list[str] = []
     for offset in range(0, len(fields), 3):
-        _commit, subject, body = fields[offset:offset + 3]
+        commit, subject, body = fields[offset:offset + 3]
         if _RESERVED_OPERATION_TRAILER_RE.search(body):
-            raise ValueError(
-                "worker commit contains reserved Orchestra-Operation: trailer"
-            )
+            trailers = _RESERVED_OPERATION_TRAILER_VALUE_RE.findall(body)
+            from app.merge_operations import operation_created_target_commit
+
+            # Long-lived branches can inherit an earlier Orchestra target commit whose
+            # content reached current main under a different squash SHA. Exact durable
+            # operation→commit identity separates that history from an authored spoof.
+            if not (
+                len(trailers) == 1
+                and operation_created_target_commit(trailers[0], commit)
+            ):
+                raise ValueError(
+                    "worker commit contains reserved Orchestra-Operation: trailer"
+                )
         subjects.append(subject)
     return {"refs": _extract_task_refs(subjects), "messages": subjects}
 

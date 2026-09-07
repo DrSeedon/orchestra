@@ -1,0 +1,167 @@
+### per-dir: size / files / newest mtime
+archive | 1.5M | 61 | 1788602919.1277136400 2026-09-05 12:08 /mnt/data/Projects/Python/orchestra/.orchestra/archive/sessions/2026-09.md
+artifacts | 644K | 12 | 1788420125.5925843250 2026-09-03 09:22 /mnt/data/Projects/Python/orchestra/.orchestra/artifacts/usage-analytics-v2.html
+experiments | 472K | 5 | 1788420125.5935843230 2026-09-03 09:22 /mnt/data/Projects/Python/orchestra/.orchestra/experiments/85/results.jsonl
+guides | 92K | 5 | 1788680285.8560209450 2026-09-06 09:38 /mnt/data/Projects/Python/orchestra/.orchestra/guides/knowledge-authoring.md
+infra | 20K | 3 | 1780318722.3367143930 2026-06-01 14:58 /mnt/data/Projects/Python/orchestra/.orchestra/infra/vps-access.md
+kb | 56M | 12802 | 1788706811.7705657340 2026-09-06 17:00 /mnt/data/Projects/Python/orchestra/.orchestra/kb/test-suite-pruning.md
+pipelines | 256K | 27 | 1788706855.0642788220 2026-09-06 17:00 /mnt/data/Projects/Python/orchestra/.orchestra/pipelines/default/pipeline.yaml
+research | 148K | 9 | 1788420125.6545841990 2026-09-03 09:22 /mnt/data/Projects/Python/orchestra/.orchestra/research/tool-use-stop.md
+reviews | 100K | 5 | 1788420125.6550912410 2026-09-03 09:22 /mnt/data/Projects/Python/orchestra/.orchestra/reviews/fable-full-review.md
+tasks | 108M | 4508 | 1788680285.8573945120 2026-09-06 09:38 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/522/result.md
+tg-media | 16K | 2 | 1788420125.6943122300 2026-09-03 09:22 /mnt/data/Projects/Python/orchestra/.orchestra/tg-media/PLAN.md
+workers | 1.2M | 189 | 1788680296.3089908080 2026-09-06 09:38 /mnt/data/Projects/Python/orchestra/.orchestra/workers/salvage-branch-code.md
+
+### kb breakdown
+4.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/dead-code-audit.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/README.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/agent-code-intelligence.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/antigravity-runtime.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/chat-freshness.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/current-operations.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/dashboard-quota-map.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/feature-usage-audit.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/grep-memory-blowup.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/information-architecture-synthesis.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/message-provenance.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/model-routing-selection.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/model-text-control-flow.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/muse-spark-runtime.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/prompt-delivery.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/review-context.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/test-suite-pruning.md
+8.0K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/tg-media-delivery.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/code-simplification.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/competitive-landscape.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/harness-tools.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/knowledge-base-architecture.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/knowledge-pipeline.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/openrouter-quotas.md
+12K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/prime-agent.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/agent-guardrails.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/agent-memory-architecture.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/auto-work.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/data-locality.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/founder-intent.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/ox-alpha-harness-verdict.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/self-improvement-loop.md
+16K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/tool-latency.md
+20K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/project-portfolio.md
+20K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/task-storage-architecture.md
+32K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/review-design-defects.md
+32K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/test-oracles.md
+40K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/token-efficiency.md
+44K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/repo-ops.md
+52K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/codex-runtime.md
+76K	/mnt/data/Projects/Python/orchestra/.orchestra/kb/evidence-methods.md
+4.1M	/mnt/data/Projects/Python/orchestra/.orchestra/kb/manifest.json
+51M	/mnt/data/Projects/Python/orchestra/.orchestra/kb/records
+kb md themes:
+41
+
+### kb/records: count + newest 15
+12759
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffff7cae-8330-5d82-9c2c-24eaf883e74f.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/fffc5b4b-1e6f-58f6-abbf-4f302446ec95.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffe9e346-f430-5222-a9e1-59f0460bf9e0.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffe71f66-c36c-53b6-a634-3ef68bd2f93f.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffe3fa50-67d2-5281-8f6e-3f896eafe513.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffe0ce8b-bfc6-5343-b0a7-ec96df9cb37d.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffd5b410-c0fa-5778-ace5-bfd938ccd577.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffca3f99-463c-55e1-a8a4-395ffecd0067.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffc723b8-fe9d-550b-98d8-e4f5a419dc98.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffc2c23a-89c5-596a-bdc0-4de4e18e6dce.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffc1dca6-1e7d-5634-80dc-39960d7c2ec1.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffb7f73c-cb49-5115-b90a-1772812b56ba.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffb1d038-a3c2-53f0-a58a-3be4d10b6e05.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffa6f6f9-cb2d-57cf-a9b8-fe3f9f615e3c.json
+2026-08-28 07:25 /mnt/data/Projects/Python/orchestra/.orchestra/kb/records/evidence/ffa642a4-eea8-517b-b981-e6037dd46aae.json
+
+### kb/records mtime histogram by day (last 30 days present)
+  12759 2026-08-28
+
+### tasks: top-20 heaviest task dirs
+948K	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/119/
+948K	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/303/
+948K	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/32/
+1012K	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/64/
+1.1M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/248/
+1.1M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/376/
+1.2M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/184/
+1.2M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/259/
+1.3M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/kb-extract/
+1.6M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/20/
+1.7M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/128/
+2.1M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/505/
+2.2M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/315/
+2.5M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/285/
+3.2M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/454/
+4.7M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/346/
+6.0M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/412/
+7.5M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/313/
+8.2M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/430/
+15M	/mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/
+
+### tasks: newest 10
+2026-09-06 09:38 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/522/result.md
+2026-09-06 09:38 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/522/measurement.txt
+2026-09-06 08:48 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/490/size-budget.md
+2026-09-06 08:48 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/490/report.md
+2026-09-06 08:48 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/490/no-rule-lost.txt
+2026-09-06 08:48 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/490/check_no_rule_lost.py
+2026-09-06 08:47 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/519/report.md
+2026-09-06 06:49 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/515/test_model_text_control_flow_504.py.red
+2026-09-06 06:49 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/515/result.md
+2026-09-06 06:49 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/513/salvaged-145/research.md
+
+### tasks: file-extension histogram
+   1607 md
+    838 txt
+    755 json
+    549 py
+    168 jsonl
+    155 rc
+     95 png
+     57 html
+     55 log
+     36 pyc
+     34 csv
+     29 stderr
+     25 tsv
+     23 patch
+     20 err
+     19 gitignore
+     12 sh
+     10 xml
+      4 css
+      3 js
+
+### biggest single files in .orchestra (top 25)
+6032013 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/412/git-command-log.jsonl
+4197938 /mnt/data/Projects/Python/orchestra/.orchestra/kb/manifest.json
+4125300 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/313/evidence/static-signals.json
+3017527 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/430/reference-inventory.tsv
+2268538 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/313/inventory.json
+1891184 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/285/limits-data.json
+1721969 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/q6/results/primary.jsonl
+1505400 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/q5/results/primary.jsonl
+1382587 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/q4/results/primary.jsonl
+1352649 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/430/evidence-bindings-frozen.json
+1162422 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/results/judge-codex.jsonl
+1128424 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/454/eval-run-3.jsonl
+1048568 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/q4/results/judge-codex.jsonl
+1044351 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/results/primary.jsonl
+1019132 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/430/fleet-run/06-orchestra-commit-stat.txt
+954210 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/454/eval-run-1.jsonl
+898137 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/106/results/failed-attempts/judges-missing-file-evidence-20260801/judge-codex.jsonl
+817912 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/454/eval-run-2.jsonl
+717467 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/kb-extract/report.html
+685867 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/315/acceptance/fixtures/t7_document_inventory.json
+655855 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/346/evidence/raw/luna-b2-valid.jsonl
+608045 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/313/evidence/import-status.json
+595889 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/255/turns.csv
+525918 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/506/reviews.json
+517341 /mnt/data/Projects/Python/orchestra/.orchestra/tasks/346/evidence/raw/static-b1-valid.json
+
+### git-tracked vs untracked totals
+17628

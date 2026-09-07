@@ -1,0 +1,28 @@
+=== tests referencing cutover / secret_scan / wf_pilot ===
+scripts/hooks/pre-commit
+scripts/hooks/pre-push
+scripts/hooks/commit-msg
+tests/test_secret_commit_gate.py
+tests/test_wf_run.py
+scripts/ia_migrate_documents.py
+scripts/secret_scan.py
+tests/test_project_knowledge_distribution_412.py
+=== wf_pilot top ===
+#!/usr/bin/env python3
+"""Run the pre-promotion wf_run schema-compliance pilot on closed tickets."""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.wf_run import WorkflowEngine, validate_pilot_manifest
+
+

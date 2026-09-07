@@ -520,6 +520,7 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
     headers["X-Request-ID"] = request_id
     if idempotency_key:
         headers["Idempotency-Key"] = idempotency_key
+    started = time.monotonic()
     try:
         async with httpx.AsyncClient(base_url=ORCHESTRA_URL, timeout=t, headers=headers) as client:
             if method == "GET":
@@ -531,7 +532,12 @@ async def _api(method: str, path: str, **kwargs) -> dict | list | None:
             else:
                 response = await client.delete(path, params=kwargs.get("params"))
     except httpx.RequestError as exc:
-        raise _transport_error(method, path, exc, request_id) from exc
+        error = _transport_error(method, path, exc, request_id)
+        error.details.update({
+            "elapsed_seconds": round(time.monotonic() - started, 3),
+            "timeout_seconds": httpx.Timeout(t).as_dict(),
+        })
+        raise error from exc
 
     try:
         payload = response.json()
@@ -969,7 +975,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.
     При неоднозначности spawn требует явную ветку.
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
-    owned_dirs — JSON-массив директорий которыми владеет воркер, напр. ["app/api/", "app/models/"]. Инжектится в промпт воркера ("трогай только это"). Пересечение с owned_dirs другого живого воркера → БЛОК (spawn fails).
+    owned_dirs — необязательный JSON-массив ожидаемых рабочих директорий, например ["app/api/", "tests/"]. Это ориентир для координации, не запрет менять другие нужные задаче файлы. Пересечения допустимы в отдельных worktree.
     tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
     if not model:
         raise ApiToolError(
@@ -1803,7 +1809,15 @@ async def list_agents() -> str:
         desc_str = f' | "{desc}"' if desc else ""
         owner = s.get('parent_name', '')
         owner_str = f" | owner: {owner}" if show_owner and owner else ""
-        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}"
+        lifecycle = s.get("lifecycle_status")
+        lifecycle_str = ""
+        if isinstance(lifecycle, dict):
+            repair = lifecycle.get("repair") or {}
+            lifecycle_str = (
+                f" | {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
+                f"{repair.get('call', lifecycle.get('message', 'repair required'))}"
+            )
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}"
 
     is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []
@@ -2400,6 +2414,15 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
     action = result.get("next_action") if isinstance(result.get("next_action"), dict) else {}
     action_message = _safe_response_text(str(action.get("message") or ""))
     if state in {"PENDING", "RUNNING"}:
+        completion = result.get("completion") or {}
+        if completion.get("mode") == "background" and completion.get("job_id"):
+            return mcp_tool_result(result, text=(
+                f"STILL {state} — NOT a failure. Merge operation {operation_id} continues "
+                f"on the server. Background job {completion['job_id']} will deliver its outcome. "
+                "Do not poll or call merge_worker again. Continue independent work or end "
+                "the turn; Orchestra will resume you when the outcome arrives. "
+                "Do not start a duplicate merge or merge manually."
+            ))
         # a blocking reason (dirty tree, conflict) already sits in `error` — surfacing it
         # here saves the caller two blind retries before the cause finally shows up
         reason = ""
@@ -2514,7 +2537,14 @@ async def _await_merge_terminal(operation_id: str, result: dict[str, Any]) -> di
     deadline = loop.time() + _MERGE_WAIT_SECONDS
     delay = 0.2
     while True:
-        recovered = await _recover_merge_status(operation_id)
+        remaining = deadline - loop.time()
+        if remaining <= 0:
+            return result
+        try:
+            async with asyncio.timeout(remaining):
+                recovered = await _recover_merge_status(operation_id)
+        except asyncio.TimeoutError:
+            return result
         if recovered is not None:
             result = recovered
             if result.get("operation_state") not in {"PENDING", "RUNNING"}:
@@ -2545,11 +2575,12 @@ async def merge_worker(
     waive_diff_budget: bool = False,
     task_outcome: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch. Waits for the merge to finish and returns the outcome.
+    """Durably squash a worker branch. Long merges deliver their outcome via a background job.
 
     A reply starting with "STILL RUNNING" is NOT a failure: the merge is still going on the
-    server and nothing was lost. Call this tool again with the SAME operation_id to pick it
-    up. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
+    server and nothing was lost. If a completion job is registered, end the turn or do
+    independent work; the outcome wakes you automatically. Otherwise follow the response's
+    same-operation recovery instructions. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
 
     Reusing operation_id picks up THAT operation, not the worker's current state: if the
     worker moved to another branch meanwhile, the call is refused and names the actual
@@ -2629,6 +2660,7 @@ async def merge_worker(
         "next_task_id": next_task_id,
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": WORKER_NAME if waive_diff_budget else "",
+        "completion_session_id": SESSION_ID,
     }
     if merge_schema_version is not None:
         body["merge_schema_version"] = merge_schema_version
@@ -2682,7 +2714,10 @@ async def merge_worker(
                         target=target,
                         details={"exception_type": type(api_error).__name__, **api_error.details},
                     )
-        if result.get("operation_state") in {"PENDING", "RUNNING"}:
+        completion = result.get("completion") or {}
+        if result.get("operation_state") in {"PENDING", "RUNNING"} and not (
+            completion.get("mode") == "background" and completion.get("job_id")
+        ):
             result = await _await_merge_terminal(
                 str(result.get("operation_id") or operation_id), result,
             )
@@ -2817,6 +2852,20 @@ async def switch_worker_branch(
         and result.get("state") == "promoted_current_work"
     ):
         return f"Promoted current work to branch {result.get('branch', '?')}"
+    if (
+        isinstance(result, dict)
+        and result.get("ok")
+        and result.get("state") == "lifecycle_repaired"
+    ):
+        return f"Repaired lifecycle binding on branch {result.get('branch', '?')}"
+    if (
+        isinstance(result, dict)
+        and result.get("ok")
+        and result.get("state") == "already_current"
+    ):
+        return (
+            f"No-op: worker is already on healthy branch {result.get('branch', '?')}"
+        )
     if isinstance(result, dict) and result.get("ok"):
         return f"Switched to branch {result.get('branch', '?')}"
     if isinstance(result, dict) and result.get("conflicts"):
@@ -2855,11 +2904,20 @@ async def worker_wip(name: str, base_ref: str = "") -> str:
     changed_files = result.get("changed_files", [])
     ctx = result.get("context_pct", 0)
     status = result.get("status", "?")
+    lifecycle = result.get("lifecycle_status")
+    lifecycle_line = ""
+    if isinstance(lifecycle, dict):
+        repair = lifecycle.get("repair") or {}
+        lifecycle_line = (
+            f"QUARANTINED {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
+            f"{lifecycle.get('message', '')}\n"
+            f"Repair: {repair.get('call', '')}\n"
+        )
     effective_base = result.get("base_ref") or base_ref or "persisted base"
     ctx_str = f" | ctx:{ctx}% | {status}" if ctx else f" | {status}"
     if not uncommitted and not unmerged:
-        return f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {effective_base})"
-    parts = [f"WIP for '{name}'{ctx_str} (vs {effective_base}):"]
+        return lifecycle_line + f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {effective_base})"
+    parts = [lifecycle_line + f"WIP for '{name}'{ctx_str} (vs {effective_base}):"]
     if uncommitted:
         parts.append(f"  Uncommitted ({len(uncommitted)}): " + ", ".join(uncommitted[:20]))
     if unmerged:
@@ -3369,6 +3427,7 @@ async def bg_list() -> str:
     icons = {
         "timer": "⏰", "file": "📄", "command": "🖥️", "ssh": "🔗",
         "run": "🚀", "cron": "🔁", "cron_command": "🔎",
+        "merge": "🔀",
     }
 
     def _when(job: dict) -> str:
@@ -3463,7 +3522,7 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
         return "search_memory: no project scope (orchestrator context) — nothing to search."
     body = {"scope": SCOPE, "query": query, "limit": limit, "cross_project": cross_project}
     # Подсказка одна на все отказы: агент обязан уйти в grep, а не ждать и не повторять вызов.
-    grep = f'ищи grep\'ом: rg "{query}" docs/ CLAUDE.md BUGS.md'
+    grep = f"ищи точным якорем: rg -n -i -F -- {shlex.quote(query)} .orchestra/kb/"
     try:
         result = await _api("POST", "/api/memory/search", json=body,
                             timeout=SEARCH_DEADLINE_S)
@@ -3611,6 +3670,142 @@ def _git_review_bytes(cwd: str, *args: str) -> bytes:
 
 def _git_review_text(cwd: str, *args: str) -> str:
     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+
+
+_REVIEW_SKIP_MAX_LINES = 40
+_REVIEW_SKIP_MAX_FILES = 3
+# Evidence weakness, verbatim: `n=2`, and the first observed blocker sits three lines above it
+# (#502 round 1, 43 lines / 2 files). The threshold is a small measured saving, not a law.
+_REVIEW_SKIP_EVIDENCE_WEAKNESS = (
+    "`n=2`, and the first observed blocker sits three lines above it "
+    "(#502 round 1, 43 lines / 2 files)."
+)
+
+
+def _parse_review_numstat(raw: bytes) -> tuple[int, int, int]:
+    """Return changed lines, files, and binary files from ``git --numstat -z``."""
+    if not raw:
+        return 0, 0, 0
+    if not raw.endswith(b"\0"):
+        raise ValueError("numstat output is not NUL-terminated")
+    fields = raw.split(b"\0")
+    index = 0
+    lines = 0
+    files = 0
+    binaries = 0
+    while index < len(fields) - 1:
+        header = fields[index]
+        index += 1
+        parts = header.split(b"\t", 2)
+        if len(parts) != 3:
+            raise ValueError("numstat record has no add/delete/path fields")
+        added, deleted, path = parts
+        if not path:
+            if index + 1 >= len(fields) or not fields[index] or not fields[index + 1]:
+                raise ValueError("numstat rename record has no source/destination path")
+            index += 2
+        if added == b"-" or deleted == b"-":
+            if added != b"-" or deleted != b"-":
+                raise ValueError("numstat binary marker is incomplete")
+            binaries += 1
+        else:
+            if not added.isdigit() or not deleted.isdigit():
+                raise ValueError("numstat line counts are not decimal integers")
+            lines += int(added) + int(deleted)
+        files += 1
+    return lines, files, binaries
+
+
+def _implementation_review_size_decision(
+    worktree: str,
+    target_sha: str,
+    worker_head: str,
+    *,
+    required: Any = True,
+) -> dict[str, object]:
+    """Fail-safe size decision for the complete pinned diff, never its production projection."""
+    completed = subprocess.run(
+        [
+            "git", "-C", worktree, "diff", "--numstat", "-z",
+            f"{target_sha}...{worker_head}",
+        ],
+        capture_output=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        return {
+            "status": "review",
+            "reason": "measurement_failed",
+            "changed_lines": None,
+            "changed_files": None,
+            "binary_files": None,
+            "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+            "threshold_files": _REVIEW_SKIP_MAX_FILES,
+            "required": required,
+            "evidence": "Review required: complete pinned diff measurement failed.",
+        }
+    try:
+        changed_lines, changed_files, binary_files = _parse_review_numstat(completed.stdout)
+    except ValueError:
+        return {
+            "status": "review",
+            "reason": "measurement_failed",
+            "changed_lines": None,
+            "changed_files": None,
+            "binary_files": None,
+            "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+            "threshold_files": _REVIEW_SKIP_MAX_FILES,
+            "required": required,
+            "evidence": "Review required: complete pinned diff measurement failed.",
+        }
+
+    common = {
+        "changed_lines": changed_lines,
+        "changed_files": changed_files,
+        "binary_files": binary_files,
+        "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+        "threshold_files": _REVIEW_SKIP_MAX_FILES,
+        "required": required,
+    }
+    noun = "file" if changed_files == 1 else "files"
+    if binary_files:
+        return {
+            "status": "review",
+            "reason": "binary_diff",
+            **common,
+            "evidence": (
+                f"Review required: complete pinned diff contains {binary_files} binary {noun}."
+            ),
+        }
+    if required is not False:
+        return {
+            "status": "review",
+            "reason": "required",
+            **common,
+            "evidence": "Review required by the risk/primary-work decision.",
+        }
+    if (
+        changed_lines > _REVIEW_SKIP_MAX_LINES
+        or changed_files > _REVIEW_SKIP_MAX_FILES
+    ):
+        return {
+            "status": "review",
+            "reason": "size_exceeded",
+            **common,
+            "evidence": (
+                f"Review required: complete pinned diff is {changed_lines} changed lines "
+                f"across {changed_files} {noun}; threshold is <=40 lines AND <=3 files."
+            ),
+        }
+    return {
+        "status": "skip",
+        "reason": "size_threshold",
+        **common,
+        "evidence": (
+            f"Review skipped by size: complete pinned diff is {changed_lines} changed lines "
+            f"across {changed_files} {noun}; threshold is <=40 lines AND <=3 files."
+        ),
+    }
 
 
 def _review_repository_root(cwd: str) -> Path:
@@ -3838,12 +4033,19 @@ async def _receipt_author_session(receipt_id: str) -> tuple[dict, dict]:
             message="cannot resolve your own session; respawn the worker",
             details={"worker": WORKER_NAME},
         )
-    if caller_session_id != str(receipt.get("session_id") or ""):
+    # Подписывает ЗАКАЗЧИК. Обычно это владелец предмета и он же; при `target_worker` ревью
+    # заказал оркестратор — фактуру он запинил сам и артефакт читает сам, поэтому подпись его,
+    # а не воркера, чей код проверяли. Пустое поле — квитанция до #509, там роли совпадали.
+    signer_session_id = str(
+        receipt.get("requested_by_session_id") or receipt.get("session_id") or ""
+    )
+    if caller_session_id != signer_session_id:
         raise ApiToolError(
             code="review_outcome_forbidden",
             message=(
-                "only the author of the review records its outcome: receipt "
-                f"{receipt_id} belongs to worker '{receipt.get('worker_name')}'"
+                "only the requester of the review records its outcome: receipt "
+                f"{receipt_id} was requested by "
+                f"'{receipt.get('requested_by_worker') or receipt.get('worker_name')}'"
             ),
             details={
                 "receipt_id": receipt_id,
@@ -3864,6 +4066,26 @@ async def _write_delta_attestation(
     )
 
     receipt, info = await _receipt_author_session(receipt_id)
+    # Аттестация подписывает дельту в дереве ВЛАДЕЛЬЦА предмета и коммитится вместе с его
+    # работой, а подписант с #509 может быть другой сессией. Писать в чужой worktree мы
+    # решили не давать, поэтому такой случай отказывает ИМЕНЕМ, а не общим «нет задачи»:
+    # у оркестратора `task_id` пуст, и прежний отказ назвал бы неверную причину.
+    if str(receipt.get("requested_by_session_id") or "") not in {
+        "", str(receipt.get("session_id") or ""),
+    }:
+        raise ApiToolError(
+            code="attestation_cross_worker_unsupported",
+            message=(
+                "this review was requested for another worker's code: the delta must be "
+                f"attested in the worktree of '{receipt.get('worker_name')}', or reviewed "
+                "again"
+            ),
+            details={
+                "receipt_id": receipt_id,
+                "subject_worker": str(receipt.get("worker_name") or ""),
+                "requested_by": str(receipt.get("requested_by_worker") or ""),
+            },
+        )
     cwd = str(info.get("worktree_path") or info.get("cwd") or SCOPE)
     task_id = str(info.get("task_id") or "")
     if not task_id:
@@ -3991,6 +4213,9 @@ async def codex_review(
     mode: str = "review",
     resume: bool = False,
     model: str = _CODEX_REVIEW_DEFAULT_MODEL,
+    required: Any = True,
+    target_worker: str = "",
+    base_branch: str = "",
 ) -> CallToolResult:
     """Run a registered Codex model review in background. Returns immediately.
     After calling, END YOUR TURN NOW; Orchestra wakes you when the job completes.
@@ -4007,7 +4232,17 @@ async def codex_review(
         in context (e.g. 'I fixed X and Y, re-review').
     model: reviewer model or registry alias. Omitted means the server-owned gpt-5.6-luna Fast tier.
         Registered Codex-runtime models are accepted except Codex Spark, which policy forbids for
-        review. Pass the model again on resume; it is applied to the resumed Codex thread."""
+        review. Pass the model again on resume; it is applied to the resumed Codex thread.
+    required: fail-safe implementation-review decision. Only literal JSON false asserts low risk
+        and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews.
+    target_worker: review ANOTHER worker's committed work instead of your own. Orchestrator-only
+        and mode='implementation' only. The receipt then names both sides: the reviewed code
+        belongs to the target, the request and its outcome signature belong to you. The artifact
+        is written in YOUR worktree, so it does not travel with the target's merge — quote its
+        path when you report.
+    base_branch: pin the subject against this base instead of the session's own. Empty keeps the
+        session value, and an empty session value is resolved from the repository rather than
+        assumed to be 'main'."""
     review_model = _resolve_codex_review_model(model)
     context = context.strip()
     if not context:
@@ -4046,12 +4281,29 @@ async def codex_review(
             message="target file required for mode='exec'",
             details={"field": "target"},
         )
+    target_worker = target_worker.strip()
+    if target_worker and mode != "implementation":
+        raise ApiToolError(
+            code="invalid_argument",
+            message="target_worker reviews committed work; use mode='implementation'",
+            details={"field": "target_worker"},
+        )
+    # Владелец предмета и заказчик — разные роли, и обе обязаны быть видны в квитанции.
+    # По умолчанию это одна сессия; `target_worker` их разводит (#509).
+    owner = {
+        "session_id": requesting_session_id,
+        "worker_name": WORKER_NAME,
+        "task_id": str(info.get("task_id") or ""),
+        "worktree_path": str(cwd),
+        "base_branch": str(info.get("base_branch") or ""),
+    }
     subject = {
         "subject_kind": "unknown",
         "target_sha": "",
         "worker_head": "",
         "production_snapshot_sha256": "",
         "production_paths_json": "[]",
+        "production_path_heads_json": "",
         "coverage_outcome": "unknown",
         "policy_ref": "",
         "decision_actor": "",
@@ -4065,24 +4317,137 @@ async def codex_review(
             )
         from app.review_coverage import current_policy_ref, resolve_implementation_subject
 
-        try:
+        if target_worker:
+            resolved = await _api(
+                "POST",
+                "/api/merge-operations/review-subject",
+                json={
+                    "target_worker": target_worker,
+                    "scope": SCOPE,
+                    "base_branch": base_branch,
+                },
+            )
+            pinned = resolved.get("result") if isinstance(resolved, dict) else None
+            if not isinstance(pinned, dict):
+                error = resolved.get("error") if isinstance(resolved, dict) else None
+                code = str(error.get("code") or "review_subject_failed") if isinstance(error, dict) else "review_subject_failed"
+                raise ApiToolError(
+                    code=code,
+                    message=str(error.get("message") or code) if isinstance(error, dict) else code,
+                    details={"target_worker": target_worker},
+                )
+            owner = dict(pinned["owner"])
             subject = {
                 "subject_kind": "implementation",
-                **resolve_implementation_subject(
-                    cwd, str(info.get("base_branch") or "main"),
-                ),
+                **dict(pinned["subject"]),
                 "coverage_outcome": "unknown",
                 "policy_ref": current_policy_ref(),
-                "decision_actor": "",
+                "decision_actor": WORKER_NAME,
             }
-        except ValueError as error:
-            raise ApiToolError(
-                code="invalid_argument",
-                message=str(error),
-                details={"field": "mode"},
-            ) from error
+        else:
+            from app.workspace import resolve_base_branch
+
+            try:
+                owner["base_branch"] = resolve_base_branch(
+                    cwd, base_branch or owner["base_branch"],
+                )
+                subject = {
+                    "subject_kind": "implementation",
+                    **resolve_implementation_subject(cwd, owner["base_branch"]),
+                    "coverage_outcome": "unknown",
+                    "policy_ref": current_policy_ref(),
+                    "decision_actor": "",
+                }
+            except ValueError as error:
+                raise ApiToolError(
+                    code="invalid_argument",
+                    message=str(error),
+                    details={"field": "mode"},
+                ) from error
+        subject.pop("production_paths", None)
+        subject.pop("production_path_heads", None)
     requested_at = datetime.now(timezone.utc).isoformat()
-    source_ref = str(subject.get("target_sha") or info.get("base_branch") or "main")
+    if mode == "implementation":
+        size_decision = _implementation_review_size_decision(
+            str(cwd),
+            str(subject["target_sha"]),
+            str(subject["worker_head"]),
+            required=required,
+        )
+        if size_decision["status"] == "skip":
+            from app.db import init_db, review_receipt_record_skip
+
+            init_db()
+            evidence = (
+                f"{size_decision['evidence']} Evidence weakness: "
+                f"{_REVIEW_SKIP_EVIDENCE_WEAKNESS}"
+            )
+            identity = json.dumps(
+                {
+                    "session_id": owner["session_id"],
+                    "scope": SCOPE,
+                    "task_id": owner["task_id"],
+                    "target_sha": subject["target_sha"],
+                    "worker_head": subject["worker_head"],
+                    "policy_ref": subject["policy_ref"],
+                    "threshold_lines": _REVIEW_SKIP_MAX_LINES,
+                    "threshold_files": _REVIEW_SKIP_MAX_FILES,
+                },
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            receipt_id = "review-size-skip:" + hashlib.sha256(identity.encode()).hexdigest()
+            receipt = review_receipt_record_skip({
+                "receipt_id": receipt_id,
+                "schema_version": 1,
+                "runtime": "none",
+                "reviewer_model": "",
+                "model_source": "direct",
+                "session_id": owner["session_id"],
+                "worker_name": owner["worker_name"],
+                "scope": SCOPE,
+                "task_id": owner["task_id"],
+                "task_source": "session_lookup",
+                "requested_by_session_id": requesting_session_id,
+                "requested_by_worker": WORKER_NAME,
+                "artifact_path": "",
+                "mode": "skip",
+                "round": None,
+                "job_id": "",
+                "usage_event_id": "",
+                "requested_at": requested_at,
+                "completed_at": requested_at,
+                "status": "completed",
+                "return_code": None,
+                "failure_code": "",
+                "artifact_exists": 0,
+                "artifact_bytes": 0,
+                "artifact_sha256": "",
+                "verdict_present": 0,
+                "verdict_value": "",
+                "jsonl_response_present": 0,
+                "recovery_source": "",
+                "author_outcome": "unknown",
+                "outcome_source": "direct",
+                "outcome_evidence_ref": evidence,
+                "notification_event_id": "",
+                **subject,
+                "coverage_outcome": "skipped",
+                "decision_actor": WORKER_NAME,
+            })
+            payload = {
+                "kind": "review_skipped_by_size",
+                **size_decision,
+                "evidence": evidence,
+                "receipt_id": str(receipt["receipt_id"]),
+                "target_sha": str(subject["target_sha"]),
+                "worker_head": str(subject["worker_head"]),
+            }
+            return mcp_tool_result(
+                result=payload,
+                text=f"{evidence} Receipt: {receipt['receipt_id']}",
+            )
+    source_ref = str(subject.get("target_sha") or owner["base_branch"] or "main")
     try:
         project_context, project_context_receipt = _load_review_project_context(
             cwd,
@@ -4128,11 +4493,13 @@ async def codex_review(
         "runtime": "codex",
         "reviewer_model": review_model,
         "model_source": "direct",
-        "session_id": requesting_session_id,
-        "worker_name": WORKER_NAME,
+        "session_id": owner["session_id"],
+        "worker_name": owner["worker_name"],
         "scope": SCOPE,
-        "task_id": str(info.get("task_id") or ""),
+        "task_id": owner["task_id"],
         "task_source": "session_lookup",
+        "requested_by_session_id": requesting_session_id,
+        "requested_by_worker": WORKER_NAME,
         "artifact_path": output_abs,
         "mode": mode,
         "round": None,

@@ -1,0 +1,20 @@
+ЗАМЕР СТОИМОСТИ ЗАПУСКА pytest (05.09.2026, VPS, /home/kesha/orchestra/.venv, Python 3.12.3)
+Команды выполнены с nice -n 15 в worktree tool-latency-study.
+
+  .venv/bin/python -c "pass"                      -> 0.02 / 0.02 / 0.02 s
+  .venv/bin/python -c "import pytest"             -> 0.43 / 0.27 / 0.24 s
+  python -m pytest -q --collect-only tests/test_db.py
+        -> 1.00 s wall, из них сбор 0.14 s ("90 tests collected in 0.14s")
+  python -m pytest -q --collect-only          (ВЕСЬ набор)
+        -> 33.41 s wall, из них сбор 29.56 s ("4015/4019 tests collected (4 deselected)")
+  python -m pytest -q -p no:randomly tests/test_db.py
+        -> 55.31 s wall
+  python -m pytest -q -p no:randomly tests/test_manager.py
+        -> НЕ ЗАВЕРШИЛСЯ за 120 s (тул убит по таймауту, exit 143)
+
+ВЫВОД: фиксированная цена запуска одиночного целевого прогона ~1 s
+(0.24 s импорт pytest + 0.14 s сбор одного файла + накладные оболочки).
+Медиана целевого прогона в логах 12.92 s => более 90 % этого времени
+приходится на ИСПОЛНЕНИЕ тестов, а не на старт интерпретатора.
+Полный набор платит 29.56 s только за сбор — это фиксированная цена ЛЮБОГО
+полного прогона, до первого ассерта.

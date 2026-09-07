@@ -1,0 +1,10 @@
+id|scope
+/home/kesha/orchestra|/home/kesha/orchestra
+Orchestra|
+Seedon|
+dnd-game-master|/home/kesha/projects/dnd-game-master
+kesha-tg-bot|/home/kesha/projects/kesha-tg-bot
+orchestra|
+scope:/home/kesha/katya-work|/home/kesha/katya-work
+scope:/home/kesha/projects/vpn-service|/home/kesha/projects/VPN-Service
+seedon|/home/kesha/projects/seedon

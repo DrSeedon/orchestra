@@ -1,0 +1,17 @@
+вызовы 119.5..121.9 c: 170, 5.69 ч, из них is_error=1: 51
+
+=== 8 примеров: есть ли в команде свой timeout? ===
+   120.2 err=0 свой_timeout=  120  timeout 120 scp -q /tmp/shot_chat.png /tmp/shot_price.png /tmp/shot_paper.jpg root@72.56.235.40
+   120.7 err=0 свой_timeout=  нет  cd /home/kesha/katya-work/artifacts/task-9-avito && python3 - <<'PY' p = "avito_ads.py" t = ope
+   120.2 err=1 свой_timeout=  900  git add -A && git commit -q -m "#211: bump landing stylesheet version and fill avito hero" && g
+   120.4 err=0 свой_timeout=  250  python3 - <<'EOF' p='/tmp/verify_tail3.py' s=open(p).read() s=s.replace("sw('frontend')","sw('b
+   120.1 err=1 свой_timeout=  нет  cd /home/kesha/orchestra-scratch/230 && echo "### RESTART at $(date +%s.%N) ###" && sudo system
+   121.4 err=0 свой_timeout=  600  timeout 600 uv run pytest tests/ -q -k "quota or usage or admission" -p no:randomly 2>&1 | tail
+   120.4 err=0 свой_timeout=  нет  python3 -c " import sys sys.path.insert(0,'/home/kesha/orchestra/worktrees/home-kesha-orchestra
+   120.2 err=0 свой_timeout=  нет  ssh -o BatchMode=yes root@72.56.235.40 'set -e # Алерты шлём тем же ботом, что и заявки: новый 
+
+=== то же для 600 c (верхняя граница нашей отсечки) ===
+  595..605 c: 7 вызовов, 1.17 ч, ошибок 3
+
+=== сколько всего времени bash съели вызовы, УБИТЫЕ по таймауту (120/121 с и своё timeout N) ===
+  120-121 с: 5.69 ч = 4.7% всего времени инструментов

@@ -1,0 +1,237 @@
+# База знаний и память агентов: устройство, источники, локальность
+
+Как знание попадает в базу, чем её хранение отличается от памяти агента и почему данные проекта живут в самом проекте.
+
+## Established
+
+### Устройство базы знаний
+
+Текущее состояние проверяется у [владельцев](current-operations.md), не по старым
+числам ниже. Принятые на свою дату выводы сохранены как исторические наблюдения;
+их применение сегодня требует проверки области и актуального источника.
+
+### Конвейер «сырьё → знание»
+
+Текущее состояние проверяется у [владельцев](current-operations.md), не по старым
+числам ниже. Принятые на свою дату выводы сохранены как исторические наблюдения;
+их применение сегодня требует проверки области и актуального источника.
+
+### Память агентов: поиск, связи, версии
+
+- Общая память Orchestra должна быть единым protocol поверх project-local `.orchestra/kb/`, а не центральным corpus: Git Markdown остаётся canonical, FTS/vector/adjacency — только rebuildable projections · `.orchestra/tasks/417/research.md` §§5,10; решение locality `.orchestra/tasks/412/research.md` · 2026-08-30, #417 — УТОЧНЕНО 2026-08-30 #419: vector projection для памяти этого корпуса отклонена и удалена; в #417 остаются только files/`rg`/approved links
+- Top-level topic-body adjacency lower bound почти пуст: 22 topic-файла / 283 573 Б имеют 2 cross-topic Markdown-link occurrences, обе из `token-efficiency.md` в `prompt-delivery.md`; README/navigation и nested Markdown намеренно исключены · read-only Python command и raw output в `.orchestra/tasks/417/research.md` §3.2 · 2026-08-30, #417
+- Ручное `RETRACTED` сохраняет human audit, но не даёт stable fact identity, valid-time, disputed state или deterministic `as_of`; machine-versioning требует explicit `fact_key/status/supersedes/evidence`, начиная forward-only · `.orchestra/tasks/417/research.md` §6; `app/ia/knowledge.py:499-680` · 2026-08-30, #417
+- A-MEM-style automatic evolution не имеет safety proof для canonical mutation: official code меняет `tags/context` старых notes на месте, не пополняя объявленное `evolution_history`; Graphiti #1728 показывает другой causal mechanism с тем же опасным outcome — collateral retirement 3/4 hand-audited cases · [A-MEM source](https://raw.githubusercontent.com/agiresearch/A-mem/main/agentic_memory/memory_system.py); [Graphiti #1728](https://github.com/getzep/graphiti/issues/1728) · 2026-08-30, #417
+- Agentic keyword search — обязательный control, а не доказанный победитель: Amazon author results дают 94.52% RAG attainment по faithfulness, 88.05% context recall и 91.48% answer correctness на их PDF corpus; marginal value на Orchestra проверяется frozen A/B · [AAAI 2026 paper](https://cdn.amazon.science/df/78/e81873f9478d80b642d113acd05e/keyword-search-is-all-you-need-2.pdf); `.orchestra/tasks/417/research.md` §§4,9,11 · 2026-08-30, #417
+- Текущие 808 МБ не являются памятью выводов: 19 773/20 502 records — raw resources, promoted facts = 0; оставить/урезать/удалить решает пользователь после 30-row A/B с exact thresholds, а при vector wins rebuild разрешён только для curated project-local corpus · вход пользователя #417 + `.orchestra/tasks/417/research.md` §9 · 2026-08-30, #417 — ЗАКРЫТО 2026-08-30 #419: frozen 18+N01 A/B дал vector unique 0, принято DELETE, `current.db` удалён
+- Generic agent-facing `knowledge(operation,payload)` не доказал usability: mutation payload opaque и role-mismatched, но projection query не эквивалентен raw `rg` и остаётся отдельным control arm; typed promotion оправдывает узкий interface, потому что без него нужны schema/CAS/evidence/event checks · `app/mcp_stdio.py:2988-3045`; `.orchestra/tasks/417/research.md` §§8–9 · 2026-08-30, #417 — ЗАКРЫТО ДЛЯ FILE-FIRST BRANCH 2026-08-30 #419/#417: query unique wins 0 против 6 у `rg`, typed/as-of branch отложена; Phase 2 снимает generic tool с agent surface, internal `app/ia/*` не удаляет
+- Frozen #419 A/B закрыл vector gap отрицательно: на 18 holdout-вопросах vector/`knowledge(query)` имел 0 unique source-backed wins, ordinary `rg` — 6 (E04, C01, C02, C04, C06, R02), ties 0; N01 пуст на обоих arms. Решение DELETE исполнено: `current.db` 808 МБ удалён, `RAG_ENABLED=false`, а `search_memory` сохранён с actionable grep fallback · `main:.orchestra/tasks/419/report.md`; commits `3abb2fa3`, `e19b4263` · 2026-08-30, #419
+- **Общий protocol Claude/Codex/Grok теперь ищет project memory двумя literal-проходами по `.orchestra/kb`, generic `knowledge` снят только с agent-facing MCP surface, а `search_memory` сохранён как необязательный compatibility fallback.** · ищи: `memory-search.md`, `search_memory`, `knowledge`, `build_system_prompt`, «файловая память агентов» · `.orchestra/tasks/417/acceptance/test_t1_file_first_read_protocol.py` → `T1 PASS`; commits `7b035c91`, `807f879d` · 2026-08-30, #417
+- **Новые и изменённые structured facts проходят repository CLI с stable key, 1–6 literal anchors, непустым evidence и same-key replacement.** Canonical one-hop link дополнительно требует exact receipt из `.orchestra/tasks/<numeric-id>/plan.md`, существующий target и разрешённый relation · ищи: `check_kb_contract.py`, `fact:`, `search:`, `approved:`, `links:`, «одобренные связи тем» · `.orchestra/tasks/417/acceptance/test_t2_lexical_fact_contract.py` + `test_t3_approved_one_hop_links.py` → PASS; `tests/test_kb_markdown_contract.py` → `30 passed`; `.orchestra/tasks/417/review-implementation-luna.md` Round 3 → APPROVED · 2026-08-30, #417
+- **Личная память воркера читается из ГЛАВНОГО чекаута репозитория (`<repository>/.orchestra/workers/<имя>.md`), а не из его worktree.** `load_worker_memory` получает `base = repository_path or scope`, и менеджер передаёт туда `repo_path`, а не ветку воркера. Отсюда следствие, невидимое по коду ветки: удаление файла из main молча обезоруживает ЖИВОГО воркера, даже если его копия цела на его же ветке · ищи: `load_worker_memory`, `memory_repository`, `.orchestra/workers`, `<worker-memory>`, «личная память воркера не инжектится» · `app/prompting.py:59-105`; `app/manager.py:762-772`; на диске `/mnt/data/Projects/Python/orchestra/.orchestra/workers/` 186 файлов, `memory-research.md` отсутствовал при `sessions.status='idle'` для этого воркера · 2026-09-05, #513
+- **Проверка «агента нет в живой БД» перед удалением его памяти обязана опираться на строку `sessions` по точному имени, иначе она ошибается в опасную сторону.** Аудит #188 T4 (коммит `46a40bc0`, 2026-08-11) снёс 17 файлов памяти как принадлежащие несуществующим агентам, и ровно один из 17 (`memory-research`) был жив тогда и жив сейчас — 25 дней воркер работал без своей памяти · ищи: `46a40bc0`, `#188 T4`, `sessions.status`, `archived`, «память агентов которых нет в живой БД» · read-only `SELECT name, status, created_at FROM sessions` → `memory-research` = `idle`/`2026-08-04`, остальные 10 из того же удаления = `archived`; восстановление в `.orchestra/tasks/513/result.md` · 2026-09-05, #513
+- **В `_chunk_markdown` два подтверждённых дефекта, оба СПЯТ за `RAG_ENABLED=false`.** Хлебная крошка считается и выбрасывается перевязкой имени в цикле, а `_HEADING_RE` не знает про код-фенсы и делает заголовком любой `#` внутри ```` ``` ```` · ищи: `_chunk_markdown`, `_HEADING_RE`, `crumb`, `RAG_ENABLED`, «хлебная крошка чанка» · `app/rag.py:181,193,202` и цикл `:183-194`; `app/rag_service.py:19`; замер по корпусу 459 файлов — 626 ложных заголовков из 8053 (7.8 %), 81 файл, у 56 ломаются границы секций, в `.orchestra/tasks/513/salvaged-145/research.md` §2 · 2026-09-05, #513
+
+### Локальность данных проекта
+
+- Project knowledge owner зафиксирован пользователем как `<project>/.orchestra/kb/`; central `~/.local/state/orchestra/knowledge-v1/` раздаётся по project repo и не остаётся shared cache · прямое решение пользователя 2026-08-27; `.orchestra/tasks/412/research.md` §§Зафиксированное решение,4 · 2026-08-27, #412
+- Central evidence на HEAD `309f4b058a57576065b15f421679de670ab248f8` содержит 20 948 JSON records / 13 103 260 apparent Б по 17 project ids; все 17 repo доступны, но Comfy/stargate/games/WebView имеют 0 remotes и держат 1 754 records · read-only JSON inventory + `git remote` per destination; `.orchestra/tasks/412/research.md` §1.2 · 2026-08-27, #412
+- `/mnt/data/media` зарегистрирован как `evidence_mode=none`, не является Git repo, имеет 0 evidence и 1 debt record; future knowledge нельзя молча класть в Orchestra, нужен Git owner либо explicit quarantine · scope registry + debt inventory; `.orchestra/tasks/412/research.md` §1.3 · 2026-08-27, #412
+- **Формат целевого каталога: человеческий Markdown остаётся в `.orchestra/kb/*.md`, машинное состояние лежит в `.orchestra/kb/records/` по одному JSON на запись.** Базовый срез на тот момент — 21 Markdown-файл / 276 065 видимых Б (328 KiB выделено), готовое извлечение — 764 факта / 588 931 Б · `git ls-tree`, `du -s -B1`, parse `main:.orchestra/tasks/kb-extract/part-1..5.json`; `.orchestra/tasks/412/research.md` §2 · 2026-08-27, #412 · открыть: .orchestra/tasks/kb-extract/part-1..5.json — нет в репозитории: запись именует пять файлов маской
+- Location меняется раньше format: сначала byte-identical landing + per-project count/SHA parity, затем отдельный 764-fact JSON commit; это оставляет по одной причине mismatch на каждом gate · `.orchestra/tasks/412/research.md` §§4–5 · 2026-08-27, #412
+- Current consumers не готовы к local owner: runtime/knowledge/projection держат один central root/head, а `app/ia/cutover.py:31-38` запрещает правильные `.orchestra/kb` prompt directives; все code/prompt/script owners перечислены в `.orchestra/tasks/412/research.md` §3 · primary source trace · 2026-08-27, #412
+- **Переименование project-local Orchestra root нельзя выкатывать одним global prompt switch.** Mandatory memory module и `load_worker_memory()` обслуживают все project repositories, а входной fleet-срез содержит 21 scope и 18 materialized knowledge roots; безопасный rollout обязан выбирать один существующий root для каждого scope и фактического worker worktree, а mandatory prompt меняется только после per-scope/worktree live receipt · ищи: `.orchestra`, `.orchestra/kb`, `memory-search.md`, `load_worker_memory`, `worktree_path`, «папка Orchestra во всех проектах» · `.orchestra/pipelines/default/prompts/modules/memory-search.md:4-24`; `app/prompting.py:59-81`; `app/session.py:1301-1341,1909-1921`; `.orchestra/tasks/430/research.md` F1/F7 · 2026-09-01, #430 — RETRACTED 2026-09-02 #430: пользователь явно принял broken transition и выбрал насильственную автоматическую миграцию без per-project fallback/receipt gate
+- **Все registered project roots и live/resumable worktrees переходят на `.orchestra/` автоматической Git-миграцией без fallback на старый root.** Missing/partial/dirty state обязано fail loud с `ORCHESTRA_LAYOUT_*` и точной `scripts/migrate_orchestra_layout.py --repair` командой, а mandatory prompt переключается только после physical location/runtime consumers · ищи: `ORCHESTRA_LAYOUT_MISSING`, `ORCHESTRA_LAYOUT_PARTIAL`, `--repair`, `migrate_registered_project_layouts`, «насильственная миграция всех проектов» · финальные решения пользователя и API/ticket contract `.orchestra/tasks/430/plan.md` T1–T4 · 2026-09-02, #430
+- **Миграция `docs/` → `.orchestra/` переименовывает файлы и НЕ переписывает ссылки внутри них.** В `app/orchestra_layout.py:25-27` старые корни объявлены только источниками переименования, кода правки содержимого в модуле нет. Из 8 мигрированных корней исполняемый код со ссылками на исчезнувшие пути остался в 4 (`orchestra` 98 строк, `kesha-tg-bot` 14, `kesha-bot` 14, `katya-work` 10), а реально красных файлов три, все в `katya-work` · ищи: `docs/tasks`, `migrate_orchestra_layout`, `LEGACY_PATH_FIXTURE`, `generate-master-registry.py`, «старые пути после переезда», «broken docs path after layout migration» · `.orchestra/tasks/514/raw/final-counts-and-markers.txt`; `.orchestra/tasks/514/raw/run-katya-generate-master-registry.txt` (`FileNotFoundError: [Errno 2] No such file or directory: '/home/kesha/katya-work/docs/tasks/4/evidence/master-manifest.json'`) · 2026-09-05, #514 · ключ `fact:layout-migration-leaves-code-references`
+- **Класс ссылки на исчезнувший путь ставится по ТЕКСТУ падения, а не по наличию литерала в файле.** `tests/test_task11_ops.py:565` в worktree `fix-onboarding-clients` держит `docs/tasks/11/report.md` и при этом ЗЕЛЁНЫЙ (`6 passed`), потому что литерал ищется подстрокой в runbook той же ветки, а `tests/test_orchestra_layout_430.py` красный без единого `docs/`-пути в тексте падения · ищи: `RED_FROM_PATH`, `MENTION_ONLY`, `test_task11_ops`, «литерал есть, а тест зелёный», «class by failure text not by literal» · `.orchestra/tasks/514/raw/run-vpn-worktree-fix-onboarding-task11.txt`; `.orchestra/tasks/514/raw/vpn-task11-test-body.txt` · 2026-09-05, #514 · открыть: docs/tasks/11/report.md — нет в репозитории: литерал внутри `tests/test_task11_ops.py` чужого репозитория
+- **`scripts/check_orchestra_paths.py` — единственный сторож старых путей, существует только в репозитории Orchestra (отсутствует во всех 7 остальных мигрированных корнях) и не печатает ни одной цифры.** `main()` (строки 244-246) вычисляет `{**classify_old_paths(root), **verify_historical_bindings(root)}`, второй вызов падает `ValueError: not enough values to unpack (expected 3, got 2)` на строке 211; правило `occurrence_class` (строки 93-106) безусловно относит любой путь под `tests/` к `negative`, а под `.orchestra/` — к `historical`, поэтому живой старый путь в этих деревьях им не обнаружим по построению · ищи: `check_orchestra_paths.py`, `occurrence_class`, `verify_historical_bindings`, `LEGACY_PATH_FIXTURE`, «сторож старых путей», «path guard prints nothing» · `.orchestra/tasks/514/raw/run-orchestra-script-check_orchestra_paths.txt`; `.orchestra/tasks/514/raw/run-classify_old_paths-orchestra.txt` (`live_old_path_occurrences=0`, `historical_old_path_occurrences=82470`); `.orchestra/tasks/514/raw/skipped-and-leftovers.txt` · 2026-09-05, #514
+- **Три теста `tests/test_orchestra_layout_430.py` (`test_t3_repository_move_has_content_receipt_and_no_old_roots`, `test_t4_all_fleet_receipts_precede_global_prompt_activation`, `test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves`) красные и в главном чекауте, и в worktree, но не из-за путей: коммиты квитанций #430 `1f80bb50b81db380fb5f51a0894209538553087f`, `e748168c6eea8924999e575d9c09a88a33168d2e`, `f157420676d327553c74e8998a7bea27f2d1ad1d` отсутствуют в объектном хранилище (`git cat-file -t` → `fatal: git cat-file: could not get object info` на все три), падение печатает `fatal: not a tree object`.** · ищи: `test_orchestra_layout_430`, `not a tree object`, `move-receipt.json`, `verify_historical_bindings`, «квитанция #430 ссылается на несуществующий коммит» · `.orchestra/tasks/514/raw/run-orchestra-layout430-MAIN-checkout.txt`; `.orchestra/tasks/514/raw/orchestra-missing-objects.txt` · 2026-09-05, #514
+- **`knowledge.evidence-ref.source_path` является адресом внутри pinned `git_commit`, а не current working-tree path.** 12 503 из 12 759 project-local records содержат legacy root, и blanket replacement ломает проверку `git_commit:source_path == git_blob`; current materialization меняется отдельно через 12 759 `manifest.records[].destination_relative_path` · ищи: `source_path`, `git_blob`, `destination_relative_path`, `evidence Git path/blob binding changed`, «исторический путь evidence» · `app/ia/runtime.py:901-920,964-1007`; full deterministic gate verified 12 759/12 759 path/blob and SHA bindings across 8 commits/1 636 blobs in 0.919 s, `.orchestra/tasks/430/research.md` F4 · 2026-09-01, #430
+
+### Общая архитектура данных
+
+- Один логический typed namespace/data plane с разными record contracts лучше отражает Orchestra: Git/task/evidence остаются canonical, SQLite current/FTS и vector являются content-bound projections с разными head receipts · .orchestra/tasks/315/research.md §§1,4; .orchestra/tasks/256/research.md §§3,6; 2026-08-24, #315
+- **Владельцы разные: задачи — схема `tm_*` в app/db.py плюс бизнес-писатели app/tm.py; база знаний и доказательства — Markdown в Git; а у продвижения типизированного факта боевого владельца НЕТ вовсе** · .orchestra/tasks/315/research.md §1; app/db.py:309-383; app/tm.py:295-525; 2026-08-24, #315
+- **Задаче нужен устойчивый UUID/ULID ПЛЮС сохранённый номер `#N` в рамках проекта.** Один глобальный `MAX+1` или четырёхсимвольный хеш небезопасны при нескольких контурах · .orchestra/kb/task-storage-architecture.md; .orchestra/tasks/299/research.md §§4,10; 2026-08-24, #315
+- **Каждому продвинутому факту нужны ключ, статус, время действия, происхождение и явные отношения «заменяет» и «оспорен».** TTL создаёт долг по перепроверке и НИКОГДА не удаляет историю · .orchestra/kb/knowledge-base-architecture.md; .orchestra/tasks/315/schema.md; 2026-08-24, #315
+- **Головы канона, проекции и индекса обязаны быть РАЗНЫМИ.** Устаревшая текущая проекция требует прямого отката к канону, пока досыпка вектора и лога идёт асинхронно · .orchestra/tasks/256/research.md §6.4; app/rag_service.py:190-201; .orchestra/tasks/315/state-machines.md; 2026-08-24, #315
+- **Замеры #256/#299/#309 — базовые срезы, а не будущие константы.** У #256 долг по свежести 545 и R@5 по exact/current/rejected 33.3%/33.3%/50.0%; повторная проверка #299 изменила число связанных хешей с 486 на 489 прямо во время продолжающихся записей; телеметрия маршрутов и интерфейса из #309 так и осталась неизмеренной · .orchestra/tasks/256/eval/structure.raw.json; .orchestra/tasks/299/research.md; .orchestra/tasks/309/metrics.md; 2026-08-24, #315
+- **Шесть файлов `.orchestra/tasks/315/acceptance/test_smoke_t*.py` — это пробы на ОТСУТСТВИЕ шва, проверяющие только его существование.** Поведенческими красными оракулами они не являются и приёмку тикета закрыть не могут · .orchestra/tasks/315/acceptance/README.md; 2026-08-24, #315
+- **Из OpenViking выборочно переносимы семь механизмов: типизированный URI, разделение содержимого и индекса, постепенная загрузка, явный архив сессии, проверка пакета по манифесту и контрольной сумме, приватность по областям и метрики.** Официальная документация выгоду ДЛЯ ORCHESTRA не измеряет · .orchestra/tasks/315/openviking-comparison.md; https://docs.openviking.ai/en/concepts/01-architecture; 2026-08-24, #315
+
+## Historical observations
+
+### Устройство базы знаний
+
+- Простого входа `ia_task_store_mode`/`document_cutover_mode` из FastAPI lifespan недостаточно: Uvicorn запускает HTTP в sibling task, поэтому lifespan `ContextVar=lifespan-value` дал HTTP handler/to_thread значение `default`; HTTP-доступный owner должен быть process-global или устанавливаться на request seam · минимальный Uvicorn probe + `app/main.py:340-395`, `app/tm.py:1244-1355` · 2026-08-25, #361
+- Live typed-активация обязана иметь отдельный canonical project registry: в WAL-safe снимке 18 resumable scopes, только 13 mapped, а 8 из 19 `tm_projects.id` не являются canonical slug; два абсолютных id направляют 3 task paths за пределы заданного canonical root · `.orchestra/tasks/361/research.md` §§live boundary, multi-scope; live backup manifest/path probe · 2026-08-25, #361
+- Current/FTS projection — материальная часть рестарта, не бесплатный cache: 65,031 Orchestra task/file/log records перестроились за 13.027 и 36.041 с, SQLite вырос 757,227,520→835,424,256 Б, peak RSS ≈1.36 GiB; rows/FTS/head совпали, первый `quick_check=ok` · `.orchestra/tasks/361/research.md` §Projection rebuild cost · 2026-08-25, #361
+- Нативные сессии можно сохранить без clear: live snapshot содержит 495 native contexts и 72 resumable, штатный `/api/restart` сохраняет session IDs/умеет handover, но 55/72 resumable prompts имеют `prompt_overlay IS NULL` без нового knowledge anchor и поэтому требуют отдельной ownership-safe prompt migration · `.orchestra/tasks/361/research.md` §§Prompt, Restart; `app/manager.py:1744-1867,2181-2303` · 2026-08-25, #361
+- Canonical evidence Orchestra должно оставаться в Git (`.orchestra/tasks` + typed topic records), а SQLite/FTS/vector/graph быть content-bound projections: это сохраняет review/offline portability и делает `target_head/indexed_head` проверяемой границей · [`.orchestra/tasks/256/research.md`](../tasks/256/research.md) §§5–7; [Git objects](https://git-scm.com/book/en/v2/Git-Internals-Git-Objects); [SQLite FTS5 drift contract](https://www.sqlite.org/fts5.html) · 2026-08-23, #256
+- Текущий prompt-only write path не обеспечивает даже source linkage: с commit создания KB-контракта exact task-path в topic-файлах получили 7 из 12 изменённых research, 5/12 не имеют ссылки, 1 из 12 topic-файлов отсутствует в README; semantic promotion recall исторически не измерим без atomic fact IDs/anchors · `python3 .orchestra/tasks/256/eval/audit_structure.py ...` → source-link coverage 7/12, unlisted `dashboard-quota-map.md`; [`structure.raw.json`](../tasks/256/eval/structure.raw.json) · 2026-08-23, #256
+- Текущий RAG не может быть current-state oracle: из 1 092 indexable Markdown только 547 имеют current sha, долг 545 = 516 missing + 29 stale; frozen 18-query holdout дал exact/current/rejected R@5 33.3%/33.3%/50.0% и stale contradiction 1/6 · [`structure.raw.json`](../tasks/256/eval/structure.raw.json), [`baseline.raw.json`](../tasks/256/eval/baseline.raw.json), holdout sha256 `9e7c737d…9e466b` · 2026-08-23, #256
+- Новая находка должна входить через deterministic topic registry + stable `fact_key`: identical → idempotent no-op; same-key conflict требует explicit `supersedes` или `disputed`; TTL только `stale-needs-validation`; rejected сохраняется отдельно от correct history. Semantic similarity может предлагать candidate, но не retire fact · [Graphiti #1728](https://github.com/getzep/graphiti/issues/1728) (3 false retirements/4 audit cases), [Wikibase ranks](https://www.wikidata.org/wiki/Help%3ARanking), [deterministic freshness paper](https://arxiv.org/abs/2606.01435) · 2026-08-23, #256
+- **Общее «читаю то, что записал» задаётся поколением мержа.** Канонический мерж в Git устанавливает `target_head`; изменённые типизированные факты синхронно проецируются в SQLite current и FTS; досыпка вектора и лога остаётся асинхронной; расхождение голов включает прямой откат к канону и ВИДИМЫЙ долг, но никогда не «не найдено» · [`.orchestra/tasks/256/research.md`](../tasks/256/research.md) §6.4; current absence of generation proven by `app/rag_service.py:190-201`, `app/routes/memory.py:48-52` · 2026-08-23, #256
+- **Холодная доставка знания должна быть трёхуровневой: компактный сгенерированный реестр тем — горячим, сводки типизированных фактов — тёплыми в один поиск, полные доказательства темы, задачи и лога — холодными по требованию.** Одна строка на тему ограничивает след в промпте и убирает один разведочный вызов инструмента, не вставляя при этом биографию · [Letta MemFS](https://github.com/letta-ai/letta-docs-md/blob/main/concepts/memfs/index.md), local footprint 2 909 + 4 963 = 7 872 bytes in [`structure.raw.json`](../tasks/256/eval/structure.raw.json) · 2026-08-23, #256
+
+### Конвейер «сырьё → знание»
+
+- **В snapshot #454 `.orchestra/tasks` содержит 4 040 файлов / 89 867 548 apparent bytes / 464 непустых task dirs, `.orchestra/workers` — 163 Markdown-файла / 587 227 bytes.** Living KB facts exact-path ссылаются на 122 task files и 0 worker files, а 327/464 task dirs не имеют даже legacy-upper-bound promoted fact · ищи: `.orchestra/tasks`, `.orchestra/workers`, `4 040`, `327/464`, «сколько сырья» · `/mnt/data/Projects/Python/orchestra/.venv/bin/python .orchestra/tasks/454/measure_inventory.py`; `.orchestra/tasks/454/inventory-output.json` · 2026-09-03, #454
+- **Frozen prompt `847d17ac` на 37 Markdown files / 6 closed tasks в трёх fresh Luna runs дал exploratory source-valid set-level recall 72.7%/54.5%/54.5% после исключения только source-invalid G419.** Неизменённый preregistered scorer отдельно дал exact-evidence 84.75%/97.73%/65.08% и candidate count 50/31/57; одно отозванное rollout-правило было ошибочно promoted как `current` в 3/3 runs · ищи: `847d17ac`, `54.5%`, `exact evidence`, `3/3`, «промпт Luna теряет факты» · recall `.orchestra/tasks/454/eval-score-setlevel.json`; exact-evidence/count `.orchestra/tasks/454/eval-score-preregistered.json`; falsehood `.orchestra/tasks/454/eval-semantic-audit.json` · 2026-09-03, #454
+- **Orchestra имеет persistent `bg_jobs` scheduler, но active `run` после service restart не перезапускается и становится explicit interrupted.** `app.ia.recovery` держит extraction outcome в process-local `_EXTRACTIONS`, поэтому durable work-item queue с mandatory drain/source receipt для background knowledge extraction сейчас отсутствует · ищи: `bg_jobs`, `_EXTRACTIONS`, `interrupted`, `mandatory drain`, «очередь извлечения переживает рестарт» · `app/bg_jobs.py:488-539,694-714`; `app/ia/recovery.py:398-418`; restart interruption `.orchestra/tasks/454/eval-run-manifest.json` · 2026-09-03, #454
+- **В 13 доступных registered repositories находится 4 833 eligible nested Markdown files / 46 510 664 bytes.** Распределение на repo min/p25/median/p75/max = 4/71/98/301/1 723, а one-file-per-worker fan при `$0.31–0.62` cold start и `$0.13` round-trip проигрывает последовательному для любого F≥2, если per-file work одинаков · ищи: `4 833`, `median 98`, `cold start`, `one-file-per-worker`, «сколько Markdown в проектах» · `/mnt/data/Projects/Python/orchestra/.venv/bin/python .orchestra/tasks/454/measure_project_markdown.py`; `.orchestra/tasks/454/project-markdown-output.json`; arithmetic in `.orchestra/tasks/454/research.md` F7 · 2026-09-03, #454
+- **Пользователь выбрал lifecycle `in_progress → knowledge_pending → done`.** Merge освобождает исходного worker, background Luna/drain закрывает task только после approved sink и release proof; current platform owner перехода — `prepare_merge_finalization`/`finalize_merge_outcome`, а agent-facing `task_update` не имеет права ставить platform lifecycle statuses · ищи: `knowledge_pending`, `finalize_merge_outcome`, `task_update`, `completed_at`, «статус на извлечение» · direct user decision 2026-09-03; `app/tm.py:861-924,1320-1372`; `app/mcp_stdio.py:2930-2946`; `.orchestra/tasks/454/research.md` F9 · 2026-09-03, #454
+- **Допустимость task status продублирована в legacy `app/tm.py:VALID_STATUSES`, canonical `app/ia/task_store.py:_VALID_STATUSES` и SQLite `CHECK` (CHECK повторён для create/rebuild), а dashboard рисует только `STATUS_ORDER`, поэтому частично добавленный `knowledge_pending` либо отвергается слоем, либо полностью исчезает из task panel.** · ищи: `VALID_STATUSES`, `_VALID_STATUSES`, `STATUS_ORDER`, `knowledge_pending`, «задача пропала из интерфейса» · `app/tm.py:32`; `app/ia/task_store.py:54`; `app/db.py:439-460,1310-1331`; `app/static/js/app.js:3953-3963,4303-4351`; `.orchestra/tasks/454/research.md` F9 · 2026-09-03, #454
+- **При retroactive strict migration текущая история Orchestra дала 141 `knowledge_pending` tasks с 1 525 files / 28 316 996 B и 33 `extraction_blocked_source_missing`.** 134 из 141 (95.0%) source-backed done tasks не имеют ни одной KB-строки с `fact:` и exact task path/`#par`; forward-only стоит 0 historical Luna turns/`$0`, one-worker-per-task retro lower estimate — 141 turns/`$87.13–154.89` · ищи: `134 из 141`, `95.0%`, `$87.13`, `knowledge_pending`, «сколько задач ждёт извлечения» · `/mnt/data/Projects/Python/orchestra/.venv/bin/python .orchestra/tasks/454/measure_pending_backlog.py`; `.orchestra/tasks/454/pending-backlog-output.json`; formula `.orchestra/tasks/454/research.md` F9 · 2026-09-03, #454
+- **Конфликт #429 «fact commit до done» против «Luna после done» закрыт новым lifecycle.** Task сначала получает `knowledge_pending`, background drain записывает fact/release proof и лишь затем `done` · ищи: `knowledge_pending`, `after close`, `task done`, «когда закрывать задачу» · direct user decision 2026-09-03; `.orchestra/tasks/454/research.md` F8–F9 · 2026-09-03, #454
+- **Revised Luna extractor prompt после frozen failed baseline ещё не написан и не испытан, поэтому current prompt не допускается к canonical KB write/delete.** · ищи: `extractor-prompt.md`, `RC=1`, `prompt revision`, «исправить промпт Luna» · `.orchestra/tasks/454/eval-score-preregistered.json`; `.orchestra/tasks/454/research.md` F6 · 2026-09-03, #454
+- **Wall-clock break-even bounded Luna fan не измерен.** Cold-start dollars и command-call count дают денежный threshold только для устранённых billable calls, но не latency threshold · ищи: `fan wall-clock`, `break-even`, `bounded fan`, «когда веер быстрее» · `.orchestra/tasks/454/research.md` F7; `.orchestra/tasks/454/eval-run-manifest.json` · 2026-09-03, #454
+
+### Память агентов: поиск, связи, версии
+
+#### Toast 1 (Mixedbread), оценка 01.09.2026 — сам сервис нам не подходит, открытый harness может пригодиться
+
+
+**Established (из первоисточника mixedbread.com/blog/toast-1 и репозитория mixedbread-ai/toast-harness):**
+- Toast 1 — **API-only**, весов нет. Цена: $0.30/1M входных, $0.036/1M кэшированных входных
+  (записи в кэш бесплатны), $0.72/1M выходных; заявленная цена запроса $0.016–0.023 при
+  медианной задержке 8 с, «максимальное качество» — до $0.07.
+- **Harness открыт (Apache-2.0)** и от их модели не зависит: agent loop, учёт токенов и набор
+  инструментов `search_corpus`, `grep`, `get_chunks`, `read_document`, `filter_chunks`,
+  `prune_context`, `submit_ranking`. Работает поверх «any OpenAI-compatible served model»;
+  `MXBAI_API_KEY` нужен только их хостингу, свой клиент подставляется через
+  `agent_harness.RetrievalClient`.
+- Заявленный выигрыш **чисто по токенам, не по качеству**. Их же таблица Harvey LAB:
+  80.6M токенов / score 55 / 21.7 ходов → 47.0M / **55** / 14.6 (только их поиск, без Toast)
+  → 23.0M / **55** / 11.2 (с Toast-субагентом). Оценка качества не двигается ни в одном
+  варианте, а половину экономии даёт сам поисковый бэкенд.
+- Корпуса бенчмарков **не раскрыты** — воспроизвести на своих данных нельзя.
+
+**Почему нам это скорее не нужно:**
+- Наш измеренный профиль поиска: 12 722 вызова инструментов за 7 дней, из них Grep/Read/
+  WebSearch — 426 (3.3%), а 8 019 — `Bash` (внутри него `rg`). Мы ищем по git-репозиторию,
+  а не по корпусу документов с индексом.
+- Замер #419 на нашей базе: **0 уникальных побед вектора против 6 у обычного `rg`**;
+  семантический поиск выключен по решению юзера. Toast — другой механизм (агентный цикл),
+  но корпус тот же, и выигрывать ему у `rg` предстоит на тех же данных.
+- Их хостинг означает отправку наших внутренних задач и переписок наружу.
+
+**Что из этого стоит внимания:** не сервис, а форма — субагент, который отдаёт основной модели
+уже отобранный контекст. У нас 69% цены вызова уходит на перечитывание диалога (#345), а
+разведка — 26.8% денег. Проверяемо своими руками: harness открыт, модель берётся наша (Luna),
+ретривер — наш `rg`. Не сделано, не мерено, решения нет.
+
+## Rejected
+
+### Устройство базы знаний
+
+- «Достаточно сконфигурировать уже смерженные context managers в lifespan и перезапустить» · ContextVar не доезжает в HTTP, TaskStore повторная миграция падает после shadow write, cutover generation 2 после re-entry становится generation 1, а включённый projection global немедленно переключает legacy memory reader · прямые scratch probes + `.orchestra/tasks/361/research.md` · 2026-08-25, #361
+- «T7 frozen inventory уже подключён к настоящему Git evidence importer» · production importer сохранил заведомо ложный `git_commit=000…000`, а frozen cold alias отверг как `evidence canonical_uri is invalid`; положительный T7 использует fake callback и не пишет receipt на диск · scratch import probe; `app/ia/knowledge.py:691-798`, `.orchestra/tasks/315/acceptance/test_t7_prompt_document_cutover_behavior.py:321-360` · 2026-08-25, #361
+- «Достаточно усилить Markdown prompt-контракт» · после введения контракта source-link coverage только 58.3%, topic orphan 8.3%, а current index coverage 50.1%; semantic promotion recall не измерим, enforcement должен быть write API + validator/projection · 2026-08-23, #256
+- «Graph-first/LLM contradiction resolver безопасно выбирает текущее знание» · Graphiti #1728 измерил 3 collateral retirement из 4 audit cases, #1275 — O(n) resolution и silent dropped episodes, MemoryAgentBench paper — Graphiti/Zep 7% FC-SH · 2026-08-23, #256
+- «Нужно снова крутить embedder/reranker/RRF/weights/pool или разводить file/log corpus» · #133 не доказал superior embedder, #135 отверг pool/RRF/weights, #138 отверг corpus split при равном budget; #256 локализует seam раньше retrieval — promotion + freshness + typed current state · 2026-08-23, #256
+- «GigaEmbeddings 480M улучшит текущий hybrid retrieval на русском техкорпусе» · pinned #134: MRR 0.4726 против bge-m3 0.4893, Δ −0.0167, paired t −0.334; |Δ| в 6.3 раза меньше split-half noise 0.1048 → разницы стенд не видит, модель не менять · `.orchestra/tasks/364/bench/results.json`; `.orchestra/tasks/364/report.md` · 2026-08-26, #364
+- «TTL означает удалить/считать ложным» · время последней проверки не является valid-time; истёкший `refresh_after` только помечает validation debt, а history/rejected сохраняются · [Wikibase historical vs deprecated semantics](https://www.wikidata.org/wiki/Help%3ARanking), 2026-08-23, #256
+
+### Конвейер «сырьё → знание»
+
+- **«Один фоновый Luna pass может извлечь факты, сразу записать topic packs и удалить raw без внешнего oracle» отвергнуто.** Три frozen runs пропустили минимум 27.3–45.5% source-valid gold, нарушили exact evidence и в 3/3 сохранили explicitly withdrawn rule как `current` · ищи: `same-pass delete`, `lossless`, `withdrawn rule`, `source-valid gold`, «Luna сразу удаляет сырьё» · `.orchestra/tasks/454/eval-score-setlevel.json`; `.orchestra/tasks/454/eval-semantic-audit.json` · 2026-09-03, #454
+
+### Память агентов: поиск, связи, версии
+
+- «A-MEM можно перенести целиком, включая auto-rewrite старых notes» · paper/code не дают immutable evolution history, а production Graphiti incident показывает тот же опасный outcome ложного retirement через другой causal mechanism · `.orchestra/tasks/417/research.md` §§4,6 · 2026-08-30, #417
+- «94.5% Amazon означает 94.5% общего качества RAG» · 94.52% относится только к relative faithfulness; context recall 88.05%, answer correctness 91.48%, corpus — шесть PDF datasets · [paper Table 1 / Results](https://cdn.amazon.science/df/78/e81873f9478d80b642d113acd05e/keyword-search-is-all-you-need-2.pdf) · 2026-08-30, #417
+- «Низкий usage 808-МБ projection сам доказывает, что vector бесполезен» · usage измеряет adoption, не unique correct answers; удаление допускает только path/head-deduped 30-row local A/B с 0 vector rescues и без task wins · `.orchestra/tasks/417/research.md` §9 · 2026-08-30, #417
+- «20 502 existing records надо мигрировать в новую память» · 96.44% — raw resources, а новая fact/link form ещё не победила на ≥10 Orchestra questions · вход пользователя #417; `.orchestra/tasks/417/research.md` §§5,11 · 2026-08-30, #417
+
+### Локальность данных проекта
+
+- «Оставить central knowledge как общий rebuildable cache» · пользователь прямо выбрал полную раздачу; current projection содержит 8 255 foreign records / 85 080 576 chars, поэтому cache оставит вторую копию project knowledge · read-only `current.db`; `.orchestra/tasks/412/research.md` §1.1 · 2026-08-27, #412
+- «Сначала преобразовать формат central records, потом раздать» · одновременно меняются bytes и owner, byte-parity перестаёт локализовать потерю; fixed order — byte-identical distribution, parity, затем format commit · `.orchestra/tasks/412/research.md` §4 · 2026-08-27, #412
+- «В `VPN-Service` два файла держат старые пути и блокируют мерж / молча красные с 03.09 (`tests/test_task2_pilot.py:111`, `tests/test_task11_ops.py:565`)» · мандатный `rg` по репозиторию даёт 0 строк; литерала `docs/tasks/2/client-matrix.html` нет ни в одной ветке, починка уехала в `master` сквошем `107957b` из `9fbf4cf` «#2: align test gate with orchestra layout»; `docs/tasks/11/report.md` жив только на 5 отставших ветках, и там тест тоже ЗЕЛЁНЫЙ (`6 passed`) · `.orchestra/tasks/514/raw/vpn-service-premise-forensics.txt`; `.orchestra/tasks/514/raw/run-vpn-master-task11-task2.txt` (`8 passed, 1 xfailed`); `.orchestra/tasks/514/raw/run-vpn-worktree-fix-onboarding-task11.txt` · 2026-09-05, #514 · открыть: docs/tasks/2/client-matrix.html — нет в репозитории: литерал внутри `tests/test_task2_pilot.py` чужого репозитория; docs/tasks/11/report.md — нет в репозитории: литерал внутри `tests/test_task11_ops.py` чужого репозитория
+- «Локальный Git commit уже решает clone/backup» · четыре destination repo имеют remote count 0; fresh clone невозможен, а central canonical сам имеет remote count 0 · live `git remote` inventory · 2026-08-27, #412
+
+### Общая архитектура данных
+
+- **«Контракт в промпте на одном Markdown — это полноценная система текущего состояния» — нет.** #256 намерил покрытие ссылками на источники 7/12, одну тему без строки в оглавлении, 545 отсутствующих или устаревших файлов и устаревшее противоречие 1/6 · 2026-08-24, #315
+- **«Один бесформенный JSONL/Markdown или только БД в роли канонического хранилища» — нет.** #299 и #295 требуют и ревью с восстановлением через Git, и раздельных жизненных циклов задачи и факта, и прямо называют горячую точку мержа на append-only · 2026-08-24, #315
+- **«Граф или автоматическое сжатие, дедупликация и замена фактов силами LLM могут быть каноническим авторитетом» — нет.** Контраргументы #256 и собственная семантика компрессора и асинхронности у OpenViking требуют детерминированного продвижения, опирающегося на доказательства · 2026-08-24, #315
+- **«Взять OpenViking целиком и считать его бэкап атомарным» — нет.** Официальная документация описывает отдельный сервис и живой НЕатомарный бэкап, а официальный issue #3875 сообщает об отказе восстановления с перезаписью · https://github.com/volcengine/OpenViking/issues/3875; 2026-08-24, #315
+- **«Перенести YouGile и платежи в новое пространство имён» — нет.** Одобренное владельцем решение по чистке #299/#309 — УДАЛИТЬ, а не мигрировать · .orchestra/tasks/309/research.md; 2026-08-24, #315
+
+## Gaps
+
+### Устройство базы знаний
+
+- Generation 3 остаётся непроверенным до появления persistent scope/state/receipt owner, real Git commit owner и live shadow parity/privacy/prompt/rollback/projection receipts; текущие IA модули пишут plain JSON и не загружают cutover generation после рестарта · `.orchestra/tasks/361/research.md` §§Minimum staged activation, Validation debt · 2026-08-25, #361
+- Full all-scope rebuild cost неизвестен: live boundary = 180,729 log rows / 488,108,606 content bytes, но canonical scope identity для 5 resumable scopes ещё отсутствует; экстраполяция не считается oracle · WAL-safe backup measurement in `.orchestra/tasks/361/research.md` · 2026-08-25, #361
+- Privacy classification не закрыта: current-main allowlisted inventory имеет 8 files, а immutable log backup 340 rows с узкими token-shape совпадениями; совпадения могут быть примерами, но `rebuild_legacy` копирует content без повторной privacy validation · `.orchestra/tasks/361/research.md` §Secrets exclusion · 2026-08-25, #361
+- Candidate architecture не реализована и её effect на answer utility/task success не измерен · внешняя модель для eval не разрешена; frozen mechanical holdout и 12-scenario promotion design готовы в `.orchestra/tasks/256/metrics.md` · 2026-08-23, #256
+- Stable fact-key vocabulary и exact serialization typed records в Git не выбраны · это Phase 2 schema decision с red mutation oracles, текущая задача research-only · 2026-08-23, #256
+- Semantic duplicate-topic rate не измерен: exact cross-topic duplicates дают только lower bound и не ловят paraphrase · нужен blinded manual audit или отдельно авторизованный model-assisted audit · 2026-08-23, #256
+- A/B latency and real tokenizer tokens для proposed typed path отсутствуют · implementation не существует; current baseline хранит 335.6/682.8 ms и chars/3 proxy, не выдавая proxy за tokens · 2026-08-23, #256
+- Перенос сравнения GigaEmbeddings на текущий состав корпуса не измерен: свежий SQLite-backup уже потерял 3 gold chunk_id frozen-выборки, а расширять/пересобирать n=28 после результата запрещено методологией · `.orchestra/tasks/364/research.md` §Counter-evidence · 2026-08-26, #364
+
+### Конвейер «сырьё → знание»
+
+- Требование #429 «fact commit до task done event» конфликтовало с формулировкой «Luna после закрытия»; одновременно исполнить оба порядка нельзя · `.orchestra/tasks/454/research.md` F8 · ЗАКРЫТО 2026-09-03 #454: пользователь выбрал `knowledge_pending`, task закрывает drain после извлечения
+- Исправленный prompt Luna после failed baseline не написан и не испытан; current prompt не допускается к canonical write/delete · `.orchestra/tasks/454/eval-score-preregistered.json` · 2026-09-03, #454
+- Wall-clock break-even bounded Luna fan не измерен; cold-start dollars и command-call count дают monetary threshold только для устранённых вызовов, но не latency threshold · `.orchestra/tasks/454/research.md` F7; `.orchestra/tasks/454/eval-run-manifest.json` · 2026-09-03, #454
+
+### Память агентов: поиск, связи, версии
+
+- Даёт ли vector unique task-success после canonical path/HEAD dedup · нет frozen comparison с agentic `rg`, FTS, vector и links на current corpus · 2026-08-30, #417 — ЗАКРЫТО 2026-08-30 #419: vector unique wins 0, ordinary `rg` unique wins 6; semantic path удалён и в #417 не переоткрывается
+- Окупает ли machine `as_of` schema/authoring cost · фактов в live projection нет, 39 вызовов generic `knowledge` не измеряют спрос на version query · 2026-08-30, #417
+- Улучшают ли explicit one-hop links ≥10 cross-topic вопросов без context dilution · current literal graph почти пуст, multi-hop gold не создан · 2026-08-30, #417
+- Сколько ещё живых воркеров остались без личной памяти после #188 T4 · 2026-09-05, #513 — ЗАКРЫТО 2026-09-05 #513: сверены все 17 имён из `46a40bc0` со строками `sessions`, живым оказался ровно один (`memory-research`, `idle`), остальные 16 — `archived`; в main сегодня нет ни одного из 17
+- Какой единый protocol одинаково выполняют Claude, Codex и Grok · внешние paper results не проверяют Orchestra runtimes · 2026-08-30, #417 — ЗАКРЫТО 2026-08-30 #417: frozen T1 проверяет один assembled file-first prompt в Claude/Codex/Grok factories и resumed `SessionManager.assemble_prompt`
+
+### Локальность данных проекта
+
+- Назначить private remotes для Comfy/stargate/games/WebView и private off-host owner для pre-cutover bundle · current config destination не содержит · 2026-08-27, гейт после #412
+- Решить Git ownership `/mnt/data/media` до появления первого evidence record · сейчас evidence=0 позволяет сделать это без data migration · 2026-08-27, гейт после #412
+- Восстановить отсутствующие `decided_at` у 275 и `reason` у 397 extracted facts можно только отдельным research; migration обязана сохранить null и не выдумывать значения · extraction measurement · 2026-08-27, гейт после #412
+- Не выбран transition contract между per-project one-root resolver и fleet-wide coordinated cutover; backend-connect mutation отвергнута из-за tracked dirty worktrees, а permanent split соглашений отвергнут решением пользователя · `app/workspace.py:405-468`; варианты и falsifiers в `.orchestra/tasks/430/research.md` H2–H4/Rollout options · 2026-09-01, гейт после #430 — ЗАКРЫТО 2026-09-02 #430: forced automatic migration + fail-loud self-repair, без fallback
+
+- Литералы `docs/archive` и `docs/artifacts` в правиле поиска #514 отсутствовали, хотя `check_orchestra_paths.py` считает `docs/archive` наравне с прочими (`DOC_LITERALS`, строка 18), а приёмочная команда задачи #463 ссылается на `docs/artifacts/` · правило поиска задал заказчик · 2026-09-05, #514
+- 12 строк таблицы #514 остались `UNVERIFIED`: 8 файлов `/opt/kesha-bot` (`/opt/kesha-bot/.venv/bin/python: No module named pytest`), `scripts/verify_orchestra_move.py` (требует `--root/--before-ref/--after-ref`), три файла `katya-work`, запуск которых пишет в чужой репозиторий · запрет на правки в чужих репозиториях · 2026-09-05, #514
+- Не проверено, красен ли хоть один worktree воркера: 35 из 41 живых worktree содержат совпадения, прогонялся только `tests/test_task11_ops.py` в `fix-onboarding-clients` · `.orchestra/tasks/514/raw/worktrees-hit-counts.txt` · 2026-09-05, #514
+
+### Общая архитектура данных
+
+- Открытыми остаются три вещи: словарь устойчивых ключей факта, юридическая политика приватных полей и их вычистки и решение про непрерывный глобальный `#N` · апрув по схеме, хранению и аренде не выдан; 2026-08-24, владелец плюс оркестратор
+- Не измерены ни полезность ответов у предложенной архитектуры, ни полнота продвижения фактов, ни эффект A/B/A/B по промпту, инструментам и времени · реализация и вызовы моделей и оценщиков были прямо запрещены · 2026-08-24, #315
+- Точную семантику OpenViking, зависящую от версии, надо перепроверять перед реализацией · их документация и репозиторий живые и менялись вплоть до v0.4.16 от 2026-08-21 · 2026-08-24, #315
+
+## Источники
+
+### Устройство базы знаний
+
+- .orchestra/tasks/361/research.md — боевые владельцы, безопасные для WAL границы работы на живом, эксперименты по распространению, конкурентности, рестарту и импорту и минимальная поэтапная активация.
+- .orchestra/tasks/256/research.md — полный синтез своего и чужого опыта и рекомендованный шов записи, обновления и доставки.
+- .orchestra/tasks/256/comparison.md — точное сравнение по 15 колонкам: Git, реляционная база, гибридный поиск, граф, типизированные факты и журнал событий.
+- .orchestra/tasks/256/metrics.md — контракты метрик, замороженная отложенная выборка, базовый срез и будущий гейт продвижения.
+- .orchestra/tasks/364/research.md — бенчмарк на пришпиленном корпусе GigaEmbeddings 480M против боевой bge-m3 и вердикт «не менять», ограниченный шумом.
+
+### Конвейер «сырьё → знание»
+
+- `.orchestra/tasks/454/research.md` — инвентарь, предикат удаления, оценка промпта Luna, экономика веера и конфликт порядка в жизненном цикле.
+
+### Память агентов: поиск, связи, версии
+
+- .orchestra/tasks/417/research.md — сравнение A-MEM/Zep/GraphRAG/keyword/Mem0/LangMem, гейт инструмента, версионирование, связи, судьба вектора и просчитанные по цене ветки.
+
+### Локальность данных проекта
+
+- `.orchestra/tasks/514/research.md` — кросс-проектный аудит ссылок на старые пути после переезда раскладки: scope из живой системы, таблица по файлам с классами по факту прогона, опровержение посылки про VPN-Service.
+- `.orchestra/tasks/412/research.md` — реестр распределения, рекомендация по формату, владельцы, обратимый порядок действий и гейт бэкапа.
+- `.orchestra/tasks/430/research.md` — исчерпывающий инвентарь старых путей, отличие путей-доказательств и ограничения выката на другие проекты.
+
+### Общая архитектура данных
+
+- .orchestra/tasks/315/research.md — сводная матрица текущего состояния, доказательства, контраргументы и рекомендация
+- .orchestra/tasks/315/openviking-comparison.md — таблица официальных механизмов и вердикты по переносу каждого
+- .orchestra/tasks/315/schema.md — конкретная схема URI и записи и правило «никакой второй истины»
+- .orchestra/tasks/315/state-machines.md — контракты жизненного цикла, проекции, мержа, сессии, пакета и отката
+- .orchestra/tasks/315/discussion.md — доска решений владельца и оркестратора
+- .orchestra/tasks/315/plan.md — план архитектуры и обсуждения, дымовая диагностика и входной гейт поведенческого оракула

@@ -1,0 +1,44 @@
+=== sed 105-115 test_task2_pilot.py ===
+                "terminates_reality": False,
+                "private_material_on_forwarder": False,
+            },
+        },
+    }
+
+
+def test_t1_manifest_and_client_contract(tmp_path: Path) -> None:
+    assert SCRIPT.exists(), "T1: missing delivery artifact scripts/task2_pilot.py"
+    assert CLIENT.exists(), "T1: missing delivery artifact .orchestra/tasks/2/client-matrix.html"
+
+=== sed 560,570 test_task11_ops.py ===
+        "task11_harden_env.py check",
+        "sys.version_info[:2] == (3, 12)",
+        ".venv/bin/python -m pytest -x -q",
+        "task11_verify_relay.py",
+        ".duckdns_token",
+        ".orchestra/tasks/11/report.md",
+        "NEEDS WORK/no consensus",
+        "Rollback T6",
+    )
+    assert "secrets" in text.lower()
+    assert "PII" in text
+=== git log -S docs/tasks main ===
+107957b #2, #3: research current ingress failure hypotheses
+d1a3ddf #11: #11: research Contabo operational readiness
+=== branches ===
+  feat/home-kesha-projects-vpn-service/audit-analytics-anomaly
+  feat/home-kesha-projects-vpn-service/complete-vps-ops
+  feat/home-kesha-projects-vpn-service/diag-cascade-youtube
+  feat/home-kesha-projects-vpn-service/diag-exit-evidence
+  feat/home-kesha-projects-vpn-service/diag-external-e2e
+  feat/home-kesha-projects-vpn-service/verify-migration-claims
+* master
+  task-1/diag-current-cascade
++ task-2/fix-tspu-ingress
++ task-5/fix-onboarding-clients
++ task-7/feat-ingress-watchdog
++ task-8/fix-crypto-payment
+  remotes/origin/HEAD -> origin/master
+  remotes/origin/feat/mnt-data-projects-python-vpn-service/feat-contabo-fix
+  remotes/origin/master
+=== status ===

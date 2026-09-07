@@ -1,0 +1,18 @@
+=== вызовы в окрестности 30 с: закончились ошибкой? ===
+  is_error= 0 n= 126 часы= 1.08
+  is_error= 1 n= 180 часы= 1.52
+
+=== то же для 90 с (merge_worker) ===
+  is_error= 0 n= 168 часы= 4.29
+  is_error= 1 n= 1 часы= 0.03
+
+=== доля ошибочных вызовов и их время, по классам v4 ===
+  tests                            n= 1282 часы=  8.75
+  inline-code                      n=  687 часы=  1.85
+  wait-loop                        n=   50 часы=  0.75
+  nonbash:mcp__orchestra__merge_worker n=  162 часы=  0.75
+  other                            n=  347 часы=  0.71
+  net                              n=  169 часы=  0.67
+  nonbash:mcp__orchestra__task_create n=   47 часы=  0.43
+  nonbash:mcp__orchestra__send_message n=   80 часы=  0.40
+  ИТОГО ошибочных: 3950 вызовов, 16.19 ч = 13.4% всего времени инструментов

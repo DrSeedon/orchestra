@@ -1,0 +1,50 @@
+{
+  "turns": {
+    "implementation": {
+      "turn_id": "01a070be-c186-7270-86d3-cc8ebc5310a5",
+      "calls": 48,
+      "tokens": {
+        "input_tokens": 21631366,
+        "cached_input_tokens": 21341056,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 57641,
+        "reasoning_output_tokens": 34046
+      },
+      "tiers": [
+        "priority"
+      ],
+      "first_usage_utc": "2026-09-05T08:45:52.580Z",
+      "last_usage_utc": "2026-09-05T09:17:53.121Z",
+      "duration_ms": 1928420,
+      "fresh_input_tokens": 290310,
+      "cache_hit": 0.9865792109476581,
+      "orchestra_flat_api_equivalent_usd": 27.126206,
+      "input_cost_share": 0.893754032539604,
+      "estimated_fast_credits": 1695.387875
+    },
+    "merge": {
+      "turn_id": "01a070dd-364c-7631-8862-4ec955845f13",
+      "calls": 11,
+      "tokens": {
+        "input_tokens": 5562485,
+        "cached_input_tokens": 5548928,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 4941,
+        "reasoning_output_tokens": 2166
+      },
+      "tiers": [
+        "priority"
+      ],
+      "first_usage_utc": "2026-09-05T09:19:08.246Z",
+      "last_usage_utc": "2026-09-05T09:21:31.187Z",
+      "duration_ms": 150498,
+      "fresh_input_tokens": 13557,
+      "cache_hit": 0.9975627799445751,
+      "orchestra_flat_api_equivalent_usd": 5.931547999999999,
+      "input_cost_share": 0.9583498270603222,
+      "estimated_fast_credits": 370.72175
+    }
+  },
+  "duplicate_snapshots_skipped": 2,
+  "currency_note": "USD is Orchestra's flat standard API-equivalent formula, not cash billing; credits are a rate-table estimate, not an observed account debit."
+}

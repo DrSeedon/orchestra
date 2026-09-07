@@ -1,0 +1,2 @@
+{"client": "codex", "returncode": 0, "answers": ["orch-kb-c7e0d4"], "canary_loaded": true, "stderr_bytes": 39}
+{"client": "claude", "returncode": 1, "answers": [], "canary_loaded": false, "stderr_bytes": 311}

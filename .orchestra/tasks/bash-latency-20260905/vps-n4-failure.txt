@@ -1,0 +1,23 @@
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [ 29%]
+........................................................................ [ 59%]
+........................................................................ [ 89%]
+..................F......                                                [100%]
+=================================== FAILURES ===================================
+_________________________ test_t1_grep_perf_repo_tree __________________________
+[gw0] linux -- Python 3.12.3 /home/kesha/orchestra/worktrees/bash-latency-20260905/.venv/bin/python
+
+    def test_t1_grep_perf_repo_tree():
+        t0 = time.monotonic()
+        out = grep("MAX_TOOL_ROUNDS", CWD_ROOT)
+        dt = time.monotonic() - t0
+>       assert dt < 20.0, f"python-engine grep over repo took {dt:.1f}s (>20s)"
+E       AssertionError: python-engine grep over repo took 26.7s (>20s)
+E       assert 26.67707579303533 < 20.0
+
+tests/test_harness_tools.py:94: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_harness_tools.py::test_t1_grep_perf_repo_tree - AssertionEr...
+1 failed, 240 passed in 61.64s (0:01:01)

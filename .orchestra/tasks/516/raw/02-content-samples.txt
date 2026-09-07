@@ -1,0 +1,36 @@
+=== 5 samples NULL-name tool content (2026-08-04) ===
+(9754, '2026-08-04T03:57:36.456673+00:00', '75285d62-98bc-441c-9727-22c54bd8ab97', 'Bash: {\n  "command": "TOKEN=$(grep -m1 \'^INTERNAL_TOKEN\' .env | cut -d= -f2-); curl -s -H \\"Authorization: Bearer $TOKEN\\" http://127.0.0.1:8888/api/usage | python3 -c \\"\\nimport json,sys\\nd=json.load(sys.stdin)\\na=d.get(\'anthropic\',{})\\nfor k in (\'five_hour\',\'seven_day\',\'seven_day_opus\'):\\n    v=a.')
+--
+(9756, '2026-08-04T03:57:43.234106+00:00', '75285d62-98bc-441c-9727-22c54bd8ab97', 'mcp__orchestra__worker_wip: {\n  "name": "feat-instant"\n}')
+--
+(9757, '2026-08-04T03:57:43.217439+00:00', '75285d62-98bc-441c-9727-22c54bd8ab97', 'mcp__orchestra__list_agents: {}')
+--
+(9760, '2026-08-04T03:57:48.068570+00:00', '75285d62-98bc-441c-9727-22c54bd8ab97', 'mcp__orchestra__merge_worker: {\n  "name": "feat-instant"\n}')
+--
+(9762, '2026-08-04T03:57:55.936237+00:00', '75285d62-98bc-441c-9727-22c54bd8ab97', 'mcp__orchestra__send_message: {\n  "to": "frontend",\n  "message": "Current #32: продолжай, квота была причиной, а не твоя работа. Твой ход и ход feat-instant умерли на «monthly spend limit» — это supplemental-флаг, но в тот момент было полное 5h-окно. Сейчас проверил: 5h = 2%, 7d = 67%, окно сброшено')
+--
+=== 5 samples NULL-name on 2026-08-22 ===
+(196560, '2026-08-22T06:29:18.226361+00:00', '522f76c3-f418-4cc4-85aa-6463c32dac58', 'file: update /home/kesha/orchestra/worktrees/home-kesha-orchestra/ox-probe/app/models.py')
+--
+(196826, '2026-08-22T06:41:09.602273+00:00', '93daa99f-18e7-4be8-b8e8-bdc022da22ce', 'file: add docs/tasks/366/research.md')
+--
+(196923, '2026-08-22T06:44:22.531050+00:00', 'fdb0bb33-856e-4523-99f3-c78fc75add57', 'file: update app/static/js/tool-renderers.js')
+--
+(196925, '2026-08-22T06:44:26.326259+00:00', 'fdb0bb33-856e-4523-99f3-c78fc75add57', 'file: update app/static/js/tool-renderers.js')
+--
+(196939, '2026-08-22T06:44:36.526352+00:00', 'fdb0bb33-856e-4523-99f3-c78fc75add57', 'file: update app/static/js/tool-renderers.js')
+--
+=== 3 samples NAMED Bash content ===
+(66836, '2026-08-11T12:13:32.162269+00:00', 'Bash: {\n  "command": "systemctl is-active orchestra; systemctl show orchestra -p ActiveEnterTimestamp --value; curl -s -o /dev/null -w \\"api=%{http_code}\\\\n\\" http://127.0.0.1:8888/api/models; ps -eo lstart,args | grep -c \\"[m]cp_stdio.py\\"; grep -c \\"^TG_USER_MENTION=@\\" /home/kesha/orchestra/.env"')
+--
+(66843, '2026-08-11T12:13:36.784812+00:00', 'Bash: {\n  "command": "cd /home/kesha/projects/seedon/site && git log --oneline -3 main && echo \\"--- png на месте? ---\\" && ls blog/*/img/hero.png 2>&1 | wc -l",\n  "description": "Check whether task 135 merge landed"\n}')
+--
+(66845, '2026-08-11T12:13:40.055493+00:00', 'Bash: {\n  "command": "ps -eo lstart,args | grep \\"[m]cp_stdio.py\\" | awk \'{print $2,$3,$4}\' | sort | uniq -c; echo \\"--- main\\"; git log --oneline -1 && git status --short | wc -l",\n  "description": "Check MCP process ages and main state"\n}')
+--
+=== 3 samples tool_result content ===
+(349, '2026-08-03T06:33:31.567187+00:00', None, '               total        used        free      shared  buff/cache   available\nMem:           7.8Gi       3.2Gi       3.5Gi       1.5Mi       1.3Gi       4.5Gi\nSwap:          4.0Gi          0B      ')
+--
+(358, '2026-08-03T06:52:24.224068+00:00', None, '/home/kesha/orchestra\n519843c #131: #131: шаг 4 — что оркестратор на VPS знает и не знает, договорённость по веткам\n79990ba docs: правила — сброс session_id вместо компакта, проверка с одинаковым выво')
+--
+(361, '2026-08-03T06:52:24.522889+00:00', None, '## Orchestrators\n🟢 ⚙️ **Orchestra-orchestrator** | running | claude-opus-5[1m] | ctx:5% | 🔥 hot\n## Your workers\n🟢 ⚙️ **frontend** | idle | claude-opus-4-8[1m] | ctx:5%\n🟢 ⚙️ **back** | idle | claude-op')
+--

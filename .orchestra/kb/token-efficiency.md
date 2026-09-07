@@ -1,4 +1,6 @@
-# token-efficiency
+# Токены: цена, экономия и отозванные обещания
+
+На что уходит контекст, какая экономия подтверждена замером и какие громкие проценты из чужих статей у нас не воспроизвелись.
 
 Из чего состоит цена хода агента и что реально её снижает: структура расхода, чужие замеры
 «токен-сберегающих» скиллов, способ доставки правил.
@@ -152,64 +154,9 @@
   payload поля нет); `usage_snapshots` и `turn_usage` хранят целые проценты. Собрать можно только
   перехватом в браузере · search: `utilization None`, `SSE claude.ai`, `не воспроизводится` ·
   2026-09-02, #440
-- `fact:archestra-progressive-tool-loading-unmeasured` — Archestra реализует ленивую загрузку тулов ровно нашей формой (режим `search_and_run_only` прячет каталог за пару `search_tools`/`run_tool`, поиск лексический — keyword/regex ранжирование, без эмбеддингов, ответ = имена плюс компактный скелет схемы), но заявленных на лендинге «a 70-tool Jira server costs ~600 context tokens, not ~60,000» в их репозитории и блоге НЕТ: `rg -F '60,000'` по дереву даёт 0, `rg -i '70 tools|70-tool'` даёт 0, `grep -c '60,000'` — landing.html 1, blog.html 0, а их собственная страница замеров меряет латентность, не токены; при этом рантайм-измеритель токенов схем тулов у них есть и не опубликован · search: `search_and_run_only`, `progressive tool loading`, `filterExposedTools`, `context-window-breakdown`, «600 против 60000 токенов», «ленивая загрузка тулов» · evidence: upstream `archestra-ai/archestra` @ `c0f30875`: `platform/backend/src/types/agent.ts:58`, `platform/backend/src/routes/mcp-gateway/utils.ts:2314`, `platform/backend/src/archestra-mcp-server/search-tools.ts:60,187`, `platform/backend/src/routes/chat/context-window-breakdown.ts:3,57`, `docs/pages/platform-performance-benchmarks.md:13`; наш разбор `.orchestra/tasks/470/research.md` §Разбор 2 · 2026-09-03, #470
+- **Archestra делает ленивую загрузку тулов ровно нашей формой, но чисел под своей громкой заявкой НЕ публикует.** Механизм: режим `search_and_run_only` прячет каталог за пару `search_tools`/`run_tool`, поиск лексический — ранжирование по ключевым словам и регуляркам, без эмбеддингов; ответ = имена плюс компактный скелет схемы. Заявки лендинга «a 70-tool Jira server costs ~600 context tokens, not ~60,000» в их репозитории и блоге НЕТ: `rg -F '60,000'` по дереву даёт 0, `rg -i '70 tools|70-tool'` даёт 0, `grep -c '60,000'` — landing.html 1, blog.html 0, а собственная страница замеров меряет латентность, а не токены. При этом рантайм-измеритель токенов схем тулов у них есть и не опубликован · ищи: `search_and_run_only`, `progressive tool loading`, `filterExposedTools`, `context-window-breakdown`, «600 против 60000 токенов», «ленивая загрузка тулов» · upstream `archestra-ai/archestra` @ `c0f30875`: `platform/backend/src/types/agent.ts:58`, `platform/backend/src/routes/mcp-gateway/utils.ts:2314`, `platform/backend/src/archestra-mcp-server/search-tools.ts:60,187`, `platform/backend/src/routes/chat/context-window-breakdown.ts:3,57`, `docs/pages/platform-performance-benchmarks.md:13`; наш разбор `.orchestra/tasks/470/research.md` §Разбор 2 · 2026-09-03, #470
 
-## Rejected
-
-- «22% экономии токенов доказаны и их можно перепроверить по опубликованному» — перепроверить
-  нечем: `EXPECTED-RESULTS.md` ссылается на 11 артефактов замера (`compare.py`, `adoption.py`,
-  `mediators.py`, `run_ab.sh`, `winning-strats.md`, `runs/` и др.), и **ни одного нет в
-  репозитории и не было ни в одном коммите** (`git log --all --diff-filter=A --name-only`).
-  Доступна только сводка чисел, написанная автором · 2026-08-19, #345
-- «Качество доказанно сохранено» — доказано лишь отсутствие КРУПНОЙ деградации: 7↑/5↓/68 ничьих,
-  sign p=0.77, при k=1 на задачу; автор пишет это сам — «not powered as an equivalence test» ·
-  2026-08-19, #345
-- «Ожидать у себя −22%» — ближайший к нашему профилю замер автора (Codex CLI, длинные задачи
-  SWE-bench) даёт −4.4% по деньгам, и наша база уже содержит 2.5 правила из 5, то есть инкремент
-  заведомо меньше авторского · 2026-08-19, #345
-- «Для benjamin нужен IDE-рантайм JetBrains» — исполняемого кода в репозитории 459 байт
-  однострочного `cat`; JetBrains здесь тот, кто мерил, а не то, что требуется для запуска ·
-  2026-08-19, #345
-
-## Gaps
-
-- ~~Наши 14.06 tool-вызовов на ход не разложены по типам~~ — ЗАКРЫТО 2026-08-19 #345: разведка
-  31.7%, потолок назван. Осталось уже: чтения через shell (`grep`, `sed -n`, `rg`, `head`) на
-  повторность не проверены — разбор shell-аргументов дал три несовместимых ответа (16 072 / 6 043 /
-  1 442 «чтений» на одних данных), надёжного способа не найдено · 2026-08-19, #345
-- Правило 3 (probe env once) отдельной цифры не получило: обращения к установке зависимостей не
-  выделялись из категории «работа» · 2026-08-19, #345
-- ~~Связь «минус вызов → минус доллар» на НАШИХ данных не проверена~~ — ЗАКРЫТО 2026-08-19 #345:
-  измерена заново, $0.135/$0.106 за вызов. Осталось открытым другое: связь НАБЛЮДАТЕЛЬНАЯ,
-  причинность не доказана — неизвестно, не будет ли сокращение вызовов компенсировано работой в
-  другом месте · закроет только парный прогон · 2026-08-19, #345
-- Разрыв с интервенционным замером benjamin не объяснён: наши данные предсказывают −15% при −20%
-  вызовов, у автора вышло −4.4%, то есть в 3.4 раза меньше. Единственная доступная на наших данных
-  гипотеза («режется дешёвое начало хода») проверена и отвергнута · 2026-08-19, #345
-- Шум нашей метрики стоимости хода (split-half по ДО-периоду) не измерен ни разу — тот же пробел,
-  что в [prompt-delivery](prompt-delivery.md) про цену фиксированной части хода. Пока он открыт,
-  любой замер «внедрили правило → стало дешевле» неотличим от суточного дрейфа, а у автора
-  benjamin контрольная ветка уехала на +10.5% за сутки · 2026-08-19, #345
-- Не проверено прогоном, воспроизводится ли эффект на НАШИХ задачах: вывод опирается на чужие
-  замеры плюс наш замер структуры расхода · фаза 1, реализация не начиналась · 2026-08-19, #345
-- Сколько стоит добавление правил в УЖЕ перегруженный промпт (full-cycle 55 869 Б) против
-  добавления в пустой — не мерили; собственный урок автора («guards are not free») предполагает,
-  что зависимость нелинейная · 2026-08-19, #345
-
-## Источники
-
-- .orchestra/tasks/345/research.md — разбор benjamin-plus: что за хук, на чём стоят 22%, метод
-  авторесёрча, применимость к нашему контуру, декомпозиция нашего расхода
-- .orchestra/tasks/345/tool-call-mix.md — предрегистрация и разложение обращений по типам; четыре версии
-  классификатора и эффект каждой правки
-- .orchestra/tasks/345/call-to-dollar.md — связь «вызов → доллар»: предельная цена вызова, разделение
-  каналов, два негативных контроля, перевод разведки в деньги
-- .orchestra/tasks/345/claude-md-rereads.md — почему перечитывается `CLAUDE.md` (91.7% → `Edit`), цена по
-  фактическим диапазонам строк, отзыв прошлой находки, размер файла как настоящая статья расхода
-- [prompt-delivery](prompt-delivery.md) — куда физически вставляется такой текст у нас и чем
-  это закрыто в тестах
-
-## SKILL.state (Google, arXiv 2608.26263), оценка 01.09.2026 — заявка «98%» синтетическая, реальный выигрыш 23–60% плюс точность
+### SKILL.state (Google, arXiv 2608.26263), оценка 01.09.2026 — заявка «98%» синтетическая, реальный выигрыш 23–60% плюс точность
 
 **Established из первоисточника** (абстракт с arxiv.org, таблица 4 из статьи):
 Рантайм заменяет append-only историю диалога на явное изменяемое структурированное состояние.
@@ -244,43 +191,88 @@
 
 Не проверено, не выбрано.
 
-### Измерено на нашем контуре (#430)
+#### Измерено на нашем контуре (#430)
 
-## Established
+- **Проверка доступности без проверки РЕАЛЬНОЙ схемы ответа ничего не значит.** Простая транспортная проба дала HTTP 200 на 3/3 точно-бесплатных маршрутах, а такая же проба в форме задачи с контрактом `state_patch`+`action` прошла только на Nano: Cohere и Dots исчерпали `max_tokens=700` и вернули невалидный JSON · ищи: `format canary`, `state_patch`, `invalid JSON`, «проверка доступности SKILL.state» · `docs/tasks/430/availability-canary.json`; `docs/tasks/430/format-canary.json` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/availability-canary.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/format-canary.json`
+- **Два перемежающихся пилота SKILL.state сделали 54 HTTP-запроса и дали НОЛЬ сопоставимых случаев.** Разбор: 38 ответов уровня запроса с `choices`, 16 кривых или ошибочных конвертов провайдера и 0 случаев, дошедших до конца в `append/state/append_repeat`. Поэтому пороги по токенам и качеству, выводимые из шума, равны `null`, а НЕ нулю · ищи: `0 comparable`, `54 requests`, `threshold null`, «выиграл ли SKILL.state у нас» · `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/pilot-summary.json`; `docs/tasks/430/pilot2-summary.json` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot-summary.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot2-summary.json`
+- **HTTP 200 может СОДЕРЖАТЬ ошибку провайдера.** Во втором пилоте все 9 отказов провайдера пришли с внешним HTTP 200, пустым `choices` и `payload.error.code=502 ResourceExhausted`. Отсюда: успех провайдера надо проверять по конверту ДО разбора JSON и оценки модели · ищи: `HTTP 200`, `ResourceExhausted`, `payload.error`, `empty choices`, «ошибка провайдера не ошибка модели» · `docs/tasks/430/pilot2-raw.jsonl`; сводка `docs/tasks/430/pilot-audit.json` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot2-raw.jsonl`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot-audit.json`
 
-- `fact:skillstate430-task-shaped-format-canary` — Простой transport canary дал HTTP 200 на 3/3 exact-free routes, но одинаковый task-shaped canary с контрактом `state_patch`+`action` прошёл только на Nano; Cohere и Dots исчерпали `max_tokens=700` с invalid JSON, поэтому availability preflight без проверки реального response schema недостаточен · search: `format canary`, `state_patch`, `invalid JSON`, «проверка доступности SKILL.state» · evidence: `docs/tasks/430/availability-canary.json`; `docs/tasks/430/format-canary.json` · 2026-09-01, #430
-- `fact:skillstate430-pilots-have-zero-comparable-cases` — Два interleaved пилота SKILL.state сделали 54 HTTP requests: 38 request-level ответов с `choices`, 16 provider malformed/error envelopes и 0 cases, завершившихся в `append/state/append_repeat`; noise-derived token/quality thresholds поэтому равны `null`, а не нулю · search: `0 comparable`, `54 requests`, `threshold null`, «выиграл ли SKILL.state у нас» · evidence: `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/pilot-summary.json`; `docs/tasks/430/pilot2-summary.json` · 2026-09-01, #430
-- `fact:skillstate430-http200-can-contain-provider-error` — Во втором pilot все 9 provider failures пришли с outer HTTP 200, пустым `choices` и `payload.error.code=502 ResourceExhausted`; provider-success требует проверки envelope до JSON/model grading · search: `HTTP 200`, `ResourceExhausted`, `payload.error`, `empty choices`, «ошибка провайдера не ошибка модели» · evidence: `docs/tasks/430/pilot2-raw.jsonl`; aggregate `docs/tasks/430/pilot-audit.json` · 2026-09-01, #430
-
-## Rejected
-
-- `fact:skillstate430-hidden-gold-codes-invalid-judge` — «Достаточно назвать модели только final action keys, а скрытые enum-коды можно сравнить exact grader-ом» отвергнуто: P01 append корректно выбрал удаление `data/vec.db`, сохранил FTS/search_memory и дал 0/6 wins, но получил `field_score=0.4` из-за нераскрытых строк-кодов; full benchmark обязан доставить все enum и normalizer rules до первого response · search: `hidden enum`, `field_score 0.4`, `DELETE_DATA_VEC_DB`, «ложная ошибка судьи» · evidence: `docs/tasks/430/pilot-summary.json`; `scripts/skillstate430/pilot_cases.json`; Luna review `docs/tasks/430/review-research-luna.md` · 2026-09-01, #430
-
-## Gaps
-
-- Локальный выигрыш SKILL.state по total tokens и quality остаётся неизвестен: нужна новая frozen calibration на ≥6 полных A/B/A control cases со стабильным stateless route; Codex CLI/Luna не является эквивалентной заменой, потому что владеет своей историей · evidence: `docs/tasks/430/research.md` §§Frozen full benchmark design, Absolute thresholds; два pilot summaries с `completed_three_arm_cases=0` · 2026-09-01, #430
-
-## Источники
-
-- `docs/tasks/430/research.md` — benchmark на 30 Orchestra episodes, два исключённых availability-limited пилота, опасный класс reason-bearing задач и noise-derived acceptance gate.
-
-### Итог закрытия темы (#430, 01.09.2026)
-
-## Established
-
-- `fact:skillstate430-appendix-control-technically-healthy` — Paper-faithful Appendix A.4 text/fenced-JSON control технически завершил 9/9 Luna-вызовов: provider success 9/9, valid fenced JSON 9/9, `malformed_output` 0/9, protocol/tool/resume/DB-write failures 0; гейт остановился только на quality · search: `Appendix A.4`, `9/9`, `malformed_output 0`, «технически здоровый контроль SKILL.state» · evidence: `docs/tasks/430/evidence/luna-positive-control-v2.json`; `docs/tasks/430/positive-control-v2-audit.json` · 2026-09-01, #430
-- `fact:skillstate430-short-control-effect-below-claim-and-unattributable` — На одном коротком control state дал 50 812 tokens против 51 486 у успешного append (−1.3091%) и 51 397 у append_repeat (−1.1382%), тогда как статья заявляет 23–60% на публичных бенчмарках; append получил Q=1.00, state Q=0.75 и append_repeat Q=0.75, причём оба неуспешных arm потеряли один critical `reason_code`, поэтому причинная атрибуция state невозможна, а quality/run noise полностью перекрывает наблюдаемый quality effect · search: `1.3091%`, `1.1382%`, `Q=0.75`, `LOW_USAGE_ONLY`, «экономия состояния против шума» · evidence: `docs/tasks/430/positive-control-v2-audit.json`; raw `docs/tasks/430/evidence/luna-positive-control-v2-raw.jsonl` · 2026-09-01, #430
-- `fact:skillstate430-benchmark-closed-before-calibration-main` — Локальный benchmark закрыт без оценки эффекта: calibration=0 вызовов, main=0 измерительных вызовов; первый free-route control сделал 54 запроса (38 пригодных envelope, 16 непригодных, 0 сопоставимых троек) и упёрся в availability, второй Luna control завершил 9/9 технически, но дал только 1/3 correct arms и не прошёл quality gate · search: `main 0`, `calibration 0`, `54 requests`, `1/3 arms`, «почему закрыли SKILL.state» · evidence: `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/evidence/luna-positive-control-v2.json`; решение пользователя «закрывай тему блокнота» · 2026-09-01, #430
+- **Контроль по букве статьи (Appendix A.4, текст и JSON в ограде) технически прошёл 9/9 вызовов Luna:** успех провайдера 9/9, валидный JSON в ограде 9/9, `malformed_output` 0/9, отказов протокола, инструментов, продолжения и записи в БД — ноль. Гейт остановился ТОЛЬКО на качестве · ищи: `Appendix A.4`, `9/9`, `malformed_output 0`, «технически здоровый контроль SKILL.state» · `docs/tasks/430/evidence/luna-positive-control-v2.json`; `docs/tasks/430/positive-control-v2-audit.json` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/evidence/luna-positive-control-v2.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/positive-control-v2-audit.json`
+- **На одном коротком контроле экономия состояния оказалась −1.3091% против заявленных статьёй 23–60%.** Числа: state 50 812 токенов против 51 486 у успешного append (−1.3091%) и 51 397 у append_repeat (−1.1382%). По качеству: append Q=1.00, state Q=0.75, append_repeat Q=0.75, причём ОБА неуспешных плеча потеряли один критический `reason_code`. Значит причинно приписать это состоянию нельзя, а шум качества и прогона полностью перекрывает наблюдаемый эффект · ищи: `1.3091%`, `1.1382%`, `Q=0.75`, `LOW_USAGE_ONLY`, «экономия состояния против шума» · `docs/tasks/430/positive-control-v2-audit.json`; сырьё `docs/tasks/430/evidence/luna-positive-control-v2-raw.jsonl` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/positive-control-v2-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/evidence/luna-positive-control-v2-raw.jsonl`
+- **Локальный бенчмарк закрыт БЕЗ оценки эффекта: калибровка 0 вызовов, основной прогон 0 измерительных вызовов.** Первый контроль на бесплатном маршруте сделал 54 запроса (38 пригодных конвертов, 16 непригодных, 0 сопоставимых троек) и упёрся в доступность; второй контроль на Luna технически завершил 9/9, но дал только 1/3 верных плеч и не прошёл гейт качества · ищи: `main 0`, `calibration 0`, `54 requests`, `1/3 arms`, «почему закрыли SKILL.state» · `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/evidence/luna-positive-control-v2.json`; решение владельца «закрывай тему блокнота» · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/evidence/luna-positive-control-v2.json`
 
 ## Rejected
 
-- `fact:skillstate430-state-caused-reason-loss-not-proven` — Вывод «SKILL.state теряет важное у нас» НЕ ДОКАЗАН и цитироваться не должен: state действительно потерял critical reason и дал Q=0.75, но независимый append_repeat потерял тот же reason и также дал Q=0.75 при Q=1.00 у первого append; первоначальная причинная формулировка была озвучена пользователю и затем отозвана после сверки control arm · search: `state теряет важное`, `append_repeat`, `причинная атрибуция`, «отозванный вывод SKILL.state» · evidence: `docs/tasks/430/positive-control-v2-audit.json`; correction receipt in task conversation; `docs/tasks/430/t2-v2-blocker.md` · 2026-09-01, #430
-- `fact:skillstate430-local-gain-was-not-measured` — Формулировка «на наших задачах измерен выигрыш или проигрыш SKILL.state» отвергнута: ни calibration, ни main не запускались, absolute thresholds остались `null`, а n=1 positive control предназначался только для допуска стенда · search: `выигрыш не измерен`, `threshold null`, `positive control n=1`, «результат SKILL.state Orchestra» · evidence: `docs/tasks/430/research.md`; `docs/tasks/430/positive-control-v2-audit.json`; `docs/tasks/430/CLOSED.md` · 2026-09-01, #430
+- «22% экономии токенов доказаны и их можно перепроверить по опубликованному» — перепроверить
+  нечем: `EXPECTED-RESULTS.md` ссылается на 11 артефактов замера (`compare.py`, `adoption.py`,
+  `mediators.py`, `run_ab.sh`, `winning-strats.md`, `runs/` и др.), и **ни одного нет в
+  репозитории и не было ни в одном коммите** (`git log --all --diff-filter=A --name-only`).
+  Доступна только сводка чисел, написанная автором · 2026-08-19, #345
+- «Качество доказанно сохранено» — доказано лишь отсутствие КРУПНОЙ деградации: 7↑/5↓/68 ничьих,
+  sign p=0.77, при k=1 на задачу; автор пишет это сам — «not powered as an equivalence test» ·
+  2026-08-19, #345
+- «Ожидать у себя −22%» — ближайший к нашему профилю замер автора (Codex CLI, длинные задачи
+  SWE-bench) даёт −4.4% по деньгам, и наша база уже содержит 2.5 правила из 5, то есть инкремент
+  заведомо меньше авторского · 2026-08-19, #345
+- «Для benjamin нужен IDE-рантайм JetBrains» — исполняемого кода в репозитории 459 байт
+  однострочного `cat`; JetBrains здесь тот, кто мерил, а не то, что требуется для запуска ·
+  2026-08-19, #345
+
+### SKILL.state (Google, arXiv 2608.26263), оценка 01.09.2026 — заявка «98%» синтетическая, реальный выигрыш 23–60% плюс точность
+
+- **«Достаточно назвать модели только финальные ключи действия, а скрытые enum-коды сравнить точным оценщиком» отвергнуто.** P01 append правильно выбрал удаление `data/vec.db`, сохранил FTS и `search_memory` и дал 0/6 побед, но получил `field_score=0.4` из-за нераскрытых строк-кодов. Полный бенчмарк ОБЯЗАН доставить все enum и правила нормализации до первого ответа · ищи: `hidden enum`, `field_score 0.4`, `DELETE_DATA_VEC_DB`, «ложная ошибка судьи» · опровергнуто: `docs/tasks/430/pilot-summary.json`; `scripts/skillstate430/pilot_cases.json`; ревью Luna `docs/tasks/430/review-research-luna.md` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot-summary.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/review-research-luna.md`
+
+- **Вывод «SKILL.state теряет важное у нас» НЕ ДОКАЗАН и цитироваться не должен.** Состояние действительно потеряло критическую причину и дало Q=0.75 — но независимый append_repeat потерял ТУ ЖЕ причину и тоже дал Q=0.75 при Q=1.00 у первого append. Первоначальная причинная формулировка была озвучена владельцу и затем отозвана после сверки с контрольным плечом · ищи: `state теряет важное`, `append_repeat`, `причинная атрибуция`, «отозванный вывод SKILL.state» · опровергнуто: `docs/tasks/430/positive-control-v2-audit.json`; квитанция исправления в переписке задачи; `docs/tasks/430/t2-v2-blocker.md` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/positive-control-v2-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/t2-v2-blocker.md`
+- **«На наших задачах измерен выигрыш или проигрыш SKILL.state» отвергнуто.** Ни калибровка, ни основной прогон не запускались, абсолютные пороги остались `null`, а положительный контроль на n=1 предназначался только для допуска стенда · ищи: `выигрыш не измерен`, `threshold null`, `positive control n=1`, «результат SKILL.state Orchestra» · опровергнуто: `docs/tasks/430/research.md`; `docs/tasks/430/positive-control-v2-audit.json`; `docs/tasks/430/CLOSED.md` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/research.md`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/positive-control-v2-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/CLOSED.md`
 
 ## Gaps
 
-- Выигрыш статьи заявлен на горизонтах в сотни шагов, а #430 измерил только короткие episodes, где экономить почти нечего; возвращаться имеет смысл только со стендом на длинных задачах и после стабилизации retention critical reason code, иначе причинный effect измерять нечем · evidence: user-supplied paper boundary; `docs/tasks/430/research.md`; `positive-control-v2-audit.json` · 2026-09-01, #430 closed by user
+- ~~Наши 14.06 tool-вызовов на ход не разложены по типам~~ — ЗАКРЫТО 2026-08-19 #345: разведка
+  31.7%, потолок назван. Осталось уже: чтения через shell (`grep`, `sed -n`, `rg`, `head`) на
+  повторность не проверены — разбор shell-аргументов дал три несовместимых ответа (16 072 / 6 043 /
+  1 442 «чтений» на одних данных), надёжного способа не найдено · 2026-08-19, #345
+- Правило 3 (probe env once) отдельной цифры не получило: обращения к установке зависимостей не
+  выделялись из категории «работа» · 2026-08-19, #345
+- ~~Связь «минус вызов → минус доллар» на НАШИХ данных не проверена~~ — ЗАКРЫТО 2026-08-19 #345:
+  измерена заново, $0.135/$0.106 за вызов. Осталось открытым другое: связь НАБЛЮДАТЕЛЬНАЯ,
+  причинность не доказана — неизвестно, не будет ли сокращение вызовов компенсировано работой в
+  другом месте · закроет только парный прогон · 2026-08-19, #345
+- Разрыв с интервенционным замером benjamin не объяснён: наши данные предсказывают −15% при −20%
+  вызовов, у автора вышло −4.4%, то есть в 3.4 раза меньше. Единственная доступная на наших данных
+  гипотеза («режется дешёвое начало хода») проверена и отвергнута · 2026-08-19, #345
+- Шум нашей метрики стоимости хода (split-half по ДО-периоду) не измерен ни разу — тот же пробел,
+  что в [prompt-delivery](prompt-delivery.md) про цену фиксированной части хода. Пока он открыт,
+  любой замер «внедрили правило → стало дешевле» неотличим от суточного дрейфа, а у автора
+  benjamin контрольная ветка уехала на +10.5% за сутки · 2026-08-19, #345
+- Не проверено прогоном, воспроизводится ли эффект на НАШИХ задачах: вывод опирается на чужие
+  замеры плюс наш замер структуры расхода · фаза 1, реализация не начиналась · 2026-08-19, #345
+- Сколько стоит добавление правил в УЖЕ перегруженный промпт (full-cycle 55 869 Б) против
+  добавления в пустой — не мерили; собственный урок автора («guards are not free») предполагает,
+  что зависимость нелинейная · 2026-08-19, #345
+
+### SKILL.state (Google, arXiv 2608.26263), оценка 01.09.2026 — заявка «98%» синтетическая, реальный выигрыш 23–60% плюс точность
+
+- Локальный выигрыш SKILL.state по total tokens и quality остаётся неизвестен: нужна новая frozen calibration на ≥6 полных A/B/A control cases со стабильным stateless route; Codex CLI/Luna не является эквивалентной заменой, потому что владеет своей историей · evidence: `docs/tasks/430/research.md` §§Frozen full benchmark design, Absolute thresholds; два pilot summaries с `completed_three_arm_cases=0` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/research.md`
+
+- Выигрыш статьи заявлен на горизонтах в сотни шагов, а #430 измерил только короткие episodes, где экономить почти нечего; возвращаться имеет смысл только со стендом на длинных задачах и после стабилизации retention critical reason code, иначе причинный effect измерять нечем · evidence: user-supplied paper boundary; `docs/tasks/430/research.md`; `positive-control-v2-audit.json` · 2026-09-01, #430 closed by user · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/research.md`
 
 ## Источники
 
-- `docs/tasks/430/report.md` — финальное закрытие без main run: оба control, token/Q numbers, causal boundary и условия возможного возврата.
+- .orchestra/tasks/345/research.md — разбор benjamin-plus: что за хук, на чём стоят 22%, метод
+  авторесёрча, применимость к нашему контуру, декомпозиция нашего расхода
+- .orchestra/tasks/345/tool-call-mix.md — предрегистрация и разложение обращений по типам; четыре версии
+  классификатора и эффект каждой правки
+- .orchestra/tasks/345/call-to-dollar.md — связь «вызов → доллар»: предельная цена вызова, разделение
+  каналов, два негативных контроля, перевод разведки в деньги
+- .orchestra/tasks/345/claude-md-rereads.md — почему перечитывается `CLAUDE.md` (91.7% → `Edit`), цена по
+  фактическим диапазонам строк, отзыв прошлой находки, размер файла как настоящая статья расхода
+- [prompt-delivery](prompt-delivery.md) — куда физически вставляется такой текст у нас и чем
+  это закрыто в тестах
+
+### SKILL.state (Google, arXiv 2608.26263), оценка 01.09.2026 — заявка «98%» синтетическая, реальный выигрыш 23–60% плюс точность
+
+- `docs/tasks/430/research.md` — бенчмарк на 30 эпизодах Orchestra, два исключённых по доступности пилота, опасный класс задач, несущих обоснование, и гейт приёмки, выведенный из шума. По этому пути файла нет; живой `.orchestra/tasks/430/research.md` — ДРУГАЯ редакция, поэтому запись открывается снимком (проверено 06.09.2026, #523). · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/research.md`
+
+#### Итог закрытия темы (#430, 01.09.2026)
+
+- `docs/tasks/430/report.md` — финальное закрытие без основного прогона: оба контроля, числа по токенам и качеству, причинная граница и условия возможного возврата. Ни по этому пути, ни в `.orchestra/tasks/430/` файла в рабочем дереве нет (проверено 06.09.2026, #523). · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/report.md`

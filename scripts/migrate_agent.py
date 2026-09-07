@@ -463,11 +463,12 @@ def build_children_copy(from_host, from_db, session_row_id: str,
 
 
 def copy_scope_files(from_host, to_host, from_scope, to_scope, worker_names, to_user) -> None:
-    """CLAUDE.md + .orchestra/workers/<name>.md — travel with the scope repo but copy explicitly
+    """Project instructions and worker memory travel with the repo but copy explicitly
     so migration works even if the target repo is behind."""
     ssh(to_host, f"mkdir -p {to_scope}/.orchestra/workers")
     give_to_service_user(to_host, f"{to_scope}/.orchestra/workers", to_user)
-    for rel in ["CLAUDE.md"] + [f".orchestra/workers/{n}.md" for n in worker_names]:
+    # Copy the import target before its adapter when the destination repo is behind.
+    for rel in ["AGENTS.md", "CLAUDE.md"] + [f".orchestra/workers/{n}.md" for n in worker_names]:
         exists = ssh(from_host, f"test -f {from_scope}/{rel} && echo yes || echo no").stdout.strip()
         if exists == "yes":
             _relay_file(from_host, to_host, f"{from_scope}/{rel}", f"{to_scope}/{rel}")

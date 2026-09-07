@@ -1,0 +1,22 @@
+/home/kesha/projects/kesha-tg-bot/runtime_protocol.py:3:Narrow by design (see docs/tasks/16/): compaction is NOT part of this contract.
+/home/kesha/projects/kesha-tg-bot/codex_session.py:11:app-server (docs/tasks/16/spikes/turn_probe_events.jsonl):
+/home/kesha/projects/kesha-tg-bot/codex_session.py:370:        Measured (docs/tasks/16/spikes/mcp_isolation_probe.py): `-c mcp_servers={}`
+/home/kesha/projects/kesha-tg-bot/codex_session.py:1095:                # Measured event order (docs/tasks/16/spikes/compact_events.txt):
+/home/kesha/projects/kesha-tg-bot/compact.py:159:# the user's own words in 32% of windows (docs/tasks/21 research F6).
+/home/kesha/projects/kesha-tg-bot/claude_session.py:88:# A healthy control request answers in 0.9-3.4s (measured, docs/tasks/20).
+/home/kesha/projects/kesha-tg-bot/claude_session.py:700:        0->1->2->3, docs/tasks/20/spikes/ctxleak.py). Letting the task run to its
+/home/kesha/projects/kesha-tg-bot/rag.py:5:других потоков (SQLite не thread-safe). См. docs/tasks/rag-memory/plan.md.
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/cache-compact/timing_sweep.py:37:# Primary research (docs/tasks/cache-optimization/research.md, measured): cost FLAT 0-30min
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/16/spikes/mutation_check_t6.sh:8:# Usage:  bash docs/tasks/16/spikes/mutation_check_t6.sh
+/home/kesha/projects/kesha-tg-bot/tests/test_runtime_limits.py:495:    CLI process and the reserve succeeds in 8-15s (docs/tasks/25 F2).
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/16/spikes/mutation_check_t7.sh:8:# Usage:  bash docs/tasks/16/spikes/mutation_check_t7.sh
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/16/spikes/mutation_check.sh:11:# Usage:  bash docs/tasks/16/spikes/mutation_check.sh
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/16/spikes/mutation_check_t5.sh:7:# Usage:  bash docs/tasks/16/spikes/mutation_check_t5.sh
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/16/spikes/turn_probe.py:4:    uv run python docs/tasks/16/spikes/turn_probe.py
+/home/kesha/projects/kesha-tg-bot/tests/test_compact_prompt.py:288:    Measured in 18 real production summaries (docs/tasks/21): 7 inverted
+/home/kesha/projects/kesha-tg-bot/tests/test_compact_prompt.py:331:    user's own words in 32% of windows (docs/tasks/21 research F6)."""
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/16/spikes/mcp_isolation_probe.py:8:Run:  uv run python docs/tasks/16/spikes/mcp_isolation_probe.py
+/home/kesha/projects/kesha-tg-bot/tests/test_codex_session.py:4:docs/tasks/16/spikes/turn_probe_events.jsonl, not invented.
+/home/kesha/projects/kesha-tg-bot/tests/test_codex_session.py:180:    Measured in docs/tasks/16/spikes/mcp_isolation_probe.py: a bare app-server
+/home/kesha/projects/kesha-tg-bot/tests/test_codex_session.py:1029:    Measured order (docs/tasks/16/spikes/compact_events.txt): an interrupted
+/home/kesha/projects/kesha-tg-bot/.orchestra/tasks/19/probe_argv.py:11:        .venv/bin/python docs/tasks/19/probe_argv.py

@@ -1,0 +1,59 @@
+total records: 12759 json bytes: 7607020
+keys seen: {'git_blob': 12759, 'git_commit': 12759, 'project_id': 12759, 'record_type': 12759, 'schema_version': 12759, 'source_class': 12759, 'source_path': 12759, 'source_scope': 12759, 'source_sha256': 12759, 'stable_id': 12759, 'status': 12759, 'storage': 12759, 'uri': 12759}
+record_type: {'resource': 12759}
+source_class: {'immutable-evidence': 12759}
+status: {'current': 12759}
+source_scope: {'/mnt/data/Projects/Python/orchestra': 12759}
+
+source_path EXISTS on disk: 64  MISSING: 12695
+
+top-25 source_path prefixes (all):
+   10678  docs/tasks
+    1121  docs/workers
+     352  docs/archive
+     184  pipelines/default
+     168  docs/kb
+      32  docs/reviews
+      24  docs/experiments
+      16  docs/tg-media
+      16  docs/research
+       8  docs/team-structure.md
+       8  CLAUDE.md
+       8  docs/codex-subscription-usage-research-2026-07.md
+       8  docs/tg-local-api-setup.md
+       8  docs/grok-field-guide.md
+       8  docs/codex-full-review.md
+       8  docs/codex-field-guide.md
+       8  docs/research-deepgram.md
+       8  BUGS.md
+       8  docs/orchestrator-vps-onboarding.md
+       8  docs/measuring.md
+       8  docs/proxy-speed-benchmark.md
+       8  docs/HANDOFF-from-laptop.md
+       8  docs/research-multiproject.md
+       8  README.md
+       8  docs/research-context-full.md
+
+top-25 prefixes among MISSING:
+   10678  docs/tasks
+    1121  docs/workers
+     352  docs/archive
+     184  pipelines/default
+     168  docs/kb
+      32  docs/reviews
+      24  docs/experiments
+      16  docs/tg-media
+      16  docs/research
+       8  docs/team-structure.md
+       8  docs/codex-subscription-usage-research-2026-07.md
+       8  docs/grok-field-guide.md
+       8  docs/codex-full-review.md
+       8  docs/codex-field-guide.md
+       8  docs/research-deepgram.md
+       8  docs/measuring.md
+       8  docs/proxy-speed-benchmark.md
+       8  docs/HANDOFF-from-laptop.md
+       8  docs/research-multiproject.md
+       8  docs/research-context-full.md
+       8  docs/research-context-bug.md
+       8  docs/fork-analysis.md

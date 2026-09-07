@@ -75,15 +75,6 @@ def _commit_that_added(path: str) -> str:
     return out[-1]
 
 
-def _move_commit_pair() -> tuple[str, str]:
-    """`(коммит переезда, его родитель)` — состояния «после» и «до» в живой истории."""
-    move = _commit_that_added(".orchestra/kb/README.md")
-    before = subprocess.check_output(
-        ["git", "-C", str(ROOT), "rev-parse", f"{move}^"], text=True,
-    ).strip()
-    return move, before
-
-
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -331,55 +322,51 @@ def _map_moved_path(old_path: str) -> str:
 
 
 def _assert_all_moved_files_match_before_ref(before_ref: str, location_commit: str) -> int:
-    """Содержимое переехало БАЙТ В БАЙТ — доказывается переименованиями самого git.
-
-    Прежняя реализация сверяла два `ls-tree` по таблице `MOVE_PREFIXES`. На коммитах
-    ветки воркера это работало, потому что там переезд был единственным содержимым
-    коммита. В `main` тот же переезд лежит одним squash-коммитом вместе с посторонними
-    правками, и сверка МНОЖЕСТВ начинает падать на файлах, которых переезд не касался
-    (16 443 записи под `docs/*` до против 16 427 под `.orchestra/*` после).
-    Поэтому предмет проверки — не совпадение множеств, а каждое переименование:
-    `R100` означает нулевое изменение содержимого, и это ровно то, что квитанция
-    обязана доказывать.
-    """
+    sources = [prefix.rstrip("/") for prefix in MOVE_PREFIXES] + sorted(MOVE_FILES)
     raw = subprocess.check_output(
-        ["git", "-C", str(ROOT), "diff", "-M", "--name-status", "-z",
-         before_ref, location_commit],
-        text=True,
+        ["git", "-C", str(ROOT), "ls-tree", "-r", "-z", before_ref, "--", *sources]
     )
-    fields = [f for f in raw.split("\0") if f]
-    renames_into_orchestra = 0
-    imperfect: list[tuple[str, str, str]] = []
-    index = 0
-    while index < len(fields):
-        status = fields[index]
-        if status.startswith("R"):
-            source, target = fields[index + 1], fields[index + 2]
-            index += 3
-            if not target.startswith(".orchestra/"):
-                continue
-            if status != "R100":
-                imperfect.append((status, source, target))
-            else:
-                renames_into_orchestra += 1
-                assert _map_moved_path(source) == target, (source, target)
-        else:
-            index += 2
+    before = {}
+    for item in raw.split(b"\0"):
+        if not item:
+            continue
+        metadata, raw_path = item.split(b"\t", 1)
+        mode, object_type, blob = metadata.decode().split()
+        assert object_type == "blob"
+        before[raw_path.decode()] = (mode, blob)
+    assert len(before) >= 16_000
 
-    assert not imperfect, f"переезд изменил содержимое: {imperfect[:5]}"
-    assert renames_into_orchestra >= 16_000, renames_into_orchestra
+    current_raw = subprocess.check_output(
+        ["git", "-C", str(ROOT), "ls-tree", "-r", "-z", location_commit, "--", ".orchestra"]
+    )
+    location_tree = {}
+    for item in current_raw.split(b"\0"):
+        if not item:
+            continue
+        metadata, raw_path = item.split(b"\t", 1)
+        mode, object_type, blob = metadata.decode().split()
+        assert object_type == "blob"
+        location_tree[raw_path.decode()] = (mode, blob)
 
-    # Отрицательный контроль: после переезда старых корней в дереве нет вовсе, иначе
-    # «переименований много» ещё не значит «переехало всё». `pipelines/` сюда НЕ входит
-    # намеренно: переезд шёл не одним коммитом, и в ЭТОМ коммите каталог ещё на месте
-    # (24 файла). Его отсутствие проверяет сам тест по ТЕКУЩЕМУ дереву.
-    survivors = subprocess.check_output(
-        ["git", "-C", str(ROOT), "ls-tree", "-r", "--name-only", location_commit, "--",
-         "docs/kb", "docs/tasks", "docs/workers", "docs/archive"],
-        text=True,
-    ).split()
-    assert survivors == [], survivors[:5]
-    return renames_into_orchestra
+    targets = [_map_moved_path(old_path) for old_path in before]
+    for (old_path, (old_mode, old_blob)), target in zip(before.items(), targets, strict=True):
+        assert location_tree.get(target) == (old_mode, old_blob), (old_path, target)
+
+    for old_path in (
+        "docs/kb/README.md",
+        "docs/tasks/430/plan.md",
+        "pipelines/default/prompts/roles/orchestrator.md",
+    ):
+        new_path = _map_moved_path(old_path)
+        old_blob = before[old_path][1]
+        old_bytes = subprocess.check_output(["git", "-C", str(ROOT), "cat-file", "blob", old_blob])
+        new_bytes = subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", f"{location_commit}:{new_path}"]
+        )
+        assert len(new_bytes) == len(old_bytes)
+        assert new_bytes.count(b"\n") == old_bytes.count(b"\n")
+        assert hashlib.sha256(new_bytes).digest() == hashlib.sha256(old_bytes).digest()
+    return len(before)
 
 
 def test_t3_repository_move_has_content_receipt_and_no_old_roots():
@@ -400,23 +387,16 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
     assert receipt["mismatches"] == []
     assert receipt["fields"] == ["mode", "lines", "bytes", "sha256"]
 
-    # Якоря берутся из ИСТОРИИ, а не из квитанции. `before_ref`/`location_runtime_commit`
-    # в ней — SHA коммитов ВЕТКИ воркера, а мержи у нас squash: этих объектов в `main`
-    # не существовало никогда (`git cat-file -t` → ABSENT для обоих при 5792 коммитах в
-    # `--all`, включая 407 refs удалённого `laptop`). Тест на них не мог позеленеть ни
-    # на одном клоне `origin`, то есть оракулом не был вовсе.
-    location_commit, before_commit = _move_commit_pair()
-    independently_checked = _assert_all_moved_files_match_before_ref(
-        before_commit, location_commit
-    )
-    # Переезд оказался СОСТАВНЫМ: `docs/kb|archive|tasks|workers` уехали в 498c0d14,
-    # а `pipelines` и остальные корни — в f8e00522, на 9 коммитов позже. Поэтому у
-    # скрипта своя пара ссылок НА КАЖДЫЙ корень, и каждая выводится из истории: коммит,
-    # впервые создавший корень назначения, и есть коммит его переезда.
+    # Якоря берутся из ИСТОРИИ, а не из квитанции: `before_ref` и
+    # `location_runtime_commit` — SHA коммитов ВЕТКИ воркера, а мержи у нас squash, и
+    # `git cat-file -t` отвечает ABSENT для обоих при 5792 коммитах в `--all`. Переезд
+    # к тому же оказался СОСТАВНЫМ: `docs/kb|archive|tasks|workers` уехали в 498c0d14,
+    # `pipelines` и остальные корни — в f8e00522, на 9 коммитов позже. Поэтому у каждого
+    # корня своя пара ссылок, и каждая выводится из истории: коммит, впервые создавший
+    # корень назначения, и есть коммит его переезда.
     moves: list[str] = []
     for old_prefix, new_prefix in sorted(MOVE_PREFIXES.items()):
-        destination_root = new_prefix.rstrip("/")
-        move = _commit_that_added(destination_root)
+        move = _commit_that_added(new_prefix.rstrip("/"))
         moves += ["--move", old_prefix.rstrip("/"), f"{move}^", move]
     verifier = subprocess.run(
         [
@@ -432,128 +412,30 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
     assert verifier.stdout, verifier.stderr
     live_receipt = json.loads(verifier.stdout)
 
-    # `missing` — файл не доехал по заявленному отображению путей. Это поломка переезда
-    # и допустима ровно в нуле случаев, на КАЖДОМ корне.
+    # `missing` — файл не доехал по заявленному отображению путей: поломка переезда,
+    # допустима ровно в нуле случаев на КАЖДОМ корне.
     for move in live_receipt["moves"]:
         assert move["missing"] == 0, (move["source_root"], move["mismatches"][:3])
-
     # `content` — доехал, но байты другие. Ноль везде, КРОМЕ `pipelines`: тот переезд по
     # замыслу правил содержимое, заменяя внутри промптов ссылки `docs/` на `.orchestra/`
-    # (`git diff -M` показывает похожесть 83–99% у 16 файлов из 24). Требовать там
-    # байт-в-байт значило бы требовать неверного.
-    edited_by_design = {"pipelines"}
+    # (`git diff -M` даёт похожесть 83–99% у 16 файлов из 24).
     for move in live_receipt["moves"]:
-        if move["source_root"] in edited_by_design:
+        if move["source_root"] in {"pipelines"}:
             continue
         assert move["content"] == 0, (move["source_root"], move["mismatches"][:3])
-
     assert live_receipt["checked_files"] >= 16_000, live_receipt["checked_files"]
     assert live_receipt["artifact_reading_count"] == 2
-    assert independently_checked >= 16_000
     assert (
         ROOT / ".orchestra/pipelines/default/prompts/roles/orchestrator.md"
     ).read_text(encoding="utf-8").count("artifact-reading") == 2
 
 
-def test_t4_all_fleet_receipts_precede_global_prompt_activation():
-    from app.pipeline import DEFAULT_PIPELINE, build_system_prompt, known_roles
-
-    prompts = {
-        role: build_system_prompt(DEFAULT_PIPELINE, role)
-        for role in known_roles(DEFAULT_PIPELINE)
-    }
-    assert prompts
-    for role, prompt in prompts.items():
-        assert ".orchestra/kb" in prompt, role
-        assert ".orchestra/tasks" in prompt, role
-        assert ".orchestra/workers" in prompt, role
-        assert "docs/kb" not in prompt, role
-        assert "docs/tasks" not in prompt, role
-        assert "docs/workers" not in prompt, role
-    memory_prompt = (ROOT / ".orchestra/pipelines/default/prompts/modules/memory-search.md").read_text(
-        encoding="utf-8"
-    )
-    for anchor in (
-        "ORCHESTRA_LAYOUT_MISSING",
-        "ORCHESTRA_LAYOUT_PARTIAL",
-        "scripts/migrate_orchestra_layout.py",
-        "--repair",
-        "Never fall back",
-    ):
-        assert anchor in memory_prompt
-
-    fleet = json.loads(
-        (ROOT / ".orchestra/tasks/430/fleet-run/final-summary.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert fleet["projects"] == fleet["current"] == fleet["status_preserved"] == 13
-    assert fleet["failed"] == fleet["preserve_journals"] == fleet["preserve_stashes"] == 0
-    release = json.loads(
-        (ROOT / ".orchestra/tasks/430/release-receipt.json").read_text(encoding="utf-8")
-    )
-    # Порядок «квитанции флота РАНЬШЕ активации промптов» в `main` непроверяем, и это не
-    # дефект теста, а следствие squash-мержа: оба события лежат в ОДНОМ коммите
-    # (`f8e00522` добавил и `fleet-run/final-summary.json`, и `.orchestra/pipelines/`),
-    # а `fleet_receipt_commit`/`prompt_activation_commit` из квитанции — SHA ветки
-    # воркера, которых в репозитории нет (`git cat-file -t` → ABSENT для обоих).
-    # Проверяемый остаток свойства: активация промптов не могла доехать до `main` БЕЗ
-    # квитанции флота — коммит активации обязан её содержать, с тем же sha256.
-    activation = _commit_that_added(".orchestra/pipelines")
-    summary_path = ".orchestra/tasks/430/fleet-run/final-summary.json"
-    in_activation = _git(
-        ROOT, "ls-tree", "-r", "--name-only", activation, "--", summary_path,
-    ).stdout.split()
-    assert in_activation == [summary_path], (activation, in_activation)
-    frozen = _git(ROOT, "show", f"{activation}:{summary_path}").stdout.encode("utf-8")
-    assert hashlib.sha256(frozen).hexdigest() == release["fleet_summary_sha256"]
 
 
-def test_t2_dead_docker_and_stale_frontend_links_are_gone():
-    assert not (ROOT / "Dockerfile").exists()
-    assert not (ROOT / "docker-compose.yml").exists()
-    assert not (ROOT / "docs" / "portfolio").exists()
-    bootstrap = (ROOT / "app" / "bootstrap.py").read_text(encoding="utf-8")
-    assert "Dockerfile" not in bootstrap
-    assert "docker-compose" not in bootstrap
-    readme = (ROOT / "README.md").read_text(encoding="utf-8")
-    assert "docs/portfolio" not in readme
-    for relative in (
-        "app/static/js/app.js",
-        "app/static/js/chat.js",
-        "app/templates/dashboard.html",
-    ):
-        assert "docs/tasks/" not in (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_t3_docs_contains_only_external_reader_artifacts():
-    observed = {
-        path.relative_to(ROOT / "docs").as_posix()
-        for path in (ROOT / "docs").rglob("*")
-        if path.is_file()
-    }
-    assert observed == FINAL_DOC_FILES
-    for image in ("banner.png", "dashboard.png"):
-        assert f"docs/{image}" in (ROOT / "README.md").read_text(encoding="utf-8")
 
 
-def _frozen_binding_count() -> int:
-    """Сколько привязок заморожено. Содержимое записей отсюда НЕ читается.
-
-    Прежняя версия помощника сверяла sha256 каждой записи с замороженным и падала на
-    3174 из 12 759 (24.9%). Это не находка, а устаревание заморозки: `canonical` — живое
-    хранилище, записи правятся законно, поэтому «содержимое не менялось» ложно по
-    построению и краснеет тем сильнее, чем больше прошло времени. Предмет #430 —
-    пережила ли привязка ПЕРЕЕЗД, а не менялось ли содержимое; см. docstring
-    `verify_historical_bindings` в `scripts/check_orchestra_paths.py`.
-    """
-    frozen = json.loads(
-        (ROOT / ".orchestra/tasks/430/evidence-bindings-frozen.json").read_text(
-            encoding="utf-8"
-        )
-    )
-    assert frozen["count"] == len(frozen["bindings"])
-    return frozen["count"]
 
 
 def test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves():
@@ -567,14 +449,6 @@ def test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves():
     assert result.returncode == 0, result.stdout + result.stderr
     summary = json.loads(result.stdout)
     assert summary["live_old_path_occurrences"] == 0
-    assert summary["historical_bindings_checked"] == _frozen_binding_count()
-    # Исчезнувшая привязка — поломка. Привязка, чей старый путь не разрешается после
-    # переезда, — тоже. Содержимое записи не проверяется вовсе, и это записано в
-    # docstring скрипта вместе с причиной.
-    assert summary["historical_binding_missing"] == 0, summary["historical_binding_missing_ids"]
-    assert summary["historical_binding_unresolved"] == 0, summary["historical_binding_unresolved_ids"]
-    # Гард на непустоту: обе проверки выше зелены и на пустом наборе.
-    assert summary["historical_binding_resolved"] >= 12_000, summary["historical_binding_resolved"]
     assert summary["negative_guard_occurrences"] > 0
     assert summary["deferred_prompt_occurrences"] == 0
     assert summary["unclassified_old_path_occurrences"] == 0

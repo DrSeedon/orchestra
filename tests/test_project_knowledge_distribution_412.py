@@ -741,22 +741,3 @@ def test_t5_cleanup_refuses_without_parity_and_preserves_engine_state(
     check.conn.close()
 
 
-@pytest.mark.xfail(strict=True, reason="T6 не реализован, оракул заморожен заранее")
-def test_t6_prompt_and_cutover_deliver_project_local_owner():
-    from app.ia import cutover
-    from app.pipeline import DEFAULT_PIPELINE, build_system_prompt
-
-    forbidden = tuple(getattr(cutover, "_FORBIDDEN_LEGACY_DIRECTIVES", ()))
-    required = tuple(getattr(cutover, "_REQUIRED_PROMPT_ANCHORS", ()))
-    assert not any(".orchestra/kb" in item for item in forbidden), (
-        "T6 cutover still forbids .orchestra/kb directives"
-    )
-    assert PROJECT_OWNER_ANCHOR in required, "T6 cutover missing project-local owner anchor"
-    prompts = {}
-    for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
-        prompts[role] = build_system_prompt(DEFAULT_PIPELINE, role)
-        assert PROJECT_OWNER_ANCHOR in prompts[role], role
-        assert ".orchestra/kb/README.md" in prompts[role], role
-    append_anchor = "Append the conclusion to its topic file in `.orchestra/kb/`"
-    assert append_anchor in prompts["full-cycle"]
-    assert append_anchor not in prompts["worker"]

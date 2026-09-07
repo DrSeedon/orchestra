@@ -314,8 +314,8 @@ def test_repair_ownership_cli_prints_the_plan_and_repeats_to_zero(db, tmp_path):
 
 # ── Sol round 1 findings: each accepted blocker pinned by its own test ──
 
-def test_migration_refuses_a_rewrite_that_would_overlap_another_worker(db, tmp_path):
-    """F1: mapping row-by-row cannot see that the target is already owned."""
+def test_migration_preserves_overlapping_advisory_areas(db, tmp_path):
+    """Advisory overlap must not strand legacy paths."""
     from app.db import get_session_by_name
     from app import orchestra_layout as layout
 
@@ -326,14 +326,12 @@ def test_migration_refuses_a_rewrite_that_would_overlap_another_worker(db, tmp_p
 
     result = layout.migrate_session_ownership(repo)
 
-    assert result["changed"] == 0
-    assert json.loads(
-        get_session_by_name("legacy-owner", str(repo))["owned_dirs"]
-    ) == ["docs/tasks/88"]
-    overlap = [item for item in result["attention"] if "overlap" in item["reason"]]
-    assert len(overlap) == 1
-    assert overlap[0]["session"] == "legacy-owner"
-    assert ".orchestra/tasks/88" in overlap[0]["path"]
+    assert result["changed"] == 1
+    for name in ("legacy-owner", "current-owner"):
+        assert json.loads(get_session_by_name(name, str(repo))["owned_dirs"]) == [
+            ".orchestra/tasks/88"
+        ]
+    assert not [item for item in result["attention"] if "overlap" in item["reason"]]
 
 
 def test_quoted_ownership_heading_does_not_divert_the_rewrite(db, tmp_path):
@@ -717,6 +715,45 @@ def test_startup_migration_declares_that_nothing_is_loaded_yet(db, tmp_path, mon
 
 # ── Ч3: ownership changes without a branch switch ──
 
+@pytest.mark.asyncio
+async def test_spawn_allows_overlapping_advisory_areas(mgr, worker):
+    from app.db import get_session_by_name
+
+    first = await worker("shared-first", ["app"])
+    second = await worker("shared-second", ["app/api"])
+    assert first.id != second.id
+    for session in (first, second):
+        row = get_session_by_name(session.name, "/s")
+        assert json.loads(row["owned_dirs"]) == session.owned_dirs
+        assert "not an edit allowlist" in row["system_prompt"]
+
+
+def test_prompt_reassembly_upgrades_generated_legacy_area_only(mgr, monkeypatch):
+    from app.manager import OWNERSHIP_MARKER, ownership_block
+
+    legacy = (OWNERSHIP_MARKER +
+              "You OWN these directories — edit ONLY files under them:\n"
+              "- app/\n"
+              "Do NOT touch files outside your owned directories. "
+              "If the task requires it — STOP and ask the orchestrator.")
+    task = "\nTask exclusion: do not edit billing.\n"
+    monkeypatch.setattr("app.manager.ROLE_SYSTEM_PROMPT", lambda *args: "BASE")
+    monkeypatch.setattr("app.manager.refresh_worker_memory", lambda text, *args, **kwargs: text)
+    kwargs = dict(pipeline="default", role="worker", scope="/s", is_orch=False,
+                  name="tester", owned_dirs=["app"], branch="task/one")
+    text, overlay = mgr.assemble_prompt(
+        **kwargs, stored_overlay=task + legacy, old_prompt="OLD" + task + legacy,
+    )
+    assert overlay == task + ownership_block(["app"])
+    assert text == "BASE" + overlay
+    # An operator's complete override is not a generated component to rewrite.
+    override = "Custom instructions: " + legacy
+    text, overlay = mgr.assemble_prompt(
+        **kwargs, stored_overlay=None, old_prompt=override,
+    )
+    assert overlay is None
+    assert text == override
+
 @pytest.fixture
 def worker(mgr):
     from tests.conftest import make_backend_mock
@@ -773,19 +810,19 @@ async def test_empty_owned_dirs_clears_ownership(mgr, worker):
 
 
 @pytest.mark.asyncio
-async def test_overlap_with_a_live_worker_blocks_the_change(mgr, worker):
+async def test_overlap_with_a_live_worker_preserves_both_work_areas(mgr, worker):
     from app.db import get_session_by_name
 
     session = await worker("painter-canvas", ["oil-paint"])
     await worker("sculptor", ["app/api"])
 
-    with pytest.raises(ValueError, match="overlap with 'sculptor'"):
-        await mgr.apply_owned_dirs(session, ["app/api/v1"])
-
-    assert session.owned_dirs == ["oil-paint"]
+    assert await mgr.apply_owned_dirs(session, ["app/api/v1"]) == ["app/api/v1"]
+    assert session.owned_dirs == ["app/api/v1"]
     row = get_session_by_name("painter-canvas", "/s")
-    assert json.loads(row["owned_dirs"]) == ["oil-paint"]
-    assert "- oil-paint/" in row["system_prompt"]
+    assert json.loads(row["owned_dirs"]) == ["app/api/v1"]
+    assert "- app/api/v1/" in row["system_prompt"]
+    assert "not an edit allowlist" in row["system_prompt"]
+    assert json.loads(get_session_by_name("sculptor", "/s")["owned_dirs"]) == ["app/api"]
 
     # A worker keeping or extending its OWN directories must not collide with its own row.
     assert await mgr.apply_owned_dirs(session, ["oil-paint", "oil-paint/brushes"]) == [
@@ -819,8 +856,8 @@ async def test_detached_update_touches_only_ownership_columns(mgr, db):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_changes_cannot_hand_one_dir_to_two_workers(mgr, worker):
-    """F2: per-session locks let two different workers both validate against old state."""
+async def test_concurrent_advisory_areas_persist_for_both_workers(mgr, worker):
+    """Shared labels are allowed; both DB rows and prompts must be updated."""
     from app.db import get_session_by_name
 
     first = await worker("alpha", ["alpha-only"])
@@ -832,15 +869,14 @@ async def test_concurrent_changes_cannot_hand_one_dir_to_two_workers(mgr, worker
         return_exceptions=True,
     )
 
-    ok = [r for r in results if not isinstance(r, BaseException)]
-    refused = [r for r in results if isinstance(r, ValueError)]
-    assert len(ok) == 1 and len(refused) == 1, results
-    assert "overlap" in str(refused[0])
+    assert results == [["shared"], ["shared"]]
     owners = [
         name for name in ("alpha", "beta")
         if "shared" in json.loads(get_session_by_name(name, "/s")["owned_dirs"] or "[]")
     ]
-    assert len(owners) == 1, f"both workers own it: {owners}"
+    assert owners == ["alpha", "beta"]
+    for name in owners:
+        assert "- shared/" in get_session_by_name(name, "/s")["system_prompt"]
 
 
 @pytest.mark.asyncio

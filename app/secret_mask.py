@@ -71,6 +71,15 @@ def _mask_value(value: str) -> str | None:
     return f"[secret len={n} tail={value[-4:]}]"
 
 
+# Ссылка-приглашение MTProto-прокси Telegram: параметр `secret=` там ПУБЛИЧНЫЙ — он и есть
+# то, чем делятся. Маскирование ломало рабочую ссылку и делало её бесполезной (владелец
+# 06.09: «убери на фронте баг этот»). Исключение узкое: только эта форма URL, только внутри
+# её границ; любой другой `secret=` в тексте маскируется по-прежнему.
+_TG_PROXY_LINK = re.compile(
+    r"(?:https?://t\.me/proxy|tg://proxy)\?[^\s\"'<>]+", re.IGNORECASE,
+)
+
+
 def _named_repl(m: re.Match) -> str:
     for group, quote in (("dq", '"'), ("sq", "'"), ("bare", "")):
         value = m.group(group)
@@ -105,5 +114,15 @@ def mask_secrets(text: str) -> str:
     text = _PEM_PRIVATE_KEY.sub(
         lambda m: f"[secret pem len={len(m.group(0))}]", text
     )
-    text = _NAMED.sub(_named_repl, text)
+    # Границы считаем ПОСЛЕ подстановки PEM: она сдвигает смещения.
+    keep = [m.span() for m in _TG_PROXY_LINK.finditer(text)]
+    if keep:
+        def _repl(m: re.Match) -> str:
+            start = m.start()
+            if any(a <= start < b for a, b in keep):
+                return m.group(0)
+            return _named_repl(m)
+        text = _NAMED.sub(_repl, text)
+    else:
+        text = _NAMED.sub(_named_repl, text)
     return _AUTH_VALUE.sub(_auth_repl, text)

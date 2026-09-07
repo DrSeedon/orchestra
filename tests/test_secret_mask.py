@@ -77,10 +77,13 @@ def _stored_content(session_id: str) -> str:
 
 # ── T1: шов персистенции ──────────────────────────────────────────────────────
 
-def test_t1_add_log_masks_secret_value(session_row):
-    """Значение секрета не должно доезжать до строки в `logs`.
+def test_t1_add_log_stores_content_verbatim(session_row):
+    """Строка лога сохраняется ДОСЛОВНО: `data/` под gitignore и в индексе git её нет.
 
-    Носитель в проде — вывод рутинного `ps` в tool_result (замер: 21 строка в живой БД).
+    Решение владельца 06.09: маскирование на пути отображения ломало рабочие данные
+    (ссылка-приглашение MTProto-прокси приходила изуродованной), а утечку оно не
+    предотвращает — журнал наружу не публикуется вовсе. Защита перенесена на границу
+    коммита: `mask_secrets` остаётся и применяется к тому, что уезжает в git.
     """
     from app.db import add_log
     sid = session_row["id"]
@@ -88,8 +91,8 @@ def test_t1_add_log_masks_secret_value(session_row):
             f'--mcp-config {{"mcpServers":{{"orchestra":{{"env":{{"INTERNAL_TOKEN": "{SECRET}"}}}}}}}}')
 
     stored = _stored_content(sid)
-    assert SECRET not in stored, "значение секрета сохранено в logs дословно"
-    assert MASKED in stored, f"ожидалась маска с длиной и хвостом: {MASKED}"
+    assert SECRET in stored, "значение обязано храниться дословно — маскировать здесь нечего"
+    assert MASKED not in stored, "маска на пути записи снята решением владельца 06.09"
 
 
 def test_t1_add_log_keeps_content_hash_untouched(session_row):
@@ -214,28 +217,28 @@ def test_t1b_content_hashes_are_not_secrets(benign):
 # ── T2: шов живой выдачи (SSE), в БД не пишется ───────────────────────────────
 
 @pytest.mark.asyncio
-async def test_t2_broker_publish_masks_content():
-    """Живой поток в браузер идёт мимо add_log — маскировать надо и здесь."""
+async def test_t2_broker_publish_keeps_content_verbatim():
+    """Поток в браузер отдаёт содержимое дословно: это личный дашборд владельца."""
     from app.live_broker import LiveBroker
     b = LiveBroker()
     q = b.subscribe("sid")
     b.publish("sid", {"type": "stream", "content": f'OPENROUTER_API_KEY="{SECRET}"'})
 
     got = q.get_nowait()
-    assert SECRET not in got["content"], "секрет ушёл в SSE-поток дословно"
-    assert MASKED in got["content"]
+    assert SECRET in got["content"], "SSE обязан отдавать содержимое как есть"
+    assert MASKED not in got["content"]
 
 
 @pytest.mark.asyncio
-async def test_t2_broker_replay_is_masked():
-    """Накопленный буфер реплеится новым подписчикам — он тоже обязан быть чистым."""
+async def test_t2_broker_replay_is_verbatim():
+    """Накопленный буфер реплеится новым подписчикам в том же дословном виде."""
     from app.live_broker import LiveBroker
     b = LiveBroker()
     b.publish("sid", {"type": "stream", "content": f'INTERNAL_TOKEN="{SECRET}"'})
 
     late = b.subscribe("sid")          # реплей накопленного
     got = late.get_nowait()
-    assert SECRET not in got["content"], "секрет остался в реплей-буфере"
+    assert SECRET in got["content"], "реплей обязан совпадать с тем, что видел первый подписчик"
 
 
 @pytest.mark.asyncio

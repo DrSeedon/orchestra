@@ -1,0 +1,17 @@
+diff --git a/.orchestra/kb/review-design-defects.md b/.orchestra/kb/review-design-defects.md
+index 488b2f08..5e5292eb 100644
+--- a/.orchestra/kb/review-design-defects.md
++++ b/.orchestra/kb/review-design-defects.md
+@@ -24,0 +25,3 @@
++- `fact:review-admission-refusal-outside-operation-registry` — Первичный отказ покрытия возвращается до INSERT в `merge_operations`; срез 29.08–05.09.2026 дал 17 разных UUID отказов в 242 merge tool-result rows и 0 строк этих UUID в реестре, но дословные ответы сохраняются в `logs`, поэтому потеря контекста не равна потере текстового аудита · search: `RECORD_REVIEW_THEN_NEW_OPERATION`, `merge_operations`, `logs`, `отказ не записан` · evidence: `app/merge_operations.py:2384`; `.orchestra/tasks/508/log-measurement.txt`; `.orchestra/tasks/508/research.md` · 2026-09-05, #508
++- `fact:review-receipt-caller-subject-coupling` — `codex_review(mode="implementation")` пинит committed diff worktree вызывающего и записывает caller session/task, а `coverage_decision` требует session/task мержимого worker плюс production snapshot; `task_run` в той же таблице описывает отдельное назначение задачи, не выполненное ревью · search: `предмет квитанции`, `target_worker`, `session_id`, `task_run` · evidence: `app/mcp_stdio.py:4218`; `app/review_coverage.py:433`; `app/db.py:2943`; `.orchestra/tasks/508/research.md` · 2026-09-05, #508
++
+@@ -35,0 +39,2 @@
++- `fact:review-identity-only-is-not-review-evidence` — Совпадение scope + непустого `production_diff_sha256` + `production_paths_json` не доказывает выполненное review: на frozen #508 identity-only ошибочно признаёт reviewed 20 пар со skipped receipts; дополнительные признаки `_reviewed_receipt` + author outcome дают 0/3969 на 81 no-review receipts × 49 subjects, но межсессионных положительных совпадений нет · search: `отрицательный контроль`, `skipped`, `3969`, `снимок не доказывает ревью` · evidence: `.orchestra/tasks/508/negative_control.py`; `.orchestra/tasks/508/negative-control.txt` · 2026-09-05, #508
++
+@@ -44,0 +50,2 @@
++- Можно ли безопасно переиспользовать review между сессиями с реальным положительным примером? локальный #508 срез не содержит implementation receipts оркестраторов, а исторические kesha-tg-bot/VPN-Service/seedon эпизоды требуют первичных данных внешнего контура; `production_diff_sha256` доказывает только app/scripts-проекцию, не полный reviewed diff · search: `межсессионное ревью`, `kesha-tg-bot`, `VPN-Service`, `seedon`, `полный снимок` · evidence: `.orchestra/tasks/508/measurement.txt`; `.orchestra/tasks/508/subject-probe.txt`; `.orchestra/tasks/508/research.md` · 2026-09-05, #508
++
+@@ -50,0 +58,2 @@
++
++- `.orchestra/tasks/508/research.md` — предмет review/task-run, семисуточный read-only census, 17 неучтённых в реестре отказов и negative control.

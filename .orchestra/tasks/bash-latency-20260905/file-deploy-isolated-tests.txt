@@ -1,0 +1,13 @@
+Imported app: /mnt/data/Projects/Python/orchestra-bash-latency-20260905/app/__init__.py
+........................................................................ [ 27%]
+........................................................................ [ 54%]
+........................................................................ [ 82%]
+..............................................                           [100%]
+=============================== warnings summary ===============================
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+  /mnt/data/Projects/Python/orchestra-bash-latency-20260905/.venv/lib/python3.13/site-packages/starlette/testclient.py:445: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+262 passed, 1 deselected, 2 warnings in 31.00s

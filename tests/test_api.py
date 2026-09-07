@@ -2189,7 +2189,7 @@ async def test_switch_new_task_replaces_owned_dirs_and_prompt(
 
 
 @pytest.mark.asyncio
-async def test_switch_owned_dirs_collision_rejected_before_git(db, monkeypatch):
+async def test_switch_owned_dirs_overlap_does_not_block_git(db, monkeypatch):
     import app.routes.sessions as sessmod
     from app.db import get_session, save_session
     from datetime import datetime, timezone
@@ -2224,14 +2224,11 @@ async def test_switch_owned_dirs_collision_rejected_before_git(db, monkeypatch):
         "w", {"scope": "/s", "task_id": "91", "owned_dirs": ["new/path"]},
     )
 
-    assert not isinstance(result, dict), "collision must be rejected before switching"
-    assert result.status_code == 409
-    assert "overlap" in result.body.decode().lower()
-    assert switched is False
+    assert switched is True
+    assert isinstance(result, dict), result
     row = get_session("owned-switch")
-    assert (row["branch"], row["task_id"], row["needs_switch"]) == (
-        "task-90/w", "90", 0,
-    )
+    assert row["branch"] == "task-91/w"
+    assert json.loads(row["owned_dirs"]) == ["new/path"]
 
 
 @pytest.mark.asyncio

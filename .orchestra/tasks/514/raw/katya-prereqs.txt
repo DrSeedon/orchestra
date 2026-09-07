@@ -1,0 +1,19 @@
+=== node? ===
+/usr/bin/node
+=== MASTER key file ===
+ls: cannot access '/home/kesha/orchestra/data/uploads/Мастер-макет.key': No such file or directory
+=== pipeline present ===
+/home/kesha/katya-work/pipeline
+=== EVIDENCE usage in generate-master-registry ===
+18:EVIDENCE = ROOT / "docs/tasks/4/evidence/master-manifest.json"
+19:INSPECTOR = ROOT / "docs/tasks/4/evidence/inspect_master.py"
+20:COMPACTOR = ROOT / "docs/tasks/4/evidence/compact_master_manifest.py"
+50:    evidence_bytes = EVIDENCE.read_bytes()
+62:        inventory = checked([sys.executable, str(INSPECTOR), str(decoded)], environment).stdout
+66:            [sys.executable, str(COMPACTOR), str(inventory_path), str(decoded), str(source)],
+=== CATALOG_OUT writes in t3 ===
+23:CATALOG_OUT = ROOT / "artifacts/task-4/catalog"
+93:        require_file(CATALOG_OUT / name, f"T3 missing committed catalog artifact {name}")
+124:            assert (generated_catalog / name).read_bytes() == (CATALOG_OUT / name).read_bytes(), f"T3 committed catalog is stale: {name}"
+169:        visual = (CATALOG_OUT / "visual-check.md").read_text(encoding="utf-8")
+170:        contact_digest = sha256((CATALOG_OUT / "catalog-contact-sheet.png").read_bytes()).hexdigest()

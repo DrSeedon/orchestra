@@ -422,7 +422,7 @@ class TurnManager:
                 s._auto_continue_count += 1
                 s._log("status", f"{sr} ({nt} turns), auto-continuing "
                                  f"({s._auto_continue_count}/{s.AUTO_CONTINUE_MAX})")
-                s._spawn_bg(s._auto_continue())
+                s._spawn_bg(s._auto_continue(s._turn_gen))
                 return
         else:
             s._auto_continue_count = 0

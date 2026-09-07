@@ -1,0 +1,17 @@
+tuid pairs: 75365  ts pairs: 100202  tool_ids in both: 73739
+same res_id: 20767   diff res_id: 52972
+sum(ts_dur - tuid_dur) over overlap, hours: 138620.13
+sum tuid over overlap h: 95.84
+sum ts   over overlap h: 138715.97
+
+=== 10 worst ts-rule mismatches ===
+tool_id 90689 tuid_dur 0.0 ts_dur 1934523.9 tuid_res 90690 ts_res 266316
+tool_id 90699 tuid_dur 0.1 ts_dur 1934523.9 tuid_res 90700 ts_res 266318
+tool_id 90679 tuid_dur 0.0 ts_dur 1934518.5 tuid_res 90680 ts_res 266313
+tool_id 157624 tuid_dur 0.0 ts_dur 1309022.4 tuid_res 157625 ts_res 247907
+tool_id 157639 tuid_dur 1.3 ts_dur 1309020.3 tuid_res 157648 ts_res 247917
+tool_id 157605 tuid_dur 0.0 ts_dur 1309000.6 tuid_res 157606 ts_res 247880
+tool_id 157599 tuid_dur 0.0 ts_dur 1308997.3 tuid_res 157598 ts_res 247873
+tool_id 157621 tuid_dur 0.0 ts_dur 1308996.3 tuid_res 157622 ts_res 247894
+tool_id 157607 tuid_dur 0.0 ts_dur 1308995.6 tuid_res 157608 ts_res 247885
+tool_id 157552 tuid_dur 0.0 ts_dur 1308964.3 tuid_res 157553 ts_res 247832

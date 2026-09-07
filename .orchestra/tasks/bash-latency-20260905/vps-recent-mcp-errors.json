@@ -1,0 +1,137 @@
+[
+  {
+    "tool": "mcp__orchestra__merge_worker",
+    "kind": "other",
+    "count": 65
+  },
+  {
+    "tool": "mcp__orchestra__send_message",
+    "kind": "ReadTimeout",
+    "count": 26
+  },
+  {
+    "tool": "mcp__orchestra__task_create",
+    "kind": "ReadTimeout",
+    "count": 22
+  },
+  {
+    "tool": "mcp__orchestra__switch_worker_branch",
+    "kind": "other",
+    "count": 14
+  },
+  {
+    "tool": "mcp__orchestra__task_get",
+    "kind": "ReadTimeout",
+    "count": 12
+  },
+  {
+    "tool": "mcp__orchestra__send_message",
+    "kind": "other",
+    "count": 10
+  },
+  {
+    "tool": "mcp__orchestra__spawn_worker",
+    "kind": "other",
+    "count": 9
+  },
+  {
+    "tool": "mcp__orchestra__codex_review",
+    "kind": "other",
+    "count": 8
+  },
+  {
+    "tool": "mcp__orchestra__message_delivery_status",
+    "kind": "other",
+    "count": 7
+  },
+  {
+    "tool": "mcp__orchestra__task_list",
+    "kind": "ReadTimeout",
+    "count": 7
+  },
+  {
+    "tool": "mcp__orchestra__switch_worker_branch",
+    "kind": "ReadTimeout",
+    "count": 6
+  },
+  {
+    "tool": "mcp__orchestra__merge_worker",
+    "kind": "ReadTimeout",
+    "count": 3
+  },
+  {
+    "tool": "mcp__orchestra__stop_worker",
+    "kind": "ReadTimeout",
+    "count": 3
+  },
+  {
+    "tool": "mcp__orchestra__kill_worker",
+    "kind": "ReadTimeout",
+    "count": 3
+  },
+  {
+    "tool": "mcp__orchestra__resolve_merge_operation",
+    "kind": "other",
+    "count": 2
+  },
+  {
+    "tool": "mcp__orchestra__task_get",
+    "kind": "other",
+    "count": 2
+  },
+  {
+    "tool": "mcp__orchestra__spawn_worker",
+    "kind": "ReadTimeout",
+    "count": 2
+  },
+  {
+    "tool": "mcp__orchestra__run_fan",
+    "kind": "other",
+    "count": 2
+  },
+  {
+    "tool": "mcp__orchestra__set_worker_owned_dirs",
+    "kind": "other",
+    "count": 2
+  },
+  {
+    "tool": "mcp__orchestra__task_update",
+    "kind": "other",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__task_update",
+    "kind": "ReadTimeout",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__list_agents",
+    "kind": "other",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__message_delivery_status",
+    "kind": "ReadTimeout",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__task_create_status",
+    "kind": "other",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__list_agents",
+    "kind": "ReadTimeout",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__delivery_status",
+    "kind": "other",
+    "count": 1
+  },
+  {
+    "tool": "mcp__orchestra__change_worker_model",
+    "kind": "other",
+    "count": 1
+  }
+]

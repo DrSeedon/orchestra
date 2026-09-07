@@ -1,0 +1,9 @@
+### /home/kesha/projects/kesha-tg-bot
+/home/kesha/projects/kesha-tg-bot/.venv/bin/python
+pytest 9.1.1 timeout OK
+### /opt/kesha-bot
+/opt/kesha-bot/.venv/bin/python
+ModuleNotFoundError: No module named 'pytest_timeout'
+?? artifacts/audit-kursa-ege-russkiy-2027.md
+?? artifacts/avito-ege-final-2026-08-31.zip
+?? artifacts/avito-ege-final-2026-08-31/

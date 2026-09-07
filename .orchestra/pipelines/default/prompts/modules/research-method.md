@@ -1,9 +1,9 @@
 <research-method>
 ## Research Method — how to find the TRUTH, not confirm a guess
 
-Your default failure mode is **confirmation bias**: you amplify whatever the task
-presupposes, and thinking step-by-step makes it *worse*, not better. After the role's
-`pwd` and memory gate, follow this method in order.
+Use the methods below where they answer the question or reduce a concrete risk. They are
+a reference, not a mandatory sequence or an obligation to produce every artifact.
+Check the task's premise and seek counter-evidence for load-bearing conclusions.
 
 ### Step 0 — Frame the question before searching
 Restate the task as a structured question. Name explicitly:
@@ -73,23 +73,23 @@ primary source, flag the conflict — don't silently prefer the newer one.
   measurement you actually ran. No source/measurement → it's a hypothesis, label it so.
 
 ### Step 5 — Experiment when the task needs empirical proof
-- **A candidate you rule out on paper is not ruled out.** An option the research REJECTS gets run,
-  not argued with — and the one you like least goes first, because that is the one your reasoning
-  is biased against. Did not run it → it is `непроверен` plus the reason that stopped you, never
-  "closed" (#224: a conclusion built on an un-run alternative was demolished by external review in
-  a single round).
+- Run alternatives when the decision depends on empirical behavior. An explicit requirement,
+  source-code contradiction, unacceptable side effect or unavailable prerequisite can rule an
+  option out without executing it. Distinguish measured results from source-based reasoning
+  and untested hypotheses; do not claim an unrun experiment succeeded or failed.
 - Define **metrics + pass/fail BEFORE running.** Do not move goalposts after seeing results (p-hacking).
 - Before a full run, pilot the complete measurement path on 2–3 candidates. If candidates can
   change external state, give blind judges each candidate's measured side effects/artifact diffs;
   transcript-only scoring is invalid because real actions look fabricated.
-- Run in scratch scripts, NEVER production. 2–3 iterations for confidence.
+- Run experiments in isolation, not production. Choose repeats based on noise and decision risk,
+  not a fixed count; a deterministic reproduction may need only one run.
   **Do not put large files in `/tmp`** — check `findmnt /tmp` first: on the laptop it is tmpfs,
   so "files on disk" are RAM you are taking from other agents, and a reboot erases them.
   Models, DB snapshots and datasets go on a real disk (`data/`, project dir); keep `/tmp`
   for the scripts themselves.
 - Record raw numbers/outputs/errors verbatim.
-- One counter-example **lowers confidence**; it does not auto-flip your conclusion
-  (single results don't falsify — accumulate evidence).
+- A valid counter-example can refute a universal claim. For noisy empirical comparisons,
+  investigate reproducibility and uncertainty before changing the conclusion.
 - **Multi-link mechanism whose first link can fail by returning empty/no-op instead of raising
   → prove the OBSERVABLE END EFFECT, in the production-shaped runtime, and never accept an
   intermediate "this step worked" as evidence.** The highest-risk shape of that first link is an
@@ -108,27 +108,44 @@ primary source, flag the conflict — don't silently prefer the newer one.
 
 **Research is not finished until a topic file carries its conclusion.** `.orchestra/tasks/<id>/research.md`
 is the raw artifact of one task; `.orchestra/kb/<topic>.md` is what the next agent actually reads at the
-memory gate. One topic = one file = one owner; topics are subsystems or recurring questions
-(`quotas-and-pools`, `prompt-delivery`, `review-routing`, `measurement-method`, `tg-bridge`,
-`sessions-and-compact`, `worker-lifecycle`, `test-harness`, `runtimes`), never task numbers.
+memory gate. One topic = one file = one owner; topics are subsystems or recurring questions, never
+task numbers. Prefer an existing topic from `.orchestra/kb/README.md` — a new file needs a question
+none of them answers.
 
-Four sections, one line per fact:
+Sections carry the STATUS of what is under them and are named in English, because the validator
+rejects the legacy Russian headings. One record = one line:
 
 ```markdown
-# <topic>
+# <human topic title>
 
-## Установлено
-- <claim> · <evidence: file:line | command + number | url> · <date, #task>
+<one paragraph: which question this file answers>
 
-## Отвергнуто
-- <what we believed or tried> · <what refuted it> · <date, #task>
+## Established
+- **<claim in bold, so it reads without the tail>** <detail, numbers, quotes> · ищи: `<anchor>`, «<phrasing>» · <evidence: file:line | command + number | url> · <YYYY-MM-DD, #task>
 
-## Пробелы
-- <question left open> · <what stopped you> · <date, who asked>
+## Historical observations
+- <a dated snapshot that was true then; applying it today needs a fresh check>
+
+## Rejected
+- **«<what we believed>» — нет.** <what refuted it> · опровергнуто: <evidence> · <YYYY-MM-DD, #task>
+
+## Gaps
+- <question left open> · упёрлось в: <what stopped you> · <YYYY-MM-DD, who asked>
 
 ## Источники
-- .orchestra/tasks/<id>/research.md — <one phrase on what it covers>
+- .orchestra/tasks/<id>/research.md — <what a reader gets by opening it>
 ```
+
+**Ссылка на артефакт задачи обязана открываться и после того, как файл убрали.** Путь, который
+резолвится сейчас, ничего не требует. Путь, который НЕ резолвится, закрывается в той же записи
+полем `· открыть:` ровно одного из трёх видов, и каждый НАЗЫВАЕТ закрываемый путь:
+`<путь> → `<живой путь>``, `` `git show <sha40>:<путь>` `` (полная команда; коммит ищется
+`git log --all --format=%H -- <путь>`, годится первый сверху, на котором
+`git cat-file -e <sha>:<путь>` даёт 0 и который достижим из `main`) или
+`<путь> — нет в репозитории: <почему>` с непустой причиной. Покрытие адресное: соседний живой
+путь в той же строке не закрывает ничего. `scripts/check_kb_contract.py` отказывает на любой
+ДОБАВЛЕННОЙ строке — не только в буллете — где нерезолвящийся путь не закрыт. Снимок на файл,
+вычищенный из-за секрета, не ставится: это указатель на секрет.
 
 Rules:
 1. **Append, never rewrite.** A line that turns out wrong gets ` — ОТОЗВАНО <date> #<task>: <what
@@ -144,11 +161,15 @@ Rules:
 #### Forward-only lexical fact contract
 
 Каждый новый или изменённый факт — одна самодостаточная строка без местоименных ссылок. Начинай
-её со стабильного kebab-case ключа `` `fact:<durable-key>` ``; ключ остаётся тем же при будущей
-переформулировке claim. `искать:` содержит 1–6 буквальных якорей будущего вопроса.
-Сохраняй точные symbol, path, command и прежнее имя.
+её с УТВЕРЖДЕНИЯ жирным, а не со служебного ключа: строку читает человек. `ищи:` содержит 1–6
+буквальных якорей будущего вопроса. Сохраняй точные symbol, path, command и прежнее имя.
 Добавь русскую или английскую формулировку, которой пользователь реально задаст вопрос.
 Evidence остаётся в той же строке.
+
+Стабильный ключ `` `fact:<durable-key>` `` больше не ставится в начало строки (#523, решение
+владельца: строка, начатая машинным ключом, не читается ни человеком, ни агентом). Он нужен
+только когда на запись ссылаются другая запись или код, и тогда живёт в ХВОСТЕ строки как
+`` · ключ `fact:<durable-key>` ``; ключ остаётся тем же при будущей переформулировке claim.
 
 Новые current facts пишутся в **Установлено**, закрытые или ошибочные дороги — в **Отвергнуто**
 либо получают `ОТОЗВАНО`; модель не удаляет и не перезаписывает старый факт автоматически.
@@ -210,8 +231,8 @@ Then write `.orchestra/tasks/<task-id>/research.md`:
   or cherry-picked; real questions have conflicting evidence. Present the conflict.
 
 ### Effort scaling (don't over-ceremony a trivial lookup):
-- **1 fact** → 1–3 targeted searches, verify, done. No hypothesis theater.
-- **Comparison / "which is better"** → measure if possible; else ≥2 independent sources per side.
-- **Architecture / contested / high-risk** → full method: multiple hypotheses,
-  counter-search, experiment, decorrelated second source.
+- **One fact** → inspect its authoritative source and verify relevance; stop when answered.
+- **Comparison** → measure when feasible; otherwise compare relevant evidence and state limits.
+- **Contested or high-risk claims** → seek independent counter-evidence and test load-bearing
+  assumptions. Choose depth by consequences and uncertainty, not a fixed source count.
 </research-method>

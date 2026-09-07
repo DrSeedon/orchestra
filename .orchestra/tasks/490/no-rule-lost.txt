@@ -1,0 +1,25 @@
+BEFORE  git archive a1fd56bb9adb → build_system_prompt('default', role)
+AFTER   working tree                    → build_system_prompt('default', role)
+
+orchestrator
+  units   verbatim=317  reworded= 11
+  before   66922 B  sha256:f1a842ce59a87658d851b2aa8514feb3b17e6376cdfab58c9a73c3fc09b90f26
+  after    67948 B  sha256:0fee44862bb75e1ad3e2e4867803341892c7b4bfda1fa5d3dd59b5e472d32b19
+sub-orchestrator
+  units   verbatim=284  reworded= 11
+  before   59567 B  sha256:6808c0840e1a8f455cc193dd208ac9b2b3d5c920020b84c5d1c16067ddb8a18c
+  after    60593 B  sha256:1ae1fef9002f6bedfb5a9ea1b47e3e19c980e4fe3db33f776bca2bc783032723
+worker
+  units   verbatim=165  reworded= 11
+  before   35105 B  sha256:13092c22a9738a25fbeb335326556acf458d030deec61bf49593d1df28c0ed60
+  after    36131 B  sha256:48de819a88cae3a139fb3afb74aa80c86590c61bac7852d455ca6cc3a1d3b846
+full-cycle
+  units   verbatim=284  reworded= 11
+  before   60276 B  sha256:fb6ba34d5782e9bd2fda5b2d55bc6955c3ed70db2e968f9a0c72510b99e78f46
+  after    61302 B  sha256:44937ebd60a7b4ace0c42dcc55ba145ddc60f16c73be3ff3deb236fef6ad7483
+reducer
+  units   verbatim= 48  reworded= 11
+  before   16271 B  sha256:4ec03fde439e2101d810b62021e31cdb92a05befea33eb62903b28aba24df9df
+  after    17297 B  sha256:a539311219439f802aad081f6a3b20b1ff2859b6b67af90817a3a906a99421a8
+
+PASS — no rule lost in any of the five role prompts

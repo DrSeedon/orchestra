@@ -1,0 +1,34 @@
+{
+  "ok": true,
+  "prepared": true,
+  "handed_over": [],
+  "waited_s": 8.704699939698912e-05,
+  "turn_grace_s": 0.0,
+  "cut_turns": 6,
+  "cut_names": [
+    "Orchestra-orchestrator",
+    "comfy-image-orchestrator",
+    "globe-keyboard-digits",
+    "painter-geometry",
+    "voice-world",
+    "photobooth-kiosk"
+  ],
+  "cut_ids": [
+    "07233e67-502d-4c62-9f34-b37fbbdf8606",
+    "e6118c26-c52f-405e-8047-85bd839ba0f7",
+    "ad0bebcc-2e98-4711-804b-dd93fa152cea",
+    "5282e922-83d5-435d-9acb-622e8c5c18d2",
+    "4a7b7e28-147f-4279-ba6b-5ed2af6bc59f",
+    "c8929d97-5c85-4710-9bc9-621de452f70c"
+  ],
+  "restore_after_restart": [
+    "07233e67-502d-4c62-9f34-b37fbbdf8606",
+    "e6118c26-c52f-405e-8047-85bd839ba0f7",
+    "ad0bebcc-2e98-4711-804b-dd93fa152cea",
+    "5282e922-83d5-435d-9acb-622e8c5c18d2",
+    "4a7b7e28-147f-4279-ba6b-5ed2af6bc59f",
+    "c8929d97-5c85-4710-9bc9-621de452f70c"
+  ],
+  "abandoned_mutations": 0,
+  "scheduled": true
+}

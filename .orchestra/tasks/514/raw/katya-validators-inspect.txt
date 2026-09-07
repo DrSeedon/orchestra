@@ -1,0 +1,131 @@
+########## artifacts/task-4/tests/validate_t1_contract.py
+12:import shutil
+356:        golden_path.write_text(json.dumps(golden, ensure_ascii=False), encoding="utf-8")
+413:            case_path.write_text(raw, encoding="utf-8")
+443:        shutil.copy2(REGISTRY, clean_registry / "slot-registry.json")
+449:            shutil.copytree(clean_registry, destination)
+462:        (font_tamper / "slot-registry.json").write_text(json.dumps(font_registry, ensure_ascii=False), encoding="utf-8")
+464:        shutil.copy2(MASTER, source_tamper)
+--- run instructions ---
+#!/usr/bin/env python3
+"""Frozen RED oracle for T1: a closed content-only contract and registry."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from hashlib import sha256
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
+import os
+import shutil
+
+from test_support import PIPELINE, ROOT, load_json, require_file, run
+
+
+SCHEMA = PIPELINE / "schema/deck.schema.json"
+MANIFEST = PIPELINE / "registry/master-manifest.json"
+REGISTRY = PIPELINE / "registry/slot-registry.json"
+CLI = PIPELINE / "cli.mjs"
+GENERATOR = PIPELINE / "scripts/generate-master-registry.py"
+REGISTRY_PROBE = ROOT / "artifacts/task-4/tests/registry_tamper_probe.mjs"
+EVIDENCE_MANIFEST = ROOT / "docs/tasks/4/evidence/master-manifest.json"
+MASTER = Path("/home/kesha/orchestra/data/uploads/Мастер-макет.key")
+MANIFEST_SHA256 = "9154abdedf56ec95d068509edaf5d5db5c04f3d9c897f62c4e316c7c592790ef"
+########## artifacts/task-4/tests/validate_t3_catalog.py
+117:        existing_catalog.mkdir()
+119:        sentinel.write_text("preserve-me", encoding="utf-8")
+155:        catalog_participants_path.write_text(json.dumps(catalog_participants, sort_keys=True), encoding="utf-8")
+176:        all_layouts_path.write_text(json.dumps(golden, ensure_ascii=False), encoding="utf-8")
+191:        golden_participants_path.write_text(json.dumps(golden_participants, sort_keys=True), encoding="utf-8")
+204:            valid_path.write_text(json.dumps(valid_payload, ensure_ascii=False), encoding="utf-8")
+211:            invalid_path.write_text(json.dumps({"schema_version": "iskra-deck-1", "slides": [invalid_slide]}, ensure_ascii=False), encoding="utf-8")
+221:        metric_wide_path.write_text(json.dumps({"schema_version": "iskra-deck-1", "slides": [metric_wide]}, ensure_ascii=False), encoding="utf-8")
+229:        capacity_path.write_text(json.dumps({"schema_version": "iskra-deck-1", "slides": threshold_slides}, ensure_ascii=False), encoding="utf-8")
+235:        boundary_participants_path.write_text(json.dumps(boundary_participants, sort_keys=True), encoding="utf-8")
+--- run instructions ---
+#!/usr/bin/env python3
+"""Frozen RED oracle for T3: all-layout catalog and measured capacity boundaries."""
+
+from __future__ import annotations
+
+from copy import deepcopy
+from hashlib import sha256
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
+import re
+
+from test_support import PIPELINE, ROOT, html_objects_by_slide, load_json, png_size, pptx_objects_by_slide, require_file, run
+from validate_t1_contract import LAYOUT_SLOTS, expected_registry, golden_deck
+
+
+CLI = PIPELINE / "cli.mjs"
+REGISTRY_PATH = PIPELINE / "registry/slot-registry.json"
+MANIFEST_PATH = PIPELINE / "registry/master-manifest.json"
+BROWSER_PROBE = ROOT / "artifacts/task-4/tests/browser_probe.mjs"
+PPTX_OVERFLOW = ROOT / "docs/tasks/4/evidence/analyze_pptx_overflow.py"
+LIBREOFFICE = ROOT / "artifacts/task-2/tooling/libreoffice-runner.sh"
+CATALOG_OUT = ROOT / "artifacts/task-4/catalog"
+
+BOUNDARY_SPECS = {
+########## artifacts/task-4/tests/validate_t4_lesson9.py
+190:        lesson_participants_path.write_text(json.dumps(lesson_participants, sort_keys=True), encoding="utf-8")
+198:        independent_pdf.mkdir()
+213:        independent_pngs.mkdir()
+--- run instructions ---
+#!/usr/bin/env python3
+"""Frozen RED oracle for T4: migrated 10-stage lesson 9 and independent renders."""
+
+from __future__ import annotations
+
+from hashlib import sha256
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
+import re
+
+from test_support import (
+    PIPELINE,
+    ROOT,
+    canonical_pptx_digest,
+    flatten_slot_strings,
+    html_objects_by_slide,
+    load_json,
+    parse_task2_notes,
+    png_size,
+    pptx_notes_by_slide,
+    pptx_objects_by_slide,
+    require_file,
+    run,
+)
+########## artifacts/task-6/lesson-01/validate.py
+16:import subprocess
+161:script.write_text(NODE, encoding="utf-8")
+163:    res = subprocess.run(["node", str(script), str(PW), str(HTML), str(CHROME[-1])],
+--- run instructions ---
+#!/usr/bin/env python3
+"""Механическая приёмка урока 1.
+
+O-1 офлайн-инвариант: ни одного внешнего URL, картинки встроены.
+O-2 состав колоды: ровно 14 слайдов, порядок макетов точный.
+O-3 реестр слов: каждое слово с пропуском — из утверждённого списка (docs/tasks/6/plan.md, § 4);
+    снятые темы не должны просочиться в урок 1.
+O-4 переполнение и геометрия: текст не вылезает ни из одной зоны; рамки совпадают с Таблицей C
+    (допуск 1 пт); геометрия blank- и key-режима совпадает.
+O-5 экзаменационный слайд: 15 слов демоверсии-2026 и ключ 234 присутствуют дословно.
+O-6 рендер: 14 PNG, ноль console/network-ошибок, оба PDF на 14 страниц.
+"""
+from pathlib import Path
+import json
+import re
+import subprocess
+import sys
+
+ROOT = Path(__file__).resolve().parent
+HTML = ROOT / "lesson1.html"
+PW = Path("/home/kesha/katya-work/pipeline/tooling/node_modules")
+CHROME = sorted(Path.home().glob(".cache/ms-playwright/chromium-*/chrome-linux*/chrome"),
+                key=lambda p: int(p.parts[-3].split("-")[-1]))
+
+FAILURES: list[str] = []

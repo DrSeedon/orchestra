@@ -1,0 +1,14 @@
+=== import probe kesha-tg-bot ===
+import OK: rag, runtime_protocol
+=== byte identity kesha-tg-bot vs /opt/kesha-bot ===
+SAME runtime_protocol.py
+SAME codex_session.py
+SAME compact.py
+SAME claude_session.py
+SAME rag.py
+SAME tests/test_codex_session.py
+SAME tests/test_compact_prompt.py
+SAME tests/test_runtime_limits.py
+=== /opt/kesha-bot pytest-timeout ===
+ModuleNotFoundError: No module named 'pytest_timeout'
+/opt/kesha-bot/.venv/bin/python: No module named pytest

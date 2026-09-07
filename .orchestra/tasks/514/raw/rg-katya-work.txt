@@ -1,0 +1,19 @@
+/home/kesha/katya-work/pipeline/scripts/generate-master-registry.py:18:EVIDENCE = ROOT / "docs/tasks/4/evidence/master-manifest.json"
+/home/kesha/katya-work/pipeline/scripts/generate-master-registry.py:19:INSPECTOR = ROOT / "docs/tasks/4/evidence/inspect_master.py"
+/home/kesha/katya-work/pipeline/scripts/generate-master-registry.py:20:COMPACTOR = ROOT / "docs/tasks/4/evidence/compact_master_manifest.py"
+/home/kesha/katya-work/artifacts/task-6/lesson-01/validate.py:6:O-3 реестр слов: каждое слово с пропуском — из утверждённого списка (docs/tasks/6/plan.md, § 4);
+/home/kesha/katya-work/artifacts/task-6/lesson-01/validate.py:64:# O-3: снятые темы не должны просочиться в урок 1 (решение оркестратора, docs/tasks/6/plan.md § 5)
+/home/kesha/katya-work/artifacts/task-6/lesson-01/validate.py:92:# Зоны из docs/tasks/6/research.md, Таблица C. Формат: слайд -> список (left, top, width, height) в пт.
+/home/kesha/katya-work/.orchestra/tasks/28-tk-m7/check.py:3:Запуск: cd docs/tasks/28-tk-m7 && python3 check.py
+/home/kesha/katya-work/.orchestra/tasks/28-tk-m7/check.py:4:        python3 docs/tasks/28-tk-m7/check.py docs/tasks/28-tk-m5m6  # любой каталог модуля
+/home/kesha/katya-work/.orchestra/tasks/28-tk-m8/check.py:3:Запуск: cd docs/tasks/28-tk-m8 && python3 check.py
+/home/kesha/katya-work/artifacts/task-4/tests/validate_t3_catalog.py:21:PPTX_OVERFLOW = ROOT / "docs/tasks/4/evidence/analyze_pptx_overflow.py"
+/home/kesha/katya-work/artifacts/task-4/tests/validate_t1_contract.py:23:EVIDENCE_MANIFEST = ROOT / "docs/tasks/4/evidence/master-manifest.json"
+/home/kesha/katya-work/artifacts/task-4/tests/validate_t4_lesson9.py:38:PPTX_OVERFLOW = ROOT / "docs/tasks/4/evidence/analyze_pptx_overflow.py"
+/home/kesha/katya-work/.orchestra/tasks/25/build_lesson_1.py:4:Каркас — утверждённый образец docs/tasks/22/lesson-1-sample.pptx, без изменений структуры.
+/home/kesha/katya-work/.orchestra/tasks/25/iskra_deck.py:4:Каркас взят из docs/tasks/22/build-lesson-1.py — того образца, который Катя утвердила.
+/home/kesha/katya-work/.orchestra/tasks/19/evidence/accept-contracts.py:2:D='/tmp/t19v3/pdf'; W='/home/kesha/orchestra/worktrees/home-kesha-katya-work/legal-docs-update/docs/tasks/19/out'
+/home/kesha/katya-work/.orchestra/tasks/19/evidence/verify-citations.py:9:srcs=(glob.glob('docs/tasks/19/evidence/law/raw/*.txt')+glob.glob('docs/tasks/19/evidence/sent/*.md')
+/home/kesha/katya-work/.orchestra/tasks/19/evidence/verify-citations.py:10:      +['artifacts/task-17-lit-avito/ad.md','docs/tasks/19/evidence/diff-final15-vs-sent.txt',
+/home/kesha/katya-work/.orchestra/tasks/19/evidence/verify-citations.py:14:txt=open('docs/tasks/19/research.md',encoding='utf-8').read()
+/home/kesha/katya-work/artifacts/task-9-avito/avito_ads.py:176:    уже отчаялся. Разрешение на публикацию — docs/tasks/9/consent.md.

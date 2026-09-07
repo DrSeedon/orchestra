@@ -46,6 +46,7 @@ CODEX_BIN = shutil.which("codex") or os.environ.get("CODEX_BIN", "codex")
 CODEX_CONTEXT_LIMITS = {
     "gpt-5.3-codex-spark": 128000,
     "gpt-5.6-sol":   258400,
+    "gpt-6-astra":   258400,
     "gpt-5.6-terra": 258400,
     "gpt-5.6-luna":  258400,
     "gpt-5.5": 258400,
@@ -67,6 +68,7 @@ CODEX_TOKEN_PRICES = {
     # input −20%, output −33%. Verified in the source table, not from the announcement.
     # Rows already in `turn_usage` keep their own day's price, as with Terra/Luna below.
     "gpt-5.6-sol":   {"input": 4.0, "cached": 0.4, "write": 5.0, "output": 20.0},
+    "gpt-6-astra":   {"input": 10.0, "cached": 1.0, "write": 12.5, "output": 50.0},
     "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
     "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
@@ -76,10 +78,9 @@ CODEX_TOKEN_PRICES = {
 }
 
 
-# GPT-5.6 reasoning ladder (light→low→medium→high→xhigh→max→ultra). "minimal" kept for
-# 5.4/5.5 back-compat. "ultra" (parallel sub-agents) intentionally excluded — a special
-# mode, not a plain effort level, and risky to trigger from a generic worker effort field.
-CODEX_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh", "max"}
+# Codex server-side reasoning effort values. "ultra" (parallel sub-agents) is intentionally
+# excluded: it is a client-side mode, not a plain effort level for a generic worker field.
+CODEX_REASONING_EFFORTS = {"low", "medium", "high", "xhigh", "max"}
 CODEX_SILENCE_HEARTBEAT_SECONDS = 30
 CODEX_COMPACT_TIMEOUT_SECONDS = 120
 CODEX_PROCESS_TIMEOUT_SECONDS = 5
@@ -312,7 +313,7 @@ _MANAGED_HOME_LOCKS: weakref.WeakKeyDictionary = weakref.WeakKeyDictionary()
 _CODEX_STATE_MIGRATIONS_BY_CLI = {
     # Captured from a fresh Codex 0.150.1 app-server state DB. Checksums are SQLx's
     # provider-owned migration identity; a mutable base DB is not schema authority.
-    CODEX_CLI_HISTORY_VERSION: (
+    "0.150.1": (
         (1, bytes.fromhex("627ef19164c9bb298a0cd99945981c9b7bda3d9e6cf12eb35145e3b1d3bf7cf8740f0dbaa0b475185fc2993397078049")),
         (2, bytes.fromhex("521b72cbc04c7d03b1e4aef8dc0fdee672f1f7f5881385a55a0e937e4ebe87a3f67bca4d3f6b59afbc9a7ca723c82856")),
         (3, bytes.fromhex("e58a2862bdb66d3274e60144a26dc9d68bbefff834cd29b82b740f38fcf95862934f412665d985715167839e8f0eb377")),
@@ -366,6 +367,11 @@ _CODEX_STATE_MIGRATIONS_BY_CLI = {
         (51, bytes.fromhex("23360a03a7fc307c3fd5bb8b432b66034dd8f8695cdba698b45278c20dd712c1af476b884e192237d80baa08a5f29505")),
     ),
 }
+# Captured from 0.153.4 on 05.09; its first 51 checksums match the older release.
+# Evidence keys are immutable release identities, never the mutable history-import pin.
+_CODEX_STATE_MIGRATIONS_BY_CLI["0.153.4"] = _CODEX_STATE_MIGRATIONS_BY_CLI["0.150.1"] + (
+    (52, bytes.fromhex("071e96313d402e4c3d156f620f3f62b4a468da00ce30a47574d2594623e5e954f3ec2f1e54f043a8e4b602643e868b7d")),
+)
 # Из базового конфига переносим ТОЛЬКО это. Расширять список осознанно: каждая строка
 # здесь — копия, которая начинает расходиться с оригиналом.
 _CARRIED_BASE_KEYS = (
@@ -593,16 +599,30 @@ def _backup_codex_state(source: Path, destination: Path) -> None:
     os.chmod(destination, 0o600)
 
 
+def _state_source_mtime(path: Path) -> float:
+    try:
+        return path.stat().st_mtime
+    except OSError:
+        return 0.0
+
+
 def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> Path:
     base = _base_codex_home() / "state_5.sqlite"
-    candidates: list[tuple[int, int, Path]] = []
     sources = [base]
     if _CODEX_HOME_ROOT.is_dir():
-        sources.extend(
-            candidate
-            for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite")
-            if candidate.parent != target_home
-        )
+        # Freshest first, and STOP at the first healthy source. Ranking every home
+        # meant one `PRAGMA quick_check` per state DB — 278 homes / 72 GiB and ~11 min
+        # of pure I/O per spawn (#520), growing with every worker ever created, so a
+        # fresh worker never reached its CLI. mtime is the cheap stand-in for the old
+        # thread_count ranking: it needs a stat, not a full read of the database.
+        sources.extend(sorted(
+            (
+                candidate
+                for candidate in _CODEX_HOME_ROOT.glob("*/state_5.sqlite")
+                if candidate.parent != target_home
+            ),
+            key=lambda candidate: (-_state_source_mtime(candidate), str(candidate)),
+        ))
     for candidate in sources:
         try:
             info = _inspect_codex_state(candidate, check_integrity=True)
@@ -615,12 +635,10 @@ def _select_managed_codex_state_source(target_home: Path, cli_version: str) -> P
             logger.warning("ignoring invalid Codex state source %s: %s", candidate, exc)
             continue
         if info.status == "complete" and info.last_success_at is not None:
-            candidates.append((info.thread_count, info.last_success_at, candidate))
-    if not candidates:
-        raise RuntimeError(
-            f"no healthy Codex state source validated for CLI {cli_version}"
-        )
-    return max(candidates, key=lambda item: (item[0], item[1], str(item[2])))[2]
+            return candidate
+    raise RuntimeError(
+        f"no healthy Codex state source validated for CLI {cli_version}"
+    )
 
 
 def _prepare_managed_codex_state(
@@ -629,10 +647,9 @@ def _prepare_managed_codex_state(
     cli_version: str,
 ) -> str:
     """Seed only absent or never-successful state from a validated WAL-safe backup."""
-    if cli_version != CODEX_CLI_HISTORY_VERSION:
+    if cli_version not in _CODEX_STATE_MIGRATIONS_BY_CLI:
         raise RuntimeError(
-            "managed Codex state seed is validated only for CLI "
-            f"{CODEX_CLI_HISTORY_VERSION}, got {cli_version or 'unknown'}"
+            f"managed Codex state seed has no verified schema for CLI {cli_version or 'unknown'}"
         )
     target = home / "state_5.sqlite"
     if target.exists():
@@ -860,13 +877,42 @@ class CodexBackend(JsonRpcStdioTransport):
         return build_model_visible_manifest(
             runtime="codex",
             model=self.model,
-            effective_window=self._model_context_window,
+            effective_window=self._handoff_context_window(),
             system_prompt=self.system_prompt,
             prepared=prepared,
             validation_profile=validation_profile,
             project_docs=getattr(prepared, "project_docs", ()),
             mcp_servers=self._mcp_servers,
         )
+
+    def _handoff_context_window(self) -> int:
+        """Use the target's configured window before its first telemetry event.
+
+        The same scalar is carried into its managed home. A requested larger window
+        is admitted only within this model's CLI catalog maximum, with the catalog's
+        effective percentage. Missing metadata keeps the existing conservative fallback.
+        Runtime telemetry, once available, takes precedence.
+        """
+        fallback = self._model_context_window
+        if self.is_alive or fallback != CODEX_CONTEXT_LIMITS.get(self.model, 258400):
+            return fallback
+        try:
+            configured = tomllib.loads(_carried_base_scalars()).get("model_context_window")
+            if type(configured) is not int or configured <= 0:
+                return fallback
+            catalog = json.loads((_base_codex_home() / "models_cache.json").read_text())
+            entry = next((m for m in catalog["models"] if m.get("slug") == self.model), None)
+            if entry is None:
+                return fallback
+            maximum = entry.get("max_context_window", entry.get("context_window"))
+            percent = entry.get("effective_context_window_percent")
+            if (type(maximum) is not int or maximum <= 0
+                    or type(percent) is not int or not 0 < percent <= 100):
+                return fallback
+            return min(configured, maximum) * percent // 100
+        except (OSError, ValueError, KeyError, TypeError, AttributeError) as error:
+            logger.warning("Codex handoff context metadata unavailable: %s", type(error).__name__)
+            return fallback
 
     @property
     def active_turn_id(self) -> Optional[str]:
@@ -992,8 +1038,12 @@ class CodexBackend(JsonRpcStdioTransport):
             config_sha256 = await _run_home_io(
                 self._refresh_managed_config_sha256
             )
-            cli_version = await self._managed_state_cli_version()
-            if cli_version != CODEX_CLI_HISTORY_VERSION:
+            try:
+                cli_version = await self._managed_state_cli_version()
+            except RuntimeError as error:
+                logger.warning("cannot inspect optional Codex state seed version: %s", error)
+                cli_version = ""
+            if cli_version not in _CODEX_STATE_MIGRATIONS_BY_CLI:
                 # The provider owns forward migrations.  Blocking before the app-server
                 # starts strands every fresh worker after a CLI upgrade; let that binary
                 # migrate its own managed state under the per-home lock.
@@ -1005,17 +1055,16 @@ class CodexBackend(JsonRpcStdioTransport):
                 await self._connect_unlocked()
                 self._loaded_config_sha256 = config_sha256
                 return
-            if await _run_home_io(
-                _managed_codex_state_needs_seed,
-                home,
-                cli_version,
-            ):
+            source = None
+            try:
+                if await _run_home_io(_managed_codex_state_needs_seed, home, cli_version):
+                    source = await _run_home_io(_select_managed_codex_state_source, home, cli_version)
+            except RuntimeError as error:
+                # No state has been changed: an optional clone optimization cannot
+                # veto the provider's own startup/migration/recovery path.
+                logger.warning("skipping optional Codex state seed: %s", error)
+            if source is not None:
                 logger.info("Codex managed state preparation started: home=%s", home)
-                source = await _run_home_io(
-                    _select_managed_codex_state_source,
-                    home,
-                    cli_version,
-                )
                 await _run_home_io(
                     _prepare_managed_codex_state,
                     home,

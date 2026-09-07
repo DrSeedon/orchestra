@@ -39,6 +39,37 @@ def _codex_history(thread_id: str):
     )
 
 
+def _stub_ledger_packet():
+    """A prepared packet still carries the constraint bodies the ledger must keep."""
+    return {
+        "schema_version": 1,
+        "constraints": [{
+            "content": "current system policy",
+            "authority": {
+                "origin_kind": "current_system_prompt",
+                "verified_by": "orchestra_server",
+                "sha256": "d" * 64,
+            },
+        }],
+    }
+
+
+def _delivered_candidate_sha256(kwargs) -> str:
+    """Check the ack names the packet that actually left, with no duplicated bodies."""
+    from app.runtime_history import runtime_packet_sha256
+
+    sent = kwargs["packet"]
+    constraints = sent["constraints"]
+    assert constraints, "the delivered candidate lost its constraint authority"
+    assert not any(item.get("content") for item in constraints), (
+        "the target receives the constraint bodies twice"
+    )
+    assert all(item["authority"]["sha256"] for item in constraints)
+    sha256 = runtime_packet_sha256(sent)
+    assert kwargs["expected_packet_sha256"] == sha256
+    return sha256
+
+
 def _claude_history(session_id: str, model: str):
     from app.runtime_history import render_claude_history
 
@@ -370,9 +401,16 @@ def test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools(
 
 @pytest.mark.asyncio
 async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect(
-    session, monkeypatch,
+    session, monkeypatch, tmp_path,
 ):
     from app.session import AgentStatus
+
+    # The oracle is "a prompt that does not fit is refused before the source is
+    # disconnected", so the window it does not fit into has to be pinned. Since
+    # `_model_context_window` started reading the installed Codex config, an empty
+    # CODEX_HOME is what keeps the target on the catalog value (258 400) instead of
+    # whatever this machine has in ~/.codex.
+    monkeypatch.setenv("CODEX_HOME", str(tmp_path / "codex-home"))
 
     session.model = "claude-sonnet-5[1m]"
     session.backend_type = "claude"
@@ -548,6 +586,11 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
     tmp_path, monkeypatch,
 ):
     from app import db as dbmod
+    from app.runtime_history import (
+        build_runtime_delivery_packet,
+        build_runtime_state_packet,
+        runtime_packet_sha256,
+    )
 
     db_path = tmp_path / "confirm.db"
     monkeypatch.setattr(dbmod, "DB_PATH", db_path)
@@ -555,6 +598,27 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
     confirm = getattr(dbmod, "confirm_runtime_handoff", None)
     assert callable(confirm), "atomic handoff confirmation is absent"
     created_at = datetime.now(timezone.utc).isoformat()
+    # A ledger row production can actually produce: `build_runtime_state_packet` always
+    # writes `integrity`, and the attempt records the hash of the projected candidate
+    # that reached the target, not the ledger hash.
+    ledger_packet = build_runtime_state_packet(
+        [{
+            "id": 1, "ts": created_at, "type": "user_message",
+            "content": "continue", "event_id": "", "tool_use_id": None,
+            "tool_name": None, "tool_is_error": None,
+        }],
+        session_meta={"id": "s1"}, snapshot_id=1,
+        current_system_prompt="current system policy",
+        project_docs=[{"path": "AGENTS.md", "content": "tracked repo policy"}],
+    )
+    packet_json = json.dumps(
+        ledger_packet, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    )
+    packet_sha256 = ledger_packet["integrity"]["canonical_sha256"]
+    candidate_sha256 = runtime_packet_sha256(
+        build_runtime_delivery_packet(ledger_packet)
+    )
+    assert candidate_sha256 != packet_sha256
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             """INSERT INTO sessions
@@ -572,8 +636,11 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
                 created_at, updated_at)
                VALUES ('h1', 's1', 'request-1', 'source_released', 'codex',
                        'gpt-5.6-sol', 'old-thread', 'claude',
-                       'claude-sonnet-5[1m]', 0, ?, '{}', ?, 'packet_delta', ?, ?)""",
-            ("a" * 64, "b" * 64, created_at, created_at),
+                       'claude-sonnet-5[1m]', 1, ?, ?, ?, 'packet_delta', ?, ?)""",
+            (
+                ledger_packet["integrity"]["snapshot_sha256"], packet_json,
+                packet_sha256, created_at, created_at,
+            ),
         )
         conn.execute(
             """INSERT INTO runtime_handoff_attempts
@@ -581,7 +648,7 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
                 target_session_id, candidate_sha256, created_at, updated_at)
                VALUES ('h1', 1, 'packet_delta', 'capability_validated',
                        'staging/h1/1', 'target-session', ?, ?, ?)""",
-            ("b" * 64, created_at, created_at),
+            (candidate_sha256, created_at, created_at),
         )
         conn.execute(
             """CREATE TRIGGER abort_confirm BEFORE UPDATE ON runtime_handoffs
@@ -683,7 +750,7 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
     config_sha = "b" * 64
     capability_sha = "c" * 64
     prepared = SimpleNamespace(
-        handoff_id="h1", packet={"schema_version": 1},
+        handoff_id="h1", packet=_stub_ledger_packet(),
         packet_sha256=packet_sha, expected_capability_sha256=capability_sha,
         pending_effects=0,
     )
@@ -715,10 +782,10 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
     session._ensure_backend = AsyncMock(side_effect=connect_target)
 
     async def ingress_canary(*_args, **_kwargs):
-        assert _kwargs["expected_packet_sha256"] == packet_sha
+        sent_sha = _delivered_candidate_sha256(_kwargs)
         order.append("ingress-canary")
         return {
-            "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+            "ok": True, "state_checksum": sent_sha, "tools_enabled": False,
             "configuration_sha256": config_sha,
         }
 
@@ -762,14 +829,16 @@ async def test_t3_claude_target_commits_only_after_canary_and_capability_receipt
             "handoff_ingress_rejected",
         ),
         (
-            {"ok": True, "state_checksum": "a" * 64, "tools_enabled": True,
+            # `state_checksum: None` means "echo the candidate that actually arrived",
+            # resolved below: a literal cannot name a hash the staging step computes.
+            {"ok": True, "state_checksum": None, "tools_enabled": True,
              "configuration_sha256": "b" * 64},
             {"ok": True, "fingerprint": "c" * 64,
              "configuration_sha256": "b" * 64},
             "handoff_ingress_rejected",
         ),
         (
-            {"ok": True, "state_checksum": "a" * 64, "tools_enabled": False,
+            {"ok": True, "state_checksum": None, "tools_enabled": False,
              "configuration_sha256": "b" * 64},
             {"ok": False, "fingerprint": "wrong",
              "configuration_sha256": "b" * 64},
@@ -792,11 +861,19 @@ async def test_t3_invalid_receipt_never_disconnects_or_confirms(
     session._log = MagicMock()
     session._activate_backend_tasks = MagicMock()
     session._prepare_runtime_handoff = AsyncMock(return_value=SimpleNamespace(
-        handoff_id="h1", packet={"schema_version": 1},
+        handoff_id="h1", packet=_stub_ledger_packet(),
         packet_sha256="a" * 64, expected_capability_sha256="c" * 64,
         pending_effects=0,
     ))
-    session._run_handoff_ingress_canary = AsyncMock(return_value=ingress)
+
+    async def ingress_receipt(*_args, **kwargs):
+        sent_sha = _delivered_candidate_sha256(kwargs)
+        receipt = dict(ingress)
+        if receipt["state_checksum"] is None:
+            receipt["state_checksum"] = sent_sha
+        return receipt
+
+    session._run_handoff_ingress_canary = AsyncMock(side_effect=ingress_receipt)
     session._verify_handoff_capabilities = AsyncMock(return_value=capability)
     session._confirm_runtime_handoff = AsyncMock()
 
@@ -893,11 +970,10 @@ async def test_t4_grok_target_never_commits_from_summary_without_validation(
     assert marker not in json.dumps(manifest.components)
 
     async def validate_ingress(*_args, **kwargs):
-        assert kwargs["packet"] == packet
-        assert kwargs["expected_packet_sha256"] == packet_sha
+        sent_sha = _delivered_candidate_sha256(kwargs)
         assert marker not in json.dumps(manifest.components)
         return {
-            "ok": True, "state_checksum": packet_sha, "tools_enabled": False,
+            "ok": True, "state_checksum": sent_sha, "tools_enabled": False,
             "configuration_sha256": "b" * 64,
         }
 

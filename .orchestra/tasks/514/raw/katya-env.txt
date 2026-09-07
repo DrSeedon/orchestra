@@ -1,0 +1,9 @@
+=== katya-work env ===
+ls: cannot access '/home/kesha/katya-work/.venv/bin/python': No such file or directory
+ls: cannot access '/home/kesha/katya-work/pyproject.toml': No such file or directory
+ls: cannot access '/home/kesha/katya-work/pytest.ini': No such file or directory
+ls: cannot access '/home/kesha/katya-work/setup.cfg': No such file or directory
+=== git status (must stay clean) ===
+=== old dirs present? ===
+/home/kesha/katya-work/docs
+/home/kesha/katya-work/.orchestra/tasks/4/evidence

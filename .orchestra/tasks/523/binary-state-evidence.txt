@@ -1,0 +1,67 @@
+
+ANCHOR core/src/state_db.rs
+
+ANCHOR core/src/config/mod.rs
+b'/control/execution.rs\x00\x13spawn_child_async: \xc0\x01 \xc0\x01 \xc0\x01 \xc0\x01 \xc0\x01 \xc0\x01 \xc0\x00core/src/spawn.rs\x00core/src/config/mod.rs\x00core/src/session/mcp_refresh.rs\x00core/src/session/mcp_runtime.rs\x00core/src/session/mcp.rs\x00core/src/session/turn.rs\x00core/src/session/mod.rs\x00exec/src/lib.rs\x00\tint'
+b't_levelprojects table missing after initializationbearer_token.config.tomlevent core/src/config/mod.rs:2015codex_core::configcore/src/config/mod.rsevent core/src/config/mod.rs:2164fallback_valuerequirement_sourcefeatures.multi_agent_v2.tool_namespacetool_sugge'
+b'ationbearer_token.config.tomlevent core/src/config/mod.rs:2015codex_core::configcore/src/config/mod.rsevent core/src/config/mod.rs:2164fallback_valuerequirement_sourcefeatures.multi_agent_v2.tool_namespacetool_suggestrequirements.toml default_permissions requi'
+b'levent core/src/config/mod.rs:2015codex_core::configcore/src/config/mod.rsevent core/src/config/mod.rs:2164fallback_valuerequirement_sourcefeatures.multi_agent_v2.tool_namespacetool_suggestrequirements.toml default_permissions requires allowed_permission_profi'
+b'gular file or normal directory and is missing, empty, or narrowly scoped.\nevent core/src/config/mod.rs:3356event core/src/config/mod.rs:3668event core/src/config/mod.rs:3605event core/src/config/mod.rs:3350event core/src/config/mod.rs:3654unattributedokskillin'
+
+ANCHOR core-plugins/src/remote/catalog_cache.rs
+b'son\x00account_idchatgpt_user_idis_workspace_accountscopecollectionfetched_atevent core-plugins/src/remote/catalog_cache.rs:104codex_core_plugins::remote::catalog_cachecache_pathcore-plugins/src/remote/catalog_cache.rsevent core-plugins/src/remote/catalog_cache.r'
+b'c/remote/catalog_cache.rs:104codex_core_plugins::remote::catalog_cachecache_pathcore-plugins/src/remote/catalog_cache.rsevent core-plugins/src/remote/catalog_cache.rs:94event core-plugins/src/remote/catalog_cache.rs:165GLOBALWORKSPACElimitpageTokencreated-by-m'
+b's::remote::catalog_cachecache_pathcore-plugins/src/remote/catalog_cache.rsevent core-plugins/src/remote/catalog_cache.rs:94event core-plugins/src/remote/catalog_cache.rs:165GLOBALWORKSPACElimitpageTokencreated-by-me-remoteworkspace-directoryworkspace-shared-wi'
+b'c/remote/catalog_cache.rsevent core-plugins/src/remote/catalog_cache.rs:94event core-plugins/src/remote/catalog_cache.rs:165GLOBALWORKSPACElimitpageTokencreated-by-me-remoteworkspace-directoryworkspace-shared-with-meworkspace-shared-with-me-unlistedfailed to p'
+
+ANCHOR core-plugins/src/remote/remote_installed_plugin_sync.rs
+b'sk: \xc0\x00\xc0\x1b/ps/plugins/suggested/codex\x00\xc0\x10/ps/plugins/list\x00\xc0\x0c/ps/plugins/\xc0\x08/install\x00core-plugins/src/remote/remote_installed_plugin_sync.rs\x002failed to enumerate remote plugin cache directory \xc0\x02: \xc0\x00 remote plugin cache entry under \xc0\x15 is not valid UTF-8: \xc0\x00-failed t'
+b'id: only ASCII letters, digits, `_`, `-`, and `~` are allowedplugins/cacheevent core-plugins/src/remote/remote_installed_plugin_sync.rs:333codex_core_plugins::remote::remote_installed_plugin_synccore-plugins/src/remote/remote_installed_plugin_sync.rsevent core'
+b'alled_plugin_sync.rs:333codex_core_plugins::remote::remote_installed_plugin_synccore-plugins/src/remote/remote_installed_plugin_sync.rsevent core-plugins/src/remote/remote_installed_plugin_sync.rs:260event core-plugins/src/remote/remote_installed_plugin_sync.r'
+b'stalled_plugin_synccore-plugins/src/remote/remote_installed_plugin_sync.rsevent core-plugins/src/remote/remote_installed_plugin_sync.rs:260event core-plugins/src/remote/remote_installed_plugin_sync.rs:237event core-plugins/src/remote/remote_installed_plugin_sy'
+b'n_sync.rsevent core-plugins/src/remote/remote_installed_plugin_sync.rs:260event core-plugins/src/remote/remote_installed_plugin_sync.rs:237event core-plugins/src/remote/remote_installed_plugin_sync.rs:306psevent core-plugins/src/remote.rs:1178fetch_recommended'
+
+ANCHOR prune
+b'c/runtime.rs\x00memories/write/src/extensions/mod.rs\x00memories/write/src/extensions/prune.rs\x00&failed reading memory extensions root \xc0\x02: \xc0\x00-failed pruning old memory extension resource \xc0\x02: \xc0\x00*failed reading memory extension resources \xc0\x02: \xc0\x00memories/write/src/extens'
+b'claimed, \xc0\x0c succeeded (\xc0\x0e with output, \xc0\r no output), \xc0\x07 failed\x00\x16memory startup pruned \xc0( stale stage-1 output row(s) older than \xc0\x05 days\x00Omemories db prune_stage1_outputs_for_retention failed during memories startup: \xc0\x00\x15failed to claim job: \xc0\x00#failed preparing'
+b'y startup pruned \xc0( stale stage-1 output row(s) older than \xc0\x05 days\x00Omemories db prune_stage1_outputs_for_retention failed during memories startup: \xc0\x00\x15failed to claim job: \xc0\x00#failed preparing memory workspace: \xc0\x00+failed to list stage1 outputs from global: \xc0\x00(fa'
+b'air: \xc0\x00\x1efailed to create cert params: \xc0\x00\x1afailed to sign host cert: \xc0\x004failed to prune stale managed MITM CA trust bundle: \xc0\x00\xc0\x01-\xc0\x04.pem\x00\x01.\xc0\x05.lock\x00+refusing to reuse existing mismatched file \xc0\x00\x1arefusing to reuse symlink \xc0\x006failed to prune stale managed MITM CA ar'
+b'ing to reuse existing mismatched file \xc0\x00\x1arefusing to reuse symlink \xc0\x006failed to prune stale managed MITM CA artifact lease: \xc0\x003failed to prune stale managed MITM CA certificate: \xc0\x002failed to inspect managed MITM CA artifact lease: \xc0\x00.failed to evaluate control'
+
+ANCHOR retention
+b' stage-1 output row(s) older than \xc0\x05 days\x00Omemories db prune_stage1_outputs_for_retention failed during memories startup: \xc0\x00\x15failed to claim job: \xc0\x00#failed preparing memory workspace: \xc0\x00+failed to list stage1 outputs from global: \xc0\x00(failed syncing phase2 works'
+b', context limits, pricing metadata, and provider catalogs;\n- prompt-cache keys, retention options, stable-prefix construction, and cache metrics;\n- image, PDF, file, OCR, and computer-use inputs;\n- tests, fixtures, snapshots, evals, analytics labels, billing t'
+b', request IDs, user-specific values, or tool lists in the prefix;\n- cache keys, retention settings, and cache dashboards;\n- token accounting that assumes reads only and ignores writes.\n\nMigration rules:\n\n- keep reusable prefixes stable;\n- do not churn large sy'
+b'_cache_key` when the application already uses it. Treat the older `prompt_cache_retention` shape as deprecated and verify the live docs before rewriting it.\n\nCache writes cost more than ordinary uncached input, so a lower hit rate can be both slower and more e'
+
+ANCHOR max_bytes
+b'_runtime_t_subagent_modeldefault_subagentinal_max_timeoutbackground_termict_doc_max_bytesproject_doc_max_startup_grace_msmcp_optional_staredentials_storecli_auth_credentplan_mode_reasonironment_contextinclude_environmgpt_workspace_idforced_chatgpt_wmcp_oauth_c'
+b'_promptexternal_config_migration_promptsstruct Notice with 8 elementspersistencemax_byteshttps://chatgpt.com/backend-apiinternal error: entered unreachable code: failed to match bindmalformed JSON-RPC messageterminatedtimed out validating Noise relay harness k'
+b'rtmcp_oauth_callback_urlmcp_optional_startup_grace_msmodel_providersproject_doc_max_bytesproject_doc_fallback_filenamestool_output_token_limitbackground_terminal_max_timeoutjs_repl_node_pathjs_repl_node_module_dirshistorysqlite_homelog_dirfile_openertuihide_ag'
+b'oadUrlSchemeschemeInvalidPluginIdDownloadRequestDownloadStatusstatusDownloadBodymax_bytesUnsupportedBundleDownloadFinalUrlfinal_urlExtractedBundleTooLargebytesIocontextStoreMapAccess::next_value called before next_key[internal exception] blocking task ran twic'
+b'rtmcp_oauth_callback_urlmcp_optional_startup_grace_msmodel_providersproject_doc_max_bytesproject_doc_fallback_filenamestool_output_token_limitbackground_terminal_max_timeoutjs_repl_node_pathjs_repl_node_module_dirsprofilehistorysqlite_homelog_dirfile_openertui'
+
+ANCHOR stale remote plugin cache
+b' UTF-8: \xc0\x00-failed to read remote plugin cache directory \xc0\x02: \xc0\x001failed to remove stale remote plugin cache entry \xc0\x02: \xc0\x00\x19remote installed plugin `\xc0!` has an invalid local cache id: \xc0\x00\xc0\x0c/ps/plugins/\xc0\x00\xc0\x15/ps/plugins/installed\x00+invalid local plugin id for remote plu'
+b'd plugin bundleskipping remote installed plugin bundle downloadfailed to remove stale remote plugin cache entriesincludeDownloadUrlsfetching remote plugin catalogplugins.remote_catalog.listps/plugins/listprincipal_typeprincipal_idreadergroupworkspaceownerLISTE'
+b'd plugin bundleskipping remote installed plugin bundle downloadfailed to remove stale remote plugin cache entriesincludeDownloadUrlsfetching remote plugin catalogplugins.remote_catalog.listGETps/plugins/listworkspace plugin create response did not include a pl'
+b'd plugin bundleskipping remote installed plugin bundle downloadfailed to remove stale remote plugin cache entriesincludeDownloadUrlsfetching remote plugin catalogplugins.remote_catalog.listGETps/plugins/listplugins_for_configcodex_core_plugins::managerotel.nam'
+
+ANCHOR CODEX_HOME
+b'emon state dir: \xc0\x00\x10control socket: \xc0\x00\x08status: \xc0\x00\x06mode: \xc0\x00\x13exited with status \xc0\x00\x0cCODEX_HOME: \xc0\x00\x05cwd: \xc0\x00\x07model: \xc0\x00\x10model provider: \xc0\x00\tlog dir: \xc0\x00\rsqlite home: \xc0\x00\rmcp servers: \xc0\x00\xc0\x12s since unix epoch\x00\x05tmux \xc0\x00\x07zellij \xc0\x00\xc0\x06: none\x00cli/src/doctor/thread_inventory.rs\x00\x0br'
+b'app-server-transport/src/transport/remote_control/segment.rs\x00\x1efailed to resolve CODEX_HOME: \xc0\x00$Failed to serialize JSONRPCMessage: \xc0\x00#Failed to serialize JSONRPC error: \xc0\x00\xc0* must be a 64-character hex SHA-256 digest\x00\x16websocket auth secret \xc0\x12 must not be empty\x00'
+b'tes.io-1949cf8c6b5b557f/tokio-1.52.3/src/io/util/fill_buf.rs\x00+failed to resolve CODEX_HOME for MCP OAuth \xc0\x15 aggregate-store lock\x00\x1bfailed to create MCP OAuth \xc0  aggregate-store lock directory \xc0\x00\x19failed to open MCP OAuth \xc0\x16 aggregate-store lock \xc0\x00\x10timed out afte'
+b' Using the default theme. To use a custom theme, place a .tmTheme file at \xc0\x01.\x00\x13$CODEX_HOME/themes/\xc0\x08.tmTheme\x00\x07Theme "\xc0%" not recognized; using default theme\x00tui/src/status/thread_usage.rs\x00\xc0\x06 input\x00\x01(\xc0\x08 cached)\x00\xc0\x07 output\x00\x04GPT-\xc0\x00\x08(resets \xc0\x01)\x00\x08Profile \xc0\x02 (\xc0\x02, \xc0\x01)'
+b', then select \xc0\x02 (\xc0\x01)\x00\x10codex resume -- \xc0\x00\x06_x_ = \xc0\x00utils/fuzzy-match/src/lib.rs\x00\x15CODEX_HOME points to \xc0", but that path is not a directory\x00\x15CODEX_HOME points to \xc0\x1e, but that path does not exist\x00\x1afailed to read CODEX_HOME \xc0\x02: \xc0\x00"failed to canonicalize CODEX_HOME'
+
+ANCHOR SQLITE_HOME
+b' is overridden by the required value \xc0\x06 from \xc0\x01.\x00]Environment value for `$CODEX_SQLITE_HOME` is overridden by the required `sqlite_home` value \xc0\x06 from \xc0\x01.\x005configured values are overridden by requirements for \xc0\x00\x19Configured values under `\xc0&` are overridden by r'
+b'mpt is setfeatures.token_budget.reminder_threshold_tokens must be positiveCODEX_SQLITE_HOMEoss_providerrequirements.toml default_permissions must be set unless allowed_permission_profiles allows both `:workspace` and `:read-only`Your context window is nearly e'
+b'c/config/requirements.rs:98valueevent core/src/config/requirements.rs:157`CODEX_SQLITE_HOME` is overridden by an exact requirement for sqlite_homeevent core/src/config/requirements.rs:178, event core/src/config/managed_features.rs:254codex_core::config::manage'
+
+ANCHOR thread_sections
+b"ead \xc0' does not support realtime conversation\x00app-server/src/request_processors/thread_sections.rs\x00\x1athread section not found: \xc0\x00app-server/src/request_processors/config_processor.rs\x00/failed to resolve feature override precedence: \xc0\x003failed to rebuild user conf"
+b'lldown-cmark-0.10.3/src/tree.rs\x00thread-store/src/in_memory.rs\x00state/src/runtime/thread_sections.rs\x00state/src/runtime/thread_section_order.rs\x00\x08section \xc0" has no remaining thread positions\x00\x0ebefore thread \xc0\x13 is not in section \xc0\x00\x07thread \xc0\x1e cannot be moved before i'
+b'irectory\x00)failed to materialize referenced rollout \xc0\x02: \xc0\x00thread-store/src/local/thread_sections.rs\x00"failed to load history for thread \xc0\x00\x07thread \xc0  already has a live local writer\x00thread-store/src/local/unarchive_thread.rs\x00.failed to update unarchived thread ti'
+b'ads.archived_at,\n    threads.thread_section_id AS section,\n    (\n        SELECT thread_sections.name\n        FROM thread_sections\n        WHERE thread_sections.id = threads.thread_section_id\n    ) AS section_name,\n    (\n        SELECT thread_sections.appearanc'
+b'd_section_id AS section,\n    (\n        SELECT thread_sections.name\n        FROM thread_sections\n        WHERE thread_sections.id = threads.thread_section_id\n    ) AS section_name,\n    (\n        SELECT thread_sections.appearance\n        FROM thread_sections\n   '
