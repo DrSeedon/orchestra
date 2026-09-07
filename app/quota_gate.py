@@ -27,7 +27,11 @@ import time
 import os
 from dataclasses import dataclass, replace
 from datetime import datetime, timezone
+from pathlib import Path
+from threading import Lock
 from typing import Awaitable, Callable, Mapping
+
+from dotenv import dotenv_values
 
 from app.models import backend_for_model, resolve_model
 from app.runtime_registry import get_runtime
@@ -36,7 +40,11 @@ from app.runtime_registry import get_runtime
 def _env_float_var(name: str, default: float, *, minimum: float, maximum: float) -> float:
     if name not in os.environ:
         return default
-    raw = os.environ[name].strip()
+    return _parse_float(os.environ[name], name, minimum, maximum)
+
+
+def _parse_float(raw: object, name: str, minimum: float, maximum: float) -> float:
+    raw = str(raw).strip()
     if not raw:
         raise ValueError(f"{name}: value must be a finite number in [{minimum}, {maximum}]")
     try:
@@ -51,7 +59,13 @@ def _env_float_var(name: str, default: float, *, minimum: float, maximum: float)
 def _env_gated_lanes(name: str, default: tuple[str, ...]) -> frozenset[str]:
     if name not in os.environ:
         return frozenset(default)
-    raw = os.environ[name]
+    return _parse_lanes(os.environ[name], name, default)
+
+
+def _parse_lanes(raw: object, name: str, default: tuple[str, ...]) -> frozenset[str]:
+    if raw is None:
+        raise ValueError(f"{name}: value must be a comma-separated list of lane names")
+    raw = str(raw)
     if raw == "":
         return frozenset()
     raw_parts = [part.strip() for part in raw.split(",")]
@@ -90,6 +104,89 @@ _ENV_CURVED_LANES_DEFAULT = ("sol",)
 # Наблюдение старше этого возраста считается отсутствующим.
 QUOTA_OBSERVATION_MAX_AGE = 300.0
 
+_QUOTA_ENV_NAMES = (
+    "QUOTA_HARD_STOP_PCT",
+    "QUOTA_TOLERANCE_START_PP",
+    "QUOTA_TOLERANCE_END_PP",
+    "QUOTA_CURVE_EXPONENT",
+    "QUOTA_GATED_LANES",
+    "QUOTA_CURVED_LANES",
+)
+_DOTENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+_startup_quota_env = {name: os.environ.get(name) for name in _QUOTA_ENV_NAMES}
+_dotenv_mtime_ns: int | None = None
+_dotenv_values: dict[str, str | None] = {}
+_dotenv_quota_keys: frozenset[str] = frozenset()
+_dotenv_loaded = False
+_UNSET = object()
+_dotenv_lock = Lock()
+
+
+@dataclass(frozen=True)
+class QuotaPolicy:
+    hard_stop_pct: float
+    tolerance_start_pp: float
+    tolerance_end_pp: float
+    curve_exponent: float
+    gated_lanes: frozenset[str]
+    curved_lanes: frozenset[str]
+
+
+def _live_quota_env() -> dict[str, object]:
+    """Read one coherent quota environment snapshot, refreshing `.env` by mtime."""
+    global _dotenv_mtime_ns, _dotenv_values, _dotenv_quota_keys
+    global _dotenv_loaded
+    with _dotenv_lock:
+        try:
+            mtime_ns = _DOTENV_PATH.stat().st_mtime_ns
+        except OSError:
+            mtime_ns = None
+        if not _dotenv_loaded or mtime_ns != _dotenv_mtime_ns:
+            try:
+                parsed = dotenv_values(_DOTENV_PATH)
+            except OSError:
+                parsed = {}
+            _dotenv_values = {name: parsed.get(name) for name in _QUOTA_ENV_NAMES}
+            _dotenv_quota_keys = frozenset(name for name in _QUOTA_ENV_NAMES if name in parsed)
+            _dotenv_mtime_ns = mtime_ns
+            _dotenv_loaded = True
+        return {
+            name: (
+                _startup_quota_env[name]
+                if _startup_quota_env.get(name) is not None
+                else _dotenv_values[name]
+                if name in _dotenv_quota_keys
+                else _UNSET
+            )
+            for name in _QUOTA_ENV_NAMES
+        }
+
+
+def quota_policy() -> QuotaPolicy:
+    """Return the current quota policy, including edits made to `.env` live."""
+    values = _live_quota_env()
+
+    def float_value(name: str, default: float, minimum: float, maximum: float) -> float:
+        raw = values[name]
+        if raw is _UNSET:
+            return default
+        return _parse_float(raw, name, minimum, maximum)
+
+    def lanes_value(name: str, default: tuple[str, ...]) -> frozenset[str]:
+        raw = values[name]
+        if raw is _UNSET:
+            return frozenset(default)
+        return _parse_lanes(raw, name, default)
+
+    return QuotaPolicy(
+        hard_stop_pct=float_value("QUOTA_HARD_STOP_PCT", _ENV_HARD_STOP_DEFAULT, 1.0, 100.0),
+        tolerance_start_pp=float_value("QUOTA_TOLERANCE_START_PP", _ENV_TOLERANCE_START_DEFAULT, 0.0, 100.0),
+        tolerance_end_pp=float_value("QUOTA_TOLERANCE_END_PP", _ENV_TOLERANCE_END_DEFAULT, 0.0, 100.0),
+        curve_exponent=float_value("QUOTA_CURVE_EXPONENT", _ENV_CURVE_EXPONENT_DEFAULT, 1.0, 10.0),
+        gated_lanes=lanes_value("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT),
+        curved_lanes=lanes_value("QUOTA_CURVED_LANES", _ENV_CURVED_LANES_DEFAULT),
+    )
+
 WEEKLY_WINDOW_MINUTES = 10080
 SPARK_MODEL = "gpt-5.3-codex-spark"
 LUNA_MODEL = "gpt-5.6-luna"
@@ -107,25 +204,35 @@ LANE_LABELS = {
 }
 
 
-def tolerance_pp(progress: float) -> float:
+def tolerance_pp(progress: float, policy: QuotaPolicy | None = None) -> float:
     """Допуск в п.п. в точке окна."""
-    return TOLERANCE_START_PP + (TOLERANCE_END_PP - TOLERANCE_START_PP) * progress
+    policy = policy or quota_policy()
+    return policy.tolerance_start_pp + (policy.tolerance_end_pp - policy.tolerance_start_pp) * progress
 
 
-def line_limit(progress: float, lane: str | None = None) -> float:
+def line_limit(
+    progress: float,
+    lane: str | None = None,
+    policy: QuotaPolicy | None = None,
+) -> float:
     """Порог гейтящейся полосы: норма + допуск, но никогда выше жёсткого стопа.
 
     Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
     в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
     Полоса без кривизны (Claude) получает прежнюю прямую, как и вызов без `lane`.
     """
+    policy = policy or quota_policy()
     norm = progress
-    if lane is not None and lane in CURVED_LANES and progress > 0.0:
-        norm = progress ** (1.0 / CURVE_EXPONENT)
-    return min(HARD_STOP_PCT, norm * 100.0 + tolerance_pp(progress))
+    if lane is not None and lane in policy.curved_lanes and progress > 0.0:
+        norm = progress ** (1.0 / policy.curve_exponent)
+    return min(policy.hard_stop_pct, norm * 100.0 + tolerance_pp(progress, policy))
 
 
-def line_release_progress(utilization: float, lane: str | None = None) -> float:
+def line_release_progress(
+    utilization: float,
+    lane: str | None = None,
+    policy: QuotaPolicy | None = None,
+) -> float:
     """Доля окна, где линия достигает `utilization`.
 
     У кривой полосы обратной функции в замкнутом виде нет (норма степенная, допуск
@@ -133,24 +240,25 @@ def line_release_progress(utilization: float, lane: str | None = None) -> float:
     `progress`, значит корень единственный, и прогноз «откроется через» остаётся
     согласованным с самим порогом — иначе воркер ждал бы по чужой формуле.
     """
-    if lane is not None and lane in CURVED_LANES:
-        if utilization <= line_limit(0.0, lane):
+    policy = policy or quota_policy()
+    if lane is not None and lane in policy.curved_lanes:
+        if utilization <= line_limit(0.0, lane, policy):
             return 0.0
-        if utilization > line_limit(1.0, lane):
+        if utilization > line_limit(1.0, lane, policy):
             return float("inf")
         low, high = 0.0, 1.0
         for _ in range(60):
             middle = (low + high) / 2.0
-            if line_limit(middle, lane) < utilization:
+            if line_limit(middle, lane, policy) < utilization:
                 low = middle
             else:
                 high = middle
         return high
 
-    line_denominator = 100.0 + TOLERANCE_END_PP - TOLERANCE_START_PP
+    line_denominator = 100.0 + policy.tolerance_end_pp - policy.tolerance_start_pp
     if line_denominator == 0:
         return float("inf")
-    return (utilization - TOLERANCE_START_PP) / line_denominator
+    return (utilization - policy.tolerance_start_pp) / line_denominator
 
 
 def _line_release_in_seconds(
@@ -163,6 +271,7 @@ def _line_release_in_seconds(
     *,
     now: float,
     lane: str | None = None,
+    policy: QuotaPolicy | None = None,
 ) -> tuple[str, float | None]:
     """Возвращает статус открытия и секунды до открытия/сброса окна.
 
@@ -171,6 +280,7 @@ def _line_release_in_seconds(
     - at_reset: откроется только после сброса окна;
     - no_data: нельзя посчитать.
     """
+    policy = policy or quota_policy()
     if utilization >= hard_stop_pct:
         if reset_at is None:
             return "at_reset", 0.0
@@ -181,7 +291,7 @@ def _line_release_in_seconds(
     if not gated_window_open(progress, window_minutes):
         return "no_data", None
 
-    p_release = line_release_progress(utilization, lane)
+    p_release = line_release_progress(utilization, lane, policy)
     if p_release <= progress:
         return "open", None
     if p_release <= 1.0:
@@ -413,8 +523,10 @@ def evaluate_worker_admission(
     observed_at_by_provider: Mapping[str, object],
     *,
     now: float | None = None,
+    policy: QuotaPolicy | None = None,
 ) -> QuotaDecision:
     checked_at = time.time() if now is None else float(now)
+    policy = policy or quota_policy()
 
     def unknown(
         reason: str,
@@ -429,11 +541,11 @@ def evaluate_worker_admission(
         return QuotaDecision(
             state="unknown", model=resolved or str(model), provider=bucket,
             provider_label=label or bucket or "Unknown provider",
-            lane=lane, gated=lane in GATED_LANES,
+            lane=lane, gated=lane in policy.gated_lanes,
             utilization=utilization, progress=None, tolerance_pp=None, limit_pct=None,
             release_status="no_data", release_in_seconds=None,
             observed_at=observed_at, valid_until=None, reset_at=None,
-            window_starts_at=None, reason=reason,
+            window_starts_at=None, reason=reason, hard_limit_pct=policy.hard_stop_pct,
         )
 
     try:
@@ -449,10 +561,11 @@ def evaluate_worker_admission(
             reset_at=None, window_starts_at=None, release_status="not_applicable",
             release_in_seconds=None,
             reason=f"{label} is outside the subscription quota policy",
+            hard_limit_pct=policy.hard_stop_pct,
         )
 
     lane = lane_for_model(resolved, bucket)
-    gated = lane in GATED_LANES
+    gated = lane in policy.gated_lanes
     provider = providers.get(bucket)
     label = provider.get("label") if isinstance(provider, Mapping) else None
     label = str(label or bucket)
@@ -487,24 +600,25 @@ def evaluate_worker_admission(
         if isinstance(window_minutes, (int, float)) and not isinstance(window_minutes, bool) and window_minutes > 0
         else None
     )
-    tolerance = None if progress is None else tolerance_pp(progress)
-    limit = None if (progress is None or not gated) else line_limit(progress, lane)
+    tolerance = None if progress is None else tolerance_pp(progress, policy)
+    limit = None if (progress is None or not gated) else line_limit(progress, lane, policy)
     release_status, release_in_seconds = _line_release_in_seconds(
         utilization=utilization,
         progress=progress,
         gated=gated,
-        hard_stop_pct=HARD_STOP_PCT,
+        hard_stop_pct=policy.hard_stop_pct,
         window_minutes=window_minutes,
         reset_at=reset_at,
         now=checked_at,
         lane=lane,
+        policy=policy,
     )
 
-    if utilization >= HARD_STOP_PCT:
+    if utilization >= policy.hard_stop_pct:
         state = "blocked"
         reason = (
             f"utilization {utilization:g}% is at or above the hard stop "
-            f"{HARD_STOP_PCT:g}%"
+            f"{policy.hard_stop_pct:g}%"
         )
     elif limit is not None and utilization > limit:
         state = "blocked"
@@ -515,7 +629,7 @@ def evaluate_worker_admission(
     elif gated and limit is None:
         state = "available"
         reason = (
-            f"utilization {utilization:g}% is below the hard stop {HARD_STOP_PCT:g}%; "
+            f"utilization {utilization:g}% is below the hard stop {policy.hard_stop_pct:g}%; "
             "the window has no parseable reset, so the line is not applied"
         )
     elif gated:
@@ -525,7 +639,7 @@ def evaluate_worker_admission(
         state = "available"
         reason = (
             f"lane '{lane}' is not gated by the line; utilization {utilization:g}% "
-            f"is below the hard stop {HARD_STOP_PCT:g}%"
+            f"is below the hard stop {policy.hard_stop_pct:g}%"
         )
 
     return QuotaDecision(
@@ -535,6 +649,7 @@ def evaluate_worker_admission(
         valid_until=observed_at + QUOTA_OBSERVATION_MAX_AGE,
         reset_at=reset_at_str, window_starts_at=started_at, reason=reason,
         release_status=release_status, release_in_seconds=release_in_seconds,
+        hard_limit_pct=policy.hard_stop_pct,
     )
 
 
