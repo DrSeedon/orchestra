@@ -108,27 +108,44 @@ primary source, flag the conflict — don't silently prefer the newer one.
 
 **Research is not finished until a topic file carries its conclusion.** `.orchestra/tasks/<id>/research.md`
 is the raw artifact of one task; `.orchestra/kb/<topic>.md` is what the next agent actually reads at the
-memory gate. One topic = one file = one owner; topics are subsystems or recurring questions
-(`quotas-and-pools`, `prompt-delivery`, `review-routing`, `measurement-method`, `tg-bridge`,
-`sessions-and-compact`, `worker-lifecycle`, `test-harness`, `runtimes`), never task numbers.
+memory gate. One topic = one file = one owner; topics are subsystems or recurring questions, never
+task numbers. Prefer an existing topic from `.orchestra/kb/README.md` — a new file needs a question
+none of them answers.
 
-Four sections, one line per fact:
+Sections carry the STATUS of what is under them and are named in English, because the validator
+rejects the legacy Russian headings. One record = one line:
 
 ```markdown
-# <topic>
+# <human topic title>
 
-## Установлено
-- <claim> · <evidence: file:line | command + number | url> · <date, #task>
+<one paragraph: which question this file answers>
 
-## Отвергнуто
-- <what we believed or tried> · <what refuted it> · <date, #task>
+## Established
+- **<claim in bold, so it reads without the tail>** <detail, numbers, quotes> · ищи: `<anchor>`, «<phrasing>» · <evidence: file:line | command + number | url> · <YYYY-MM-DD, #task>
 
-## Пробелы
-- <question left open> · <what stopped you> · <date, who asked>
+## Historical observations
+- <a dated snapshot that was true then; applying it today needs a fresh check>
+
+## Rejected
+- **«<what we believed>» — нет.** <what refuted it> · опровергнуто: <evidence> · <YYYY-MM-DD, #task>
+
+## Gaps
+- <question left open> · упёрлось в: <what stopped you> · <YYYY-MM-DD, who asked>
 
 ## Источники
-- .orchestra/tasks/<id>/research.md — <one phrase on what it covers>
+- .orchestra/tasks/<id>/research.md — <what a reader gets by opening it>
 ```
+
+**Ссылка на артефакт задачи обязана открываться и после того, как файл убрали.** Путь, который
+резолвится сейчас, ничего не требует. Путь, который НЕ резолвится, закрывается в той же записи
+полем `· открыть:` ровно одного из трёх видов, и каждый НАЗЫВАЕТ закрываемый путь:
+`<путь> → `<живой путь>``, `` `git show <sha40>:<путь>` `` (полная команда; коммит ищется
+`git log --all --format=%H -- <путь>`, годится первый сверху, на котором
+`git cat-file -e <sha>:<путь>` даёт 0 и который достижим из `main`) или
+`<путь> — нет в репозитории: <почему>` с непустой причиной. Покрытие адресное: соседний живой
+путь в той же строке не закрывает ничего. `scripts/check_kb_contract.py` отказывает на любой
+ДОБАВЛЕННОЙ строке — не только в буллете — где нерезолвящийся путь не закрыт. Снимок на файл,
+вычищенный из-за секрета, не ставится: это указатель на секрет.
 
 Rules:
 1. **Append, never rewrite.** A line that turns out wrong gets ` — ОТОЗВАНО <date> #<task>: <what
@@ -144,11 +161,15 @@ Rules:
 #### Forward-only lexical fact contract
 
 Каждый новый или изменённый факт — одна самодостаточная строка без местоименных ссылок. Начинай
-её со стабильного kebab-case ключа `` `fact:<durable-key>` ``; ключ остаётся тем же при будущей
-переформулировке claim. `искать:` содержит 1–6 буквальных якорей будущего вопроса.
-Сохраняй точные symbol, path, command и прежнее имя.
+её с УТВЕРЖДЕНИЯ жирным, а не со служебного ключа: строку читает человек. `ищи:` содержит 1–6
+буквальных якорей будущего вопроса. Сохраняй точные symbol, path, command и прежнее имя.
 Добавь русскую или английскую формулировку, которой пользователь реально задаст вопрос.
 Evidence остаётся в той же строке.
+
+Стабильный ключ `` `fact:<durable-key>` `` больше не ставится в начало строки (#523, решение
+владельца: строка, начатая машинным ключом, не читается ни человеком, ни агентом). Он нужен
+только когда на запись ссылаются другая запись или код, и тогда живёт в ХВОСТЕ строки как
+`` · ключ `fact:<durable-key>` ``; ключ остаётся тем же при будущей переформулировке claim.
 
 Новые current facts пишутся в **Установлено**, закрытые или ошибочные дороги — в **Отвергнуто**
 либо получают `ОТОЗВАНО`; модель не удаляет и не перезаписывает старый факт автоматически.

@@ -1,0 +1,42 @@
+BEFORE  git show 979c46315049:.orchestra/kb  — 41 topics
+AFTER   working tree .orchestra/kb              — 17 topics
+
+units   verbatim=705  anchored=364  declared=95  dropped=49  total=1213
+before   583049 B  sha256:c4bcb2ecaafb4aae
+after    663482 B  sha256:15bdc81f56011419
+
+English claim spans rendered in Russian (25), listed for reading:
+  auto-work.md: `.orchestra/kb/ox-alpha-harness-verdict.md`
+  auto-work.md: «Ноль harness-сессий доказывает, что runtime технически не работает»
+  auto-work.md: «Текущие бесплатные OpenRouter routes можно использовать как широкую рабочую лошадь для разведки/черновиков»
+  code-simplification.md: «общего simplify gate для всех merges нет»
+  code-simplification.md: «нет production-root path → можно удалить»
+  dashboard-quota-map.md: «Queue of four alone is complete fix»
+  message-provenance.md: «Достаточно добавить default origin в `db.add_log`»
+  message-provenance.md: «Prefix/content может остаться fallback-owner происхождения»
+  muse-spark-runtime.md: «у Muse Code нет headless machine protocol»
+  prime-agent.md: «Вся durable memory Orchestra human-approved»
+  repo-ops.md: «перейти на author diff от merge-base»
+  review-context.md: `.orchestra/kb/knowledge-base-architecture.md:16-35`
+  review-design-defects.md: «rephrasing → new UUID»
+  review-design-defects.md: «ревью одобрило три дефектных diff»
+  review-design-defects.md: «standalone `codex_review` не пишет `turn_usage`, поэтому 185 review runs имеют 0 cost rows»
+  self-improvement-loop.md: «одна session = один model call»
+  self-improvement-loop.md: «Cron/polling status markers обеспечит ни одного пропущенного archive/compact сообщения»
+  self-improvement-loop.md: «Event естественно ограничил объём, значит весь dialogue помещается в один model call»
+  self-improvement-loop.md: «Существующий `improvement_rules` уже является живым approval workflow»
+  test-suite-pruning.md: «Static `all/any`, MagicMock, representation, browser, source-shape, or wall-clock signal is a deletion verdict»
+  tg-media-delivery.md: «HTTP 500 proves the file was not sent»
+  tg-media-delivery.md: «Isolated marker/edit already gives exactly-once media»
+  tg-media-delivery.md: «Raising the timeout or blindly retrying a 500 fixes the incident»
+  token-efficiency.md: «Достаточно назвать модели только final action keys, а скрытые enum-коды можно сравнить exact grader-ом»
+  token-efficiency.md: «на наших задачах измерен выигрыш или проигрыш SKILL.state»
+
+PASS — every unit of the old knowledge base is verbatim, anchored or declared dropped
+ГРАНИЦА ВЫВОДА: PASS доказывает, что единица не ИСЧЕЗЛА, а не что её смысл не поехал.
+  Для 705 verbatim-единиц совпадение посимвольное — там подмена невозможна.
+  Для 364 anchored держатся все числа, пути, даты и цитаты, но проза вокруг них
+  переписана и на верность не проверяется. Для 95 declared гарантия ещё слабее:
+  доказано лишь присутствие объявленной формулировки, а изменение условия или
+  квалификатора внутри неё оракул не увидит. Эти 459 единиц
+  проверяются чтением; пары «до/после» перечислены в REWORDED и в отчёте задачи.
