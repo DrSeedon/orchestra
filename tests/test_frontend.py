@@ -2140,6 +2140,32 @@ def test_chat_transient_state_has_one_complete_reset_owner(
     }
 
 
+def test_user_message_stays_before_agent_entries_arriving_during_stream(
+    dashboard_browser: Browser,
+):
+    """#527: a user bubble must not be stranded below later stream records."""
+    page = _open_chat_snapshot_page(dashboard_browser)
+    page.wait_for_timeout(2000)
+    page.evaluate("""() => {
+        resetChatTransientState();
+        document.querySelector('#chat').replaceChildren();
+        addChatEntry('stream', 'AGENT-STREAMING');
+        pendingUserMsgs = ['USER-DURING-STREAM'];
+        showPendingBubble();
+    }""")
+    page.evaluate("""() => addChatEntry('status', 'AGENT-AFTER-USER')""")
+
+    order = page.evaluate("""() => [...document.querySelector('#chat').children].map(node => ({
+        kind: node.classList.contains('chat-user') ? 'user'
+            : node.classList.contains('streaming') ? 'stream' : 'agent',
+        text: node.textContent,
+    }))""")
+    assert [entry["kind"] for entry in order] == ["user", "agent", "stream"], order
+    assert order[0]["text"].startswith("USER-DURING-STREAM")
+    assert "AGENT-AFTER-USER" in order[1]["text"]
+    page.close()
+
+
 _NOTIFY_AGENT = "notify-268-probe"
 _NOTIFY_SESSION = "sess-268"
 _SILENT_TURN_MARKER = "[[ORCHESTRA:SILENT_TURN]]"
