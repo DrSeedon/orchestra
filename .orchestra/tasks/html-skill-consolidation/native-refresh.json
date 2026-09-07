@@ -1,0 +1,1079 @@
+{
+  "at": "2026-09-07T06:41:34.484292+00:00",
+  "source_sha256": "107127fc7086ead0226765410d00c114893fc61ecee823cfd6929678960ba7d2",
+  "paths": 80,
+  "results": [
+    {
+      "path": "/home/maxim/polus",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/home/maxim/polus",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+      "home": ".claude",
+      "written": 0,
+      "skipped": [
+        "tracked_skill:html-artifacts"
+      ]
+    },
+    {
+      "path": "/home/maxim/Рабочий стол/Cursor/COG-second-brain",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "tracked_skill:html-artifacts"
+      ]
+    },
+    {
+      "path": "/home/maxim/Рабочий стол/Cursor/Sensar",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/home/maxim/Рабочий стол/Cursor/Sensar",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/Aperant",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/Aperant",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/Claude-Code-Game-Master",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/Claude-Code-Game-Master",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/Parsing",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/Parsing",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/TradingCryptoBot",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/TradingCryptoBot",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/VPN-Service",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/VPN-Service",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/WebView",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/WebView",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/games",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/games",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/kesha-tg-bot",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/kesha-tg-bot",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/audit-both-projects",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/audit-both-projects",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/mobile-os-brief",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/mobile-os-brief",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/mobile-os-strategy",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/mobile-os-strategy",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-client-offer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-client-offer",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-concrete-roadmap",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-concrete-roadmap",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-market-reg",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-market-reg",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-product-map",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-product-map",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-product-platform",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-product-platform",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-roadmap",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-cursor-sensar/sensar-roadmap",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/props-dev",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/props-dev",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/terrain-dev",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/home-maxim-polus/terrain-dev",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-cog-second-brain/feat-context-limits",
+      "home": ".claude",
+      "written": 0,
+      "skipped": [
+        "tracked_skill:html-artifacts"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-cog-second-brain/feat-context-limits",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "tracked_skill:html-artifacts"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-cog-second-brain/feat-job-hunt",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-cog-second-brain/feat-job-hunt",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-sensar/build-env-portability",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-cursor-sensar/build-env-portability",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/connector-kit",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/connector-kit",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/globe-keyboard-digits",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/globe-keyboard-digits",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/painter-geometry",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/painter-geometry",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/photobooth-kiosk",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/photobooth-kiosk",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/voice-world",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-comfy-image-pipeline/voice-world",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-aperant/gpt55-project",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-aperant/gpt55-project",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-aperant/probe-project",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-aperant/probe-project",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-claude-code-game-master/vanilla-frontend",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-claude-code-game-master/vanilla-frontend",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/research-codex-harness",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/research-codex-harness",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/upgrade-claude5",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-kesha-tg-bot/upgrade-claude5",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/audit-claude-rules",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/audit-claude-rules",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/audit-idle-workers",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/audit-idle-workers",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/audit-workers-state",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/audit-workers-state",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/kb-rewrite",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/kb-rewrite",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/knowledge-loop",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/knowledge-loop",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/project-context-owner",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/project-context-owner",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/family-tree-builder",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/family-tree-builder",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/feat-kesha-remote",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/feat-kesha-remote",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/feat-victor-orchestra",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/feat-victor-orchestra",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/photo-regen",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/photo-regen",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/victoria-worker",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-parsing/victoria-worker",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/designer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/designer",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/dev-lead",
+      "home": ".claude",
+      "written": 0,
+      "skipped": [
+        "tracked_skill:html-artifacts"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/dev-lead",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/direct-research",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/direct-research",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/ent",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/ent",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/infra",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/infra",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/lawyer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/lawyer",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/marketer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/marketer",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales",
+      "home": ".claude",
+      "written": 0,
+      "skipped": [
+        "tracked_skill:html-artifacts"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/sales",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/seo-cro",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon/seo-cro",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-infra/impl-backend-deploy-doc",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-infra/impl-backend-deploy-doc",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/feat-attribution",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/feat-attribution",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/feat-remove-ip-api",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-seedon-site/feat-remove-ip-api",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/combat-dev",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/combat-dev",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/gamedesign-researcher",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/gamedesign-researcher",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/godot-dev",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/godot-dev",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/voidworks-dev",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/voidworks-dev",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/voidworks-refactor",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-stargate-tactics/voidworks-refactor",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-tradingcryptobot/nir-writer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-tradingcryptobot/nir-writer",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-tradingcryptobot/research-audit",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-tradingcryptobot/research-audit",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-webview/fix-kiosk-offline",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-webview/fix-kiosk-offline",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/amml-streamlit",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/amml-streamlit",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/lesson6-notes",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/lesson6-notes",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/nir-writer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/nir-writer",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/nis-writer",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/nis-writer",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/research-academ",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-university/research-academ",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/seedon",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/seedon",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Python/stargate-tactics",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Python/stargate-tactics",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "home_path_is_file"
+      ]
+    },
+    {
+      "path": "/mnt/data/Projects/Unity/DefaultProjectUnity",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/Unity/DefaultProjectUnity",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/University",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/University",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/comfy-image-pipeline",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/Projects/comfy-image-pipeline",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/media",
+      "home": ".claude",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/mnt/data/media",
+      "home": ".codex",
+      "written": 1,
+      "skipped": []
+    },
+    {
+      "path": "/tmp",
+      "home": ".claude",
+      "written": 0,
+      "skipped": [
+        "unsafe_git_state"
+      ]
+    },
+    {
+      "path": "/tmp",
+      "home": ".codex",
+      "written": 0,
+      "skipped": [
+        "unsafe_git_state"
+      ]
+    }
+  ],
+  "archived": [
+    {
+      "from": "/home/maxim/Рабочий стол/Cursor/COG-second-brain/.claude/skills/eli5",
+      "to": "/mnt/data/Рабочий стол/Cursor/COG-second-brain/.git/orchestra-retired-skills/html-unification-ced4dfe349b3/.claude/eli5"
+    },
+    {
+      "from": "/home/maxim/Рабочий стол/Cursor/COG-second-brain/.codex/skills/eli5",
+      "to": "/mnt/data/Рабочий стол/Cursor/COG-second-brain/.git/orchestra-retired-skills/html-unification-ced4dfe349b3/.codex/eli5"
+    },
+    {
+      "from": "/home/maxim/Рабочий стол/Cursor/Sensar/.claude/skills/eli5",
+      "to": "/mnt/data/Рабочий стол/Cursor/Sensar/.git/orchestra-retired-skills/html-unification-260432c81092/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/Python/VPN-Service/.claude/skills/eli5",
+      "to": "/mnt/data/Projects/Python/VPN-Service/.git/orchestra-retired-skills/html-unification-638efd1e6a48/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/Python/kesha-tg-bot/.claude/skills/eli5",
+      "to": "/mnt/data/Projects/Python/kesha-tg-bot/.git/orchestra-retired-skills/html-unification-d56dc589cbcd/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/Python/orchestra/.claude/skills/eli5",
+      "to": "/mnt/data/Projects/Python/orchestra/.git/orchestra-retired-skills/html-unification-c48275a2b4b8/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/Python/orchestra/.codex/skills/eli5",
+      "to": "/mnt/data/Projects/Python/orchestra/.git/orchestra-retired-skills/html-unification-c48275a2b4b8/.codex/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/Python/seedon/.claude/skills/eli5",
+      "to": "/mnt/data/Projects/Python/seedon/.git/orchestra-retired-skills/html-unification-60b8b94f277b/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/University/.claude/skills/eli5",
+      "to": "/mnt/data/Projects/University/.git/orchestra-retired-skills/html-unification-268363c1fe38/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/comfy-image-pipeline/.claude/skills/eli5",
+      "to": "/mnt/data/Projects/comfy-image-pipeline/.git/orchestra-retired-skills/html-unification-e2cd50a38f43/.claude/eli5"
+    },
+    {
+      "from": "/mnt/data/Projects/comfy-image-pipeline/.codex/skills/eli5",
+      "to": "/mnt/data/Projects/comfy-image-pipeline/.git/orchestra-retired-skills/html-unification-e2cd50a38f43/.codex/eli5"
+    }
+  ]
+}
