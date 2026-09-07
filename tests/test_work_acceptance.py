@@ -182,3 +182,81 @@ async def test_new_size_skip_creates_no_receipt(work,monkeypatch):
     assert api.await_count==1
     with db._conn() as c:
         assert c.execute("SELECT count(*) FROM review_receipts WHERE subject_kind!='task_run'").fetchone()[0]==0
+
+
+@pytest.mark.parametrize('explicit_acceptance',[False,True])
+async def test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head(tmp_path,monkeypatch,explicit_acceptance):
+    from tests.test_task_tracker_integration import _commit_file,_init_db,_make_git_scope,_prepare_merge,_save_worker
+    import app.routes.sessions as route
+    import app.workspace as workspace
+    from app import tm
+    import subprocess
+    _init_db()
+    repo=_make_git_scope(monkeypatch,tmp_path)
+    scope=str(repo)
+    with tm._conn() as c:
+        tm.ensure_project(c,'project',scope=scope)
+        task=tm.create_task(c,'project','Pinned work',par_number=42,status='in_progress')
+        c.execute('UPDATE tm_tasks SET worker_session_id=? WHERE id=?',('pinned-worker',task['id']))
+    tree=workspace.create_worktree(scope,'pinned-worker',task_id='42')
+    head=_commit_file(tree.path,'work.py','#42: result shown to parent')
+    before=subprocess.check_output(['git','rev-parse','main'],cwd=repo,text=True).strip()
+    _save_worker(session_id='pinned-worker',task_id='42',scope=scope,worktree_path=tree.path,branch=tree.branch)
+    classify_head_drift = workspace.classify_head_drift
+    worker=_prepare_merge(monkeypatch,session_id='pinned-worker',scope=scope)
+    monkeypatch.setattr(workspace, 'classify_head_drift', classify_head_drift)
+    async def advance(_worker):
+        _commit_file(tree.path,'late.py','#42: change after acceptance')
+        return True
+    monkeypatch.setattr(route,'_wait_for_merge_idle',advance)
+    req={'scope':scope,'task_outcome':'continue','merge_schema_version':2}
+    if explicit_acceptance:
+        req['expected_head']=head
+    result=await route.execute_merge_session(session_id=worker.id,expected_name=worker.name,
+        expected_scope=scope,expected_branch=worker.branch,expected_head=head,req=req)
+    if explicit_acceptance:
+        assert result['ok'] is False
+        assert result['commit_point']=='not_reached'
+        assert subprocess.check_output(['git','rev-parse','main'],cwd=repo,text=True).strip()==before
+    else:
+        assert result['ok'] is True,str(result)
+
+
+@pytest.mark.parametrize('value,success',[(42,True),(41,False)])
+async def test_complete_new_work_path_runs_checks_then_merges_only_passing_result(tmp_path,monkeypatch,value,success):
+    from tests.test_task_tracker_integration import _init_db,_make_git_scope,_prepare_merge,_save_worker
+    import app.db as db
+    import app.merge_operations as ops
+    import app.workspace as workspace
+    from app import tm
+    import subprocess
+    import sys
+    _init_db()
+    repo=_make_git_scope(monkeypatch,tmp_path)
+    scope=str(repo)
+    command=f'{sys.executable} -B -c "import work; assert work.VALUE == 42"'
+    with tm._conn() as c:
+        tm.ensure_project(c,'project',scope=scope)
+        task=tm.create_task(c,'project','Return 42',par_number=42,status='in_progress',acceptance_command=command)
+        c.execute('UPDATE tm_tasks SET worker_session_id=? WHERE id=?',('new-work',task['id']))
+    tree=workspace.create_worktree(scope,'new-work',task_id='42')
+    Path(tree.path,'work.py').write_text(f'VALUE = {value}\n')
+    subprocess.run(['git','add','work.py'],cwd=tree.path,check=True)
+    subprocess.run(['git','commit','-qm','#42: deliver work'],cwd=tree.path,check=True)
+    head=subprocess.check_output(['git','rev-parse','HEAD'],cwd=tree.path,text=True).strip()
+    _save_worker(session_id='new-work',task_id='42',scope=scope,worktree_path=tree.path,branch=tree.branch)
+    _prepare_merge(monkeypatch,session_id='new-work',scope=scope)
+    db.task_run_receipt_open(session_id='new-work',worker_name='new-work',scope=scope,task_id='42',task_stable_id='new-work-stable')
+    monkeypatch.setattr(ops,'ensure_operation_runner',lambda *_:None)
+    result,status=await ops.accept_merge_operation(operation_id=str(uuid.uuid4()),name='new-work',scope=scope,
+        expected_head=head,acceptance_note='Acceptance command covers the result; no model review needed.',accepting_actor='owner',
+        task_outcome='complete',merge_schema_version=2)
+    assert status==202,result
+    await ops._run_operation(result['operation_id'])
+    final=ops.get_operation_result(result['operation_id'])
+    assert final['operation_state']==('SUCCEEDED' if success else 'FAILED'),final
+    exists=subprocess.run(['git','show','main:work.py'],cwd=repo,capture_output=True,text=True)
+    assert (exists.returncode==0)==success
+    with db._conn() as c:
+        assert c.execute("SELECT count(*) FROM review_receipts WHERE mode IN ('skip','implementation')").fetchone()[0]==0
+    assert not list(Path(tree.path).rglob('review-attestation.json'))
