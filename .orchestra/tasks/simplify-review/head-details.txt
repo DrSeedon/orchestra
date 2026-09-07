@@ -1,0 +1,73 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head[False] __
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_wait_c0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71cedd50d3d0>
+explicit_acceptance = False
+
+    @pytest.mark.parametrize('explicit_acceptance',[False,True])
+    async def test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head(tmp_path,monkeypatch,explicit_acceptance):
+        from tests.test_task_tracker_integration import _commit_file,_init_db,_make_git_scope,_prepare_merge,_save_worker
+        import app.routes.sessions as route
+        import app.workspace as workspace
+        from app import tm
+        import subprocess
+        _init_db()
+        repo=_make_git_scope(monkeypatch,tmp_path)
+        scope=str(repo)
+        with tm._conn() as c:
+            tm.ensure_project(c,'project',scope=scope)
+            task=tm.create_task(c,'project','Pinned work',par_number=42,status='in_progress')
+            c.execute('UPDATE tm_tasks SET worker_session_id=? WHERE id=?',('pinned-worker',task['id']))
+        tree=workspace.create_worktree(scope,'pinned-worker',task_id='42')
+        head=_commit_file(tree.path,'work.py','#42: result shown to parent')
+        before=subprocess.check_output(['git','rev-parse','main'],cwd=repo,text=True).strip()
+        _save_worker(session_id='pinned-worker',task_id='42',scope=scope,worktree_path=tree.path,branch=tree.branch)
+        worker=_prepare_merge(monkeypatch,session_id='pinned-worker',scope=scope)
+        async def advance(_worker):
+            _commit_file(tree.path,'late.py','#42: change after acceptance')
+            return True
+        monkeypatch.setattr(route,'_wait_for_merge_idle',advance)
+        req={'scope':scope,'task_outcome':'continue','merge_schema_version':2}
+        if explicit_acceptance:
+            req['expected_head']=head
+        result=await route.execute_merge_session(session_id=worker.id,expected_name=worker.name,
+            expected_scope=scope,expected_branch=worker.branch,expected_head=head,req=req)
+        if explicit_acceptance:
+            assert result['ok'] is False
+            assert result['commit_point']=='not_reached'
+            assert subprocess.check_output(['git','rev-parse','main'],cwd=repo,text=True).strip()==before
+        else:
+>           assert result['ok'] is True,result
+E           AssertionError: {'commit_point': 'not_reached', 'conflicts': [], 'diff_budget_limit': 2000, 'diff_budget_waived': False, ...}
+E           assert False is True
+
+_commit_file = <function _commit_file at 0x71cedaf58040>
+_init_db   = <function _init_db at 0x71cedb48b1a0>
+_make_git_scope = <function _make_git_scope at 0x71cedb127f60>
+_prepare_merge = <function _prepare_merge at 0x71cedb127ec0>
+_save_worker = <function _save_worker at 0x71cedb4e4b80>
+advance    = <function test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head.<locals>.advance at 0x71cedabe3560>
+before     = '55628d0f549008d93effb6a5e142166c4cf507de'
+c          = <sqlite3.Connection object at 0x71cedad11030>
+explicit_acceptance = False
+head       = 'aa536332c0436f46ee736d268ec1258700ca3b22'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71cedd50d3d0>
+repo       = PosixPath('/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_wait_c0/repo')
+req        = {'merge_schema_version': 2, 'scope': '/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_wait_c0/repo', 'task_outcome': 'continue'}
+result     = {'commit_point': 'not_reached', 'conflicts': [], 'diff_budget_limit': 2000, 'diff_budget_waived': False, ...}
+route      = <module 'app.routes.sessions' from '/mnt/data/Projects/Python/orchestra-simplify-review/app/routes/sessions.py'>
+scope      = '/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_wait_c0/repo'
+subprocess = <module 'subprocess' from '/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/subprocess.py'>
+task       = {'acceptance_command': '', 'acceptance_oracle_json': '{}', 'assignee': '', 'created_at': '2026-09-07T15:26:17.033208+00:00', ...}
+tm         = <module 'app.tm' from '/mnt/data/Projects/Python/orchestra-simplify-review/app/tm.py'>
+tmp_path   = PosixPath('/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_wait_c0')
+tree       = Worktree(path='/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_wait_c0/worktrees/tmp-pytest-of-maxim-pytest-84-...-worker', branch='task-42/pinned-worker', branch_created=True, initial_head='55628d0f549008d93effb6a5e142166c4cf507de')
+worker     = AgentSession(id='pinned-worker', name='pinned-worker', scope='/tmp/pytest-of-maxim/pytest-84/test_commit_during_idle_w...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+workspace  = <module 'app.workspace' from '/mnt/data/Projects/Python/orchestra-simplify-review/app/workspace.py'>
+
+tests/test_work_acceptance.py:220: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_work_acceptance.py::test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head[False]
+1 failed, 1 passed in 2.48s
