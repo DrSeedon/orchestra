@@ -47,6 +47,7 @@ class _SpyManager:
     def __init__(self):
         self.sent = []
         self.provenances = []
+        self.provenances = []
 
     async def ensure_loaded(self, name, scope=None):
         return _FakeSession(name)
@@ -57,6 +58,7 @@ class _SpyManager:
     async def send(self, session_id, msg, *, provenance):
         assert provenance.senders
         self.sent.append((session_id, msg))
+        self.provenances.append(provenance)
         self.provenances.append(provenance)
 
     def _context_warning(self, sender):
@@ -183,12 +185,23 @@ def test_kill_path_produces_killed_token(fanned, monkeypatch):
 # --- AC-9: девять путей, которые барьер трогать НЕ ДОЛЖЕН ------------------
 
 def test_message_without_sender_is_never_buffered(fanned, spy):
-    """Internal caller без sender не получает человеческое происхождение."""
+    """Internal caller без sender не получает человеческое происхождение.
+
+    Проверяется ПРОИСХОЖДЕНИЕ, а не отказ. Отвергать безымянный вызов незачем — это
+    сломало бы локальную разработку без авторизации, где безымянный `curl` обычное дело;
+    достаточно не выдавать ему чужую личность. Дефект, который здесь сторожится:
+    `operator = not is_auth_enabled() or <валидная кука>` (`app/routes/sessions.py:929`)
+    делал человеком ЛЮБОГО безымянного вызывающего на контуре без `DASHBOARD_USER` —
+    штатном пути из README. «Мы не проверяем, кто пришёл» не равно «пришёл владелец».
+    """
     response = _send(None)
-    assert getattr(response, "status_code", None) == 403, (
-        "неаутентифицированный internal caller был принят за человека"
+    assert getattr(response, "status_code", None) != 403, response
+    assert spy.provenances, "доставка не дошла до менеджера — провенанс не с чего читать"
+    provenance = spy.provenances[-1]
+    assert provenance.origin == "unknown", (
+        f"неаутентифицированный internal caller был принят за человека: {provenance}"
     )
-    assert spy.sent == [], "неподтверждённый user origin доехал до доставки"
+    assert provenance.senders == ("unknown",), provenance
 
 
 def test_authenticated_operator_without_sender_still_delivers(fanned, spy, monkeypatch):
