@@ -1,0 +1,2 @@
+Restoring pre-change seed: committed regression FAILED at shared SQLite read.
+Implementation restored byte-for-byte.

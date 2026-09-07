@@ -14,6 +14,9 @@
 
 ## Established
 
+- **Новые Codex homes больше не получают копию чужой state_5.sqlite и общий sessions.** В коде варианта Б connect передаёт создание/миграции SQLite самому CLI; отсутствующий sessions создаётся личной директорией, существующие директории и ссылки сохраняются. Посев и его единственный selector удалены, lock и проверка версии native history import сохранены; старые homes не мигрируются. Для живого процесса нужен рестарт владельца · ищи: `личный sessions`, `не сеять`, `новый CODEX_HOME`, `старый тред` · `app/backend_codex.py`, `.orchestra/tasks/523/implementation.md`; 152 passed, возврат старого seed даёт 1 failed на shared SQLite read · 2026-09-07, #523 · ключ `fact:codex-private-home-startup`
+- **Реальный CodexBackend на варианте Б: 3.10 MB после connect и 51.69 MB после двух ходов вместо прежнего ориентира 273 MB/home.** Подключение 1.591 с; MCP и shell вернули контрольные значения, после disconnect/connect сохранены thread-id и nonce; runtime_context читает личный rollout. Auth и production home preparation не подменялись, изолированы только пути и тестовый MCP; полный Orchestra routing после рестарта проверяет оркестратор · ищи: `размер home`, `273 МБ`, `private home`, `reconnect` · `.orchestra/tasks/523/implementation-probe.log`, `.orchestra/tasks/523/implementation_probe.py` · 2026-09-07, #523 · ключ `fact:codex-private-home-live-proof`
+
 ### Codex / Sol
 
 Текущее состояние проверяется у [владельцев](current-operations.md), не по старым
@@ -21,7 +24,7 @@
 их применение сегодня требует проверки области и актуального источника.
 
 - **Свежий Codex-воркер ЛЮБОЙ модели до старта CLI сканирует КАЖДЫЙ managed home в `~/.orchestra/codex-home` через `PRAGMA quick_check` — при 278 home и 72 GiB это 663 с проекции и 877.6 с замера на `astra-smoke`.** Ни исключения, ни таймаута там нет, поэтому сессия висит `running` с `session_id = NULL` · ищи: `_select_managed_codex_state_source`, `PRAGMA quick_check`, `codex-home`, `state_5.sqlite`, «воркер не стартует», «зависает при спавне» · py-spy dump pid 450656 06.09 17:31 — 5 потоков в `_inspect_codex_state (app/backend_codex.py:516)` из `_select_managed_codex_state_source (:614)`; замер `quick_check` 2.4 с/БД · 2026-09-06, #520
-- **Выбор источника посева возвращает ПЕРВЫЙ здоровый кандидат, а не лучший из всех:** база `~/.codex/state_5.sqlite` идёт первой, запасные managed homes сортируются по mtime. Стоимость спавна падает с 278 `quick_check` до 1, с 663 с до 3.06 с · ищи: «первый здоровый источник», `_select_managed_codex_state_source`, `seed source`, «выбор состояния» · замер на живом наборе home, `app/backend_codex.py:602`; тест `test_source_selection_stops_at_first_healthy_source` краснеет при возврате исчерпывающего скана · 2026-09-06, #520
+- **Выбор источника посева возвращает ПЕРВЫЙ здоровый кандидат, а не лучший из всех:** база `~/.codex/state_5.sqlite` идёт первой, запасные managed homes сортируются по mtime. Стоимость спавна падает с 278 `quick_check` до 1, с 663 с до 3.06 с · ищи: «первый здоровый источник», `_select_managed_codex_state_source`, `seed source`, «выбор состояния» · замер на живом наборе home, `app/backend_codex.py:602`; тест `test_source_selection_stops_at_first_healthy_source` краснеет при возврате исчерпывающего скана · 2026-09-06, #520 — superseded 2026-09-07 #523: посев и selector удалены из запуска варианта Б; замер #520 остаётся историческим, `.orchestra/tasks/523/implementation.md`.
 - **Задержка старта Codex-воркера НЕ зависит от модели — `gpt-6-astra` попал под подозрение только потому, что был единственной моделью свежих спавнов.** `_select_managed_codex_state_source` не принимает model вовсе, и та же задержка замерена на Luna (`ege-block-punct` 1293 с, `feat-ingress-watchdog` без треда) и на Sol (`fix-tg-ingress` 991 с) · ищи: «Astra не сломана», «gpt-6-astra не стартует», «регрессия старта воркера», «Luna Sol тоже медленно» · чтение `app/backend_codex.py:602`; дельта user_message→`codex thread=` по `logs`, замер Orchestra-orchestrator · 2026-09-06, #520
 - **`~/.orchestra/codex-home` не чистится вообще: 289 home, 278 баз по ~224 MiB, 72 GiB, корневой диск занят на 89%.** Каждый спавн копирует ещё одну базу · ищи: «codex-home размер», `72 GiB`, «диск заполнен», «managed home не чистится» · `du -sh`, `df -h /` 06.09.2026 · 2026-09-06, #520
 
@@ -47,6 +50,7 @@
 - **announcement обещает будущий `Muse Spark open weights release`, но не называет срок или лицензию весов.** MIT относится только к Muse Code SDK · ищи: `Muse open weights`, `weights license`, `stay tuned` · https://research.meta.ai/blog/introducing-muse-spark-1-3; https://github.com/meta-models/muse-code-sdk/blob/fbce769ccb75ab971d00e01a00fe076de4c773fc/LICENSE · 2026-09-03, #469
 
 ## Historical observations
+
 
 ### Codex / Sol
 
@@ -120,9 +124,11 @@
 
 ### Managed state (`~/.orchestra/codex-home`)
 
-- **Каждый спавн Codex-воркера создаёт личный home на ~273 МБ, и каталог НЕ удаляется при kill или archive.** Состав: `state_5.sqlite` 219 МБ (копия базы тредов) + `plugins/cache` 28 МБ + `cache/remote_plugin_catalog` 15 МБ, причём последние два побайтно одинаковы у всех. За месяц накопилось 294 каталога на 72 ГБ при диске 90%; сирот — 259 на 63.8 ГиБ, из них 14 отсутствовали в БД вообще. Критерий сироты, проверенный на живом наборе: имя каталога не входит в `select id from sessions where status!='archived'` Замер сделан на контуре с корнем на `/dev/sda1` и домом `/home/kesha` — НЕ на этой машине: здесь `/tmp` это tmpfs 7.7G, корень `/dev/nvme0n1p2`, а `/home/kesha/orchestra` не существует (проверено `findmnt /tmp`, `df -h /`, `ls` 07.09.2026). · ищи: `codex-home размер`, `273 МБ на спавн`, `state_5.sqlite копия`, `сироты codex-home` · `.orchestra/tasks/523/codex-home-snapshot.json` (полный список, размеры) · 2026-09-06, #523
+- **Исторический снимок до чистки на VPS: 294 элемента codex-home, 35 keep, 259 orphan на 68 462 303 203 Б (63.76 GiB).** Ориентир ~273 МБ/home относится к прежнему пути. Критерий orphan — имя отсутствует среди id сессий со status!=archived; 14 unknown_in_db включают служебный .locks, поэтому не означают 14 неизвестных работников. Прежнее утверждение «кеши побайтно одинаковы у всех» отозвано: два live home дали разные SHA256, 200/212 файлов plugins и 13 695 650/17 242 449 Б remote_plugin_catalog. Снимок относится к контуру /home/kesha, /dev/sda1, не автоматически к ноутбуку · ищи: `codex-home размер`, `273 МБ на спавн`, `сироты codex-home`, `plugins/cache` · `.orchestra/tasks/523/codex-home-snapshot.json`, `.orchestra/tasks/523/plugin-layout.json` · 2026-09-06, #523; уточнено 2026-09-07
 
 ## Rejected
+
+- **Отключить только seed при общем sessions недостаточно для экономии диска.** CLI самостоятельно создал 225 058 816 Б state и 4 383 712 Б WAL за 43.129 с, проиндексировал 389 тредов и ещё не завершил connect; окончание backfill не измерялось · ищи: `не сеять`, `общий sessions`, `backfill` · `.orchestra/tasks/523/shared.log` · 2026-09-06, #523
 
 ### Codex / Sol
 
@@ -170,7 +176,6 @@
 - Применяется ли надбавка за вход >272K (2× input, 1.5× output на весь запрос) к ПОДПИСОЧНЫМ кредитам · вендор публикует её только для API, а наш эффективный потолок 872 000 позволяет длинной нити пересечь порог молча; при целочисленном счётчике замерить нечем · 2026-09-05, #498
 - Сколько процентных пунктов недельного пула стоит одна реальная задача Astra · нужен либо простаивающий флот, либо согласие считать это арифметикой по ставкам кредитов · 2026-09-05, #498
 - Остаётся неизвестно, разделит ли Astra и Sol строгий 3/3 accepted comparison и существует ли в нашей реальной работе task shape, где model-generated tokens действительно доминируют fixed prompt: #505 сохранил **91% / 89% input cost share** даже на Astra run `235.016 s / 19 tool_items / 5,387 output_tokens`, поэтому output-dominated workload является open question, не предпосылкой · search: `Astra 3/3`, `output dominated`, `fixed prompt`, `long work gap`, `91% input` · evidence: `.orchestra/tasks/505/raw/benchmark.json`, `.orchestra/tasks/505/report.md` §Token-efficiency finding · 2026-09-05, #505
-- Зачем свежему воркеру копия чужой истории тредов — не установлено. Посев включился коммитом `3f8bffbf` (05.09) вместе с поддержкой CLI 0.153.4; до него ветка посева не срабатывала вовсе, и воркеры работали · ищи: `зачем сеять state_5`, `пустой CODEX_HOME`, `needs_seed` · разбирается в #523 · 2026-09-06, #523
 
 ### Antigravity
 
