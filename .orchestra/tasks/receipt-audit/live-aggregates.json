@@ -1,0 +1,251 @@
+{
+  "captured_at": "2026-09-07T04:32:18.763351+00:00",
+  "database_mode": "read-only transaction",
+  "queries": {
+    "kinds": "SELECT subject_kind,mode,count(*) n FROM review_receipts GROUP BY subject_kind,mode ORDER BY n DESC",
+    "review_outcomes": "SELECT status,coverage_outcome,author_outcome,count(*) n FROM review_receipts WHERE subject_kind!='task_run' GROUP BY 1,2,3 ORDER BY n DESC",
+    "round_counts": "SELECT max(round) max_round,count(DISTINCT artifact_path) files,sum(CASE WHEN round>3 THEN 1 ELSE 0 END) rows_above_three FROM review_receipts WHERE round IS NOT NULL",
+    "cross_owner": "SELECT status,author_outcome,count(*) n FROM review_receipts WHERE requested_by_session_id<>'' AND requested_by_session_id<>session_id GROUP BY 1,2",
+    "review_window": "SELECT min(requested_at) first,max(requested_at) last,count(*) n FROM review_receipts WHERE subject_kind!='task_run'",
+    "verdicts": "SELECT verdict_value,author_outcome,count(*) n FROM review_receipts WHERE subject_kind='implementation' AND status='completed' GROUP BY 1,2 ORDER BY n DESC LIMIT 20"
+  },
+  "results": {
+    "kinds": [
+      {
+        "subject_kind": "implementation",
+        "mode": "implementation",
+        "n": 78
+      },
+      {
+        "subject_kind": "task_run",
+        "mode": "task_run",
+        "n": 71
+      },
+      {
+        "subject_kind": "unknown",
+        "mode": "exec",
+        "n": 62
+      },
+      {
+        "subject_kind": "implementation",
+        "mode": "skip",
+        "n": 27
+      },
+      {
+        "subject_kind": "unknown",
+        "mode": "review",
+        "n": 23
+      }
+    ],
+    "review_outcomes": [
+      {
+        "status": "completed",
+        "coverage_outcome": "unknown",
+        "author_outcome": "unknown",
+        "n": 63
+      },
+      {
+        "status": "completed",
+        "coverage_outcome": "reviewed",
+        "author_outcome": "unknown",
+        "n": 37
+      },
+      {
+        "status": "interrupted",
+        "coverage_outcome": "unknown",
+        "author_outcome": "unknown",
+        "n": 28
+      },
+      {
+        "status": "completed",
+        "coverage_outcome": "skipped",
+        "author_outcome": "unknown",
+        "n": 27
+      },
+      {
+        "status": "completed",
+        "coverage_outcome": "reviewed",
+        "author_outcome": "accepted",
+        "n": 19
+      },
+      {
+        "status": "failed",
+        "coverage_outcome": "unavailable",
+        "author_outcome": "unknown",
+        "n": 9
+      },
+      {
+        "status": "completed",
+        "coverage_outcome": "reviewed",
+        "author_outcome": "partial",
+        "n": 3
+      },
+      {
+        "status": "completed",
+        "coverage_outcome": "reviewed",
+        "author_outcome": "disputed",
+        "n": 2
+      },
+      {
+        "status": "completed",
+        "coverage_outcome": "unknown",
+        "author_outcome": "accepted",
+        "n": 1
+      },
+      {
+        "status": "failed",
+        "coverage_outcome": "unknown",
+        "author_outcome": "unknown",
+        "n": 1
+      }
+    ],
+    "round_counts": [
+      {
+        "max_round": 5,
+        "files": 83,
+        "rows_above_three": 8
+      }
+    ],
+    "cross_owner": [
+      {
+        "status": "completed",
+        "author_outcome": "unknown",
+        "n": 3
+      },
+      {
+        "status": "failed",
+        "author_outcome": "unknown",
+        "n": 1
+      }
+    ],
+    "review_window": [
+      {
+        "first": "2026-09-02T03:35:11.454308+00:00",
+        "last": "2026-09-07T04:14:35.472456+00:00",
+        "n": 190
+      }
+    ],
+    "verdicts": [
+      {
+        "author_outcome": "unknown",
+        "n": 27,
+        "verdict_category": "other",
+        "verdict_chars": 0
+      },
+      {
+        "author_outcome": "accepted",
+        "n": 1,
+        "verdict_category": "other",
+        "verdict_chars": 0
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "other",
+        "verdict_chars": 484
+      },
+      {
+        "author_outcome": "partial",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 285
+      },
+      {
+        "author_outcome": "accepted",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 376
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 532
+      },
+      {
+        "author_outcome": "accepted",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 211
+      },
+      {
+        "author_outcome": "accepted",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 240
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 131
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 337
+      },
+      {
+        "author_outcome": "accepted",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 592
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "positive",
+        "verdict_chars": 404
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 319
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 288
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 185
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 404
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 539
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 394
+      },
+      {
+        "author_outcome": "unknown",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 218
+      },
+      {
+        "author_outcome": "accepted",
+        "n": 1,
+        "verdict_category": "negative",
+        "verdict_chars": 353
+      }
+    ]
+  }
+}

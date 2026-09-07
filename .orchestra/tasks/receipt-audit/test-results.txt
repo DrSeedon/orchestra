@@ -1,0 +1,22 @@
+.F...................................................................... [ 53%]
+...............................................................          [100%]
+=================================== FAILURES ===================================
+_______ test_apply_writes_the_full_receipt_row_for_every_declared_column _______
+tests/test_review_receipt_migration_436.py:85: in test_apply_writes_the_full_receipt_row_for_every_declared_column
+    assert result.returncode == 0, result.stderr or result.stdout
+E   AssertionError: Traceback (most recent call last):
+E       File "/mnt/data/Projects/Python/orchestra-receipt-audit/scripts/migrate_review_receipts.py", line 224, in <module>
+E         raise SystemExit(main())
+E                          ^^^^^^
+E       File "/mnt/data/Projects/Python/orchestra-receipt-audit/scripts/migrate_review_receipts.py", line 213, in main
+E         _apply_receipts(args.db, backup_path, receipts)
+E       File "/mnt/data/Projects/Python/orchestra-receipt-audit/scripts/migrate_review_receipts.py", line 164, in _apply_receipts
+E         cursor = source.execute(
+E                  ^^^^^^^^^^^^^^^
+E     sqlite3.IntegrityError: NOT NULL constraint failed: review_receipts.production_path_heads_json
+E
+E   assert 1 == 0
+E    +  where 1 = CompletedProcess(args=['/mnt/data/Projects/Python/orchestra/.venv/bin/python', 'scripts/migrate_review_receipts.py', '...    ^^^^^^^^^^^^^^^\nsqlite3.IntegrityError: NOT NULL constraint failed: review_receipts.production_path_heads_json\n').returncode
+=========================== short test summary info ============================
+FAILED tests/test_review_receipt_migration_436.py::test_apply_writes_the_full_receipt_row_for_every_declared_column
+1 failed, 134 passed in 15.62s
