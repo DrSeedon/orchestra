@@ -1,0 +1,28 @@
+{
+  "schema_version": 2,
+  "generation": "g3-resumable-20260905",
+  "authorized_by": "owner phase-3 instruction 2026-09-05",
+  "model": "gpt-5.6-luna",
+  "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+  "oracle_manifest": ".orchestra/tasks/432/oracles/manifest.json",
+  "oracle_manifest_sha256": "fb57d77bdff068246e78f2d0e63bfa2c40ad87e046bbb427e85efd9669909a54",
+  "bundle_cap_bytes": 262144,
+  "denominator_pairs": 24,
+  "role_jobs": {
+    "canary": 1,
+    "positive_control": 3,
+    "baseline_noise": 12,
+    "main_pairs": 72,
+    "cold_controls": 9,
+    "zero_retrieval_control": 3,
+    "total": 100
+  },
+  "restart_contract": {
+    "checkpoint_before_provider": "STARTED",
+    "checkpoint_after_provider_spawn": "provider_started_at + raw_path",
+    "checkpoint_after_slot": "COMPLETED + attempt record + raw-slots.jsonl",
+    "started_without_completion": "inconclusive",
+    "retry_inconclusive_slot": true,
+    "replay_completed_slot": false
+  }
+}

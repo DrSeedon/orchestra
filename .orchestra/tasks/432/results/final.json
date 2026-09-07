@@ -1,0 +1,163 @@
+{
+  "status": "INCOMPLETE",
+  "denominator_pairs": 3,
+  "order_counts": {
+    "ABAB": 1,
+    "BABA": 2
+  },
+  "quality_passes": {
+    "A": 0,
+    "B": 0
+  },
+  "arm_total_cost_usd": {
+    "A": 0.30497376,
+    "B": 0.40609976000000003
+  },
+  "arm_cost_difference_usd": {
+    "B_minus_A": 0.10112600000000005,
+    "ci90": [
+      0.065834,
+      0.136418
+    ]
+  },
+  "quality_count_difference": {
+    "B_minus_A": 0,
+    "ci90": [
+      0,
+      0
+    ]
+  },
+  "paired_median_cost_saving": -0.4419905675020852,
+  "paired_cost_saving_ci90": [
+    -0.4419905675020852,
+    -0.3083365839334403
+  ],
+  "money_weighted_cost_saving": -0.3315891832792437,
+  "noise": {
+    "cost_median": 0.19056361868850308,
+    "cost_p90": 0.5368141251703477,
+    "main_cache_median": 0.3535082197616687,
+    "main_cache_p90": 0.7195583707845288
+  },
+  "net_cache_inference": "descriptive_only",
+  "failure_buckets": {
+    "availability_failure": 0,
+    "harness_failure": 0,
+    "model_failure": 6
+  },
+  "currency": "api_equivalent_usd",
+  "price_source": "app/backend_codex.py::_codex_cost",
+  "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+  "models": [
+    "gpt-5.6-luna"
+  ],
+  "pairs": [
+    {
+      "task": 364,
+      "repetition": 1,
+      "order": "BABA",
+      "A": {
+        "arm": "A",
+        "classification": "model_failure",
+        "failure_source": "oracle_assertion",
+        "judge_command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state tests/test_frontend.py::test_indexeddb_record_epoch_rejects_old_tab_recontamination tests/test_frontend.py::test_indexeddb_schema_repair_runs_for_each_origin",
+        "main_cache_read_tokens": 4866048,
+        "main_cost_usd": 0.1083024,
+        "model": "gpt-5.6-luna",
+        "oracle_id": "oracle-364-v1",
+        "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+        "scout_cost_usd": 0.0,
+        "total_cost_usd": 0.1083024
+      },
+      "B": {
+        "arm": "B",
+        "bundle_bytes": 4582,
+        "bundle_sha256": "c25e76ac8bd5044c765a3755deb06cecae19f5248bdd371d84ddee4d6cb9cbd0",
+        "classification": "model_failure",
+        "judge_command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state tests/test_frontend.py::test_indexeddb_record_epoch_rejects_old_tab_recontamination tests/test_frontend.py::test_indexeddb_schema_repair_runs_for_each_origin",
+        "main_cost_usd": 0.13666556,
+        "main_handoff_sha256": "c25e76ac8bd5044c765a3755deb06cecae19f5248bdd371d84ddee4d6cb9cbd0",
+        "model": "gpt-5.6-luna",
+        "oracle_id": "oracle-364-v1",
+        "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+        "scout_cost_usd": 0.02734152,
+        "total_cost_usd": 0.16400708
+      }
+    },
+    {
+      "task": 364,
+      "repetition": 2,
+      "order": "BABA",
+      "A": {
+        "arm": "A",
+        "classification": "model_failure",
+        "failure_source": "oracle_assertion",
+        "judge_command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state tests/test_frontend.py::test_indexeddb_record_epoch_rejects_old_tab_recontamination tests/test_frontend.py::test_indexeddb_schema_repair_runs_for_each_origin",
+        "main_cache_read_tokens": 3396096,
+        "main_cost_usd": 0.12219692,
+        "model": "gpt-5.6-luna",
+        "oracle_id": "oracle-364-v1",
+        "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+        "scout_cost_usd": 0.0,
+        "total_cost_usd": 0.12219692
+      },
+      "B": {
+        "arm": "B",
+        "bundle_bytes": 5177,
+        "bundle_sha256": "fe472a870b7d9eb12033e9aee74de60e1ce560f9410235439b92a40c535dcf95",
+        "classification": "model_failure",
+        "judge_command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_frontend.py::test_indexeddb_legacy_mirror_is_rebuilt_before_chat_render tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state tests/test_frontend.py::test_indexeddb_record_epoch_rejects_old_tab_recontamination tests/test_frontend.py::test_indexeddb_schema_repair_runs_for_each_origin",
+        "main_cost_usd": 0.10290192,
+        "main_handoff_sha256": "fe472a870b7d9eb12033e9aee74de60e1ce560f9410235439b92a40c535dcf95",
+        "model": "gpt-5.6-luna",
+        "oracle_id": "oracle-364-v1",
+        "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+        "scout_cost_usd": 0.031799320000000006,
+        "total_cost_usd": 0.13470124
+      }
+    },
+    {
+      "task": 396,
+      "repetition": 1,
+      "order": "ABAB",
+      "A": {
+        "arm": "A",
+        "classification": "model_failure",
+        "failure_source": "oracle_assertion",
+        "judge_command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_limits_card.py::test_card_and_chat_use_the_same_headroom_window_count tests/test_limits_card.py::test_quota_headroom_rejects_non_finite_or_boolean_values tests/test_limits_card.py::test_quota_headroom_caches_history_for_sixty_seconds",
+        "main_cache_read_tokens": 1937152,
+        "main_cost_usd": 0.07447444,
+        "model": "gpt-5.6-luna",
+        "oracle_id": "oracle-396-v1",
+        "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+        "scout_cost_usd": 0.0,
+        "total_cost_usd": 0.07447444
+      },
+      "B": {
+        "arm": "B",
+        "bundle_bytes": 7044,
+        "bundle_sha256": "df673c66c28ce1a7a68eca9e813c94360216c3478cf77a72898aad4550464e42",
+        "classification": "model_failure",
+        "judge_command": "/home/kesha/orchestra/.venv/bin/python -m pytest -q tests/test_limits_card.py::test_card_and_chat_use_the_same_headroom_window_count tests/test_limits_card.py::test_quota_headroom_rejects_non_finite_or_boolean_values tests/test_limits_card.py::test_quota_headroom_caches_history_for_sixty_seconds",
+        "main_cost_usd": 0.06540392,
+        "main_handoff_sha256": "df673c66c28ce1a7a68eca9e813c94360216c3478cf77a72898aad4550464e42",
+        "model": "gpt-5.6-luna",
+        "oracle_id": "oracle-396-v1",
+        "price_revision_sha256": "ea27c8c444bdab441d4ffc3ad87172c62d7ea3a6c0b6eacd1f935f27cdfcdba3",
+        "scout_cost_usd": 0.04198752000000001,
+        "total_cost_usd": 0.10739144
+      }
+    }
+  ],
+  "counting_rule": "Count one main pair for each frozen task×repetition with exactly one completed A slot and completed B_scout and B_main slots; 12 tasks × 2 repetitions = 24 pairs. An inconclusive attempt is counted only in inconclusive_attempts and is never substituted for or added to its later completed slot.",
+  "planned_pairs": 24,
+  "measured_pairs": 3,
+  "truncated_pairs": 21,
+  "scheduled_slots": 100,
+  "completed_slots": 25,
+  "inconclusive_attempts": 1,
+  "sessions_before": 502,
+  "sessions_after": 504,
+  "raw_jsonl": "scripts/recon429/run-g3-resumable/raw-slots.jsonl",
+  "raw_jsonl_sha256": "2be969900a5589e88acb36f4226d147ad9c7469f23a563f0d4ea7f6266981562"
+}

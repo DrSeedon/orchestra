@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "selected_attempt": 4,
+  "attempts": [
+    {
+      "attempt": 1,
+      "status": "invalid_false_positive",
+      "reason": "built-in bwrap blocked both shell calls with RTM_NEWADDR; model then claimed DENY without executing checks"
+    },
+    {
+      "attempt": 2,
+      "status": "harness_failure",
+      "reason": "rooted MCP tools required approval under policy never"
+    },
+    {
+      "attempt": 3,
+      "status": "harness_failure",
+      "reason": "--sandbox cannot be combined with --approve-for-me"
+    },
+    {
+      "attempt": 4,
+      "status": "success",
+      "model": "gpt-5.6-luna",
+      "shell_tool_disabled": true,
+      "rooted_mcp_connected": true,
+      "oracle_denied": true,
+      "auth_denied": true,
+      "traversal_denied": true,
+      "command_execution_events": 0,
+      "mcp_events": 10,
+      "cost_usd": 0.005399160000000001,
+      "sessions_before": 467,
+      "sessions_after": 467
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "excluded": [
+    {
+      "generation": "g1-initial",
+      "status": "excluded",
+      "reason": "platform_restart",
+      "jobs": ["bg-54ff5827bb", "bg-74ba2c50f7", "bg-0cb8101697"],
+      "noise_completed_slots": 5,
+      "noise_planned_slots": 12,
+      "noise_known_cost_usd": 0.70058448,
+      "ambiguous_slot": "task-416-a02",
+      "ambiguous_slot_artifacts": {
+        "prompt_bytes": 408212,
+        "terminal_usage": false
+      },
+      "rule": "No slot or replay from this generation may enter generation g2 statistics."
+    }
+  ],
+  "other_prior_runs": {
+    "status": "calibration_only_excluded_from_g2",
+    "known_cost_usd_lower_bound": 1.3352066,
+    "note": "Includes completed canaries/exploratory pairs/noise plus one recovered parser-crash usage; interrupted provider usage remains unaccounted."
+  }
+}
