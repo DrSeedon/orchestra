@@ -1496,6 +1496,24 @@ def _open_tool_correlation_page(
     _route_frontend_sources(page, source_path)
     _goto_dashboard(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
+    # ОСТАНОВИТЬ опрос, а не ждать случайной тишины. Начальная загрузка дашборда идёт
+    # асинхронно и сама переписывает `#chat`: вкинутые раньше записи её `refreshAll`
+    # затирает уже после вставки, и тест видит пустой чат (`счётчик='🔔 0'`, карточек
+    # нет) — 3 падения из 6 прогонов подряд при 15 с в одиночку.
+    # Гасим тем же механизмом, что и прод: скрытая вкладка не опрашивает
+    # (`_pollCanRun`, `app/static/js/app.js`). Ожидание ПОСЛЕ этого гарантированно
+    # сходится. Прежняя версия ждала `!refreshInProgress && _pollInFlight.size === 0`
+    # без остановки опроса — на раннере это условие не наступало вовсе, ожидание
+    # выедало свой бюджет и роняло 11 тестов, которые до правки проходили.
+    page.evaluate("""() => {
+        Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+        document.dispatchEvent(new Event('visibilitychange'));
+    }""")
+    page.wait_for_function(
+        """() => !_pollCanRun() && !refreshInProgress
+            && _pollTimers.size === 0 && _pollInFlight.size === 0""",
+        timeout=10000,
+    )
     page.evaluate("""compactMode => {
         selectedAgent = null;
         if (eventSource) {
@@ -1673,17 +1691,32 @@ def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
     # Свой потолок с диагнозом: без него пропажа зова из списка падает молчаливым
     # 30-секундным таймаутом и не говорит, ЧТО именно сломалось.
     try:
+        # Ждать надо ОБА признака. Счётчик в списке зовов и карточка в чате рисуются
+        # разными путями, поэтому «счётчик уже 🔔 1» НЕ означает «карточка в DOM».
+        # Под нагрузкой карточка отстаёт, `chat.querySelector(...)` отдаёт null, и
+        # следующий `getComputedStyle(card)` падает
+        # `TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is
+        # not of type 'Element'` — то есть тест ронял сам себя гонкой, а не ловил дефект.
+        # В одиночку он проходил за 15.5 с и потому выглядел исправным.
         page.wait_for_function(
-            "() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'",
+            """() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'
+                && document.querySelector('#chat [data-tool-use-id="toolu_notify241"]')
+                && document.querySelector('#chat [data-tool-use-id="toolu_neighbour"]')
+                && document.querySelector('#chat-timeline-track .is-notify')""",
             timeout=5000,
         )
     except PlaywrightTimeout:
         actual = page.evaluate(
-            "() => [document.querySelector('#chat-notify-count')?.textContent,"
-            " document.querySelectorAll('#chat-timeline-track .is-notify').length]"
+            """() => [document.querySelector('#chat-notify-count')?.textContent,
+                document.querySelectorAll('#chat-timeline-track .is-notify').length,
+                !!document.querySelector('#chat [data-tool-use-id="toolu_notify241"]'),
+                !!document.querySelector('#chat [data-tool-use-id="toolu_neighbour"]')]"""
         )
         page.close()
-        pytest.fail(f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}")
+        pytest.fail(
+            f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}, "
+            f"карточка зова={actual[2]}, карточка соседа={actual[3]}"
+        )
 
     state = page.evaluate("""() => {
         const chat = document.querySelector('#chat');
@@ -2073,6 +2106,32 @@ def test_chat_transient_state_has_one_complete_reset_owner(
         "lastFinal": "",
         "thinking": True,
     }
+
+
+def test_user_message_stays_before_agent_entries_arriving_during_stream(
+    dashboard_browser: Browser,
+):
+    """#527: a user bubble must not be stranded below later stream records."""
+    page = _open_chat_snapshot_page(dashboard_browser)
+    page.wait_for_timeout(2000)
+    page.evaluate("""() => {
+        resetChatTransientState();
+        document.querySelector('#chat').replaceChildren();
+        addChatEntry('stream', 'AGENT-STREAMING');
+        pendingUserMsgs = ['USER-DURING-STREAM'];
+        showPendingBubble();
+    }""")
+    page.evaluate("""() => addChatEntry('status', 'AGENT-AFTER-USER')""")
+
+    order = page.evaluate("""() => [...document.querySelector('#chat').children].map(node => ({
+        kind: node.classList.contains('chat-user') ? 'user'
+            : node.classList.contains('streaming') ? 'stream' : 'agent',
+        text: node.textContent,
+    }))""")
+    assert [entry["kind"] for entry in order] == ["user", "agent", "stream"], order
+    assert order[0]["text"].startswith("USER-DURING-STREAM")
+    assert "AGENT-AFTER-USER" in order[1]["text"]
+    page.close()
 
 
 _NOTIFY_AGENT = "notify-268-probe"
@@ -2487,102 +2546,90 @@ def test_dashboard_polling_resume_refreshes_status_after_hidden(
         page.close()
 
 
-def test_dashboard_polling_equivalent_twelve_minutes_before_after(
+def test_hidden_dashboard_stops_polling_and_resumes_when_visible(
     dashboard_browser: Browser,
-    tmp_path: Path,
 ):
-    """Use a 100x clock to compare a quiescent hidden window on main and this branch."""
-    branch_source = Path(__file__).parent.parent / "app/static/js/app.js"
-    main_source = tmp_path / "main-app.js"
-    main_source.write_text(
-        subprocess.check_output(
-            ["git", "show", "main:app/static/js/app.js"], text=True,
-        )
-    )
-    main_chat_source = subprocess.check_output(
-        ["git", "show", "main:app/static/js/chat.js"], text=True,
-    )
+    """Скрытая вкладка не опрашивает сервер, видимая опрашивает.
 
-    def measure(source_path: Path) -> dict[str, int]:
-        page = dashboard_browser.new_page()
+    Прежняя версия (`test_dashboard_polling_equivalent_twelve_minutes_before_after`)
+    сравнивала ветку с `main` по числу запросов за 12 симулированных минут на 100-кратных
+    часах. Как замер она негодна (#197: `before_total` гулял 1456–2242 на НЕИЗМЕННОМ коде,
+    регрессия объявлялась 2 раза из 3), а как тест — неисполнима в CI: локально 29.50 с
+    при `--timeout=30`, на раннере выходила за бюджет, и pytest-timeout срабатывал посреди
+    живого Playwright, оставляя `chrome-headless-shell` и вешая шард целиком на 27+ минут.
+    Здесь от неё осталось ЗАЩИЩАЕМОЕ свойство без временнóго утверждения: механизм опроса
+    выключается при скрытой вкладке и включается обратно. Ожидания событийные
+    (`wait_for_function`), фиксированных пауз нет вовсе.
+    """
+    page = dashboard_browser.new_page()
+    counts: dict[str, int] = {}
+    polling_paths = {"/api/models", "/api/sessions", "/api/stats", "/api/orchestrators"}
+
+    def api_route(route):
+        path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+        path = "/api" + path
+        if path in polling_paths:
+            counts[path] = counts.get(path, 0) + 1
+        if path.endswith("/stream"):
+            route.fulfill(status=200, content_type="text/event-stream", body="")
+            return
+        if path == "/api/orchestrators":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+        elif path == "/api/sessions":
+            payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope",
+                        "status": "idle", "model": "claude-opus-5[1m]"}]
+        elif path == "/api/stats":
+            payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+        elif path == "/api/models":
+            payload = {"models": [], "proxy_connected": False}
+        elif path.endswith("/logs"):
+            payload = []
+        else:
+            payload = []
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+
+    try:
         page.add_init_script("""
-            const realTimeout = window.setTimeout.bind(window);
-            const realInterval = window.setInterval.bind(window);
-            const scale = 0.01;
-            window.setTimeout = (fn, ms, ...args) => realTimeout(fn, Math.max(1, ms * scale), ...args);
-            window.setInterval = (fn, ms, ...args) => realInterval(fn, Math.max(1, ms * scale), ...args);
             window.EventSource = class StableEventSource {
                 constructor(url) { this.url = url; this.readyState = 1; }
                 close() { this.readyState = 2; }
             };
         """)
-        _route_frontend_sources(page, source_path)
-        if source_path == main_source:
-            page.route(
-                "**/static/js/chat.js*",
-                lambda route: route.fulfill(
-                    status=200,
-                    content_type="application/javascript",
-                    body=main_chat_source,
-                ),
-            )
-        counts: dict[str, int] = {}
-        polling_paths = {
-            "/api/models",
-            "/api/logs/sync",
-            "/api/sessions",
-            "/api/stats",
-            "/api/orchestrators",
-        }
-
-        def api_route(route):
-            path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
-            path = "/api" + path
-            if path in polling_paths or path.endswith("/context"):
-                counts[path] = counts.get(path, 0) + 1
-            if path.endswith("/stream"):
-                route.fulfill(status=200, content_type="text/event-stream", body="")
-                return
-            if path.endswith("/logs"):
-                payload = []
-            elif path == "/api/orchestrators":
-                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
-            elif path == "/api/sessions":
-                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": "idle", "model": "claude-opus-5[1m]"}]
-            elif path == "/api/stats":
-                payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
-            elif path == "/api/models":
-                payload = {"models": [], "proxy_connected": False}
-            elif path == "/api/logs/sync":
-                payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
-            elif path.endswith("/context"):
-                payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
-            elif path == "/api/usage":
-                payload = {}
-            else:
-                payload = []
-            route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
-
+        _route_frontend_sources(page)
         page.route(re.compile(r"/api/"), api_route)
         _goto_dashboard(page)
         page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
-        page.evaluate("() => { Object.defineProperty(document, 'hidden', {configurable: true, value: true}); document.dispatchEvent(new Event('visibilitychange')); }")
-        page.wait_for_function("""() => document.hidden && !_pollCanRun()
-            && !refreshInProgress && _pollTimers.size === 0 && _pollInFlight.size === 0
-        """, timeout=8000)
-        counts.clear()
-        page.wait_for_timeout(7200)
-        result = dict(counts)
-        page.close()
-        return result
 
-    before = measure(main_source)
-    after = measure(branch_source)
-    before_total = sum(before.values())
-    after_total = sum(after.values())
-    print(f"#301 equivalent 12m before_total={before_total} after_total={after_total} before={before} after={after}")
-    assert before_total == 0, before
-    assert after_total == 0, after
+        # Положительный контроль ДО скрытия: счётчик считает, опрос идёт. Без него
+        # «ноль запросов у скрытой вкладки» проходил бы и на мёртвой странице.
+        page.wait_for_function(
+            "() => _pollCanRun() && _pollTimers.size > 0", timeout=8000,
+        )
+        assert sum(counts.values()) > 0, counts
+
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        page.wait_for_function("""() => !_pollCanRun() && !refreshInProgress
+            && _pollTimers.size === 0 && _pollInFlight.size === 0
+        """, timeout=8000)
+        assert page.evaluate("() => _pollCanRun()") is False
+        assert page.evaluate("() => _pollTimers.size") == 0
+        assert page.evaluate("() => _pollInFlight.size") == 0
+
+        counts.clear()
+        page.evaluate("""() => {
+            Object.defineProperty(document, 'hidden', {configurable: true, value: false});
+            document.dispatchEvent(new Event('visibilitychange'));
+        }""")
+        # Опрос обязан ВЕРНУТЬСЯ — иначе проверка выше зелена на сломанной странице,
+        # где опрос не работает вообще. Ожидание событийное, а не по часам.
+        page.wait_for_function(
+            "() => _pollCanRun() && _pollTimers.size > 0", timeout=8000,
+        )
+    finally:
+        page.close()
 
 
 def _open_notify_stream_page(

@@ -1,0 +1,325 @@
+ssssssssssss............................................................ [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 23%]
+........................................................................ [ 31%]
+........................................................................ [ 39%]
+........................................................................ [ 47%]
+........................................................................ [ 55%]
+........................................................................ [ 63%]
+............................................................FF..F....... [ 71%]
+................................................xxx..................... [ 79%]
+........................................................................ [ 87%]
+..........................................F............................. [ 95%]
+.......F...................................                              [100%]
+=================================== FAILURES ===================================
+_________ test_t3_repository_move_has_content_receipt_and_no_old_roots _________
+
+    def test_t3_repository_move_has_content_receipt_and_no_old_roots():
+        for path in (
+            ".orchestra/kb/README.md",
+            ".orchestra/tasks/430/plan.md",
+            ".orchestra/workers/move-dot-orchestra.md",
+            ".orchestra/archive",
+            ".orchestra/pipelines/default/pipeline.yaml",
+        ):
+            assert (ROOT / path).exists(), f"T3 missing moved path: {path}"
+        for path in ("docs/kb", "docs/tasks", "docs/workers", "docs/archive", "pipelines"):
+            assert not (ROOT / path).exists(), f"T3 old root remains: {path}"
+    
+        receipt_path = ROOT / ".orchestra" / "tasks" / "430" / "move-receipt.json"
+        assert receipt_path.is_file(), "T3 missing per-file move preservation receipt"
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        assert len(receipt["before_ref"]) == 40
+        location_commit = receipt["location_runtime_commit"]
+>       assert _git(ROOT, "rev-parse", f"{location_commit}^").stdout.strip() == receipt["before_ref"]
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_orchestra_layout_430.py:374: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_orchestra_layout_430.py:64: in _git
+    return subprocess.run(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+input = None, capture_output = True, timeout = None, check = True
+popenargs = (['git', '-C', '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green', 'rev-parse', '1f80bb50b81db380fb5f51a0894209538553087f^'],)
+kwargs = {'stderr': -1, 'stdout': -1, 'text': True}
+process = <Popen: returncode: 128 args: ['git', '-C', '/home/kesha/orchestra/worktrees...>
+stdout = '1f80bb50b81db380fb5f51a0894209538553087f^\n'
+stderr = "fatal: ambiguous argument '1f80bb50b81db380fb5f51a0894209538553087f^': unknown revision or path not in the working tree.\nUse '--' to separate paths from revisions, like this:\n'git <command> [<revision>...] -- [<file>...]'\n"
+retcode = 128
+
+    def run(*popenargs,
+            input=None, capture_output=False, timeout=None, check=False, **kwargs):
+        """Run command with arguments and return a CompletedProcess instance.
+    
+        The returned instance will have attributes args, returncode, stdout and
+        stderr. By default, stdout and stderr are not captured, and those attributes
+        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,
+        or pass capture_output=True to capture both.
+    
+        If check is True and the exit code was non-zero, it raises a
+        CalledProcessError. The CalledProcessError object will have the return code
+        in the returncode attribute, and output & stderr attributes if those streams
+        were captured.
+    
+        If timeout is given, and the process takes too long, a TimeoutExpired
+        exception will be raised.
+    
+        There is an optional argument "input", allowing you to
+        pass bytes or a string to the subprocess's stdin.  If you use this argument
+        you may not also use the Popen constructor's "stdin" argument, as
+        it will be used internally.
+    
+        By default, all communication is in bytes, and therefore any "input" should
+        be bytes, and the stdout and stderr will be bytes. If in text mode, any
+        "input" should be a string, and stdout and stderr will be strings decoded
+        according to locale encoding, or by "encoding" if set. Text mode is
+        triggered by setting any of text, encoding, errors or universal_newlines.
+    
+        The other arguments are the same as for the Popen constructor.
+        """
+        if input is not None:
+            if kwargs.get('stdin') is not None:
+                raise ValueError('stdin and input arguments may not both be used.')
+            kwargs['stdin'] = PIPE
+    
+        if capture_output:
+            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:
+                raise ValueError('stdout and stderr arguments may not be used '
+                                 'with capture_output.')
+            kwargs['stdout'] = PIPE
+            kwargs['stderr'] = PIPE
+    
+        with Popen(*popenargs, **kwargs) as process:
+            try:
+                stdout, stderr = process.communicate(input, timeout=timeout)
+            except TimeoutExpired as exc:
+                process.kill()
+                if _mswindows:
+                    # Windows accumulates the output in a single blocking
+                    # read() call run on child threads, with the timeout
+                    # being done in a join() on those threads.  communicate()
+                    # _after_ kill() is required to collect that and add it
+                    # to the exception.
+                    exc.stdout, exc.stderr = process.communicate()
+                else:
+                    # POSIX _communicate already populated the output so
+                    # far into the TimeoutExpired exception.
+                    process.wait()
+                raise
+            except:  # Including KeyboardInterrupt, communicate handled that.
+                process.kill()
+                # We don't call process.wait() as .__exit__ does that for us.
+                raise
+            retcode = process.poll()
+            if check and retcode:
+>               raise CalledProcessError(retcode, process.args,
+                                         output=stdout, stderr=stderr)
+E               subprocess.CalledProcessError: Command '['git', '-C', '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green', 'rev-parse', '1f80bb50b81db380fb5f51a0894209538553087f^']' returned non-zero exit status 128.
+
+/usr/lib/python3.12/subprocess.py:571: CalledProcessError
+_________ test_t4_all_fleet_receipts_precede_global_prompt_activation __________
+
+    def test_t4_all_fleet_receipts_precede_global_prompt_activation():
+        from app.pipeline import DEFAULT_PIPELINE, build_system_prompt, known_roles
+    
+        prompts = {
+            role: build_system_prompt(DEFAULT_PIPELINE, role)
+            for role in known_roles(DEFAULT_PIPELINE)
+        }
+        assert prompts
+        for role, prompt in prompts.items():
+            assert ".orchestra/kb" in prompt, role
+            assert ".orchestra/tasks" in prompt, role
+            assert ".orchestra/workers" in prompt, role
+            assert "docs/kb" not in prompt, role
+            assert "docs/tasks" not in prompt, role
+            assert "docs/workers" not in prompt, role
+        memory_prompt = (ROOT / ".orchestra/pipelines/default/prompts/modules/memory-search.md").read_text(
+            encoding="utf-8"
+        )
+        for anchor in (
+            "ORCHESTRA_LAYOUT_MISSING",
+            "ORCHESTRA_LAYOUT_PARTIAL",
+            "scripts/migrate_orchestra_layout.py",
+            "--repair",
+            "Never fall back",
+        ):
+            assert anchor in memory_prompt
+    
+        fleet = json.loads(
+            (ROOT / ".orchestra/tasks/430/fleet-run/final-summary.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        assert fleet["projects"] == fleet["current"] == fleet["status_preserved"] == 13
+        assert fleet["failed"] == fleet["preserve_journals"] == fleet["preserve_stashes"] == 0
+        release = json.loads(
+            (ROOT / ".orchestra/tasks/430/release-receipt.json").read_text(encoding="utf-8")
+        )
+        assert release["fleet_receipt_commit"] != release["prompt_activation_commit"]
+>       assert _git(
+            ROOT,
+            "merge-base",
+            "--is-ancestor",
+            release["fleet_receipt_commit"],
+            release["prompt_activation_commit"],
+            check=False,
+        ).returncode == 0
+E       AssertionError: assert 128 == 0
+E        +  where 128 = CompletedProcess(args=['git', '-C', '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green', 'merge-base',...1ad1d'], returncode=128, stdout='', stderr='fatal: Not a valid commit name e748168c6eea8924999e575d9c09a88a33168d2e\n').returncode
+E        +    where CompletedProcess(args=['git', '-C', '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green', 'merge-base',...1ad1d'], returncode=128, stdout='', stderr='fatal: Not a valid commit name e748168c6eea8924999e575d9c09a88a33168d2e\n') = _git(PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green'), 'merge-base', '--is-ancestor', 'e748168c6eea8924999e575d9c09a88a33168d2e', 'f157420676d327553c74e8998a7bea27f2d1ad1d', check=False)
+
+tests/test_orchestra_layout_430.py:446: AssertionError
+----------------------------- Captured stderr call -----------------------------
+effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+------------------------------ Captured log call -------------------------------
+WARNING  app.pipeline:pipeline.py:296 effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+WARNING  app.pipeline:pipeline.py:296 effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+WARNING  app.pipeline:pipeline.py:296 effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+WARNING  app.pipeline:pipeline.py:296 effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+WARNING  app.pipeline:pipeline.py:296 effort: key 'gpt-6-astra' — не известная модель и не рантайм; сработает только если такая модель появится в реестре
+___ test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves ____
+
+    def test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves():
+        checker = ROOT / "scripts" / "check_orchestra_paths.py"
+        assert checker.is_file(), "T5 missing classified live/historical/negative path checker"
+        result = subprocess.run(
+            [sys.executable, str(checker), "--root", str(ROOT), "--json"],
+            text=True,
+            capture_output=True,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: fatal: not a tree object
+E         fatal: not a tree object
+E         Traceback (most recent call last):
+E           File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/scripts/check_orchestra_paths.py", line 262, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/scripts/check_orchestra_paths.py", line 245, in main
+E             **verify_historical_bindings(root),
+E               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/scripts/check_orchestra_paths.py", line 211, in verify_historical_bindings
+E             blob, object_type, raw_size = batch[offset:header_end].decode().split()
+E             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E         ValueError: not enough values to unpack (expected 3, got 2)
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/bin/python', '/home/ke...end].decode().split()\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^\nValueError: not enough values to unpack (expected 3, got 2)\n').returncode
+
+tests/test_orchestra_layout_430.py:563: AssertionError
+__________________ test_committed_css_matches_current_sources __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8549/test_committed_css_matches_cur0')
+
+    @pytest.mark.skipif(shutil.which("npx") is None, reason="npx недоступен — сборку не проверить")
+    def test_committed_css_matches_current_sources(tmp_path):
+        """Пересборка из текущих исходников должна дать байт-в-байт закоммиченный файл."""
+        out = tmp_path / "tailwind.css"
+        proc = subprocess.run(
+            ["npx", "--yes", TAILWIND, "-c", "tailwind.config.js",
+             "-i", "app/static/css/tailwind.src.css", "-o", str(out), "--minify"],
+            cwd=ROOT, capture_output=True, text=True, timeout=300,
+        )
+        assert proc.returncode == 0, proc.stderr[-2000:]
+>       assert out.read_text(encoding="utf-8") == CSS.read_text(encoding="utf-8"), (
+            "собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали "
+            "классы. Почини запуском: bash scripts/build-tailwind.sh"
+        )
+E       AssertionError: собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали классы. Почини запуском: bash scripts/build-tailwind.sh
+E       assert '*,:after,:be...e-offset:2px}' == '*,:after,:be...e-offset:2px}'
+E         
+E         Skipping 5626 identical leading characters in diff, use -v to show
+E         - ft:1rem}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.\!block{display:block!important}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-1{height:.25rem}.h-1\.5{height:.375rem}.h-16{height:4rem}.h-4{height:1rem}.h-full{height:100%}.h-screen{height:100vh}.max-h-48{max-height:12rem}.max-h-\[300px\]{max-height:300px}.max-h-\[80vh\]{max-height:80vh}.max-h-\[85vh\]{max-height:85vh...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_tailwind_css.py:45: AssertionError
+___ test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fb89014a780>
+
+    @pytest.mark.asyncio
+    async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome(
+        monkeypatch,
+    ):
+        """A PARTIAL replay resumes only the durable DB finalizer, never Git."""
+        import app.merge_operations as operations
+        import app.routes.merge_operations as merge_route
+        from app import tm
+    
+        _init_db()
+        _seed_project()
+        with tm._conn() as connection:
+            task = tm.create_task(
+                connection, "project", "Durable close", par_number=42, status="in_progress",
+            )
+            connection.execute(
+                "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+                ("durable-worker", task["id"]),
+            )
+        _save_worker(session_id="durable-worker", task_id="42")
+        found = _prepare_merge(monkeypatch, session_id="durable-worker")
+        monkeypatch.setattr(
+            "app.workspace.inspect_worktree_identity",
+            lambda _path: (found.branch, "e" * 40),
+        )
+        merge_calls = 0
+    
+        def merge(*_args, **_kwargs):
+            nonlocal merge_calls
+            merge_calls += 1
+            return {
+                "ok": True,
+                "commits_merged": 1,
+                "branch": found.branch,
+                "commit_point": "target_committed",
+                "merged_commits": {
+                    "42": [{"hash": "fedcba", "message": "#42: durable"}],
+                },
+            }
+    
+        monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+        real_link = tm.link_commits_to_task
+        link_attempts = 0
+    
+        def flaky_link(*args, **kwargs):
+            nonlocal link_attempts
+            link_attempts += 1
+            if link_attempts == 1:
+                raise RuntimeError("injected finalizer failure")
+            return real_link(*args, **kwargs)
+    
+        monkeypatch.setattr(tm, "link_commits_to_task", flaky_link)
+        operation_id = str(uuid.uuid4())
+        request = {
+            "operation_id": operation_id,
+            "name": found.name,
+            "scope": found.scope,
+            "task_outcome": "complete",
+            "merge_schema_version": 2,
+        }
+    
+        await merge_route.create_merge_operation(request)
+        await asyncio.gather(*list(operations._runner_tasks.values()))
+        first = await merge_route.get_merge_operation(operation_id)
+        partial = json.loads(first.body)["result"]
+    
+>       assert partial["operation_state"] == "PARTIAL"
+E       AssertionError: assert 'FAILED' == 'PARTIAL'
+E         
+E         - PARTIAL
+E         + FAILED
+
+tests/test_task_tracker_integration.py:1780: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots
+FAILED tests/test_orchestra_layout_430.py::test_t4_all_fleet_receipts_precede_global_prompt_activation
+FAILED tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+FAILED tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+FAILED tests/test_task_tracker_integration.py::test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome
+5 failed, 887 passed, 12 skipped, 3 xfailed in 313.66s (0:05:13)

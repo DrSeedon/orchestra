@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_antigravity_usage_frontend.py tests/test_audit0901_harness.py tests/test_audit0901_workspace.py tests/test_backend_harness_turn_usage_422.py tests/test_cache_tokens.py tests/test_cli_inventory.py tests/test_compact_gate_438.py tests/test_default_pipeline.py tests/test_errtext.py tests/test_fan_prompt_407.py tests/test_frontend.py tests/test_harness_tools.py tests/test_kb_markdown_contract.py tests/test_knowledge_runtime_debt_361.py tests/test_limits_card.py tests/test_mcp_codex_review.py tests/test_merge_branch_drift.py tests/test_merge_ref_gate.py tests/test_message_provenance_review_433.py tests/test_models.py tests/test_orchestra_layout_compat_430.py tests/test_owned_dirs_migration_473.py tests/test_portfolio_agent_filter_frontend_472.py tests/test_process_guard_calibration.py tests/test_project_knowledge_t3_review_412.py tests/test_quota_headroom_447.py tests/test_repair_task_par_collisions_406.py tests/test_review_coverage_gate_462.py tests/test_review_receipt_storage_436.py tests/test_runtime_handoff_v2.py tests/test_secret_commit_gate.py tests/test_session_id_guard.py tests/test_subagent_routes.py tests/test_task_binding_417.py tests/test_task_repair_422.py tests/test_task_write_outbox_426.py tests/test_tg_file_batch_route.py tests/test_tm.py tests/test_undelivered.py tests/test_usage_history_resolution.py tests/test_wf_run.py"
+	User time (seconds): 125.93
+	System time (seconds): 62.09
+	Percent of CPU this job got: 65%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 4:47.19
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 242160
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 3950
+	Minor (reclaiming a frame) page faults: 1484062
+	Voluntary context switches: 309863
+	Involuntary context switches: 13397
+	Swaps: 0
+	File system inputs: 37120
+	File system outputs: 1572488
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

@@ -491,7 +491,7 @@ async def test_impl_failed_handover_does_not_leave_quiescing_stuck_on():
                 pass
 
 
-def test_t1_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
+def test_t1_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path, codex_bin_stub):
     """Заход 4, note 2: an unrecorded start time must NOT be re-measured at adopt time — that
     describes whoever holds the pid NOW. Unknown identity means refuse, and an orphan surviving
     beats killing a stranger."""
@@ -540,7 +540,7 @@ def test_t1_unknown_start_time_refuses_to_signal(monkeypatch, tmp_path):
     )
 
 
-def test_t1_helper_uses_pidfd_and_refuses_a_reused_pid(monkeypatch, tmp_path):
+def test_t1_helper_uses_pidfd_and_refuses_a_reused_pid(monkeypatch, tmp_path, codex_bin_stub):
     """Round-2 finding: pid alone is not an identity. A reused number must not be signalled."""
     from app import backend_jsonrpc
 

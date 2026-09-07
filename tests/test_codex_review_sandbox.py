@@ -83,7 +83,7 @@ def _prepare_usage_db(tmp_path, monkeypatch):
 @pytest.mark.parametrize("mode", ["exec", "review"])
 @pytest.mark.parametrize("resume", [False, True])
 def test_codex_review_disables_unusable_namespace_sandbox(
-    tmp_path, monkeypatch, mode, resume,
+    tmp_path, monkeypatch, mode, resume, codex_bin_stub,
 ):
     import app.mcp_stdio as mcp
 
@@ -114,7 +114,7 @@ def test_codex_review_disables_unusable_namespace_sandbox(
     assert "--full-auto" not in command
 
 
-@pytest.mark.parametrize('outcome,rc', [('completed', 0), ('failed', 70), ('incomplete', 70)])
+@pytest.mark.parametrize('outcome,rc', [('completed', 0), ('russian', 0), ('failed', 70), ('incomplete', 70)])
 def test_codex_review_uses_runtime_and_explicit_result(tmp_path, monkeypatch, outcome, rc):
     import app.mcp_stdio as mcp
 
@@ -138,6 +138,8 @@ exit 0
     script = fake_codex.read_text()
     if outcome == 'failed':
         script = script.replace('"type":"turn.completed"', '"type":"turn.failed"')
+    if outcome == 'russian':
+        script = script.replace('## Verdict', '## Вердикт')
     if outcome == 'incomplete':
         script = script.replace("'PASS'", "'INCOMPLETE'")
     fake_codex.write_text(script)
@@ -164,12 +166,14 @@ exit 0
     assert "Execution guard failed" not in review
     from app.db import review_receipt_get
     receipt = review_receipt_get(captured["receipt_id"])
-    assert receipt["status"] == ("completed" if outcome == "completed" else "failed")
+    assert receipt["status"] == ("completed" if outcome in {"completed", "russian"} else "failed")
     assert receipt["return_code"] == 0
     assert receipt["failure_code"] == {
-        "completed": "", "failed": "execution_guard", "incomplete": "review_result_missing",
+        "completed": "", "russian": "", "failed": "execution_guard", "incomplete": "review_result_missing",
     }[outcome]
     assert receipt["artifact_exists"] == 1
+    import re
+    assert re.search(captured["config"]["success_pattern"], review)
 
 
 
