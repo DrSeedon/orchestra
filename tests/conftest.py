@@ -319,13 +319,17 @@ def _isolated_managed_cli_home(tmp_path, monkeypatch):
 # красных тестов.
 # Маркер ставится по ФАКТУ запроса браузерной фикстуры, а не списком файлов: список
 # устаревает молча, а фикстура — то самое, что делает тест браузерным.
-# `context` СЮДА НЕ ВХОДИТ намеренно: у pytest-playwright так называется браузерный
-# контекст, но имя слишком общее — параметризованный `context` в
-# `test_codex_review_rejects_missing_project_context_before_any_api_call` (обычная строка)
-# ловился как браузерный и уносил два небраузерных узла из блокирующего набора.
-_BROWSER_FIXTURES = frozenset({
-    "browser", "dashboard_browser", "page", "browser_context",
-})
+# Набор СУЖЕН до двух однозначных имён, и это замер, а не осторожность: `page` и
+# `browser_context` дают РОВНО 0 узлов сверх них (проверено подстановкой каждого имени
+# по отдельности), а имена общие — любой небраузерный тест, объявивший свою фикстуру
+# `page`, молча уехал бы из блокирующего набора. `context` не входит по той же причине и
+# уже ловил ложно: параметризованный `context`-строка в
+# `test_codex_review_rejects_missing_project_context_before_any_api_call` уносил два
+# небраузерных узла. Оба оставшихся имени в этом репозитории однозначны: `browser` —
+# фикстура Playwright, `dashboard_browser` определена только в браузерных файлах.
+# Вторая линия обороны — `test_browser_inventory_is_explicit`: любое случайное срабатывание
+# меняет раскладку по файлам и краснеет с именем файла, то есть «молча» не бывает.
+_BROWSER_FIXTURES = frozenset({"browser", "dashboard_browser"})
 
 
 def pytest_collection_modifyitems(config, items):
