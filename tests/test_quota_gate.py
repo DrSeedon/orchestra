@@ -1,6 +1,7 @@
 """#343: единственное правило допуска — диагональ с допуском плюс жёсткие 99%."""
 
-import importlib
+import importlib.util
+import sys
 from datetime import datetime, timezone
 
 import pytest
@@ -77,7 +78,14 @@ def _reload_quota_gate_with_env(monkeypatch, **overrides: str | None):
         if value is None:
             continue
         monkeypatch.setenv(name, value)
-    return importlib.reload(quota_gate)
+    # Reloading the live module changes QuotaGateError identity beneath modules
+    # that already imported it, making later compaction tests order-dependent.
+    name = "_quota_gate_env_probe"
+    spec = importlib.util.spec_from_file_location(name, quota_gate.__file__)
+    module = importlib.util.module_from_spec(spec)
+    monkeypatch.setitem(sys.modules, name, module)
+    spec.loader.exec_module(module)
+    return module
 
 
 # ── сама линия ────────────────────────────────────────────────────────────────

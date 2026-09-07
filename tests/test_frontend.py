@@ -537,7 +537,8 @@ def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
     page.close()
 
 
-def test_model_xml_is_displayed_without_execution_verdict(browser: Browser):
+def test_model_xml_is_displayed_without_execution_verdict(dashboard_browser: Browser):
+    browser = dashboard_browser
     root = Path(__file__).parent.parent / "app/static"
     source = (root / "js/chat.js").read_text()
     app_source = (root / "js/app.js").read_text()

@@ -1,0 +1,150 @@
+Running as unit: run-p1879515-i1871367.scope; invocation ID: 2d424baffaeb49da845a02fc795ad5eb
+....FF.F                                                                 [100%]
+=================================== FAILURES ===================================
+_ TestQuotaGatedDeferredTurns.test_native_codex_compact_is_gated_before_backend _
+
+self = <tests.test_session.TestQuotaGatedDeferredTurns object at 0x77e3908d1190>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_prompt='test', prompt_ov...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_native_codex_compact_is_gated_before_backend(self, session):
+        from app.quota_gate import QuotaGateError
+
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session._admission_service = AsyncMock(return_value=_quota_decision(
+            "blocked", model="gpt-5.6-sol",
+        ))
+        session._ensure_backend = AsyncMock()
+
+>       with pytest.raises(QuotaGateError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.quota_gate.QuotaGateError'>
+
+tests/test_session.py:5240: Failed
+___ TestQuotaGatedDeferredTurns.test_claude_summary_is_gated_before_backend ____
+
+self = <tests.test_session.TestQuotaGatedDeferredTurns object at 0x77e3908d17c0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77e38dc4e870>
+
+    @pytest.mark.asyncio
+    async def test_claude_summary_is_gated_before_backend(self, session, monkeypatch):
+        from app.quota_gate import QuotaGateError
+
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        session._admission_service = AsyncMock(return_value=_quota_decision("blocked"))
+        session._make_backend = MagicMock(side_effect=AssertionError("backend started"))
+
+>       with pytest.raises(QuotaGateError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.quota_gate.QuotaGateError'>
+
+tests/test_session.py:5254: Failed
+_ TestQuotaGatedDeferredTurns.test_ack_quota_cross_retains_summary_then_later_commits_once _
+
+self = <tests.test_session.TestQuotaGatedDeferredTurns object at 0x77e3908d2420>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77e38db4b260>
+
+    @pytest.mark.asyncio
+    async def test_ack_quota_cross_retains_summary_then_later_commits_once(
+        self, session, monkeypatch,
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        summary = "TASK STATE: retained compaction summary. " + "x" * 260
+
+        class SummaryBackend:
+            def __init__(self, session_id):
+                self.session_id = session_id
+                self.sent = []
+
+            async def connect(self):
+                return None
+
+            async def send(self, message):
+                self.sent.append(message)
+
+            async def events(self):
+                yield AgentEvent("text", summary)
+                yield AgentEvent("turn_end", metadata={
+                    "session_id": self.session_id,
+                    "ok": True,
+                    "stop_reason": "end_turn",
+                    "num_turns": 1,
+                })
+
+            async def disconnect(self):
+                return None
+
+        first_summary = SummaryBackend("summary-one")
+        second_summary = SummaryBackend("summary-two")
+        ack_backend = AsyncMock()
+        ack_backend.resume_failed = False
+
+        summaries = [first_summary, second_summary]
+
+        async def ensure_backend(force_fresh=False, activate=True):
+            if not force_fresh:
+                backend = summaries.pop(0)
+                session._backend = backend
+                return backend
+
+            async def complete_ack():
+                await asyncio.sleep(0)
+                session.session_id = "committed-session"
+                session.status = AgentStatus.IDLE
+                session._compact_ack_event.set()
+
+            asyncio.create_task(complete_ack())
+            return ack_backend
+
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        session.session_id = "old-session"
+        session.history_import_source = "logs:claude"
+        session.session_id_history = []
+        session._prompt_injected = True
+        session._pending_messages = ["retained pending"]
+        session._make_backend = MagicMock()
+        session._ensure_backend = ensure_backend
+        spawned = []
+
+        def discard_background(coroutine):
+            spawned.append(coroutine)
+            coroutine.close()
+
+        session._spawn_bg = discard_background
+        session._admission_service = AsyncMock(side_effect=[
+            _quota_decision(), _quota_decision("blocked"),
+        ])
+
+>       deferred = await session.compact()
+                   ^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_session.py:5380:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/session.py:2978: in compact
+    permit = await self._compaction_permit()
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/session.py:2684: in _compaction_permit
+    require_worker_admission(decision)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+decision = QuotaDecision(state='blocked', model='claude-sonnet-5[1m]', provider='anthropic', provider_label='Claude', lane='claud...ne, window_starts_at=None, reason='test decision', hard_limit_pct=99.0, release_status='open', release_in_seconds=None)
+
+    def require_worker_admission(decision: QuotaDecision) -> None:
+        """Отказать только состоявшемуся блоку. `unknown` пропускает — см. модуль."""
+        if decision.state == "blocked":
+>           raise QuotaGateError(decision)
+E           app.quota_gate.QuotaGateError: New worker turn blocked: Claude quota is 97% — test decision.
+
+app/quota_gate.py:577: QuotaGateError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:165 preserved tail unavailable for test-001: no such table: logs
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestQuotaGatedDeferredTurns::test_native_codex_compact_is_gated_before_backend
+FAILED tests/test_session.py::TestQuotaGatedDeferredTurns::test_claude_summary_is_gated_before_backend
+FAILED tests/test_session.py::TestQuotaGatedDeferredTurns::test_ack_quota_cross_retains_summary_then_later_commits_once
+3 failed, 5 passed in 2.71s
