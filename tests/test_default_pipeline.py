@@ -381,7 +381,7 @@ class TestBehaviourRulesLandedAtOwners:
          "roles/orchestrator.md", ("orchestrator",), "Завершённый research пересказывай"),
         ("Facts from a command arrive as a file, never retyped.",
          "modules/worker-lifecycle.md", SPAWNERS, "требуй `cmd > path.txt 2>&1`"),
-        ("No barrier → name the LAST child as the collector",
+        ("`run_fan` — НЕ для оркестратора.",
          "modules/orchestration.md", ORCH, "барьер `open_fan`"),
         ("Two children check each other only across a VERBATIM overlap.",
          "modules/worker-lifecycle.md", SPAWNERS, "пересекающиеся задания ради взаимной проверки"),
