@@ -1,18 +1,38 @@
 #!/usr/bin/env python3
-"""Validate only new or changed structured facts in project-local .orchestra/kb."""
+"""Validate only new or changed structured facts in project-local .orchestra/kb.
+
+A structured fact declares a stable key in the TAIL of its bullet — `` · ключ `fact:<key>` `` —
+not at the head. #523 retired the head form on the owner's decision: a record that opens with a
+machine key is not read by a human, and the key is only needed when another record or code
+points at it. Bullets without a key are plain prose and stay grandfathered, exactly as
+non-`fact:` bullets always were.
+"""
 
 from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 
-FACT_PREFIX = "- `fact:"
-FACT_RE = re.compile(r"^- `fact:([^`]+)` — .+")
+FACT_KEY_FIELD = " · ключ `fact:"
+FACT_RE = re.compile(r"^- (.*?) · ключ `fact:([^`]+)`(?: \([^)]*\))?\s*$")
 KEY_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+# A pointer into our own task artifacts; `docs/tasks/…` is the pre-migration spelling of the
+# same thing, so both are gated. Anything else in a record (upstream repositories, absolute
+# host paths, synthetic file names in a scratch experiment) is not ours to keep openable.
+TASK_PATH_RE = re.compile(r"""(?<![\w/])(?:\.orchestra|docs)/tasks/[^\s,;·)\]`'"]*[./][^\s,;·)\]`'"]+""")
+# `· открыть:` is the single field that says how to open a path missing from the working tree.
+# Only this field grants coverage: `→` and `git show` occur all over the KB as ordinary prose,
+# and a record must not close its own pointer by accident. Items are separated by `; `, so a
+# reason may not contain one; every form names the missing path, so coverage is per path.
+OPEN_FIELD_RE = re.compile(r" · открыть: (.*)$")
+SNAPSHOT_RE = re.compile(r"\A`git show ([0-9a-f]{40}):([^`]+)`\Z")
+MOVED_RE = re.compile(r"\A(\S+) → `([^`]+)`\Z")
+ABSENT_RE = re.compile(r"\A(\S+) — нет в репозитории:(.*)\Z")
 HUNK_RE = re.compile(
     r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@"
 )
@@ -111,7 +131,7 @@ def parse_changed_lines(diff_text: str) -> tuple[list[DiffLine], list[DiffLine]]
     return added, deleted
 
 
-def resolve_changed_path(root: Path, relative: str) -> Path:
+def resolve_changed_path(root: Path, relative: str, *, must_exist: bool = True) -> Path:
     candidate = Path(relative)
     if candidate.is_absolute():
         raise ValueError("changed path is absolute")
@@ -129,7 +149,9 @@ def resolve_changed_path(root: Path, relative: str) -> Path:
         raise ValueError("changed path resolves outside project-local KB") from exc
     if resolved.suffix != ".md":
         raise ValueError("changed KB path must be a Markdown file")
-    if not resolved.is_file():
+    # A removed line may belong to a topic that this very change merged away, so its file is
+    # allowed to be gone; only the surviving-key rule below still applies to it.
+    if must_exist and not resolved.is_file():
         raise ValueError("changed KB file does not exist")
     return resolved
 
@@ -146,7 +168,7 @@ def _sections(lines: list[str]) -> dict[int, str | None]:
 
 def _fact_key(line: str) -> str | None:
     match = FACT_RE.match(line)
-    return match.group(1) if match else None
+    return match.group(2) if match else None
 
 
 def _schema_rename_only(old: str, new: str) -> bool:
@@ -266,6 +288,116 @@ def validate_link(root: Path, source: Path, line_number: int, line: str, key: st
     return errors
 
 
+def _trim_locator(repo: Path, raw: str) -> str:
+    """`file.py:12` / `file.json:key` / `plan.md#anchor` → the file, while that helps."""
+    pointer = raw.rstrip(".,;:").split("#", 1)[0]
+    while ":" in pointer and not (repo / pointer).exists():
+        pointer = pointer.rsplit(":", 1)[0]
+    return pointer
+
+
+def validate_task_pointers(root: Path, path: Path, line_number: int, line: str) -> list[str]:
+    """A pointer into our task artifacts must stay openable after the file itself is gone.
+
+    A path that still resolves in the working tree needs nothing. One that does not must be
+    covered by a `· открыть:` entry that NAMES THAT PATH — coverage is addressed, never
+    positional, so a record with two pointers cannot leave one of them shut. Three forms:
+
+    - ``<путь> → `<живой путь>``` — moved; the target must exist and differ from the pointer;
+    - ``` `git show <sha40>:<путь>` ``` — a snapshot; the blob must exist in the object store;
+    - ``<путь> — нет в репозитории: <почему>`` — gone for good; the reason must be a real
+      sentence, because this form is the escape hatch and an empty one closes nothing.
+    """
+    prefix = f"{path}:{line_number}"
+    errors: list[str] = []
+    repo = _repo_root(root)
+    openers: dict[str, str] = {}
+
+    field = OPEN_FIELD_RE.search(line)
+    for item in (field.group(1).split("; ") if field else []):
+        item = item.strip().rstrip(".")
+        moved, snapshot, absent = MOVED_RE.match(item), SNAPSHOT_RE.match(item), ABSENT_RE.match(item)
+        if moved:
+            pointer, target = moved.group(1).rstrip(".,;:"), moved.group(2)
+            # `(repo / target)` on an absolute target silently yields the target itself, so
+            # without this an out-of-repo file — `/etc/hosts`, `../anything` — would "cover"
+            # a dead pointer. The replacement has to live in this repository or it is not one.
+            # The lexical check alone is not enough: `is_file()` follows symlinks, so a
+            # committed link with an innocent name resolves outside and would still count.
+            # Both questions are asked of ONE object: `resolved` is what the containment check
+            # accepted, so it is also what has to be a file. Re-walking `repo / target` would
+            # traverse the mutable original path a second time and could answer about something
+            # else entirely.
+            resolved = (repo / target).resolve()
+            repo_root = repo.resolve()
+            inside = resolved == repo_root or repo_root in resolved.parents
+            if Path(target).is_absolute() or ".." in Path(target).parts or not inside:
+                errors.append(f"{prefix}: moved-to target must stay inside the repository: {target}")
+            elif not resolved.is_file():
+                errors.append(f"{prefix}: moved-to target does not exist: {pointer} → {target}")
+            elif target == pointer:
+                errors.append(f"{prefix}: moved-to target repeats the missing path: {pointer}")
+            else:
+                openers[pointer] = "moved"
+        elif snapshot:
+            sha, target = snapshot.groups()
+            probe = subprocess.run(
+                ["git", "-C", str(repo), "cat-file", "-e", f"{sha}:{target}"],
+                capture_output=True,
+            )
+            if probe.returncode != 0:
+                errors.append(f"{prefix}: snapshot anchor does not open: git show {sha}:{target}")
+            else:
+                openers[target] = "snapshot"
+        elif absent:
+            pointer, reason = absent.group(1).rstrip(".,;:"), absent.group(2)
+            # This is the escape hatch an author reaches for when nothing else works, so it has
+            # to pay for itself: two real words at least, not a bare colon.
+            if len(re.findall(r"\w{3,}", reason)) < 2:
+                errors.append(
+                    f"{prefix}: '{pointer} — нет в репозитории:' needs a reason, "
+                    f"got {reason.strip()!r}"
+                )
+            else:
+                openers[pointer] = "absent"
+        else:
+            errors.append(f"{prefix}: unreadable '· открыть:' entry: {item!r}")
+
+    for raw in TASK_PATH_RE.findall(line):
+        if any(character in raw for character in "<*{"):
+            continue
+        pointer = _trim_locator(repo, raw)
+        if (repo / pointer).exists() or pointer in openers:
+            continue
+        errors.append(
+            f"{prefix}: {pointer} is not in the working tree and no '· открыть:' entry names "
+            "it (`<путь> → `<живой путь>``, `git show <sha40>:<путь>`, "
+            "or `<путь> — нет в репозитории: <почему>`)"
+        )
+    return errors
+
+
+_MARKUP_PATTERNS = (
+    r"`+[^`]*`+",                  # code spans, including ``double`` ones
+    r"!?\[[^\]]*\]\([^)]*\)",      # inline links and images
+    r"\[[^\]]*\]\[[^\]]*\]",       # reference links
+    r"<[^>]*>",                    # autolinks and HTML tags
+)
+
+
+def _strip_markup(text: str) -> str:
+    """Everything a reader sees as decoration rather than as a statement.
+
+    Letters inside a code span, a link or a tag belong to the markup, not to the claim, so
+    they must not keep an empty record alive. Removal is deliberately conservative — only
+    complete constructs — because over-stripping would refuse legitimate records instead.
+    """
+    text = text.replace("**", "")
+    for pattern in _MARKUP_PATTERNS:
+        text = re.sub(pattern, " ", text)
+    return text
+
+
 def validate_fact_line(
     root: Path,
     path: Path,
@@ -278,8 +410,15 @@ def validate_fact_line(
     prefix = f"{path}:{line_number}"
     match = FACT_RE.match(line)
     if not match:
-        return [f"{prefix}: malformed fact; expected '- `fact:kebab-key` — claim'"]
-    key = match.group(1)
+        return [f"{prefix}: malformed fact; expected '- claim … · ключ `fact:kebab-key`'"]
+    # `.*?` on its own accepted an empty head, so a bullet made of nothing but machine fields
+    # passed the gate. The claim is what the reader came for, and markup is not a claim: a head
+    # that is only a code span or only a link (`` `foo` ``, `[foo](bar)`) still has letters in
+    # it, so those are removed too and the remainder has to carry a word of its own.
+    claim = _strip_markup(re.split(r"\s·\s", match.group(1))[0])
+    if not re.search(r"\w", claim):
+        errors.append(f"{prefix}: fact has no claim; the bullet carries only fields and markup")
+    key = match.group(2)
     if not KEY_RE.fullmatch(key):
         errors.append(f"{prefix}: fact key must be lowercase kebab-case")
     if key_counts.get(key, 0) != 1:
@@ -288,23 +427,27 @@ def validate_fact_line(
         errors.append(
             f"{prefix}: structured facts belong only in Established, Rejected or Historical observations"
         )
-    search_field = re.search(r"(?:^|[ ·;])search:", line)
+    search_field = re.search(r"(?:^|[ ·;])(?:search|ищи):", line)
     if search_field is None:
-        errors.append(f"{prefix}: missing 'search:' literal anchors")
+        errors.append(f"{prefix}: missing 'ищи:' literal anchors")
     else:
-        anchors_field = line[search_field.end():]
-        for delimiter in (" · evidence:", " · links:", " · approved:"):
-            anchors_field = anchors_field.split(delimiter, 1)[0]
+        # The anchors field runs to the next ` · ` separator; everything after it is evidence.
+        anchors_field = line[search_field.end():].split(" · ", 1)[0]
         anchors = ANCHOR_RE.findall(anchors_field)
         if not 1 <= len(anchors) <= 6:
-            errors.append(f"{prefix}: 'search:' requires 1–6 quoted literal anchors")
-    if " · evidence:" not in line:
-        errors.append(f"{prefix}: missing inline evidence")
-    else:
+            errors.append(f"{prefix}: 'ищи:' requires 1–6 quoted literal anchors")
+    if " · evidence:" in line:
         evidence = line.split(" · evidence:", 1)[1]
         evidence = evidence.split(" · ", 1)[0].strip()
         if not evidence:
             errors.append(f"{prefix}: inline evidence must not be empty")
+    else:
+        # Everything after the anchors is evidence; the trailing key is not evidence about
+        # anything, so it is cut off before the check.
+        tail = line.split(" · ищи:", 1)[-1].split(FACT_KEY_FIELD, 1)[0]
+        tail = tail.split(" · ", 1)[1] if " · " in tail else ""
+        if not re.search(r"`[^`]+`|https?://", tail):
+            errors.append(f"{prefix}: missing inline evidence")
     errors.extend(validate_link(root, path, line_number, line, key))
     return errors
 
@@ -319,20 +462,20 @@ def validate(root: Path, diff_path: Path) -> list[str]:
     added_lines, deleted_lines = parse_changed_lines(
         diff_path.read_text(encoding="utf-8")
     )
-    replacement_keys: dict[str, set[str]] = {}
+    replacement_keys: set[str] = set()
     for changed in added_lines:
         key = _fact_key(changed.text)
         if key is not None:
-            replacement_keys.setdefault(changed.relative_path, set()).add(key)
+            replacement_keys.add(key)
     for removed in deleted_lines:
         try:
-            path = resolve_changed_path(root, removed.relative_path)
+            path = resolve_changed_path(root, removed.relative_path, must_exist=False)
         except ValueError as exc:
             errors.append(f"{removed.relative_path}:{removed.line_number}: {exc}")
             continue
-        if removed.text.startswith(FACT_PREFIX):
+        if FACT_KEY_FIELD in removed.text:
             key = _fact_key(removed.text)
-            if key is None or key not in replacement_keys.get(removed.relative_path, set()):
+            if key is None or key not in replacement_keys:
                 label = f"fact:{key}" if key is not None else "structured fact"
                 errors.append(
                     f"{path}:{removed.line_number}: deleted {label} must be replaced "
@@ -360,7 +503,7 @@ def validate(root: Path, diff_path: Path) -> list[str]:
                 f"{path}:{added.line_number}: diff line does not match the current KB file"
             )
             continue
-        if "candidate-link" in added.text and not added.text.startswith(FACT_PREFIX):
+        if "candidate-link" in added.text and FACT_KEY_FIELD not in added.text:
             errors.append(
                 f"{path}:{added.line_number}: candidate-link belongs in .orchestra/tasks, not canonical KB"
             )
@@ -368,7 +511,11 @@ def validate(root: Path, diff_path: Path) -> list[str]:
             errors.append(
                 f"{path}:{added.line_number}: legacy KB section heading; use English schema names"
             )
-        if added.text.startswith(FACT_PREFIX):
+        # Not only bullets: a pointer added in a paragraph, a heading or a continuation line
+        # is exactly as dead as one in a record, and used to pass unchecked.
+        if TASK_PATH_RE.search(added.text):
+            errors.extend(validate_task_pointers(root, path, added.line_number, added.text))
+        if FACT_KEY_FIELD in added.text:
             key = _fact_key(added.text)
             if key is not None and any(
                 removed.relative_path == added.relative_path
@@ -387,7 +534,7 @@ def validate(root: Path, diff_path: Path) -> list[str]:
                     counts,
                 )
             )
-        elif re.match(r"^\s+(?:search:|evidence:|links:|approved:)", added.text):
+        elif re.match(r"^\s+(?:search:|ищи:|evidence:|links:|approved:)", added.text):
             errors.append(
                 f"{path}:{added.line_number}: fact fields must stay on the fact bullet line"
             )

@@ -72,7 +72,7 @@ def test_index_comes_from_the_agent_scope_not_from_orchestra(project):
     prompt = ROLE_SYSTEM_PROMPT(DEFAULT_PIPELINE, "worker", str(project))
     assert "Квоты: пулы и лимиты" in prompt
     # Orchestra's own topics must not leak into another project's prompt.
-    assert "prompt-delivery.md" not in prompt
+    assert "agent-control.md" not in prompt
 
 
 @pytest.mark.parametrize("state", ["no_scope", "no_kb_dir", "no_readme", "empty_index"])
