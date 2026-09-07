@@ -11,3 +11,27 @@
 ## Verdict
 
 NEEDS CHANGES.
+
+## Round (2026-09-07T13:22:18Z)
+
+<!-- codex-review-metadata: {"reviewer_model": "gpt-5.6-luna"} -->
+
+## Round 2
+
+## Summary
+
+Предыдущее замечание FIXED. В новом diff изменён только `tests/conftest.py`: `page` и `browser_context` удалены; остальные файлы поверхности не изменились.
+
+## Findings
+
+Нет blocking/suggestion/question. В разрешённой поверхности нет конкретного небраузерного использования `browser` или `dashboard_browser`; набор теперь ограничен однозначными именами.
+
+## Verdict
+
+APPROVED
+
+Дословная строка из изменённого файла:
+
+```python
+item.add_marker("browser")
+```
