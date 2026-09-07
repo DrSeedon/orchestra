@@ -11,9 +11,13 @@ import pytest
 
 
 @pytest.fixture
-def session(monkeypatch):
+def session(monkeypatch, tmp_path):
     from app.session import AgentSession
 
+    claude_config = tmp_path / "claude-config"
+    claude_config.mkdir()
+    (claude_config / ".credentials.json").write_text("{}")
+    monkeypatch.setenv("CLAUDE_CONFIG_DIR", str(claude_config))
     monkeypatch.setattr("app.session.save_session", MagicMock())
     monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
     monkeypatch.setattr("app.bg_jobs.bg_manager", None)
