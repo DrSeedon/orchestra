@@ -115,7 +115,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert f"-o {output}.round" in command
     assert "codex_review_artifact.py" in command
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
-    assert ("--require-verdict" in command) is (mode == "exec")
+    assert "--require-verdict" in command
     assert command.index("rm -f") < command.index(" | tee ")
     assert "Scale: test-owned production" in command
     assert "PROJECT CONTEXT IS UNKNOWN" not in command

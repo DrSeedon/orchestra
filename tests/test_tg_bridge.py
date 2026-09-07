@@ -4800,31 +4800,6 @@ class TestReadImagePreview:
         assert captured["isolated_preview"] is True
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize(
-    ("content", "marked"),
-    [
-        ('câ{"cmd":"pwd"}</parameter>\n</invoke>', True),
-        ("The invoke helper receives a parameter and returns normally.", False),
-        (
-            "Documentation example:\n```xml\n<function_calls>\n"
-            '<invoke name="Bash"><parameter name="cmd">pwd</parameter></invoke>\n'
-            "```",
-            False,
-        ),
-    ],
-)
-async def test_text_tool_call_marker_reaches_topic_and_mirror(
-    tb, monkeypatch, content, marked,
-):
-    log_calls = 0
-
-    class FakeConn:
-        def close(self):
-            pass
-
-
-
 class TestTurnFoldStream:
     """Поток целиком: что мост РЕАЛЬНО отправляет за ход."""
 
@@ -4856,8 +4831,24 @@ class TestTurnFoldStream:
         # Anchor on the bridge's own primary-TG send node, not the whole event stream.
         assert not [item for item in sent if raw_content in item["text"]]
 
+    @pytest.mark.asyncio
+    async def test_model_xml_reaches_topic_and_mirror_without_false_warning(self, tb, monkeypatch):
+        text = '<function_calls><invoke name="Bash"><parameter name="cmd">pwd</parameter></invoke>'
+        formatted = []
+        def chunks(raw):
+            formatted.append(raw)
+            yield raw, []
+        monkeypatch.setattr(tb, '_formatted_chunks', chunks)
+        mirrored = []
+        sent, _, _ = await self._run(tb, monkeypatch, [[
+            {'id': 1, 'type': 'text', 'content': text},
+        ]], mirror_output=mirrored)
+        assert formatted == ['💬\n' + text]
+        assert mirrored == ['💬\n' + text]
+        assert any(item['text'] == '💬\n' + text for item in sent)
+
     async def _run(self, tb, monkeypatch, batches, overload_first_anchor=False,
-                   overload_after_anchor=False):
+                   overload_after_anchor=False, mirror_output=None):
         sent, expandables, edits = [], [], []
         calls = {"n": 0, "anchor": 0}
 
@@ -4898,6 +4889,8 @@ class TestTurnFoldStream:
         monkeypatch.setattr(tb, "_send_expandable", send_expandable)
         monkeypatch.setattr(tb, "_tg_edit_message_safe", edit_safe)
         async def mirror_send(orch, text, **kw):
+            if mirror_output is not None:
+                mirror_output.append(text)
             # Зеркало отправляется ПОСЛЕ якоря в том же обходе строки: если перегрузка
             # приходит здесь, якорь уже ушёл, а курсор всё равно откатится.
             if overload_after_anchor and text.startswith("━") and calls["anchor"] == 1:

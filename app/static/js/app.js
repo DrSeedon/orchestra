@@ -4337,19 +4337,9 @@ function _renderTranscriptMsg(m) {
 
     if (typeof c === 'string') {
         if (!c.trim()) return '';
-        const warning = role === 'assistant'
-            ? _unexecutedToolCallWarningHtml(c)
-            : '';
         push(role === 'user' ? '🔧 tool result' : '🤖 субагент',
-             role === 'user' ? '#38bdf8' : '#a78bfa', warning + _saCollapsible(c));
+             role === 'user' ? '#38bdf8' : '#a78bfa', _saCollapsible(c));
     } else if (Array.isArray(c)) {
-        let textWarning = role === 'assistant'
-            ? _unexecutedToolCallWarningHtml(
-                c.filter(block => block?.type === 'text')
-                    .map(block => block.text || '')
-                    .join('\n')
-            )
-            : '';
         for (const block of c) {
             if (!block || typeof block !== 'object') {
                 const t = String(block); if (t.trim()) push('•', '#64748b', _saCollapsible(t));
@@ -4357,8 +4347,7 @@ function _renderTranscriptMsg(m) {
             }
             if (block.type === 'text') {
                 if ((block.text || '').trim()) {
-                    push('🤖 субагент', '#a78bfa', textWarning + _saCollapsible(block.text));
-                    textWarning = '';
+                    push('🤖 субагент', '#a78bfa', _saCollapsible(block.text));
                 }
             } else if (block.type === 'tool_use') {
                 const name = block.name || 'tool';

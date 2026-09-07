@@ -3624,36 +3624,6 @@ _CALLER_PROJECT_HEADING_RE = re.compile(
     r"(?:\s*\([^\r\n)]*\))?\s*:?\s*(?:[*_`]\s*)*(?:#{1,6}\s*)?$",
     re.IGNORECASE,
 )
-_CODEX_EXECUTION_FAILURE_PATTERN = (
-    r"bwrap:|failed rtm_newaddr|setting up uid map: permission denied|"
-    r"sandbox.{0,80}(fail|reject)|no files were read|"
-    r"(every|all) (local )?commands? failed|"
-    r"(could not|unable to) (read|inspect|execute|review).{0,120}(sandbox|file)"
-)
-_CODEX_EXECUTION_FAILURE_JSONL_CHECK = """\
-import json
-import re
-import sys
-
-pattern = re.compile(sys.argv[2], re.IGNORECASE)
-with open(sys.argv[1], encoding="utf-8", errors="replace") as source:
-    for line in source:
-        try:
-            event = json.loads(line)
-        except (json.JSONDecodeError, TypeError):
-            continue
-        if not isinstance(event, dict):
-            continue
-        item = event.get("item")
-        if (isinstance(item, dict) and item.get("type") == "agent_message"
-                and pattern.search(str(item.get("text", "")))):
-            raise SystemExit(0)
-raise SystemExit(1)
-"""
-_CODEX_EXECUTION_FAILURE_NOTE = (
-    "\n\n> **Execution guard failed:** Codex reported that it could not execute "
-    "workspace commands. The review above is preserved for diagnosis.\n"
-)
 
 
 def _git_review_bytes(cwd: str, *args: str) -> bytes:
@@ -4532,7 +4502,9 @@ async def codex_review(
         review_prompt = (
             f"{review_context}\n\nReview all current uncommitted changes in this worktree "
             "(staged, unstaged, and untracked). Inspect them with git status and git diff. "
-            "Find bugs, security issues, breaking changes, and race conditions."
+            "Find bugs, security issues, breaking changes, and race conditions. "
+            "Format: ## Summary, ## Findings, ## Verdict. Start Verdict with APPROVED, "
+            "NEEDS WORK, or INCOMPLETE. Use INCOMPLETE if you could not finish; preserve partial findings."
         )
         # Fresh review → codex_out: output_abs on a first run, round_tmp on a resume-fallback
         # (so the stale-session recovery is APPENDED as a round, never overwrites prior rounds).
@@ -4572,7 +4544,8 @@ async def codex_review(
             "Review the exact committed implementation snapshot pinned by the server.",
             f"Run `{diff_command}` and review that complete diff; do not substitute HEAD or a task file.",
             "Return the complete review in your final response. Do not edit files.",
-            "Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict",
+            "Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. "
+            "Use INCOMPLETE if you could not finish the requested review; preserve partial findings.",
         ]
         if is_resume:
             prompt_parts.insert(
@@ -4613,7 +4586,8 @@ async def codex_review(
                                      "Output a concise re-review (status of prior findings, new findings, verdict).")
         else:
             prompt_parts_exec.append("Return the complete review in your final response. Do not edit files.")
-        prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict")
+        prompt_parts_exec.append("Format: ## Summary, ## Findings (blocking/suggestion/question), ## Verdict. Start Verdict with APPROVED, NEEDS WORK, or INCOMPLETE. "
+            "Use INCOMPLETE if you could not finish the requested review; preserve partial findings.")
         exec_prompt = "\n".join(prompt_parts_exec)
 
         subcmd = f"exec resume {q(prev_uuid)}" if is_resume else "exec"
@@ -4675,8 +4649,7 @@ async def codex_review(
     ]
     if is_resume:
         finalize_args.append("--resume")
-    if mode in {"implementation", "exec"}:
-        finalize_args.append("--require-verdict")
+    finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
     terminal_recorder = " ".join([
         q(sys.executable), q(finalizer),
@@ -4699,11 +4672,6 @@ async def codex_review(
         f"- < /tmp/codex_review_{WORKER_NAME}_{slug}.txt "
         f"-o {output_abs}.round"
     )
-    failure_check = " ".join([
-        q(sys.executable), "-c", q(_CODEX_EXECUTION_FAILURE_JSONL_CHECK),
-        q(jsonl_file), q(_CODEX_EXECUTION_FAILURE_PATTERN),
-    ])
-
     # Remove stale temp state before each attempt. A service restart can kill the shell after
     # an old .rc=0 was written but before the artifact was persisted; reusing that file caused
     # false success. Codex's real exit code and the artifact validator must both pass.
@@ -4723,13 +4691,7 @@ async def codex_review(
         f"if [ \"$FINALIZE_RC\" -ne 0 ]; then "
         f"{terminal_recorder} --receipt-status failed --receipt-return-code 0 "
         f"--receipt-failure-code artifact_finalize; fi; "
-        f"[ \"$FINALIZE_RC\" -eq 0 ] || exit \"$FINALIZE_RC\"; "
-        f"if {failure_check}; then "
-        f"printf '%s' {q(_CODEX_EXECUTION_FAILURE_NOTE)} >> {q(output_abs)}; "
-        f"{terminal_recorder} --receipt-status failed --receipt-return-code 70 "
-        f"--receipt-failure-code execution_guard; "
-        f"echo 'codex_review failed: Codex could not execute workspace commands' >&2; "
-        f"exit 70; fi"
+        f"[ \"$FINALIZE_RC\" -eq 0 ] || exit \"$FINALIZE_RC\""
     )
 
     action = "resume" if is_resume else mode

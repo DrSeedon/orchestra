@@ -746,7 +746,7 @@ class TestRunExecOutcome:
         assert "FAILED" not in session.send.await_args.args[0]
 
     @pytest.mark.asyncio
-    async def test_exit_zero_verdict_with_bwrap_is_still_blind(
+    async def test_exit_zero_verdict_with_bwrap_is_preserved(
         self, db, mgr_mock, tmp_path,
     ):
         artifact = tmp_path / "codex-review-impl.md"
@@ -768,8 +768,8 @@ class TestRunExecOutcome:
         )
 
         row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-bwrap")
-        assert row["status"] == "failed"
-        assert "blind" in (row.get("error") or "").lower()
+        assert row["status"] == "triggered"
+        assert "bwrap:" in artifact.read_text()
 
     @pytest.mark.asyncio
     async def test_exit_zero_verdict_mentioning_sandbox_is_not_blind(

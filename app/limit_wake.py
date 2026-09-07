@@ -17,7 +17,6 @@ from app.db import (
 from app.errtext import err_text
 from app.events import MessageProvenance
 from app.models import backend_for_model
-from app.session import _subscription_limit_kind
 from app.session_state import AgentStatus
 
 logger = logging.getLogger(__name__)
@@ -73,15 +72,23 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
         for row in ordered
     ):
         return None
-    if "stop_sequence" not in latest["content"]:
-        return None
     previous_key = key(turn_ends[-2]) if len(turn_ends) > 1 else None
     turn_logs = [
         row for row in ordered
         if (previous_key is None or key(row) > previous_key)
         and key(row) <= latest_key
-        and row["type"] in {"text", "error", "status"}
+        and row["type"] in {"provider_limit", "error", "status"}
     ]
+    limits = [json.loads(row["content"]) for row in turn_logs if row["type"] == "provider_limit"]
+    if limits:
+        rejected = next((limit for limit in reversed(limits) if limit.get("status") == "rejected"), None)
+        if rejected is None:
+            return None
+        return ("overage" if rejected.get("rate_limit_type") == "overage" else "timed", latest["id"])
+    # Old sessions have only platform-written error/status rows. Never reconstruct
+    # a monthly limit from assistant text, even when a legacy banner looks exact.
+    if "stop_sequence" not in latest["content"]:
+        return None
     terminal_marker = any(
         row["type"] in {"error", "status"}
         and "subscription limit — ждём сброса квоты" in row["content"].lower()
@@ -90,7 +97,7 @@ def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
     if not terminal_marker:
         return None
     monthly = any(
-        _subscription_limit_kind(row["content"]) == "monthly"
+        "monthly spend limit" in row["content"].lower()
         for row in turn_logs
     )
     return ("monthly" if monthly else "timed", latest["id"])

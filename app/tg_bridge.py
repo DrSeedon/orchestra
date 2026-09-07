@@ -3381,11 +3381,9 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "text":
                         if is_silent_turn_text(c):
                             continue
-                        from app.tool_call_guard import mark_unexecuted_tool_call
-
                         await _update_progress(turn, thread_id, orch_name, force=True)
                         turn.new_block()
-                        raw_text = f"💬\n{mark_unexecuted_tool_call(c)}"
+                        raw_text = f"💬\n{c}"
                         for converted, aio_ents in _formatted_chunks(raw_text):
                             await _tg_send_safe(
                                 config["group_id"], converted, thread_id,

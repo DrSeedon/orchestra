@@ -1,0 +1,71 @@
+Running as unit: run-p1736397-i1742039.scope; invocation ID: 111d85b0666c415cae48e4ec098420af
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_apply_writes_the_full_receipt_row_for_every_declared_column _______
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-49/test_apply_writes_the_full_rec0')
+
+    def test_apply_writes_the_full_receipt_row_for_every_declared_column(tmp_path):
+        """#474 — покрытие ПРИМЕНЕНИЯ, а не только dry-run.
+
+        `_receipt` перечисляет колонки квитанции ДОСЛОВНО, а `_apply_receipts` вставляет
+        `receipt.get(key)` по `_REVIEW_RECEIPT_COLUMNS`. Это два владельца одного перечня: колонка,
+        добавленная в схему и забытая здесь, даёт `None` в `NOT NULL` — и падает только на
+        применении. До #474 применение не было покрыто ничем, поэтому дыра и дожила: dry-run
+        зелен при любом расхождении, потому что в базу не пишет.
+        """
+        import hashlib
+        import sqlite3
+
+        from app.db import _REVIEW_RECEIPT_COLUMNS
+
+        root = tmp_path / "root"
+        (root / ".orchestra" / "tasks" / "436").mkdir(parents=True)
+        artifact = root / ".orchestra" / "tasks" / "436" / "old-review.md"
+        artifact.write_bytes(b"legacy review\n")
+        payload = artifact.read_bytes()
+        manifest = tmp_path / "manifest.json"
+        manifest.write_text(json.dumps({
+            "schema_version": 1,
+            "artifacts": [
+                {
+                    "path": ".orchestra/tasks/436/old-review.md",
+                    "sha256": hashlib.sha256(payload).hexdigest(),
+                    "size_bytes": len(payload),
+                    "model": "gpt-5.6-sol",
+                    "model_source": "inferred_historical_default",
+                    "outcome": "unknown",
+                    "outcome_source": "unknown",
+                    "round": 1,
+                },
+            ],
+        }) + "\n")
+        db_path = tmp_path / "apply.db"
+
+        result = subprocess.run(
+            [sys.executable, "scripts/migrate_review_receipts.py",
+             "--apply", "--confirm-live",
+             "--manifest", str(manifest), "--db", str(db_path), "--root", str(root)],
+            capture_output=True,
+            text=True,
+        )
+
+>       assert result.returncode == 0, result.stderr or result.stdout
+E       AssertionError: Traceback (most recent call last):
+E           File "/mnt/data/Projects/Python/orchestra/scripts/migrate_review_receipts.py", line 224, in <module>
+E             raise SystemExit(main())
+E                              ^^^^^^
+E           File "/mnt/data/Projects/Python/orchestra/scripts/migrate_review_receipts.py", line 213, in main
+E             _apply_receipts(args.db, backup_path, receipts)
+E           File "/mnt/data/Projects/Python/orchestra/scripts/migrate_review_receipts.py", line 164, in _apply_receipts
+E             cursor = source.execute(
+E                      ^^^^^^^^^^^^^^^
+E         sqlite3.IntegrityError: NOT NULL constraint failed: review_receipts.production_path_heads_json
+E
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/mnt/data/Projects/Python/orchestra/.venv/bin/python', 'scripts/migrate_review_receipts.py', '...    ^^^^^^^^^^^^^^^\nsqlite3.IntegrityError: NOT NULL constraint failed: review_receipts.production_path_heads_json\n').returncode
+
+tests/test_review_receipt_migration_436.py:85: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_review_receipt_migration_436.py::test_apply_writes_the_full_receipt_row_for_every_declared_column
+1 failed in 1.75s

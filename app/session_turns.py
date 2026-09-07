@@ -5,7 +5,6 @@ All state stays on the session (persistence and event loop read it directly).
 """
 
 import asyncio
-import json
 import logging
 import math
 import time
@@ -19,51 +18,6 @@ from app.turn_markers import is_successful_silent_turn
 
 if TYPE_CHECKING:
     from app.session import AgentSession
-
-
-def _rewind_past_safeguard_refusal(s: "AgentSession") -> str:
-    """Отрезать стенограмму до последнего ЧИСТОГО хода. Возвращает пустую строку при отказе.
-
-    Забракованный текст остаётся в стенограмме CLI и едет в КАЖДЫЙ следующий запрос —
-    замер #155: следующий ход на постороннюю тему («лол бля») получил тот же отказ слово
-    в слово. Поэтому откат безусловный, а не по кнопке: без него сессия мертва навсегда.
-
-    Режем не «последнее сообщение», а всю цепочку отказов: второй упавший ход был сам по
-    себе безобидным, и откат только его оставил бы отраву на месте. Точка среза —
-    последний ответ ассистента, который НЕ является отказом фильтра.
-
-    Штатной операцией SDK (`fork_session`), а не правкой чужого файла: источник остаётся
-    нетронутым, форк получает свежие UUID. Проверено на живой стенограмме seedon —
-    1571 запись с 2 отравленными и 5 отказами → форк 1067 записей, 0 и 0.
-    """
-    from claude_agent_sdk import fork_session, get_session_messages
-
-    from app.session import _is_safeguard_refusal  # noqa: PLC0415 — циклический импорт на модуле
-
-    messages = get_session_messages(s.session_id, directory=s.cwd)
-    cut_at, dropped = "", 0
-    for message in reversed(messages):
-        payload = message.message if isinstance(message.message, dict) else {}
-        content = payload.get("content")
-        text = content if isinstance(content, str) else json.dumps(content, ensure_ascii=False)
-        if payload.get("role") == "assistant" and not _is_safeguard_refusal(text):
-            cut_at = message.uuid
-            break
-        dropped += 1
-    if not cut_at:
-        return ""
-    fork = fork_session(s.session_id, directory=s.cwd, up_to_message_id=cut_at)
-    s.session_id_history.append({
-        "session_id": s.session_id,
-        "runtime": s.backend_type,
-        "model": s.model,
-        "safeguard_rewind_at": datetime.now(timezone.utc).isoformat(),
-        "dropped_messages": dropped,
-    })
-    s.session_id_history = s.session_id_history[-10:]
-    s.session_id = fork.session_id
-    s._persist()
-    return f"{dropped}"
 
 
 logger = logging.getLogger("app.session")
@@ -427,44 +381,9 @@ class TurnManager:
         else:
             s._auto_continue_count = 0
 
-        # Второй гард, независимый от текста: режем историю только у ХОДА, который реально
-        # упал. 07.08 16:27:01 признак по одному тексту сработал на успешном `end_turn` —
-        # агент цитировал фразу отказа, объясняя инцидент, и здоровой сессии срезали ход.
-        if s._safeguard_refusal and not ok:
-            from app.session import (  # noqa: PLC0415 — циклический импорт
-                safeguard_guidance,
-                safeguard_request_id,
-                store_safeguard_refusal,
-            )
-
-            verbatim = s._safeguard_refusal
-            s._safeguard_refusal = ""
-            try:
-                dropped = _rewind_past_safeguard_refusal(s)
-            except Exception as e:
-                dropped = ""
-                logger.error(f"[{s.name}] safeguard rewind failed: {type(e).__name__}: {e}")
-            if dropped:
-                # Клиент CLI живёт между ходами и держит СТАРУЮ стенограмму: без разрыва
-                # соединения новый `session_id` никуда не поедет, и откат остался бы записью
-                # в журнале. Следующий `_ensure_backend()` поднимет CLI уже с форка.
-                s._spawn_bg(s._disconnect_backend())
-                # Громко: часть диалога исчезла не сама по себе.
-                s._log("status", f"🛡 отравленный ход отрезан: {dropped} сообщ. "
-                                 f"назад, сессия продолжена с форка {s.session_id}")
-            else:
-                s._log("error", "🛡 сессия отравлена забракованным текстом, откатить не удалось "
-                                "— продолжать в ней нельзя, нужна новая сессия")
-            try:
-                dump_path = store_safeguard_refusal(s.name, verbatim)
-            except Exception as e:
-                dump_path = ""
-                logger.error(f"[{s.name}] safeguard dump failed: {type(e).__name__}: {e}")
-            s._log("error", safeguard_guidance(safeguard_request_id(verbatim), dump_path))
-
         server_error_retry = None
         model_error = str(meta.get("model_error") or "")
-        if not ok and model_error == "server_error":
+        if not ok and model_error == "server_error" and not subscription_limited:
             if s._server_error_retries < s.SERVER_ERROR_MAX_RETRIES:
                 s._server_error_retries += 1
                 delay = s.SERVER_ERROR_RETRY_DELAY * s._server_error_retries
