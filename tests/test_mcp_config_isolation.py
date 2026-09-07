@@ -17,6 +17,11 @@ import pytest
 SECRET = "abcdefghijklmnopqrst"
 
 
+@pytest.fixture(autouse=True)
+def isolate_managed_codex_home(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", tmp_path / "managed-codex")
+
+
 def _claude_backend(**kw):
     from app.backend_claude import ClaudeBackend
     params = dict(
@@ -446,20 +451,20 @@ def test_t3_disconnect_does_not_delete_a_newer_backends_config():
 
 
 def test_t4_existing_threads_keep_their_rollouts(tmp_path, monkeypatch):
-    """Изоляция конфига не должна стоить истории.
-
-    Pre-mortem: свой пустой `sessions/` означал бы, что после рестарта у КАЖДОГО живого
-    Codex-агента пропадает `thread/resume` и молча обнуляется учёт токенов — на момент
-    правки в общем каталоге лежало 336 rollout-файлов. Секрет живёт в config.toml;
-    журнал ходов секретом не является и остаётся общим.
-    """
+    """Existing managed homes retain access to their original shared rollouts."""
     base = tmp_path / "base-codex"
     (base / "sessions").mkdir(parents=True)
     existing = base / "sessions" / "rollout-01OLDTHREAD.jsonl"
     existing.write_text("{}\n")
     monkeypatch.setenv("CODEX_HOME", str(base))
 
-    home = _codex_backend(mcp_servers=_servers("session-resume"))._prepare_codex_home()
+    import app.backend_codex as module
+    root = tmp_path / "managed"
+    home = root / "session-resume"
+    home.mkdir(parents=True)
+    (home / "sessions").symlink_to(base / "sessions")
+    monkeypatch.setattr(module, "_CODEX_HOME_ROOT", root)
+    assert _codex_backend(mcp_servers=_servers("session-resume"))._prepare_codex_home() == home
     assert (home / "sessions" / existing.name).exists(), (
         "rollout существующего треда не виден из нового CODEX_HOME → resume потерян"
     )

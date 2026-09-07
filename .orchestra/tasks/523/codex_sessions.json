@@ -6,6 +6,13 @@
       "last_used": "2026-09-06T16:06:40Z",
       "turns": 3,
       "reviewer_model": "gpt-5.6-luna"
+    },
+    "private-home-review": {
+      "uuid": "01a07a60-0600-7971-8af4-f570eb728a4c",
+      "started": "2026-09-07T05:41:12Z",
+      "last_used": "2026-09-07T05:41:12Z",
+      "turns": 1,
+      "reviewer_model": "gpt-5.6-luna"
     }
   }
 }

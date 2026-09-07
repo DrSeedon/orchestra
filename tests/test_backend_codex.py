@@ -38,6 +38,11 @@ from app.runtime_history import (
 )
 
 
+@pytest.fixture(autouse=True)
+def isolate_managed_codex_home(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", tmp_path / "managed-codex")
+
+
 class _FakeProcess:
     def __init__(self, pid=123):
         self.pid = pid

@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "selected_pair": "task-398-attempt3",
+  "pair_pipeline_complete": true,
+  "same_hidden_oracle": true,
+  "both_provider_completed": true,
+  "both_judged": true,
+  "availability_failures": 0,
+  "sessions_before": 467,
+  "sessions_after": 467,
+  "A": {
+    "classification": "model_failure",
+    "cost_usd": 0.057786
+  },
+  "B": {
+    "classification": "success",
+    "scout_cost_usd": 0.04225488,
+    "main_cost_usd": 0.051790159999999995,
+    "total_cost_usd": 0.09404504
+  },
+  "interpretation": "The full A/B measurement path reached provider completion and the same judge on both arms; quality differed, so cost cannot be read without the quality gate. This control measures the subject rather than provider availability."
+}

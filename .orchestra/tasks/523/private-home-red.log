@@ -1,0 +1,189 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+warning: Failed to hardlink files; falling back to full copy. This may lead to degraded performance.
+         If the cache and target directories are on different filesystems, hardlinking may not be supported.
+         If this is intentional, set `export UV_LINK_MODE=copy` or use `--link-mode=copy` to suppress this warning.
+Installed 76 packages in 5.67s
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+_______________ test_new_home_does_not_read_or_seed_shared_state _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_home_does_not_read_or0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73c92bce0d70>
+homes = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_home_does_not_read_or0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_home_does_not_read_or0/managed'))
+
+    @pytest.mark.asyncio
+    async def test_new_home_does_not_read_or_seed_shared_state(tmp_path, monkeypatch, homes):
+        # Without this guard every spawn can read/clone the entire shared thread index.
+        base, root = homes
+        be = backend(tmp_path, "fresh")
+        seen = []
+    
+        def unexpected_sqlite(*args, **kwargs):
+            pytest.fail("home preparation accessed SQLite instead of leaving state to Codex")
+    
+        async def provider_start():
+            home = root / "fresh"
+            seen.append(home)
+            assert not (home / "state_5.sqlite").exists()
+    
+        monkeypatch.setattr(sqlite3, "connect", unexpected_sqlite)
+        monkeypatch.setattr(be, "_connect_unlocked", provider_start)
+>       await be.connect()
+
+tests/test_codex_home_lifecycle.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1061: in connect
+    source = await _run_home_io(_select_managed_codex_state_source, home, cli_version)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_codex.py:471: in _run_home_io
+    return await asyncio.shield(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/threads.py:25: in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/concurrent/futures/thread.py:58: in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_codex.py:628: in _select_managed_codex_state_source
+    info = _inspect_codex_state(candidate, check_integrity=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/backend_codex.py:496: in _inspect_codex_state
+    with sqlite3.connect(uri, uri=True) as conn:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+args = ('file:/tmp/pytest-of-kesha/pytest-8791/test_new_home_does_not_read_or0/base/state_5.sqlite?mode=ro',)
+kwargs = {'uri': True}
+
+    def unexpected_sqlite(*args, **kwargs):
+>       pytest.fail("home preparation accessed SQLite instead of leaving state to Codex")
+E       Failed: home preparation accessed SQLite instead of leaving state to Codex
+
+tests/test_codex_home_lifecycle.py:41: Failed
+_______________ test_new_sessions_stay_private_across_reconnect ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73c929b91eb0>
+homes = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0/managed'))
+
+    @pytest.mark.asyncio
+    async def test_new_sessions_stay_private_across_reconnect(tmp_path, monkeypatch, homes):
+        # Sharing sessions would rebuild the same large index inside the CLI without seeding.
+        _, root = homes
+        be = backend(tmp_path, "private")
+        home = root / "private"
+        calls = 0
+    
+        async def provider_start():
+            nonlocal calls
+            sessions = home / "sessions"
+            assert sessions.is_dir() and not sessions.is_symlink()
+            assert not (sessions / "foreign.jsonl").exists()
+            if calls:
+                assert (sessions / "own.jsonl").read_text() == "own history"
+                assert (home / "state_5.sqlite").read_bytes() == b"provider state"
+            else:
+                (sessions / "own.jsonl").write_text("own history")
+                (home / "state_5.sqlite").write_bytes(b"provider state")
+            calls += 1
+    
+        monkeypatch.setattr(be, "_connect_unlocked", provider_start)
+>       await be.connect()
+
+tests/test_codex_home_lifecycle.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/backend_codex.py:1074: in connect
+    await self._connect_unlocked()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def provider_start():
+        nonlocal calls
+        sessions = home / "sessions"
+>       assert sessions.is_dir() and not sessions.is_symlink()
+E       AssertionError: assert (True and not True)
+E        +  where True = is_dir()
+E        +    where is_dir = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0/managed/private/sessions').is_dir
+E        +  and   True = is_symlink()
+E        +    where is_symlink = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0/managed/private/sessions').is_symlink
+
+tests/test_codex_home_lifecycle.py:66: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.backend_codex:backend_codex.py:635 ignoring invalid Codex state source /tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0/base/state_5.sqlite: cannot validate Codex state /tmp/pytest-of-kesha/pytest-8791/test_new_sessions_stay_private0/base/state_5.sqlite: DatabaseError: file is not a database
+WARNING  app.backend_codex:backend_codex.py:1065 skipping optional Codex state seed: no healthy Codex state source validated for CLI 0.153.4
+_____________ test_existing_sessions_link_is_not_retargeted[False] _____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0')
+homes = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0/managed'))
+broken = False
+
+    @pytest.mark.parametrize("broken", [False, True])
+    def test_existing_sessions_link_is_not_retargeted(tmp_path, homes, broken):
+        # A config refresh must not move an existing worker away from its history owner.
+        _, root = homes
+        home = root / "existing"
+        home.mkdir(parents=True)
+        target = tmp_path / "original-sessions"
+        if not broken:
+            target.mkdir()
+            (target / "own.jsonl").write_text("old history")
+        (home / "sessions").symlink_to(target)
+        (home / "state_5.sqlite").write_bytes(b"existing native state")
+        be = backend(tmp_path, "existing", "old-thread")
+        be._prepare_codex_home()
+>       assert (home / "sessions").readlink() == target
+E       AssertionError: assert PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0/base/sessions') == PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0/original-sessions')
+E        +  where PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0/base/sessions') = readlink()
+E        +    where readlink = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is0/managed/existing') / 'sessions').readlink
+
+tests/test_codex_home_lifecycle.py:97: AssertionError
+_____________ test_existing_sessions_link_is_not_retargeted[True] ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1')
+homes = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1/base'), PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1/managed'))
+broken = True
+
+    @pytest.mark.parametrize("broken", [False, True])
+    def test_existing_sessions_link_is_not_retargeted(tmp_path, homes, broken):
+        # A config refresh must not move an existing worker away from its history owner.
+        _, root = homes
+        home = root / "existing"
+        home.mkdir(parents=True)
+        target = tmp_path / "original-sessions"
+        if not broken:
+            target.mkdir()
+            (target / "own.jsonl").write_text("old history")
+        (home / "sessions").symlink_to(target)
+        (home / "state_5.sqlite").write_bytes(b"existing native state")
+        be = backend(tmp_path, "existing", "old-thread")
+        be._prepare_codex_home()
+>       assert (home / "sessions").readlink() == target
+E       AssertionError: assert PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1/base/sessions') == PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1/original-sessions')
+E        +  where PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1/base/sessions') = readlink()
+E        +    where readlink = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_sessions_link_is1/managed/existing') / 'sessions').readlink
+
+tests/test_codex_home_lifecycle.py:97: AssertionError
+______________ test_existing_empty_private_sessions_is_not_linked ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_empty_private_se0')
+homes = (PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_empty_private_se0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_empty_private_se0/managed'))
+
+    def test_existing_empty_private_sessions_is_not_linked(tmp_path, homes):
+        _, root = homes
+        sessions = root / "empty-private" / "sessions"
+        sessions.mkdir(parents=True)
+        inode = sessions.stat().st_ino
+        backend(tmp_path, "empty-private")._prepare_codex_home()
+>       assert not sessions.is_symlink()
+E       AssertionError: assert not True
+E        +  where True = is_symlink()
+E        +    where is_symlink = PosixPath('/tmp/pytest-of-kesha/pytest-8791/test_existing_empty_private_se0/managed/empty-private/sessions').is_symlink
+
+tests/test_codex_home_lifecycle.py:110: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_codex_home_lifecycle.py::test_new_home_does_not_read_or_seed_shared_state
+FAILED tests/test_codex_home_lifecycle.py::test_new_sessions_stay_private_across_reconnect
+FAILED tests/test_codex_home_lifecycle.py::test_existing_sessions_link_is_not_retargeted[False]
+FAILED tests/test_codex_home_lifecycle.py::test_existing_sessions_link_is_not_retargeted[True]
+FAILED tests/test_codex_home_lifecycle.py::test_existing_empty_private_sessions_is_not_linked
+5 failed in 7.32s
