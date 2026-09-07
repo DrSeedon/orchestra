@@ -1,0 +1,32 @@
+........................................................................ [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 41%]
+........................................................................ [ 55%]
+........................................................................ [ 69%]
+........................................................................ [ 83%]
+..............................................................F......... [ 97%]
+..............                                                           [100%]
+=================================== FAILURES ===================================
+_____________ test_unknown_leading_ref_is_still_refused_before_git _____________
+tests/test_merge_ref_gate.py:127: in test_unknown_leading_ref_is_still_refused_before_git
+    assert result["commit_point"] == "not_reached"
+E   AssertionError: assert 'target_committed' == 'not_reached'
+E
+E     - not_reached
+E     + target_committed
+----------------------------- Captured stderr call -----------------------------
+_reset_worktree_to_ref: /tmp/pytest-of-maxim/pytest-73/test_unknown_leading_ref_is_st0/worktrees/tmp-pytest-of-maxim-pytest-73-test-unknown-leading-ref-is-st0-repo/fake-ref-worker reset to main (450dd014)
+RAG scheduled backfill not ready scope='/tmp/pytest-of-maxim/pytest-73/test_unknown_leading_ref_is_st0/repo'
+------------------------------ Captured log call -------------------------------
+INFO     app.workspace:workspace.py:1192 _reset_worktree_to_ref: /tmp/pytest-of-maxim/pytest-73/test_unknown_leading_ref_is_st0/worktrees/tmp-pytest-of-maxim-pytest-73-test-unknown-leading-ref-is-st0-repo/fake-ref-worker reset to main (450dd014)
+WARNING  orchestra.rag_service:rag_service.py:276 RAG scheduled backfill not ready scope='/tmp/pytest-of-maxim/pytest-73/test_unknown_leading_ref_is_st0/repo'
+=============================== warnings summary ===============================
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=1867171) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_merge_ref_gate.py::test_unknown_leading_ref_is_still_refused_before_git
+1 failed, 517 passed, 2 warnings in 45.06s

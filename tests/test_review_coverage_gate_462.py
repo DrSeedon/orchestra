@@ -78,7 +78,7 @@ def _expected_production_snapshot(repo: Path, target_sha: str, worker_head: str)
 def _expected_policy_ref() -> str:
     owner = (
         Path(__file__).resolve().parents[1]
-        / ".orchestra/pipelines/default/prompts/skills/codex-debate.md"
+        / ".orchestra/guides/review-legacy-v1.md"
     )
     return "codex-debate@sha256:" + hashlib.sha256(owner.read_bytes()).hexdigest()
 

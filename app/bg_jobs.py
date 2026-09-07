@@ -439,7 +439,8 @@ class BgJobManager:
             coro = self._run_exec(job_id, config["command"], message, target_name,
                                   target_scope, timeout, host=host,
                                   success_file=config.get("success_file"),
-                                  success_pattern=config.get("success_pattern", ""))
+                                  success_pattern=config.get("success_pattern", ""),
+                                  review_advisory=bool(config.get("review_advisory")))
         elif job_type == "merge":
             coro = self._run_merge_watch(job_id, config["operation_id"], message,
                                          target_name, target_scope, timeout)
@@ -993,7 +994,7 @@ class BgJobManager:
 
     async def _run_exec(self, job_id, command, message, target_name,
                         target_scope, timeout, host=None, success_file=None,
-                        success_pattern=""):
+                        success_pattern="", review_advisory=False):
         proc = None
         reader_task = None
         output_buf = []
@@ -1083,7 +1084,7 @@ class BgJobManager:
                                 f"Required output artifact does not match success pattern: "
                                 f"{success_file}"
                             )
-                        else:
+                        elif not review_advisory:
                             validation_error = _blind_review_error(artifact, full_output)
                 except OSError as e:
                     validation_error = f"Cannot validate output artifact {success_file}: {e}"

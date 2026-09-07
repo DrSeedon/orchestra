@@ -38,7 +38,7 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
   plausible ones in proportion to risk; do not invent a quota of failure scenarios. Report
   checks actually performed and what remains unverified.
 - All changes committed (`git status` must be clean)
-- **Review route — after the pre-mortem:** Apply the review decision gate in the `codex-debate` skill; record its required file/consumer, author-model, named AC, command/output, route, and independence evidence. Never downgrade the route from prose alone
+- **Review route — after the pre-mortem:** Apply the review decision gate in the `codex-debate` skill; include the actual check result, optional review artifact, final commit, and remaining uncertainty in the ordinary result report
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code
 - If you figured out something non-obvious — written to `.orchestra/` or project files

@@ -140,6 +140,8 @@ def normalize_request(
     waived_by: str = "",
     task_outcome: str = "",
     merge_schema_version: int | None = None,
+    expected_head: str = "",
+    acceptance_note: str = "",
 ) -> dict[str, Any]:
     request = {
         "name": name.strip(),
@@ -153,6 +155,10 @@ def normalize_request(
     if merge_schema_version is not None:
         request["merge_schema_version"] = int(merge_schema_version)
         request["task_outcome"] = task_outcome.strip().lower()
+    if expected_head:
+        request["expected_head"] = expected_head.strip()
+    if acceptance_note:
+        request["acceptance_note"] = acceptance_note.strip()
     return request
 
 
@@ -490,7 +496,11 @@ def _admission_evidence(
             "matched": None,
         },
     }
-    if review:
+    if admission.get("acceptance_decision"):
+        evidence["acceptance_decision"] = dict(admission["acceptance_decision"])
+    if review.get("policy") == "work-review-v2":
+        evidence["review"] = review
+    elif review:
         evidence["review_coverage"] = {
             "required": bool(review.get("required")),
             "status": str(review.get("status") or "unknown"),
@@ -986,6 +996,13 @@ def _review_coverage_for_snapshot(
     *, accepted: dict[str, Any], request: dict[str, Any], target_sha: str,
     changed: list[str], active: bool,
 ) -> dict[str, Any]:
+    from app.work_review import assignment, is_advisory, summarize_review
+    scope = str(request.get("scope") or accepted.get("scope") or "").rstrip("/")
+    task_id = str(accepted.get("task_id") or "")
+    if is_advisory(assignment(scope, str(accepted["session_id"]), task_id)):
+        return summarize_review(scope=scope, session_id=str(accepted["session_id"]),
+                                task_id=task_id, worktree=accepted["worktree_path"],
+                                worker_head=str(accepted["worker_head"]))
     from app.review_coverage import (
         coverage_decision,
         production_paths,
@@ -1185,6 +1202,12 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
     mismatches = [
         key for key, value in expected.items() if current.get(key) != value
     ]
+    decision = (record.get("accepted_admission") or {}).get("acceptance_decision")
+    if decision:
+        from app.work_review import assignment
+        run = assignment(current["scope"], record["session_id"], str(current.get("task_id") or ""))
+        if not run or run["receipt_id"] != decision.get("task_run_id") or run["status"] != "requested":
+            mismatches.append("task_run")
     if mismatches:
         return current, f"session identity changed before merge: {', '.join(mismatches)}"
     return current, ""
@@ -1932,7 +1955,8 @@ async def _run_operation(operation_id: str) -> None:
     try:
         current, mismatch = await asyncio.to_thread(_verify_accepted_snapshot, record)
         coverage_block = None
-        if not mismatch and review_coverage_policy_active():
+        if (not mismatch and review_coverage_policy_active()
+                and not (record.get("accepted_admission") or {}).get("acceptance_decision")):
             pinned_admission = dict(record.get("accepted_admission") or {})
             refreshed_review = await asyncio.to_thread(
                 _revalidate_review_coverage, record, current,
@@ -2283,6 +2307,9 @@ async def accept_merge_operation(
     waived_by: str = "",
     task_outcome: str = "",
     merge_schema_version: int | None = None,
+    expected_head: str = "",
+    acceptance_note: str = "",
+    accepting_actor: str = "",
 ) -> tuple[dict[str, Any], int]:
     request = normalize_request(
         name=name,
@@ -2293,6 +2320,8 @@ async def accept_merge_operation(
         waived_by=waived_by,
         task_outcome=task_outcome,
         merge_schema_version=merge_schema_version,
+        expected_head=expected_head,
+        acceptance_note=acceptance_note,
     )
     try:
         canonical_id = _operation_id(operation_id)
@@ -2307,6 +2336,8 @@ async def accept_merge_operation(
     existing = await asyncio.to_thread(get_operation_record, canonical_id)
     digest = request_hash(request)
     if existing:
+        if existing.get("accepted_admission", {}).get("acceptance_decision") and not accepting_actor:
+            return _base_result(canonical_id, "FAILED", error=_error("MERGE_ACCEPTOR_REQUIRED", "An authenticated acceptor is required (orchestrator, owner, or full-cycle parent into its own branch)", operation_id=canonical_id, status=403)), 403
         if existing["request_hash"] != digest:
             return _idempotency_conflict(canonical_id, existing, digest), 409
         if existing["state"] == "PENDING":
@@ -2386,6 +2417,23 @@ async def accept_merge_operation(
     review_coverage = dict(
         accepted.get("admission", {}).get("review_coverage") or {}
     )
+    from app.work_review import assignment, is_advisory
+    task_run = assignment(request["scope"], str(accepted["session_id"]), str(accepted.get("task_id") or ""))
+    if is_advisory(task_run) or review_coverage.get("policy") == "work-review-v2":
+        if not accepting_actor:
+            return _base_result(canonical_id, "FAILED", error=_error("MERGE_ACCEPTOR_REQUIRED", "An authenticated acceptor is required (orchestrator, owner, or full-cycle parent into its own branch)", operation_id=canonical_id, status=403)), 403
+        if not request.get("expected_head") or not request.get("acceptance_note"):
+            return _base_result(canonical_id, "FAILED", error=_error("WORK_ACCEPTANCE_REQUIRED", "Inspect worker_wip, then provide its exact expected_head and an acceptance_note (including why no review was needed, if absent)", operation_id=canonical_id, status=409)), 409
+        if request["expected_head"] != accepted["worker_head"]:
+            return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", "Worker HEAD differs from the commit you accepted; inspect the new result", operation_id=canonical_id, status=409)), 409
+        if not is_advisory(task_run) or task_run["status"] != "requested" or review_coverage.get("task_run_id") != task_run["receipt_id"]:
+            return _base_result(canonical_id, "FAILED", error=_error("WORK_ASSIGNMENT_CHANGED", "Cannot bind acceptance to the current task and snapshot; inspect worker_wip again", operation_id=canonical_id, status=409)), 409
+        accepted["admission"]["acceptance_decision"] = {
+            "actor": accepting_actor, "head": accepted["worker_head"],
+            "note": request["acceptance_note"], "policy": "work-review-v2",
+            "task_run_id": review_coverage["task_run_id"],
+        }
+
     if review_coverage.get("status") == "blocked":
         error, next_action = _review_coverage_refusal(
             canonical_id, review_coverage, execution=False,

@@ -53,7 +53,7 @@ FINDING_CONTINUATION_RE = re.compile(
 FINDING_PATH_RE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_./-]*$")
 POLICY_PATH = (
     Path(__file__).resolve().parent.parent
-    / ".orchestra/pipelines/default/prompts/skills/codex-debate.md"
+    / ".orchestra/guides/review-legacy-v1.md"
 )
 
 
@@ -184,12 +184,14 @@ def production_snapshot(
     }
 
 
-def resolve_implementation_subject(worktree: str, target_ref: str) -> dict[str, object]:
+def resolve_implementation_subject(worktree: str, target_ref: str, *, include_coverage: bool = True) -> dict[str, object]:
     dirty = _git_text(worktree, "status", "--porcelain", "--untracked-files=all")
     if dirty:
         raise ValueError("implementation review requires a clean committed worktree")
     target_sha = _git_text(worktree, "rev-parse", "--verify", f"{target_ref}^{{commit}}")
     worker_head = _git_text(worktree, "rev-parse", "--verify", "HEAD^{commit}")
+    if not include_coverage:
+        return {"target_sha": target_sha, "worker_head": worker_head}
     return production_snapshot(
         worktree, target_sha=target_sha, worker_head=worker_head,
     )

@@ -2574,6 +2574,8 @@ async def merge_worker(
     operation_id: str = "",
     waive_diff_budget: bool = False,
     task_outcome: str = "",
+    expected_head: str = "",
+    acceptance_note: str = "",
 ) -> CallToolResult:
     """Durably squash a worker branch. Long merges deliver their outcome via a background job.
 
@@ -2587,6 +2589,9 @@ async def merge_worker(
     branch — start a new operation without operation_id. Verifying what actually landed
     (target branch, worker_wip) is always expected and never counts as merging manually.
 
+    New work: inspect worker_wip, then pass its exact expected_head and acceptance_note.
+    The note is your acceptance decision and includes the reason for no model review when absent.
+    No separate review-outcome or attestation is required for new assignments.
     waive_diff_budget: orchestrator-only. Skip the insertion ceiling for this merge.
     The result records diff_budget_waived so the bypass is visible after the fact.
     """
@@ -2608,7 +2613,7 @@ async def merge_worker(
         )
     operation_id = operation_id or str(uuid.uuid4())
     merge_schema_version: int | None = None
-    if task_outcome:
+    if task_outcome or expected_head or acceptance_note:
         try:
             capability = await _api("GET", "/api/merge-operations/capabilities")
         except ApiToolError as capability_error:
@@ -2651,7 +2656,9 @@ async def merge_worker(
                 details={"server_capability": capability},
             )
             return _merge_tool_result(result)
-        merge_schema_version = 2
+        if (expected_head or acceptance_note) and "work-review-v2" not in capabilities:
+            return _merge_tool_result(_merge_local_result(operation_id, "FAILED", code="MERGE_API_UPGRADE_REQUIRED", message="The server cannot bind work acceptance to expected_head; reconnect after the server upgrade. No merge attempted.", retryable=False, outcome_unknown=False, target=target, details={"required_capability": "work-review-v2"}))
+        merge_schema_version = 2 if task_outcome else None
     body = {
         "operation_id": operation_id,
         "name": name,
@@ -2662,6 +2669,10 @@ async def merge_worker(
         "waived_by": WORKER_NAME if waive_diff_budget else "",
         "completion_session_id": SESSION_ID,
     }
+    if expected_head:
+        body["expected_head"] = expected_head
+    if acceptance_note:
+        body["acceptance_note"] = acceptance_note
     if merge_schema_version is not None:
         body["merge_schema_version"] = merge_schema_version
         body["task_outcome"] = task_outcome
@@ -2915,6 +2926,10 @@ async def worker_wip(name: str, base_ref: str = "") -> str:
         )
     effective_base = result.get("base_ref") or base_ref or "persisted base"
     ctx_str = f" | ctx:{ctx}% | {status}" if ctx else f" | {status}"
+    review_summary = result.get("review")
+    if isinstance(review_summary, dict):
+        lifecycle_line += "Work review (advisory; not a merge permit): " + json.dumps(review_summary, ensure_ascii=False) + "\n"
+        lifecycle_line += "Accept exact expected_head=" + str(result.get("worker_head") or "") + " with an acceptance_note.\n"
     if not uncommitted and not unmerged:
         return lifecycle_line + f"'{name}'{ctx_str}: clean — no uncommitted changes, no unmerged commits (vs {effective_base})"
     parts = [lifecycle_line + f"WIP for '{name}'{ctx_str} (vs {effective_base}):"]
@@ -4025,6 +4040,8 @@ async def _receipt_author_session(receipt_id: str) -> tuple[dict, dict]:
             message="review receipt not found",
             details={"receipt_id": receipt_id},
         )
+    if int(receipt.get("schema_version") or 1) >= 3:
+        raise ApiToolError(code="review_outcome_retired", message="New tasks use advisory review. Submit your result; no author-outcome or attestation is required.")
     info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
     caller_session_id = str(info.get("id") or "").strip() if isinstance(info, dict) else ""
     if not caller_session_id:
@@ -4150,7 +4167,7 @@ async def record_review_outcome(
     closed_findings: list[str] | None = None,
     statement: str = "",
 ) -> CallToolResult:
-    """Record the author's outcome for one review receipt. Only the review's author may call it.
+    """Legacy assignments only: record a review outcome. New work uses merge acceptance_note instead.
 
     outcome:
       accepted | disputed | partial — the author's verdict on the reviewer's findings.
@@ -4269,6 +4286,7 @@ async def codex_review(
             message="executors request review of their own work; target_worker is no longer supported",
             details={"field": "target_worker"},
         )
+    advisory = int(info.get("work_review_version") or 1) >= 3
     requesting_session_id = str(info.get("id") or "").strip()
     if not requesting_session_id:
         return mcp_tool_result(
@@ -4326,7 +4344,7 @@ async def codex_review(
             )
             subject = {
                 "subject_kind": "implementation",
-                **resolve_implementation_subject(cwd, owner["base_branch"]),
+                **resolve_implementation_subject(cwd, owner["base_branch"], include_coverage=not advisory),
                 "coverage_outcome": "unknown",
                 "policy_ref": current_policy_ref(),
                 "decision_actor": "",
@@ -4348,6 +4366,8 @@ async def codex_review(
             required=required,
         )
         if size_decision["status"] == "skip":
+            if advisory:
+                return mcp_tool_result(result={"kind": "review_skipped_by_size", **size_decision, "receipt_id": "", "worker_head": str(subject["worker_head"])}, text=str(size_decision["evidence"]) + " No skip receipt is needed; include this reason with the result.")
             from app.db import init_db, review_receipt_record_skip
 
             init_db()
@@ -4460,30 +4480,34 @@ async def codex_review(
     from app.db import init_db, review_receipt_finish, review_receipt_reserve
 
     init_db()
-    reserved = review_receipt_reserve({
-        "receipt_id": receipt_id,
-        "schema_version": 1,
-        "runtime": "codex",
-        "reviewer_model": review_model,
-        "model_source": "direct",
-        "session_id": owner["session_id"],
-        "worker_name": owner["worker_name"],
-        "scope": SCOPE,
-        "task_id": owner["task_id"],
-        "task_source": "session_lookup",
-        "requested_by_session_id": requesting_session_id,
-        "requested_by_worker": WORKER_NAME,
-        "artifact_path": output_abs,
-        "mode": mode,
-        "round": None,
-        "job_id": "",
-        "usage_event_id": usage_event_id,
-        "requested_at": requested_at,
-        "status": "requested",
-        "author_outcome": "unknown",
-        "outcome_source": "unknown",
-        **subject,
-    })
+    from app.work_review import ReviewBudgetError
+    try:
+        reserved = review_receipt_reserve({
+            "receipt_id": receipt_id,
+            "schema_version": 1,
+            "runtime": "codex",
+            "reviewer_model": review_model,
+            "model_source": "direct",
+            "session_id": owner["session_id"],
+            "worker_name": owner["worker_name"],
+            "scope": SCOPE,
+            "task_id": owner["task_id"],
+            "task_source": "session_lookup",
+            "requested_by_session_id": requesting_session_id,
+            "requested_by_worker": WORKER_NAME,
+            "artifact_path": output_abs,
+            "mode": mode,
+            "round": None,
+            "job_id": "",
+            "usage_event_id": usage_event_id,
+            "requested_at": requested_at,
+            "status": "requested",
+            "author_outcome": "unknown",
+            "outcome_source": "unknown",
+            **subject,
+        })
+    except ReviewBudgetError as error:
+        raise ApiToolError(code=error.code, message=str(error)) from error
     receipt_round = int(reserved["round"])
 
     refusal = await _quota_refusal(review_model)
@@ -4675,7 +4699,7 @@ async def codex_review(
     ]
     if is_resume:
         finalize_args.append("--resume")
-    if mode in {"implementation", "exec"}:
+    if not advisory and mode in {"implementation", "exec"}:
         finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
     terminal_recorder = " ".join([
@@ -4755,7 +4779,7 @@ async def codex_review(
                 "success_file": output_abs,
                 "success_pattern": (
                     r"(?im)^##\s+Verdict\b"
-                    if mode in {"implementation", "exec"} else ""
+                    if not advisory and mode in {"implementation", "exec"} else ""
                 ),
             },
             # Без слова "done": то же поле подставляется в провал как

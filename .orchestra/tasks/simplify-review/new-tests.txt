@@ -1,0 +1,21 @@
+.................F.F.................................................... [ 96%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+___________ test_old_mcp_cannot_start_unbudgeted_review_for_new_task ___________
+tests/test_work_review_jobs.py:54: in test_old_mcp_cannot_start_unbudgeted_review_for_new_task
+    db.review_receipt_create(old)
+app/db.py:3182: in review_receipt_create
+    raise ValueError("review receipt missing fields: " + ", ".join(missing))
+E   ValueError: review receipt missing fields: status
+_________ test_mcp_refuses_old_server_that_would_ignore_expected_head __________
+tests/test_work_review_jobs.py:77: in test_mcp_refuses_old_server_that_would_ignore_expected_head
+    result=await mcp.merge_worker('worker',expected_head='a'*40,acceptance_note='Inspected')
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:2660: in merge_worker
+    return _merge_tool_result(_merge_local_result(operation_id, "FAILED", code="MERGE_API_UPGRADE_REQUIRED", message="The server cannot bind work acceptance to expected_head; reconnect after the server upgrade. No merge attempted.", retryable=False, outcome_unknown=False, target=target))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: _merge_local_result() missing 1 required keyword-only argument: 'details'
+=========================== short test summary info ============================
+FAILED tests/test_work_review_jobs.py::test_old_mcp_cannot_start_unbudgeted_review_for_new_task
+FAILED tests/test_work_review_jobs.py::test_mcp_refuses_old_server_that_would_ignore_expected_head
+2 failed, 73 passed in 8.63s
