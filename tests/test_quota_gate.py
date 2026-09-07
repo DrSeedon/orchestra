@@ -1,6 +1,7 @@
 """#343: единственное правило допуска — диагональ с допуском плюс жёсткие 99%."""
 
 import importlib.util
+import os
 import sys
 from datetime import datetime, timezone
 
@@ -116,6 +117,60 @@ def test_environment_overrides_are_honored(monkeypatch):
 def test_empty_gated_lanes_config_disables_gating(monkeypatch):
     gate = _reload_quota_gate_with_env(monkeypatch, QUOTA_GATED_LANES="")
     assert gate.GATED_LANES == frozenset()
+
+
+def test_dotenv_quota_changes_are_applied_without_module_reload(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("QUOTA_GATED_LANES=claude\nQUOTA_HARD_STOP_PCT=91\n")
+    monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+    for name in (
+        "QUOTA_GATED_LANES", "QUOTA_HARD_STOP_PCT",
+        "QUOTA_TOLERANCE_START_PP", "QUOTA_TOLERANCE_END_PP",
+        "QUOTA_CURVE_EXPONENT", "QUOTA_CURVED_LANES",
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(quota_gate, "_startup_quota_env", {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+    monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+    monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+    monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+    monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+
+    assert quota_gate.quota_policy().gated_lanes == frozenset({"claude"})
+    assert quota_gate.quota_policy().hard_stop_pct == 91.0
+    assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "available"
+
+    env_file.write_text("QUOTA_GATED_LANES=sol\nQUOTA_HARD_STOP_PCT=87\n")
+    stat = env_file.stat()
+    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+
+    policy = quota_gate.quota_policy()
+    assert policy.gated_lanes == frozenset({"sol"})
+    assert policy.hard_stop_pct == 87.0
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0))
+    assert decision.state == "blocked"
+
+    env_file.write_text("QUOTA_GATED_LANES=claude\nQUOTA_HARD_STOP_PCT=91\n")
+    stat = env_file.stat()
+    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+    assert quota_gate.quota_policy().gated_lanes == frozenset({"claude"})
+    assert quota_gate.quota_policy().hard_stop_pct == 91.0
+    assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "available"
+
+
+def test_invalid_live_dotenv_quota_value_raises(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("QUOTA_HARD_STOP_PCT\n")
+    monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+    for name in quota_gate._QUOTA_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(quota_gate, "_startup_quota_env", {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+    monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+    monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+    monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+    monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+
+    with pytest.raises(ValueError, match="QUOTA_HARD_STOP_PCT"):
+        quota_gate.quota_policy()
 
 
 @pytest.mark.parametrize(

@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 
 import app.db as db
 import app.routes.system as system
-import importlib
 
 import app.quota_gate as quota_gate
 
@@ -27,31 +26,15 @@ _QUOTA_ENV_NAMES = (
 )
 
 
-def _reload_quota_gate_with_env(monkeypatch, **overrides: str | None):
-    for name in _QUOTA_ENV_NAMES:
-        monkeypatch.delenv(name, raising=False)
-    for name, value in overrides.items():
-        if value is None:
-            continue
-        monkeypatch.setenv(name, value)
-    return importlib.reload(quota_gate)
-
-
 @pytest.fixture
-def reloaded_quota_gate(monkeypatch):
-    """Перезагрузка `app.quota_gate` с откатом, который переживает ПАДЕНИЕ теста.
-
-    Раньше откат стоял последней строкой тела теста. Тест падал раньше неё, модуль
-    оставался с чужими константами, и следующие тесты файла краснели по чужой
-    причине: `test_line_point_is_computed_server_side_for_every_pool` в одиночку
-    зелёный, а после теста env-переопределений получал `tolerance_pp` 7.5 вместо
-    5.5 — то есть `13 + (2 - 13) * 0.5` от QUOTA_TOLERANCE_*, утёкших сюда.
-    Фикстура откатывает в teardown, поэтому утечка невозможна независимо от исхода.
-    """
-    yield lambda **overrides: _reload_quota_gate_with_env(monkeypatch, **overrides)
-    for name in _QUOTA_ENV_NAMES:
-        monkeypatch.delenv(name, raising=False)
-    importlib.reload(quota_gate)
+def configured_quota_gate(monkeypatch):
+    """Pin the process environment snapshot without replacing shared exception classes."""
+    def configure(**overrides):
+        monkeypatch.setattr(
+            quota_gate, "_startup_quota_env",
+            {name: overrides.get(name) for name in _QUOTA_ENV_NAMES},
+        )
+    return configure
 
 
 def _window(minutes, utilization, *, window_id="w", label="w", progress=0.5):
@@ -221,8 +204,8 @@ async def test_rule_constants_travel_with_the_payload(mapped):
 
 
 @pytest.mark.asyncio
-async def test_rule_constants_reflect_environment_overrides(mapped, reloaded_quota_gate):
-    gate = reloaded_quota_gate(
+async def test_rule_constants_reflect_environment_overrides(mapped, configured_quota_gate):
+    configured_quota_gate(
         QUOTA_HARD_STOP_PCT="92",
         QUOTA_TOLERANCE_START_PP="13",
         QUOTA_TOLERANCE_END_PP="2",
@@ -233,11 +216,11 @@ async def test_rule_constants_reflect_environment_overrides(mapped, reloaded_quo
     ))
 
     assert payload["rule"] == {
-        "hard_stop_pct": gate.HARD_STOP_PCT,
-        "tolerance_start_pp": gate.TOLERANCE_START_PP,
-        "tolerance_end_pp": gate.TOLERANCE_END_PP,
-        "curve_exponent": gate.CURVE_EXPONENT,
-        "curved_lanes": sorted(gate.CURVED_LANES),
+        "hard_stop_pct": 92.0,
+        "tolerance_start_pp": 13.0,
+        "tolerance_end_pp": 2.0,
+        "curve_exponent": 2.5,
+        "curved_lanes": ["sol"],
     }
     codex = _pool(payload, "codex")
     assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))

@@ -45,3 +45,11 @@ CI `34135698236` выявил межтестовое загрязнение, к�
 После исправления: 69 passed за 14.41 s — тест сессии, весь test_quota_gate.py, TestQuotaGatedDeferredTurns и оба браузерных теста в одном процессе. Доказательства: `ci-order-red.txt`, `ci-browser-red.txt`, `ci-fixtures-green.txt`. Production-код не менялся.
 
 Два падения heartbeat в `test_audit0901_session.py` воспроизводились и в CI предыдущего upstream SHA `495db03a`; они не объявляются результатом нашей правки и не исправляются этой задачей. Прочие браузерные падения вне XML-теста принадлежат текущей соседней задаче исправления browser fixture. Исходный и предыдущий CI-логи сохранены в игнорируемом `data/deployments/model-text-control-flow/` на ноутбуке.
+
+## Последняя синхронизация завершившихся VPS-задач
+
+Пока ожидалось безопасное окно, VPS завершил #534/#535 и опубликовал `4fcc9d8a` (уже включает наш `ad5d1766`). В интеграцию сохранены live quota policy, её API-представление и исправление вывода тестового сервера. Конфликт импортов test_quota_gate.py разрешён объединением importlib.util, os и sys.
+
+Новые upstream-тесты тоже перезагружали общий quota_gate в teardown, как и старая фикстура test_quota_map_api.py. Вместо reload использован штатный monkeypatch с восстановлением снимка окружения и кешей; API-тест проверяет числовые литералы через реальный quota_policy. Семантические проверки live .env сохранены, production-код соседней задачи не изменён.
+
+Итоговая совместная проверка: 126 passed за 11.11 s — test_quota_gate.py, test_quota_map_api.py, test_usage_readiness.py, test_model_text_control_flow.py, TestQuotaGatedDeferredTurns, test_dashboard_loads, XML browser test, test_dashboard_server_output.py. Файл: `vps-latest-tests.txt`. Перед выкладкой подтверждено отсутствие running/starting агентов на VPS.
