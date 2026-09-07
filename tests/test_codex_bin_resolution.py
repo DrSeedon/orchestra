@@ -73,7 +73,7 @@ def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypat
     async def fake_api(method, path, **kwargs):
         assert method == "GET"
         assert path == "/api/sessions/perf"
-        return {"id": "test-session", "worktree_path": "/home/kesha/orchestra"}
+        return {"role": "worker", "id": "test-session", "worktree_path": "/home/kesha/orchestra"}
 
     monkeypatch.setattr(mcp, "_api", fake_api)
 
@@ -93,7 +93,7 @@ def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
 
     async def fake_api(method, path, **kwargs):
         if method == "GET":
-            return {"id": "test-session", "worktree_path": str(tmp_path)}
+            return {"role": "worker", "id": "test-session", "worktree_path": str(tmp_path)}
         assert method == "POST"
         assert path == "/api/bg/jobs"
         started["command"] = kwargs["json"]["config"]["command"]

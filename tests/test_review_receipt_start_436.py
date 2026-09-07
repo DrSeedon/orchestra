@@ -67,6 +67,7 @@ async def test_start_receipt_uses_resolved_model_task_artifact_and_reserved_roun
             return _readiness()
         if method == "GET":
             return {
+                "role": "worker",
                 "id": "requester-436",
                 "cwd": str(tmp_path),
                 "worktree_path": str(tmp_path),

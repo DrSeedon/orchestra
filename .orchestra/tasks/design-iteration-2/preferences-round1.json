@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "reference": "https://photo-158-220-127-161.sslip.io/board/#stats",
+  "samples": [
+    {
+      "id": "01-apple",
+      "title": "Белый рабочий стол",
+      "vote": "maybe",
+      "comment": "когда навожу на график надо чтобы как в рефе по x был тултип типо выбирались точки на графике"
+    },
+    {
+      "id": "02-local",
+      "title": "Наш проектный HTML",
+      "vote": "no",
+      "comment": "темный фон и мелкий шрифт и надоел. не выглядит как сайфай блять удобное чтото. "
+    },
+    {
+      "id": "03-global",
+      "title": "Глобальный HTML",
+      "vote": "no"
+    },
+    {
+      "id": "04-expressive",
+      "title": "Выразительная обложка",
+      "vote": "maybe",
+      "comment": "прикольно да но очень редко не для хуйти типо отчет по задачам блять хз и не то чтобы для данных и графиков нет скорее нет чем да. "
+    },
+    {
+      "id": "05-restrained",
+      "title": "Сдержанный продукт",
+      "vote": "no",
+      "comment": "скучно"
+    },
+    {
+      "id": "06-diagram",
+      "title": "Схема ответственности",
+      "vote": "maybe",
+      "comment": "заебись то что есть диаграма но тоже хотелось бы интерактивности единстенное что тут это диаграма зашла ее бы в 1 реф. и интерактивность вожу и чето вижу прикольное. "
+    },
+    {
+      "id": "07-eli5",
+      "title": "Объяснение картинкой",
+      "vote": "yes",
+      "comment": "интерактивность охуенно нополузнок стремный дизайн. и слишком банально визуализации сложнее должны бытьи красивее. "
+    },
+    {
+      "id": "08-playground",
+      "title": "Настройка плотности"
+    },
+    {
+      "id": "09-three",
+      "title": "Объёмная история",
+      "vote": "yes",
+      "comment": "это просто ахуенно но хотелось бы самому крутить а не по скролу как лендинг тупой."
+    },
+    {
+      "id": "10-cro",
+      "title": "Страница с одним действием",
+      "vote": "no",
+      "comment": "нет хуйня да красиво как лендинг но хуйня потому что хочется чтобы без клика раскрытия типо разу всеинфа полезная видна была а мусорной инфы и не нужно"
+    }
+  ],
+  "templates": [
+    {
+      "title": "analytics dashboard"
+    },
+    {
+      "title": "business review"
+    },
+    {
+      "title": "design report"
+    },
+    {
+      "title": "experiment analysis"
+    },
+    {
+      "title": "financial budget"
+    },
+    {
+      "title": "investment committee memo"
+    },
+    {
+      "title": "legal memorandum"
+    },
+    {
+      "title": "market trends report"
+    },
+    {
+      "title": "minimal letterhead"
+    },
+    {
+      "title": "operating calendar"
+    },
+    {
+      "title": "operating review"
+    },
+    {
+      "title": "project kickoff"
+    },
+    {
+      "title": "project tracker"
+    },
+    {
+      "title": "sales pipeline"
+    },
+    {
+      "title": "simple dark mode"
+    },
+    {
+      "title": "simple light mode"
+    },
+    {
+      "title": "strategy memorandum"
+    },
+    {
+      "title": "system design"
+    },
+    {
+      "title": "team alignment"
+    },
+    {
+      "title": "three statement forecast"
+    }
+  ]
+}

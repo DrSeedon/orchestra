@@ -1,0 +1,360 @@
+[
+  {
+    "name": "html-artifacts",
+    "sha256": "9ebc80e3694e084e9e2ab8554d539f6d13c574baba4ca6bf4398d8529dded60a",
+    "paths": [
+      "/mnt/data/Projects/Python/orchestra/.codex/skills/html-artifacts/SKILL.md"
+    ],
+    "canonical": "/mnt/data/Projects/Python/orchestra/.codex/skills/html-artifacts/SKILL.md",
+    "bytes": 12263
+  },
+  {
+    "name": "eli5",
+    "sha256": "4b89e2b7c55d96e5e2f83c40ae12c4423bd5b07318f631f729fddc2374fb8fb6",
+    "paths": [
+      "/mnt/data/Projects/Python/orchestra/.codex/skills/eli5/SKILL.md",
+      "/mnt/data/Projects/Python/orchestra/.claude/skills/eli5/SKILL.md",
+      "/mnt/data/Projects/Python/orchestra/.orchestra/pipelines/default/prompts/skills/eli5.md"
+    ],
+    "canonical": "/mnt/data/Projects/Python/orchestra/.orchestra/pipelines/default/prompts/skills/eli5.md",
+    "bytes": 3306
+  },
+  {
+    "name": "html-artifacts",
+    "sha256": "c984805b95332c6d341bd9d65bb9c5404d2a102501189c36289c79d1f62deb94",
+    "paths": [
+      "/mnt/data/Projects/Python/orchestra/.claude/skills/html-artifacts/SKILL.md",
+      "/mnt/data/Projects/Python/orchestra/.orchestra/pipelines/default/prompts/skills/html-artifacts.md"
+    ],
+    "canonical": "/mnt/data/Projects/Python/orchestra/.orchestra/pipelines/default/prompts/skills/html-artifacts.md",
+    "bytes": 12269
+  },
+  {
+    "name": "imagegen",
+    "sha256": "681ddb4ad6d06a2acc78a3535b583f8d0c1ea800ecda3d56370d3310fd2cd4ba",
+    "paths": [
+      "/home/maxim/.codex/skills/.system/imagegen/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/skills/.system/imagegen/SKILL.md",
+    "bytes": 19201
+  },
+  {
+    "name": "pdf",
+    "sha256": "d108cf2b36355ab37eb5962933f4d09785ec002f3105c506129320209306b9d2",
+    "paths": [
+      "/home/maxim/.codex/skills/pdf/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/skills/pdf/SKILL.md",
+    "bytes": 2517
+  },
+  {
+    "name": "diagram-design",
+    "sha256": "6d6988acf7794344c54b26f22f4245e420e4a8e0a41b65547f8c1797339cda8d",
+    "paths": [
+      "/home/maxim/.codex/skills/diagram-design/SKILL.md",
+      "/home/maxim/.claude/skills/diagram-design/SKILL.md",
+      "/mnt/data/Projects/skills/diagram-design/skills/diagram-design/SKILL.md"
+    ],
+    "canonical": "/mnt/data/Projects/skills/diagram-design/skills/diagram-design/SKILL.md",
+    "bytes": 39996
+  },
+  {
+    "name": "frontend-design",
+    "sha256": "452280dce48a67447f58588e58d85721b993cb659a0b0e165032a555a3292f96",
+    "paths": [
+      "/home/maxim/.agents/skills/frontend-design/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.agents/skills/frontend-design/SKILL.md",
+    "bytes": 4386
+  },
+  {
+    "name": "page-cro",
+    "sha256": "60db341ae3a52ecd6521bdbb3741e22b20197ec130c61728cbbb7c1951988c9c",
+    "paths": [
+      "/home/maxim/.agents/skills/page-cro/SKILL.md",
+      "/home/maxim/.claude/skills/page-cro/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.agents/skills/page-cro/SKILL.md",
+    "bytes": 6041
+  },
+  {
+    "name": "docx",
+    "sha256": "cfbabd72b1aec7dfaad988fb6e5e16b27dc744b9a00cae15db9045e95f53903e",
+    "paths": [
+      "/home/maxim/.claude/skills/docx/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/docx/SKILL.md",
+    "bytes": 20084
+  },
+  {
+    "name": "frontend-design",
+    "sha256": "b81e2ff87ed8fa4d6c377ccb127a7254c9e6a77e3ae94f21e6b514f7bb2945a0",
+    "paths": [
+      "/home/maxim/.claude/skills/frontend-design/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/frontend-design/SKILL.md",
+    "bytes": 4440
+  },
+  {
+    "name": "apple-design",
+    "sha256": "11840b24a11d7f94f39c6aaab074750ae4e4de4ef54ee4b1dd97e16ebd485e61",
+    "paths": [
+      "/home/maxim/.claude/skills/apple-design/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/apple-design/SKILL.md",
+    "bytes": 22715
+  },
+  {
+    "name": "pdf",
+    "sha256": "9f78b8359fbd4943ad260a7a1e436e5a96503406d6c34e99f69223d647d85b9c",
+    "paths": [
+      "/home/maxim/.claude/skills/pdf/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/pdf/SKILL.md",
+    "bytes": 8072
+  },
+  {
+    "name": "pptx",
+    "sha256": "e5b0df918cbe9d62508b3cf808d73899633f82fc19f6258a25ef9f0de7e62125",
+    "paths": [
+      "/home/maxim/.claude/skills/pptx/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/pptx/SKILL.md",
+    "bytes": 9182
+  },
+  {
+    "name": "xlsx",
+    "sha256": "dd316db7785a6be12966c2a2d848931fbf5f518b3cdb0a66fa62ee835ead1cfc",
+    "paths": [
+      "/home/maxim/.claude/skills/xlsx/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/xlsx/SKILL.md",
+    "bytes": 11463
+  },
+  {
+    "name": "html-artifacts",
+    "sha256": "44a896b82b64d229c84512e252a46330540dfe0c18aaf1e242c93d74c2a91919",
+    "paths": [
+      "/home/maxim/.claude/skills/html-artifacts/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/html-artifacts/SKILL.md",
+    "bytes": 12219
+  },
+  {
+    "name": "teach-me",
+    "sha256": "db5ba83e686c2c14319f1ef7f6e93e9cbe54b3a5211506e7c6dc82e0228864cc",
+    "paths": [
+      "/home/maxim/.claude/skills/teach-me/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/skills/teach-me/SKILL.md",
+    "bytes": 25851
+  },
+  {
+    "name": "artifact-template-team-alignment",
+    "sha256": "26d7cafdcd1899a937b325c5d02ac57c162d45002153be33a934d35f81eb6110",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-team-alignment/SKILL.md",
+    "bytes": 1473
+  },
+  {
+    "name": "artifact-template-operating-calendar",
+    "sha256": "33bb660791a0b9a21628a42c34934932220203b6aabd84e98cb1b45327d0384c",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-calendar/SKILL.md",
+    "bytes": 1500
+  },
+  {
+    "name": "artifact-template-three-statement-forecast",
+    "sha256": "74f4a5cccec0107b861548b157e04c51d9b58ec13a990c86394b4c529b8ecf41",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-three-statement-forecast/SKILL.md",
+    "bytes": 1552
+  },
+  {
+    "name": "artifact-template-market-trends-report",
+    "sha256": "d58d019b89cb6f292ac3ab991d561489eef477ff53ce05fb024a0c936f5af26a",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-market-trends-report/SKILL.md",
+    "bytes": 1498
+  },
+  {
+    "name": "artifact-template-sales-pipeline",
+    "sha256": "15cfeeedf440021f16ed3f3ad8c7c1ef6d48898b9447741e223d2fb41cfc9800",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-sales-pipeline/SKILL.md",
+    "bytes": 1482
+  },
+  {
+    "name": "artifact-template-strategy-memorandum",
+    "sha256": "51d7882ac94e8e57b323394825728c33925af878806e37277217c2dc12a912e5",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-strategy-memorandum/SKILL.md",
+    "bytes": 1446
+  },
+  {
+    "name": "artifact-template-experiment-analysis",
+    "sha256": "0b05effc47df0a14f8e0c3e3597e6722224747435546385d38a2cae279bd20b9",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-experiment-analysis/SKILL.md",
+    "bytes": 1456
+  },
+  {
+    "name": "artifact-template-financial-budget",
+    "sha256": "c0b6b7a62a15597aaf2b1ec679e21da48f533b756127f0aef957cdfe9f3da738",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-financial-budget/SKILL.md",
+    "bytes": 1486
+  },
+  {
+    "name": "artifact-template-system-design",
+    "sha256": "87f7b7ed1b0d8410f5e5971cd7f7db9a4165e2f37069e97e52dbfb469b75a57c",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-system-design/SKILL.md",
+    "bytes": 1445
+  },
+  {
+    "name": "artifact-template-design-report",
+    "sha256": "563722f53854e606f8a9f87e37e72d7ef70a22d46d5836b8e4d6abfb1b79e9e0",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-design-report/SKILL.md",
+    "bytes": 1437
+  },
+  {
+    "name": "artifact-template-minimal-letterhead",
+    "sha256": "880ef094d4d0c89a7bde5ce9bbe4086625c186651e9e6efc8ba8bdd7cc77f9d5",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-minimal-letterhead/SKILL.md",
+    "bytes": 1470
+  },
+  {
+    "name": "artifact-template-project-tracker",
+    "sha256": "d97d5be20189b7f53dd269b6e1c5f694eaf53e5a72f6559fcb1578911b7cda82",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-tracker/SKILL.md",
+    "bytes": 1484
+  },
+  {
+    "name": "artifact-template-simple-dark-mode",
+    "sha256": "b7c8d0c05f75878b9bc21e56a57c41ec1aa29700aca0a24822be0f9f1bd53207",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-dark-mode/SKILL.md",
+    "bytes": 1478
+  },
+  {
+    "name": "artifact-template-project-kickoff",
+    "sha256": "aa893ebd89e7c8d1db4261d01cc2b1add35d78d00785871ccaaa5fc8db783ec9",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-project-kickoff/SKILL.md",
+    "bytes": 1463
+  },
+  {
+    "name": "artifact-template-operating-review",
+    "sha256": "6d63c5cd025ffe936e7bab5db3023672bbaec26af55c2bb8b057d38c202c9c32",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-operating-review/SKILL.md",
+    "bytes": 1483
+  },
+  {
+    "name": "artifact-template-investment-committee-memo",
+    "sha256": "68abd08cfe5e073e3c446a3f675f44c5bf98f57434dba679e8acd8a763379a8b",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-investment-committee-memo/SKILL.md",
+    "bytes": 1496
+  },
+  {
+    "name": "artifact-template-analytics-dashboard",
+    "sha256": "cf5360fd8b197673bb237c52c603c97fa319c875c3dfa2cd8efff52d4422f513",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-analytics-dashboard/SKILL.md",
+    "bytes": 1497
+  },
+  {
+    "name": "artifact-template-simple-light-mode",
+    "sha256": "7c68430c6cf57b55b457d4735dbd1a46b889bef135a32222902dd0848b6e1752",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-simple-light-mode/SKILL.md",
+    "bytes": 1487
+  },
+  {
+    "name": "artifact-template-legal-memorandum",
+    "sha256": "51fb9d21baf6119c4ccb1903638a6bac0e859210de63460fffa7025d52e997e0",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-legal-memorandum/SKILL.md",
+    "bytes": 1434
+  },
+  {
+    "name": "artifact-template-business-review",
+    "sha256": "27721fc1d67d1b41949caa75ac8f94f81952ff124406878af6524047929e60d2",
+    "paths": [
+      "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.codex/plugins/cache/openai-curated-remote/openai-templates/0.1.1/skills/artifact-template-business-review/SKILL.md",
+    "bytes": 1475
+  },
+  {
+    "name": "udesign",
+    "sha256": "621897802b47df29be5a4a77f82c0f38aafea1ba4fbd87f9dcaf605575784ddf",
+    "paths": [
+      "/home/maxim/.claude/plugins/cache/ultrapack/up/0.1.0/skills/udesign/SKILL.md",
+      "/home/maxim/.claude/plugins/marketplaces/ultrapack/plugins/up/skills/udesign/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/plugins/cache/ultrapack/up/0.1.0/skills/udesign/SKILL.md",
+    "bytes": 10073
+  },
+  {
+    "name": "frontend-design",
+    "sha256": "d91970639e9f5c37682ac7ab60094d35f1c7c1f38d731bd56396563aee10c1d3",
+    "paths": [
+      "/home/maxim/.claude/plugins/marketplaces/claude-plugins-official/plugins/frontend-design/skills/frontend-design/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/plugins/marketplaces/claude-plugins-official/plugins/frontend-design/skills/frontend-design/SKILL.md",
+    "bytes": 9390
+  },
+  {
+    "name": "playground",
+    "sha256": "521a3d62211e5f47b65ed17b660e001b15cf8d88d058cbf31bc00e889bcb63cc",
+    "paths": [
+      "/home/maxim/.claude/plugins/marketplaces/claude-plugins-official/plugins/playground/skills/playground/SKILL.md"
+    ],
+    "canonical": "/home/maxim/.claude/plugins/marketplaces/claude-plugins-official/plugins/playground/skills/playground/SKILL.md",
+    "bytes": 3824
+  }
+]
