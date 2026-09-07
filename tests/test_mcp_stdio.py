@@ -2496,36 +2496,14 @@ async def test_search_memory_reports_index_debt_and_tolerates_its_absence(
         assert "a.md" in out
 
 
-@pytest.mark.asyncio
-async def test_file_first_memory_tool_surface_keeps_only_search_fallback(monkeypatch, tmp_path):
+def test_file_first_memory_tool_surface_does_not_register_legacy_knowledge_tool():
+    """File-first memory has no legacy ``knowledge`` tool; search is ordinary/optional."""
     import app.mcp_stdio as m
 
     registered = {tool.name: tool for tool in m.mcp._tool_manager.list_tools()}
     assert "knowledge" not in registered
     assert "knowledge" not in m.READ_ONLY_MCP_TOOLS
     assert "knowledge" not in m.REDUCER_MCP_TOOLS
-    assert "search_memory" in registered
-
-    async def disabled_rag(*_args, **_kwargs):
-        raise m.ApiToolError(
-            code="http_503",
-            message="RAG disabled (set RAG_ENABLED=true)",
-        )
-
-    monkeypatch.setattr(m, "_api", disabled_rag)
-    monkeypatch.setattr(m, "SCOPE", "/project")
-
-    out = await registered["search_memory"].run({"query": "needle"})
-
-    assert "RAG_ENABLED=false" in out
-    import shlex
-    import subprocess
-    kb = tmp_path / ".orchestra/kb"
-    kb.mkdir(parents=True)
-    (kb / "topic.md").write_text("The relevant needle is here.\n")
-    command = shlex.split(out[out.index("rg "):])
-    result = subprocess.run(command, cwd=tmp_path, capture_output=True, text=True, check=True)
-    assert "The relevant needle is here." in result.stdout
 
 
 @pytest.mark.asyncio
