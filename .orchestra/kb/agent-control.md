@@ -67,6 +67,12 @@
 - **«Tainted conversation» у Archestra — НЕ статический список тулов-эксфильтраторов.** Слова `taint` в коде нет вовсе; состояние называется `contextIsTrusted`/`unsafeContextBoundary`, а роль списка играют строки политик в Postgres на каждый тул с хардкод-дефолтом fail-closed (`block_when_context_is_untrusted` на вызов, `mark_as_untrusted` на результат, отсутствие политики в грязном контексте = блок). Важное: КЛАССИФИКАЦИЯ «какой тул опасен» делается LLM-субагентом при обнаружении тула, детерминированно только принуждение после неё · ищи: `contextIsTrusted`, `unsafeContextBoundary`, `createDefaultPolicies`, `PolicyConfigurationService`, `autoConfigureOnToolDiscovery`, «список тулов эксфильтраторов» · upstream `archestra-ai/archestra` @ `c0f30875`: `platform/backend/src/guardrails/trusted-data.ts:95,292-307,467-476`, `platform/backend/src/models/tool.ts:537-561,570-582,4164`, `platform/backend/src/agents/subagents/policy-configuration.ts:48`, `platform/backend/src/database/seed.ts:1221`, `platform/backend/src/models/tool-invocation-policy.ts:654-659` · 2026-09-03, #470
 - **Признак «разговор грязный» у Archestra не липкий: он пересчитывается заново из массива сообщений КАЖДОГО запроса.** Отсюда прямое следствие: внешний клиент, приславший историю без грязного tool-result, получает чистый контекст. Наследование при делегировании передаётся обычным HTTP-заголовком, а не подписанным утверждением, и компенсируется вторым независимым расчётом доверия прямо перед исполнением тула в чате · ищи: `evaluateIfContextIsTrusted`, `getMessages`, `UNTRUSTED_CONTEXT_HEADER`, `evaluateToolExecutionContextTrust`, «липкое состояние taint», «обходится ли taint» · upstream `archestra-ai/archestra` @ `c0f30875`: `platform/backend/src/routes/proxy/llm-proxy-handler.ts:333-338,966-969,1013`, `platform/backend/src/agents/context-trust.ts:13-52`, `platform/backend/src/guardrails/tool-invocation.ts:352-398` · 2026-09-03, #470
 
+### Формальные промпты и structured outputs
+
+- **JSON Schema ограничивает форму, но не гарантирует истинность или повторяемость смыслового решения.** OpenAI прямо допускает ошибки значений; типизированный bool по-прежнему допускает два противоположных ответа · ищи: `structured outputs`, `JSON Schema`, `детерминизм смысла`, «язык промптов» · https://developers.openai.com/api/docs/guides/structured-outputs; `.orchestra/tasks/526/research.md` Findings · 2026-09-07, #526
+- **В текущем парсере квитанции отрицание под заголовком Verdict считается наличием вердикта, а APPROVED под русским заголовком не считается.** Шесть локальных проб подтверждают поведение парсера и классификатора лимитов; обход всего merge-гейта не проверялся · ищи: `verdict_present`, `codex_review_artifact.py`, `типизированная квитанция`, «формат ревью» · `app/codex_review_artifact.py:70`; `.orchestra/tasks/526/probe-output.txt`; `.orchestra/tasks/526/research.md` · 2026-09-07, #526
+- **Форматные ограничения могут ухудшать содержательное качество; единая цена для всех декодеров не установлена.** Независимая RANLP’25 получила SQuAD EMIN Mistral-7B-Instruct 81.1→73.7%, тогда как Llama3-8B Base 42.5→59.6%; это опубликованный опыт на старых моделях, не наш runtime · ищи: `constrained decoding`, `SQuAD`, `цена формализации`, «JSON хуже текста» · https://aclanthology.org/2025.ranlp-1.124.pdf tables 1–2; `.orchestra/tasks/526/research.md` · 2026-09-07, #526
+
 ## Rejected
 
 ### Сборка и доставка промпта
@@ -89,6 +95,9 @@
 - **«Предохранители Orchestra целиком живут в промпте» отвергнуто.** Мерж проверяет кодом происхождение задачи/сессии/ветки, актуальность цели, замороженный оракул и сопоставленные тесты · ищи: `all prompt-only`, `merge_operations`, `pinned oracle`, `mapped tests`, «у нас нет кодовых предохранителей» · опровергнуто: `app/routes/sessions.py:1847-2009`; `app/acceptance.py:349-378`; `app/merge_operations.py:1613-1740`; `app/workspace.py:1290-1597`; `docs/tasks/507/research.md` G3/G8/G9 · 2026-09-03, #507 · открыть: docs/tasks/507/research.md → `.orchestra/archive/laptop-tasks/507/research.md`
 
 ## Gaps
+
+- **Окупаемость typed review receipt и DSPy на подписочных CLI Orchestra не измерена.** Не выполнены передача схемы через настоящий runtime, повторные решения на holdout и учёт полного расхода; следующий эксперимент является предложением · ищи: `DSPy`, `typed review receipt`, `подписочный CLI`, «что применимо нам» · упёрлось в: исследование ограничено источниками и локальными пробами без внедрения; `.orchestra/tasks/526/research.md` · 2026-09-07, #526
+
 
 ### Сборка и доставка промпта
 
@@ -128,3 +137,5 @@
 
 - .orchestra/tasks/470/research.md — Archestra.AI: девять заявок лендинга против кода, разбор «tainted conversation» и прогрессивной загрузки тулов, лицензионные гейты; `.orchestra/tasks/470/anchor-check.txt` — машинная сверка 105 ссылок `путь:строка`.
 - docs/tasks/507/research.md — полная матрица приёмов и предохранителей боевых агентов Anthropic против наших, расхождения статьи с кодом, граница необратимых действий, проверка результата и обработка ошибок модели. По пути `docs/tasks/507/` его нет — он в архиве ноутбучных задач (проверено 06.09.2026, #523; побайтово совпадает со снимком `4983598717e3`). · открыть: docs/tasks/507/research.md → `.orchestra/archive/laptop-tasks/507/research.md`
+
+- `.orchestra/tasks/526/research.md` — текущие поставки DSL, независимость benchmark, числовые издержки, контрпримеры и два адресно перепроверенных шва Orchestra.
