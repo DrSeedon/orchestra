@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -vv --tb=short --timeout=30 tests/test_antigravity_usage.py tests/test_audit0901_sysquota.py tests/test_audit0901_tg.py tests/test_build_signal.py tests/test_catalog_api.py tests/test_codex_managed_state.py tests/test_codex_review_sandbox.py tests/test_codex_usage.py tests/test_errtext.py tests/test_fan_report_final_selection_480.py tests/test_harness_inject.py tests/test_harness_tools.py tests/test_initial_delivery_review_regressions.py tests/test_kb_promote_facts_script_409.py tests/test_live_broker.py tests/test_mailbox.py tests/test_manager.py tests/test_merge_branch_drift.py tests/test_merge_operations.py tests/test_merge_stuck.py tests/test_merge_target_oracle_386.py tests/test_models.py tests/test_pipeline.py tests/test_portfolio_attention_418.py tests/test_portfolio_watchdog_418.py tests/test_process_guard.py tests/test_production_db_isolation.py tests/test_project_distribution_dirty_412.py tests/test_project_distribution_review_412.py tests/test_project_roadmap_frontend_425.py tests/test_review_coverage_target_drift_474.py tests/test_routes_surface.py tests/test_session_id_guard.py tests/test_static_js_globals.py tests/test_subagent_routes.py tests/test_task_par_collision_406.py tests/test_tg_file_deliveries.py tests/test_tm.py tests/test_toggle_live_agent.py tests/test_transcription.py tests/test_usage_history_frontend.py"
+	User time (seconds): 85.52
+	System time (seconds): 47.25
+	Percent of CPU this job got: 32%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:43.42
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 249840
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 213
+	Minor (reclaiming a frame) page faults: 1400957
+	Voluntary context switches: 157024
+	Involuntary context switches: 47933
+	Swaps: 0
+	File system inputs: 278424
+	File system outputs: 1862688
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

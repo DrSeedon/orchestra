@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -vv --tb=short --timeout=30 tests/test_acceptance.py tests/test_adhoc_switch.py tests/test_api.py tests/test_artifacts_browser.py tests/test_audit0901_delivery.py tests/test_audit0901_workspace.py tests/test_backend_codex.py tests/test_backend_stream.py tests/test_bg_jobs.py tests/test_change_model_unloaded.py tests/test_codex_bin_resolution.py tests/test_cross_repo_warning.py tests/test_fan_barrier_gates.py tests/test_fd_adopt.py tests/test_initial_deliveries.py tests/test_kb_markdown_contract.py tests/test_knowledge_detail_summary.py tests/test_knowledge_import_recovery_409.py tests/test_legacy_pipeline_skills.py tests/test_log_write_loss.py tests/test_mcp_codex_review.py tests/test_mcp_proof.py tests/test_merge_ref_gate.py tests/test_migrate_agent.py tests/test_native_history_import.py tests/test_portfolio_agent_filter_472.py tests/test_process_guard_calibration.py tests/test_project_knowledge_distribution_412.py tests/test_project_roadmap_backend_425.py tests/test_quota_admission_e2e.py tests/test_quota_headroom_447.py tests/test_rag_service.py tests/test_repair_task_par_collisions_406.py tests/test_restart_inbox.py tests/test_system_chat_entry.py tests/test_system_restart.py tests/test_task_repair_422.py tests/test_task_repair_completion_422.py tests/test_task_repair_endpoint_422.py tests/test_task_tracker_integration.py tests/test_turn_usage.py tests/test_usage_snapshot.py"
+	User time (seconds): 110.16
+	System time (seconds): 45.83
+	Percent of CPU this job got: 34%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 7:34.05
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 259436
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 193
+	Minor (reclaiming a frame) page faults: 1577650
+	Voluntary context switches: 152401
+	Involuntary context switches: 64769
+	Swaps: 0
+	File system inputs: 52120
+	File system outputs: 2047584
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

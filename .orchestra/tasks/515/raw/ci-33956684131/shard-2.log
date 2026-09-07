@@ -1,0 +1,962 @@
+test (2)	Set up job	﻿2026-09-05T08:57:55.7583537Z Current runner version: '2.337.0'
+test (2)	Set up job	2026-09-05T08:57:55.7619342Z ##[group]Runner Image Provisioner
+test (2)	Set up job	2026-09-05T08:57:55.7620660Z Hosted Compute Agent
+test (2)	Set up job	2026-09-05T08:57:55.7621575Z Version: 20260828.587
+test (2)	Set up job	2026-09-05T08:57:55.7622476Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+test (2)	Set up job	2026-09-05T08:57:55.7623503Z Build Date: 2026-08-28T16:44:25Z
+test (2)	Set up job	2026-09-05T08:57:55.7624485Z Worker ID: {c115501e-574e-4cd4-8b46-eb43a9dfd68c}
+test (2)	Set up job	2026-09-05T08:57:55.7625498Z Azure Region: northcentralus
+test (2)	Set up job	2026-09-05T08:57:55.7626482Z ##[endgroup]
+test (2)	Set up job	2026-09-05T08:57:55.7628552Z ##[group]Operating System
+test (2)	Set up job	2026-09-05T08:57:55.7629477Z Ubuntu
+test (2)	Set up job	2026-09-05T08:57:55.7630254Z 24.04.4
+test (2)	Set up job	2026-09-05T08:57:55.7631111Z LTS
+test (2)	Set up job	2026-09-05T08:57:55.7631827Z ##[endgroup]
+test (2)	Set up job	2026-09-05T08:57:55.7632684Z ##[group]Runner Image
+test (2)	Set up job	2026-09-05T08:57:55.7633542Z Image: ubuntu-24.04
+test (2)	Set up job	2026-09-05T08:57:55.7634349Z Version: 20260831.293.1
+test (2)	Set up job	2026-09-05T08:57:55.7636106Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+test (2)	Set up job	2026-09-05T08:57:55.7638710Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+test (2)	Set up job	2026-09-05T08:57:55.7640120Z ##[endgroup]
+test (2)	Set up job	2026-09-05T08:57:55.7642147Z ##[group]GITHUB_TOKEN Permissions
+test (2)	Set up job	2026-09-05T08:57:55.7644647Z Contents: read
+test (2)	Set up job	2026-09-05T08:57:55.7645228Z Metadata: read
+test (2)	Set up job	2026-09-05T08:57:55.7646140Z Packages: read
+test (2)	Set up job	2026-09-05T08:57:55.7646686Z ##[endgroup]
+test (2)	Set up job	2026-09-05T08:57:55.7649090Z Secret source: Actions
+test (2)	Set up job	2026-09-05T08:57:55.7650244Z Prepare workflow directory
+test (2)	Set up job	2026-09-05T08:57:55.8044832Z Prepare all required actions
+test (2)	Set up job	2026-09-05T08:57:55.8115355Z Getting action download info
+test (2)	Set up job	2026-09-05T08:57:56.0194332Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+test (2)	Set up job	2026-09-05T08:57:56.1801109Z Download action repository 'astral-sh/setup-uv@v4' (SHA:38f3f104447c67c051c4a08e39b64a148898af3a)
+test (2)	Set up job	2026-09-05T08:57:56.7203597Z Complete job name: test (2)
+test (2)	Run actions/checkout@v4	﻿2026-09-05T08:57:56.7850732Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7860127Z ##[group]Run actions/checkout@v4
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7861076Z with:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7861652Z   repository: DrSeedon/orchestra
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7866097Z   token: ***
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7866694Z   ssh-strict: true
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7867251Z   ssh-user: git
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7867835Z   persist-credentials: true
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7868430Z   clean: true
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7868989Z   sparse-checkout-cone-mode: true
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7869653Z   fetch-depth: 1
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7870229Z   fetch-tags: false
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7870803Z   show-progress: true
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7871353Z   lfs: false
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7871913Z   submodules: false
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7872638Z   set-safe-directory: true
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7873262Z   allow-unsafe-pr-checkout: false
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.7874085Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8870372Z Syncing repository: DrSeedon/orchestra
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8872567Z ##[group]Getting Git version info
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8873396Z Working directory is '/home/runner/work/orchestra/orchestra'
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8874605Z [command]/usr/bin/git version
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8926282Z git version 2.55.0
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8960779Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8970401Z Temporarily overriding HOME='/home/runner/work/_temp/06e9930b-21ae-4a92-aaac-a297a2eb23b5' before making global git config changes
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8972038Z Adding repository directory to the temporary git global config as a safe directory
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.8975806Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9034860Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9039481Z ##[group]Initializing the repository
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9044440Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9138866Z hint: Using 'master' as the name for the initial branch. This default branch name
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9140978Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9142639Z hint: to use in all of your new repositories, which will suppress this warning,
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9144200Z hint: call:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9145405Z hint:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9146479Z hint: 	git config --global init.defaultBranch <name>
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9147257Z hint:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9148046Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9149590Z hint: 'development'. The just-created branch can be renamed via this command:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9150753Z hint:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9151597Z hint: 	git branch -m <name>
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9152218Z hint:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9153705Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9155195Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9158322Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9200255Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9204734Z ##[group]Disabling automatic garbage collection
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9205734Z [command]/usr/bin/git config --local gc.auto 0
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9235257Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9236844Z ##[group]Setting up auth
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9242802Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9273299Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9614385Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9646157Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9850311Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:56.9883336Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:57.0071679Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:57.0107849Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:57.0109553Z ##[group]Fetching the repository
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:57.0117656Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3b7eb1058839505b06e102d5ede00bccd61000a7:refs/remotes/origin/task-515/fix-ci-green
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4377519Z From https://github.com/DrSeedon/orchestra
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4378863Z  * [new ref]           3b7eb1058839505b06e102d5ede00bccd61000a7 -> origin/task-515/fix-ci-green
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4381851Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4382820Z ##[group]Determining the checkout info
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4383887Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4390883Z [command]/usr/bin/git sparse-checkout disable
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4434557Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4463084Z ##[group]Checking out the ref
+test (2)	Run actions/checkout@v4	2026-09-05T08:57:59.4469010Z [command]/usr/bin/git checkout --progress --force -B task-515/fix-ci-green refs/remotes/origin/task-515/fix-ci-green
+test (2)	Run actions/checkout@v4	2026-09-05T08:58:00.2644290Z Switched to a new branch 'task-515/fix-ci-green'
+test (2)	Run actions/checkout@v4	2026-09-05T08:58:00.2647850Z branch 'task-515/fix-ci-green' set up to track 'origin/task-515/fix-ci-green'.
+test (2)	Run actions/checkout@v4	2026-09-05T08:58:00.2664793Z ##[endgroup]
+test (2)	Run actions/checkout@v4	2026-09-05T08:58:00.2707722Z [command]/usr/bin/git log -1 --format=%H
+test (2)	Run actions/checkout@v4	2026-09-05T08:58:00.2733694Z 3b7eb1058839505b06e102d5ede00bccd61000a7
+test (2)	Run astral-sh/setup-uv@v4	﻿2026-09-05T08:58:00.2957602Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2959627Z ##[group]Run astral-sh/setup-uv@v4
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2959999Z with:
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2960370Z   version: latest
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2962859Z   github-token: ***
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2963168Z   enable-cache: false
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2963560Z   cache-dependency-glob: **/uv.lock
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2963936Z   prune-cache: true
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2964262Z   ignore-nothing-to-cache: false
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.2964653Z ##[endgroup]
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.4241924Z (node:2414) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.4243047Z (Use `node --trace-deprecation ...` to show where the warning was created)
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.6682135Z Downloading uv from "https://github.com/astral-sh/uv/releases/download/0.12.10/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:00.8876235Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/12a10952-29e5-4304-afbc-f196800e06f1 -f /home/runner/work/_temp/4f009652-7bc5-4c7f-96ee-b44d29973d5e
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.4401971Z Added /opt/hostedtoolcache/uv/0.12.10/x86_64 to the path
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.4403456Z Added /home/runner/.local/bin to the path
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.4427662Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test (2)	Run astral-sh/setup-uv@v4	2026-09-05T08:58:01.4428380Z Successfully installed uv version 0.12.10
+test (2)	Run uv sync --dev	﻿2026-09-05T08:58:01.4549105Z ##[group]Run uv sync --dev
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.4549654Z ^[[36;1muv sync --dev^[[0m
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.4581598Z shell: /usr/bin/bash -e {0}
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.4582014Z env:
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.4582366Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.4582803Z ##[endgroup]
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5162964Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5163665Z Creating virtual environment at: .venv
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5199770Z Resolved 99 packages in 0.62ms
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5902303Z Downloading uvloop (4.2MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5904605Z Downloading pygments (1.2MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5906391Z Downloading aiohttp (1.7MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5910637Z Downloading cryptography (4.5MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5918144Z Downloading claude-agent-sdk (76.7MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5924205Z Downloading playwright (45.3MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5927101Z Downloading pillow (6.3MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.5931348Z Downloading pydantic-core (2.0MiB)
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.7888959Z  Downloaded pygments
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.7963916Z  Downloaded aiohttp
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.8007603Z  Downloaded pydantic-core
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.8387318Z  Downloaded cryptography
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.8413877Z  Downloaded uvloop
+test (2)	Run uv sync --dev	2026-09-05T08:58:01.8527232Z  Downloaded pillow
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.1629631Z  Downloaded playwright
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4535175Z  Downloaded claude-agent-sdk
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4538324Z Prepared 74 packages in 932ms
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4772759Z Installed 74 packages in 23ms
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4773382Z  + aiofiles==25.1.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4774435Z  + aiogram==3.28.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4774963Z  + aiohappyeyeballs==2.6.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4775441Z  + aiohttp==3.13.5
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4776021Z  + aiosignal==1.4.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4776462Z  + annotated-doc==0.0.4
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4776912Z  + annotated-types==0.7.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4777330Z  + anyio==4.13.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4777781Z  + attrs==26.1.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4778180Z  + certifi==2026.5.20
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4778603Z  + cffi==2.0.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4778948Z  + charset-normalizer==3.4.7
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4779322Z  + claude-agent-sdk==0.2.114
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4779755Z  + click==8.4.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4780110Z  + croniter==6.2.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4780498Z  + cryptography==48.0.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4781160Z  + fastapi==0.136.3
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4781512Z  + frozenlist==1.8.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4781959Z  + greenlet==3.5.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4782284Z  + h11==0.16.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4782637Z  + httpcore==1.0.9
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4783016Z  + httptools==0.8.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4783410Z  + httpx==0.28.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4783836Z  + httpx-sse==0.4.3
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4784218Z  + idna==3.16
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4784659Z  + iniconfig==2.3.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4785092Z  + jinja2==3.1.6
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4785501Z  + jsonschema==4.26.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4786406Z  + jsonschema-specifications==2025.9.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4786905Z  + magic-filter==1.0.12
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4787288Z  + markdown==3.10.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4787740Z  + markupsafe==3.0.3
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4788109Z  + mcp==1.27.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4788478Z  + multidict==6.7.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4788887Z  + packaging==26.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4789323Z  + pillow==11.3.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4789756Z  + playwright==1.60.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4790218Z  + pluggy==1.6.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4790639Z  + propcache==0.5.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4791052Z  + pycparser==3.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4791458Z  + pydantic==2.13.4
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4791868Z  + pydantic-core==2.46.4
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4792321Z  + pydantic-settings==2.14.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4792742Z  + pyee==13.0.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4793219Z  + pygments==2.20.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4793653Z  + pyjwt==2.13.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4794116Z  + pyromark==0.9.11
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4794685Z  + pytest==9.0.3
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4795144Z  + pytest-asyncio==1.4.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4795806Z  + pytest-base-url==2.1.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4796279Z  + pytest-playwright==0.8.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4797200Z  + pytest-timeout==2.4.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4797694Z  + python-dateutil==2.9.0.post0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4798208Z  + python-dotenv==1.2.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4798695Z  + python-multipart==0.0.29
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4799280Z  + python-slugify==8.0.4
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4800057Z  + pyyaml==6.0.3
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4800519Z  + referencing==0.37.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4803034Z  + requests==2.34.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4803552Z  + rpds-py==0.30.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4804089Z  + six==1.17.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4804564Z  + sniffio==1.3.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4805159Z  + sse-starlette==3.4.4
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4808970Z  + starlette==1.1.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4809619Z  + telegramify-markdown==1.1.5
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4811970Z  + text-unidecode==1.3
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4812486Z  + typing-extensions==4.15.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4813087Z  + typing-inspection==0.4.2
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4814116Z  + urllib3==2.7.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4814555Z  + uvicorn==0.48.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4814959Z  + uvloop==0.22.1
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4815392Z  + watchfiles==1.2.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4816571Z  + websockets==16.0
+test (2)	Run uv sync --dev	2026-09-05T08:58:02.4817051Z  + yarl==1.24.2
+test (2)	Run uv run playwright install --with-deps chromium	﻿2026-09-05T08:58:02.4884003Z ##[group]Run uv run playwright install --with-deps chromium
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.4884571Z ^[[36;1muv run playwright install --with-deps chromium^[[0m
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.4909599Z shell: /usr/bin/bash -e {0}
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.4909959Z env:
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.4910321Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.4910709Z ##[endgroup]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8721877Z Installing dependencies...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:02.8774811Z Switching to root user to install dependencies...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0407347Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.0649311Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1025776Z Get:7 https://dl.google.com/linux/chrome-stable/deb stable InRelease [2548 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1236984Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [394 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1378816Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [441 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1604065Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1626965Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1644136Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1711128Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.1902705Z Get:10 https://dl.google.com/linux/chrome-stable/deb stable/main amd64 Packages [1401 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2600595Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1260 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2660220Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [292 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2679944Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [180 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2692326Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1690 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2784453Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [339 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2827540Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2838257Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1536 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2914482Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [352 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.2935261Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3135001Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5740 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3592523Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3605208Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1002 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3657688Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [212 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3672396Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.4 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3680825Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1206 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3740941Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [241 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3757406Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3772124Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1437 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:03.3866686Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [334 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:08.3443332Z Fetched 11.8 MB in 1s (8502 kB/s)
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.2194182Z Reading package lists...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.2484849Z Reading package lists...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4468993Z Building dependency tree...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.4474391Z Reading state information...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6282446Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6283294Z libasound2t64 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6284170Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6284694Z libatk-bridge2.0-0t64 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6285163Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6286080Z libatk1.0-0t64 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6286898Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6287405Z libatspi2.0-0t64 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6287827Z libcairo2 is already the newest version (1.18.0-3build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6288252Z libcairo2 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6288798Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6289304Z libcups2t64 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6289746Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6290540Z libdbus-1-3 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6290996Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6291500Z libdrm2 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6291925Z libgbm1 is already the newest version (25.2.8-0ubuntu0.24.04.2).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6292371Z libgbm1 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6292822Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.8).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6293284Z libglib2.0-0t64 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6293738Z libnspr4 is already the newest version (2:4.35-1.1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6294145Z libnspr4 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6294538Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6294949Z libnss3 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6295390Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6295989Z libpango-1.0-0 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6296406Z libx11-6 is already the newest version (2:1.8.7-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6296851Z libx11-6 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6297247Z libxcb1 is already the newest version (1.15-1ubuntu2).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6297664Z libxcb1 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6298079Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6298506Z libxcomposite1 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6298900Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6299365Z libxdamage1 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6299788Z libxext6 is already the newest version (2:1.3.4-1build2).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6300239Z libxext6 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6300632Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6301032Z libxfixes3 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6301463Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6301917Z libxkbcommon0 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6302321Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6302744Z libxrandr2 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6303141Z xvfb is already the newest version (2:21.1.12-1ubuntu1.6).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6303693Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6304271Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6304724Z libfontconfig1 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6305172Z libfreetype6 is already the newest version (2.13.2+dfsg-1ubuntu0.1).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6305699Z libfreetype6 set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6306134Z fonts-liberation is already the newest version (1:2.1.5-3).
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6306580Z fonts-liberation set to manually installed.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6307114Z The following additional packages will be installed:
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6307585Z   xfonts-encodings xfonts-utils
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6307934Z Recommended packages:
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6308286Z   fonts-ipafont-mincho fonts-tlwg-loma
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6459497Z The following NEW packages will be installed:
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6460208Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6468022Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6468756Z   xfonts-utils
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6640880Z 0 upgraded, 9 newly installed, 0 to remove and 38 not upgraded.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6641752Z Need to get 21.1 MB of archives.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6642529Z After this operation, 79.5 MB of additional disk space will be used.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.6643698Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.7079196Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:09.8305365Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.0137989Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.0401317Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.1396750Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.2831873Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.3119996Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.3347330Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.3617813Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6215437Z Fetched 21.1 MB in 1s (29.8 MB/s)
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6706036Z Selecting previously unselected package fonts-ipafont-gothic.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6889607Z (Reading database ... 
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6890858Z (Reading database ... 5%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6891750Z (Reading database ... 10%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6892372Z (Reading database ... 15%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6893155Z (Reading database ... 20%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6893779Z (Reading database ... 25%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6894385Z (Reading database ... 30%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6894942Z (Reading database ... 35%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6895503Z (Reading database ... 40%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6896310Z (Reading database ... 45%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6896956Z (Reading database ... 50%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.6922276Z (Reading database ... 55%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:10.8985156Z (Reading database ... 60%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.0009357Z (Reading database ... 65%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.1864831Z (Reading database ... 70%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.4788302Z (Reading database ... 75%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.6840401Z (Reading database ... 80%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:11.8294300Z (Reading database ... 85%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.0778153Z (Reading database ... 90%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2753617Z (Reading database ... 95%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2754312Z (Reading database ... 100%
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2754973Z (Reading database ... 201676 files and directories currently installed.)
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2800343Z Preparing to unpack .../0-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.2938588Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.5938524Z Selecting previously unselected package fonts-freefont-ttf.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.6058231Z Preparing to unpack .../1-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.6069890Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7228410Z Selecting previously unselected package fonts-tlwg-loma-otf.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7350466Z Preparing to unpack .../2-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7363258Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7551029Z Selecting previously unselected package fonts-unifont.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7672775Z Preparing to unpack .../3-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.7683665Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.9831738Z Selecting previously unselected package fonts-wqy-zenhei.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:12.9955381Z Preparing to unpack .../4-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.0048865Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.6620007Z Selecting previously unselected package xfonts-encodings.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.6744131Z Preparing to unpack .../5-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.6898837Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.9163732Z Selecting previously unselected package xfonts-utils.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.9289433Z Preparing to unpack .../6-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:13.9632015Z Unpacking xfonts-utils (1:7.7+6build3) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.0806513Z Selecting previously unselected package xfonts-cyrillic.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.0932386Z Preparing to unpack .../7-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.0944711Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1236465Z Selecting previously unselected package xfonts-scalable.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1361176Z Preparing to unpack .../8-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1374264Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1798190Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1920119Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1947598Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.1971579Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2002130Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2067273Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2086242Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2109901Z Setting up xfonts-utils (1:7.7+6build3) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2154823Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2434749Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2681661Z Processing triggers for man-db (2.12.0-4build2) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2705509Z Not building database; man-db/auto-update is not 'true'.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.2722074Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9861298Z 
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9862261Z Running kernel seems to be up-to-date.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9862712Z 
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9862952Z No services need to be restarted.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9863221Z 
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9863676Z No containers need to be restarted.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9864009Z 
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9864270Z No user sessions are running outdated binaries.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9864660Z 
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:14.9864957Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:15.9055448Z Downloading Chrome for Testing 148.0.7778.96 (playwright chromium v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-linux64.zip
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:16.8916800Z |                                                                                |   0% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.0340041Z |■■■■■■■■                                                                        |  10% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.1098731Z |■■■■■■■■■■■■■■■■                                                                |  20% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.1948835Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.2821207Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.3738119Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.4643980Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.5496670Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.6524949Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.7450425Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:17.8466394Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 175.4 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.1837456Z Chrome for Testing 148.0.7778.96 (playwright chromium v1223) downloaded to /home/runner/.cache/ms-playwright/chromium-1223
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:21.1842107Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1829346Z |                                                                                |   0% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1868408Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1892031Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1912705Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1929264Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1940310Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1955367Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1976402Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.1989934Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.2007640Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.2013461Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.2624513Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:22.2627337Z Downloading Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-headless-shell-linux64.zip
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.2514673Z |                                                                                |   0% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.3957773Z |■■■■■■■■                                                                        |  10% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.4488412Z |■■■■■■■■■■■■■■■■                                                                |  20% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.4973064Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.5688062Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.6179818Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.6716584Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.7391241Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.7886670Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.8397890Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:23.9004750Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 113.2 MiB
+test (2)	Run uv run playwright install --with-deps chromium	2026-09-05T08:58:26.2564344Z Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1223
+test (2)	pytest shard 2 of 6	﻿2026-09-05T08:58:26.2794999Z ##[group]Run mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2795865Z ^[[36;1mmapfile -t files < <(git ls-files 'tests/test_*.py' | sort \^[[0m
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2796353Z ^[[36;1m  | awk -v s='2' -v n=6 '(NR - 1) % n == s')^[[0m
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2796791Z ^[[36;1mecho "shard 2/6: ${#files[@]} files"^[[0m
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2797218Z ^[[36;1mtest "${#files[@]}" -gt 0^[[0m
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2797634Z ^[[36;1m/usr/bin/time -v uv run pytest -q -rf --timeout=30 "${files[@]}"^[[0m
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2821531Z shell: /usr/bin/bash -e {0}
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2821944Z env:
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2822285Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2822655Z ##[endgroup]
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:26.2915116Z shard 2/6: 41 files
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:40.6168365Z ssssssssssssssss........................................................ [ 16%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:49.7021225Z ........................................................................ [ 32%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:58:59.2271509Z .........................F.............................................. [ 48%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:10.3681687Z ........FFFFFF.....F.................................................... [ 64%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:12.1701938Z ........................................................................ [ 80%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:17.7392369Z ....................................................................F... [ 96%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8579897Z ...............                                                          [100%]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8580903Z =================================== FAILURES ===================================
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8581582Z _____ test_change_model_refusal_names_the_blocking_call_not_only_its_code ______
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8582143Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8583184Z session = AgentSession(id='handoff-effects', name='effects-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_promp...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8584426Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8584696Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8585394Z     async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(session):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8586341Z         from app.runtime_history import PreparationResult
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8586861Z         from app.session import AgentStatus
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8587241Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8587569Z         session.model = "gpt-5.6-sol"
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8587922Z         session.backend_type = "codex"
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8588520Z         session.session_id = "source-thread"
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8588925Z         session.status = AgentStatus.IDLE
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8589284Z         session._backend = AsyncMock()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8589651Z         session._log = MagicMock()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8590012Z         session._ensure_backend = AsyncMock()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8590476Z         session._prepare_runtime_handoff = AsyncMock(return_value=PreparationResult(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8590977Z             ok=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8591439Z             error_code="handoff_pending_effect",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8592028Z             pending_effects=1,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8592521Z             pending_effect_details=({
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8593058Z                 "call_id": "call-9",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8593526Z                 "tool_name": "Bash",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8593993Z                 "call_log_id": 2,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8594614Z                 "call_ts": "2026-08-11T10:00:02+00:00",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8595125Z             },),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8595538Z         ))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8595985Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8596428Z         result = await session.change_model("gpt-5.6-luna")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8596993Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8597352Z         assert result["ok"] is False
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8597975Z >       assert result["error_code"] == "handoff_pending_effect"
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8598356Z                ^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8598878Z E       KeyError: 'error_code'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8599147Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8599353Z tests/test_handoff_effect_classification.py:265: KeyError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8599828Z ________________ test_codex_review_is_blocked_before_the_bg_job ________________
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8600094Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8600310Z api = <class 'tests.test_mcp_quota_gate.Api'>
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8600523Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8600681Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8601049Z     async def test_codex_review_is_blocked_before_the_bg_job(api):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8601552Z         api.state["readiness"] = _readiness("blocked")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8601901Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8602222Z         with pytest.raises(mcp.ApiToolError) as caught:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8602643Z >           await _review(api)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8602812Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8602977Z tests/test_mcp_quota_gate.py:127: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8603378Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8603782Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8604147Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8604500Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8604951Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8605445Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8606210Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8606614Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8607004Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8607462Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8607968Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8608354Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8608767Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8609258Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8609630Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8609875Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8610145Z cwd = '/tmp/pytest-of-runner/pytest-0/test_codex_review_is_blocked_b0'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8610584Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8611911Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_codex_review_is_blocked_b0', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8613127Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8613447Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8613702Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8614108Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8614491Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8614862Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8615176Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8615747Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8616251Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8616581Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8617006Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8617638Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8617956Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8618140Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8618570Z ______ test_review_fails_open_on_unknown_malformed_or_transport[answer0] _______
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8618906Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8619052Z api = <class 'tests.test_mcp_quota_gate.Api'>
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8619509Z answer = {'allowed': True, 'gated': True, 'hard_limit_pct': 99.0, 'lane': 'sol', ...}
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8619949Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8620079Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8620465Z     @pytest.mark.parametrize("answer", [
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8620816Z         _readiness("unknown"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8621149Z         _readiness("not_applicable"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8621495Z         {"unexpected": "shape"},
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8621830Z         None,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8622221Z         mcp.ApiToolError(code="transport_error", message="offline"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8622621Z     ])
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8623036Z     async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8624002Z         """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8624458Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8624888Z         Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8625356Z         разных ответа одного правила (#227).
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8625980Z         """
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8626288Z         api.state["readiness"] = answer
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8626649Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8627035Z >       assert "bg-test" in _review_text(await _review(api))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8627468Z                                          ^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8627727Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8627911Z tests/test_mcp_quota_gate.py:151: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8628310Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8628752Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8629181Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8629543Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8630017Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8630781Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8631251Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8631635Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8632023Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8632535Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8633027Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8633494Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8633954Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8634373Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8634763Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8635135Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8635335Z cwd = '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn0'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8635992Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8637039Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn0', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8638066Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8638341Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8638582Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8638969Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8639358Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8639766Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8640053Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8640464Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8640931Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8641231Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8641684Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8642262Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8642678Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8642824Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8643285Z ______ test_review_fails_open_on_unknown_malformed_or_transport[answer1] _______
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8643615Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8643759Z api = <class 'tests.test_mcp_quota_gate.Api'>
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8644260Z answer = {'allowed': True, 'gated': True, 'hard_limit_pct': 99.0, 'lane': 'sol', ...}
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8644731Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8644855Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8645206Z     @pytest.mark.parametrize("answer", [
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8645704Z         _readiness("unknown"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8646201Z         _readiness("not_applicable"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8646573Z         {"unexpected": "shape"},
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8646884Z         None,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8647241Z         mcp.ApiToolError(code="transport_error", message="offline"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8647670Z     ])
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8648058Z     async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8648703Z         """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8649061Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8649451Z         Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8649995Z         разных ответа одного правила (#227).
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8650325Z         """
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8650640Z         api.state["readiness"] = answer
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8650966Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8651275Z >       assert "bg-test" in _review_text(await _review(api))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8651742Z                                          ^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8651984Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8652113Z tests/test_mcp_quota_gate.py:151: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8652494Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8652956Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8653304Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8653715Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8654161Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8654659Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8655092Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8655459Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8656007Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8656517Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8657088Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8657493Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8657966Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8658419Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8658806Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8659095Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8659285Z cwd = '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn1'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8659801Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8660747Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn1', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8661790Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8662120Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8662291Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8662672Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8663099Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8663514Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8663869Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8664281Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8664746Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8665119Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8665652Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8666278Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8666646Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8666776Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8667220Z ______ test_review_fails_open_on_unknown_malformed_or_transport[answer2] _______
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8667559Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8667829Z api = <class 'tests.test_mcp_quota_gate.Api'>, answer = {'unexpected': 'shape'}
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8668146Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8668303Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8668654Z     @pytest.mark.parametrize("answer", [
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8669027Z         _readiness("unknown"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8669376Z         _readiness("not_applicable"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8669759Z         {"unexpected": "shape"},
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8670117Z         None,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8670532Z         mcp.ApiToolError(code="transport_error", message="offline"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8670965Z     ])
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8671365Z     async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8671951Z         """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8672337Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8672718Z         Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8673191Z         разных ответа одного правила (#227).
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8673522Z         """
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8673820Z         api.state["readiness"] = answer
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8674213Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8674516Z >       assert "bg-test" in _review_text(await _review(api))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8674955Z                                          ^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8675169Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8675331Z tests/test_mcp_quota_gate.py:151: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8675813Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8676256Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8676619Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8676974Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8677438Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8678047Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8678513Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8678888Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8679291Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8679766Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8680235Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8680698Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8681185Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8681642Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8682034Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8682284Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8682540Z cwd = '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn2'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8683042Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8683963Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn2', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8685000Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8685285Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8685480Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8686038Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8686457Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8686834Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8687126Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8687538Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8687957Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8688396Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8688825Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8689409Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8689735Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8689896Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8690344Z ________ test_review_fails_open_on_unknown_malformed_or_transport[None] ________
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8690675Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8690866Z api = <class 'tests.test_mcp_quota_gate.Api'>, answer = None
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8691138Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8691259Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8691638Z     @pytest.mark.parametrize("answer", [
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8691999Z         _readiness("unknown"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8692351Z         _readiness("not_applicable"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8692738Z         {"unexpected": "shape"},
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8693059Z         None,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8693396Z         mcp.ApiToolError(code="transport_error", message="offline"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8693826Z     ])
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8694235Z     async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8694866Z         """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8695223Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8695772Z         Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8696270Z         разных ответа одного правила (#227).
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8696632Z         """
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8696922Z         api.state["readiness"] = answer
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8697253Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8697574Z >       assert "bg-test" in _review_text(await _review(api))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8697985Z                                          ^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8698247Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8698408Z tests/test_mcp_quota_gate.py:151: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8698783Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8699274Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8699629Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8700002Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8700426Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8700877Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8701318Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8701711Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8702112Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8702558Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8702994Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8703408Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8703838Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8704281Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8704659Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8704928Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8705151Z cwd = '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn3'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8705685Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8706598Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn3', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8707675Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8708010Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8708171Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8708559Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8708990Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8709368Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8709683Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8710100Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8710496Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8710828Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8711251Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8711835Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8712217Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8712378Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8712802Z ______ test_review_fails_open_on_unknown_malformed_or_transport[answer4] _______
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8713076Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8713281Z api = <class 'tests.test_mcp_quota_gate.Api'>
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8714028Z answer = ApiToolError(code='transport_error', message='offline', status=None, retryable=False, request_id=None, retry_after_seconds=None, outcome_unknown=False, details={}, result=None)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8714723Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8714829Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8715195Z     @pytest.mark.parametrize("answer", [
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8715665Z         _readiness("unknown"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8716024Z         _readiness("not_applicable"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8716387Z         {"unexpected": "shape"},
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8716683Z         None,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8717074Z         mcp.ApiToolError(code="transport_error", message="offline"),
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8717464Z     ])
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:19.8717853Z     async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3976295Z         """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3977222Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3977937Z         Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3978580Z         разных ответа одного правила (#227).
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3979010Z         """
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3979419Z         api.state["readiness"] = answer
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3979774Z     
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3980188Z >       assert "bg-test" in _review_text(await _review(api))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3980608Z                                          ^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3980825Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3980986Z tests/test_mcp_quota_gate.py:151: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3981438Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3981884Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3982264Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3982630Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3983078Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3983644Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3984058Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3984436Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3984826Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3985295Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3986001Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3986399Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3986830Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3987751Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3988174Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3988405Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3988684Z cwd = '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn4'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3989135Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3990037Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_review_fails_open_on_unkn4', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3991097Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3991428Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3991658Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3992064Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3992454Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3992824Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3993153Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3993577Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3993970Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3994295Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3994723Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3995468Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3996090Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3996285Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3996701Z _______________________ test_available_review_starts_job _______________________
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3997024Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3997167Z api = <class 'tests.test_mcp_quota_gate.Api'>
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3997409Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3997532Z     @pytest.mark.asyncio
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3997910Z     async def test_available_review_starts_job(api):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3998344Z >       result = await _review(api)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3998678Z                  ^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3998866Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3999027Z tests/test_mcp_quota_gate.py:173: 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3999398Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.3999808Z tests/test_mcp_quota_gate.py:91: in _review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4000183Z     return await mcp.codex_review(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4000514Z app/mcp_stdio.py:4087: in codex_review
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4000973Z     project_context, project_context_receipt = _load_review_project_context(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4001476Z app/mcp_stdio.py:3719: in _load_review_project_context
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4001886Z     repository = _review_repository_root(cwd)
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4002260Z                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4002608Z app/mcp_stdio.py:3617: in _review_repository_root
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4003094Z     common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4003544Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4003924Z app/mcp_stdio.py:3613: in _git_review_text
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4004385Z     return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4004828Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4005236Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4005473Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4005831Z cwd = '/tmp/pytest-of-runner/pytest-0/test_available_review_starts_j0'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4006285Z args = ('rev-parse', '--git-common-dir')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4007227Z completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-runner/pytest-0/test_available_review_starts_j0', 'rev-parse', '--...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4008299Z detail = 'fatal: not a git repository (or any of the parent directories): .git'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4008623Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4008830Z     def _git_review_bytes(cwd: str, *args: str) -> bytes:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4009224Z         completed = subprocess.run(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4009643Z             ["git", "-C", cwd, *args], capture_output=True, check=False,
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4010041Z         )
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4010337Z         if completed.returncode != 0:
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4010751Z             detail = (completed.stderr or completed.stdout).decode(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4011144Z                 "utf-8", "replace",
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4011443Z             ).strip()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4011947Z >           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4012530Z E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4012827Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4013023Z app/mcp_stdio.py:3608: ValueError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4013452Z ________ test_model_cost_and_task_money_have_separate_currency_sources _________
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4013773Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4014249Z browser = <Browser type=<BrowserType name=chromium executable_path=/home/runner/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4014850Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4015066Z     def test_model_cost_and_task_money_have_separate_currency_sources(browser):
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4015722Z         utils = UTILS_JS.read_text()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4016107Z         analytics = ANALYTICS_JS.read_text()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4016464Z         app = APP_JS.read_text()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4016807Z         usage = USAGE_JS.read_text()
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4017273Z         model_modal = app.split("async function _renderClientModal()", 1)[1].split(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4017729Z             "async function _refreshModels", 1
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4018072Z         )[0]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4018432Z >       task_renderer = "const _TASK_PRIORITY_META" + app.split(
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4018866Z             "const _TASK_PRIORITY_META", 1
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4019407Z         )[1].split("// Central renderer", 1)[0]
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4019774Z E       IndexError: list index out of range
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4019975Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4020175Z tests/test_usage_analytics_frontend.py:319: IndexError
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4020613Z =============================== warnings summary ===============================
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4021290Z tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4022442Z   /home/runner/work/orchestra/orchestra/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4023472Z     warnings.warn(  # deprecated in 14.0 - 2024-11-09
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4023704Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4024002Z tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4024996Z   /home/runner/work/orchestra/orchestra/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4026135Z     from websockets.server import WebSocketServerProtocol
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4026537Z 
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4026774Z -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4027298Z =========================== short test summary info ============================
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4028030Z FAILED tests/test_handoff_effect_classification.py::test_change_model_refusal_names_the_blocking_call_not_only_its_code - KeyError: 'error_code'
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4029035Z FAILED tests/test_mcp_quota_gate.py::test_codex_review_is_blocked_before_the_bg_job - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4030181Z FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer0] - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4031295Z FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer1] - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4032388Z FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer2] - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4033511Z FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[None] - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4034647Z FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer4] - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4035780Z FAILED tests/test_mcp_quota_gate.py::test_available_review_starts_job - ValueError: fatal: not a git repository (or any of the parent directories): .git
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4036895Z FAILED tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources - IndexError: list index out of range
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.4037577Z 9 failed, 422 passed, 16 skipped, 2 warnings in 52.57s
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8326306Z Command exited with non-zero status 1
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8331821Z 	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_antigravity_readiness.py tests/test_artifacts_browser.py tests/test_audit0901_sysquota.py tests/test_backend_claude.py tests/test_bg_jobs.py tests/test_charts.py tests/test_codex_review_artifact.py tests/test_compact_receipt_and_tail.py tests/test_diff_budget.py tests/test_fan_barrier_intercept.py tests/test_fan_terminal_kind.py tests/test_handoff_effect_classification.py tests/test_initial_deliveries.py tests/test_knowledge_import_linking_409.py tests/test_knowledge_runtime_reconcile_missing.py tests/test_logs_sync.py tests/test_mcp_quota_gate.py tests/test_merge_progress_424.py tests/test_merge_test_gate.py tests/test_model_catalog_frontend.py tests/test_openrouter_counter.py tests/test_orchestra_layout_recovery_430.py tests/test_p4_cost.py tests/test_portfolio_tools_418.py tests/test_project_distribution_dirty_412.py tests/test_prompting.py tests/test_rag_service.py tests/test_restart_inbox.py tests/test_review_receipt_outcome_tool_436.py tests/test_run_fan_407.py tests/test_scaffold.py tests/test_send_provenance_without_auth.py tests/test_static_compression.py tests/test_system_restart.py tests/test_task_create_idempotency_395.py tests/test_task_repair_identity_422.py tests/test_tg_bot_api_unit.py tests/test_tg_ingress_509.py tests/test_transcription.py tests/test_usage_analytics_frontend.py tests/test_user_message_display_450.py"
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8338146Z 	User time (seconds): 25.46
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8338540Z 	System time (seconds): 4.04
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8338894Z 	Percent of CPU this job got: 54%
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8339307Z 	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:54.53
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8339697Z 	Average shared text size (kbytes): 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8340084Z 	Average unshared data size (kbytes): 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8340446Z 	Average stack size (kbytes): 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8340835Z 	Average total size (kbytes): 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8341248Z 	Maximum resident set size (kbytes): 244480
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8341672Z 	Average resident set size (kbytes): 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8342068Z 	Major (requiring I/O) page faults: 228
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8342605Z 	Minor (reclaiming a frame) page faults: 575571
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8343041Z 	Voluntary context switches: 81353
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8343454Z 	Involuntary context switches: 3425
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8343845Z 	Swaps: 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8344415Z 	File system inputs: 88112
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8344820Z 	File system outputs: 945072
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8345190Z 	Socket messages sent: 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8345553Z 	Socket messages received: 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8346384Z 	Signals delivered: 0
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8346721Z 	Page size (bytes): 4096
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8347080Z 	Exit status: 1
+test (2)	pytest shard 2 of 6	2026-09-05T08:59:20.8358699Z ##[error]Process completed with exit code 1.
+test (2)	Post Run actions/checkout@v4	﻿2026-09-05T08:59:20.8496091Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.8497683Z Post job cleanup.
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9371173Z [command]/usr/bin/git version
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9416183Z git version 2.55.0
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9457422Z Temporarily overriding HOME='/home/runner/work/_temp/bd750144-a90f-4adc-b36e-aad3eb9a2335' before making global git config changes
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9458708Z Adding repository directory to the temporary git global config as a safe directory
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9464095Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9502346Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9532782Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9763169Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9789291Z http.https://github.com/.extraheader
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9800039Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:20.9838714Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:21.0058999Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (2)	Post Run actions/checkout@v4	2026-09-05T08:59:21.0088556Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (2)	Complete job	﻿2026-09-05T08:59:21.0490099Z Cleaning up orphan processes
+test (2)	Complete job	2026-09-05T08:59:21.0741161Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, astral-sh/setup-uv@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

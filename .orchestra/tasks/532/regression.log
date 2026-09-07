@@ -1,0 +1,50 @@
+........................................................................ [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 41%]
+........................................................................ [ 55%]
+........................................................................ [ 69%]
+........................................................................ [ 83%]
+F.....F................................................................. [ 97%]
+............                                                             [100%]
+=================================== FAILURES ===================================
+_ TestBehaviourRulesLandedAtOwners.test_rule_text_lives_in_exactly_one_owner_file[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`] _
+
+self = <tests.test_default_pipeline.TestBehaviourRulesLandedAtOwners object at 0x7818f0cd7da0>
+anchor = 'No barrier → name the LAST child as the collector'
+owner = 'modules/orchestration.md'
+audience = ('orchestrator', 'sub-orchestrator'), _old = 'барьер `open_fan`'
+
+    @pytest.mark.parametrize("anchor,owner,audience,_old", RULES)
+    def test_rule_text_lives_in_exactly_one_owner_file(self, anchor, owner, audience, _old):
+        """Владелец один: якорь есть в назначенном файле и больше нигде в промптах пайплайна."""
+>       assert anchor in P.prompt_path(PIPELINE, owner).read_text(encoding="utf-8"), owner
+E       AssertionError: modules/orchestration.md
+E       assert 'No barrier → name the LAST child as the collector' in '<orchestration>\n## Orchestration rules (shared by orchestrator + sub-orchestrator)\n\nThese rules apply to ANY agent...t windows. Avoid obvious waste, but never trade away correctness for a cheaper model\n</pricing>\n\n</orchestration>\n'
+E        +  where '<orchestration>\n## Orchestration rules (shared by orchestrator + sub-orchestrator)\n\nThese rules apply to ANY agent...t windows. Avoid obvious waste, but never trade away correctness for a cheaper model\n</pricing>\n\n</orchestration>\n' = read_text(encoding='utf-8')
+E        +    where read_text = PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-scoping/.orchestra/pipelines/default/prompts/modules/orchestration.md').read_text
+E        +      where PosixPath('/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-scoping/.orchestra/pipelines/default/prompts/modules/orchestration.md') = <function prompt_path at 0x7818f1001a80>('default', 'modules/orchestration.md')
+E        +        where <function prompt_path at 0x7818f1001a80> = P.prompt_path
+
+tests/test_default_pipeline.py:397: AssertionError
+_ TestBehaviourRulesLandedAtOwners.test_rule_reaches_its_audience_once[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`] _
+
+self = <tests.test_default_pipeline.TestBehaviourRulesLandedAtOwners object at 0x7818f0cd34a0>
+anchor = 'No barrier → name the LAST child as the collector'
+owner = 'modules/orchestration.md'
+audience = ('orchestrator', 'sub-orchestrator'), _old = 'барьер `open_fan`'
+
+    @pytest.mark.parametrize("anchor,owner,audience,_old", RULES)
+    def test_rule_reaches_its_audience_once(self, anchor, owner, audience, _old):
+        for role in audience:
+            assembled = P.build_system_prompt(PIPELINE, role)
+>           assert assembled.count(anchor) == 1, f"{role}: {assembled.count(anchor)} копий {anchor!r}"
+E           AssertionError: orchestrator: 0 копий 'No barrier → name the LAST child as the collector'
+E           assert 0 == 1
+E            +  where 0 = <built-in method count of str object at 0x3eedd200>('No barrier → name the LAST child as the collector')
+E            +    where <built-in method count of str object at 0x3eedd200> = '<platform>\nYou are an AI agent running inside Orchestra — a multi-agent orchestration platform.\n\n**Communication.*...t when its cost exceeds its protective value and cannot cite his own\n  wording as external authority.\n</user-values>'.count
+
+tests/test_default_pipeline.py:407: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_default_pipeline.py::TestBehaviourRulesLandedAtOwners::test_rule_text_lives_in_exactly_one_owner_file[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`]
+FAILED tests/test_default_pipeline.py::TestBehaviourRulesLandedAtOwners::test_rule_reaches_its_audience_once[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`]
+2 failed, 514 passed in 134.28s (0:02:14)

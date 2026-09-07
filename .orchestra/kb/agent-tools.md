@@ -10,6 +10,8 @@
 
 ## Established
 
+- **Orchestra MCP допускает отключение по роли и воркеру через `disabled_tools`, объединяя оба списка перед запуском MCP.** Роль задаётся в pipeline, worker — при spawn и сохраняется в sessions; диспетчер возвращает `tool_disabled` до handler, каталог не меняется; default запрещает `run_fan` двум orchestrator-ролям · ищи: `disabled_tools`, `tool_disabled`, `run_fan`, «отключить тул воркеру» · `app/tool_scoping.py`, `app/manager.py:_make_mcp_config`, `app/mcp_stdio.py:OrchestraMCP.call_tool`, `.orchestra/tasks/532/live-probe.log` (deny 0 HTTP / allow 1 HTTP) · 2026-09-07, #532
+
 ### Встроенные тула́ рантайма
 
 - **grep-тул на машине без rg уходит в fallback `grep -rn <pattern> .` без `-E`: паттерн с `|`
@@ -240,6 +242,8 @@
 - «Выгодные token deltas B/C доказывают эффект Serena/light» · во всех treatment runs MCP calls=0, forced control показал unavailable · 2026-08-25, #346
 
 ## Gaps
+
+- **Применение `disabled_tools` к уже подключённым production CLI-сессиям после мержа #532 пока не проверено.** Стенд использовал свежие реальные stdio MCP процессы из worktree; live Orchestra не перезапускалась · ищи: `disabled_tools`, «когда запрет вступает в силу» · `.orchestra/tasks/532/report.md` · 2026-09-07, #532
 
 ### Встроенные тула́ рантайма
 

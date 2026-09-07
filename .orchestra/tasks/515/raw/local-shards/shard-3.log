@@ -1,0 +1,85 @@
+sssss................................................................... [  7%]
+........................................................................ [ 15%]
+........................................................................ [ 23%]
+........................................................................ [ 31%]
+........................................................................ [ 39%]
+........................................................................ [ 47%]
+........................................................................ [ 55%]
+........................................................................ [ 63%]
+........................................................................ [ 71%]
+..................................FF.................................... [ 79%]
+........................................................................ [ 87%]
+........................................................................ [ 95%]
+.............................................                            [100%]/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x713e029fd620>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+    self.write_eof()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+    self._loop.call_soon(self._call_connection_lost, None)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+    self._check_closed()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+=================================== FAILURES ===================================
+___________ test_above_the_diagonal_stops_sol_but_not_luna_and_spark ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_above_the_diagonal_stops_sol_but_not_luna_and_spark(browser):
+        """Диагональ гейтит Sol; Luna и Spark живут до жёстких 99%."""
+        payload = _payload(codex_util=80.0, codex_progress=0.5, spark_util=39.0)
+        page, _ = _render(browser, payload)
+        verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+        assert "Sol" in verdict and "стоят" in verdict
+        sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+        luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
+        spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
+>       assert "блок" in sol
+E       AssertionError: assert 'блок' in 'Sol: работает'
+
+tests/test_t344_quota_lines_browser.py:209: AssertionError
+___________ test_hard_99_stops_everyone_and_orchestrator_still_works ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
+        page, _ = _render(browser, _payload(codex_util=99.5, spark_util=99.5))
+        sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+        luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
+        spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
+>       assert "блок" in sol and "блок" in luna and "блок" in spark
+E       AssertionError: assert ('блок' in 'Sol: работает')
+
+tests/test_t344_quota_lines_browser.py:220: AssertionError
+=============================== warnings summary ===============================
+tests/test_mailbox.py::test_t3_undelivered_survives_a_dropped_continuation
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_t344_quota_lines_browser.py::test_above_the_diagonal_stops_sol_but_not_luna_and_spark
+FAILED tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works
+2 failed, 902 passed, 5 skipped, 1 warning in 162.38s (0:02:42)
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x713e029fd620>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

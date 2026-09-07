@@ -19,6 +19,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.models import ALIASES, MODELS
+from app.tool_scoping import parse_disabled_tools
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +223,8 @@ class RoleSpec(BaseModel):
     kind: Kind
     label: str
     order: int = 100
+    disabled_tools: list[str] = Field(default_factory=list)
+    _disabled_tools_valid = field_validator("disabled_tools", mode="before")(parse_disabled_tools)
     can_spawn: list[str] = Field(default_factory=list)  # "*" = любая роль; [] = терминал
     allow_unrouted_workers: bool = False
     # Модули — переиспользуемые блоки промпта (prompts/modules/{m}.md), инлайнятся
@@ -349,6 +352,7 @@ class ResolvedRole(BaseModel):
     label: str
     order: int
     can_spawn: list[str]
+    disabled_tools: list[str] = Field(default_factory=list)
     allow_unrouted_workers: bool
     modules: list[str]
     model: str
@@ -507,7 +511,7 @@ def resolve_role(pipeline: PipelineConfig, role: str) -> ResolvedRole:
         name=role, pipeline=pipeline.name, kind=spec.kind, label=spec.label,
         order=spec.order, can_spawn=spec.can_spawn,
         allow_unrouted_workers=spec.allow_unrouted_workers,
-        modules=spec.modules,
+        modules=spec.modules, disabled_tools=spec.disabled_tools,
         model=_merge_scalar(d.model, spec.model),
         effort=spec.effort,
         skills=_merge_list(d.skills, spec.skills),

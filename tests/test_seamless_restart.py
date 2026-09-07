@@ -866,8 +866,13 @@ async def test_t3_restart_cuts_every_runtime_and_uses_graceful_stop(monkeypatch)
     hand_over = AsyncMock(return_value=True)
     monkeypatch.setattr(local_manager, "_hand_over_backend", hand_over)
 
+    # 5 с, как у соседних проверок этого файла, а не 0.5: внутри всё замокано
+    # (`AsyncMock`), поэтому полсекунды здесь не проверяли ничего, кроме загрузки
+    # машины. На раннере 05.09 это дало `TimeoutError` из `asyncio.wait_for` на
+    # заведомо исправном коде. Бюджет остаётся защитой от ЗАВИСАНИЯ; перф-ассертом
+    # он подрабатывать не должен — правило проекта, 21 такое место уже вычищено.
     outcome = await asyncio.wait_for(
-        system._restart_service_after_response(signal=False), timeout=0.5,
+        system._restart_service_after_response(signal=False), timeout=5,
     )
     await local_manager.shutdown_all()
 

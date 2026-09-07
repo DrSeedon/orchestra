@@ -56,8 +56,17 @@ def wired(tmp_path, monkeypatch, request):
 
 
 @pytest.mark.asyncio
-async def test_senderless_send_without_auth_is_delivered_as_user(wired):
-    """Без включённой авторизации senderless `/send` — операторский."""
+async def test_senderless_send_without_auth_is_delivered_but_not_as_user(wired):
+    """Без авторизации senderless `/send` ДОСТАВЛЯЕТСЯ, но человеком не считается.
+
+    Прежняя версия требовала здесь `origin == "user"`. Это была вторая половина
+    `cb96eb6f`: гейт происхождения #433 отвергал каждое сообщение на контуре без
+    `DASHBOARD_USER`, и чтобы вернуть чат дашборда, отсутствие авторизации приравняли к
+    присутствию оператора. Доставку вернуть было правильно, а личность выдавать — нет:
+    «мы не проверяем, кто пришёл» не равно «пришёл владелец», и на таком контуре
+    происхождение `user` было ложным утверждением об авторстве. Сохранено то, ради чего
+    правка делалась (не 403, сообщение доставлено); изменено только происхождение.
+    """
     routes, captured = wired
 
     result = await routes.send_message(
@@ -71,8 +80,8 @@ async def test_senderless_send_without_auth_is_delivered_as_user(wired):
         "DASHBOARD_USER/DASHBOARD_PASSWORD"
     )
     assert captured, "сообщение не доставлено получателю"
-    assert captured[0].origin == "user"
-    assert captured[0].senders == ("user",)
+    assert captured[0].origin == "unknown"
+    assert captured[0].senders == ("unknown",)
 
 
 @pytest.mark.parametrize("wired", [True], indirect=True)

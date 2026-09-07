@@ -25,6 +25,11 @@ READINESS_MODEL = "gpt-5.6-sol"
 
 
 @pytest.fixture(autouse=True)
+def codex_cli_present(codex_bin_stub):
+    """Путь к codex обязан разрешаться — иначе `codex_review` откажет ДО сборки команды."""
+
+
+@pytest.fixture(autouse=True)
 def valid_project_context_owner(monkeypatch):
     import app.mcp_stdio as mcp
 
@@ -115,7 +120,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert f"-o {output}.round" in command
     assert "codex_review_artifact.py" in command
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
-    assert ("--require-verdict" in command) is (mode == "exec")
+    assert "--require-verdict" in command
     assert command.index("rm -f") < command.index(" | tee ")
     assert "Scale: test-owned production" in command
     assert "PROJECT CONTEXT IS UNKNOWN" not in command

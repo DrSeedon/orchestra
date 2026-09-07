@@ -89,6 +89,7 @@ def summarize_review(*, scope: str, session_id: str, task_id: str,
     reviews = [{
         "receipt_id": row["receipt_id"], "mode": row["mode"], "status": row["status"],
         "model": row["reviewer_model"], "reviewed_head": row["worker_head"],
+        "reviewer_assessment": row["verdict_value"],
         "artifact_path": row["artifact_path"],
         "artifact_available": Path(row["artifact_path"]).is_file() if row["artifact_path"] else False,
         "failure_code": row["failure_code"],

@@ -149,8 +149,10 @@ async def test_t1_verified_codex_and_grok_orphans_signal_only_through_pidfd(
     monkeypatch,
 ):
     """Positive controls: the safety check must not turn into 'never reap an orphan'."""
-    from app.backend_codex import CODEX_BIN
-    from app.backend_grok import GROK_BIN
+    codex_bin = "/bin/true"
+    grok_bin = "/bin/false"
+    monkeypatch.setattr("app.backend_codex.CODEX_BIN", codex_bin)
+    monkeypatch.setattr("app.backend_grok.GROK_BIN", grok_bin)
 
     codex_pid, grok_pid = 2_147_480_001, 2_147_480_002
     codex_start, grok_start = 881_001, 881_002
@@ -173,9 +175,9 @@ async def test_t1_verified_codex_and_grok_orphans_signal_only_through_pidfd(
     )
 
     cmdlines = {
-        codex_pid: b"node\0" + os.fsencode(CODEX_BIN) + b"\0app-server\0--stdio\0",
+        codex_pid: b"node\0" + os.fsencode(codex_bin) + b"\0app-server\0--stdio\0",
         grok_pid: (
-            b"node\0" + os.fsencode(GROK_BIN) + b"\0agent\0--always-approve\0stdio\0"
+            b"node\0" + os.fsencode(grok_bin) + b"\0agent\0--always-approve\0stdio\0"
         ),
     }
     starts = {codex_pid: codex_start, grok_pid: grok_start}
@@ -247,7 +249,8 @@ async def test_t1_unverifiable_candidate_does_not_abort_later_orphan_cleanup(
     caplog,
 ):
     """One malformed /proc record is local; the next verified orphan still gets reaped."""
-    from app.backend_codex import CODEX_BIN
+    codex_bin = "/bin/true"
+    monkeypatch.setattr("app.backend_codex.CODEX_BIN", codex_bin)
 
     denied_pid, verified_pid = 2_147_480_011, 2_147_480_012
     denied_start, verified_start = 882_011, 882_012
@@ -276,7 +279,7 @@ async def test_t1_unverifiable_candidate_does_not_abort_later_orphan_cleanup(
             f"/proc/{verified_pid}/cmdline",
         }:
             return io.BytesIO(
-                b"node\0" + os.fsencode(CODEX_BIN) + b"\0app-server\0--stdio\0"
+                b"node\0" + os.fsencode(codex_bin) + b"\0app-server\0--stdio\0"
             )
         if raw == f"/proc/{denied_pid}/stat":
             malformed = ["S", *("0" for _ in range(18)), "not-a-number"]

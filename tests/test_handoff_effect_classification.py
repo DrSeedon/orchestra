@@ -237,14 +237,41 @@ async def test_prepare_refuses_a_call_that_may_still_be_running_and_names_it(
 
 @pytest.mark.asyncio
 async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(session):
+    """Отказ по незавершённым эффектам называет ЗАБЛОКИРОВАВШИЙ вызов, а не только код.
+
+    Смена модели тут КРОССРАНТАЙМОВАЯ (claude → codex) — и это не деталь оформления.
+    Гейт незавершённых эффектов живёт на пути переноса истории
+    (`_change_runtime_with_packet_locked`), а смена модели ВНУТРИ рантайма идёт мимо него
+    через `_change_model_in_place_locked` (`app/session.py:4754-4760`), потому что
+    переносить нечего: тред тот же. Прежняя версия теста меняла `gpt-5.6-sol` на
+    `gpt-5.6-luna`, то есть внутри Codex, и с появлением in-place-пути (`e26dcde8`,
+    24.08.2026) проверяла путь, к которому её утверждение не относится.
+    Различающая проба 05.09: при заблокированном гейте смена ВНУТРИ рантайма проходит
+    (`ok=True`, `_prepare_runtime_handoff` не вызван ни разу), а МЕЖДУ рантаймами
+    отказывает (`ok=False`, `error_code='handoff_pending_effect'`, гейт вызван 1 раз) —
+    значит защита цела, сужать надо утверждение теста.
+    """
     from app.runtime_history import PreparationResult
     from app.session import AgentStatus
 
-    session.model = "gpt-5.6-sol"
-    session.backend_type = "codex"
+    session.model = "claude-opus-5[1m]"
+    session.backend_type = "claude"
     session.session_id = "source-thread"
     session.status = AgentStatus.IDLE
-    session._backend = AsyncMock()
+    # ЯВНАЯ заглушка, а не `AsyncMock()`: `_change_model_locked` ветвится по атрибутам
+    # бэкенда (`active_turn_id`, `_events_active`, `_turn_active`), а `AsyncMock` создаёт
+    # любой запрошенный атрибут и делает его ИСТИННЫМ. Из-за этого тест не доходил до
+    # проверяемой ветки вовсе и получал отказ «cannot change codex model while its turn is
+    # settling» (`app/session.py:5035`) вместо отказа по незавершённым эффектам.
+    class _IdleBackend:
+        active_turn_id = None
+        _events_active = False
+        _turn_active = False
+
+        async def retarget_model(self, *_args, **_kwargs):
+            return True
+
+    session._backend = _IdleBackend()
     session._log = MagicMock()
     session._ensure_backend = AsyncMock()
     session._prepare_runtime_handoff = AsyncMock(return_value=PreparationResult(
@@ -259,7 +286,7 @@ async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(se
         },),
     ))
 
-    result = await session.change_model("gpt-5.6-luna")
+    result = await session.change_model("gpt-5.6-sol")
 
     assert result["ok"] is False
     assert result["error_code"] == "handoff_pending_effect"
@@ -273,3 +300,38 @@ async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(se
         "call_ts": "2026-08-11T10:00:02+00:00",
     }]
     session._ensure_backend.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_refusal_on_settling_turn_carries_a_machine_readable_code(session):
+    """Отказ «ход ещё оседает» обязан нести КОД, а не только текст.
+
+    Вызывающий ветвится по `error_code`, а не по фразе: соседний отказ того же блока
+    (`app/session.py:5039-5044`, `<runtime>_in_place_switch_unsupported`) код несёт, а
+    этот его терял — обёртка вправе добавить код, но не вправе потерять причину (#416).
+    Утверждается НАЛИЧИЕ и ЗНАЧЕНИЕ кода, а не формулировка текста.
+    """
+    from app.session import AgentStatus
+
+    session.model = "gpt-5.6-sol"
+    session.backend_type = "codex"
+    session.session_id = "source-thread"
+    session.status = AgentStatus.IDLE
+
+    class _SettlingBackend:
+        active_turn_id = "turn-1"
+        _events_active = False
+        _turn_active = False
+
+        async def retarget_model(self, *_args, **_kwargs):
+            raise AssertionError("смена модели не должна дойти до бэкенда")
+
+    session._backend = _SettlingBackend()
+    session._log = MagicMock()
+    session._ensure_backend = AsyncMock()
+
+    result = await session.change_model("gpt-5.6-luna")
+
+    assert result["ok"] is False
+    assert result["error_code"] == "codex_turn_settling", result
+    assert "settling" in result["error"]
