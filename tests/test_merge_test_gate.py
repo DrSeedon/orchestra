@@ -365,13 +365,19 @@ def test_pytest_argv_has_no_exitfirst():
 
 
 def test_pytest_argv_deselects_live_probes_after_the_module_flag():
-    """Гейт не тратит ход провайдера: живые пробы снимаются выражением маркеров."""
-    from app.merge_test_gate import LIVE_PROBE_MARKER, pytest_argv
+    """Гейт не тратит ход провайдера и не блокирует мерж браузером.
+
+    Оба маркера снимаются ОДНИМ выражением: у pytest `-m` одно значение, побеждает
+    последнее, поэтому два отдельных флага молча оставили бы только второй.
+    """
+    from app.merge_test_gate import BROWSER_MARKER, LIVE_PROBE_MARKER, pytest_argv
 
     argv = pytest_argv(["tests/test_widget.py"])
 
-    assert f"not {LIVE_PROBE_MARKER}" in argv
-    marker_flag = argv.index(f"not {LIVE_PROBE_MARKER}") - 1
+    expression = f"not {LIVE_PROBE_MARKER} and not {BROWSER_MARKER}"
+    assert expression in argv, argv
+    assert argv.count("-m") == 2, ("ровно один -m у pytest и один у python", argv)
+    marker_flag = argv.index(expression) - 1
     assert argv[marker_flag] == "-m"
     # Второй `-m` обязан идти ПОСЛЕ `python -m pytest`, иначе он подменит имя модуля.
     assert marker_flag > argv.index("pytest")
@@ -611,6 +617,10 @@ def test_live_probe_inventory_is_explicit():
     expected = {
         "tests/test_native_history_import.py": 2,
         "tests/test_runtime_history.py": 1,
+        # Требует настоящий `~/.codex/auth.json` владельца: предмет проверки — живая
+        # подписка, герметичным он не бывает. На публичном раннике таких кред нет и быть
+        # не должно (#515).
+        "tests/test_mcp_config_isolation.py": 1,
     }
 
     # Считаем ДЕКОРАТОРЫ, а не вхождения строки: первая версия этой проверки насчитала 3
@@ -631,6 +641,50 @@ def test_live_probe_inventory_is_explicit():
     assert found == expected, (
         "инвентарь живых проб разошёлся с заявленным; добавляешь пробу — впиши её сюда "
         f"и в докстринг её файла. Найдено: {found}"
+    )
+
+
+def test_browser_inventory_is_explicit():
+    """Состав снятого с гейта ВИДЕН и проверяем, а не спрятан в неявном исключении.
+
+    Браузерные тесты не блокируют merge-гейт (`-m "not live_probe and not browser"`), но
+    продолжают гоняться. Значит их состав обязан быть заявленным: маркер ставится
+    автоматически по факту запроса браузерной фикстуры (`tests/conftest.py`), и если он
+    начнёт цеплять лишнее или потеряет файл — тест краснеет и заставляет объяснить.
+    Проверяется РАСКЛАДКА ПО ФАЙЛАМ, а не список имён: имена тестов меняются свободно,
+    а вот «браузерных узлов стало вдвое больше» или «целый файл ушёл из-под гейта» —
+    именно то изменение, которое нельзя пропускать молча.
+    """
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parent.parent
+    expected = {
+    "tests/test_frontend.py": 105,
+    "tests/test_t344_quota_lines_browser.py": 17,
+    "tests/test_usage_analytics_frontend.py": 14,
+    "tests/test_usage_history_frontend.py": 11,
+    "tests/test_grok_usage_frontend.py": 11,
+    "tests/test_antigravity_usage_frontend.py": 6,
+    "tests/test_system_chat_entry.py": 1,
+    "tests/test_quota_headroom_447.py": 1,
+    "tests/test_model_catalog_frontend.py": 1,
+    "tests/test_frontend_context_panel_468.py": 1,
+    }
+
+    result = subprocess.run(
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", "browser", "tests/"],
+        cwd=root, capture_output=True, text=True, timeout=600,
+    )
+    assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
+    found: dict[str, int] = {}
+    for line in result.stdout.splitlines():
+        if line.startswith("tests/") and "::" in line:
+            found[line.split("::", 1)[0]] = found.get(line.split("::", 1)[0], 0) + 1
+
+    assert found == expected, (
+        "состав браузерных тестов разошёлся с заявленным. Добавил браузерный тест — впиши "
+        f"файл сюда; ушёл файл — объясни, куда. Найдено: {found}"
     )
 
 

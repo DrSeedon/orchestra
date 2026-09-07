@@ -81,8 +81,12 @@ async def test_prose_token_neither_refuses_nor_relabels_an_honest_merge(
 
 
 @pytest.mark.asyncio
-async def test_unknown_leading_ref_is_still_refused_before_git(monkeypatch, tmp_path):
-    """Control arm: narrowing prose must not disarm the gate for a real fake ref."""
+async def test_unknown_leading_ref_is_reported_without_blocking_merge(monkeypatch, tmp_path):
+    """An unknown repository task number is reported without blocking the merge.
+
+    Since 979c4631, task numbers from another numbering system are preserved as
+    unresolved metadata and no longer refuse otherwise valid work.
+    """
     import app.routes.sessions as sessions_route
     import app.workspace as workspace
     from app import tm
@@ -124,8 +128,9 @@ async def test_unknown_leading_ref_is_still_refused_before_git(monkeypatch, tmp_
         ["git", "rev-parse", "main"], cwd=repo,
         check=True, capture_output=True, text=True,
     ).stdout.strip()
-    assert result["commit_point"] == "not_reached"
-    assert target_after == target_before
+    assert result["commit_point"] == "target_committed"
+    assert target_after != target_before
+    assert result["finalization"]["unresolved_task_refs"] == ["999"]
 
 
 @pytest.mark.asyncio

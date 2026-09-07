@@ -1,0 +1,459 @@
+ssssssssssssssss........................................................ [ 16%]
+........................s............................................... [ 32%]
+.........................F.............................................. [ 48%]
+........FFFFFF.....F.................................................... [ 64%]
+........................................................................ [ 80%]
+....................................................................F... [ 96%]
+...............                                                          [100%]
+=================================== FAILURES ===================================
+_____ test_change_model_refusal_names_the_blocking_call_not_only_its_code ______
+
+session = AgentSession(id='handoff-effects', name='effects-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_promp...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(session):
+        from app.runtime_history import PreparationResult
+        from app.session import AgentStatus
+    
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-thread"
+        session.status = AgentStatus.IDLE
+        session._backend = AsyncMock()
+        session._log = MagicMock()
+        session._ensure_backend = AsyncMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=PreparationResult(
+            ok=False,
+            error_code="handoff_pending_effect",
+            pending_effects=1,
+            pending_effect_details=({
+                "call_id": "call-9",
+                "tool_name": "Bash",
+                "call_log_id": 2,
+                "call_ts": "2026-08-11T10:00:02+00:00",
+            },),
+        ))
+    
+        result = await session.change_model("gpt-5.6-luna")
+    
+        assert result["ok"] is False
+>       assert result["error_code"] == "handoff_pending_effect"
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'error_code'
+
+tests/test_handoff_effect_classification.py:265: KeyError
+________________ test_codex_review_is_blocked_before_the_bg_job ________________
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+
+    @pytest.mark.asyncio
+    async def test_codex_review_is_blocked_before_the_bg_job(api):
+        api.state["readiness"] = _readiness("blocked")
+    
+        with pytest.raises(mcp.ApiToolError) as caught:
+>           await _review(api)
+
+tests/test_mcp_quota_gate.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_codex_review_is_blocked_b0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_codex_review_is_blocked_b0', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer0] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+answer = {'allowed': True, 'gated': True, 'hard_limit_pct': 99.0, 'lane': 'sol', ...}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn0', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer1] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+answer = {'allowed': True, 'gated': True, 'hard_limit_pct': 99.0, 'lane': 'sol', ...}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn1'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn1', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer2] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>, answer = {'unexpected': 'shape'}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn2'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn2', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+________ test_review_fails_open_on_unknown_malformed_or_transport[None] ________
+
+api = <class 'tests.test_mcp_quota_gate.Api'>, answer = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn3'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn3', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer4] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+answer = ApiToolError(code='transport_error', message='offline', status=None, retryable=False, request_id=None, retry_after_seconds=None, outcome_unknown=False, details={}, result=None)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn4'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_review_fails_open_on_unkn4', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+_______________________ test_available_review_starts_job _______________________
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+
+    @pytest.mark.asyncio
+    async def test_available_review_starts_job(api):
+>       result = await _review(api)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:173: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4087: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3719: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3617: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3613: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-kesha/pytest-8543/test_available_review_starts_j0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-kesha/pytest-8543/test_available_review_starts_j0', 'rev-parse', '...on-dir'], returncode=128, stdout=b'', stderr=b'fatal: not a git repository (or any of the parent directories): .git\n')
+detail = 'fatal: not a git repository (or any of the parent directories): .git'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any of the parent directories): .git
+
+app/mcp_stdio.py:3608: ValueError
+________ test_model_cost_and_task_money_have_separate_currency_sources _________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_model_cost_and_task_money_have_separate_currency_sources(browser):
+        utils = UTILS_JS.read_text()
+        analytics = ANALYTICS_JS.read_text()
+        app = APP_JS.read_text()
+        usage = USAGE_JS.read_text()
+        model_modal = app.split("async function _renderClientModal()", 1)[1].split(
+            "async function _refreshModels", 1
+        )[0]
+>       task_renderer = "const _TASK_PRIORITY_META" + app.split(
+            "const _TASK_PRIORITY_META", 1
+        )[1].split("// Central renderer", 1)[0]
+E       IndexError: list index out of range
+
+tests/test_usage_analytics_frontend.py:319: IndexError
+=============================== warnings summary ===============================
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_handoff_effect_classification.py::test_change_model_refusal_names_the_blocking_call_not_only_its_code
+FAILED tests/test_mcp_quota_gate.py::test_codex_review_is_blocked_before_the_bg_job
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer0]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer1]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer2]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[None]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer4]
+FAILED tests/test_mcp_quota_gate.py::test_available_review_starts_job - Value...
+FAILED tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources
+9 failed, 421 passed, 17 skipped, 2 warnings in 158.93s (0:02:38)

@@ -6,11 +6,91 @@ from pathlib import Path
 
 import pytest
 
-from app.codex_review_artifact import finalize_review_artifact
+from app.codex_review_artifact import _parse_verdict, finalize_review_artifact
 
 
 def _jsonl(path, thread_id="thread-1"):
-    path.write_text(json.dumps({"type": "thread.started", "thread_id": thread_id}) + "\n")
+    path.write_text("\n".join(json.dumps(event) for event in [
+        {"type": "thread.started", "thread_id": thread_id},
+        {"type": "item.completed", "item": {"type": "agent_message", "text": "## Verdict\nPASS"}},
+        {"type": "turn.completed"},
+    ]) + "\n")
+
+
+@pytest.mark.parametrize(
+    ("review", "present", "value"),
+    [
+        ("## Verdict\nNo verdict was reached.\n", False, ""),
+        ("## Вердикт\nAPPROVED\n", True, "APPROVED"),
+    ],
+)
+def test_verdict_presence_requires_meaningful_localized_section(review, present, value):
+    assert _parse_verdict(review) == (present, value)
+
+
+def test_russian_verdict_header_is_accepted_by_finalizer(tmp_path):
+    output = tmp_path / "review.md"
+    round_file = tmp_path / "review.md.round"
+    sessions = tmp_path / "codex_sessions.json"
+    jsonl = tmp_path / "review.jsonl"
+    round_file.write_text("## Summary\nOK\n\n## Вердикт\nAPPROVED\n")
+    _jsonl(jsonl)
+
+    finalize_review_artifact(
+        output=output, round_file=round_file, sessions_file=sessions,
+        slug="review", jsonl_file=jsonl, resume=False, require_verdict=True,
+    )
+
+    assert "## Вердикт\nAPPROVED" in output.read_text()
+
+
+def test_negative_verdict_is_rejected_by_finalizer(tmp_path):
+    round_file = tmp_path / "review.md.round"
+    round_file.write_text("## Verdict\nNo verdict was reached.\n")
+    jsonl = tmp_path / "review.jsonl"
+    _jsonl(jsonl)
+
+    with pytest.raises(ValueError, match="Verdict"):
+        finalize_review_artifact(
+            output=tmp_path / "review.md", round_file=round_file,
+            sessions_file=tmp_path / "sessions.json", slug="review",
+            jsonl_file=jsonl, resume=False, require_verdict=True,
+        )
+
+
+@pytest.mark.parametrize(
+    ("review", "present", "value"),
+    [
+        ("## Verdict\nNo verdict was reached.\n", 0, ""),
+        ("## Вердикт\nAPPROVED\n", 1, "APPROVED"),
+    ],
+)
+def test_terminal_receipt_records_semantic_verdict(review, present, value, tmp_path, monkeypatch):
+    import app.codex_review_artifact as artifact
+    import app.db as db
+
+    saved = {}
+    monkeypatch.setattr(db, "review_receipt_get", lambda _receipt_id: {
+        "subject_kind": "implementation",
+    })
+    monkeypatch.setattr(
+        db, "review_receipt_finish",
+        lambda _receipt_id, fields: saved.update(fields),
+    )
+    output = tmp_path / "review.md"
+    output.write_text(review)
+    jsonl = tmp_path / "review.jsonl"
+    jsonl.write_text(json.dumps({
+        "item": {"type": "agent_message", "text": "reviewed"},
+    }) + "\n")
+
+    artifact._record_terminal_receipt(
+        receipt_id="receipt", output=output, jsonl_file=jsonl,
+        status="completed", return_code=0,
+    )
+
+    assert saved["verdict_present"] == present
+    assert saved["verdict_value"] == value
 
 
 def test_fresh_review_is_atomic_and_persists_session(tmp_path):
@@ -135,6 +215,7 @@ def test_review_usage_is_persisted_once_for_requesting_agent(tmp_path, monkeypat
     jsonl = tmp_path / "review.jsonl"
     jsonl.write_text("\n".join([
         json.dumps({"type": "thread.started", "thread_id": "thread-usage"}),
+        json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "## Verdict\nAPPROVED"}}),
         json.dumps({"type": "turn.completed", "usage": {
             "input_tokens": 100,
             "cached_input_tokens": 60,
@@ -214,6 +295,7 @@ def test_usage_failure_is_nonfatal_after_review_is_persisted(tmp_path, monkeypat
     jsonl = tmp_path / "review.jsonl"
     jsonl.write_text("\n".join([
         json.dumps({"type": "thread.started", "thread_id": "zero-thread"}),
+        json.dumps({"type": "item.completed", "item": {"type": "agent_message", "text": "## Verdict\nAPPROVED"}}),
         json.dumps({"type": "turn.completed", "usage": {
             "input_tokens": 0, "output_tokens": 0,
         }}),

@@ -107,6 +107,7 @@ class AgentLoop:
         self.error_detail = ""
         self.truncated_history = False     # set by _fit_context; surfaced as a warning event
         self.truncated_dropped = 0
+        self._round_hint: dict | None = None
         self.new_messages: list[dict] = []  # messages produced this turn (for persistence)
 
     async def run(self, user_msg: str) -> AsyncIterator[AgentEvent]:
@@ -122,13 +123,12 @@ class AgentLoop:
 
         try:
             for round_no in range(self.max_rounds):
+                self._round_hint = None
                 remaining = self.max_rounds - round_no
                 if remaining in WIND_DOWN_AT and self.max_rounds > max(WIND_DOWN_AT):
                     msg = (f"[round guard] {remaining} tool rounds remain THIS TURN — "
                            f"wrap up and report your findings now.")
-                    entry = {"role": "user", "content": msg}
-                    self.history.append(entry)
-                    self.new_messages.append(entry)
+                    self._round_hint = {"role": "user", "content": msg}
                     logger.warning(f"round guard: {remaining} rounds left (cap {self.max_rounds})")
                     yield AgentEvent("warning", msg)
 
@@ -203,12 +203,7 @@ class AgentLoop:
             self._terminal("max_turns", ok=False,
                            detail=f"exceeded {self.max_rounds} tool rounds")
         finally:
-            # Turn-scoped wind-down guards NEVER persist in the shared session history — a
-            # stale "3 rounds remain" in future turns is the same lie this task fights (#367 B3).
-            self.history[:] = [m for m in self.history
-                               if not str(m.get("content", "")).startswith("[round guard]")]
-            self.new_messages[:] = [m for m in self.new_messages
-                                    if not str(m.get("content", "")).startswith("[round guard]")]
+            self._round_hint = None
 
     def _absorb_injected(self) -> list[str]:
         """Move steering that arrived mid-turn into history; returns what was absorbed."""
@@ -229,12 +224,14 @@ class AgentLoop:
         reasoning_details: list = []
         finish_reason = "stop"
 
+        # Wind-down hints belong to this request, not persisted conversation history.
+        messages = self.history + ([self._round_hint] if self._round_hint else [])
         # Pass effort only when set — keeps the call signature-compatible with stream() stubs
         # that don't accept the kwarg (real backwards compatibility, not just body-identical).
         if self.effort is None:
-            gen = self.llm.stream(self.history, self.tool_schemas, abort=self._abort)
+            gen = self.llm.stream(messages, self.tool_schemas, abort=self._abort)
         else:
-            gen = self.llm.stream(self.history, self.tool_schemas, abort=self._abort, effort=self.effort)
+            gen = self.llm.stream(messages, self.tool_schemas, abort=self._abort, effort=self.effort)
         async for ev in gen:
             if ev.kind == "text_delta":
                 text_parts.append(ev.text)
@@ -395,7 +392,7 @@ class AgentLoop:
         return int(total / BYTES_PER_TOKEN)
 
     def _estimate_tokens(self) -> int:
-        return self._estimate_messages(self.history)
+        return self._estimate_messages(self.history + ([self._round_hint] if self._round_hint else []))
 
     def _fit_context(self) -> bool:
         """Compact old assistant/tool rounds while preserving instructions and protocol.
@@ -406,7 +403,9 @@ class AgentLoop:
         Returns False when the anchors alone exceed the guard.
         """
         guard = int(self.max_context * CONTEXT_GUARD_RATIO)
-        if self._estimate_tokens() <= guard:
+        if self._round_hint:
+            guard -= self._estimate_messages([self._round_hint])
+        if self._estimate_messages(self.history) <= guard:
             return True
 
         anchor_indices = {
@@ -454,7 +453,7 @@ class AgentLoop:
         self.history[:] = compacted
         self.truncated_history = True
         self.truncated_dropped += dropped
-        return self._estimate_tokens() <= guard
+        return self._estimate_messages(self.history) <= guard
 
     def _terminal(self, stop_reason: str, ok: bool, detail: str = "") -> None:
         self.stop_reason = stop_reason

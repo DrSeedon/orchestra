@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
 from app.session import AgentSession, AgentStatus
+from app.tool_scoping import parse_disabled_tools
 from app.session_state import ACTIVE_SESSION_STATUSES
 from app.events import InjectedMessage, MessageProvenance
 from app.kb_index import kb_index_block
@@ -448,8 +449,13 @@ def _parse_custom_mcp(raw) -> dict:
 
 def _make_mcp_config(name: str, scope: str, role: str = "worker",
                      parent_name: str = "", extra: dict | None = None,
-                     session_id: str = "") -> dict:
+                     session_id: str = "", pipeline: str = "",
+                     disabled_tools: list[str] | None = None) -> dict:
+    role_spec = get_role(pipeline or get_active_pipeline(scope), role)
+    denied = parse_disabled_tools(disabled_tools)
+    denied = sorted(set(denied) | set(role_spec.disabled_tools if role_spec else []))
     env = {
+        "ORCHESTRA_DISABLED_TOOLS": json.dumps(denied),
         **MCP_BASE_ENV,
         "ORCHESTRA_URL": "http://127.0.0.1:8888",
         "ORCHESTRA_SCOPE": scope,
@@ -645,6 +651,7 @@ class SessionManager:
                              base_branch: str = "",
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
+                             disabled_tools: list[str] | None = None,
                              pipeline: str = "", profile: str = "",
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
@@ -672,6 +679,7 @@ class SessionManager:
                 parent_id=parent_id,
                 parent_name=parent_name,
                 mcp_servers=mcp_servers,
+                disabled_tools=disabled_tools,
                 pipeline=pipeline,
                 profile=profile,
                 docs_feature=docs_feature,
@@ -689,6 +697,7 @@ class SessionManager:
                              base_branch: str = "",
                              parent_id: str = "", parent_name: str = "",
                              mcp_servers: dict | None = None,
+                             disabled_tools: list[str] | None = None,
                              pipeline: str = "", profile: str = "",
                              docs_feature: str = "",
                              owned_dirs: list | None = None,
@@ -744,6 +753,8 @@ class SessionManager:
 
         # R1: is_orchestrator из манифеста (kind), fallback на frozenset апстрима.
         is_orch = self._role_is_orchestrator(pipeline, role)
+
+        disabled_tools = parse_disabled_tools(disabled_tools)
 
         # Work areas describe expected edits; separate worktrees may overlap.
         owned_dirs = parse_owned_dirs(owned_dirs)
@@ -863,7 +874,9 @@ class SessionManager:
             pipeline=pipeline, profile=profile,
             color="" if is_orch else self._pick_color(),
             mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name,
-                                         extra=custom_mcp, session_id=session_id),
+                                         extra=custom_mcp, session_id=session_id,
+                                         pipeline=pipeline, disabled_tools=disabled_tools),
+            disabled_tools=parse_disabled_tools(disabled_tools),
             mcp_servers_custom=custom_mcp,
             backend_type=bt, effort=effort, task_id=task_id, description=description,
             base_branch=base_branch,
@@ -1354,7 +1367,8 @@ class SessionManager:
         session.mcp_servers = _make_mcp_config(
             session.name, session.scope, session.role,
             parent_name=session.parent_name, extra=session.mcp_servers_custom,
-            session_id=session.id,
+            session_id=session.id, pipeline=session.pipeline,
+            disabled_tools=session.disabled_tools,
         )
         if session._backend is None:
             return "config-only"
@@ -1423,7 +1437,8 @@ class SessionManager:
             session.mcp_servers = _make_mcp_config(name, new_scope, session.role,
                                                    parent_name=session.parent_name,
                                                    extra=session.mcp_servers_custom,
-                                                   session_id=session.id)
+                                                   session_id=session.id, pipeline=session.pipeline,
+                                                   disabled_tools=session.disabled_tools)
             session._persist()
             if session._persist_task:
                 await asyncio.gather(session._persist_task, return_exceptions=True)
@@ -1563,6 +1578,7 @@ class SessionManager:
             last_summary=row.get("last_summary") or "",
             task_id=row.get("task_id") or "",
             description=row.get("description") or "",
+            disabled_tools=parse_disabled_tools(row.get("disabled_tools")),
             owned_dirs=parse_owned_dirs(row.get("owned_dirs")),
             tg_topic=bool(row.get("tg_topic") or 0),
             effort=row.get("effort") or None,
@@ -2117,7 +2133,9 @@ class SessionManager:
             color="" if is_orch else (db_row.get("color") or self._pick_color()),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,
                                          parent_name=db_row.get("parent_name", ""),
-                                         extra=custom_mcp, session_id=db_row["id"]),
+                                         extra=custom_mcp, session_id=db_row["id"], pipeline=pipeline,
+                                         disabled_tools=parse_disabled_tools(db_row.get("disabled_tools"))),
+            disabled_tools=parse_disabled_tools(db_row.get("disabled_tools")),
             mcp_servers_custom=custom_mcp,
             backend_type=stored_bt, effort=db_row.get("effort") or None,
             runtime_handoff=db_row.get("runtime_handoff") or "",

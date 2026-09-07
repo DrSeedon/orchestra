@@ -115,7 +115,7 @@ def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
     ]
 
 
-def test_find_limit_stopped_agents_preserves_monthly_limit_over_generic_status():
+def test_legacy_limit_kind_cannot_be_inferred_from_assistant_text():
     from app.limit_wake import find_limit_stopped_agents
 
     session = _session("monthly", "monthly-worker", "claude-opus-5[1m]")
@@ -134,7 +134,7 @@ def test_find_limit_stopped_agents_preserves_monthly_limit_over_generic_status()
 
     agents = find_limit_stopped_agents([session], logs)
 
-    assert agents[0]["limit_kind"] == "monthly"
+    assert agents[0]["limit_kind"] == "timed"
 
 
 def test_limit_phrase_in_normal_assistant_text_is_not_terminal_evidence():

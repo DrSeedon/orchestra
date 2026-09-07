@@ -1,0 +1,24 @@
+Command exited with non-zero status 1
+	Command being timed: "uv run pytest -q -rf --timeout=30 tests/test_antigravity_runtime.py tests/test_audit0901_db.py tests/test_audit0901_tg.py tests/test_backend_codex.py tests/test_bug_report_notify.py tests/test_check_pipeline_manifest.py tests/test_codex_review_sandbox.py tests/test_cross_repo_warning.py tests/test_disallowed_tools.py tests/test_fan_completion_modes_407.py tests/test_fd_adopt.py tests/test_harness_inject.py tests/test_initial_delivery_review_regressions.py tests/test_knowledge_import_recovery_409.py tests/test_legacy_pipeline_skills.py tests/test_mailbox.py tests/test_mcp_resolve_operation_423.py tests/test_merge_reason_preservation_416.py tests/test_message_delivery_receipts_380.py tests/test_model_flags.py tests/test_openrouter_retry.py tests/test_orchestrators_payload.py tests/test_pipeline.py tests/test_portfolio_watchdog_418.py tests/test_project_distribution_review_412.py tests/test_quota_admission_e2e.py tests/test_rate_limit_capture_441.py tests/test_return_to_merged_branch.py tests/test_review_receipt_safety_436.py tests/test_runaway_memory_guard.py tests/test_seamless_restart.py tests/test_session.py tests/test_static_js_globals.py tests/test_t344_quota_lines_browser.py tests/test_task_number_floor_435.py tests/test_task_repair_performance_422.py tests/test_tg_bridge.py tests/test_tg_large_file_timeout.py tests/test_turn_ended_no_quota_suffix.py tests/test_usage_contract.py tests/test_validate_spawn_unknown_role.py"
+	User time (seconds): 58.60
+	System time (seconds): 29.32
+	Percent of CPU this job got: 52%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:47.79
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 220560
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 822
+	Minor (reclaiming a frame) page faults: 648005
+	Voluntary context switches: 82272
+	Involuntary context switches: 3020
+	Swaps: 0
+	File system inputs: 210880
+	File system outputs: 784288
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1

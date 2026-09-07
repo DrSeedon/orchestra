@@ -1,0 +1,136 @@
+........................................................................ [ 18%]
+........F..................................F............................ [ 36%]
+........................................................................ [ 54%]
+.....................................ssssssssssssssssssss.ssssssssssss.. [ 72%]
+...............F........................................................ [ 90%]
+........................................                                 [100%]
+=================================== FAILURES ===================================
+________________ test_message_without_sender_is_never_buffered _________________
+
+fanned = <module 'app.fan_barrier' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/fan_barrier.py'>
+spy = <tests.test_fan_barrier_gates._SpyManager object at 0x7c051ca9b050>
+
+    def test_message_without_sender_is_never_buffered(fanned, spy):
+        """Internal caller без sender не получает человеческое происхождение."""
+        response = _send(None)
+>       assert getattr(response, "status_code", None) == 403, (
+            "неаутентифицированный internal caller был принят за человека"
+        )
+E       AssertionError: неаутентифицированный internal caller был принят за человека
+E       assert None == 403
+E        +  where None = getattr({'ok': True, 'parent_name': 'parent'}, 'status_code', None)
+
+tests/test_fan_barrier_gates.py:186: AssertionError
+_______________________ test_lost_log_write_is_reported ________________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/db.py'>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x7c050ea4c1a0>
+
+    @pytest.mark.asyncio
+    async def test_lost_log_write_is_reported(db, caplog):
+        """Потеря записи обязана назвать агента, тип записи, класс ошибки и содержимое."""
+        from app.session import AgentSession
+    
+        session = AgentSession.__new__(AgentSession)
+        session.id = "ghost"  # строки в sessions нет — FK упадёт
+        session.name = "Orchestra-orchestrator"
+        session._log_futures = set()
+    
+        with caplog.at_level("ERROR", logger="app.session"):
+            session._log("error", "connect failed: TimeoutError")
+            await asyncio.gather(*session._log_futures, return_exceptions=True)
+            await asyncio.sleep(0)  # дать done-callback отработать
+    
+>       assert "log write lost" in caplog.text
+E       assert 'log write lost' in "ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n"
+E        +  where "ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n" = <_pytest.logging.LogCaptureFixture object at 0x7c050ea4c1a0>.text
+
+tests/test_log_write_loss.py:45: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    asyncio:base_events.py:1821 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint failed')>) at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/session.py:5247
+handle: <Handle AgentSession._log.<locals>.completed(<Future finis...aint failed')>) at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/session.py:5247>
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/session.py", line 5253, in completed
+    done.result()
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/db.py", line 2105, in add_log
+    cur = c.execute(
+          ^^^^^^^^^^
+sqlite3.IntegrityError: FOREIGN KEY constraint failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/app/session.py", line 5258, in completed
+    self._failed_log_writes[generation] = (
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AgentSession' object has no attribute '_failed_log_writes'
+____ test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c050e95bfe0>
+
+    @pytest.mark.asyncio
+    async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete(
+        monkeypatch,
+    ):
+        from app import main as app_main
+    
+        shutdown_runtime = getattr(app_main, "_shutdown_runtime", None)
+        assert callable(shutdown_runtime), (
+            "lifespan teardown is not an observable ordered shutdown sequence"
+        )
+    
+        order: list[tuple[str, str] | str] = []
+        monkeypatch.setattr(
+            "app.restart_guard.note_shutdown_phase",
+            lambda phase, task_class: order.append((phase, task_class)),
+        )
+        monkeypatch.setattr(
+            "app.merge_operations.shutdown_merge_operations",
+            AsyncMock(side_effect=lambda: order.append("merge_done")),
+        )
+        monkeypatch.setattr("app.rag_service.shutdown", lambda: order.append("rag_done"))
+        monkeypatch.setattr(
+            "app.tg_bridge.stop_bridge",
+            AsyncMock(side_effect=lambda: order.append("tg_done")),
+        )
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager.shutdown",
+            AsyncMock(side_effect=lambda: order.append("bg_done")),
+        )
+        monkeypatch.setattr(
+            app_main.manager,
+            "shutdown_all",
+            AsyncMock(side_effect=lambda: order.append("handoff_done")),
+        )
+    
+        done_task = asyncio.create_task(asyncio.sleep(0))
+        await done_task
+>       await shutdown_runtime(
+            restart_inbox_drain=None,
+            snapshot_task=done_task,
+            bridge_task=done_task,
+        )
+E       TypeError: _shutdown_runtime() missing 2 required positional arguments: 'projection_repair_task' and 'portfolio_watchdog_task'
+
+tests/test_restart_generation_liveness.py:853: TypeError
+=============================== warnings summary ===============================
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3722198) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+========================== ПРОПУЩЕН РЕАЛЬНЫЙ СЛОЙ RAG ==========================
+32 теста(ов) не выполнялись: в этом окружении нет эмбеддера. Индексация, чанкинг и поиск заглушками не моделируются — правка RAG этим прогоном НЕ проверена. Ставить deps в worktree НЕ надо, прогнать интерпретатором сервера:
+  /home/kesha/orchestra/.venv/bin/python -m pytest tests/test_rag.py
+  test_backfill_files_stops_inside_the_slice_on_deadline, test_backfill_indexes_md_only, test_backfill_logs_dedup_second_run, test_backfill_logs_limit_bounds_one_pass, test_backfill_logs_session_name_filter, test_backfill_logs_stops_inside_the_slice_on_deadline, test_backfill_logs_type_and_length_filter, test_backfill_prunes_deleted, test_backfill_second_run_no_changes, test_backfill_skips_git_ignored_files, test_delete_file_removes_all, test_empty_query_returns_empty, test_freshest_file_is_indexed_first, test_index_file_creates_rows, test_index_file_idempotent_same_content, test_index_log_creates_rows, test_index_log_dedup, test_interrupted_pass_resumes_instead_of_restarting, test_pending_files_counts_missing_and_stale, test_prune_runs_before_embedding_so_a_cut_short_pass_still_drops_phantoms, test_readonly_conn_cannot_write, test_readonly_conn_sees_writes_and_searches, test_reindex_changed_content_replaces, test_reindex_reuses_embeddings_of_unchanged_chunks, test_reused_vectors_are_the_same_bytes, test_same_path_different_projects_coexist, test_search_cross_project_optin, test_search_file_and_log_sources, test_search_kinds_filter, test_search_never_returns_a_file_deleted_from_disk, test_search_project_isolation, test_walk_indexes_everything_when_git_is_unavailable
+=========================== short test summary info ============================
+FAILED tests/test_fan_barrier_gates.py::test_message_without_sender_is_never_buffered
+FAILED tests/test_log_write_loss.py::test_lost_log_write_is_reported - assert...
+FAILED tests/test_restart_generation_liveness.py::test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete
+3 failed, 365 passed, 32 skipped, 2 warnings in 184.73s (0:03:04)

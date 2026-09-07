@@ -3531,3 +3531,19 @@ class TestRestartWake:
                     c.execute("SELECT id, status FROM sessions").fetchall()}
         assert rows["w-run"] == "interrupted", f"признак прерванности потерян: {rows}"
         assert rows["w-idle"] == "idle", f"признак приписан завершившему ход: {rows}"
+
+
+@pytest.mark.asyncio
+async def test_worker_disabled_tools_survive_create_and_identity_refresh(mgr):
+    import json
+    session = await mgr.create_session(
+        name='scoped-worker', scope='/s', cwd='/tmp', model='gpt-5.6-luna',
+        disabled_tools=['get_worker_info'],
+    )
+    assert session.disabled_tools == ['get_worker_info']
+    assert json.loads(session.mcp_servers['orchestra']['env']['ORCHESTRA_DISABLED_TOOLS']) == ['get_worker_info']
+    from app.db import get_session
+    assert json.loads(get_session(session.id)['disabled_tools']) == ['get_worker_info']
+    # Rebuilding MCP config during identity refresh must preserve worker restrictions.
+    mgr.refresh_identity(session)
+    assert json.loads(session.mcp_servers['orchestra']['env']['ORCHESTRA_DISABLED_TOOLS']) == ['get_worker_info']

@@ -10,11 +10,12 @@ def test_zero_rc_empty_artifact_is_not_success_and_jsonl_recovery_is_positive(tm
     jsonl = tmp_path / "review.jsonl"
     round_file.write_text("")
     jsonl.write_text(json.dumps({
+        "type": "item.completed",
         "item": {
             "type": "agent_message",
             "text": "## Summary\nRecovered\n\n## Verdict\nPASS",
         },
-    }) + "\n")
+    }) + '\n{"type":"turn.completed"}\n')
 
     error = None
     try:

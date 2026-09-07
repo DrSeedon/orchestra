@@ -71,9 +71,12 @@ async def test_usage_visible_to_owner_with_login(monkeypatch):
         return {"anthropic": {"five_hour": {"utilization": 7}}}
 
     monkeypatch.setattr(system_routes, "_get_usage_data", _fake_usage_data)
-    assert await system_routes.get_usage() == {
-        "anthropic": {"five_hour": {"utilization": 7}},
-    }
+    usage = await system_routes.get_usage()
+    # Предмет теста — ВИДИМОСТЬ данных владельцу, а не точный состав ключей. Сверка на
+    # полное равенство ломалась от каждого нового поля: `quota_headroom` добавлен
+    # `e2f79204` (#447, 03.09) и к правам доступа отношения не имеет.
+    assert usage["anthropic"] == {"five_hour": {"utilization": 7}}
+    assert "quota_headroom" in usage, usage
 
 
 def test_profiles_gate_blocks_client(monkeypatch):

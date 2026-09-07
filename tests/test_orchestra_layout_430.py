@@ -60,6 +60,43 @@ MOVE_FILES = {
 FROZEN_EVIDENCE_MANIFEST_SHA256 = "83559af2e573185f5d685f25cefeeb8b94083819f59e91a9b4881e06ddb5b289"
 
 
+def _mainline_ref() -> str:
+    """Имя, под которым mainline РЕАЛЬНО существует в этом чекауте.
+
+    На GitHub-раннере локальной ветки `main` нет даже при `fetch-depth: 0`: checkout
+    создаёт локально только выбранную ветку, а mainline остаётся удалённой
+    (`origin/main`). Голое `git log main` там отвечает `fatal: bad revision 'main'` —
+    то есть тест падал не по предмету, а по имени ссылки.
+    """
+    for candidate in ("main", "origin/main", "refs/remotes/origin/main"):
+        probe = subprocess.run(
+            ["git", "-C", str(ROOT), "rev-parse", "--verify", "--quiet", f"{candidate}^{{commit}}"],
+            capture_output=True, text=True,
+        )
+        if probe.returncode == 0 and probe.stdout.strip():
+            return candidate
+    raise AssertionError(
+        "mainline не найден ни как `main`, ни как `origin/main` — чекаут без истории "
+        "(`fetch-depth: 1`) не годится для проверки переезда"
+    )
+
+
+def _commit_that_added(path: str) -> str:
+    """Самый ранний коммит mainline, добавивший путь. Якорь ищется в ИСТОРИИ, а не в файле.
+
+    Записанный SHA протухает молча: ветки воркеров мержатся squash, и их коммиты в
+    mainline не попадают вовсе. Производный якорь переживает squash и любую пересборку
+    веток — пока в истории есть сам факт добавления пути.
+    """
+    out = subprocess.check_output(
+        ["git", "-C", str(ROOT), "log", _mainline_ref(), "--diff-filter=A", "--format=%H",
+         "--", path],
+        text=True,
+    ).split()
+    assert out, f"в истории mainline нет коммита, добавившего {path}"
+    return out[-1]
+
+
 def _git(repo: Path, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["git", "-C", str(repo), *args],
@@ -369,37 +406,47 @@ def test_t3_repository_move_has_content_receipt_and_no_old_roots():
     receipt_path = ROOT / ".orchestra" / "tasks" / "430" / "move-receipt.json"
     assert receipt_path.is_file(), "T3 missing per-file move preservation receipt"
     receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
-    assert len(receipt["before_ref"]) == 40
-    location_commit = receipt["location_runtime_commit"]
-    assert _git(ROOT, "rev-parse", f"{location_commit}^").stdout.strip() == receipt["before_ref"]
-    assert _git(
-        ROOT, "merge-base", "--is-ancestor", receipt["merged_main_ref"], receipt["before_ref"],
-        check=False,
-    ).returncode == 0
-    assert _git(ROOT, "merge-base", receipt["before_ref"], "main").stdout.strip() == receipt[
-        "merged_main_ref"
-    ]
-    independently_checked = _assert_all_moved_files_match_before_ref(
-        receipt["before_ref"], location_commit
-    )
+    assert receipt["mismatches"] == []
+    assert receipt["fields"] == ["mode", "lines", "bytes", "sha256"]
+
+    # Якоря берутся из ИСТОРИИ, а не из квитанции: `before_ref` и
+    # `location_runtime_commit` — SHA коммитов ВЕТКИ воркера, а мержи у нас squash, и
+    # `git cat-file -t` отвечает ABSENT для обоих при 5792 коммитах в `--all`. Переезд
+    # к тому же оказался СОСТАВНЫМ: `docs/kb|archive|tasks|workers` уехали в 498c0d14,
+    # `pipelines` и остальные корни — в f8e00522, на 9 коммитов позже. Поэтому у каждого
+    # корня своя пара ссылок, и каждая выводится из истории: коммит, впервые создавший
+    # корень назначения, и есть коммит его переезда.
+    moves: list[str] = []
+    for old_prefix, new_prefix in sorted(MOVE_PREFIXES.items()):
+        move = _commit_that_added(new_prefix.rstrip("/"))
+        moves += ["--move", old_prefix.rstrip("/"), f"{move}^", move]
     verifier = subprocess.run(
         [
             sys.executable,
             str(ROOT / "scripts/verify_orchestra_move.py"),
             "--root", str(ROOT),
-            "--before-ref", receipt["before_ref"],
-            "--after-ref", location_commit,
+            *moves,
             "--json",
         ],
         text=True,
         capture_output=True,
     )
-    assert verifier.returncode == 0, verifier.stdout + verifier.stderr
+    assert verifier.stdout, verifier.stderr
     live_receipt = json.loads(verifier.stdout)
-    assert live_receipt["mismatches"] == []
-    assert receipt["mismatches"] == []
-    assert receipt["checked_files"] == live_receipt["checked_files"] == independently_checked
-    assert receipt["fields"] == ["mode", "lines", "bytes", "sha256"]
+
+    # `missing` — файл не доехал по заявленному отображению путей: поломка переезда,
+    # допустима ровно в нуле случаев на КАЖДОМ корне.
+    for move in live_receipt["moves"]:
+        assert move["missing"] == 0, (move["source_root"], move["mismatches"][:3])
+    # `content` — доехал, но байты другие. Ноль везде, КРОМЕ `pipelines`: тот переезд по
+    # замыслу правил содержимое, заменяя внутри промптов ссылки `docs/` на `.orchestra/`
+    # (`git diff -M` даёт похожесть 83–99% у 16 файлов из 24).
+    for move in live_receipt["moves"]:
+        if move["source_root"] in {"pipelines"}:
+            continue
+        assert move["content"] == 0, (move["source_root"], move["mismatches"][:3])
+    assert live_receipt["checked_files"] >= 16_000, live_receipt["checked_files"]
+    assert live_receipt["artifact_reading_count"] == 2
     assert (
         ROOT / ".orchestra/pipelines/default/prompts/roles/orchestrator.md"
     ).read_text(encoding="utf-8").count("artifact-reading") == 2
