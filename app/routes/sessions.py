@@ -927,12 +927,16 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
         else:
             from app.auth import is_auth_enabled, validate_session
 
+            # Человеком считается ТОЛЬКО предъявивший валидную куку. Прежнее
+            # `not is_auth_enabled() or ...` превращало любого безымянного вызывающего в
+            # человека на контуре без `DASHBOARD_USER` — а это штатный путь из README.
+            # Признак «мы не проверяем, кто пришёл» не равен признаку «пришёл владелец»;
+            # происхождение это утверждение об АВТОРСТВЕ, и на таком контуре оно было
+            # ложным. Вызов при этом не отвергается: ветка `origin="unknown"` ниже уже
+            # написана, доставка идёт, теряется только чужая личность.
             operator = bool(
-                not is_auth_enabled()
-                or (
-                    request is not None
-                    and validate_session(request.cookies.get("session", ""))
-                )
+                request is not None
+                and validate_session(request.cookies.get("session", ""))
             )
             provenance = MessageProvenance(
                 origin="user" if operator else "unknown",

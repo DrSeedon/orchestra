@@ -5073,6 +5073,7 @@ class AgentSession:
                 return {
                     "ok": False,
                     "error": f"cannot change {runtime} model while its turn is settling",
+                    "error_code": f"{runtime}_turn_settling",
                 }
             if not callable(getattr(backend, "retarget_model", None)):
                 return {

@@ -1,0 +1,4 @@
+ПРОБА а: ВНУТРИ рантайма codex: ok=True code=None prepare_called=0 err='None'
+ПРОБА б1: codex -> claude: ok=True code=None prepare_called=0 err='None'
+ПРОБА б2: claude -> codex: ok=False code='handoff_pending_effect' prepare_called=1 err='1 tool call(s) may still be running, nothing was logged after them: Ba'
+3 passed in 6.66s

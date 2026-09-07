@@ -22,6 +22,18 @@ def mcp(monkeypatch):
     async def available(_model):
         return None
     monkeypatch.setattr(mcp_stdio, "_quota_refusal", available)
+    # #488 сделал загрузку project-context обязательной, и она ходит в git по `cwd`
+    # (`_review_repository_root`, `app/mcp_stdio.py:3616`). Предмет ЭТОГО файла —
+    # разрешение пути к бинарю; без заглушки тест падал бы на чужом шве
+    # (`fatal: not a git repository`) и про путь не проверял бы ничего.
+    monkeypatch.setattr(
+        mcp_stdio,
+        "_load_review_project_context",
+        lambda *_args, **_kwargs: (
+            "PROJECT CONTEXT (test-owned):\n- Scale: codex-bin fixture",
+            {"status": "loaded", "warning": ""},
+        ),
+    )
     return mcp_stdio
 
 
@@ -63,17 +75,22 @@ def test_resolution_never_invents_a_path(mcp):
     assert got == "" or os.path.exists(got), f"разрешён несуществующий путь: {got!r}"
 
 
-def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypatch):
+def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypatch, tmp_path):
     """Главное требование задачи: вместо `/bin/sh: ...: not found` (exit 127) — текст,
-    из которого видно, что чинить."""
+    из которого видно, что чинить.
+
+    Путь берётся из `tmp_path`, а не прибит к `/home/kesha/orchestra`: на раннере такого
+    каталога нет, и тест падал `fatal: cannot change to ...` — то есть проверял машину,
+    а не текст ошибки.
+    """
     monkeypatch.setattr(mcp.shutil, "which", lambda _: None)
     monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
-    monkeypatch.setattr(mcp, "SCOPE", "/home/kesha/orchestra")
+    monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
 
     async def fake_api(method, path, **kwargs):
         assert method == "GET"
         assert path == "/api/sessions/perf"
-        return {"id": "test-session", "worktree_path": "/home/kesha/orchestra"}
+        return {"id": "test-session", "worktree_path": str(tmp_path)}
 
     monkeypatch.setattr(mcp, "_api", fake_api)
 
