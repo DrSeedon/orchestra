@@ -516,6 +516,7 @@ class AgentSession:
     _is_orchestrator: bool | None = field(default=None, repr=False)
     color: str = ""
     mcp_servers: dict = field(default_factory=dict, repr=False)
+    disabled_tools: list[str] = field(default_factory=list)
     mcp_servers_custom: dict = field(default_factory=dict, repr=False)
     on_error: Optional[callable] = field(default=None, repr=False)
     backend_type: str = "claude"
@@ -5370,6 +5371,7 @@ class AgentSession:
             "total_tool_calls": self.total_tool_calls,
             "template_hash": self._template_hash,
             "mcp_servers_custom": json.dumps(self.mcp_servers_custom) if self.mcp_servers_custom else "",
+            "disabled_tools": json.dumps(self.disabled_tools),
             "owned_dirs": json.dumps(self.owned_dirs) if self.owned_dirs else "",
             "tg_topic": int(self.tg_topic),
             "session_id_history": json.dumps(self.session_id_history) if self.session_id_history else "[]",
@@ -5423,6 +5425,7 @@ class AgentSession:
             "hibernated": self._hibernated,
             "task_id": self.task_id,
             "description": self.description,
+            "disabled_tools": self.disabled_tools,
             "owned_dirs": self.owned_dirs,
             "tg_topic": self.tg_topic,
             "system_prompt": self.system_prompt[:500] if self.system_prompt else "",

@@ -38,6 +38,7 @@ defaults:
 roles:
   orchestrator:
     kind: orchestrator
+    disabled_tools: [run_fan]
     label: Orchestrator
     order: 0
     model: claude-opus-5[1m]
@@ -54,6 +55,7 @@ roles:
       Available worker roles are injected automatically from roles/ directory.
   sub-orchestrator:
     kind: orchestrator
+    disabled_tools: [run_fan]
     label: Sub-Orchestrator
     order: 1
     model: claude-opus-5[1m]
