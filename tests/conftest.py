@@ -151,8 +151,17 @@ def _hermetic_dashboard_env(monkeypatch):
     Нужен включённый auth внутри теста — выставь переменные своим ``monkeypatch.setenv``.
     """
     import dotenv
+    import app.quota_gate as quota_gate
 
     monkeypatch.setattr(dotenv, "load_dotenv", lambda *a, **k: False)
+    # Keep ordinary tests independent from an operator's checkout-level `.env`;
+    # tests that exercise live loading replace this path explicitly.
+    monkeypatch.setattr(
+        quota_gate,
+        "_DOTENV_PATH",
+        quota_gate.Path(__file__).with_name(".missing-quota-dotenv"),
+    )
+    quota_gate._dotenv_loaded = False
     for key in (
         "DASHBOARD_USER",
         "DASHBOARD_PASSWORD",
@@ -165,6 +174,12 @@ def _hermetic_dashboard_env(monkeypatch):
         "ARTIFACT_MAX_BYTES",
         "STATE_DIRECTORY",
         "XDG_STATE_HOME",
+        "QUOTA_HARD_STOP_PCT",
+        "QUOTA_TOLERANCE_START_PP",
+        "QUOTA_TOLERANCE_END_PP",
+        "QUOTA_CURVE_EXPONENT",
+        "QUOTA_GATED_LANES",
+        "QUOTA_CURVED_LANES",
     ):
         monkeypatch.delenv(key, raising=False)
 
