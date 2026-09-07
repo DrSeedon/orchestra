@@ -1811,6 +1811,116 @@ class TestSendAndControl:
         assert get_session("gone")["status"] == "archived"
 
 
+class TestRemoveCliHome:
+    @pytest.fixture
+    def home_root(self, tmp_path, monkeypatch):
+        root = tmp_path / "cli-homes"
+        root.mkdir()
+        monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", root)
+        return root
+
+    async def create(self, mgr, home_root):
+        session = await mgr.create_session(
+            name="home-owner", scope="/s", cwd="/tmp",
+            model="claude-sonnet-5[1m]",
+        )
+        home = home_root / session.id
+        home.mkdir()
+        (home / "state").write_text("private state")
+        return session, home
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("detached", [False, True])
+    async def test_remove_cleans_only_its_home(self, mgr, home_root, detached):
+        # Missing cleanup accumulates CLI state on disk after every worker removal.
+        from app.db import get_session
+        session, home = await self.create(mgr, home_root)
+        other = home_root / "unregistered"
+        other.mkdir()
+        locks = home_root / ".locks"
+        locks.mkdir()
+        shared = home_root.parent / "shared"
+        shared.mkdir()
+        (shared / "history").write_text("keep")
+        (home / "sessions").symlink_to(shared, target_is_directory=True)
+        if detached:
+            mgr.sessions.pop(session.id)
+        else:
+            async def disconnect():
+                assert home.exists()
+            session._disconnect_backend = AsyncMock(side_effect=disconnect)
+        await mgr.remove(session.id)
+        assert not home.exists()
+        assert other.is_dir() and locks.is_dir()
+        assert (shared / "history").read_text() == "keep"
+        assert get_session(session.id)["status"] == "archived"
+        assert session.id not in mgr.sessions
+
+    @pytest.mark.asyncio
+    async def test_cleanup_refuses_live_or_unknown_id(self, mgr, home_root):
+        # A stale cleanup target must never delete a live agent's memory.
+        from app.db import archive_session
+        session, home = await self.create(mgr, home_root)
+        mgr._cleanup_cli_home(session.id)
+        assert home.is_dir()
+        archive_session(session.id)
+        mgr._cleanup_cli_home(session.id)
+        assert home.is_dir()
+        mgr.sessions.pop(session.id)
+        from app.db import save_session
+        row = session._to_db_dict()
+        row["status"] = "running"
+        save_session(row)
+        mgr._cleanup_cli_home(session.id)
+        assert home.is_dir()
+        unknown = home_root / "session-aaa"
+        unknown.mkdir()
+        await mgr.remove("session-aaa")
+        mgr._cleanup_cli_home("session-aaa")
+        assert unknown.is_dir()
+
+    @pytest.mark.asyncio
+    async def test_disconnect_failure_preserves_home(self, mgr, home_root):
+        session, home = await self.create(mgr, home_root)
+        session._disconnect_backend = AsyncMock(side_effect=RuntimeError("still alive"))
+        with pytest.raises(RuntimeError, match="still alive"):
+            await mgr.remove(session.id)
+        assert home.is_dir()
+        assert session.id in mgr.sessions
+
+    @pytest.mark.asyncio
+    async def test_missing_home_removal_is_idempotent(self, mgr, home_root):
+        from app.db import get_session
+        session, home = await self.create(mgr, home_root)
+        await mgr.remove(session.id)
+        await mgr.remove(session.id)
+        assert not home.exists()
+        assert get_session(session.id)["status"] == "archived"
+
+    @pytest.mark.asyncio
+    async def test_home_symlink_cannot_delete_target(self, mgr, home_root):
+        session, home = await self.create(mgr, home_root)
+        external = home_root.parent / "external"
+        home.rename(external)
+        home.symlink_to(external, target_is_directory=True)
+        await mgr.remove(session.id)
+        assert (external / "state").read_text() == "private state"
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("failure", [PermissionError("denied"), FileNotFoundError("gone"), OSError(16, "busy")])
+    async def test_cleanup_failure_does_not_block_remove(self, mgr, home_root, monkeypatch, failure):
+        # Failed housekeeping must not retain a killed session in the registry/DB.
+        from app.db import get_session
+        session, home = await self.create(mgr, home_root)
+        def fail(path):
+            assert path == home
+            raise failure
+        monkeypatch.setattr("app.manager.shutil.rmtree", fail)
+        await mgr.remove(session.id)
+        assert get_session(session.id)["status"] == "archived"
+        assert session.id not in mgr.sessions
+
+
 class TestListSessions:
     # ── Вес ответа = вероятность доставки (#65) ──
     # У юзера между нами и его машиной прозрачный посредник: ответы до ~15 КБ доходят

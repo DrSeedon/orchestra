@@ -8,6 +8,7 @@ import logging
 import os
 import re
 import sqlite3
+import shutil
 import subprocess
 import sys
 import time
@@ -1317,6 +1318,24 @@ class SessionManager:
         retire_backend_fds(session)
         archive_session(session_id)
         self.sessions.pop(session_id, None)
+        await asyncio.to_thread(self._cleanup_cli_home, session_id)
+
+    def _cleanup_cli_home(self, session_id: str) -> None:
+        from app.backend_codex import _CODEX_HOME_ROOT, _SAFE_HOME_KEY
+
+        try:
+            # Never sweep this root: unknown IDs (including .locks and test homes)
+            # are not ours to delete. Recheck the DB, not an earlier snapshot.
+            row = get_session(session_id)
+            if (row is None or row["status"] != "archived"
+                    or session_id in self.sessions
+                    or not _SAFE_HOME_KEY.fullmatch(session_id)):
+                return
+            shutil.rmtree(_CODEX_HOME_ROOT / session_id)
+        except FileNotFoundError:
+            logger.debug("CLI home already absent for session %s", session_id)
+        except Exception:
+            logger.warning("Could not clean CLI home for session %s", session_id, exc_info=True)
 
     def refresh_identity(self, session) -> str:
         """Пересобрать MCP-конфиг сессии под её ТЕКУЩИЕ имя и родителя.

@@ -301,3 +301,9 @@ def codex_bin_stub(tmp_path, monkeypatch):
 
     monkeypatch.setattr(backend_codex, "CODEX_BIN", str(stub))
     return stub
+
+
+@pytest.fixture(autouse=True)
+def _isolated_managed_cli_home(tmp_path, monkeypatch):
+    """Session removal must never touch the running agents' CLI homes in tests."""
+    monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", tmp_path / "codex-home")

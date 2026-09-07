@@ -1,0 +1,101 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________________ test_message_without_sender_is_never_buffered _________________
+
+fanned = <module 'app.fan_barrier' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/cli-home-cleanup/app/fan_barrier.py'>
+spy = <tests.test_fan_barrier_gates._SpyManager object at 0x786e449e7890>
+
+    def test_message_without_sender_is_never_buffered(fanned, spy):
+        """Internal caller без sender не получает человеческое происхождение."""
+        response = _send(None)
+>       assert getattr(response, "status_code", None) == 403, (
+            "неаутентифицированный internal caller был принят за человека"
+        )
+E       AssertionError: неаутентифицированный internal caller был принят за человека
+E       assert None == 403
+E        +  where None = getattr({'ok': True, 'parent_name': 'parent'}, 'status_code', None)
+
+tests/test_fan_barrier_gates.py:186: AssertionError
+___ test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x786e4641eb70>
+
+    @pytest.mark.asyncio
+    async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome(
+        monkeypatch,
+    ):
+        """A PARTIAL replay resumes only the durable DB finalizer, never Git."""
+        import app.merge_operations as operations
+        import app.routes.merge_operations as merge_route
+        from app import tm
+    
+        _init_db()
+        _seed_project()
+        with tm._conn() as connection:
+            task = tm.create_task(
+                connection, "project", "Durable close", par_number=42, status="in_progress",
+            )
+            connection.execute(
+                "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+                ("durable-worker", task["id"]),
+            )
+        _save_worker(session_id="durable-worker", task_id="42")
+        found = _prepare_merge(monkeypatch, session_id="durable-worker")
+        monkeypatch.setattr(
+            "app.workspace.inspect_worktree_identity",
+            lambda _path: (found.branch, "e" * 40),
+        )
+        merge_calls = 0
+    
+        def merge(*_args, **_kwargs):
+            nonlocal merge_calls
+            merge_calls += 1
+            return {
+                "ok": True,
+                "commits_merged": 1,
+                "branch": found.branch,
+                "commit_point": "target_committed",
+                "merged_commits": {
+                    "42": [{"hash": "fedcba", "message": "#42: durable"}],
+                },
+            }
+    
+        monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+        real_link = tm.link_commits_to_task
+        link_attempts = 0
+    
+        def flaky_link(*args, **kwargs):
+            nonlocal link_attempts
+            link_attempts += 1
+            if link_attempts == 1:
+                raise RuntimeError("injected finalizer failure")
+            return real_link(*args, **kwargs)
+    
+        monkeypatch.setattr(tm, "link_commits_to_task", flaky_link)
+        operation_id = str(uuid.uuid4())
+        request = {
+            "operation_id": operation_id,
+            "name": found.name,
+            "scope": found.scope,
+            "task_outcome": "complete",
+            "merge_schema_version": 2,
+        }
+    
+        await merge_route.create_merge_operation(request)
+        await asyncio.gather(*list(operations._runner_tasks.values()))
+        first = await merge_route.get_merge_operation(operation_id)
+        partial = json.loads(first.body)["result"]
+    
+>       assert partial["operation_state"] == "PARTIAL"
+E       AssertionError: assert 'FAILED' == 'PARTIAL'
+E         
+E         - PARTIAL
+E         + FAILED
+
+tests/test_task_tracker_integration.py:1780: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_fan_barrier_gates.py::test_message_without_sender_is_never_buffered
+FAILED tests/test_task_tracker_integration.py::test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome
+2 failed in 1.74s
+
+EXIT_CODE=1
