@@ -40,7 +40,7 @@ async def merge_operation_capabilities():
     return {
         "capability": "operation-v1",
         "schema_version": 1,
-        "capabilities": ["operation-v1", "task-lifecycle-v2"],
+        "capabilities": ["operation-v1", "task-lifecycle-v2", "work-review-v2"],
         "merge_schema_version": 2,
     }
 
@@ -64,8 +64,15 @@ async def create_merge_operation(req: dict, request: Request = None):
             },
             403,
         )
+    from app.mcp_proof import work_acceptor_principal
+    from app.db import get_session_by_name
+    target_session = get_session_by_name(str(req.get("name") or ""), str(req.get("scope") or "").rstrip("/")) if request is not None else None
+    accepting_actor = work_acceptor_principal(request, target_session or {}, str(req.get("target") or (target_session or {}).get("base_branch") or "main")) if request is not None else ""
     result, status_code = await accept_merge_operation(
         operation_id=str(req.get("operation_id") or ""),
+        expected_head=str(req.get("expected_head") or ""),
+        acceptance_note=str(req.get("acceptance_note") or ""),
+        accepting_actor=accepting_actor,
         name=str(req.get("name") or ""),
         scope=str(req.get("scope") or ""),
         target=str(req.get("target") or ""),
@@ -202,6 +209,9 @@ async def record_review_skip(req: dict, request: Request = None):
             {"error": {"code": "target_worker_not_found", "message": "target worker not found"}},
             status_code=404,
         )
+    from app.work_review import assignment, is_advisory
+    if is_advisory(assignment(scope, str(target["id"]), str(target.get("task_id") or ""))):
+        return JSONResponse({"error": {"code": "review_skip_retired", "message": "New work records the no-review reason in merge_worker acceptance_note; no skip receipt is required"}}, status_code=410)
     try:
         subject = resolve_implementation_subject(
             str(target.get("worktree_path") or ""),

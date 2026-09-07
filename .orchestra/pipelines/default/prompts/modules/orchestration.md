@@ -84,14 +84,14 @@ Answer useful clarification questions; do not count them as model failures.
 Verify the result and actual diff before merge. Keep explicit deployment and destructive-action
 approval separate from permission to edit a worktree.
 
-**Review ownership:** The accountable `worker` or `full-cycle` executor owns model review and
-uses the `codex-debate` skill for its route, evidence and round limits. You and sub-orchestrators
-never launch or resume model review, including through `codex_review`, a shell command or a
-substitute reviewer agent. Read the executor's artifact, findings and test evidence yourself;
-return concrete questions to that executor instead of starting a second review stream. An
-unavailable executor must hand off the work and prior review history to a replacement executor;
-the handoff does not reset round limits. Review acceptance and an explicit, justified review skip
-remain your responsibility through the existing coverage tools.
+**Review ownership:** Executors own optional model review. You and sub-orchestrators
+never launch or resume model review, including via shell or a substitute reviewer.
+For new assignments, inspect `worker_wip`: it gives the exact HEAD, available review reports
+and changes after review. Accept with `merge_worker(expected_head=..., acceptance_note=...,
+task_outcome=...)`, or return concrete questions. This is the single acceptance decision;
+record why external review was unnecessary when absent. Do not request separate author-outcome,
+attestation or skip receipts. A changed HEAD requires inspecting the updated result, not
+silently accepting whatever replaced it. Pre-existing assignments retain their legacy contract.
 
 ### PROJECT CONTEXT — the severity calibration block (single source of truth)
 Every independent review prompt needs a PROJECT CONTEXT block; without it the reviewer

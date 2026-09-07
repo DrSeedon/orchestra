@@ -581,21 +581,15 @@ class TestRiskBasedReviewRouting:
             "native .codex copy must stay a reconnect-time projection, not a second owner"
         )
 
-    def test_canonical_contract_covers_skip_routes_and_independence(self):
+    def test_canonical_contract_uses_single_work_acceptance(self):
         policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
-        anchors = (
-            "The author never self-certifies risk or oracle strength",
-            "**High-risk is evidence-derived, not author-declared.**",
-            "**NO MODEL REVIEW**",
-            "**one fresh Luna review**",
-            "**one targeted Sol escalation**",
-            "**Sol pass on a high-risk surface**",
-            "**Docs / fact extraction**",
-            "**One round by default.**",
-        )
-        for anchor in anchors:
-            assert policy.count(anchor) == 1, f"canonical review contract lacks {anchor!r}"
-
+        for anchor in (
+            "**advisory не означает APPROVED.**",
+            "**Отдельная аттестация и skip-квитанция не нужны.**",
+            "**Серверный бюджет — три попытки на задачу, включая неудавшиеся.**",
+            "merge_worker(expected_head=...",
+        ):
+            assert policy.count(anchor) == 1
 
     def test_canonical_skill_exposes_direct_luna_review_and_luna_default(self):
         policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()

@@ -123,32 +123,32 @@ def test_review_policy_rejects_silent_worker_bypass(tmp_path):
     assert any("roles/worker.md" in error and "pointer" in error for error in errors), errors
 
 
-def test_review_policy_rejects_self_downgrade_without_evidence(tmp_path):
+def test_review_policy_keeps_advisory_distinct_from_approval(tmp_path):
     manifest = _policy_copy(tmp_path)
     owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
     owner.write_text(
         owner.read_text().replace(
-            "The author never self-certifies risk or oracle strength",
-            "The author chooses the risk and oracle strength",
+            "**advisory не означает APPROVED.**",
+            "advisory means approved",
         )
     )
 
     errors = _policy_errors(manifest)
-    assert any("self-certifies" in error for error in errors), errors
+    assert any("advisory" in error for error in errors), errors
 
 
-def test_review_policy_rejects_author_controlled_high_risk_floor(tmp_path):
+def test_review_policy_keeps_server_owned_attempt_budget(tmp_path):
     manifest = _policy_copy(tmp_path)
     owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
     owner.write_text(
         owner.read_text().replace(
-            "**High-risk is evidence-derived, not author-declared.**",
-            "**High-risk is whatever the author declares.**",
+            "**Серверный бюджет — три попытки на задачу, включая неудавшиеся.**",
+            "Agent chooses its own unlimited budget",
         )
     )
 
     errors = _policy_errors(manifest)
-    assert any("High-risk is evidence-derived" in error for error in errors), errors
+    assert any("Серверный бюджет" in error for error in errors), errors
 
 
 def test_review_policy_rejects_stale_mandatory_sol_rule(tmp_path):

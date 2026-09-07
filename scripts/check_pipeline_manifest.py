@@ -49,20 +49,15 @@ _REVIEW_POLICY_POINTER = "Apply the review decision gate in the `codex-debate` s
 _REVIEW_POLICY_ACTORS = ("worker", "full-cycle")
 _REVIEW_POLICY_ANCHORS = (
     "## Review decision gate — canonical policy",
-    "The author never self-certifies risk or oracle strength",
-    "**High-risk is evidence-derived, not author-declared.**",
-    "**NO MODEL REVIEW**",
-    "**one fresh Luna review**",
-    "**one targeted Sol escalation**",
-    # Ревью перестало быть обязательным, а замена недоступного Codex другой моделью
-    # запрещена (#346, решение юзера 19.08). Якоря снятого контракта заменены якорями
-    # нового: вычеркнуть их значило бы оставить проверку без утверждения на этом месте.
-    "**Ревью доступно, но не обязательно",
+    "**Ревью доступно, но не обязательно.",
     "Codex недоступен → ревью НЕ делается",
     "Замену ревьюеру не искать",
-    "**Docs / fact extraction**",
-    "**One round by default.**",
+    "**Серверный бюджет — три попытки на задачу, включая неудавшиеся.**",
+    "**Позиция автора — часть обычного отчёта**",
+    "**Отдельная аттестация и skip-квитанция не нужны.**",
+    "**advisory не означает APPROVED.**",
 )
+
 _STALE_REVIEW_POLICY = (
     "Codex review MANDATORY for complex tasks",
     "Размер диффа основанием для пропуска ревью не является ни в каком случае",

@@ -46,21 +46,47 @@ def check_mcp_proof(session_id: str, presented: str) -> bool:
     return hmac.compare_digest(expected, got)
 
 
-def caller_may_use_orchestrator_privilege(request: Request) -> bool:
+def orchestrator_principal(request: Request) -> str:
+    """Authenticated accepting actor; never copied from a request-body claim."""
     from app.auth import validate_session
     from app.db import get_session
     from app.diff_budget import may_waive_diff_budget
 
     if validate_session(request.cookies.get("session", "")):
-        return True
+        return "owner"
     session_id = request.headers.get("x-orchestra-session-id", "").strip()
     presented = request.headers.get(PROOF_HEADER, "").strip()
     if not check_mcp_proof(session_id, presented):
-        return False
+        return ""
     row = get_session(session_id)
     if not row:
-        return False
-    return may_waive_diff_budget(
+        return ""
+    permitted = may_waive_diff_budget(
         caller_role=str(row.get("role") or ""),
         caller_is_orchestrator=bool(row.get("is_orchestrator")),
     )
+
+    return session_id if permitted else ""
+
+
+def caller_may_use_orchestrator_privilege(request: Request) -> bool:
+    return bool(orchestrator_principal(request))
+
+
+def work_acceptor_principal(request: Request, target: dict, target_branch: str) -> str:
+    """A full-cycle parent may accept its own child into its own non-main branch."""
+    principal = orchestrator_principal(request)
+    if principal:
+        return principal
+    from app.db import get_session
+    sid = request.headers.get("x-orchestra-session-id", "").strip()
+    if not check_mcp_proof(sid, request.headers.get(PROOF_HEADER, "")):
+        return ""
+    parent = get_session(sid) or {}
+    branch = str(parent.get("branch") or "")
+    if (parent.get("role") == "full-cycle" and target.get("parent_id") == sid
+            and target.get("id") != sid and parent.get("scope") == target.get("scope")
+            and branch and branch not in {"main", "master", parent.get("base_branch")}
+            and target_branch == branch):
+        return sid
+    return ""

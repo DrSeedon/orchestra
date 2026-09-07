@@ -329,7 +329,11 @@ async def get_session(name: str, scope: str):
     if not found:
         return JSONResponse({"error": "not found"}, status_code=404)
     # detached: raw DB row keeps legacy response shape (richer than to_dict)
-    return found.to_dict() if found.loaded else found.db_row
+    info = found.to_dict() if found.loaded else dict(found.db_row)
+    from app.work_review import assignment, is_advisory
+    if is_advisory(assignment(scope, str(info.get("id") or ""), str(info.get("task_id") or ""))):
+        info["work_review_version"] = 3
+    return info
 
 
 @router.post("/api/sessions/{name}/initial-deliveries", status_code=202)
@@ -2165,7 +2169,13 @@ async def execute_merge_session(
                     worker_head=drift["actual_head"] or pinned_head,
                     http_status=409,
                 )
-            merge_head = pinned_head if receipt_required else drift["actual_head"] or pinned_head
+            if req.get("expected_head") and drift["class"] != "SAME":
+                return _merge_not_reached(
+                    "worker HEAD changed after explicit work acceptance; inspect the new commit",
+                    target_branch=target, worker_branch=pinned_branch,
+                    worker_head=drift["actual_head"] or pinned_head, http_status=409,
+                )
+            merge_head = pinned_head if (receipt_required or req.get("expected_head")) else drift["actual_head"] or pinned_head
 
             finalization: dict | None = None
             if strict_task_merge:
@@ -3052,6 +3062,14 @@ async def session_wip(name: str, scope: str = "", base_ref: str = ""):
         d = found.to_dict()
         result["context_pct"] = d.get("context_pct", 0)
         result["status"] = d.get("status", "unknown")
+        from app.work_review import assignment, is_advisory, summarize_review
+        if is_advisory(assignment(scope, str(d.get("id") or ""), str(d.get("task_id") or ""))):
+            import subprocess
+            head = subprocess.check_output(["git", "rev-parse", "HEAD^{commit}"], cwd=worktree_path, text=True, timeout=15).strip()
+            result["worker_head"] = head
+            result["review"] = summarize_review(scope=scope, session_id=str(d["id"]),
+                task_id=str(d["task_id"]), worktree=worktree_path, worker_head=head)
+
         lifecycle = manager.lifecycle_quarantine(found)
         if lifecycle:
             result["status"] = "quarantined"

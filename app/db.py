@@ -2955,10 +2955,12 @@ def task_run_receipt_open(
             if any(str(saved[key] or "") != value for key, value in expected.items()):
                 raise ValueError("open task run conflicts with current assignment provenance")
             return saved
+        from app.work_review import assignment_version
+
         values = {key: None for key in _REVIEW_RECEIPT_COLUMNS}
         values.update({
             "receipt_id": f"task-run:{uuid4()}",
-            "schema_version": 2,
+            "schema_version": (2 if task_source == "legacy_inflight" else assignment_version(c, scope, task_id, task_stable_id)),
             "runtime": "",
             "reviewer_model": "",
             "model_source": "unknown",
@@ -3333,6 +3335,8 @@ def review_receipt_reserve(receipt: dict) -> dict:
     with _conn() as c:
         c.execute("BEGIN IMMEDIATE")
         _require_bound_task_run_for_review(c, values)
+        from app.work_review import reserve_budget
+        reserve_budget(c, values)
         row = c.execute(
             "SELECT COALESCE(MAX(round), 0) FROM review_receipts WHERE artifact_path=?",
             (artifact_path,),
