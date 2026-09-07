@@ -1,0 +1,167 @@
+ssssss...........................FF..................................... [ 10%]
+........................................................................ [ 21%]
+..................................................................F..... [ 31%]
+....................................................s................... [ 42%]
+........................................................................ [ 52%]
+........................................................................ [ 63%]
+........................................................................ [ 73%]
+........................................................................ [ 84%]
+........................................................................ [ 94%]
+...................................                                      [100%]
+=================================== FAILURES ===================================
+_________________ test_orchestrator_compacts_at_96_but_not_94 __________________
+
+    def test_orchestrator_compacts_at_96_but_not_94():
+        session = _orchestrator()
+        session._last_context = {"percentage": 96, "max_tokens": 1_000_000}
+        spawned = _capture_spawn(session)
+    
+        TurnManager(session).schedule_context_compaction(96)
+    
+>       assert len(spawned) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_compact_gate_438.py:86: AssertionError
+___________________ test_cli_threshold_lowers_our_threshold ____________________
+
+    def test_cli_threshold_lowers_our_threshold():
+        session = _orchestrator()
+        session._last_context = {
+            "percentage": 89,
+            "max_tokens": 1_000_000,
+            "auto_compact_threshold": 900_000,
+        }
+        spawned = _capture_spawn(session)
+    
+        assert _auto_compact_threshold_pct(session) == 89
+    
+        TurnManager(session).schedule_context_compaction(90)
+    
+>       assert len(spawned) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_compact_gate_438.py:109: AssertionError
+_ test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact] _
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+compact_mode = True
+
+    @pytest.mark.parametrize("compact_mode", [False, True], ids=["normal", "compact"])
+    def test_notify_user_call_is_highlighted_and_navigable_from_the_timeline(
+        dashboard_browser: Browser,
+        compact_mode: bool,
+    ):
+        """#241: оркестратор зовёт юзера только `notify_user`, и это надо находить глазами.
+    
+        Форма строки — контракт `back`: обычный вызов тула, без новых полей и без нового API.
+        """
+        page = _open_tool_correlation_page(dashboard_browser, compact_mode)
+        reason = "кеш падает 93.6% → 15%"
+        page.evaluate(
+            """reason => {
+            // Рядом идёт обычная пара вызов/результат: подсветка не должна её задеть.
+            addChatEntry('tool', 'Bash: {"command":"echo NEIGHBOUR"}', null, null,
+                {id:33001, tool_use_id:'toolu_neighbour'});
+            addChatEntry('tool_result', 'NEIGHBOUR-RESULT', null, null,
+                {id:33002, tool_use_id:'toolu_neighbour'});
+            addChatEntry(
+                'tool',
+                `mcp__orchestra__notify_user: ${JSON.stringify({reason})}`,
+                '2026-08-13T12:00:00+00:00',
+                null,
+                {id:33003, tool_use_id:'toolu_notify241'},
+            );
+        }""",
+            reason,
+        )
+        # Свой потолок с диагнозом: без него пропажа зова из списка падает молчаливым
+        # 30-секундным таймаутом и не говорит, ЧТО именно сломалось.
+        try:
+            page.wait_for_function(
+                "() => document.querySelector('#chat-notify-count')?.textContent === '🔔 1'",
+                timeout=5000,
+            )
+        except PlaywrightTimeout:
+            actual = page.evaluate(
+                "() => [document.querySelector('#chat-notify-count')?.textContent,"
+                " document.querySelectorAll('#chat-timeline-track .is-notify').length]"
+            )
+            page.close()
+            pytest.fail(f"зов не попал в список: счётчик={actual[0]!r}, меток={actual[1]}")
+    
+>       state = page.evaluate("""() => {
+            const chat = document.querySelector('#chat');
+            const card = chat.querySelector('[data-tool-use-id="toolu_notify241"]');
+            const neighbour = chat.querySelector('[data-tool-use-id="toolu_neighbour"]');
+            const marker = document.querySelector('#chat-timeline-track .is-notify');
+            const nav = document.querySelector('#chat-notify-nav');
+            const styles = getComputedStyle(card);
+            return {
+                cardHighlighted: card.classList.contains('chat-notify-user'),
+                cardBorder: styles.borderLeftColor,
+                cardText: card.innerText,
+                navKind: card.dataset.chatNavKind,
+                navLabel: card.dataset.chatNavLabel,
+                markers: document.querySelectorAll('#chat-timeline-track .is-notify').length,
+                markerTitle: marker?.title || '',
+                navHidden: nav.classList.contains('hidden'),
+                navDisabled: document.querySelector('#chat-notify-next').disabled,
+                neighbourText: neighbour.innerText,
+                neighbourHighlighted: neighbour.classList.contains('chat-notify-user'),
+                orphans: chat.querySelectorAll('[data-unmatched-tool-result]').length,
+            };
+        }""")
+
+tests/test_frontend.py:1753: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x72e20df23e30>
+cb = <function Channel.send.<locals>.<lambda> at 0x72e207b2b420>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.evaluate: TypeError: Failed to execute 'getComputedStyle' on 'Window': parameter 1 is not of type 'Element'.
+E               at eval (eval at evaluate (:302:30), <anonymous>:7:24)
+E               at UtilityScript.evaluate (<anonymous>:309:18)
+E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+=============================== warnings summary ===============================
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+tests/test_runtime_handoff_v2.py::test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/lib/python3.12/site-packages/starlette/testclient.py:445: DeprecationWarning: Setting per-request cookies=<...> is being deprecated, because the expected behaviour on cookie persistence is ambiguous. Set cookies directly on the client instance instead.
+    return super().request(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_compact_gate_438.py::test_orchestrator_compacts_at_96_but_not_94
+FAILED tests/test_compact_gate_438.py::test_cli_threshold_lowers_our_threshold
+FAILED tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact]
+3 failed, 673 passed, 7 skipped, 2 warnings in 288.57s (0:04:48)

@@ -44,15 +44,37 @@ def browser():
         instance.close()
 
 
-def _limit(progress: float) -> float:
-    """Та же формула, что у гейта (#343) — для построения ФИКСТУРЫ, не прода."""
+CURVE_EXPONENT = 2.5
+CURVED_LANES = ("sol",)
+RESET_IN_SECONDS = 402000.0
+
+
+def _limit(progress: float, lane: str | None = None) -> float:
+    """Та же формула, что у гейта (#343, парабола #b757e834) — для ФИКСТУРЫ, не прода."""
     tolerance = TOL_START + (TOL_END - TOL_START) * progress
-    return min(HARD, progress * 100 + tolerance)
+    norm = progress
+    if lane in CURVED_LANES and progress > 0.0:
+        norm = progress ** (1.0 / CURVE_EXPONENT)
+    return min(HARD, norm * 100 + tolerance)
 
 
-def _lane(lane: str, label: str, gated: bool, blocked: bool, reason: str = "") -> dict:
+def _lane(lane: str, label: str, gated: bool, blocked: bool, reason: str = "",
+          release_status: str | None = None, release_in_seconds: float | None = None) -> dict:
+    """Полоса в том виде, в каком её отдаёт сервер (`app/routes/system.py:1581-1611`).
+
+    `release_status` обязателен: слово на бейдже панель берёт ИМЕННО из него
+    (`_qlReleaseText`, `app/static/js/quota-lines.js:71`), а не из `blocked`. Фикстура
+    без этого поля заставляла панель писать «работает» про заблокированную полосу —
+    то есть проверяла собственную неполноту, а не вёрстку.
+    """
+    if release_status is None:
+        release_status = "at_reset" if blocked else "open"
+    if blocked and release_in_seconds is None:
+        release_in_seconds = RESET_IN_SECONDS
     return {"lane": lane, "label": label, "gated": gated, "blocked": blocked,
-            "reason": reason, "models": []}
+            "curved": lane in CURVED_LANES, "reason": reason,
+            "release_status": release_status, "release_in_seconds": release_in_seconds,
+            "models": []}
 
 
 def _bucket(bucket: str, label: str, utilization, progress, lanes,
@@ -78,25 +100,30 @@ def _trace(*points):
 def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progress=0.5,
              claude_util=30.0, claude_progress=0.5, **overrides) -> dict:
     """Ответ /api/usage/quota-map. Вердикты считает сервер — фикстура их и задаёт."""
-    codex_blocked = codex_util > _limit(codex_progress) if codex_progress is not None else codex_util >= HARD
+    codex_blocked = codex_util > _limit(codex_progress, "sol") if codex_progress is not None else codex_util >= HARD
     codex_hard = codex_util >= HARD
     spark_hard = spark_util >= HARD
-    claude_blocked = claude_util > _limit(claude_progress) if claude_progress is not None else claude_util >= HARD
+    claude_blocked = claude_util > _limit(claude_progress, "claude") if claude_progress is not None else claude_util >= HARD
+    hard_reason = f"utilization is at or above the hard stop {HARD}%"
     data = {
         "generated_at": "2026-08-19T12:00:00+00:00",
         "observation_max_age_seconds": 300.0,
-        "rule": {"hard_stop_pct": HARD, "tolerance_start_pp": TOL_START, "tolerance_end_pp": TOL_END},
+        "rule": {"hard_stop_pct": HARD, "tolerance_start_pp": TOL_START,
+                 "tolerance_end_pp": TOL_END, "curve_exponent": CURVE_EXPONENT,
+                 "curved_lanes": list(CURVED_LANES)},
         "buckets": [
             _bucket("codex", "Codex", codex_util, codex_progress, [
                 _lane("sol", "Sol", True, codex_blocked or codex_hard,
-                      f"utilization {codex_util}% is above the line limit"),
-                _lane("luna", "Luna", False, codex_hard),
+                      hard_reason if codex_hard
+                      else f"utilization {codex_util}% is above the line limit"),
+                _lane("luna", "Luna", False, codex_hard, hard_reason if codex_hard else ""),
             ]),
             _bucket("codex_spark", "Codex Spark", spark_util, spark_progress, [
-                _lane("spark", "Spark", False, spark_hard),
+                _lane("spark", "Spark", False, spark_hard, hard_reason if spark_hard else ""),
             ]),
             _bucket("anthropic", "Claude", claude_util, claude_progress, [
-                _lane("claude", "Claude-воркеры", True, claude_blocked or claude_util >= HARD),
+                _lane("claude", "Claude-воркеры", True, claude_blocked or claude_util >= HARD,
+                      hard_reason if claude_util >= HARD else ""),
             ]),
         ],
         "outside_policy": [],
@@ -197,28 +224,46 @@ def test_calm_window_says_everyone_works(browser):
     page.close()
 
 
-def test_above_the_diagonal_stops_sol_but_not_luna_and_spark(browser):
-    """Диагональ гейтит Sol; Luna и Spark живут до жёстких 99%."""
-    payload = _payload(codex_util=80.0, codex_progress=0.5, spark_util=39.0)
+def _badge_is_blocked(page, lane: str) -> bool:
+    """Состояние полосы читается по КЛАССУ бейджа, а не по слову.
+
+    Слово панель берёт из `release_status` и пишет «откроется через …», а не «блок»
+    (`app/static/js/quota-lines.js:71-88`). Ассерт на слово ломался бы от любой правки
+    формулировки, притом что проверять надо ровно одно: панель не выдаёт
+    заблокированную полосу за работающую.
+    """
+    css = page.get_attribute(f"[data-ql-panel='all'] [data-ql-lane='{lane}']", "class")
+    return "ql-badge-blocked" in (css or "")
+
+
+def test_above_the_curve_stops_sol_but_not_luna_and_spark(browser):
+    """Порог гейтит Sol; Luna и Spark живут до жёстких 99%.
+
+    90% в середине окна: порог Sol там 81.3% (парабола), то есть выше порога. Прежние
+    80% лежали НИЖЕ кривой и после #b757e834 перестали блокировать хоть кого-нибудь —
+    тест проверял бы пустоту.
+    """
+    payload = _payload(codex_util=90.0, codex_progress=0.5, spark_util=39.0)
     page, _ = _render(browser, payload)
     verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
     assert "Sol" in verdict and "стоят" in verdict
-    sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
     luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
     spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
-    assert "блок" in sol
-    assert "работает" in luna and "без диагонали" in luna
-    assert "работает" in spark and "без диагонали" in spark
+    assert _badge_is_blocked(page, "sol")
+    assert not _badge_is_blocked(page, "luna") and "работает" in luna and "без диагонали" in luna
+    assert not _badge_is_blocked(page, "spark") and "работает" in spark and "без диагонали" in spark
     page.close()
 
 
 def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
     page, _ = _render(browser, _payload(codex_util=99.5, spark_util=99.5))
-    sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
-    luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
-    spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
-    assert "блок" in sol and "блок" in luna and "блок" in spark
-    assert "99" in luna and "99" in spark, (luna, spark)
+    assert _badge_is_blocked(page, "sol")
+    assert _badge_is_blocked(page, "luna")
+    assert _badge_is_blocked(page, "spark")
+    # Причина жёсткого стопа обязана дойти до юзера: сам бейдж говорит только «когда
+    # откроется», поэтому число 99 ищется в списке причин панели.
+    reasons = page.locator("[data-ql-panel='all'] .ql-reasons").inner_text()
+    assert "99" in reasons and "Luna" in reasons and "Spark" in reasons, reasons
     orch = page.locator("[data-ql-panel='all'] [data-ql-lane='orchestrator']").inner_text()
     assert "всегда работает" in orch
     page.close()
@@ -320,7 +365,9 @@ def test_summary_without_rule_block_says_no_data_not_works(browser):
 def test_summary_repeats_the_body_verdict_when_the_rule_arrives(browser):
     """Обратная сторона того же: `rule` пришёл (состояние после мержа #343) —
     сводка обязана печатать ДОСЛОВНО вердикт тела, а не свой пересчёт."""
-    page, _ = _render(browser, _payload(codex_util=80.0, codex_progress=0.5, claude_util=20.0))
+    # 90%, а не 80%: после #b757e834 порог Sol в середине окна 81.3%, и на 80%
+    # вердикт «стоят» не появился бы вовсе — сводке было бы нечего повторять.
+    page, _ = _render(browser, _payload(codex_util=90.0, codex_progress=0.5, claude_util=20.0))
     summary = page.locator("#quota-lines .ql-sum").inner_text()
     body = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
     assert body and body in summary, (body, summary)

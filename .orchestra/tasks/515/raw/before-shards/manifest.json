@@ -1,0 +1,38 @@
+{
+  "base_commit": "ba73a20b5633b6e0c2b59125a12b9ef5813d4af9",
+  "schema_version": 1,
+  "selected_nodes": 3949,
+  "shards": [
+    {
+      "collected_nodes": 659,
+      "files": 41,
+      "shard": 1
+    },
+    {
+      "collected_nodes": 658,
+      "files": 40,
+      "shard": 2
+    },
+    {
+      "collected_nodes": 658,
+      "files": 41,
+      "shard": 3
+    },
+    {
+      "collected_nodes": 658,
+      "files": 42,
+      "shard": 4
+    },
+    {
+      "collected_nodes": 658,
+      "files": 41,
+      "shard": 5
+    },
+    {
+      "collected_nodes": 658,
+      "files": 42,
+      "shard": 6
+    }
+  ],
+  "test_files": 247
+}

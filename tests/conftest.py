@@ -281,7 +281,58 @@ def browser(launch_browser):
     instance.close()
 
 
+@pytest.fixture
+def codex_bin_stub(tmp_path, monkeypatch):
+    """Исполняемый файл-заглушка вместо настоящего Codex CLI.
+
+    Тесты, которым нужен ПУТЬ к codex (сборка shell-команды, опознание чужого процесса
+    по argv), на машине без Codex падали не по своему предмету: `codex не найден: ни
+    CODEX_BIN в окружении, ни codex в PATH` и `FileNotFoundError: configured executable
+    was not found`. На GitHub-раннере это 13 падений из 57 — там проприетарного бинаря
+    нет и быть не может. Заглушка — настоящий исполняемый файл, поэтому проверяется
+    ВЕСЬ путь разрешения (`shutil.which`, `_normalise_executable`, `Path.resolve`), а не
+    обходится монкипатчем самой функции разрешения.
+    """
+    stub = tmp_path / "codex"
+    stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setenv("CODEX_BIN", str(stub))
+    import app.backend_codex as backend_codex
+
+    monkeypatch.setattr(backend_codex, "CODEX_BIN", str(stub))
+    return stub
+
+
 @pytest.fixture(autouse=True)
 def _isolated_managed_cli_home(tmp_path, monkeypatch):
     """Session removal must never touch the running agents' CLI homes in tests."""
     monkeypatch.setattr("app.backend_codex._CODEX_HOME_ROOT", tmp_path / "codex-home")
+
+
+# Браузерные тесты снимаются с БЛОКИРУЮЩЕГО набора merge-гейта, но продолжают гоняться.
+# Основание — замер оркестратора 07.09: их 95 из 2410 (4% сьюта), файл `test_frontend.py`
+# правился 146 раз и лишь в 24 случаях вместе с настоящим фиксом фронта, то есть в пяти
+# случаях из шести чинили сам тест. При этом ловят они ровно те дефекты, на которые
+# владелец жалуется лично (метка полосы, сырая карточка ревью, телеметрия в чате), —
+# поэтому удалять нельзя. А держать в гейте нельзя тем более: два мержа подряд встали с
+# `TEST_GATE_INCONCLUSIVE`, оба раза бюджет кончился внутри `test_frontend.py` при НУЛЕ
+# красных тестов.
+# Маркер ставится по ФАКТУ запроса браузерной фикстуры, а не списком файлов: список
+# устаревает молча, а фикстура — то самое, что делает тест браузерным.
+# Набор СУЖЕН до двух однозначных имён, и это замер, а не осторожность: `page` и
+# `browser_context` дают РОВНО 0 узлов сверх них (проверено подстановкой каждого имени
+# по отдельности), а имена общие — любой небраузерный тест, объявивший свою фикстуру
+# `page`, молча уехал бы из блокирующего набора. `context` не входит по той же причине и
+# уже ловил ложно: параметризованный `context`-строка в
+# `test_codex_review_rejects_missing_project_context_before_any_api_call` уносил два
+# небраузерных узла. Оба оставшихся имени в этом репозитории однозначны: `browser` —
+# фикстура Playwright, `dashboard_browser` определена только в браузерных файлах.
+# Вторая линия обороны — `test_browser_inventory_is_explicit`: любое случайное срабатывание
+# меняет раскладку по файлам и краснеет с именем файла, то есть «молча» не бывает.
+_BROWSER_FIXTURES = frozenset({"browser", "dashboard_browser"})
+
+
+def pytest_collection_modifyitems(config, items):
+    for item in items:
+        if _BROWSER_FIXTURES & set(getattr(item, "fixturenames", ())):
+            item.add_marker("browser")

@@ -82,7 +82,7 @@ def _prepare_usage_db(tmp_path, monkeypatch):
 @pytest.mark.parametrize("mode", ["exec", "review"])
 @pytest.mark.parametrize("resume", [False, True])
 def test_codex_review_disables_unusable_namespace_sandbox(
-    tmp_path, monkeypatch, mode, resume,
+    tmp_path, monkeypatch, mode, resume, codex_bin_stub,
 ):
     import app.mcp_stdio as mcp
 

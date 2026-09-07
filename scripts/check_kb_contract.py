@@ -21,6 +21,9 @@ from pathlib import Path
 FACT_KEY_FIELD = " · ключ `fact:"
 FACT_RE = re.compile(r"^- (.*?) · ключ `fact:([^`]+)`(?: \([^)]*\))?\s*$")
 KEY_RE = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\Z")
+# LEGACY_PATH_FIXTURE: the old spelling below is DATA this regex must keep matching, not a
+# live path of ours. Without the marker `scripts/check_orchestra_paths.py` counts it as a
+# surviving pre-migration path and the layout guard fails on its own gate.
 # A pointer into our own task artifacts; `docs/tasks/…` is the pre-migration spelling of the
 # same thing, so both are gated. Anything else in a record (upstream repositories, absolute
 # host paths, synthetic file names in a scratch experiment) is not ours to keep openable.

@@ -25,6 +25,11 @@ READINESS_MODEL = "gpt-5.6-sol"
 
 
 @pytest.fixture(autouse=True)
+def codex_cli_present(codex_bin_stub):
+    """Путь к codex обязан разрешаться — иначе `codex_review` откажет ДО сборки команды."""
+
+
+@pytest.fixture(autouse=True)
 def valid_project_context_owner(monkeypatch):
     import app.mcp_stdio as mcp
 

@@ -1,19 +1,84 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, 'task-*/**']
   pull_request:
     branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Зависший браузерный тест уже дважды держал шард 27+ минут: `--timeout=30` дампит
+    # стек, но не убивает процесс, пока живой `chrome-headless-shell` держит IPC. Потолок
+    # джоба — единственная гарантия, что зависание становится ПАДЕНИЕМ, а не бесконечным
+    # прогоном. 20 минут при самом долгом честном шарде 117 с — запас десятикратный.
+    timeout-minutes: 20
+    strategy:
+      # Нужен состав падений целиком, а не первый упавший шард.
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     steps:
+      # Часть тестов сравнивает рабочее дерево с `main` и ходит к родительским
+      # коммитам. По умолчанию checkout берёт ОДИН коммит ОДНОЙ ветки, и такой
+      # тест падает не по существу: `git show main:app/static/js/app.js` отвечает
+      # `exit 128`. `fetch-depth: 0` даёт полную историю и все ветки.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v4
       - run: uv sync --dev
+      # На образе ubuntu-latest ffmpeg не предустановлен, а тест длительности
+      # аудио обязан звать НАСТОЯЩИЙ ffprobe — подменять бинарь значило бы
+      # проверять заглушку вместо разбора контейнера.
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
       # `uv sync` ставит пакет playwright, но не бинарники браузеров. Без этого
       # шага все браузерные тесты молча скипались бы, и CI был бы зелёным, ничего
       # про фронт не проверив.
       - run: uv run playwright install --with-deps chromium
-      - run: uv run pytest -q --timeout=30
+      # Полный сьют в ОДИН процесс на этом репозитории не проходит физически:
+      # прогон 33893200040 убит `exit code 137` (OOM) на 81%, тот же RC=137
+      # около 80% воспроизводится локально. Течёт не отдельный тест, а
+      # накопление за прогон, поэтому лечится делением на процессы, а не
+      # правкой тестов. Раскладка — round-robin по отсортированному списку
+      # файлов: детерминирована, не требует отдельного манифеста и не устаревает
+      # при добавлении файла. Замер локальных шардов той же нарезки: пиковый RSS
+      # 218–263 МБ на шард против 16 ГБ у ubuntu-latest, запас ~60×;
+      # `/usr/bin/time -v` ниже печатает это число в каждый прогон, чтобы запас
+      # проверялся, а не помнился.
+      - name: pytest shard ${{ matrix.shard }} of 6
+        run: |
+          mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+            | awk -v s='${{ matrix.shard }}' -v n=6 '(NR - 1) % n == s')
+          echo "shard ${{ matrix.shard }}/6: ${#files[@]} files"
+          test "${#files[@]}" -gt 0
+          # `-v` и небуферизованный вывод обязательны: при зависании `-q` не печатает
+          # НИЧЕГО (буфер не сбрасывается), и в логе остаётся только процент. С `-v`
+          # последняя строка называет тест, на котором встали.
+          # `-m "not browser"` — тот же набор, которым блокирует merge-гейт. Браузерные
+          # тесты гоняются отдельной джобой ниже: одно их зависание не должно съедать
+          # потолок шарда и прятать состав СОСЕДЕЙ по нему (07.09 так и вышло —
+          # `test_orchestra_layout_430` не успел отработать за `test_frontend.py`).
+          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+            -m "not live_probe and not browser" "${files[@]}"
+
+  browser:
+    # Браузерные тесты сняты с БЛОКИРУЮЩЕГО набора (решение владельца 07.09: «выносим их
+    # из гейта, не убиваем»), поэтому джоба помечена `continue-on-error` — она остаётся
+    # СИГНАЛОМ, видимым в списке проверок, но не решает судьбу прогона. Гоняются те же
+    # 167 узлов, что снимает с себя merge-гейт: состав закреплён
+    # `tests/test_merge_test_gate.py::test_browser_inventory_is_explicit`.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v4
+      - run: uv sync --dev
+      - run: uv run playwright install --with-deps chromium
+      - name: pytest browser
+        run: |
+          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+            -m "browser" tests/

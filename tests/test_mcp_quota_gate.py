@@ -77,6 +77,20 @@ def api(monkeypatch, tmp_path):
     monkeypatch.setattr(mcp, "WORKER_NAME", "gate-test")
     monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
     monkeypatch.setattr(mcp, "_codex_bin", lambda: "/usr/bin/codex")
+    # #488 сделал загрузку project-context обязательной, и она ходит в git по `cwd`
+    # (`_review_repository_root`, `app/mcp_stdio.py:3616`). У фикстуры `cwd` — пустой
+    # `tmp_path`, поэтому без заглушки КАЖДЫЙ тест этого файла падал бы
+    # `fatal: not a git repository` ещё до квотного гейта, то есть проверял бы чужой
+    # шов. Предмет файла — гейт, а не загрузчик контекста; ту же заглушку ставит
+    # `tests/test_mcp_codex_review.py:27-38`.
+    monkeypatch.setattr(
+        mcp,
+        "_load_review_project_context",
+        lambda *_args, **_kwargs: (
+            "PROJECT CONTEXT (test-owned):\n- Scale: quota-gate fixture",
+            {"status": "loaded", "warning": ""},
+        ),
+    )
     monkeypatch.setattr(mcp.time, "time", lambda: NOW)
     return type("Api", (), {"calls": calls, "state": state, "tmp_path": tmp_path})
 

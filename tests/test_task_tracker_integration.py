@@ -1713,9 +1713,19 @@ async def test_t3_removing_one_of_two_workers_preserves_active_task(monkeypatch)
 
 @pytest.mark.asyncio
 async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome(
-    monkeypatch,
+    monkeypatch, tmp_path,
 ):
-    """A PARTIAL replay resumes only the durable DB finalizer, never Git."""
+    """A PARTIAL replay resumes only the durable DB finalizer, never Git.
+
+    Воркер живёт в НАСТОЯЩЕМ репозитории, а `worker_head` — реальный `HEAD`. Раньше
+    оба были выдумкой (`worktree_path="/worktree"`, `worker_head="e"*40`), и с приходом
+    гейта покрытия ревью (#462) допуск отбивал операцию ещё ДО git с
+    `REVIEW_SNAPSHOT_UNAVAILABLE`: снимок предмета ревью не считается по неразрешимому
+    ref. Исход `FAILED` там верный — git не запускался, запирать воркера нечем, — но до
+    проверяемого сценария (git прошёл → финализация PENDING → `PARTIAL`) тест не доходил
+    вовсе. Гейт не ослаблен и не обойдён: он проходится честно, потому что production-путей
+    в этом мерже ноль, а снимок теперь разрешается.
+    """
     import app.merge_operations as operations
     import app.routes.merge_operations as merge_route
     from app import tm
@@ -1730,11 +1740,18 @@ async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcom
             "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
             ("durable-worker", task["id"]),
         )
-    _save_worker(session_id="durable-worker", task_id="42")
+    repo = _make_git_scope(monkeypatch, tmp_path)
+    worker_head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo,
+        check=True, capture_output=True, text=True,
+    ).stdout.strip()
+    _save_worker(
+        session_id="durable-worker", task_id="42", worktree_path=str(repo),
+    )
     found = _prepare_merge(monkeypatch, session_id="durable-worker")
     monkeypatch.setattr(
         "app.workspace.inspect_worktree_identity",
-        lambda _path: (found.branch, "e" * 40),
+        lambda _path: (found.branch, worker_head),
     )
     merge_calls = 0
 
