@@ -15,6 +15,31 @@ from pathlib import Path
 from uuid import uuid4
 
 
+_VERDICT_HEADING_RE = re.compile(r"(?im)^##\s+(?:Verdict|Вердикт)\s*$")
+_NO_VERDICT_RE = re.compile(
+    r"(?iu)^(?:"
+    r"no\s+verdict(?:\s+was\s+(?:reached|given|provided))?"
+    r"|(?:the\s+)?verdict\s+(?:was\s+)?not\s+(?:reached|given|provided)"
+    r"|(?:нет|не\s+было)\s+(?:вынесенного\s+)?вердикта"
+    r"|вердикт\s+не\s+(?:вынесен|достигнут|предоставлен)"
+    r")\.?$"
+)
+
+
+def _parse_verdict(content: str) -> tuple[bool, str]:
+    """Return a meaningful verdict from a localized review section."""
+    heading = _VERDICT_HEADING_RE.search(content)
+    if heading is None:
+        return False, ""
+    remainder = content[heading.end():]
+    next_heading = re.search(r"(?im)^##\s+", remainder)
+    section = remainder if next_heading is None else remainder[:next_heading.start()]
+    value = " ".join(section.split())
+    if not value or _NO_VERDICT_RE.fullmatch(value):
+        return False, ""
+    return True, value
+
+
 def _last_thread_id(jsonl_path: Path) -> str:
     thread_id = ""
     try:
@@ -70,10 +95,7 @@ def _record_terminal_receipt(
         if receipt_round and receipt_round > 1:
             rounds = re.split(r"(?im)^##\s+Round\b", decoded)
             decoded = rounds[-1]
-        match = re.search(r"(?ims)^##\s+Verdict\s*\n+(.+?)(?:\n##\s|\Z)", decoded)
-        if match:
-            verdict_present = True
-            verdict_value = " ".join(match.group(1).split())
+        verdict_present, verdict_value = _parse_verdict(decoded)
     jsonl_response_present = bool(_last_agent_message(jsonl_file))
     if recovery_source == "":
         recovery_source = ""
@@ -203,8 +225,8 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
             recovery_source = "jsonl_agent_message"
         else:
             raise ValueError(f"review output is empty: {round_file}")
-    if require_verdict and re.search(r"(?im)^##\s+Verdict\b", review) is None:
-        raise ValueError("review output has no '## Verdict' section")
+    if require_verdict and not _parse_verdict(review)[0]:
+        raise ValueError("review output has no valid '## Verdict' section")
 
     thread_id = _last_thread_id(jsonl_file)
     output.parent.mkdir(parents=True, exist_ok=True)
