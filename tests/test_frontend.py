@@ -1561,14 +1561,22 @@ def _open_tool_correlation_page(
     _route_frontend_sources(page, source_path)
     _goto_dashboard(page)
     page.wait_for_function("() => typeof addChatEntry === 'function'")
-    # Дождаться ТИШИНЫ страницы, а не только появления функции. Начальная загрузка
-    # дашборда продолжается асинхронно и сама переписывает `#chat`: если вкинуть записи
-    # раньше, её `refreshAll` затирает их уже после вставки, и тест видит пустой чат
-    # (`счётчик='🔔 0'`, карточек нет). Замер 05.09: без этого ожидания
-    # `test_notify_user_call_is_highlighted_and_navigable_from_the_timeline` падал
-    # 3 прогона из 6 подряд, в одиночку проходя за 15 с.
+    # ОСТАНОВИТЬ опрос, а не ждать случайной тишины. Начальная загрузка дашборда идёт
+    # асинхронно и сама переписывает `#chat`: вкинутые раньше записи её `refreshAll`
+    # затирает уже после вставки, и тест видит пустой чат (`счётчик='🔔 0'`, карточек
+    # нет) — 3 падения из 6 прогонов подряд при 15 с в одиночку.
+    # Гасим тем же механизмом, что и прод: скрытая вкладка не опрашивает
+    # (`_pollCanRun`, `app/static/js/app.js`). Ожидание ПОСЛЕ этого гарантированно
+    # сходится. Прежняя версия ждала `!refreshInProgress && _pollInFlight.size === 0`
+    # без остановки опроса — на раннере это условие не наступало вовсе, ожидание
+    # выедало свой бюджет и роняло 11 тестов, которые до правки проходили.
+    page.evaluate("""() => {
+        Object.defineProperty(document, 'hidden', {configurable: true, value: true});
+        document.dispatchEvent(new Event('visibilitychange'));
+    }""")
     page.wait_for_function(
-        "() => !refreshInProgress && _pollInFlight.size === 0",
+        """() => !_pollCanRun() && !refreshInProgress
+            && _pollTimers.size === 0 && _pollInFlight.size === 0""",
         timeout=10000,
     )
     page.evaluate("""compactMode => {
