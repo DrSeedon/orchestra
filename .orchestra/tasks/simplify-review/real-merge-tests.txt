@@ -1,0 +1,18 @@
+F.F.                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_complete_new_work_path_runs_checks_then_merges_only_passing_result[42-True] _
+tests/test_work_acceptance.py:255: in test_complete_new_work_path_runs_checks_then_merges_only_passing_result
+    assert final['operation_state']==('SUCCEEDED' if success else 'FAILED'),final
+E   AssertionError: {'acceptance': {'command': '/mnt/data/Projects/Python/orchestra/.venv/bin/python -c "import work; assert work.VALUE ==...work-path-ru0-repo/new-work' (1 file(s): __pycache__/) — commit or discard first", 'outcome_unknown': False, ...}, ...}
+E   assert 'FAILED' == 'SUCCEEDED'
+E     
+E     - SUCCEEDED
+E     + FAILED
+_ test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head[False] __
+tests/test_work_acceptance.py:220: in test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head
+    assert result['ok'] is True
+E   assert False is True
+=========================== short test summary info ============================
+FAILED tests/test_work_acceptance.py::test_complete_new_work_path_runs_checks_then_merges_only_passing_result[42-True]
+FAILED tests/test_work_acceptance.py::test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head[False]
+2 failed, 2 passed in 2.71s
