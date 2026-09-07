@@ -1,0 +1,8 @@
+{"text": "The session limit parser needs a regression test.", "limit_kind": "timed"}
+{"text": "Weekly usage limit reached", "limit_kind": "timed"}
+{"text": "The task is complete.", "limit_kind": null}
+{"artifact": "## Verdict\nNo verdict was reached.", "verdict_present": true, "verdict_value": "No verdict was reached."}
+{"artifact": "## Вердикт\nAPPROVED", "verdict_present": false, "verdict_value": ""}
+{"artifact": "## Verdict\nAPPROVED", "verdict_present": true, "verdict_value": "APPROVED"}
+source_root=/home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-lang-research
+scope=classifier and artifact parser only; no end-to-end merge or live runtime claim
