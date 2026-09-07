@@ -1,0 +1,76 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+__________ TestRemoveCliHome.test_remove_cleans_only_its_home[False] ___________
+
+self = <tests.test_manager.TestRemoveCliHome object at 0x763ec5f4dd30>
+mgr = <app.manager.SessionManager object at 0x763ec3d96d50>
+home_root = PosixPath('/tmp/pytest-of-maxim/pytest-28/test_remove_cleans_only_its_ho0/cli-homes')
+detached = False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("detached", [False, True])
+    async def test_remove_cleans_only_its_home(self, mgr, home_root, detached):
+        # Missing cleanup accumulates CLI state on disk after every worker removal.
+        from app.db import get_session
+        session, home = await self.create(mgr, home_root)
+        other = home_root / "unregistered"
+        other.mkdir()
+        locks = home_root / ".locks"
+        locks.mkdir()
+        shared = home_root.parent / "shared"
+        shared.mkdir()
+        (shared / "history").write_text("keep")
+        (home / "sessions").symlink_to(shared, target_is_directory=True)
+        if detached:
+            mgr.sessions.pop(session.id)
+        else:
+            async def disconnect():
+                assert home.exists()
+            session._disconnect_backend = AsyncMock(side_effect=disconnect)
+        await mgr.remove(session.id)
+>       assert not home.exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = PosixPath('/tmp/pytest-of-maxim/pytest-28/test_remove_cleans_only_its_ho0/cli-homes/0f6f5b70-9371-45bf-b24f-78ee2f01f155').exists
+
+tests/test_manager.py:1853: AssertionError
+___________ TestRemoveCliHome.test_remove_cleans_only_its_home[True] ___________
+
+self = <tests.test_manager.TestRemoveCliHome object at 0x763ec5f4de50>
+mgr = <app.manager.SessionManager object at 0x763ec2eb0410>
+home_root = PosixPath('/tmp/pytest-of-maxim/pytest-28/test_remove_cleans_only_its_ho1/cli-homes')
+detached = True
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("detached", [False, True])
+    async def test_remove_cleans_only_its_home(self, mgr, home_root, detached):
+        # Missing cleanup accumulates CLI state on disk after every worker removal.
+        from app.db import get_session
+        session, home = await self.create(mgr, home_root)
+        other = home_root / "unregistered"
+        other.mkdir()
+        locks = home_root / ".locks"
+        locks.mkdir()
+        shared = home_root.parent / "shared"
+        shared.mkdir()
+        (shared / "history").write_text("keep")
+        (home / "sessions").symlink_to(shared, target_is_directory=True)
+        if detached:
+            mgr.sessions.pop(session.id)
+        else:
+            async def disconnect():
+                assert home.exists()
+            session._disconnect_backend = AsyncMock(side_effect=disconnect)
+        await mgr.remove(session.id)
+>       assert not home.exists()
+E       AssertionError: assert not True
+E        +  where True = exists()
+E        +    where exists = PosixPath('/tmp/pytest-of-maxim/pytest-28/test_remove_cleans_only_its_ho1/cli-homes/11b1f6ba-f799-4a12-a1e8-12ac1af4db45').exists
+
+tests/test_manager.py:1853: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_manager.py::TestRemoveCliHome::test_remove_cleans_only_its_home[False]
+FAILED tests/test_manager.py::TestRemoveCliHome::test_remove_cleans_only_its_home[True]
+2 failed, 172 deselected in 1.73s
+
+EXIT_CODE=1
