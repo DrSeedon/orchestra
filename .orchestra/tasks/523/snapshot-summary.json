@@ -1,0 +1,24 @@
+{
+  "source": "/home/kesha/orchestra/.orchestra/tasks/523/codex-home-snapshot.json",
+  "total": 294,
+  "keep": 35,
+  "keep_bytes": 9260578611,
+  "orphans": 259,
+  "orphan_bytes": 68462303203,
+  "unknown_in_db": [
+    ".locks",
+    "3d7786a0-74cd-4e48-a92a-d859d485acb7",
+    "4b72f653-b7e0-451b-b4e4-a9151a4b0107",
+    "550e8400-default",
+    "550e8400-session",
+    "75f7ee65-e091-4287-95fd-831d14458e68",
+    "astra-proof-cf4ecc6f",
+    "e0905387-b463-4234-b952-a0db17c731fa",
+    "sess-codexcfg",
+    "sess-urlonly",
+    "session-aaa",
+    "session-bbb",
+    "session-resume",
+    "session-roundtrip"
+  ]
+}

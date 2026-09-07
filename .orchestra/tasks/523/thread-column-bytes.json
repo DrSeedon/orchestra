@@ -1,0 +1,30 @@
+{
+  "elapsed": 0.1219784440472722,
+  "bytes": {
+    "id": 28584,
+    "rollout_path": 86546,
+    "source": 5742,
+    "model_provider": 4764,
+    "cwd": 51055,
+    "title": 76499063,
+    "sandbox_policy": 34617,
+    "approval_mode": 4070,
+    "git_sha": 25920,
+    "git_branch": 18189,
+    "git_origin_url": 22318,
+    "cli_version": 5558,
+    "first_user_message": 76499063,
+    "agent_nickname": 43,
+    "agent_role": null,
+    "memory_mode": 5558,
+    "model": 8903,
+    "reasoning_effort": 1534,
+    "agent_path": 110,
+    "thread_source": 2820,
+    "preview": 76499063,
+    "history_mode": 5184,
+    "name": null,
+    "thread_section_id": null,
+    "project_id": null
+  }
+}
