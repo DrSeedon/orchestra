@@ -3,7 +3,7 @@ description: Upstream-derived v2.18 pipeline with local models and runtime modul
 validation: fail-open
 defaults:
   model: opus
-  skills: []
+  skills: [html-artifacts]
   mcp_servers: []
   inherit_claude_md: true
   prompt_layers:
@@ -42,7 +42,7 @@ roles:
     order: 0
     model: claude-opus-5[1m]
     effort: &effort_policy {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
-    skills: [html-artifacts, vps-deploy, codex-debate, grill-me, orchestra-agents, eli5]
+    skills: [vps-deploy, codex-debate, grill-me, orchestra-agents]
     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: true
@@ -58,7 +58,7 @@ roles:
     order: 1
     model: claude-opus-5[1m]
     effort: *effort_policy
-    skills: [codex-debate, orchestra-agents, eli5]
+    skills: [codex-debate, orchestra-agents]
     modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: true
@@ -74,7 +74,7 @@ roles:
     order: 2
     model: claude-opus-5[1m]
     effort: *effort_policy
-    skills: [html-artifacts, codex-debate]
+    skills: [codex-debate]
     modules: [code-quality, git-workflow, report-format, self-improvement, knowledge, communication-style, user-values]
     can_spawn: []
     allow_unrouted_workers: false
@@ -97,7 +97,7 @@ roles:
     # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol и Astra
     # ступени свои (#214, #373 и основания в комментарии над `roles:`).
     effort: *effort_policy
-    skills: [html-artifacts, codex-debate]
+    skills: [codex-debate]
     modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, self-improvement, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: false

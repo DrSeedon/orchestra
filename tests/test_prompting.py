@@ -542,26 +542,13 @@ class TestHtmlArtifactsSkillInvariants:
             f"артефакта, иначе все артефакты снова станут одного тона"
         )
 
-    def test_skeleton_forces_two_families_and_closed_type_scale(self):
-        """#128: принцип без значений не исполняется — исполняется только закрытый набор.
-
-        Замер по 5 артефактам: шрифтовой пары 0 из 5 (все пять — один системный гротеск
-        начертания 400), различных кеглей 11–22 на файл при трёх заявленных ступенях.
-        """
+    def test_approved_profile_replaces_old_mandatory_styling(self):
         text = self.SKILL.read_text(encoding="utf-8")
-        assert "--font-head" in text, "заголовочная семья обязана быть отдельной ручкой"
-        for weight in ("430", "500", "600"):
-            assert weight in text, f"начертание {weight} пропало — вернулся один вес на всё"
-        for step in ("--fs-sm", "--fs-h3", "--fs-h2", "--fs-h1"):
-            # объявление И использование: одного упоминания мало, ступень без значения
-            # не ступень, а ступень без применения не удержит набор закрытым
-            assert f"{step}:" in text, f"ступень {step} не объявлена"
-            assert f"var({step})" in text, f"ступень {step} объявлена, но нигде не применена"
-
-    def test_palette_is_derived_from_subject(self):
-        text = self.SKILL.read_text(encoding="utf-8").lower()
-        assert "выводится из предмета" in text
-        assert "color-mix" in text, "должен остаться приём вывода цвета из базовых токенов"
+        assert "Светлая тема по умолчанию независимо от ОС" in text
+        assert "Одна семья предпочтительна" in text
+        assert "SVG-иконка вкладки обязательна" in text
+        assert "Две шрифтовые семьи, обе локальные" not in text
+        assert "Соседние артефакты одной сессии обязаны отличаться" not in text
 
     def test_budget(self):
         """description платится в КАЖДОЙ сессии (индекс скиллов), тело — только при срабатывании."""
@@ -573,7 +560,7 @@ class TestHtmlArtifactsSkillInvariants:
         # Потолок поднят в #128 вместе с костяком: тело выросло 6 598 → 11 796 Б.
         # Платится оно не в каждой сессии — `build_skills_index` кладёт в промпт только
         # строку «имя — описание — путь», тело агент читает при срабатывании скилла.
-        assert len(text.split("---", 2)[2].encode()) <= 12500, "тело скилла раздулось"
+        assert len(text.split("---", 2)[2].encode()) <= 16000, "тело единого скилла раздулось"
 
 
 class TestRefreshWorkerMemory:

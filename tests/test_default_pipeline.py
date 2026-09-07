@@ -66,7 +66,7 @@ class TestDefaultManifestLoads:
         cfg = P.load_pipeline(PIPELINE)
         d = cfg.defaults
         assert d.model == "opus"
-        assert d.skills == []  # default НЕ форсит skills:all (skills задаёт роль)
+        assert d.skills == ["html-artifacts"]  # unified visuals are available to every role
         assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
         assert d.base_branch_strategy == "main"  # все worktree от main
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
@@ -248,7 +248,6 @@ class TestDefaultRolesResolve:
         rr = P.get_role(PIPELINE, "orchestrator")
         assert set(rr.skills) == {
             "html-artifacts", "vps-deploy", "codex-debate", "grill-me", "orchestra-agents",
-            "eli5",
         }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
