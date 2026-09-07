@@ -144,6 +144,7 @@ class CreateSessionRequest(BaseModel):
     mcp_servers: dict = {}
     pipeline: str = ""
     profile: str = ""
+    disabled_tools: list[str] = []
     owned_dirs: list[str] = []
     tg_topic: bool = False
     planned_initial_turn: bool = False
@@ -286,6 +287,7 @@ async def create_session(req: CreateSessionRequest):
             base_branch=req.base_branch,
             parent_name=req.parent_name,
             mcp_servers=req.mcp_servers,
+            disabled_tools=req.disabled_tools,
             pipeline=req.pipeline,
             profile=req.profile,
             owned_dirs=req.owned_dirs,
