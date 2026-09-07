@@ -49,7 +49,7 @@ manage them; the available types and their parameters are in the `bg_create` too
 
 <rules priority="standard">
 ## Standard rules
-- Running or skipping a model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
+- Executors running or selecting a skip route for model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
 </rules>
 
 <artifact-skill>

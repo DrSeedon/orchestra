@@ -1,0 +1,23 @@
+.................................F.....F................................ [ 72%]
+............................                                             [100%]
+=================================== FAILURES ===================================
+_ TestBehaviourRulesLandedAtOwners.test_rule_text_lives_in_exactly_one_owner_file[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`] _
+tests/test_default_pipeline.py:397: in test_rule_text_lives_in_exactly_one_owner_file
+    assert anchor in P.prompt_path(PIPELINE, owner).read_text(encoding="utf-8"), owner
+E   AssertionError: modules/orchestration.md
+E   assert 'No barrier → name the LAST child as the collector' in '<orchestration>\n## Orchestration rules (shared by orchestrator + sub-orchestrator)\n\nThese rules apply to ANY agent...t windows. Avoid obvious waste, but never trade away correctness for a cheaper model\n</pricing>\n\n</orchestration>\n'
+E    +  where '<orchestration>\n## Orchestration rules (shared by orchestrator + sub-orchestrator)\n\nThese rules apply to ANY agent...t windows. Avoid obvious waste, but never trade away correctness for a cheaper model\n</pricing>\n\n</orchestration>\n' = read_text(encoding='utf-8')
+E    +    where read_text = PosixPath('/mnt/data/Projects/Python/orchestra-day-20260907/.orchestra/pipelines/default/prompts/modules/orchestration.md').read_text
+E    +      where PosixPath('/mnt/data/Projects/Python/orchestra-day-20260907/.orchestra/pipelines/default/prompts/modules/orchestration.md') = <function prompt_path at 0x74a3ebe720c0>('default', 'modules/orchestration.md')
+E    +        where <function prompt_path at 0x74a3ebe720c0> = P.prompt_path
+_ TestBehaviourRulesLandedAtOwners.test_rule_reaches_its_audience_once[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`] _
+tests/test_default_pipeline.py:407: in test_rule_reaches_its_audience_once
+    assert assembled.count(anchor) == 1, f"{role}: {assembled.count(anchor)} копий {anchor!r}"
+E   AssertionError: orchestrator: 0 копий 'No barrier → name the LAST child as the collector'
+E   assert 0 == 1
+E    +  where 0 = <built-in method count of str object at 0xe427da0>('No barrier → name the LAST child as the collector')
+E    +    where <built-in method count of str object at 0xe427da0> = '<platform>\nYou are an AI agent running inside Orchestra — a multi-agent orchestration platform.\n\n**Communication.*...t when its cost exceeds its protective value and cannot cite his own\n  wording as external authority.\n</user-values>'.count
+=========================== short test summary info ============================
+FAILED tests/test_default_pipeline.py::TestBehaviourRulesLandedAtOwners::test_rule_text_lives_in_exactly_one_owner_file[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`]
+FAILED tests/test_default_pipeline.py::TestBehaviourRulesLandedAtOwners::test_rule_reaches_its_audience_once[No barrier \u2192 name the LAST child as the collector-modules/orchestration.md-audience2-\u0431\u0430\u0440\u044c\u0435\u0440 `open_fan`]
+2 failed, 98 passed in 3.13s

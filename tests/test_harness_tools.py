@@ -264,8 +264,8 @@ async def test_t6_winddown_warnings_before_cap(tmp_path):
                 1 for m in loop.history if str(m.get("content", "")).startswith("[round guard]")))
     assert len(warnings) == 2, f"expected wind-down warnings at remaining 10 and 3, got {warnings}"
     assert all("rounds remain" in w and "wrap up" in w.lower() for w in warnings)
-    # each warning was backed by an injected history entry WHILE the turn was running
-    assert all(c >= 1 for c in during_turn_counts), f"guard not in history mid-turn: {during_turn_counts}"
+    # Request-only hints never enter persistence, including mid-turn snapshots.
+    assert during_turn_counts == [0, 0]
     assert loop.stop_reason == "max_turns" and loop.ok is False
     # B3: the guard must be turn-scoped — after run() returns, the shared session history
     # must NOT retain stale "N rounds remain" messages (standing false signal).

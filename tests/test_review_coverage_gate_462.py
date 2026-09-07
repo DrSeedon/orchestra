@@ -85,6 +85,7 @@ def _expected_policy_ref() -> str:
 
 def _session_info(repo: Path) -> dict:
     return {
+        "role": "worker",
         "id": "session-462",
         "name": "worker-462",
         "cwd": str(repo),

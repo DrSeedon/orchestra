@@ -1,0 +1,149 @@
+Running as unit: run-p1706809-i1690693.scope; invocation ID: e7ccf4eba5a74d06b30208d759cea915
+........................................................................ [ 16%]
+........................................................................ [ 32%]
+........................................................................ [ 49%]
+..............................................F......................... [ 65%]
+........................................................................ [ 82%]
+.............................................F.......................... [ 98%]
+..FF...                                                                  [100%]
+=================================== FAILURES ===================================
+__ test_find_limit_stopped_agents_preserves_monthly_limit_over_generic_status __
+
+    def test_find_limit_stopped_agents_preserves_monthly_limit_over_generic_status():
+        from app.limit_wake import find_limit_stopped_agents
+
+        session = _session("monthly", "monthly-worker", "claude-opus-5[1m]")
+        logs = {
+            "monthly": [
+                _log(
+                    1,
+                    "text",
+                    "You've hit your monthly spend limit · raise it at "
+                    "claude.ai/settings/usage",
+                ),
+                _log(2, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+                _log(3, "status", "turn ended (stop_sequence, 1 turns)"),
+            ]
+        }
+
+        agents = find_limit_stopped_agents([session], logs)
+
+>       assert agents[0]["limit_kind"] == "monthly"
+E       AssertionError: assert 'timed' == 'monthly'
+E
+E         - monthly
+E         + timed
+
+tests/test_limit_wake.py:137: AssertionError
+______ TestRunExecOutcome.test_exit_zero_verdict_with_bwrap_is_preserved _______
+
+self = <tests.test_bg_jobs.TestRunExecOutcome object at 0x772d78875fd0>
+db = PosixPath('/tmp/pytest-of-maxim/pytest-44/test_exit_zero_verdict_with_bw0/test.db')
+mgr_mock = (<MagicMock id='131037106474496'>, <MagicMock id='131037108730384'>)
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-44/test_exit_zero_verdict_with_bw0')
+
+    @pytest.mark.asyncio
+    async def test_exit_zero_verdict_with_bwrap_is_preserved(
+        self, db, mgr_mock, tmp_path,
+    ):
+        artifact = tmp_path / "codex-review-impl.md"
+        artifact.write_text(
+            "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n\n"
+            "## Verdict\nAPPROVED\n"
+        )
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-bwrap", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-bwrap", "true", "Codex review → .orchestra/tasks/179/codex-review-impl.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-bwrap")
+>       assert row["status"] == "completed"
+E       AssertionError: assert 'triggered' == 'completed'
+E
+E         - completed
+E         + triggered
+
+tests/test_bg_jobs.py:771: AssertionError
+_______ test_codex_review_rejects_blind_verdict_from_successful_process ________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-44/test_codex_review_rejects_blin0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x772d745032c0>
+
+    def test_codex_review_rejects_blind_verdict_from_successful_process(tmp_path, monkeypatch):
+        import app.mcp_stdio as mcp
+
+        _prepare_usage_db(tmp_path, monkeypatch)
+        fake_codex = tmp_path / "fake-codex"
+        fake_codex.write_text("""#!/bin/sh
+    out=
+    while [ \"$#\" -gt 0 ]; do
+        if [ \"$1\" = \"-o\" ]; then
+            shift
+            out=$1
+        fi
+        shift
+    done
+    printf '%s\\n' '## Summary' 'Unable to review: bwrap: setting up uid map: Permission denied' '## Verdict' 'PASS' > \"$out\"
+    printf '%s\\n' '{\"type\":\"thread.started\",\"thread_id\":\"blind-thread\"}'
+    printf '%s\\n' '{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":100,\"cached_input_tokens\":60,\"output_tokens\":20}}'
+    printf '%s\\n' '{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Unable to review: bwrap: setting up uid map: Permission denied\"}}'
+    exit 0
+    """)
+        os.chmod(fake_codex, 0o755)
+
+        captured = {}
+        monkeypatch.setattr(mcp, "_api", _fake_api(tmp_path, captured))
+        monkeypatch.setattr(mcp, "_codex_bin", lambda: str(fake_codex))
+        monkeypatch.setattr(mcp, "WORKER_NAME", "sandbox-test")
+        monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+
+        asyncio.run(mcp.codex_review(
+            context=PROJECT_CONTEXT, target="artifact.txt",
+            output="review.md", mode="exec",
+        ))
+        result = subprocess.run(
+            ["dash", "-c", captured["config"]["command"]],
+            capture_output=True, text=True,
+        )
+
+>       assert result.returncode == 70
+E       assert 0 == 70
+E        +  where 0 = CompletedProcess(args=['dash', '-c', ': \'- < /tmp/codex_review_sandbox-test_review.txt -o /tmp/pytest-of-maxim/pytest..."item":{"type":"agent_message","text":"Unable to review: bwrap: setting up uid map: Permission denied"}}\n', stderr='').returncode
+
+tests/test_codex_review_sandbox.py:154: AssertionError
+___________ test_codex_review_failure_check_skips_scalar_jsonl_rows ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-44/test_codex_review_failure_chec0')
+
+    def test_codex_review_failure_check_skips_scalar_jsonl_rows(tmp_path):
+        import app.mcp_stdio as mcp
+
+        jsonl = tmp_path / "review.jsonl"
+        jsonl.write_text(
+            '[]\n'
+            '{"type":"item.completed","item":{"type":"agent_message",'
+            '"text":"Unable to review: bwrap: permission denied"}}\n'
+        )
+
+        result = subprocess.run([
+>           mcp.sys.executable, "-c", mcp._CODEX_EXECUTION_FAILURE_JSONL_CHECK,
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            str(jsonl), mcp._CODEX_EXECUTION_FAILURE_PATTERN,
+        ], capture_output=True, text=True)
+E       AttributeError: module 'app.mcp_stdio' has no attribute '_CODEX_EXECUTION_FAILURE_JSONL_CHECK'
+
+tests/test_codex_review_sandbox.py:172: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_find_limit_stopped_agents_preserves_monthly_limit_over_generic_status
+FAILED tests/test_bg_jobs.py::TestRunExecOutcome::test_exit_zero_verdict_with_bwrap_is_preserved
+FAILED tests/test_codex_review_sandbox.py::test_codex_review_rejects_blind_verdict_from_successful_process
+FAILED tests/test_codex_review_sandbox.py::test_codex_review_failure_check_skips_scalar_jsonl_rows
+4 failed, 435 passed in 21.14s

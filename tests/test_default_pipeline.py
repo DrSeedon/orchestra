@@ -247,7 +247,7 @@ class TestDefaultRolesResolve:
     def test_orchestrator_skills_from_manifest(self):
         rr = P.get_role(PIPELINE, "orchestrator")
         assert set(rr.skills) == {
-            "html-artifacts", "vps-deploy", "codex-debate", "grill-me", "orchestra-agents",
+            "html-artifacts", "vps-deploy", "grill-me", "orchestra-agents",
         }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
@@ -497,11 +497,15 @@ class TestRiskBasedReviewRouting:
     )
 
     def test_every_review_decision_maker_receives_skill_and_gate(self):
-        for role in self.ACTORS:
+        for role in ("worker", "full-cycle"):
             spec = P.get_role(PIPELINE, role)
             assert "codex-debate" in spec.skills, f"{role}: cannot load canonical review policy"
             out = P.build_system_prompt(PIPELINE, role)
             assert out.count(self.POINTER) == 1, f"{role}: review gate missing or duplicated"
+
+        for role in ("orchestrator", "sub-orchestrator"):
+            assert "codex-debate" not in P.get_role(PIPELINE, role).skills
+            assert "never launch or resume model review" in P.build_system_prompt(PIPELINE, role)
 
         reducer = P.get_role(PIPELINE, "reducer")
         assert "codex-debate" not in reducer.skills
@@ -538,10 +542,10 @@ class TestRiskBasedReviewRouting:
             assert policy.count(anchor) == 1, f"canonical review contract lacks {anchor!r}"
 
 
-    def test_canonical_skill_exposes_direct_luna_review_and_sol_default(self):
+    def test_canonical_skill_exposes_direct_luna_review_and_luna_default(self):
         policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
         assert 'codex_review(model="gpt5.6luna", ...)' in policy
-        assert "backward-compatible default всегда Sol" in policy
+        assert "серверный default — Luna" in policy
         assert "`codex_review` — Sol-only" not in policy
         assert "`codex_review` запускает только Sol" not in policy
 

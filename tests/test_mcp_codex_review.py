@@ -63,8 +63,9 @@ def readiness_response():
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("mode", ["exec", "review"])
+@pytest.mark.parametrize("role", ["worker", "full-cycle"])
 async def test_codex_review_uses_caller_context_and_declares_success_contract(
-    tmp_path, monkeypatch, mode,
+    tmp_path, monkeypatch, mode, role,
 ):
     import app.mcp_stdio as mcp
 
@@ -75,6 +76,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
             return readiness_response()
         if method == "GET":
             return {
+                "role": role,
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
                 "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
             }
@@ -118,7 +120,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert f"-o {output}.round" in command
     assert "codex_review_artifact.py" in command
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
-    assert ("--require-verdict" in command) is (mode == "exec")
+    assert "--require-verdict" in command
     assert command.index("rm -f") < command.index(" | tee ")
     assert "Scale: test-owned production" in command
     assert "PROJECT CONTEXT IS UNKNOWN" not in command
@@ -152,6 +154,7 @@ async def test_codex_review_explicit_model_overrides_default_and_readiness(
             return readiness_response()
         if method == "GET":
             return {
+                "role": "worker",
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
                 "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
             }
@@ -200,6 +203,7 @@ async def test_codex_review_resume_command_passes_usage_arguments(
             return readiness_response()
         if method == "GET":
             return {
+                "role": "worker",
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
                 "scope": str(tmp_path), "task_id": "215", "id": "requester-id",
             }
@@ -338,6 +342,7 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
             return readiness_response()
         if method == "GET":
             return {
+                "role": "worker",
                 "id": Session.id, "cwd": str(tmp_path),
                 "worktree_path": str(tmp_path), "task_id": "215",
             }
@@ -385,6 +390,7 @@ async def test_t1_385_codex_review_success_returns_exact_deferred_control_proven
             return readiness_response()
         if method == "GET":
             return {
+                "role": "worker",
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
                 "scope": str(tmp_path), "task_id": "385", "id": "requester-id",
             }
@@ -432,6 +438,7 @@ async def test_t1_385_codex_review_creation_failure_has_no_deferred_control(
             return readiness_response()
         if method == "GET":
             return {
+                "role": "worker",
                 "cwd": str(tmp_path), "worktree_path": str(tmp_path),
                 "scope": str(tmp_path), "task_id": "385", "id": "requester-id",
             }

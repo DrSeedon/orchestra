@@ -15,6 +15,59 @@ from pathlib import Path
 from uuid import uuid4
 
 
+class ReviewResultError(ValueError):
+    """A preserved review attempt has no usable terminal result."""
+
+
+def review_verdict(review: str) -> str:
+    """Read the explicitly requested section; never infer a verdict from prose."""
+    return _parse_verdict(review)[1]
+
+
+def review_result_error(review: str) -> str:
+    verdict = review_verdict(review)
+    if not verdict:
+        return "review output has no nonempty '## Verdict' section"
+    if verdict.split(" ", 1)[0] == "INCOMPLETE":
+        return "reviewer reported INCOMPLETE"
+    return ""
+
+
+def review_execution_error(jsonl_path: Path) -> str:
+    """CLI completion proves execution status, not the quality of a review."""
+    completed = False
+    response = False
+    failure = ""
+    try:
+        with jsonl_path.open(encoding="utf-8") as source:
+            for line in source:
+                event = json.loads(line)
+                if not isinstance(event, dict):
+                    return "invalid runtime event"
+                if event.get("type") in {"thread.started", "turn.started"}:
+                    completed = False
+                    response = False
+                    failure = ""
+                if event.get("type") in {"error", "turn.failed"}:
+                    failure = "review runtime reported failure"
+                if event.get("type") == "turn.completed":
+                    completed = True
+                item = event.get("item")
+                if (event.get("type") == "item.completed" and isinstance(item, dict)
+                        and item.get("type") == "agent_message"
+                        and isinstance(item.get("text"), str) and item["text"].strip()):
+                    response = True
+    except (OSError, UnicodeError, ValueError) as error:
+        return f"cannot read runtime result: {type(error).__name__}"
+    if failure:
+        return failure
+    if not completed:
+        return "review runtime has no completed turn"
+    if not response:
+        return "review runtime has no final response"
+    return ""
+
+
 _VERDICT_HEADING_RE = re.compile(r"(?im)^##\s+(?:Verdict|Вердикт)\s*$")
 _NO_VERDICT_RE = re.compile(
     r"(?iu)^(?:"
@@ -28,6 +81,7 @@ _NO_VERDICT_RE = re.compile(
 
 def _parse_verdict(content: str) -> tuple[bool, str]:
     """Return a meaningful verdict from a localized review section."""
+    content = re.split(r"(?im)^##[ \t]+Round\b", content)[-1]
     heading = _VERDICT_HEADING_RE.search(content)
     if heading is None:
         return False, ""
@@ -49,7 +103,7 @@ def _last_thread_id(jsonl_path: Path) -> str:
                     row = json.loads(line)
                 except (json.JSONDecodeError, TypeError):
                     continue
-                if row.get("type") == "thread.started" and row.get("thread_id"):
+                if isinstance(row, dict) and row.get("type") == "thread.started" and row.get("thread_id"):
                     thread_id = str(row["thread_id"])
     except OSError:
         return ""
@@ -82,7 +136,7 @@ def _record_terminal_receipt(
 ) -> None:
     if not receipt_id:
         return
-    include_artifact = status == "completed" or failure_code == "execution_guard"
+    include_artifact = status == "completed" or failure_code in {"execution_guard", "review_result_missing"}
     artifact_exists = include_artifact and output.is_file()
     artifact_bytes = output.stat().st_size if artifact_exists else None
     artifact_sha256 = ""
@@ -92,10 +146,8 @@ def _record_terminal_receipt(
         content = output.read_bytes()
         artifact_sha256 = hashlib.sha256(content).hexdigest()
         decoded = content.decode("utf-8", errors="replace")
-        if receipt_round and receipt_round > 1:
-            rounds = re.split(r"(?im)^##\s+Round\b", decoded)
-            decoded = rounds[-1]
-        verdict_present, verdict_value = _parse_verdict(decoded)
+        verdict_value = review_verdict(decoded)
+        verdict_present = bool(verdict_value)
     jsonl_response_present = bool(_last_agent_message(jsonl_file))
     if recovery_source == "":
         recovery_source = ""
@@ -105,6 +157,12 @@ def _record_terminal_receipt(
         from app.db import review_receipt_finish, review_receipt_get
 
         receipt = review_receipt_get(receipt_id) or {}
+        # The shell fallback covers crashes of this process, but must not replace
+        # the more precise result already recorded by normal finalization.
+        if failure_code == "artifact_finalize" and receipt.get("status") in {
+            "completed", "failed", "interrupted", "timed_out", "cancelled",
+        }:
+            return
         coverage_outcome = (
             "reviewed"
             if (
@@ -113,6 +171,7 @@ def _record_terminal_receipt(
                 and return_code == 0
                 and artifact_exists
                 and jsonl_response_present
+                and verdict_present
             )
             else "unknown"
         )
@@ -225,8 +284,11 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
             recovery_source = "jsonl_agent_message"
         else:
             raise ValueError(f"review output is empty: {round_file}")
-    if require_verdict and not _parse_verdict(review)[0]:
-        raise ValueError("review output has no valid '## Verdict' section")
+    execution_error = review_execution_error(jsonl_file)
+    if require_verdict and not review_verdict(review):
+        # Keep the previous accepted artifact and this attempt's .round file.
+        raise ValueError("review output has no nonempty '## Verdict' section")
+    result_error = review_result_error(review) if require_verdict else ""
 
     thread_id = _last_thread_id(jsonl_file)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -258,7 +320,7 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
                 f"{json.dumps({'reviewer_model': usage_model}, sort_keys=True)} -->"
                 if usage_model else ""
             )
-            if resume and output.exists():
+            if (resume or execution_error or result_error) and output.exists():
                 prior = output.read_text(encoding="utf-8").rstrip()
                 round_parts = [f"## Round ({now})", model_metadata, review]
                 content = f"{prior}\n\n" + "\n\n".join(part for part in round_parts if part) + "\n"
@@ -311,6 +373,7 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
             with output.open("a", encoding="utf-8") as fh:
                 fh.write(f"\n> ⚠ {warning}\n")
         print(warning, file=sys.stderr)
+    failure_code = "execution_guard" if execution_error else "review_result_missing" if result_error else ""
     _record_terminal_receipt(
         receipt_id=receipt_id or (
             usage_event_id.replace("codex-review:", "review-receipt:", 1)
@@ -318,11 +381,14 @@ def finalize_review_artifact(*, output: Path, round_file: Path, sessions_file: P
         ),
         output=output,
         jsonl_file=jsonl_file,
-        status=receipt_status,
+        status="failed" if failure_code else receipt_status,
         return_code=receipt_return_code,
+        failure_code=failure_code,
         recovery_source=recovery_source,
         receipt_round=receipt_round,
     )
+    if execution_error or result_error:
+        raise ReviewResultError(execution_error or result_error)
 
 
 def main() -> int:
@@ -376,7 +442,15 @@ def main() -> int:
             receipt_return_code=args.receipt_return_code,
             receipt_round=args.receipt_round or None,
         )
+    except ReviewResultError as e:
+        print(f"codex_review result unavailable: {e}")
+        return 70
     except ValueError as e:
+        _record_terminal_receipt(
+            receipt_id=args.receipt_id, output=args.output, jsonl_file=args.jsonl_file,
+            status="failed", return_code=args.receipt_return_code,
+            failure_code="artifact_finalize", receipt_round=args.receipt_round or None,
+        )
         print(f"codex_review artifact validation failed: {e}")
         return 70
     return 0
