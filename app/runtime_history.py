@@ -139,30 +139,6 @@ class PreflightReceipt:
 
 
 @dataclass(frozen=True)
-class PreflightedTarget:
-    target: Any
-    manifest: Any
-    preflight: PreflightReceipt
-
-    @property
-    def session_id(self) -> str | None:
-        return getattr(self.target, "session_id", None)
-
-
-@dataclass(frozen=True)
-class HandoffFailureClassification:
-    kind: str
-    fallback_eligible: bool
-
-
-@dataclass(frozen=True)
-class HandoffRecoveryDecision:
-    action: str
-    allow_send: bool
-    cleanup_locators: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True)
 class _HistoryRecord:
     kind: str
     log_id: int
@@ -847,60 +823,6 @@ def build_model_visible_manifest(
         components=components,
         configuration_sha256=configuration_sha256,
     )
-
-
-async def stage_preflighted_handoff(
-    *,
-    adapter: Any,
-    prepared: Any,
-    attempt: Any,
-    native_context_tokens: int | None,
-) -> PreflightedTarget:
-    manifest = adapter.build_handoff_manifest(prepared, validation_profile=True)
-    preflight = preflight_runtime_handoff(
-        manifest, native_context_tokens=native_context_tokens
-    )
-    if not preflight.fits:
-        return PreflightedTarget(target=None, manifest=manifest, preflight=preflight)
-    target = await adapter.stage_handoff(
-        prepared=prepared,
-        attempt=attempt,
-        manifest=manifest,
-        preflight=preflight,
-    )
-    return PreflightedTarget(target=target, manifest=manifest, preflight=preflight)
-
-
-def classify_handoff_failure(failure: dict[str, Any]) -> HandoffFailureClassification:
-    kind = str(failure.get("kind") or "unknown")
-    eligible = bool(failure.get("structured")) and kind in {
-        "context_overflow", "schema_rejected", "ingress_rejected",
-    }
-    return HandoffFailureClassification(kind=kind, fallback_eligible=eligible)
-
-
-def decide_runtime_handoff_recovery(
-    *,
-    session_state: dict[str, Any],
-    handoff: dict[str, Any],
-    attempts: Sequence[dict[str, Any]],
-) -> HandoffRecoveryDecision:
-    source = dict(handoff["source"])
-    target = dict(handoff["target"])
-    status = str(handoff["status"])
-    locators = tuple(
-        str(attempt.get("cleanup_locator") or "")
-        for attempt in attempts
-        if attempt.get("cleanup_locator")
-    )
-    if status == "confirmed" and session_state == target:
-        return HandoffRecoveryDecision("resume_target", True, locators)
-    if status in {
-        "prepared", "target_staged", "ingress_validated",
-        "capability_validated", "source_released", "failed",
-    } and session_state == source:
-        return HandoffRecoveryDecision("resume_source", True, locators)
-    return HandoffRecoveryDecision("block_recovery_required", False, locators)
 
 
 def _cap_model_visible_tools(

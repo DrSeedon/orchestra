@@ -37,7 +37,6 @@ class RuntimeCapabilities:
     resume_across_models: bool = True
     model_retarget: bool = False
     subagents: bool = True
-    validated_handoff: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -50,7 +49,6 @@ class RuntimeCapabilities:
             "resume_across_models": self.resume_across_models,
             "model_retarget": self.model_retarget,
             "subagents": self.subagents,
-            "validated_handoff": self.validated_handoff,
         }
 
 
@@ -337,11 +335,6 @@ register_runtime(RuntimeDefinition(
         reconnect=True,
         hibernate=True,
         model_retarget=True,
-        # The pinned SDK exposes a mechanical tools-disabled validation client, but
-        # production enablement also requires the real semantic canary and connected
-        # normal-profile context receipt. The 2026-08-16 canary was rate-limited, so
-        # cross-runtime admission remains fail-closed until that gate is rerun GREEN.
-        validated_handoff=False,
     ),
     factory=_claude_factory,
 ))

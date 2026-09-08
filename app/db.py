@@ -819,18 +819,7 @@ def init_db() -> None:
             CREATE INDEX IF NOT EXISTS idx_turn_usage_ts ON turn_usage(ts);
             CREATE INDEX IF NOT EXISTS idx_turn_usage_session ON turn_usage(session_id, ts);
 
-            CREATE TABLE IF NOT EXISTS improvement_rules (
-                id INTEGER PRIMARY KEY,
-                rule_text TEXT,
-                source_signal TEXT,
-                proposed_by TEXT,
-                proposed_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'proposed'
-                    CHECK (status IN ('proposed','active','retired')),
-                approved_at TEXT,
-                retired_at TEXT,
-                target_file TEXT
-            );
+
         """)
         c.execute("""
             CREATE TABLE IF NOT EXISTS kv (
@@ -3821,58 +3810,6 @@ def turn_usage_add(
             ),
         )
         return cursor.rowcount == 1
-
-
-def rule_propose(
-    rule_text: str,
-    source_signal: str,
-    proposed_by: str,
-    target_file: str = "",
-) -> int:
-    """Create a proposed improvement rule and return its database id."""
-    with _conn() as c:
-        cursor = c.execute(
-            """INSERT INTO improvement_rules
-               (rule_text, source_signal, proposed_by, target_file)
-               VALUES (?, ?, ?, ?)""",
-            (rule_text, source_signal, proposed_by, target_file),
-        )
-        return cursor.lastrowid
-
-
-def rule_approve(rule_id: int) -> None:
-    """Mark an improvement rule active and record its approval time."""
-    with _conn() as c:
-        c.execute(
-            """UPDATE improvement_rules
-               SET status = 'active', approved_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
-            (rule_id,),
-        )
-
-
-def rule_retire(rule_id: int) -> None:
-    """Mark an improvement rule retired and record its retirement time."""
-    with _conn() as c:
-        c.execute(
-            """UPDATE improvement_rules
-               SET status = 'retired', retired_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
-            (rule_id,),
-        )
-
-
-def rule_list(status: str | None = None) -> list[dict]:
-    """Return all improvement rules, optionally filtered by status."""
-    query = "SELECT * FROM improvement_rules"
-    params: tuple[str, ...] = ()
-    if status is not None:
-        query += " WHERE status = ?"
-        params = (status,)
-    query += " ORDER BY proposed_at DESC, id DESC"
-    with _conn() as c:
-        rows = c.execute(query, params).fetchall()
-        return [dict(row) for row in rows]
 
 
 # ── Usage Snapshots ──
