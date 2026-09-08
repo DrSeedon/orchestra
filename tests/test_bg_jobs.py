@@ -688,14 +688,10 @@ class TestRunExecOutcome:
         assert "FAILED" in session.send.await_args.args[0]
 
     @pytest.mark.asyncio
-    async def test_exit_zero_blind_artifact_without_verdict_is_failed(
+    async def test_generic_run_does_not_infer_status_from_artifact_prose(
         self, db, mgr_mock, tmp_path,
     ):
-        """#180 oracle: rc=0 + existing file is not a completed review.
-
-        Fixture is the #174 opening: no ## Verdict, starts with the admission
-        that the review never happened. Today's _run_exec treats this as success.
-        """
+        """A generic output-file check does not impose a model-review verdict schema."""
         artifact = tmp_path / "codex-review-plan.md"
         artifact.write_text(
             "Unable to perform an evidence-backed review: "
@@ -717,12 +713,8 @@ class TestRunExecOutcome:
         )
 
         row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-blind")
-        assert row["status"] == "failed", row
-        sent = session.send.await_args.args[0]
-        assert "FAILED" in sent
-        assert "completed" not in sent.lower()
-        err = (row.get("error") or "").lower()
-        assert "verdict" in err or "blind" in err or "unable" in err
+        assert row["status"] == "triggered", row
+        assert not row.get("error")
 
     @pytest.mark.asyncio
     async def test_exit_zero_real_verdict_still_completes(self, db, mgr_mock, tmp_path):

@@ -40,23 +40,22 @@ async def bg_job_create(req: BgJobCreateRequest, request: Request = None):
             status_code=400,
         )
     from app.db import get_session, review_receipt_get, review_receipt_finish, bg_get_jobs
-    from app.work_review import assignment, is_advisory, _task_reviews, MAX_REVIEW_REQUESTS
+    from app.work_review import assignment, _task_reviews, MAX_REVIEW_REQUESTS
     from app.db import _conn
     import json
     target = get_session(session_id) or {}
     run = assignment(scope, session_id, str(target.get("task_id") or ""))
     config = dict(req.config)
-    config.pop("review_advisory", None)
     config.pop("review_receipt_id", None)
     receipt = review_receipt_get(req.receipt_id) if req.receipt_id else None
-    advisory = (is_advisory(run) or bool(receipt and int(receipt.get("schema_version") or 1) >= 3)) and req.type == "run" and bool(req.receipt_id or config.get("success_file"))
-    if advisory:
+    review_job = req.type == "run" and bool(req.receipt_id)
+    if review_job:
         from app.mcp_proof import check_mcp_proof, PROOF_HEADER
         caller = request.headers.get("x-orchestra-session-id", "") if request else ""
         proof = request.headers.get(PROOF_HEADER, "") if request else ""
         if caller != session_id or not check_mcp_proof(caller, proof) or target.get("role") not in {"worker", "full-cycle"} or target.get("is_orchestrator"):
             return JSONResponse({"error": "review_requester_forbidden"}, status_code=403)
-        if not receipt or int(receipt.get("schema_version") or 1) < 3 or receipt["session_id"] != session_id or receipt["scope"] != scope:
+        if not receipt or receipt["session_id"] != session_id or receipt["scope"] != scope:
             return JSONResponse({"error": "review_protocol_upgrade_required: reconnect MCP before requesting review"}, status_code=409)
         if config.get("success_file") != receipt["artifact_path"]:
             return JSONResponse({"error": "review_artifact_mismatch"}, status_code=409)
@@ -68,21 +67,21 @@ async def bg_job_create(req: BgJobCreateRequest, request: Request = None):
                 if previous.get("command") != config.get("command"):
                     return JSONResponse({"error": "review_job_payload_changed"}, status_code=409)
                 return {"id": job["id"], "type": "run", "status": job["status"]}
-        if not is_advisory(run) or run["status"] != "requested" or receipt["task_id"] != str(target.get("task_id") or ""):
+        if run is None or run["status"] != "requested" or receipt["task_id"] != str(target.get("task_id") or ""):
             return JSONResponse({"error": "review_task_not_active"}, status_code=409)
         with _conn() as connection:
             rows = _task_reviews(connection, run)
         if receipt["status"] != "requested" or len(rows) > MAX_REVIEW_REQUESTS or any(r["status"] == "requested" and r["receipt_id"] != req.receipt_id for r in rows):
             return JSONResponse({"error": "review_budget_or_active_request_conflict"}, status_code=409)
-        config.update(review_advisory=True, review_receipt_id=req.receipt_id)
+        config.update(review_receipt_id=req.receipt_id)
     result = await bg_manager.create(
         job_type=req.type, config=config, message=req.message,
         target_session_id=session_id, target_name=name, target_scope=scope,
-        created_by=str(target.get("name") or name) if advisory else req.created_by, timeout_seconds=req.timeout_seconds,
+        created_by=str(target.get("name") or name) if review_job else req.created_by, timeout_seconds=req.timeout_seconds,
     )
     if result.get("error"):
         return JSONResponse(result, status_code=400)
-    if advisory and result.get("id"):
+    if review_job and result.get("id"):
         review_receipt_finish(req.receipt_id, {"job_id": result["id"]})
     return result
 

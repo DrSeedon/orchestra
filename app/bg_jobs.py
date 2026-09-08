@@ -27,7 +27,6 @@ from app.db import (
 )
 from app.pidfd_exec import pidfd_send_group
 from app.events import InjectedMessage, MessageProvenance
-from app.codex_review_artifact import review_result_error
 from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
@@ -423,8 +422,7 @@ class BgJobManager:
             coro = self._run_exec(job_id, config["command"], message, target_name,
                                   target_scope, timeout, host=host,
                                   success_file=config.get("success_file"),
-                                  success_pattern=config.get("success_pattern", ""),
-                                  review_advisory=bool(config.get("review_advisory")))
+                                  success_pattern=config.get("success_pattern", ""))
         elif job_type == "merge":
             coro = self._run_merge_watch(job_id, config["operation_id"], message,
                                          target_name, target_scope, timeout)
@@ -978,7 +976,7 @@ class BgJobManager:
 
     async def _run_exec(self, job_id, command, message, target_name,
                         target_scope, timeout, host=None, success_file=None,
-                        success_pattern="", review_advisory=False):
+                        success_pattern=""):
         proc = None
         reader_task = None
         output_buf = []
@@ -1068,8 +1066,6 @@ class BgJobManager:
                                 f"Required output artifact does not match success pattern: "
                                 f"{success_file}"
                             )
-                        elif not review_advisory:
-                            validation_error = review_result_error(artifact)
                 except OSError as e:
                     validation_error = f"Cannot validate output artifact {success_file}: {e}"
             if validation_error:

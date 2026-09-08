@@ -18,7 +18,7 @@ def job_env(tmp_path,monkeypatch):
     from app.bg_jobs import bg_manager
     from app.mcp_proof import issue_mcp_proof
     db.init_db()
-    helpers=runpy.run_path(str(Path(__file__).with_name('test_review_coverage_gate_462.py')))
+    helpers=runpy.run_path(str(Path(__file__).with_name('_work_review_helpers.py')))
     helpers['_save_session'](db,session_id='sid',name='worker',scope='/scope',worktree=str(tmp_path),role='worker',is_orchestrator=False)
     task=db.get_session('sid')['task_id']
     db.task_run_receipt_open(session_id='sid',worker_name='worker',scope='/scope',task_id=task,task_stable_id='stable-job')
@@ -44,14 +44,15 @@ async def test_one_receipt_starts_one_job_even_on_parallel_http_replay(job_env):
     first,second=await asyncio.gather(bg.bg_job_create(args(bg,receipt),request),bg.bg_job_create(args(bg,receipt),request))
     assert first['id']==second['id']
     assert len(started)==1
-    assert started[0][2]['review_advisory'] is True
+    assert started[0][2]['review_receipt_id'] == receipt['receipt_id']
     assert db.review_receipt_get(receipt['receipt_id'])['job_id']==first['id']
 
 
-async def test_old_mcp_cannot_start_unbudgeted_review_for_new_task(job_env):
+async def test_historical_receipts_cannot_bypass_task_review_budget(job_env):
     db,bg,factory,request,started=job_env
-    old={**factory(), 'status':'requested'}
-    db.review_receipt_create(old)
+    for i in range(4):
+        old={**factory(), 'schema_version':2, 'status':'completed' if i < 3 else 'requested'}
+        db.review_receipt_create(old)
     response=await bg.bg_job_create(args(bg,old),request)
     assert response.status_code==409
     assert not started
