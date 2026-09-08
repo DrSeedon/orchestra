@@ -58,6 +58,9 @@ def _isolate_production_db(tmp_path):
     with pytest.MonkeyPatch.context() as guard_patch:
         guard_patch.setattr(db, "DB_PATH", isolated_path)
         guard_patch.setenv("ORCHESTRA_DB_PATH", str(isolated_path))
+        # Tests opt into VPS task refs explicitly; a shell-level prefix must not
+        # turn legacy numeric fixtures into unresolved V-prefixed tasks.
+        guard_patch.delenv("ORCHESTRA_TASK_PREFIX", raising=False)
         guard_patch.setattr(
             sqlite3,
             "connect",
