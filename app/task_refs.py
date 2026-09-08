@@ -1,6 +1,7 @@
 """Portable task references; origin belongs to the task, not its current host."""
 from dataclasses import dataclass
 import re
+import os
 
 
 @dataclass(frozen=True)
@@ -28,3 +29,16 @@ def parse_task_ref(value: str) -> TaskRef:
     if not match:
         raise ValueError(f'invalid task reference: {value!r}')
     return TaskRef(match.group(1) or '', int(match.group(2)))
+
+
+def new_task_prefix() -> str:
+    prefix = os.environ.get('ORCHESTRA_TASK_PREFIX', '').strip().upper().removesuffix('-')
+    if prefix not in {'', 'V'}:
+        raise ValueError('ORCHESTRA_TASK_PREFIX must be empty or V-')
+    return prefix
+
+
+def task_ref(task: dict) -> str:
+    prefix = str(task['ref_prefix'] or '') if 'ref_prefix' in task.keys() else ''
+    number = str(task['par_number'])
+    return f'{prefix}-{number}' if prefix else number

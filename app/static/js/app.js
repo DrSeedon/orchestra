@@ -3692,7 +3692,8 @@ const PortfolioPanel = (() => {
     }
 
     function taskNumber(task) {
-        return task.task_display_number ?? task.par_number ?? task.par ?? task.id;
+        const number = task.task_display_number ?? task.par_number ?? task.par ?? task.id;
+        return task.ref_prefix ? `${task.ref_prefix}-${number}` : number;
     }
 
     function waitsForTask(project, task) {

@@ -59,7 +59,7 @@ def _slugify(s: str) -> str:
     return slug.lower()[:80]
 
 
-_TASK_ID_RE = re.compile(r"^([A-Z]{2,5})-(\d+)$", re.IGNORECASE)
+_TASK_ID_RE = re.compile(r"^([A-Z]{1,5})-(\d+)$", re.IGNORECASE)
 _TASK_ID_BARE = re.compile(r"^(\d+)$")
 
 
@@ -70,7 +70,7 @@ def _normalize_task_id(task_id: str) -> str:
         n = int(m.group(2))
         if n < 1:
             raise ValueError(f"Invalid task_id '{task_id}': number must be >= 1")
-        return str(n)
+        return f"V-{n}" if m.group(1).upper() == "V" else str(n)
     m = _TASK_ID_BARE.match(tid)
     if m:
         n = int(m.group(1))
@@ -903,9 +903,9 @@ _RESERVED_OPERATION_TRAILER_VALUE_RE = re.compile(
 
 
 _HEADER_TASK_REFS_RE = re.compile(
-    r"^\s*((?:#[0-9]+|[A-Z]{2,5}-[0-9]+)(?:\s*,\s*(?:#[0-9]+|[A-Z]{2,5}-[0-9]+))*)\s*:"
+    r"^\s*((?:#[0-9]+|[A-Z]{1,5}-[0-9]+)(?:\s*,\s*(?:#[0-9]+|[A-Z]{1,5}-[0-9]+))*)\s*:"
 )
-_ONE_TASK_REF_RE = re.compile(r"#([0-9]+)|([A-Z]{2,5})-([0-9]+)")
+_ONE_TASK_REF_RE = re.compile(r"#([0-9]+)|([A-Z]{1,5})-([0-9]+)")
 
 
 def _leading_task_refs(message: str) -> list[str]:
@@ -997,7 +997,7 @@ def _build_squash_message(branch: str, messages: list[str]) -> str:
     # or one branch carrying both spellings emits `#248, #248:` into main forever.
     all_refs: list[str] = []
     for ref in _extract_task_refs(messages):
-        numeric = f"#{ref.rsplit('-', 1)[-1]}"
+        numeric = ref if ref.startswith("V-") else f"#{ref.rsplit('-', 1)[-1]}"
         if numeric not in all_refs:
             all_refs.append(numeric)
 
@@ -1026,9 +1026,9 @@ def _validated_squash_message(
     message = _build_squash_message(branch, messages)
     expected_refs = candidate_refs or ([primary_task_ref] if primary_task_ref else [])
     if not candidate_refs and primary_task_ref:
-        message = f"#{primary_task_ref}: {message}"
+        message = f"{primary_task_ref if primary_task_ref.startswith('V-') else '#' + primary_task_ref}: {message}"
     subject = message.splitlines()[0] if message else ""
-    emitted_refs = [ref.rsplit("-", 1)[-1] for ref in _extract_task_refs([subject])]
+    emitted_refs = [ref if ref.startswith("V-") else ref.rsplit("-", 1)[-1] for ref in _extract_task_refs([subject])]
     if emitted_refs != expected_refs:
         raise ValueError(
             "squash subject task refs changed under repository lock: "
