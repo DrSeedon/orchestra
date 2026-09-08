@@ -1,5 +1,7 @@
 """SQLite storage for sessions and logs."""
 
+from app.task_refs import task_ref as public_task_ref
+
 import json
 import logging
 import math
@@ -1310,7 +1312,6 @@ def _migrate(c) -> None:
         c.execute("ALTER TABLE sessions ADD COLUMN total_tool_calls INTEGER DEFAULT 0")
     if "template_hash" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN template_hash TEXT DEFAULT ''")
-    _adopt_legacy_inflight_task_runs(c)
     if "disabled_tools" not in cols:
         c.execute("ALTER TABLE sessions ADD COLUMN disabled_tools TEXT DEFAULT '[]'")
     if "mcp_servers_custom" not in cols:
@@ -1427,6 +1428,10 @@ def _migrate(c) -> None:
             f"SELECT {select_list} FROM _tm_tasks_old"
         )
         c.execute("DROP TABLE _tm_tasks_old")
+    task_columns = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)")}
+    if "ref_prefix" not in task_columns:
+        c.execute("ALTER TABLE tm_tasks ADD COLUMN ref_prefix TEXT NOT NULL DEFAULT ''")
+    _adopt_legacy_inflight_task_runs(c)
     c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
@@ -1860,7 +1865,7 @@ def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
                 session_id=s["id"],
                 worker_name=s["name"],
                 scope=s["scope"],
-                task_id=str(task_identity["par_number"]),
+                task_id=public_task_ref(task_identity),
                 task_stable_id=stable_id,
                 task_snapshot_ref=snapshot_ref,
                 prompt_template_start=str(s.get("template_hash") or ""),
@@ -2179,6 +2184,34 @@ def dashboard_voice_mark_failed(voice_id: str, error: str) -> None:
                SET state='FAILED', error=?, updated_at=? WHERE voice_id=?""",
             (error, now, voice_id),
         )
+
+
+def get_recent_chat_logs(session_id: str) -> list[dict]:
+    """Read a bounded chat window and any tool call paired across its boundary."""
+    from app.chat_history import MAX_MESSAGES
+
+    columns = "id,ts,type,substr(content,1,8000) AS content,length(content) AS content_length,tool_use_id,origin"
+    with _conn() as connection:
+        connection.execute("BEGIN")
+        rows = [dict(row) for row in connection.execute(
+            f"SELECT {columns} FROM logs WHERE session_id=? "
+            "AND type IN ('user_message','text','tool','tool_result') "
+            "AND NOT (type='user_message' AND origin='platform') "
+            "ORDER BY id DESC LIMIT ?", (session_id, MAX_MESSAGES),
+        )]
+        present = {row['tool_use_id'] for row in rows if row['type'] == 'tool'}
+        missing = {row['tool_use_id'] for row in rows
+                   if row['type'] == 'tool_result' and row['tool_use_id']} - present
+        if missing:
+            placeholders = ','.join('?' for _ in missing)
+            calls = connection.execute(
+                f"SELECT {columns} FROM logs WHERE id IN ("
+                "SELECT MAX(id) FROM logs WHERE session_id=? AND type='tool' "
+                f"AND tool_use_id IN ({placeholders}) AND id<? GROUP BY tool_use_id)",
+                (session_id, *sorted(missing), min(row['id'] for row in rows)),
+            ).fetchall()
+            rows.extend(dict(call) for call in calls)
+    return sorted(rows, key=lambda row: row['id'])
 
 
 def get_history_logs(session_id: str, conn=None) -> tuple[int, list[dict]]:
@@ -3119,11 +3152,11 @@ def _adopt_legacy_inflight_task_runs(connection: sqlite3.Connection) -> None:
     if not required_tables <= tables:
         return
     rows = connection.execute(
-        "SELECT s.id AS session_id,s.name AS worker_name,s.scope,t.par_number "
+        "SELECT s.id AS session_id,s.name AS worker_name,s.scope,t.par_number,t.ref_prefix "
         "FROM sessions s JOIN tm_projects p "
         "ON RTRIM(p.scope,'/')=RTRIM(s.scope,'/') "
         "JOIN tm_tasks t ON t.project_id=p.id "
-        "AND CAST(t.par_number AS TEXT)=s.task_id "
+        "AND (CASE WHEN t.ref_prefix='' THEN '' ELSE t.ref_prefix || '-' END || CAST(t.par_number AS TEXT))=s.task_id "
         "WHERE s.status!='archived' AND t.status='in_progress' "
         "AND t.worker_session_id=s.id "
         "AND NOT EXISTS (SELECT 1 FROM review_receipts r "
@@ -3136,7 +3169,7 @@ def _adopt_legacy_inflight_task_runs(connection: sqlite3.Connection) -> None:
             session_id=row["session_id"],
             worker_name=row["worker_name"],
             scope=row["scope"],
-            task_id=str(row["par_number"]),
+            task_id=public_task_ref(row),
             task_source="legacy_inflight",
             requested_at=adopted_at,
             connection=connection,
@@ -3153,7 +3186,7 @@ def _require_bound_task_run_for_review(
         "SELECT 1 FROM sessions s JOIN tm_projects p "
         "ON RTRIM(p.scope,'/')=RTRIM(s.scope,'/') "
         "JOIN tm_tasks t ON t.project_id=p.id "
-        "AND CAST(t.par_number AS TEXT)=s.task_id "
+        "AND (CASE WHEN t.ref_prefix='' THEN '' ELSE t.ref_prefix || '-' END || CAST(t.par_number AS TEXT))=s.task_id "
         "WHERE s.id=? AND s.status!='archived' AND s.task_id=? "
         "AND t.status='in_progress' AND t.worker_session_id=s.id",
         (receipt["session_id"], str(receipt["task_id"])),

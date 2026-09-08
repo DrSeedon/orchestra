@@ -7,6 +7,8 @@ import logging
 import math
 import re
 import sqlite3
+from app.task_refs import task_ref as public_task_ref
+
 from contextlib import AsyncExitStack
 from pathlib import Path
 from typing import Optional
@@ -1024,7 +1026,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     from app.workspace import switch_worktree_branch
                     switched = await asyncio.to_thread(
                         switch_worktree_branch, session.worktree_path,
-                        f"task-{created['par_number']}/{session.name}",
+                        f"task-{created.get('par') or created['par_number']}/{session.name}",
                         getattr(session, "base_branch", "") or "main",
                         force=True, expect_absent=True,
                     )
@@ -1035,7 +1037,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                         )
                     session.needs_switch = False
                     session.branch = switched.get("branch") or (
-                        f"task-{created['par_number']}/{session.name}"
+                        f"task-{created.get('par') or created['par_number']}/{session.name}"
                     )
                     from app.db import update_session_lifecycle
                     await asyncio.to_thread(
@@ -1048,16 +1050,16 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     )
                 task_state = await asyncio.to_thread(
                     _tm.bind_task_to_session, req.scope, session.id,
-                    str(created["par_number"]),
+                    created.get("par") or str(created["par_number"]),
                 )
-                session.task_id = str(created["par_number"])
+                session.task_id = created.get("par") or str(created["par_number"])
                 task_state["auto_created"] = True
             except (ValueError, RuntimeError) as error:
                 return JSONResponse({"error": str(error)}, status_code=409)
             if task_match:
                 clean_message = re.sub(r"^\s*#\d+\s*:\s*", "", req.message).strip()
                 req = req.model_copy(update={
-                    "message": f"[Task #{created['par_number']}] "
+                    "message": f"[Task #{created.get('par') or created['par_number']}] "
                     f"{clean_message}"
                 })
         elif req.sender and task_match and durable_task_id:
@@ -2379,7 +2381,7 @@ async def execute_merge_session(
             result["rag_backfill_status"] = rag_service.schedule_backfill(row_scope)
 
             if task_identity:
-                par = str(task_identity["par_number"])
+                par = public_task_ref(task_identity)
                 new_branch = f"task-{par}/{expected_name}"
                 try:
                     switch_result = await asyncio.to_thread(
@@ -2766,7 +2768,7 @@ async def switch_branch(name: str, req: dict):
         )
     except ValueError as e:
         return JSONResponse({"error": str(e)}, status_code=400)
-    par = str(task_identity["par_number"])
+    par = public_task_ref(task_identity)
     new_task = str(getattr(found, "task_id", "") or "") != par
     requested_owned_dirs = None
     if new_task:

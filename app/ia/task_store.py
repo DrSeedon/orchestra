@@ -248,6 +248,8 @@ def build_migration_manifest(snapshot: Mapping[str, Any]) -> dict[str, Any]:
         )
         source_to_stable[row_id] = stable_id
         allowed_source = {key: raw.get(key) for key in _TASK_SOURCE_FIELDS}
+        if raw.get("ref_prefix"):
+            allowed_source["ref_prefix"] = raw["ref_prefix"]
         row_sha = _digest(allowed_source)
         project = project_by_id[project_id]
         record = {
@@ -257,7 +259,8 @@ def build_migration_manifest(snapshot: Mapping[str, Any]) -> dict[str, Any]:
             "uri": f"orch://project/{project_id}/tasks/{stable_id}/state",
             "project_id": project_id,
             "display_number": display_number,
-            "display_ref": f"#{display_number}",
+            "display_ref": f"#{raw.get('ref_prefix') + '-' if raw.get('ref_prefix') else ''}{display_number}",
+            **({"ref_prefix": raw["ref_prefix"]} if raw.get("ref_prefix") else {}),
             "title": str(raw.get("title") or ""),
             "description": str(raw.get("description") or ""),
             "price_rub": int(raw.get("price_rub") or 0),
@@ -826,6 +829,7 @@ class TaskStore:
             "sync_revision": state.get("sync_revision", 0),
             "stable_id": state["stable_id"],
             "display_ref": state["display_ref"],
+            **({"ref_prefix": state["ref_prefix"]} if state.get("ref_prefix") else {}),
             "canonical_head": state["canonical_head"],
             "projection_head": state["projection_head"],
             "worker_session_id": state.get("worker_session_id"),
@@ -859,6 +863,7 @@ class TaskStore:
             "tasks": [
                 {
                     "par": str(state["display_number"]),
+                    **({"ref_prefix": state["ref_prefix"]} if state.get("ref_prefix") else {}),
                     "title": state["title"],
                     "project": state["project_id"],
                     "price": self._format_amount(state["price_rub"]),
@@ -996,6 +1001,7 @@ class TaskStore:
         return {
             "stable_id": state["stable_id"],
             "display_ref": state["display_ref"],
+            **({"ref_prefix": state["ref_prefix"]} if state.get("ref_prefix") else {}),
             "canonical_head": canonical_head,
             "projection_head": canonical_head,
             "evidence_refs": copy.deepcopy(state.get("evidence_refs") or []),
@@ -1064,7 +1070,10 @@ class TaskStore:
         expected_head: str | None = None,
         contour_id: str = "central",
         request_key: str = "",
+        ref_prefix: str = "",
     ) -> dict[str, Any]:
+        if ref_prefix not in {"", "V"}:
+            raise IdentityConflictError("unsupported task reference prefix")
         if status not in VALID_TASK_STATUSES:
             raise ValueError(f"Invalid status: {status}")
         if price < 0:
@@ -1120,7 +1129,8 @@ class TaskStore:
             "uri": f"orch://project/{project_id}/tasks/{stable_id}/state",
             "project_id": project_id,
             "display_number": display_number,
-            "display_ref": f"#{display_number}",
+            "display_ref": f"#{ref_prefix + '-' if ref_prefix else ''}{display_number}",
+            **({"ref_prefix": ref_prefix} if ref_prefix else {}),
             "title": title,
             "description": description,
             "price_rub": price,

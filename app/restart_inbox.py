@@ -5,10 +5,9 @@ HTTP: the bridge lives in this process and pushes straight into a CLI session. D
 restart that session is about to die, so the message was accepted, never answered and never
 seen again — the user got silence.
 
-Delivery is AT-LEAST-ONCE, deliberately, and for the same reason as `mailbox`: a row is
-marked delivered only AFTER `manager.send` returned. A crash in between replays the message
-(the user sees a duplicate and understands it); marking first would lose it exactly when the
-process is least stable, and a lost message is indistinguishable from an agent ignoring you.
+The restart inbox hands each message to the normal durable message queue under a
+stable ID. A failed acknowledgement of that handoff retries the same ID, not the
+provider send. Provider submission and unknown outcomes belong to message_deliveries.
 
 The queue is drained on every REOPENING of the gate, not on process start: a restart that
 never happens (preflight refused, watchdog, failed restart path) leaves the process alive and
@@ -18,6 +17,7 @@ the promise "I will deliver it when I am back" unkept (#269 B1).
 import asyncio
 import logging
 import time
+import uuid
 
 from app import db
 from app.events import MessageProvenance
@@ -103,8 +103,43 @@ async def _tell_user_undeliverable(row: dict, detail: str) -> None:
                        row["session_id"], type(error).__name__, error)
 
 
+async def _transfer_to_message_queue(row: dict) -> None:
+    from app.message_deliveries import accept_message_delivery, ensure_target_runner
+
+    delivery_id = str(uuid.uuid5(uuid.NAMESPACE_URL,
+                                f"orchestra:restart-inbox:{row['session_id']}:{row['id']}"))
+    with db._conn() as connection:
+        existing = connection.execute(
+            "SELECT target_session_id,message FROM message_deliveries WHERE delivery_id=?",
+            (delivery_id,),
+        ).fetchone()
+    if existing:
+        if existing['target_session_id'] != row['session_id'] or existing['message'] != row['body']:
+            raise ValueError('restart inbox delivery ID is bound to different content')
+        ensure_target_runner(row['session_id'])
+        return
+    target = db.get_session(row['session_id'])
+    if not target or target.get('status') == 'archived':
+        raise ValueError('restart inbox target no longer exists')
+    generation = (
+        f"session={target['id']}|task={target.get('task_id') or ''}|"
+        f"branch={target.get('branch') or ''}|needs_switch={int(bool(target.get('needs_switch')))}"
+    )
+    resource, status = await accept_message_delivery(
+        delivery_id=delivery_id, source_principal='restart-inbox', source_name='user',
+        source_scope=target['scope'], target_session_id=target['id'],
+        target_name=target['name'], target_scope=target['scope'],
+        target_task_id=target.get('task_id') or '', target_generation=generation,
+        message=row['body'], rendered_message=row['body'], message_kind='user',
+        provenance=MessageProvenance(origin='user', senders=('user',),
+                                    subtype='tg_restart_inbox', ref=str(row['id'])),
+    )
+    if status != 202:
+        raise RuntimeError(f"restart message was not accepted: {resource}")
+
+
 async def deliver_pending(manager) -> int:
-    """Hand every queued message to its session. Returns how many were delivered.
+    """Transfer messages to the durable queue. Returns how many handoffs were accepted.
 
     One row at a time, and each is marked only after its own delivery: a session that no
     longer exists must not swallow the messages queued for the others.
@@ -120,13 +155,7 @@ async def deliver_pending(manager) -> int:
     for row in rows:
         try:
             await asyncio.wait_for(
-                manager.send(
-                    row["session_id"], row["body"],
-                    provenance=MessageProvenance(
-                        origin="user", senders=("user",),
-                        subtype="tg_restart_inbox", ref=str(row["id"]),
-                    ),
-                ),
+                _transfer_to_message_queue(row),
                 timeout=DELIVERY_TIMEOUT_S,
             )
         except Exception as error:
@@ -142,10 +171,10 @@ async def deliver_pending(manager) -> int:
         try:
             mark_delivered(row["id"])
         except Exception:
-            # Delivered but unmarked: the next drain repeats it. That is the direction we
-            # chose, and it must be visible rather than inferred from a duplicate.
+            # The durable queue already owns this ID. The next drain can safely repeat
+            # the handoff even if this acknowledgement was not saved.
             logger.exception("restart inbox: delivered %s but could not mark it", row["id"])
         delivered += 1
     if rows:
-        logger.info("restart inbox: delivered %d of %d queued message(s)", delivered, len(rows))
+        logger.info("restart inbox: transferred %d of %d message(s) to durable delivery", delivered, len(rows))
     return delivered

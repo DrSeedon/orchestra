@@ -5,7 +5,7 @@ Built-in task tracker. Agents create, update, and close tasks.
 
 ### Tools
 - `task_create(title, project, price=0, description="", priority=2)` — create task. Price in exact currency units (20000 = 20 000). Priority: 0=critical, 1=high, 2=medium, 3=low
-- `task_update(par, status="", title="", price=-1, ...)` — update task. Only provided fields change. par: plain number "42"
+- `task_update(par, status="", title="", price=-1, ...)` — update task. Only provided fields change. par: the exact returned reference, e.g. "42" or "V-42"
 - `task_list(project="", status="", assignee="")` — list tasks with optional filters
 - `task_get(par)` — full task details with payment history and linked commits
 
@@ -26,3 +26,5 @@ Built-in task tracker. Agents create, update, and close tasks.
 - Use task numbers in commit messages: `#42: implemented feature`
 - Don't create tasks for trivial work (1-2 line fixes)
 </task-management>
+
+New VPS tasks may use `V-` (e.g. `V-42`). Preserve that prefix in task tools, branch names, commit headers and `.orchestra/tasks/V-42/`. Do not turn it into `42`, rename existing tasks, or rewrite another machine’s task record to reuse its number.
