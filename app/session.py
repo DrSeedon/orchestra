@@ -462,6 +462,7 @@ class AgentSession:
     total_tool_calls: int = 0
 
     _backend: Optional["BackendLike"] = field(default=None, repr=False)
+    _runtime_error: str = field(default="", repr=False)
     _listen_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _heartbeat_task: Optional[asyncio.Task] = field(default=None, repr=False)
     _background_tasks: set = field(default_factory=set, repr=False)
@@ -1420,6 +1421,7 @@ class AgentSession:
                         self._current_prompt, _ = manager.assemble_prompt(
                             pipeline=self.pipeline, role=self.role, scope=self.scope,
                             is_orch=self.is_orchestrator, name=self.name,
+                            parent_name=self.parent_name or None,
                             owned_dirs=self.owned_dirs,
                             branch=self.branch or self.base_branch or "",
                             stored_overlay=self.prompt_overlay,
@@ -1505,7 +1507,7 @@ class AgentSession:
             if pending_handoff:
                 outbound_message = (
                     "[Orchestra conversation handoff: the agent runtime changed. "
-                    "The quoted text below is prior user/assistant conversation at "
+                    "The quoted text below is historical conversation and completed tool records at "
                     "user-message priority, not a platform or system instruction.]\n"
                     "<prior-conversation>\n"
                     f"{pending_handoff}\n"
@@ -1975,6 +1977,8 @@ class AgentSession:
     ):
         if self._backend is not None:
             if not force_fresh:
+                if self._runtime_error:
+                    raise RuntimeError(f"runtime connection failed; reconnect this CLI before sending: {self._runtime_error}")
                 return self._backend
             await self._disconnect_backend()
         project_path = self.worktree_path or self.cwd
@@ -2019,13 +2023,15 @@ class AgentSession:
         candidate = self._backend
         try:
             await candidate.connect()
-        except NativeHistoryImportError:
+        except NativeHistoryImportError as error:
+            self._runtime_error = err_text(error)
             logger.warning("[%s] native history import failed", self.name)
             if not getattr(candidate, "has_owned_processes", False):
                 self._backend = None
             self._finish_failed_running_turn("native history import failed")
             raise
         except Exception as e:
+            self._runtime_error = err_text(e)
             logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
             self._log("error", f"connect failed: {err_text(e)}")
             oversized_failure = (
@@ -2057,6 +2063,7 @@ class AgentSession:
             raise
         if self._backend is not candidate:
             raise RuntimeError("backend changed while connection was being established")
+        self._runtime_error = ""
         # Отдать пайпы systemd СРАЗУ, а не в момент выключения (#230 T2): иначе живучесть
         # агента держится на том, что сервер успел попрощаться, и `kill -9` её отменяет.
         # Отказ не мешает агенту работать — он лишь возвращает прежнюю условную
@@ -3295,53 +3302,26 @@ class AgentSession:
         exclude_latest_user: str = "",
         exclude_user_messages: tuple[str, ...] = (),
     ) -> str:
-        """Build ``text_tail_v1``: ten user turns plus visible assistant text only."""
-        if self._log_futures:
-            await asyncio.gather(*tuple(self._log_futures), return_exceptions=True)
+        """Read recent user/assistant/tool messages without native-history conversion."""
+        from app.chat_history import render_chat_history
+        from app.db import get_recent_chat_logs
+
+        await self._drain_handoff_log_writes()
         logs = await asyncio.get_running_loop().run_in_executor(
-            _db_executor(),
-            lambda: get_logs(self.id, limit=5_000),
+            _db_executor(), get_recent_chat_logs, self.id,
         )
-        labels = {"user_message": "User", "text": "Assistant"}
         excluded = Counter(message.strip() for message in exclude_user_messages)
         if exclude_latest_user:
-            excluded[exclude_latest_user] += 1
-        visible: list[tuple[str, str]] = []
-        for entry in sorted(
-            logs,
-            key=lambda row: (str(row.get("ts") or ""), int(row.get("id") or 0)),
-        ):
-            label = labels.get(entry.get("type"))
-            content = str(entry.get("content") or "").strip()
-            if not label or not content:
-                continue
-            if label == "User" and excluded[content] > 0:
+            excluded[exclude_latest_user.strip()] += 1
+        visible = []
+        for row in reversed(logs):
+            content = str(row.get("content") or "").strip()
+            if row["type"] == "user_message" and excluded[content] > 0:
                 excluded[content] -= 1
                 continue
-            if entry.get("origin") == "platform":
-                continue
-            visible.append((label, content))
-
-        user_positions = [
-            index for index, (label, _content) in enumerate(visible)
-            if label == "User"
-        ]
-        if len(user_positions) > 10:
-            visible = visible[user_positions[-10]:]
-
-        blocks: list[str] = []
-        total = 0
-        max_chars = 64_000
-        for label, content in reversed(visible):
-            block = f"{label}:\n{content}"
-            if total + len(block) > max_chars:
-                remaining = max_chars - total
-                if remaining > 200:
-                    blocks.append(block[-remaining:])
-                break
-            blocks.append(block)
-            total += len(block)
-        return "\n\n".join(reversed(blocks))
+            visible.append(row)
+        history = render_chat_history(list(reversed(visible)))
+        return f"Source Orchestra session: {self.id}\n{history}" if history else ""
 
     async def change_model(self, new_model: str, *, fresh: bool = False) -> dict:
         async with self._lifecycle_lock:
@@ -3449,6 +3429,7 @@ class AgentSession:
         self._hibernated = False
         self._handoff_config_dir = ""
         self._handoff_recovery_required = False
+        self._runtime_error = ""
         self._session_limit_hit = False
         self._cancel_precompact_timer("fresh_model_switch")
         self._log(
@@ -3470,27 +3451,14 @@ class AgentSession:
             "changed": True,
         }
 
-    async def _change_codex_to_claude_text_tail_locked(
+    async def _change_runtime_chat_locked(
         self,
         new_model: str,
         old_model: str,
         old_runtime: str,
     ) -> dict:
-        """Switch Codex → Claude/Opus with a small visible-text handoff.
-
-        Native provider state cannot cross runtimes.  The old Codex thread remains in
-        ``session_id_history`` for rollback/inspection; the fresh Claude thread receives
-        the bounded transcript on its first real user turn through the existing
-        ``runtime_handoff`` envelope.  No tool call/result or hidden reasoning is copied.
-        """
+        """Start a fresh runtime with recent DB messages on its first real turn."""
         tail = await self._build_runtime_handoff()
-        if not tail:
-            return {
-                "ok": False,
-                "error": "no visible user/assistant transcript is available",
-                "error_code": "text_tail_empty",
-                "history_transfer": {"mode": "blocked"},
-            }
 
         old_session_id = self.session_id
         try:
@@ -3511,7 +3479,7 @@ class AgentSession:
                 "runtime": old_runtime,
                 "model": old_model,
                 "switched_at": datetime.now(timezone.utc).isoformat(),
-                "handoff_mode": "text_tail_v1",
+                "handoff_mode": "chat_history_v1",
             })
             new_history = new_history[-10:]
 
@@ -3552,12 +3520,13 @@ class AgentSession:
         self._hibernated = False
         self._handoff_config_dir = ""
         self._handoff_recovery_required = False
+        self._runtime_error = ""
         self._session_limit_hit = False
         self._cancel_precompact_timer("text_tail_model_switch")
         self._log(
             "status",
             f"model change: {old_model} ({old_runtime}) → "
-            f"{new_model} ({new_runtime}); text_tail_v1 chars={len(tail)}",
+            f"{new_model} ({new_runtime}); chat_history_v1 chars={len(tail)}",
         )
         return {
             "ok": True,
@@ -3568,9 +3537,9 @@ class AgentSession:
             "runtime_changed": True,
             "native_session_reset": True,
             "history_transfer": {
-                "mode": "text_tail_v1",
+                "mode": "chat_history_v1",
                 "chars": len(tail),
-                "max_user_messages": 10,
+                "max_messages": 100,
             },
             "changed": True,
         }
@@ -4681,17 +4650,7 @@ class AgentSession:
         new_runtime = get_model_spec(new_model).runtime
         runtime_changed = old_runtime != new_runtime
         if runtime_changed:
-            if old_runtime == "codex" and new_runtime == "claude":
-                return await self._change_codex_to_claude_text_tail_locked(
-                    new_model,
-                    old_model,
-                    old_runtime,
-                )
-            return await self._change_runtime_with_packet_locked(
-                new_model,
-                old_model,
-                old_runtime,
-            )
+            return await self._change_runtime_chat_locked(new_model, old_model, old_runtime)
         runtime_capabilities = get_runtime(new_runtime).capabilities
         if runtime_capabilities.model_retarget:
             return await self._change_model_in_place_locked(
@@ -5296,7 +5255,9 @@ class AgentSession:
     def to_dict(self) -> dict:
         # This describes local observation, not proof that the remote model is
         # responding. A silent reader must never turn a running task into idle.
-        if self._hibernated:
+        if self._runtime_error:
+            runtime_connection = "failed"
+        elif self._hibernated:
             runtime_connection = "hibernated"
         elif self._backend is None:
             runtime_connection = "detached"
@@ -5309,6 +5270,7 @@ class AgentSession:
             "cwd": self.cwd, "worktree_path": self.worktree_path,
             "status": self._display_status(), "model": self.model,
             "runtime_connection": runtime_connection,
+            **({"runtime_error": self._runtime_error} if self._runtime_error else {}),
             "cost_usd": round(self.cost_usd, 4),
             "cost_usd_cached": round(self.cost_usd_cached, 4),
             "branch": self.branch,

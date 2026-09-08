@@ -44,9 +44,21 @@ def inbox(tmp_path, monkeypatch):
     from app.db import init_db
 
     init_db()
+    from app import db
+    with db._conn() as c:
+        for sid in ('sid-1', 'sid-2', 'sid-hangs'):
+            c.execute("INSERT INTO sessions(id,name,scope,cwd,model,created_at) VALUES (?,?,?,?,?,?)",
+                      (sid, sid, '/repo', '/repo', 'gpt-5.6-sol', '2026-09-08'))
+    monkeypatch.setattr('app.message_deliveries.ensure_target_runner', lambda *_: None)
     from app import restart_inbox
 
     return restart_inbox
+
+
+def _queued_ids():
+    from app import db
+    with db._conn() as c:
+        return [r[0] for r in c.execute('SELECT target_session_id FROM message_deliveries ORDER BY accept_seq')]
 
 
 @pytest.mark.asyncio
@@ -95,22 +107,28 @@ async def test_269_queued_messages_are_delivered_once_after_startup(inbox):
     inbox.enqueue("sid-2", "[10:01] и мне")
 
     assert await inbox.deliver_pending(manager) == 2
-    assert [s for s, _m in manager.sent] == ["sid-1", "sid-2"]
+    assert _queued_ids() == ["sid-1", "sid-2"]
     assert inbox.pending() == []
 
     # второй подъём не обязан ничего находить: доставленное помечено
     assert await inbox.deliver_pending(manager) == 0
-    assert len(manager.sent) == 2, "повторный дренаж задвоил бы сообщение"
+    assert _queued_ids() == ["sid-1", "sid-2"], "duplicate durable handoff"
 
 
 @pytest.mark.asyncio
-async def test_269_failed_delivery_stays_queued_for_the_next_start(inbox):
-    """Направление отказа: лучше дубль, чем потеря. Пометка — только ПОСЛЕ доставки.
+async def test_269_failed_delivery_stays_queued_for_the_next_start(inbox, monkeypatch):
+    """A failed durable handoff remains in the inbox; a successful one does not.
 
     Пометить сначала — значит потерять сообщение ровно тогда, когда процесс наименее
     устойчив (#158: флаг «уже обработано», погашенный до самого действия).
     """
-    failing = _Manager(fail_on="ау")
+    original = inbox._transfer_to_message_queue
+    async def fail_one(row):
+        if 'ау' in row['body']:
+            raise OSError('durable acceptance failed')
+        await original(row)
+    monkeypatch.setattr(inbox, '_transfer_to_message_queue', fail_one)
+    failing = _Manager()
     inbox.enqueue("sid-1", "[10:00] ау")
     inbox.enqueue("sid-2", "[10:01] и мне")
 
@@ -119,9 +137,10 @@ async def test_269_failed_delivery_stays_queued_for_the_next_start(inbox):
     assert len(still) == 1 and still[0]["session_id"] == "sid-1", (
         "не доставленное обязано остаться в очереди, иначе оно исчезло навсегда")
 
+    monkeypatch.setattr(inbox, "_transfer_to_message_queue", original)
     recovered = _Manager()
     assert await inbox.deliver_pending(recovered) == 1
-    assert [s for s, _m in recovered.sent] == ["sid-1"]
+    assert _queued_ids() == ["sid-2", "sid-1"]
     assert inbox.pending() == []
 
 
@@ -151,7 +170,7 @@ async def test_269_aborted_restart_still_delivers_what_it_promised(inbox, monkey
     app_main.open_mutating_admission()
     await _settle_drain(app_main)
 
-    assert [s for s, _m in manager.sent] == ["sid-1"], (
+    assert _queued_ids() == ["sid-1"], (
         "обещание доставить привязано к открытию приёма, а не к старту процесса")
     assert inbox.pending() == []
 
@@ -188,7 +207,7 @@ async def test_269_message_for_a_session_that_never_came_back_is_given_up_and_re
     assert len(reported) == 1
     chat_id, body, detail = reported[0]
     assert chat_id == 42 and "ау" in body, "юзеру возвращают текст, а не только факт отказа"
-    assert "KeyError" in detail
+    assert "target no longer exists" in detail
 
 
 @pytest.mark.asyncio
@@ -212,9 +231,15 @@ async def test_269_a_hanging_delivery_does_not_block_the_rest_of_the_queue(inbox
     inbox.enqueue("sid-hangs", "[10:00] первое")
     inbox.enqueue("sid-2", "[10:01] второе")
 
+    original = inbox._transfer_to_message_queue
+    async def hang_one(row):
+        if row['session_id'] == 'sid-hangs':
+            await asyncio.sleep(30)
+        await original(row)
+    monkeypatch.setattr(inbox, '_transfer_to_message_queue', hang_one)
     manager = _Hangs()
     assert await asyncio.wait_for(inbox.deliver_pending(manager), timeout=5) == 1
-    assert manager.sent == ["sid-2"], "повисшая строка не имеет права съесть очередь"
+    assert _queued_ids() == ["sid-2"], "повисшая строка не имеет права съесть очередь"
     assert [row["session_id"] for row in inbox.pending()] == ["sid-hangs"]
 
 

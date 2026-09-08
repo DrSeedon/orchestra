@@ -407,6 +407,7 @@ def test_t1_raw_refs_route_is_operator_only_and_absent_from_runtime_tools(
 async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect(
     session, monkeypatch, tmp_path,
 ):
+    # Retained legacy handoff recovery contract; new runtime switches use plain chat.
     from app.session import AgentStatus
 
     # The oracle is "a prompt that does not fit is refused before the source is
@@ -429,7 +430,7 @@ async def test_t2_total_context_preflight_refuses_codex_before_source_disconnect
         return_value=SimpleNamespace(session_id="target-codex-thread")
     )
 
-    result = await session.change_model("gpt-5.6-sol")
+    result = await session._change_runtime_with_packet_locked("gpt-5.6-sol", session.model, session.backend_type)
 
     assert result["ok"] is False
     assert result["error_code"] == "handoff_context_overflow"
@@ -913,6 +914,7 @@ async def test_t4_grok_target_never_commits_from_summary_without_validation(
 ):
     import app.runtime_history as historymod
     from app.backend_grok import GrokBackend
+    # Retained legacy handoff recovery contract; new runtime switches use plain chat.
     from app.session import AgentStatus
 
     session.model = "gpt-5.6-sol"
@@ -989,7 +991,7 @@ async def test_t4_grok_target_never_commits_from_summary_without_validation(
         }
     )
 
-    result = await session.change_model("grok-4.6")
+    result = await session._change_runtime_with_packet_locked("grok-4.6", session.model, session.backend_type)
 
     assert result["ok"] is True
     session._run_handoff_ingress_canary.assert_awaited_once()
@@ -1068,6 +1070,7 @@ async def test_t5_pending_effect_does_not_block_in_place_codex_retarget(
 async def test_t5_second_incompatibility_exhausts_fallback_without_empty_target(
     session,
 ):
+    # Retained legacy handoff recovery contract; new runtime switches use plain chat.
     from app.session import AgentStatus
 
     session.model = "claude-sonnet-5[1m]"
@@ -1090,7 +1093,7 @@ async def test_t5_second_incompatibility_exhausts_fallback_without_empty_target(
         return_value=SimpleNamespace(session_id="fresh-codex-thread")
     )
 
-    result = await session.change_model("gpt-5.6-sol")
+    result = await session._change_runtime_with_packet_locked("gpt-5.6-sol", session.model, session.backend_type)
 
     assert result["ok"] is False
     assert result["error_code"] == "handoff_fallback_exhausted"

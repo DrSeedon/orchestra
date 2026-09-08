@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from app.task_refs import task_ref as public_task_ref
+
 import asyncio
 import copy
 import hashlib
@@ -442,7 +444,7 @@ def resolve_operation(
         finalization = json.loads(record.get("finalization_json") or "{}")
         final_session_id = str(finalization.get("session_id") or "")
         final_task = finalization.get("task") or {}
-        final_task_ref = str(final_task.get("par_number") or "")
+        final_task_ref = public_task_ref(final_task) if final_task.get("par_number") else ""
         if final_session_id and final_task_ref:
             session = connection.execute(
                 "SELECT task_id, status FROM sessions WHERE id=?",

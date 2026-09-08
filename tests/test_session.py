@@ -33,6 +33,7 @@ def mock_sdk():
 
 @pytest.fixture
 def mock_db(monkeypatch):
+    monkeypatch.setattr("app.db.get_recent_chat_logs", MagicMock(return_value=[]))
     monkeypatch.setattr("app.session.save_session", MagicMock())
     monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
     monkeypatch.setattr("app.bg_jobs.bg_manager", None)
@@ -4082,6 +4083,8 @@ class TestEnsureBackendForceFresh:
                 await session._ensure_backend()
 
         assert session.status == AgentStatus.IDLE
+        assert session.to_dict()["runtime_connection"] == "failed"
+        assert session.to_dict()["runtime_error"] == "RuntimeError: app-server exited 0"
         assert any(
             call.args and call.args[0] == "error"
             for call in session._log.call_args_list
@@ -4515,16 +4518,16 @@ class TestRuntimeCapabilities:
         assert result["runtime_changed"] is True
         assert result["native_session_reset"] is True
         assert result["history_transfer"] == {
-            "mode": "text_tail_v1",
+            "mode": "chat_history_v1",
             "chars": 43,
-            "max_user_messages": 10,
+            "max_messages": 100,
         }
         assert session.model == "claude-opus-5[1m]"
         assert session.backend_type == "claude"
         assert session.session_id == ""
         assert session.runtime_handoff.endswith("Assistant:\nlast answer")
         assert session.session_id_history[-1]["session_id"] == "source-codex-thread"
-        assert session.session_id_history[-1]["handoff_mode"] == "text_tail_v1"
+        assert session.session_id_history[-1]["handoff_mode"] == "chat_history_v1"
         assert session._backend is None
         source.disconnect.assert_awaited_once()
         session._prepare_runtime_handoff.assert_not_awaited()
@@ -4532,7 +4535,7 @@ class TestRuntimeCapabilities:
         save.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_text_tail_v1_keeps_last_ten_users_and_assistant_text_only(
+    async def test_chat_history_preserves_user_assistant_and_tool_records(
             self, session, monkeypatch):
         rows = []
         row_id = 0
@@ -4569,20 +4572,16 @@ class TestRuntimeCapabilities:
             "origin_detail": {"senders": ["orchestra"]},
         })
         monkeypatch.setattr(
-            "app.session.get_logs",
-            lambda _session_id, **_kwargs: rows,
+            "app.db.get_recent_chat_logs",
+            lambda _session_id: [r for r in rows if r.get("origin") != "platform"],
         )
 
         tail = await session._build_runtime_handoff()
 
-        assert "User:\nuser-0\n" not in tail
-        assert "User:\nuser-1\n" not in tail
-        assert "Assistant:\nassistant-0\n" not in tail
-        assert "Assistant:\nassistant-1\n" not in tail
-        for index in range(2, 12):
+        for index in range(12):
             assert f"user-{index}" in tail
             assert f"assistant-{index}" in tail
-        assert "SECRET-TOOL-PAYLOAD" not in tail
+        assert "SECRET-TOOL-PAYLOAD" in tail
         assert "Orchestra platform note" not in tail
         assert len(tail) <= 64_000
 

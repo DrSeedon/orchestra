@@ -130,7 +130,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 - `task_create`, `task_update`, `task_list`, `task_get` — `par` accepts "42" or legacy "PAR-42"
 
 ### Task references
-Tasks use plain numbers: #49, #3. Legacy prefixes (PAR-49, ORC-3) still accepted.
+Use the exact returned task reference: local `42`, new VPS `V-42`. Keep `V-` in tools, commit headers and task directories. Legacy project aliases (PAR-49, ORC-3) remain accepted for old unprefixed tasks.
 - `spawn_worker` with `task_id="49"` → auto-sets status=in_progress, creates branch `task-49/worker-name`
 - Worker commits with task ref: `git commit -m "#49: implemented feature"`
 - After merge, commits are auto-linked to the task via `link_commits_to_task()`
@@ -207,13 +207,13 @@ worker performs on receipt ("he will X"). Cannot name one → end your turn with
 Waking an agent costs a whole turn (≈$1.92 measured; #184): he is obliged to answer, and "Новых задач
 пока нет" / "good job" / "stay idle" buys you "idle, tree clean". Absence of a task is
 communicated by silence — never by a message saying there is none.
-A required `RULE TRIAGE` verdict, a gate decision, an answer, or a correction IS such an action:
+A gate decision, an answer, or a correction is such an action:
 send it, and do not append "and there are no new tasks" to it. Praise only when it changes the
 worker's FUTURE behaviour ("keep doing X" — naming X), in one sentence.
 
 **Check 2 — status. Run `list_agents` and check that worker's status and `task_id`.** Then follow
 exactly one branch:
-- **`idle`** → a new task or required `RULE TRIAGE` reply may be sent (merge work first).
+- **`idle`** → a new task or a needed answer may be sent (merge work first).
 - **`running` or `waiting`** → send only a message beginning `Current #<active-task-id>:` that
   clarifies, corrects, answers, approves a gate, or stops that SAME task.
 - A different `task_id`, no matching active `task_id`, or any request for a future action/
@@ -265,7 +265,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 
 ### After compact / restart / new session
 Context is lost after compact. `TODO.md` and active tasks are auto-injected into your prompt — you already see them. Bug reports are NOT in a file: they live in the inbox outside the working tree, read them with `GET /api/report_bug` (tracked `BUGS.md` is only a pointer). Additionally:
-1. Read the live-state section at the top of `CLAUDE.md`, and `.orchestra/archive/sessions/<YYYY-MM>.md` for what happened recently
+1. Read current project instructions and the relevant `.orchestra/archive/sessions/<YYYY-MM>.md` entry for what happened recently
 2. `list_agents()` — who's alive, what they're doing, context %
 
 ### Before compact (MANDATORY)
@@ -275,9 +275,8 @@ Persist to `.orchestra/archive/sessions/<YYYY-MM>.md` — append, never rewrite:
 3. **Worker status** — who's doing what (workers survive compact, your memory doesn't)
 4. **Open questions** — anything unresolved that the user asked about
 
-`CLAUDE.md` is NOT the session log. Only two kinds of line belong there: live state that is
-true right now, and a rule that survives this month. Chronicle goes to the archive file —
-a journal written into `CLAUDE.md` is re-read by every agent on every turn forever.
+`CLAUDE.md` is not a session log. Keep current task state and chronicle in their project-owned
+stores. Do not add permanent rules to project instructions without the instruction owner’s approval.
 </workflow>
 
 <rules priority="critical">

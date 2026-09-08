@@ -30,6 +30,8 @@ from app.ia.task_store import (
     build_migration_manifest,
     task_create_fingerprint,
 )
+from app.task_refs import new_task_prefix, task_ref as public_task_ref
+
 _TASK_CREATE_LOCK = threading.RLock()
 _TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{16,128}")
 _TASK_BINDING_LOCK = threading.RLock()
@@ -64,6 +66,7 @@ def task_dto(task: dict, *, auto_created: bool = False) -> dict:
     return {
         "id": task["id"], "project_id": task["project_id"],
         "par_number": task["par_number"], "title": task["title"],
+        **({"ref": public_task_ref(task), "ref_prefix": task["ref_prefix"]} if task.get("ref_prefix") else {}),
         "status": task["status"], "worker_session_id": task.get("worker_session_id"),
         "auto_created": auto_created,
     }
@@ -161,7 +164,7 @@ def _parse_task_ref(ref: str) -> tuple[str, int]:
     Returns ('', number) for plain numbers. Prefix kept for backward compat lookup."""
     import re
     ref = ref.strip().lstrip("#").upper()
-    m = re.match(r"^([A-Z]{2,5})-(\d+)$", ref)
+    m = re.match(r"^([A-Z]{1,5})-(\d+)$", ref)
     if m:
         return m.group(1), int(m.group(2))
     m = re.match(r"^(\d+)$", ref)
@@ -185,10 +188,10 @@ def _next_available_task_number(
     # .orchestra/tasks/<n>/ survives task deletion — never reissue a number that still has a dir
     scope = _task_project_scope(conn, project_id)
     if scope:
-        if scope == "/home/kesha/orchestra":
+        if scope == "/home/kesha/orchestra" and not new_task_prefix():
             n = max(n, _VPS_TASK_PAR_FLOOR)
         tasks_root = Path(scope) / ".orchestra" / "tasks"
-        while (tasks_root / str(n)).is_dir():
+        while (tasks_root / public_task_ref({"par_number": n, "ref_prefix": new_task_prefix()})).is_dir():
             n += 1
     return n
 
@@ -216,6 +219,7 @@ def _agreed_next_task_number(conn: sqlite3.Connection, project_id: str, store) -
     if (
         _task_project_scope(conn, project_id) == "/home/kesha/orchestra"
         and canonical_candidate < _VPS_TASK_PAR_FLOOR
+        and not new_task_prefix()
     ):
         canonical_candidate = legacy_candidate
     if canonical_candidate != legacy_candidate:
@@ -393,15 +397,16 @@ def create_task(conn: sqlite3.Connection, project_id: str, title: str,
            (par_number, project_id, title, description, price_rub, paid_rub,
             status, assignee, sync_revision,
             git_commits, created_at, updated_at, priority, acceptance_command,
-            acceptance_oracle_json)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, '[]', ?, ?, ?, ?, ?)""",
+            acceptance_oracle_json, ref_prefix)
+           VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, '[]', ?, ?, ?, ?, ?, ?)""",
         (par, project_id, title, description, price_rub,
-         status, assignee, now, now, priority, command, oracle_json),
+         status, assignee, now, now, priority, command, oracle_json, new_task_prefix()),
     )
     task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
     return {
         "id": task_id,
         "par_number": par,
+        "ref_prefix": new_task_prefix(),
         "project_id": project_id,
         "title": title,
         "description": description,
@@ -438,7 +443,7 @@ def create_task_for_scope(scope: str, title: str) -> dict:
     # `api_create_task` отдаёт номер как строковый `par`. Отдаём оба, чтобы форма ответа
     # осталась прежней и ветка не превратилась в `task-None/<worker>`.
     if "par_number" not in created:
-        created = {**created, "par_number": int(created["par"])}
+        created = {**created, "par_number": _parse_task_ref(created["par"])[1], "ref_prefix": "V" if created["par"].startswith("V-") else ""}
     return created
 
 
@@ -477,7 +482,7 @@ def _discard_shadow_created_task(legacy: dict) -> bool:
             "AND sync_revision=0 AND worker_session_id IS NULL AND git_commits='[]' "
             "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations "
             "WHERE task_id=tm_tasks.id)",
-            (int(legacy["id"]), str(legacy["project"]), int(legacy["par"])),
+            (int(legacy["id"]), str(legacy["project"]), _parse_task_ref(legacy["par"])[1]),
         )
         conn.commit()
         return cur.rowcount == 1
@@ -712,13 +717,19 @@ def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str) -> dic
     if not project:
         raise ValueError(f"project '{project_id}' not found")
     prefix, num = _parse_task_ref(ref)
-    expected_prefix = (project.get("prefix") or "").upper()
-    if prefix and prefix != "TASK" and prefix != expected_prefix:
-        raise ValueError(
-            f"task '{ref}' belongs to project prefix {prefix}, "
-            f"not authoritative project {project['id']}"
-        )
-    return get_task_by_par(conn, num, project["id"])
+    task = get_task_by_par(conn, num, project['id'])
+    if not task:
+        return None
+    task_prefix = str(task.get('ref_prefix') or '')
+    expected_prefix = (project.get('prefix') or '').upper()
+    if prefix == 'V':
+        if task_prefix != 'V':
+            return None
+    elif task_prefix:
+        return None
+    elif prefix and prefix not in {'TASK', expected_prefix}:
+        raise ValueError(f"task '{ref}' belongs to project prefix {prefix}, not authoritative project {project['id']}")
+    return task
 
 
 def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
@@ -730,17 +741,7 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
         project = get_project_by_scope(conn, normalized_scope)
         if not project:
             raise ValueError(f"scope '{normalized_scope}' has no task project")
-        prefix, par_number = _parse_task_ref(ref)
-        if (
-            prefix
-            and prefix != "TASK"
-            and prefix != (project.get("prefix") or "").upper()
-        ):
-            raise ValueError(
-                f"task '{ref}' belongs to project prefix {prefix}, "
-                f"not session project {project['id']}"
-            )
-        task = get_task_by_par(conn, par_number, project["id"])
+        task = resolve_task_ref(conn, ref, project['id'])
         if not task:
             raise ValueError(
                 f"task '{ref}' not found in session project {project['id']}"
@@ -750,6 +751,7 @@ def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
             project_id=task["project_id"],
             par_number=task["par_number"],
             sync_revision=task["sync_revision"],
+            **({"ref_prefix": task["ref_prefix"]} if task.get("ref_prefix") else {}),
         )
 
 
@@ -808,8 +810,9 @@ def resolve_scoped_task_identities(
                 project_id=task["project_id"],
                 par_number=task["par_number"],
                 sync_revision=task["sync_revision"],
+                **({"ref_prefix": task["ref_prefix"]} if task.get("ref_prefix") else {}),
             ))
-            canonical_refs.append(str(task["par_number"]))
+            canonical_refs.append(public_task_ref(task))
         return ScopedTaskResolution(
             project_id=project["id"],
             tasks=tasks,
@@ -838,10 +841,10 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
                 raise ValueError(f"task '{task_ref}' not found in session project {project['id']}")
             session_task_id = str(session["task_id"] or "")
             task_worker_session_id = str(task["worker_session_id"] or "")
-            if session_task_id and session_task_id != str(task["par_number"]):
+            if session_task_id and session_task_id != public_task_ref(task):
                 raise ValueError("session is already bound to another task")
             if task_worker_session_id and task_worker_session_id != session_id:
-                if session_task_id == str(task["par_number"]):
+                if session_task_id == public_task_ref(task):
                     raise ValueError(
                         f"session '{session_id}' is bound to task #{task['par_number']}, "
                         f"but that task is bound to session '{task['worker_session_id']}'"
@@ -875,7 +878,7 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
             if not session_task_id:
                 updated = conn.execute(
                     "UPDATE sessions SET task_id=? WHERE id=? AND task_id=''",
-                    (str(task["par_number"]), session_id),
+                    (public_task_ref(task), session_id),
                 )
                 if updated.rowcount != 1:
                     raise ValueError("session binding compare-and-swap failed")
@@ -931,7 +934,7 @@ def _open_task_run_for_task(
     existing = conn.execute(
         "SELECT * FROM review_receipts WHERE subject_kind='task_run' "
         "AND session_id=? AND task_id=? AND status='requested'",
-        (session_id, str(task["par_number"])),
+        (session_id, public_task_ref(task)),
     ).fetchone()
     if existing is not None:
         return dict(existing)
@@ -946,7 +949,7 @@ def _open_task_run_for_task(
         session_id=session_id,
         worker_name=session["name"],
         scope=session["scope"],
-        task_id=str(task["par_number"]),
+        task_id=public_task_ref(task),
         task_stable_id=stable_id,
         task_snapshot_ref=snapshot_ref,
         prompt_template_start=str(session["template_hash"] or ""),
@@ -967,7 +970,7 @@ def _finish_task_run_for_task(
     exists = conn.execute(
         "SELECT 1 FROM review_receipts WHERE subject_kind='task_run' "
         "AND session_id=? AND task_id=? AND status='requested'",
-        (session_id, str(task["par_number"])),
+        (session_id, public_task_ref(task)),
     ).fetchone()
     if exists is None:
         return None
@@ -976,7 +979,7 @@ def _finish_task_run_for_task(
     ).fetchone()
     return task_run_receipt_finish(
         session_id=session_id,
-        task_id=str(task["par_number"]),
+        task_id=public_task_ref(task),
         status=status,
         prompt_template_end=str(session["template_hash"] or "") if session else "",
         terminal_operation_id=terminal_operation_id,
@@ -1007,7 +1010,7 @@ def prepare_merge_finalization(
         conn.execute("BEGIN IMMEDIATE")
         try:
             if outcome == "complete":
-                others = _live_bindings(conn, scope, task["par_number"], session_id)
+                others = _live_bindings(conn, scope, public_task_ref(task), session_id)
                 if others:
                     raise ValueError(
                         f"task #{task['par_number']} still has live workers "
@@ -1021,9 +1024,9 @@ def prepare_merge_finalization(
             conn.rollback()
             raise
     if next_task:
-        terminal_session = {"task_id": str(next_task["par_number"]), "needs_switch": False}
+        terminal_session = {"task_id": public_task_ref(next_task), "needs_switch": False}
     elif outcome == "continue":
-        terminal_session = {"task_id": str(task["par_number"]), "needs_switch": False}
+        terminal_session = {"task_id": public_task_ref(task), "needs_switch": False}
     else:
         terminal_session = {"task_id": "", "needs_switch": True}
     return {
@@ -1534,7 +1537,7 @@ def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> N
         heir = conn.execute(
             "SELECT id FROM sessions WHERE task_id = ? AND RTRIM(scope, '/') = RTRIM(?, '/') "
             "AND status != 'archived' AND id != ? ORDER BY created_at LIMIT 1",
-            (str(row["par_number"]), row["scope"], session_id),
+            (public_task_ref(row), row["scope"], session_id),
         ).fetchone()
         if heir:
             _finish_task_run_for_task(
@@ -1571,7 +1574,7 @@ def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> N
 
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
     """Format task as plain number string."""
-    return str(task["par_number"])
+    return public_task_ref(task)
 
 
 def _link_commits_to_task(
@@ -1712,7 +1715,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             conn.rollback()
             raise
     return {
-        "par": str(task["par_number"]),
+        "par": public_task_ref(task),
         "id": task["id"],
         "title": task["title"],
         "project": resolved_project_id,
@@ -1805,7 +1808,7 @@ def _infer_task_worker_session(
             "SELECT id FROM sessions WHERE task_id = ? "
             "AND RTRIM(scope, '/') = RTRIM(?, '/') "
             "AND status != 'archived' ORDER BY id",
-            (str(task["par_number"]), project["scope"]),
+            (public_task_ref(task), project["scope"]),
         ).fetchall()
     if len(rows) > 1:
         owners = ", ".join(row["id"] for row in rows)
@@ -1847,7 +1850,7 @@ def _validate_inferred_task_worker(
         "SELECT id FROM sessions WHERE task_id = ? "
         "AND RTRIM(scope, '/') = RTRIM(?, '/') "
         "AND status != 'archived' ORDER BY id",
-        (str(task["par_number"]), project["scope"]),
+        (public_task_ref(task), project["scope"]),
     ).fetchall()
     if len(rows) != 1 or rows[0]["id"] != worker_session_id:
         owners = ", ".join(row["id"] for row in rows) or "none"
@@ -2067,7 +2070,7 @@ def api_update_task_if_current(
     return {
         "ok": True,
         "task_id": task_id,
-        "par": str(identity["par_number"]),
+        "par": public_task_ref(identity),
         "updated": result["changed"],
         "new_status": updated["status"],
         "sync_revision": updated["sync_revision"],
@@ -2090,7 +2093,7 @@ def api_list_tasks(project: str = "", status: str = "",
     return {
         "tasks": [
             {
-                "par": str(t["par_number"]),
+                "par": public_task_ref(t),
                 "title": t["title"],
                 "project": t["project_id"],
                 "price": _fmt_amount(t["price_rub"]),
@@ -2338,6 +2341,7 @@ def _comparison_debt(legacy: dict, candidate: dict, fields: tuple[str, ...]) -> 
         field: {"legacy": legacy.get(field), "canonical": candidate.get(field)}
         for field in fields
         if legacy.get(field) != candidate.get(field)
+        and not (field == "par" and str(legacy.get(field)) == f"V-{candidate.get(field)}")
     }
     return {"mismatches": differences} if differences else {}
 
@@ -2405,9 +2409,15 @@ def _canonical_result(
     debt = _comparison_debt(legacy, candidate, fields)
     return {
         **candidate,
+        **({"par": legacy["par"]} if "par" in legacy else {}),
         **_candidate_receipts(candidate, context),
         "projection_debt": debt,
     }
+
+
+def _canonical_task_ref(ref: str, project: str) -> str:
+    value = str(ref).lstrip('#')
+    return str(int(value[2:])) if value.upper().startswith('V-') else ref
 
 
 def _merge_canonical_task_identity(
@@ -2542,7 +2552,7 @@ def _legacy_task_create_response(
     replayed: bool,
 ) -> dict:
     return {
-        "par": str(task["par_number"]),
+        "par": public_task_ref(task),
         "id": task["id"],
         "title": task["title"],
         "project": task["project_id"],
@@ -2897,6 +2907,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     )
                 try:
                     candidate = store.task_create(
+                        **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
                         project_id=legacy["project"],
                         title=title,
                         price=price,
@@ -2907,7 +2918,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                         acceptance_command=acceptance_command,
                         acceptance_manifest=acceptance_manifest,
                         acceptance_required=acceptance_required,
-                        display_number=int(legacy["par"]),
+                        display_number=_parse_task_ref(legacy["par"])[1],
                         expected_head=store.canonical_head,
                     )
                 except Exception as error:
@@ -2947,6 +2958,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 return legacy
             try:
                 candidate = store.task_create(
+                    **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
                     project_id=legacy["project"],
                     title=title,
                     price=price,
@@ -2957,7 +2969,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     acceptance_command=acceptance_command,
                     acceptance_manifest=acceptance_manifest,
                     acceptance_required=acceptance_required,
-                    display_number=int(legacy["par"]),
+                    display_number=_parse_task_ref(legacy["par"])[1],
                     expected_head=store.canonical_head,
                     request_key=request_key,
                 )
@@ -2969,7 +2981,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     fingerprint=fingerprint,
                     state="ACTIVE_COMMITTED",
                     task_id=legacy["id"],
-                    par_number=int(legacy["par"]),
+                    par_number=_parse_task_ref(legacy["par"])[1],
                     response=result,
                     error=error,
                 )
@@ -2981,7 +2993,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                 fingerprint=fingerprint,
                 state="MIRRORS_COMMITTED",
                 task_id=legacy["id"],
-                par_number=int(legacy["par"]),
+                par_number=_parse_task_ref(legacy["par"])[1],
                 response=result,
             )
             return result
@@ -3003,6 +3015,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
             )
             try:
                 candidate = store.task_create(
+                    **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
                     project_id=resolved_project_id,
                     title=title,
                     price=price,
@@ -3074,6 +3087,7 @@ def api_create_task(project_id: str, title: str, price: int = 0,
                     acceptance_actor=acceptance_actor,
                 )
                 candidate = store.task_create(
+                    **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
                     project_id=resolved_project_id,
                     title=title,
                     price=price,
@@ -3217,7 +3231,7 @@ def api_update_task(par: str, title: str | None = None,
         legacy = _legacy_api_update_task(*legacy_args)
         try:
             candidate = store.task_update(
-                par,
+                _canonical_task_ref(par, project),
                 **candidate_args,
                 expected_head=store.canonical_head,
             )
@@ -3230,7 +3244,7 @@ def api_update_task(par: str, title: str | None = None,
     # оставляла бы canonical с правкой, которую вызывающий получил как 400.
     legacy = _legacy_api_update_task(*legacy_args)
     candidate = store.task_update(
-        par,
+        _canonical_task_ref(par, project),
         **candidate_args,
         expected_head=store.canonical_head,
     )
@@ -3449,6 +3463,9 @@ def api_list_tasks(project: str = "", status: str = "",
     assert store is not None
     if context.mode == "canonical":
         candidate = store.task_list(project=project, status=status, assignee=assignee)
+        for item in candidate.get('tasks', []):
+            if item.get('ref_prefix'):
+                item['par'] = f"{item['ref_prefix']}-{item['par']}"
         return {
             **candidate,
             **_list_receipts(context),
@@ -3483,9 +3500,14 @@ def api_get_task(par: str, project: str = "") -> dict:
     store = context.store
     assert store is not None
     if context.mode == "canonical":
-        candidate = store.task_get(par, project=project)
+        candidate = store.task_get(_canonical_task_ref(par, project), project=project)
+        prefixed_request = str(par).upper().lstrip('#').startswith('V-')
+        if prefixed_request != (candidate.get('ref_prefix') == 'V'):
+            raise ValueError(f"task '{par}' not found in this namespace")
+        public_ref = f"V-{candidate['par']}" if prefixed_request else candidate['par']
         return {
             **candidate,
+            "par": public_ref,
             "ia_mode": context.mode,
             "canonical_head": candidate.get("canonical_head") or store.canonical_head,
             "projection_head": candidate.get("projection_head") or store.projection_head,
@@ -3493,7 +3515,7 @@ def api_get_task(par: str, project: str = "") -> dict:
         }
     legacy = _legacy_api_get_task(par, project)
     try:
-        candidate = store.task_get(par, project=project)
+        candidate = store.task_get(_canonical_task_ref(par, project), project=project)
     except Exception as error:
         if context.mode == "shadow":
             return _shadow_failure(legacy, context, error)
@@ -3515,7 +3537,7 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) ->
             return legacy
         try:
             candidate = store.link_commits_to_task(
-                task_ref,
+                _canonical_task_ref(task_ref, project_id),
                 commits,
                 project_id,
                 expected_head=store.canonical_head,
@@ -3530,7 +3552,7 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) ->
     if not legacy.get("ok"):
         return legacy
     candidate = store.link_commits_to_task(
-        task_ref,
+        _canonical_task_ref(task_ref, project_id),
         commits,
         project_id,
         expected_head=store.canonical_head,
