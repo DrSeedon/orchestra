@@ -2532,10 +2532,15 @@ class SessionManager:
                             leftover=row.get("leftover") or "",
                             cli_pid=int(row.get("cli_pid") or 0),
                             cli_started_at=int(row.get("cli_started_at") or 0),
+                            recover_turn=(row["id"] in was_running
+                                          and not row.get("active_turn_id")),
                         )
+                        from app.db import clear_consumed_handover
+
+                        clear_consumed_handover(session.id)
                         logger.info(
                             "[%s] adopted a live CLI; %s", session.name,
-                            "its turn keeps running" if row.get("active_turn_id")
+                            "its turn keeps running" if session.status == AgentStatus.RUNNING
                             else "no turn was in flight")
                         continue  # no restart notice: nothing was interrupted
                     if row["id"] in was_waiting:
@@ -2866,11 +2871,15 @@ def publish_backend_fds(session) -> bool:
 
     stored: list[str] = []
     try:
-        pid = getattr(backend, "pid", 0)
-        started_at = getattr(backend, "cli_started_at", 0)
-        if isinstance(pid, int) and pid > 0 and isinstance(started_at, int) and started_at > 0:
-            from app.db import save_cli_process_identity
-            save_cli_process_identity(session.id, pid, started_at)
+        from app.db import save_backend_identity
+
+        pid = getattr(backend, "pid", 0) or 0
+        started_at = getattr(backend, "cli_started_at", 0) or 0
+        if hasattr(backend, "pid") and hasattr(backend, "cli_started_at"):
+            save_backend_identity(session.id, pid, started_at)
+        if not pid or not started_at:
+            logger.warning("[%s] publishing pipes without process identity; "
+                           "automatic process replacement is unsafe", session.id)
         for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
                          (fd_store_name(session.id, "stdout"), fd_out)):
             fdstore.store_fds(name, [fd])

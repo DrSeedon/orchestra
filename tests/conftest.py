@@ -128,6 +128,7 @@ def make_backend_mock() -> AsyncMock:
     m = AsyncMock(
         connect=AsyncMock(), send=AsyncMock(), disconnect=AsyncMock(),
         interrupt=AsyncMock(), reconnect=AsyncMock(),
+        recover_adopted_turn=AsyncMock(return_value=None),
     )
     m.events = MagicMock(side_effect=lambda: _empty_events())
     return m

@@ -441,6 +441,7 @@ class AgentSession:
     # за ход дают одну пересборку.
     _identity_stale: bool = field(default=False, repr=False)
     _codex_writer_error: Optional[Exception] = field(default=None, repr=False)
+    _adopted_recovery_pending: bool = False
 
     # False → detached DB-hydrate (manager._hydrate_row): data only, no backend/tasks.
     # NEVER call start()/send()/_persist() on a detached session.
@@ -1037,7 +1038,8 @@ class AgentSession:
     async def adopt_backend(self, fd_in: int, fd_out: int, *,
                             active_turn_id: str | None = None,
                             leftover: str = "", cli_pid: int = 0,
-                            cli_started_at: int = 0) -> None:
+                            cli_started_at: int = 0,
+                            recover_turn: bool = False) -> None:
         """Take over a CLI that outlived the supervisor restart (#230 T5).
 
         No connect, no spawn, no restart notice: this turn was never interrupted. The status
@@ -1055,11 +1057,17 @@ class AgentSession:
         await adopt(fd_in, fd_out, self.session_id or "", active_turn_id,
                     leftover=leftover, cli_pid=cli_pid, cli_started_at=cli_started_at)
         self._backend = backend
+        self._adopted_recovery_pending = (
+            recover_turn and callable(getattr(backend, "recover_adopted_turn", None))
+        )
         self.tools_are_stale = True
         self._codex_writer_error = None
-        # RUNNING must mean "a turn is in flight". A handover with no stored turn id means the
-        # turn had already finished, so claiming RUNNING would strand the session forever.
-        self.status = AgentStatus.RUNNING if active_turn_id else AgentStatus.IDLE
+        # Keep crash recovery durable until the live query establishes idleness. Otherwise
+        # a failed query followed by another restart would silently skip recovery.
+        self.status = (
+            AgentStatus.RUNNING if active_turn_id or self._adopted_recovery_pending
+            else AgentStatus.IDLE
+        )
         self._persist()
         # Опубликовать дескрипторы ЗАНОВО (#230 T2). systemd отдал их этому поколению и
         # больше за них не отвечает, поэтому без повторной публикации защита действовала бы
@@ -1067,6 +1075,9 @@ class AgentSession:
         # Найдено живым стендом: `NFileDescriptorStore=0` при усыновлённом агенте.
         from app.manager import publish_backend_fds
         publish_backend_fds(self)
+        if self._adopted_recovery_pending:
+            await self._recover_adopted_turn()
+            active_turn_id = getattr(backend, "active_turn_id", None)
         self._activate_backend_tasks()
         # A per-turn runtime (codex) consumes events only inside a turn loop started by
         # send(); nothing else reads the stream. An adopted session is ALREADY mid-turn, so
@@ -1077,6 +1088,19 @@ class AgentSession:
                 self._turn_finished_event.clear()
                 self._listen_task = asyncio.create_task(self._turn_event_loop())
                 self._listen_task.add_done_callback(self._on_task_done)
+
+    async def _recover_adopted_turn(self) -> None:
+        if not self._adopted_recovery_pending:
+            return
+        active_turn_id = await self._backend.recover_adopted_turn()
+        self._adopted_recovery_pending = False
+        self.status = AgentStatus.RUNNING if active_turn_id else AgentStatus.IDLE
+        self._persist()
+        self._activate_backend_tasks()
+        if active_turn_id and (self._listen_task is None or self._listen_task.done()):
+            self._turn_finished_event.clear()
+            self._listen_task = asyncio.create_task(self._turn_event_loop())
+            self._listen_task.add_done_callback(self._on_task_done)
 
     async def _refresh_stale_backend(self) -> None:
         """Release an adopted CLI at a TURN BOUNDARY so new tools apply (#230 T9).
@@ -1089,6 +1113,10 @@ class AgentSession:
         owns that (#220, `assemble_prompt`), and a second rebuild would be a second owner.
         """
         if not self.tools_are_stale:
+            return
+        if getattr(self._backend, "can_replace_adopted_process", True) is False:
+            self._log("warning", "Keeping adopted CLI: process identity is unavailable; "
+                      "tool/config refresh is deferred until the writer exits")
             return
         logger.info(f"[{self.name}] releasing adopted CLI at the turn boundary "
                     f"so new tools and prompt take effect")
@@ -1152,6 +1180,11 @@ class AgentSession:
         admitted_stop_gen = -1
         while True:
             await self._lifecycle_lock.acquire()
+            try:
+                await self._recover_adopted_turn()
+            except BaseException:
+                self._lifecycle_lock.release()
+                raise
             writer_error = self.codex_writer_error()
             if writer_error is not None:
                 self._lifecycle_lock.release()
@@ -1282,6 +1315,7 @@ class AgentSession:
             break
 
         try:
+            await self._recover_adopted_turn()
             writer_error = self.codex_writer_error()
             if writer_error is not None:
                 raise writer_error
@@ -4147,6 +4181,8 @@ class AgentSession:
             await backend.disconnect()
             if self._backend is backend:
                 self._backend = None
+        if self._backend is None:
+            self._adopted_recovery_pending = False
         if (self._heartbeat_task and not self._heartbeat_task.done()
                 and self._heartbeat_task is not asyncio.current_task()):
             self._heartbeat_task.cancel()
@@ -4379,7 +4415,9 @@ class AgentSession:
         # This describes local observation, not proof that the remote model is
         # responding. A silent reader must never turn a running task into idle.
         writer_error = self._writer_health_error()
-        if writer_error is not None:
+        if self._adopted_recovery_pending:
+            runtime_connection = "recovering"
+        elif writer_error is not None:
             runtime_connection = "writer_conflict"
         elif self._runtime_error:
             runtime_connection = "failed"
