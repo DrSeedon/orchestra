@@ -27,7 +27,7 @@ def test_origin_numbers_share_one_sqlite_projection(runtime):
     runtime.store.origin = 'V'
     b = runtime.create({'canonical_id':'project'},'Remote',request_key='remote')
     with db._conn() as connection:
-        rows = connection.execute('SELECT task_origin,par_number FROM tm_tasks ORDER BY id').fetchall()
+        rows = connection.execute('SELECT ref_prefix,par_number FROM tm_tasks ORDER BY id').fetchall()
     assert [tuple(r) for r in rows] == [('',1),('V',1)]
     assert a['id'] != b['id']
     db.init_db()  # Reopening schema must not recreate the old number-only constraint.
@@ -60,3 +60,13 @@ def test_sqlite_failure_does_not_lose_git_update(runtime):
     runtime.refresh()
     with db._conn() as connection:
         assert connection.execute('SELECT title FROM tm_tasks WHERE id=?',(row['id'],)).fetchone()[0]=='After'
+
+
+def test_shared_number_resolves_by_full_reference(runtime):
+    from app import tm
+    local = runtime.create({'canonical_id': 'project'}, 'Local', request_key='local')
+    runtime.store.origin = 'V'
+    remote = runtime.create({'canonical_id': 'project'}, 'Remote', request_key='remote')
+    with db._conn() as connection:
+        assert tm.resolve_task_ref(connection, '1', 'local-project')['id'] == local['id']
+        assert tm.resolve_task_ref(connection, 'V-1', 'local-project')['id'] == remote['id']

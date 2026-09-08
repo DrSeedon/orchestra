@@ -1112,7 +1112,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     if isinstance(result, dict) and result.get("spawn_warning"):
         out += f"\n⚠️ {result['spawn_warning']}"
     if isinstance(result, dict) and isinstance(result.get("task"), dict):
-        out += f"\nTask: #{result['task'].get('par_number')} [{result['task'].get('status')}]"
+        out += f"\nTask: #{result['task'].get('ref') or result['task'].get('par_number')} [{result['task'].get('status')}]"
     return out
 
 
@@ -1771,7 +1771,7 @@ async def list_agents() -> str:
                 if shown:
                     task_lines.append("## Project tasks")
                     for task in shown:
-                        number = task.get("par_number") or task.get("par") or "?"
+                        number = task.get("ref") or task.get("par") or task.get("par_number") or "?"
                         status = str(task.get("status") or "?")
                         title = " ".join(str(task.get("title") or "(untitled)").split())
                         if len(title) > 120:
@@ -1812,6 +1812,8 @@ async def list_agents() -> str:
         r = s.get("role", "worker")
         role = _icons.get(r, "⚙️")
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
+        if s.get("runtime_error"):
+            st = "🔴"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
         cache = _cache_pill(s)
@@ -1830,7 +1832,7 @@ async def list_agents() -> str:
                 f" | {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
                 f"{repair.get('call', lifecycle.get('message', 'repair required'))}"
             )
-        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}"
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}" + (f" | runtime error: {s['runtime_error']}" if s.get("runtime_error") else "")
 
     is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []

@@ -7,8 +7,9 @@ function _runtimeStatusDetail(session) {
         detached: 'runtime отключён',
         attached: 'runtime подключён; читатель событий не активен',
         listening: 'читатель событий активен',
+        failed: 'ошибка подключения runtime',
     };
-    return [labels[session.runtime_connection], session.lifecycle_status?.message,
+    return [labels[session.runtime_connection], session.runtime_error, session.lifecycle_status?.message,
         session.delivery_uncertain
             ? 'доставка не подтверждена; для освобождения очереди перезапусти CLI этого агента (без повторной отправки)' : '']
         .filter(Boolean).join(' · ');

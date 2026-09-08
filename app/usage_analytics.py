@@ -407,7 +407,7 @@ def _task_summary(conn: sqlite3.Connection, since: str) -> dict:
             JOIN tm_projects p ON p.id = t.project_id
             JOIN turn_usage u
               ON u.scope = p.scope
-             AND u.task_id = CAST(t.par_number AS TEXT)
+             AND u.task_id = (CASE WHEN t.ref_prefix='' THEN '' ELSE t.ref_prefix || '-' END || CAST(t.par_number AS TEXT))
             WHERE t.status IN ('done', 'paid')
               AND date(t.completed_at) >= date('now', ?)
             GROUP BY t.id

@@ -19,6 +19,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
 
+from app.task_refs import task_ref as public_task_ref
 from app.session import AgentSession, AgentStatus
 from app.tool_scoping import parse_disabled_tools
 from app.session_state import ACTIVE_SESSION_STATUSES
@@ -26,12 +27,12 @@ from app.events import InjectedMessage, MessageProvenance
 from app.kb_index import kb_index_block
 from app.prompting import (
     is_orchestrator_role, safe_format_prompt,
-    prompt_template_hash, inject_skills_to_worktree, load_worker_memory,
+    prompt_template_hash, inject_skills_to_worktree,
     refresh_worker_memory, strip_worker_memory,
 )
 
 # Matches "task-42/worker-name" or "PAR-42/worker-name" — extracts task number from branch
-_TASK_BRANCH_RE = re.compile(r"^(?:task-|[A-Z]{2,5}-)(\d+)/")
+_TASK_BRANCH_RE = re.compile(r"^(?:task-)((?:V-)?\d+)/|^[A-Z]{2,5}-(\d+)/")
 from app.workspace import (
     create_worktree, discard_prepared_worktree, remove_worktree,
     parse_owned_dirs,
@@ -771,29 +772,11 @@ class SessionManager:
                 parent_profile = self._resolve_profile(parent_name, scope)
                 profile = get_active_profile(scope, parent_profile=parent_profile)
 
-        if is_orch:
-            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
-            prompt_overlay = "\n\n" + system_prompt if system_prompt else ""
-        else:
-            # Воркеру scope нужен ради оглавления KB его проекта; блоки других
-            # оркестраторов/воркеров остаются за `if is_orch` внутри функции.
-            base_prompt = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
-            prompt_overlay = ("\n\n" + system_prompt if system_prompt else "")
+        prompt_overlay = "\n\n" + system_prompt if system_prompt else ""
+        if not is_orch:
             prompt_overlay += self._ownership_prompt(owned_dirs)
-        prompt = base_prompt + prompt_overlay
-
-        # Worker persistent memory: .orchestra/workers/{name}.md or {role}.md
-        # Survives kill/respawn/compact — worker writes rules here, they auto-inject next time
-        memory_repository = repo_path if use_worktree and repo_path else ""
-        worker_memory = load_worker_memory(
-            name,
-            role,
-            scope,
-            memory_repository,
-            allow_absent_project=True,
-        )
-        if worker_memory:
-            prompt += f"\n\n<worker-memory>\n{worker_memory}\n</worker-memory>"
+        # The final branch and worktree are available immediately before start().
+        prompt = ""
 
         if not parent_id and parent_name:
             p_session = self.get_by_name(parent_name, scope)
@@ -845,16 +828,16 @@ class SessionManager:
                 initial_task_title.strip() or description.strip() or f"Work for {name}",
             )
             task_identity = await asyncio.to_thread(
-                resolve_scoped_task_identity, scope, str(created["par_number"]),
+                resolve_scoped_task_identity, scope, created.get("par") or str(created["par_number"]),
             )
             allocated_task_id = task_identity["id"]
-            task_id = str(task_identity["par_number"])
+            task_id = public_task_ref(task_identity)
         if task_id and not is_orch:
             from app.tm import resolve_scoped_task_identity
             task_identity = await asyncio.to_thread(
                 resolve_scoped_task_identity, scope, task_id,
             )
-            task_id = str(task_identity["par_number"])
+            task_id = public_task_ref(task_identity)
 
         # Root orchestrators get a dedicated TG topic so users can message them
         # directly from Telegram without knowing worker names
@@ -920,18 +903,15 @@ class SessionManager:
             except Exception:
                 logger.warning("docs scaffold failed for role '%s'", role)
 
+            session.system_prompt, session.prompt_overlay = self.assemble_prompt(
+                pipeline=pipeline, role=role, scope=scope, is_orch=is_orch,
+                name=name, owned_dirs=owned_dirs,
+                branch=session.branch or session.base_branch,
+                stored_overlay=session.prompt_overlay, old_prompt="",
+                repository_path=session.worktree_path or "",
+                parent_name=parent_name,
+            )
             if not is_orch:
-                orch_name = parent_name or self._find_orchestrator_name(scope)
-                session.system_prompt = safe_format_prompt(
-                    session.system_prompt,
-                    worker_name=name, orchestrator_name=orch_name or "orchestrator",
-                    scope=scope, branch=session.branch or session.base_branch,
-                )
-                session.prompt_overlay = safe_format_prompt(
-                    session.prompt_overlay or "",
-                    worker_name=name, orchestrator_name=orch_name or "orchestrator",
-                    scope=scope, branch=session.branch or session.base_branch,
-                )
                 session.on_idle = self._make_idle_callback(scope)
                 session.on_turn_blocked = self._make_quota_blocked_callback(scope)
 
@@ -1994,7 +1974,7 @@ class SessionManager:
     def assemble_prompt(
         self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
         owned_dirs, branch: str, stored_overlay: str | None, old_prompt: str,
-        repository_path: str = "",
+        repository_path: str = "", parent_name: str | None = None,
     ) -> tuple[str, str | None]:
         """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
 
@@ -2008,7 +1988,7 @@ class SessionManager:
         """
         current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
         if not is_orch:
-            orch_name = self._find_orchestrator_name(scope)
+            orch_name = parent_name if parent_name is not None else self._find_orchestrator_name(scope)
             current_base = safe_format_prompt(
                 current_base,
                 worker_name=name, orchestrator_name=orch_name or "orchestrator",
@@ -2042,7 +2022,10 @@ class SessionManager:
                 prompt_overlay = None
                 prompt_without_memory = old_without_memory
         else:
-            prompt_overlay = strip_worker_memory(stored_overlay)
+            prompt_overlay = safe_format_prompt(
+                strip_worker_memory(stored_overlay), worker_name=name,
+                orchestrator_name=parent_name or "orchestrator", scope=scope, branch=branch,
+            )
             prompt_without_memory = current_base + prompt_overlay
         if prompt_overlay is not None:
             areas = parse_owned_dirs(owned_dirs)
@@ -2104,7 +2087,7 @@ class SessionManager:
                 if actual_branch != db_branch:
                     db_branch = actual_branch
                     m = _TASK_BRANCH_RE.match(actual_branch)
-                    db_task_id = m.group(1) if m else ""
+                    db_task_id = next(group for group in m.groups() if group) if m else ""
 
         current_prompt, prompt_overlay = self.assemble_prompt(
             pipeline=pipeline, role=role, scope=db_row["scope"], is_orch=is_orch,
@@ -2112,6 +2095,7 @@ class SessionManager:
             branch=db_row.get("branch") or db_row.get("base_branch") or "",
             stored_overlay=db_row.get("prompt_overlay"), old_prompt=old_prompt,
             repository_path=wt_path if wt_path and Path(wt_path).is_dir() else "",
+            parent_name=db_row.get("parent_name") or None,
         )
 
         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
@@ -2198,10 +2182,10 @@ class SessionManager:
         return session
 
     def _find_orchestrator_name(self, scope: str) -> str | None:
-        for s in self.sessions.values():
-            if s.is_orchestrator and s.scope == scope:
-                return s.name
-        return None
+        names = [s.name for s in self.sessions.values() if s.is_orchestrator and s.scope == scope]
+        if len(names) > 1:
+            raise ValueError("multiple orchestrators in this project; specify the worker's parent")
+        return names[0] if names else None
 
     def _context_warning(self, worker_name: str) -> str:
         session = next((s for s in self.sessions.values() if s.name == worker_name), None)

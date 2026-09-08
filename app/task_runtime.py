@@ -9,15 +9,11 @@ import sqlite3
 import threading
 
 from app import db
-from app.task_refs import TaskRef
+from app.task_refs import task_ref
 from app.task_store import TaskStore, TaskConflict, _view
 
 
 _ACTIVE: TaskRuntime | None = None
-
-
-def task_key(row: dict) -> str:
-    return TaskRef(str(row.get('task_origin') or ''), int(row['par_number'])).key
 
 
 class TaskRuntime:
@@ -65,7 +61,7 @@ class TaskRuntime:
         oracle = acceptance if 'version' in acceptance else {}
         values = {
             'stable_id': record['id'], 'project_id': project['id'],
-            'task_origin': record['origin'], 'par_number': record['number'],
+            'ref_prefix': record['origin'], 'par_number': record['number'],
             'title': record['title'], 'description': record['description'],
             'price_rub': record['price_rub'], 'status': record['status'],
             'assignee': record['assignee'], 'priority': record['priority'],
@@ -96,12 +92,12 @@ class TaskRuntime:
         project = connection.execute('SELECT canonical_id FROM tm_projects WHERE id=?', (row['project_id'],)).fetchone()
         if not project or not project[0] or not row['stable_id']:
             raise TaskConflict('task has no canonical binding')
-        current = self.store.get(project[0], task_key(row))
+        current = self.store.get(project[0], task_ref(row))
         if current['id'] != row['stable_id']:
             raise TaskConflict('task reference points to another stable ID')
         oracle = json.loads(row['acceptance_oracle_json'] or '{}')
         acceptance = {'command': row['acceptance_command'], 'manifest_paths': [], 'required': False, **oracle}
-        updated = self.store.update(project[0], task_key(row), expected_revision=row['task_revision'],
+        updated = self.store.update(project[0], task_ref(row), expected_revision=row['task_revision'],
             title=row['title'], description=row['description'], status=row['status'],
             priority=row['priority'], assignee=row['assignee'], price_rub=row['price_rub'],
             acceptance=acceptance, git_commits=json.loads(row['git_commits'] or '[]'))

@@ -42,7 +42,7 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code
 - If you figured out something non-obvious — written to `.orchestra/` or project files
-- Commit message has task ref (`#N`) if applicable
+- Commit message starts with the exact task ref (`#42:` or `V-42:`) if applicable
 </before-done>
 
 <rules priority="standard">
