@@ -7,9 +7,7 @@ that lets you check it again. Use the project's established personal-memory path
 Do not write secrets, a transcript of the task, or facts already documented elsewhere.
 If there is nothing useful to remember, write nothing.
 
-These are personal observations, not rules for other agents. Do not propose `RULE`,
-request `RULE TRIAGE`, or add mandatory `Memory: updated/none` lines to the result.
-Do not edit project/global instructions to turn a correction into a permanent rule.
+Personal observations stay in personal notes for both workers and orchestrators.
 Shared instructions change only through their owner's explicit decision.
 
 Keep notes concise and distinguish a verified finding from an assumption. Preserve

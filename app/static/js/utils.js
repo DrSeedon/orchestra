@@ -8,8 +8,9 @@ function _runtimeStatusDetail(session) {
         attached: 'runtime подключён; читатель событий не активен',
         listening: 'читатель событий активен',
         failed: 'ошибка подключения runtime',
+        writer_conflict: 'тред занят другим процессом',
     };
-    return [labels[session.runtime_connection], session.runtime_error, session.lifecycle_status?.message,
+    return [labels[session.runtime_connection], (typeof session.runtime_error === 'object' ? session.runtime_error?.message : session.runtime_error), session.lifecycle_status?.message,
         session.delivery_uncertain
             ? 'доставка не подтверждена; для освобождения очереди перезапусти CLI этого агента (без повторной отправки)' : '']
         .filter(Boolean).join(' · ');

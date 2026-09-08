@@ -382,6 +382,10 @@ def _mark_message_delivery_fan_buffered(delivery_id: str, fan_id: str) -> dict:
 
 
 def _failure(error: BaseException) -> dict:
+    from app.backend_codex import CodexWriterConflictError
+
+    if isinstance(error, CodexWriterConflictError):
+        return error.envelope()
     if isinstance(error, TargetTaskChangedError):
         return {
             "code": "TARGET_TASK_CHANGED",
