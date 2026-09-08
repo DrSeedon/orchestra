@@ -145,3 +145,34 @@ def test_active_assignment_is_not_reset_by_stale_git_status(migration_source):
         plan = convert_tasks(connection, migration_source['source_repo'], json.loads(migration_source['registry_path'].read_text()))
     assert plan['records'][0]['status'] == 'in_progress'
     assert 'active_binding_status' in plan['differences'][0]['fields']
+
+
+@pytest.mark.parametrize('drift', ['', 'git', 'acceptance', 'prepared'])
+def test_final_snapshot_keeps_runtime_changes_and_rejects_task_drift(migration_source, monkeypatch, drift):
+    from app.task_migration import finalize_migration
+    for key, value in {'GIT_AUTHOR_NAME': 'Test', 'GIT_COMMITTER_NAME': 'Test',
+                       'GIT_AUTHOR_EMAIL': 'test@example.invalid', 'GIT_COMMITTER_EMAIL': 'test@example.invalid'}.items():
+        monkeypatch.setenv(key, value)
+    prepare_migration(**migration_source)
+    with db._conn(migration_source['source_db']) as connection:
+        connection.execute("INSERT INTO kv(key,value) VALUES('after-preparation','fresh')")
+        if drift == 'acceptance':
+            connection.execute("UPDATE tm_tasks SET acceptance_command='new acceptance'")
+    if drift == 'git':
+        git(migration_source['source_repo'], 'commit', '--allow-empty', '-m', 'Concurrent task history')
+    if drift == 'prepared':
+        TaskStore(migration_source['destination'] / 'tasks', origin='V').create('project', 'Extra', request_key='extra')
+    args = {k:v for k,v in migration_source.items() if k != 'destination'}
+    args.update(prepared=migration_source['destination'], destination=migration_source['destination'].parent / 'final')
+    if drift:
+        with pytest.raises(TaskConflict, match='changed after preparation'):
+            finalize_migration(**args)
+        assert not (args['destination'] / 'report.json').exists()
+    else:
+        result = finalize_migration(**args)
+        assert result['tasks'] == 1 and result['remaining_foreign_key_errors'] == 0
+        with db._conn(args['destination'] / 'orchestra.db') as connection:
+            assert connection.execute("SELECT value FROM kv WHERE key='after-preparation'").fetchone()[0] == 'fresh'
+            assert connection.execute('SELECT id FROM tm_tasks').fetchone()[0] == 71
+        with db._conn(args['prepared'] / 'orchestra.db') as connection:
+            assert connection.execute("SELECT 1 FROM kv WHERE key='after-preparation'").fetchone() is None

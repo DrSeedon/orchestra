@@ -258,6 +258,14 @@ def prepare_migration(*, source_db: Path, source_repo: Path, registry_path: Path
         store._git('commit', '-m', 'Retire old materializations after preserved conversion')
         for name in old_roots:
             shutil.rmtree(target_repo / name)
+    foreign_key_errors = _project_migrated_database(target_db, store, plan, mapping, existing_errors)
+    receipt['target_head'] = store.head
+    receipt['remaining_foreign_key_errors'] = len(foreign_key_errors)
+    (destination / 'report.json').write_bytes(_bytes(receipt))
+    return receipt
+
+
+def _project_migrated_database(target_db, store, plan, mapping, existing_errors):
     from app.task_runtime import TaskRuntime
     runtime = TaskRuntime(store, target_db)
     with db._conn(target_db) as connection:
@@ -283,7 +291,46 @@ def prepare_migration(*, source_db: Path, source_repo: Path, registry_path: Path
         actual = {r['stable_id']: r['id'] for r in connection.execute('SELECT id,stable_id FROM tm_tasks')}
         if actual != plan['bindings']:
             raise TaskConflict('migration changed local task IDs')
-    receipt['target_head'] = store.head
-    receipt['remaining_foreign_key_errors'] = len(foreign_key_errors)
-    (destination / 'report.json').write_bytes(_bytes(receipt))
-    return receipt
+    return foreign_key_errors
+
+
+def finalize_migration(*, source_db: Path, source_repo: Path, registry_path: Path,
+                       prepared: Path, destination: Path, origin: str,
+                       mapping_path: Path | None = None) -> dict:
+    """After stopping the old writer, copy fresh runtime state into a prepared conversion.
+
+    The expensive history conversion runs while the service is still available. Any task
+    drift invalidates that preparation; callers must restart the old service and prepare again.
+    This function never stops a service or installs its output.
+    """
+    prepared, destination = Path(prepared), Path(destination)
+    report = json.loads((prepared / 'report.json').read_text())
+    source_store = TaskStore(source_repo, origin=origin)
+    store = TaskStore(prepared / 'tasks', origin=origin)
+    def unchanged():
+        for candidate, expected in ((source_store, report['source_head']), (store, report['target_head'])):
+            if candidate.head != expected or candidate._git('status', '--porcelain', '--untracked-files=all').stdout:
+                raise TaskConflict('task history changed after preparation; prepare again')
+    unchanged()
+    destination.mkdir(parents=True, exist_ok=False)
+    snapshot, target = destination / 'source.sqlite', destination / 'orchestra.db'
+    with closing(sqlite3.connect(Path(source_db).resolve().as_uri() + '?mode=ro', uri=True)) as source:
+        with closing(sqlite3.connect(snapshot)) as copy:
+            source.backup(copy)
+    mapping = json.loads(mapping_path.read_text()) if mapping_path else {}
+    registry = json.loads(Path(registry_path).read_text())
+    with db._conn(snapshot) as connection:
+        plan = convert_tasks(connection, source_repo, registry, mapping)
+        existing_errors = {tuple(r) for r in connection.execute('PRAGMA foreign_key_check')}
+    current = {r['id']: r for r in store.list()}
+    if set(current) != {r['id'] for r in plan['records']} or any(
+            any(current[r['id']][k] != value for k, value in r.items()) for r in plan['records']):
+        raise TaskConflict('task contract changed after preparation; prepare again')
+    counts = _copy_runtime_tables(snapshot, target)
+    errors = _project_migrated_database(target, store, plan, mapping, existing_errors)
+    unchanged()
+    result = {'tasks': len(plan['records']), 'preserved_tables': counts,
+              'remaining_foreign_key_errors': len(errors), 'source_head': source_store.head,
+              'target_head': store.head, 'prepared': str(prepared)}
+    (destination / 'report.json').write_bytes(_bytes(result))
+    return result
