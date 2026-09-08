@@ -33,15 +33,28 @@ def _resolve_db_path() -> Path:
 DB_PATH = _resolve_db_path()
 
 
+class OwnedConnection(sqlite3.Connection):
+    """The creating scope commits/rolls back and closes; borrowers use nullcontext."""
+
+    def __exit__(self, *args):
+        try:
+            return super().__exit__(*args)
+        finally:
+            self.close()
+
+
 def _conn() -> sqlite3.Connection:
+    """Open an owned connection, closed by its context or explicitly by its caller."""
     DB_PATH.parent.mkdir(exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
-    conn.row_factory = sqlite3.Row
-    # WAL: readers don't block writers — essential when many agents log concurrently
-    conn.execute("PRAGMA journal_mode=WAL")
-    # 5s busy timeout: retry on locked DB instead of raising immediately
-    conn.execute("PRAGMA busy_timeout=5000")
-    conn.execute("PRAGMA foreign_keys=ON")
+    conn = sqlite3.connect(str(DB_PATH), factory=OwnedConnection)
+    try:
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=5000")
+        conn.execute("PRAGMA foreign_keys=ON")
+    except BaseException:
+        conn.close()
+        raise
     return conn
 
 
