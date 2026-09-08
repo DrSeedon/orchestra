@@ -1,0 +1,56 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_find_limit_stopped_agents_only_returns_latest_limited_turn ________
+
+    def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
+        from app.limit_wake import find_limit_stopped_agents
+    
+        sessions = [
+            _session("limited", "limited-worker", "claude-opus-5[1m]"),
+            _session("recovered", "recovered-worker", "claude-opus-5[1m]"),
+            _session("ordinary", "ordinary-worker", "gpt-5.6-sol"),
+            _session("running", "running-worker", "claude-opus-5[1m]", "running"),
+        ]
+        logs = {
+            "limited": [
+                _log(1, "status", "turn ended (end_turn, 2 turns)"),
+                _log(2, "text", "This answer discusses quota handling."),
+                _typed_limit_log(3, "monthly", "overage"),
+                _log(4, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+                _log(5, "status", "turn ended (stop_sequence, 1 turns)"),
+            ],
+            "recovered": [
+                _typed_limit_log(6, "timed", "five_hour", 1760000000),
+                _log(7, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+                _log(8, "status", "turn ended (stop_sequence, 1 turns)"),
+                _log(9, "user_message", "continue"),
+                _log(10, "status", "turn ended (end_turn, 2 turns)"),
+            ],
+            "ordinary": [
+                _log(10, "text", "done"),
+                _log(11, "status", "turn ended (end_turn, 1 turns)"),
+            ],
+            "running": [
+                _log(12, "text", "You've hit your usage limit"),
+                _log(13, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+                _log(14, "status", "turn ended (stop_sequence, 1 turns)"),
+            ],
+        }
+    
+>       assert find_limit_stopped_agents(sessions, logs) == [
+            {
+                **sessions[0],
+                "limit_kind": "monthly",
+                "provider": "anthropic",
+                "limit_turn_id": 5,
+            }
+        ]
+E       AssertionError: assert [{'id': 'limi...-5[1m]', ...}] == [{'id': 'limi...-5[1m]', ...}]
+E         
+E         At index 0 diff: {'id': 'limited', 'name': 'limited-worker', 'scope': '/project', 'model': 'claude-opus-5[1m]', 'status': 'idle', 'limit_kind': 'timed', 'provider': 'anthropic', 'limit_turn_id': 5} != {'id': 'limited', 'name': 'limited-worker', 'scope': '/project', 'model': 'claude-opus-5[1m]', 'status': 'idle', 'limit_kind': 'monthly', 'provider': 'anthropic', 'limit_turn_id': 5}
+E         Use -v to get more diff
+
+tests/test_limit_wake.py:130: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_limit_wake.py::test_find_limit_stopped_agents_only_returns_latest_limited_turn
+1 failed in 2.70s

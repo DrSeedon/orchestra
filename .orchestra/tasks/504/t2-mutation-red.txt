@@ -1,0 +1,23 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_t2_jsonl_zero_command_events_signal_execution_failure __________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-498/test_t2_jsonl_zero_command_eve0')
+
+    def test_t2_jsonl_zero_command_events_signal_execution_failure(tmp_path):
+        no_command_events = [{
+            "type": "item.completed",
+            "item": {"type": "agent_message", "text": "Review finished."},
+        }]
+    
+>       assert _guard_returncode(tmp_path, no_command_events) == 0, (
+            "T2 fail-closed seam: zero command_execution events were accepted"
+        )
+E       AssertionError: T2 fail-closed seam: zero command_execution events were accepted
+E       assert 1 == 0
+E        +  where 1 = _guard_returncode(PosixPath('/tmp/pytest-of-maxim/pytest-498/test_t2_jsonl_zero_command_eve0'), [{'item': {'text': 'Review finished.', 'type': 'agent_message'}, 'type': 'item.completed'}])
+
+tests/test_model_text_control_flow_504.py:66: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_model_text_control_flow_504.py::test_t2_jsonl_zero_command_events_signal_execution_failure
+1 failed in 2.08s

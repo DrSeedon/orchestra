@@ -772,6 +772,36 @@ class TestRunExecOutcome:
         assert "bwrap:" in artifact.read_text()
 
     @pytest.mark.asyncio
+    async def test_t2_exit_zero_stdout_failure_phrase_is_not_rejected(
+        self, db, mgr_mock, tmp_path,
+    ):
+        artifact = tmp_path / "codex-review-impl.md"
+        artifact.write_text("## Summary\nChecked the diff.\n\n## Verdict\nAPPROVED\n")
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-stdout-phrase", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-stdout-phrase",
+            "printf 'bwrap: appears in inspected source\\n'",
+            "Codex review → codex-review-impl.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+
+        row = next(
+            job for job in bg_get_jobs(scope="/s")
+            if job["id"] == "run-stdout-phrase"
+        )
+        assert row["status"] == "triggered", (
+            "T2 stdout seam: deterministic command output still triggers prose guard"
+        )
+        assert "FAILED" not in session.send.await_args.args[0]
+
+    @pytest.mark.asyncio
     async def test_exit_zero_verdict_mentioning_sandbox_is_not_blind(
         self, db, mgr_mock, tmp_path,
     ):

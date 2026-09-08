@@ -1,0 +1,86 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+__ TestSafeguardRefusal.test_t5_text_event_does_not_raise_the_safeguard_flag ___
+
+self = <tests.test_session.TestSafeguardRefusal object at 0x72fce601c170>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    def test_t5_text_event_does_not_raise_the_safeguard_flag(self, session):
+        from app.events import AgentEvent
+    
+        session._log = lambda *a, **k: None
+        session._handle_event(AgentEvent("text", self.VERBATIM))
+    
+        # Before #504 this asserted equality with VERBATIM. Inverted: only a
+        # provider-error event may arm destructive history rewind.
+>       assert session._safeguard_refusal == "", (
+            "T5 safeguard seam: model-authored text still arms history rewind"
+        )
+E       AssertionError: T5 safeguard seam: model-authored text still arms history rewind
+E       assert 'API Error: c...yYxoRQweVSmGK' == ''
+E         
+E         + API Error: claude-opus-5[1m]'s safeguards flagged this message for a cybersecurity topic. If your work requires this access, you can apply for an exemption: https://claude.com/form/cyber-use-case
+E         + Try rephrasing the request in a new session or change your model.
+E         + Request ID: req_011CdnzxjQByYxoRQweVSmGK
+
+tests/test_session.py:4949: AssertionError
+_ TestCompactReArmsPromptInjection.test_t5_compact_accepts_short_summary_that_discusses_rate_limits _
+
+self = <tests.test_session.TestCompactReArmsPromptInjection object at 0x72fce601dee0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72fce6063980>
+
+    @pytest.mark.asyncio
+    async def test_t5_compact_accepts_short_summary_that_discusses_rate_limits(
+        self, session, monkeypatch,
+    ):
+        session._log = MagicMock()
+        summary = (
+            "Investigated why the phrase session limit in a summary caused a "
+            "false positive; no provider limit occurred."
+        )
+    
+        result, _backend = await self._run_compact(
+            session, monkeypatch, summary_text=summary,
+        )
+    
+>       assert result["ok"] is True, (
+            "T5 compact seam: successful summary was rejected by its vocabulary; "
+            f"result={result}"
+        )
+E       AssertionError: T5 compact seam: successful summary was rejected by its vocabulary; result={'ok': False, 'error': 'provider error returned instead of compact summary', 'before_pct': 0}
+E       assert False is True
+
+tests/test_session.py:3248: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:2397 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+______ test_t5_safeguard_banner_isolated_by_typed_provider_error_channel _______
+
+    def test_t5_safeguard_banner_isolated_by_typed_provider_error_channel():
+        banner = (
+            "API Error: claude-opus-5[1m]'s safeguards flagged this message for a "
+            "cybersecurity topic. Request ID: req_011CdnzxjQByYxoRQweVSmGK"
+        )
+        message = AssistantMessage(
+            content=[TextBlock(banner)],
+            model="claude-opus-5[1m]",
+            error="invalid_request",
+        )
+    
+        events = _backend()._convert(message)
+    
+>       assert [event.type for event in events] == ["safeguard_refusal", "error"], (
+            "T5 provider seam: safeguard refusal is still emitted as ordinary model text"
+        )
+E       AssertionError: T5 provider seam: safeguard refusal is still emitted as ordinary model text
+E       assert ['text', 'error'] == ['safeguard_refusal', 'error']
+E         
+E         At index 0 diff: 'text' != 'safeguard_refusal'
+E         Use -v to get more diff
+
+tests/test_rate_limit_capture_441.py:114: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestSafeguardRefusal::test_t5_text_event_does_not_raise_the_safeguard_flag
+FAILED tests/test_session.py::TestCompactReArmsPromptInjection::test_t5_compact_accepts_short_summary_that_discusses_rate_limits
+FAILED tests/test_rate_limit_capture_441.py::test_t5_safeguard_banner_isolated_by_typed_provider_error_channel
+3 failed in 93.22s (0:01:33)

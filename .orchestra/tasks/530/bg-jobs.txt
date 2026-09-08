@@ -1,0 +1,5 @@
+PYTHONPATH=. /mnt/data/Projects/Python/orchestra/.venv/bin/python -m pytest -q tests/test_bg_jobs.py
+.......................................................                  [100%]
+55 passed in 7.62s
+
+RC=0

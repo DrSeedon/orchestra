@@ -1,0 +1,63 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestCompactReArmsPromptInjection.test_failed_compact_leaves_injection_flag_untouched _
+
+self = <tests.test_session.TestCompactReArmsPromptInjection object at 0x78f5a536a3c0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78f5a5342480>
+
+    @pytest.mark.asyncio
+    async def test_failed_compact_leaves_injection_flag_untouched(
+        self, session, monkeypatch
+    ):
+        """Abort restores the pre-compact session, whose prompt is still live.
+    
+        Re-arming there would buy a needless full re-inject (~270k input) after
+        every failed compact.
+        """
+        from app.events import AgentEvent
+    
+        class LimitBackend:
+            async def connect(self): return None
+            async def send(self, _message): return None
+            async def events(self):
+                yield AgentEvent(
+                    type="rate_limit",
+                    metadata={
+                        "status": "rejected",
+                        "limit_kind": "monthly",
+                        "rate_limit_type": "overage",
+                        "resets_at": None,
+                    },
+                )
+                yield AgentEvent(
+                    type="turn_end", metadata={"session_id": "bad-compact-session"}
+                )
+            async def disconnect(self): return None
+    
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active", lambda: False
+        )
+        session.session_id = "original-session"
+        session._prompt_injected = True
+        session._log = MagicMock()
+        session._make_backend = MagicMock(return_value=LimitBackend())
+        session._ensure_backend = AsyncMock()
+    
+        result = await session.compact()
+    
+        assert result["ok"] is False
+        assert session.session_id == "original-session"
+>       assert session._prompt_injected is True, (
+            "failed compact keeps the old session, so its prompt is still injected"
+        )
+E       AssertionError: failed compact keeps the old session, so its prompt is still injected
+E       assert False is True
+E        +  where False = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._prompt_injected
+
+tests/test_session.py:3313: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:2388 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestCompactReArmsPromptInjection::test_failed_compact_leaves_injection_flag_untouched
+1 failed in 2.01s

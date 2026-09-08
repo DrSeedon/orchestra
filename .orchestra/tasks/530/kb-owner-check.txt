@@ -1,0 +1,6 @@
+Verbatim transfer: 16 records in matching sections; original owner records preserved
+README byte-identical to main; separate topic removed; 16 topics retained
+Unified diff: added=16, deleted=30
+$ /mnt/data/Projects/Python/orchestra/.venv/bin/python scripts/check_kb_contract.py --root .orchestra/kb --diff .orchestra/tasks/530/kb-owner.diff
+KB contract OK
+RC=0

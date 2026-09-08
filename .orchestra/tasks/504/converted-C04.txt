@@ -1,0 +1,54 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestRateLimitClassification.test_terminal_limit_turn_skips_duplicate_error_and_precompact _
+
+self = <tests.test_session.TestRateLimitClassification object at 0x74c0df981310>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c0df981d90>
+
+    @pytest.mark.asyncio
+    async def test_terminal_limit_turn_skips_duplicate_error_and_precompact(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+    
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        logs = []
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
+        session._spawn_bg = lambda coro: coro.close()
+        session._schedule_precompact_timer = MagicMock()
+        session._hibernate.schedule = MagicMock()
+        session.status = AgentStatus.RUNNING
+    
+        # Before #504 the provider banner was injected as a plain `text` event.
+        # The legitimate terminal behavior remains, but its source is typed.
+        session._handle_event(AgentEvent(
+            type="rate_limit",
+            metadata={
+                "status": "rejected",
+                "limit_kind": "monthly",
+                "rate_limit_type": "overage",
+                "resets_at": None,
+            },
+        ))
+        session._handle_event(AgentEvent(type="error", content="rate_limit"))
+        session._handle_event(AgentEvent(
+            type="turn_end",
+            metadata={
+                "ok": False,
+                "stop_reason": "stop_sequence",
+                "num_turns": 1,
+                "model_error": "rate_limit",
+                "errors": ["rate_limit"],
+            },
+        ))
+    
+>       assert not any("turn FAILED: rate_limit" in content for _, content in logs)
+E       assert not True
+E        +  where True = any(<generator object TestRateLimitClassification.test_terminal_limit_turn_skips_duplicate_error_and_precompact.<locals>.<genexpr> at 0x74c0dce6f1d0>)
+
+tests/test_session.py:2957: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestRateLimitClassification::test_terminal_limit_turn_skips_duplicate_error_and_precompact
+1 failed in 3.23s
