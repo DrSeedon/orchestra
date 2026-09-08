@@ -125,3 +125,26 @@ def test_system_entry_is_not_an_agent_bubble(dashboard_browser: Browser):
         assert AGENT_MARKER not in state["systemText"]
     finally:
         page.close()
+
+
+def test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender(dashboard_browser):
+    page = _open_chat_page(dashboard_browser)
+    try:
+        rendered = page.evaluate("""() => {
+            addChatEntry('user_message', 'dashboard message', null, null, {
+                origin: 'unknown', origin_detail: {senders: ['dashboard'], subtype: 'dashboard'}
+            });
+            addChatEntry('user_message', 'anonymous api message', null, null, {
+                origin: 'unknown', origin_detail: {senders: ['unknown'], subtype: 'http_send'}
+            });
+            const user = document.querySelector('#chat .chat-user');
+            const labels = [...document.querySelectorAll('#chat .chat-from-label')];
+            return {text: user?.querySelector('p')?.textContent.trim(), aria: user?.getAttribute('aria-label'),
+                    labels: labels.map(node => node.textContent)};
+        }""")
+        assert rendered['text'] == 'dashboard message'
+        assert rendered['aria'] == 'Сообщение из дашборда'
+        assert len(rendered['labels']) == 1
+        assert 'Unknown: unknown' in rendered['labels'][0]
+    finally:
+        page.close()

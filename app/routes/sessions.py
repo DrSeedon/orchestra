@@ -11,7 +11,7 @@ from app.task_refs import task_ref as public_task_ref
 
 from contextlib import AsyncExitStack
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Literal
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
@@ -184,6 +184,7 @@ class CreateSessionRequest(BaseModel):
 
 
 class SendRequest(BaseModel):
+    channel: Literal["", "dashboard"] = ""
     message: str
     scope: str
     sender: str | None = None
@@ -949,8 +950,8 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             )
             provenance = MessageProvenance(
                 origin="user" if operator else "unknown",
-                senders=("user",) if operator else ("unknown",),
-                subtype="http_send",
+                senders=("user",) if operator else (("dashboard",) if req.channel == "dashboard" else ("unknown",)),
+                subtype="dashboard" if req.channel == "dashboard" else "http_send",
             )
         # A non-waking delivery must not load or activate the recipient.  The
         # requested scope is the mailbox address supplied by the sender.

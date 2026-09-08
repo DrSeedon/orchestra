@@ -2724,3 +2724,22 @@ async def test_codex_review_rejects_invalid_non_codex_and_spark_before_api(
     assert caught.value.code == "invalid_argument"
     assert caught.value.details["field"] == "model"
     api.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('role,target,allowed', [
+    ('orchestrator', '', True), ('sub-orchestrator', 'root', True),
+    ('worker', '', False), ('orchestrator', 'someone-else', False),
+])
+async def test_idle_watch_is_self_only(monkeypatch, role, target, allowed):
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, 'ROLE', role)
+    monkeypatch.setattr(m, 'WORKER_NAME', 'root')
+    with patch.object(m, '_api', new_callable=AsyncMock, return_value={'id': 'watch'}) as api:
+        if allowed:
+            await m.bg_create(type='idle', target=target, timeout_seconds=0)
+            assert api.call_args.kwargs['json']['config'] == {}
+        else:
+            with pytest.raises(m.ApiToolError):
+                await m.bg_create(type='idle', target=target)
+            api.assert_not_called()
