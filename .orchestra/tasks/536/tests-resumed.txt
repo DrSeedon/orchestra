@@ -1,0 +1,8 @@
+........................................................................ [ 38%]
+........................................................................ [ 76%]
+.............................................                            [100%]Task was destroyed but it is pending!
+task: <Task pending name='Task-513' coro=<AgentSession._persist_loop() done, defined at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-stuck-writer/app/session.py:5156> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.12/asyncio/futures.py:387, Task.task_wakeup()]> cb=[AgentSession._on_persist_done()]>
+Task was destroyed but it is pending!
+task: <Task pending name='Task-514' coro=<HibernateManager._idle_hibernate() done, defined at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-stuck-writer/app/session_hibernate.py:54> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+
+189 passed in 50.65s

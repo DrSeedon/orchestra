@@ -444,6 +444,7 @@ class AgentSession:
     # дисконнект внутри хода оборвал бы живой ход. Флаг идемпотентен: два переименования
     # за ход дают одну пересборку.
     _identity_stale: bool = field(default=False, repr=False)
+    _codex_writer_error: Optional[Exception] = field(default=None, repr=False)
 
     # False → detached DB-hydrate (manager._hydrate_row): data only, no backend/tasks.
     # NEVER call start()/send()/_persist() on a detached session.
@@ -1059,6 +1060,7 @@ class AgentSession:
                     leftover=leftover, cli_pid=cli_pid, cli_started_at=cli_started_at)
         self._backend = backend
         self.tools_are_stale = True
+        self._codex_writer_error = None
         # RUNNING must mean "a turn is in flight". A handover with no stored turn id means the
         # turn had already finished, so claiming RUNNING would strand the session forever.
         self.status = AgentStatus.RUNNING if active_turn_id else AgentStatus.IDLE
@@ -1134,6 +1136,15 @@ class AgentSession:
         finally:
             self._log_codex_connect_stage("quota_gate", started)
 
+    def codex_writer_error(self):
+        if self.backend_type != "codex" or not self.session_id:
+            return None
+        if self._backend is not None and getattr(self._backend, "is_alive", False):
+            return None
+        from app.backend_codex import codex_writer_conflict
+
+        return codex_writer_conflict(self.id, self.session_id)
+
     async def preflight_delivery_admission(self) -> None:
         """Check a new direct delivery before its durable receipt is accepted."""
         decision = None
@@ -1141,6 +1152,10 @@ class AgentSession:
         admitted_stop_gen = -1
         while True:
             await self._lifecycle_lock.acquire()
+            writer_error = self.codex_writer_error()
+            if writer_error is not None:
+                self._lifecycle_lock.release()
+                raise writer_error
             if self._handoff_recovery_required:
                 self._lifecycle_lock.release()
                 raise RuntimeError(
@@ -1267,6 +1282,9 @@ class AgentSession:
             break
 
         try:
+            writer_error = self.codex_writer_error()
+            if writer_error is not None:
+                raise writer_error
             if (
                 delivery is not None
                 and not allow_running_delivery
@@ -2034,6 +2052,12 @@ class AgentSession:
             self._runtime_error = err_text(e)
             logger.error(f"[{self.name}] backend connect failed: {err_text(e)}")
             self._log("error", f"connect failed: {err_text(e)}")
+            from app.backend_codex import CodexProtocolError, CodexWriterConflictError
+
+            if (self.backend_type == "codex" and isinstance(e, CodexProtocolError)
+                    and "already has an active writer" in str(e)):
+                e = CodexWriterConflictError(self.session_id or "")
+                self._codex_writer_error = e
             oversized_failure = (
                 self.backend_type == "codex"
                 and getattr(candidate, "oversized_reader_failure", False)
@@ -2060,10 +2084,11 @@ class AgentSession:
             self._finish_failed_running_turn(
                 f"backend connect failed: {err_text(e)}"
             )
-            raise
+            raise e
         if self._backend is not candidate:
             raise RuntimeError("backend changed while connection was being established")
         self._runtime_error = ""
+        self._codex_writer_error = None
         # Отдать пайпы systemd СРАЗУ, а не в момент выключения (#230 T2): иначе живучесть
         # агента держится на том, что сервер успел попрощаться, и `kill -9` её отменяет.
         # Отказ не мешает агенту работать — он лишь возвращает прежнюю условную
@@ -5252,10 +5277,23 @@ class AgentSession:
             return "broken"
         return self.status.value
 
+    def _writer_health_error(self):
+        error = self.codex_writer_error()
+        if error is not None:
+            return error
+        previous = self._codex_writer_error
+        if (self.backend_type == "codex" and previous is not None
+                and getattr(previous, "thread_id", None) == self.session_id):
+            return previous
+        return None
+
     def to_dict(self) -> dict:
         # This describes local observation, not proof that the remote model is
         # responding. A silent reader must never turn a running task into idle.
-        if self._runtime_error:
+        writer_error = self._writer_health_error()
+        if writer_error is not None:
+            runtime_connection = "writer_conflict"
+        elif self._runtime_error:
             runtime_connection = "failed"
         elif self._hibernated:
             runtime_connection = "hibernated"
@@ -5268,9 +5306,9 @@ class AgentSession:
         return {
             "id": self.id, "name": self.name, "scope": self.scope,
             "cwd": self.cwd, "worktree_path": self.worktree_path,
-            "status": self._display_status(), "model": self.model,
+            "status": "broken" if writer_error is not None else self._display_status(), "model": self.model,
             "runtime_connection": runtime_connection,
-            **({"runtime_error": self._runtime_error} if self._runtime_error else {}),
+            "runtime_error": writer_error.envelope() if writer_error else self._runtime_error or None,
             "cost_usd": round(self.cost_usd, 4),
             "cost_usd_cached": round(self.cost_usd_cached, 4),
             "branch": self.branch,
