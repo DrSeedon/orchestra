@@ -43,10 +43,11 @@ class OwnedConnection(sqlite3.Connection):
             self.close()
 
 
-def _conn() -> sqlite3.Connection:
+def _conn(path: Path | None = None) -> sqlite3.Connection:
     """Open an owned connection, closed by its context or explicitly by its caller."""
-    DB_PATH.parent.mkdir(exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH), factory=OwnedConnection)
+    path = DB_PATH if path is None else Path(path)
+    path.parent.mkdir(exist_ok=True)
+    conn = sqlite3.connect(str(path), factory=OwnedConnection)
     try:
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
@@ -472,6 +473,10 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS tm_tasks (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 par_number INTEGER NOT NULL,
+                task_origin TEXT NOT NULL DEFAULT '',
+                stable_id TEXT NOT NULL DEFAULT '',
+                task_revision TEXT NOT NULL DEFAULT '',
+                task_commit TEXT NOT NULL DEFAULT '',
                 project_id TEXT NOT NULL REFERENCES tm_projects(id),
                 title TEXT NOT NULL,
                 description TEXT NOT NULL DEFAULT '',
@@ -493,7 +498,6 @@ def init_db() -> None:
             );
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status);
-            CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number);
             CREATE INDEX IF NOT EXISTS idx_tm_tasks_yougile ON tm_tasks(yougile_task_id);
             CREATE TABLE IF NOT EXISTS tm_task_reservations (
                 task_id INTEGER PRIMARY KEY REFERENCES tm_tasks(id) ON DELETE CASCADE,
@@ -1176,6 +1180,17 @@ def _migrate_portfolio_roadmap(c) -> None:
 def _migrate(c) -> None:
     # Additive ALTER TABLE migrations — safe to re-run (IF NOT EXISTS / column check).
     # Never drop columns: old Orchestra versions reading the same DB must still work.
+    project_columns = {row[1] for row in c.execute("PRAGMA table_info(tm_projects)")}
+    if "canonical_id" not in project_columns:
+        c.execute("ALTER TABLE tm_projects ADD COLUMN canonical_id TEXT NOT NULL DEFAULT ''")
+    task_columns = {row[1] for row in c.execute("PRAGMA table_info(tm_tasks)")}
+    for name in ("task_origin", "stable_id", "task_revision", "task_commit"):
+        if name not in task_columns:
+            c.execute(f"ALTER TABLE tm_tasks ADD COLUMN {name} TEXT NOT NULL DEFAULT ''")
+    c.execute("DROP INDEX IF EXISTS idx_tm_tasks_par_project")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_ref ON tm_tasks(project_id, task_origin, par_number)")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_stable_id ON tm_tasks(stable_id) WHERE stable_id<>''")
+    c.execute("CREATE TABLE IF NOT EXISTS task_projection_meta(singleton INTEGER PRIMARY KEY CHECK(singleton=1), git_head TEXT NOT NULL)")
     _guard_session_id(c)
     _migrate_message_deliveries(c)
     _migrate_tg_file_deliveries(c)
@@ -1390,6 +1405,10 @@ def _migrate(c) -> None:
         c.execute("""CREATE TABLE tm_tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             par_number INTEGER NOT NULL,
+                task_origin TEXT NOT NULL DEFAULT '',
+                stable_id TEXT NOT NULL DEFAULT '',
+                task_revision TEXT NOT NULL DEFAULT '',
+                task_commit TEXT NOT NULL DEFAULT '',
             project_id TEXT NOT NULL REFERENCES tm_projects(id),
             title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
             price_rub INTEGER NOT NULL DEFAULT 0 CHECK (price_rub >= 0),
@@ -1405,7 +1424,7 @@ def _migrate(c) -> None:
             CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
         )""")
         target_columns = (
-            "id", "par_number", "project_id", "title", "description",
+            "id", "par_number", "task_origin", "stable_id", "task_revision", "task_commit", "project_id", "title", "description",
             "price_rub", "paid_rub", "status", "assignee", "yougile_task_id",
             "sync_revision", "worker_session_id", "git_commits", "created_at",
             "updated_at", "completed_at", "paid_at", "acceptance_command",
@@ -1440,7 +1459,7 @@ def _migrate(c) -> None:
             f"SELECT {select_list} FROM _tm_tasks_old"
         )
         c.execute("DROP TABLE _tm_tasks_old")
-    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_par_project ON tm_tasks(project_id, par_number)")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_ref ON tm_tasks(project_id, task_origin, par_number)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_status ON tm_tasks(status)")
     c.execute("CREATE INDEX IF NOT EXISTS idx_tm_tasks_project ON tm_tasks(project_id, status)")
     for tbl in ("tm_payment_allocations", "tm_sync_log", "tm_task_create_requests"):
@@ -1702,6 +1721,7 @@ def _migrate(c) -> None:
     # Идемпотентный сид профиля 'personal' (config_dir="" → env процесса, как сегодня).
     # INSERT OR IGNORE: повторная миграция не падает и не перетирает существующую строку.
     c.execute("INSERT OR IGNORE INTO profiles (name, config_dir) VALUES ('personal', '')")
+    c.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_tm_tasks_stable_id ON tm_tasks(stable_id) WHERE stable_id<>''")
     collector_started_at = datetime.now(timezone.utc).isoformat()
     c.execute(
         """INSERT OR IGNORE INTO kv(key, value)

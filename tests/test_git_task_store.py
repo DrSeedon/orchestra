@@ -107,3 +107,20 @@ def test_uncommitted_task_change_is_not_overwritten(pair):
     with pytest.raises(TaskConflict):
         a.update('project', '1', expected_revision=task['revision'], title='Overwrite')
     assert 'Manual change' in path.read_text()
+
+
+def test_lost_commit_acknowledgement_is_replayed_once(pair, monkeypatch):
+    a, _ = pair
+    original = a._git
+    def lost_ack(*args, **kwargs):
+        result = original(*args, **kwargs)
+        if args[0] == 'commit':
+            monkeypatch.setattr(a, '_git', original)
+            raise TaskConflict('lost acknowledgement')
+        return result
+    monkeypatch.setattr(a, '_git', lost_ack)
+    with pytest.raises(TaskConflict, match='lost acknowledgement'):
+        a.create('project', 'Accepted task', request_key='lost')
+    recovered = a.create('project', 'Accepted task', request_key='lost')
+    assert recovered['ref'] == '1'
+    assert len(a.list('project')) == 1
