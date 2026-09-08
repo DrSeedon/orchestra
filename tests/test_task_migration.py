@@ -131,3 +131,17 @@ def test_accepted_sql_creation_receipt_is_recovered_without_duplicate(migration_
     original = store.get('project', '1')
     replay = store.create('project', 'Canonical title', status='done', request_key='accepted-request')
     assert replay['id'] == original['id'] and len(store.list()) == 1
+
+
+def test_active_assignment_is_not_reset_by_stale_git_status(migration_source):
+    from app.task_migration import convert_tasks
+    from tests.test_task_tracker_integration import _save_worker
+    _save_worker(session_id='active-worker', task_id='1', scope='/project')
+    with db._conn(migration_source['source_db']) as connection:
+        connection.execute("UPDATE tm_tasks SET status='in_progress',worker_session_id='active-worker' WHERE id=71")
+    path = next(migration_source['source_repo'].rglob('state.json'))
+    state = json.loads(path.read_text());state['status'] = 'new';path.write_text(json.dumps(state))
+    with db._conn(migration_source['source_db']) as connection:
+        plan = convert_tasks(connection, migration_source['source_repo'], json.loads(migration_source['registry_path'].read_text()))
+    assert plan['records'][0]['status'] == 'in_progress'
+    assert 'active_binding_status' in plan['differences'][0]['fields']
