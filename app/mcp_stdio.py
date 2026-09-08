@@ -3402,6 +3402,9 @@ async def bg_create(type: str, message: str = "", target: str = "",
                     timeout_seconds: int = 3600) -> str:
     """Create a background job that wakes an agent when triggered. Survives hibernate.
     Types:
+    - idle: recurring watch of your own worker tree. Wakes you when idle with no running descendants
+            or other active background jobs. Fires once per new activity, not on every check.
+            Recreating it replaces your previous idle watch. timeout_seconds=0 keeps it until cancelled.
     - timer: fires after delay_seconds
     - file: watches file at path for pattern (regex)
     - command: runs command every interval_seconds, matches pattern in output
@@ -3413,7 +3416,9 @@ async def bg_create(type: str, message: str = "", target: str = "",
     - cron_command: runs command on cron_expr and wakes only when completed stdout/stderr
             matches pattern. Recurring, UTC, no backfill.
     target: agent name (default: you). timeout_seconds: max lifetime (default 1h,
-            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command."""
+            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command/idle."""
+    if type == "idle" and (ROLE not in _ORCH_ROLES or (target and target != WORKER_NAME)):
+        raise ApiToolError(code="idle_watch_self_only", message="An orchestrator sets an idle watch on itself")
     config = {}
     if type == "timer":
         config = {"delay_seconds": delay_seconds}

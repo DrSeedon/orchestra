@@ -32,7 +32,7 @@ async function sendChat() {
     try {
         await api(`/api/sessions/${selectedAgent}/send`, {
             method: 'POST',
-            body: JSON.stringify({ message: msg, scope: currentScope }),
+            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard" }),
             signal: AbortSignal.timeout(15000),
         });
     } catch (e) {
@@ -4053,7 +4053,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const displayContent = payload && typeof payload.display_content === 'string'
             ? payload.display_content
             : content;
-        if (origin === 'user') {
+        const dashboardMessage = origin === 'unknown' && validDetail && suppliedDetail.subtype === 'dashboard';
+        if (origin === 'user' || dashboardMessage) {
+            if (dashboardMessage) div.setAttribute('aria-label', 'Сообщение из дашборда');
             div.className += ' markdown-body';
             div.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
             renderImages(div, displayContent);
