@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import re
 import os
+import hashlib
 
 
 @dataclass(frozen=True)
@@ -42,3 +43,12 @@ def task_ref(task: dict) -> str:
     prefix = str(task['ref_prefix'] or '') if 'ref_prefix' in task.keys() else ''
     number = str(task['par_number'])
     return f'{prefix}-{number}' if prefix else number
+
+
+def project_key(value: str) -> str:
+    if re.fullmatch(r'[a-z0-9][a-z0-9._-]*', value):
+        return value
+    base = re.sub(r'[^a-z0-9]+', '-', value.casefold()).strip('-')
+    if not base or len(base) > 48:
+        base = 'project'
+    return f'{base}-{hashlib.sha256(value.encode()).hexdigest()[:12]}'

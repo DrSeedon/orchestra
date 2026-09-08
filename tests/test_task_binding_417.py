@@ -1,5 +1,7 @@
 """Regression coverage for split task/session bindings (#417)."""
 
+from tests.task_seeds import create_task as seed_task
+
 from datetime import datetime, timezone
 
 import pytest
@@ -54,7 +56,7 @@ def test_bind_task_repairs_split_session_binding():
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(connection, "project", "Switch target", par_number=42)
+        task = seed_task(connection, "project", "Switch target", par_number=42)
     _save_worker(session_id="split-worker", task_id="42")
 
     result = tm.bind_task_to_session("/scope", "split-worker", "42")
@@ -77,7 +79,7 @@ async def test_switch_assignment_binds_session_and_task(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(connection, "project", "Switch target", par_number=42)
+        task = seed_task(connection, "project", "Switch target", par_number=42)
     _save_worker(session_id="switch-worker", task_id="")
     local_manager = SessionManager()
     found = local_manager.get_by_name("switch-worker", "/scope")
@@ -116,7 +118,7 @@ async def test_switch_assignment_failure_restores_both_binding_sides(monkeypatch
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(connection, "project", "Switch target", par_number=42)
+        task = seed_task(connection, "project", "Switch target", par_number=42)
     _save_worker(session_id="atomic-switch", task_id="")
     local_manager = SessionManager()
     found = local_manager.get_by_name("atomic-switch", "/scope")
@@ -160,8 +162,8 @@ def test_bind_task_rejects_session_bound_to_another_task():
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        current = tm.create_task(connection, "project", "Current", par_number=41)
-        target = tm.create_task(connection, "project", "Target", par_number=42)
+        current = seed_task(connection, "project", "Current", par_number=41)
+        target = seed_task(connection, "project", "Target", par_number=42)
     _save_worker(session_id="conflicting-worker", task_id="41")
 
     with pytest.raises(ValueError, match="already bound to another task"):
@@ -179,7 +181,7 @@ def test_inferred_binding_rejects_owner_changed_before_task_write(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(connection, "project", "Switch target", par_number=42)
+        task = seed_task(connection, "project", "Switch target", par_number=42)
     _save_worker(session_id="stale-owner", task_id="42")
     identity = tm.resolve_scoped_task_identity("/scope", "42")
 

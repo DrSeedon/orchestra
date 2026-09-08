@@ -1,5 +1,7 @@
 """TDD tests for main.py — HTTP API endpoints."""
 
+from tests.task_seeds import create_task as seed_task
+
 import asyncio
 import json
 import os
@@ -140,7 +142,6 @@ def _prepare_detached_merge(monkeypatch, session, *, head: str = "a" * 40):
         },
     )
     monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "main")
-    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
     return local_manager
 
 
@@ -157,8 +158,8 @@ def _seed_case_variant_tasks(*, price=100, par=1):
             "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
             ("seedon", "seedon", "LOW", "/lower", now),
         )
-        upper = tm.create_task(conn, "Seedon", "upper", price_rub=price, par_number=par)
-        lower = tm.create_task(conn, "seedon", "lower", price_rub=price, par_number=par)
+        upper = seed_task(conn, "Seedon", "upper", price_rub=price, par_number=par)
+        lower = seed_task(conn, "seedon", "lower", price_rub=price, par_number=par)
     return upper, lower
 
 
@@ -181,7 +182,7 @@ class TestTaskProjectIdentity:
                 "VALUES (?, ?, ?, ?, ?)",
                 ("orchestra", "orchestra", "ORC", None, now),
             )
-            tm.create_task(
+            seed_task(
                 conn, "orchestra", "legacy ghost", status="cancelled", par_number=5,
             )
 
@@ -249,8 +250,8 @@ class TestTaskProjectIdentity:
                 "VALUES (?, ?, ?, ?, ?)",
                 ("by-scope", "By scope", "BSC", "selector", now),
             )
-            by_id = tm.create_task(conn, "selector", "id task", par_number=1)
-            tm.create_task(conn, "by-scope", "scope task", par_number=1)
+            by_id = seed_task(conn, "selector", "id task", par_number=1)
+            seed_task(conn, "by-scope", "scope task", par_number=1)
 
         create = client.post(
             "/api/tm/tasks",
@@ -322,7 +323,6 @@ class TestTaskProjectIdentity:
             assert (lower_row["title"], lower_row["status"], lower_row["sync_revision"]) == (
                 "lower", "new", 0,
             )
-            assert conn.execute("SELECT COUNT(*) FROM tm_payment_allocations").fetchone()[0] == 0
 
     def test_get_and_update_reject_unknown_explicit_project(self, client):
         from app import tm
@@ -1018,7 +1018,6 @@ async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
         "app.workspace.inspect_worktree_identity",
         lambda _path: ("task-90/w", "a" * 40),
     )
-    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
 
     result = await _call_merge_session(sessmod, f"merge-{loaded}", {"scope": "/s"})
 
@@ -1092,7 +1091,7 @@ async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatc
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        task = tm.create_task(conn, "project", "Link target", par_number=90)
+        task = seed_task(conn, "project", "Link target", par_number=90)
 
     class FakeSession:
         loaded = False
@@ -1130,7 +1129,6 @@ async def test_merge_links_commits_with_normalized_sqlite_results(db, monkeypatc
         "app.workspace.inspect_worktree_identity",
         lambda _path: (session.branch, "a" * 40),
     )
-    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
 
     result = await _call_merge_session(sessmod, "worker", {"scope": "/s"})
 
@@ -1331,104 +1329,8 @@ async def test_execute_merge_session_passes_pinned_branch_and_head_into_repo_loc
     assert captured["expected_worker_head"] == "b" * 40
 
 
-@pytest.mark.asyncio
-@pytest.mark.parametrize("status", ["accepted", "coalesced", "not_ready"])
-async def test_merge_exposes_raw_rag_backfill_status(db, monkeypatch, status):
-    import app.routes.sessions as sessmod
-
-    session = type("Session", (), {
-        "loaded": False,
-        "status": type("Status", (), {"value": "idle"})(),
-        "worktree_path": "/wt",
-        "scope": "/s",
-        "id": f"rag-status-{status}",
-        "name": "worker",
-        "branch": "task-42/worker",
-        "base_branch": "main",
-    })()
-    _prepare_detached_merge(monkeypatch, session)
-    monkeypatch.setattr(
-        "app.workspace.merge_worktree_to_main",
-        lambda *_args, **_kwargs: {
-            "ok": True, "commits_merged": 1, "branch": session.branch,
-            "merged_commits": {},
-        },
-    )
-    scheduled = []
-
-    def fake_schedule(scope, session_name=""):
-        scheduled.append(scope)
-        return status
-
-    monkeypatch.setattr("app.rag_service.schedule_backfill", fake_schedule)
-
-    result = await sessmod.execute_merge_session(
-        session_id=session.id,
-        expected_name=session.name,
-        expected_scope=session.scope,
-        expected_branch=session.branch,
-        expected_head="b" * 40,
-        req={"scope": "/s", "target": "main"},
-    )
-
-    assert result["rag_backfill_status"] == status
-    assert scheduled == ["/s"]
 
 
-@pytest.mark.asyncio
-async def test_merge_returns_before_blocked_rag_backfill(db, monkeypatch):
-    import asyncio
-    import app.routes.sessions as sessmod
-    from app import rag_service
-
-    session = type("Session", (), {
-        "loaded": False,
-        "status": type("Status", (), {"value": "idle"})(),
-        "worktree_path": "/wt",
-        "scope": "/s",
-        "id": "rag-does-not-block",
-        "name": "worker",
-        "branch": "task-42/worker",
-        "base_branch": "main",
-    })()
-    _prepare_detached_merge(monkeypatch, session)
-    monkeypatch.setattr(
-        "app.workspace.merge_worktree_to_main",
-        lambda *_args, **_kwargs: {
-            "ok": True, "commits_merged": 1, "branch": session.branch,
-            "merged_commits": {},
-        },
-    )
-    monkeypatch.setattr(rag_service, "_RAG_ENABLED", True)
-    monkeypatch.setattr(rag_service, "_initialized", True)
-    monkeypatch.setattr(rag_service, "_backfill_tasks", {})
-    monkeypatch.setattr(rag_service, "_backfill_dirty", set())
-    started = asyncio.Event()
-    release = asyncio.Event()
-
-    async def blocked_backfill(_scope, session_name=None):
-        started.set()
-        await release.wait()
-        return {"files": 1, "logs": 0}
-
-    monkeypatch.setattr(rag_service, "backfill_scope", blocked_backfill)
-
-    result = await sessmod.execute_merge_session(
-        session_id=session.id,
-        expected_name=session.name,
-        expected_scope=session.scope,
-        expected_branch=session.branch,
-        expected_head="b" * 40,
-        req={"scope": "/s", "target": "main"},
-    )
-
-    assert result["rag_backfill_status"] == "accepted"
-    task = rag_service._backfill_tasks["/s"]
-    assert not task.done()
-    await started.wait()
-
-    release.set()
-    await task
 
 
 @pytest.mark.asyncio
@@ -1441,7 +1343,7 @@ async def test_merge_revision_change_keeps_git_success_and_skips_task_update(
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        task = tm.create_task(conn, "project", "next", par_number=43)
+        task = seed_task(conn, "project", "next", par_number=43)
     session = type("Session", (), {
         "loaded": False,
         "status": type("Status", (), {"value": "idle"})(),
@@ -1535,7 +1437,7 @@ async def test_merge_switch_failure_stays_merge_success_and_keeps_quarantine(
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        task = tm.create_task(conn, "project", "next", par_number=43)
+        task = seed_task(conn, "project", "next", par_number=43)
     session = type("Session", (), {
         "loaded": False,
         "status": type("Status", (), {"value": "idle"})(),
@@ -1584,7 +1486,7 @@ async def test_merge_switch_exception_stays_merge_success_and_keeps_quarantine(
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        task = tm.create_task(conn, "project", "next", par_number=43)
+        task = seed_task(conn, "project", "next", par_number=43)
     session = type("Session", (), {
         "loaded": False,
         "status": type("Status", (), {"value": "idle"})(),
@@ -1687,7 +1589,7 @@ async def test_merge_switch_persistence_failure_is_partial_and_keeps_task_unchan
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        task = tm.create_task(conn, "project", "next", par_number=43)
+        task = seed_task(conn, "project", "next", par_number=43)
     session = type("Session", (), {
         "loaded": False,
         "status": type("Status", (), {"value": "idle"})(),
@@ -1742,7 +1644,7 @@ async def test_merge_task_db_exception_is_explicit_without_reversing_git_success
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        tm.create_task(conn, "project", "next", par_number=43)
+        seed_task(conn, "project", "next", par_number=43)
     session = type("Session", (), {
         "loaded": False,
         "status": type("Status", (), {"value": "idle"})(),
@@ -2821,7 +2723,7 @@ async def test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup(db, mo
     from app import tm
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/s")
-        tm.create_task(conn, "project", "next", par_number=43)
+        seed_task(conn, "project", "next", par_number=43)
     loop = asyncio.get_running_loop()
     wake_attempted = threading.Event()
     wake_entered = asyncio.Event()
@@ -2849,7 +2751,6 @@ async def test_merge_and_switch_hold_lifecycle_lock_against_worker_wakeup(db, mo
 
     monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
     monkeypatch.setattr("app.workspace.switch_worktree_branch", fake_switch)
-    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
     monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
     monkeypatch.setattr(mainmod.manager, "get", lambda _session_id: session)
     monkeypatch.setattr(

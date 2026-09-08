@@ -91,12 +91,6 @@
   ]
  ],
  [
-  "/api/knowledge",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/logs/sync",
   [
    "GET"
@@ -106,12 +100,6 @@
   "/api/logs/{log_id}",
   [
    "GET"
-  ]
- ],
- [
-  "/api/memory/reindex",
-  [
-   "POST"
   ]
  ],
  [
@@ -289,11 +277,11 @@
   ]
  ],
  [
- "/api/portfolio/projects/{project_id}/members",
- [
-  "POST"
- ]
-],
+  "/api/portfolio/projects/{project_id}/members",
+  [
+   "POST"
+  ]
+ ],
  [
   "/api/portfolio/projects/{project_id}/source",
   [
@@ -319,11 +307,11 @@
   ]
  ],
  [
- "/api/portfolio/projects/{project_id}/tasks/{task_ref}",
- [
-  "DELETE"
- ]
-],
+  "/api/portfolio/projects/{project_id}/tasks/{task_ref}",
+  [
+   "DELETE"
+  ]
+ ],
  [
   "/api/portfolio/projects/{project_id}/tasks/{task_ref}/stage",
   [
@@ -644,12 +632,6 @@
  ],
  [
   "/api/tg/send_file",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/tm/repair-shadow-drift",
   [
    "POST"
   ]

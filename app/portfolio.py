@@ -547,9 +547,7 @@ def set_task_stage(
             detail = tm.api_get_task(task_ref, project=namespace)
         except (ValueError, RuntimeError) as exc:
             raise PortfolioError(409, f"canonical task resolution failed: {exc}") from exc
-        pending_stable_id = str(
-            detail.get("stable_id") or f"legacy:{namespace}:{expected_task_id}"
-        )
+        pending_stable_id = str(detail["stable_id"])
 
     with db._conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
@@ -639,7 +637,7 @@ def link_task(
         detail = tm.api_get_task(task_ref, project=task_project)
     except (ValueError, RuntimeError) as exc:
         raise PortfolioError(409, f"canonical task resolution failed: {exc}") from exc
-    stable_id = str(detail.get("stable_id") or f"legacy:{task_project}:{task_row_id}")
+    stable_id = str(detail["stable_id"])
     now = _timestamp()
     with db._conn() as conn:
         conn.execute("BEGIN IMMEDIATE")

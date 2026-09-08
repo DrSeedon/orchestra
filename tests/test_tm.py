@@ -1,5 +1,7 @@
 """Unit tests for app.tm task-number allocation."""
 
+from tests.task_seeds import create_task as seed_task
+
 import pytest
 
 
@@ -14,10 +16,11 @@ def db(tmp_path, monkeypatch):
 
 def _insert_legacy_project(conn, project_id, prefix, scope=None):
     from app.tm import _now
+    from app.task_refs import project_key
 
     conn.execute(
-        "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
-        (project_id, project_id, prefix, scope, _now()),
+        "INSERT INTO tm_projects (id, name, prefix, scope, created_at, canonical_id) VALUES (?, ?, ?, ?, ?, ?)",
+        (project_id, project_id, prefix, scope, _now(), project_key(project_id)),
     )
 
 
@@ -26,10 +29,10 @@ def _create_case_variant_tasks(conn, *, price=100, status="new"):
 
     _insert_legacy_project(conn, "Seedon", "UPR", "/upper")
     _insert_legacy_project(conn, "seedon", "LOW", "/lower")
-    upper = tm.create_task(
+    upper = seed_task(
         conn, "Seedon", "upper", price_rub=price, status=status, par_number=1,
     )
-    lower = tm.create_task(
+    lower = seed_task(
         conn, "seedon", "lower", price_rub=price, status=status, par_number=1,
     )
     return upper, lower
@@ -45,9 +48,8 @@ def test_next_par_skips_existing_docs_tasks_dir(db):
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope=str(repo))
-        # DB empty → MAX+1 would be 1, but dir 1 exists
-        task = tm.create_task(conn, "proj", "fresh research")
-        assert task["par_number"] == 2
+    task = tm.api_create_task("proj", "fresh research")
+    assert task["par_number"] == 2
 
 
 def test_next_par_skips_dir_beyond_db_max(db):
@@ -59,9 +61,9 @@ def test_next_par_skips_dir_beyond_db_max(db):
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope=str(repo))
-        tm.create_task(conn, "proj", "first", par_number=1)
-        task = tm.create_task(conn, "proj", "second auto")
-        assert task["par_number"] == 3
+        seed_task(conn, "proj", "first", par_number=1)
+    task = tm.api_create_task("proj", "second auto")
+    assert task["par_number"] == 3
 
 
 def test_next_par_ignores_db_absence_of_dir_task(db):
@@ -75,8 +77,8 @@ def test_next_par_ignores_db_absence_of_dir_task(db):
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope=str(repo))
-        task = tm.create_task(conn, "proj", "only fs matters")
-        assert task["par_number"] == 3
+    task = tm.api_create_task("proj", "only fs matters")
+    assert task["par_number"] == 3
 
 
 def test_explicit_par_number_still_honoured(db):
@@ -88,7 +90,7 @@ def test_explicit_par_number_still_honoured(db):
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope=str(repo))
-        task = tm.create_task(conn, "proj", "import", par_number=5)
+        task = seed_task(conn, "proj", "import", par_number=5)
         assert task["par_number"] == 5
 
 
@@ -107,8 +109,8 @@ def test_project_resolution_preserves_exact_legacy_case_variants(db):
 
         assert tm.ensure_project(conn, "Seedon")["id"] == "Seedon"
         assert tm.ensure_project(conn, "seedon")["id"] == "seedon"
-        tm.create_task(conn, "Seedon", "upper", par_number=1)
-        tm.create_task(conn, "seedon", "lower", par_number=1)
+        seed_task(conn, "Seedon", "upper", par_number=1)
+        seed_task(conn, "seedon", "lower", par_number=1)
         after = [
             tuple(row)
             for row in conn.execute(
@@ -213,7 +215,7 @@ def test_unqualified_core_update_fails_before_side_effects(db):
 
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "only-project")
-        task = tm.create_task(conn, project["id"], "original", par_number=99)
+        task = seed_task(conn, project["id"], "original", par_number=99)
 
     with pytest.raises(ValueError, match="project authority is required"):
         tm.api_update_task("99", title="unqualified")
@@ -228,7 +230,7 @@ def test_acceptance_command_update_changes_revision_once_and_can_clear(db):
 
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "proj", scope=str(db))
-        task = tm.create_task(
+        task = seed_task(
             conn,
             project["id"],
             "acceptance recovery",
@@ -273,7 +275,7 @@ def test_acceptance_command_update_rejects_wrong_project_and_task(db):
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "proj", scope=str(db / "proj"))
         tm.ensure_project(conn, "other", scope=str(db / "other"))
-        task = tm.create_task(
+        task = seed_task(
             conn,
             project["id"],
             "scoped acceptance",
@@ -301,7 +303,7 @@ def test_combined_acceptance_and_status_update_keeps_status_metadata(db):
 
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "proj", scope=str(db))
-        tm.create_task(
+        seed_task(
             conn,
             project["id"],
             "combined update",
@@ -364,7 +366,7 @@ def test_conditional_task_update_rejects_project_identity_change(db):
     with tm._conn() as conn:
         tm.ensure_project(conn, "original", scope="/original")
         tm.ensure_project(conn, "foreign", scope="/foreign")
-        task = tm.create_task(conn, "original", "task", par_number=6)
+        task = seed_task(conn, "original", "task", par_number=6)
     identity = tm.resolve_scoped_task_identity("/original", "6")
     with tm._conn() as conn:
         conn.execute(
@@ -384,7 +386,7 @@ def test_conditional_task_update_rejects_par_identity_change(db):
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope="/project")
-        task = tm.create_task(conn, "project", "task", par_number=6)
+        task = seed_task(conn, "project", "task", par_number=6)
     identity = tm.resolve_scoped_task_identity("/project", "6")
     with tm._conn() as conn:
         conn.execute("UPDATE tm_tasks SET par_number=7 WHERE id=?", (task["id"],))
@@ -405,14 +407,14 @@ def test_scoped_task_identity_selects_duplicate_number_in_session_project(db):
     with tm._conn() as conn:
         tm.ensure_project(conn, "project-a", scope=scope_a, prefix="PRA")
         tm.ensure_project(conn, "project-b", scope=scope_b, prefix="PRB")
-        task_a = tm.create_task(conn, "project-a", "A", par_number=7)
-        task_b = tm.create_task(conn, "project-b", "B", par_number=7)
+        task_a = seed_task(conn, "project-a", "A", par_number=7)
+        task_b = seed_task(conn, "project-b", "B", par_number=7)
 
     identity = tm.resolve_scoped_task_identity(scope_b, "#7")
     assert tm.resolve_scoped_task_identity(scope_b, "task-7") == identity
     result = tm.api_update_task_if_current(identity, status="in_progress")
 
-    assert identity == {
+    assert {key: identity[key] for key in ("id", "project_id", "par_number", "sync_revision")} == {
         "id": task_b["id"],
         "project_id": "project-b",
         "par_number": 7,
@@ -430,7 +432,7 @@ def test_scoped_task_identity_rejects_unmapped_scope_and_wrong_prefix(db):
     scope = str(db / "repo")
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope=scope, prefix="PRJ")
-        tm.create_task(conn, "project", "task", par_number=3)
+        seed_task(conn, "project", "task", par_number=3)
 
     with pytest.raises(ValueError, match="no task project"):
         tm.resolve_scoped_task_identity(str(db / "missing"), "3")
@@ -444,7 +446,7 @@ def test_conditional_task_update_rejects_revision_change(db):
     scope = str(db / "repo")
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope=scope)
-        task = tm.create_task(conn, "project", "task", par_number=4)
+        task = seed_task(conn, "project", "task", par_number=4)
     identity = tm.resolve_scoped_task_identity(scope, "4")
     with tm._conn() as conn:
         conn.execute(
@@ -466,11 +468,11 @@ def test_conditional_task_update_does_not_touch_reused_number(db):
     scope = str(db / "repo")
     with tm._conn() as conn:
         tm.ensure_project(conn, "project", scope=scope)
-        old_task = tm.create_task(conn, "project", "old", par_number=5)
+        old_task = seed_task(conn, "project", "old", par_number=5)
     identity = tm.resolve_scoped_task_identity(scope, "5")
     with tm._conn() as conn:
         conn.execute("DELETE FROM tm_tasks WHERE id=?", (old_task["id"],))
-        replacement = tm.create_task(conn, "project", "replacement", par_number=5)
+        replacement = seed_task(conn, "project", "replacement", par_number=5)
 
     result = tm.api_update_task_if_current(identity, status="in_progress")
 

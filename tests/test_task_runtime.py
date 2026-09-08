@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 import app.db as db
-from app.task_runtime import TaskRuntime
+from app.task_runtime import TaskRuntime, task_runtime_mode
 from app.task_store import TaskStore
 
 
@@ -19,7 +19,8 @@ def runtime(tmp_path, monkeypatch):
     subprocess.run(['git','-C',str(root),'config','user.email','test@example.invalid'],check=True)
     store = TaskStore(root,origin='')
     store.initialize()
-    return TaskRuntime(store,db.DB_PATH)
+    with task_runtime_mode(TaskRuntime(store, db.DB_PATH)) as runtime:
+        yield runtime
 
 
 def test_origin_numbers_share_one_sqlite_projection(runtime):
@@ -70,3 +71,13 @@ def test_shared_number_resolves_by_full_reference(runtime):
     with db._conn() as connection:
         assert tm.resolve_task_ref(connection, '1', 'local-project')['id'] == local['id']
         assert tm.resolve_task_ref(connection, 'V-1', 'local-project')['id'] == remote['id']
+
+
+def test_remote_project_is_imported_without_inventing_a_local_scope(runtime):
+    runtime.store.create('remote-project', 'Remote history', request_key='remote-project-task')
+    runtime.store.create('another-remote-project', 'More history', request_key='another-remote-task')
+    runtime.refresh()
+    with db._conn() as connection:
+        row = connection.execute("SELECT * FROM tm_projects WHERE canonical_id='remote-project'").fetchone()
+        assert row['scope'] is None
+        assert connection.execute('SELECT COUNT(*) FROM tm_tasks WHERE project_id=?', (row['id'],)).fetchone()[0] == 1

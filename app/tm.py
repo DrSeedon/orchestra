@@ -1,43 +1,27 @@
 """Task Manager — core task data operations.
 
-Takes sqlite3.Connection; callers manage transactions. External integrations are inert.
+Git owns portable task state; SQLite holds its projection and local worker bindings.
 """
 
-import copy
 import json
-import logging
 import re
 import sqlite3
-import threading
 import uuid
-from contextlib import contextmanager
-from contextvars import ContextVar
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from hashlib import sha256
-from pathlib import Path, PurePosixPath
-from typing import Iterator, TypedDict
-
-logger = logging.getLogger("tm")
+from pathlib import PurePosixPath
+from typing import TypedDict
 
 from app.acceptance import PYTEST_CONFIG_NAMES
 from app.db import _conn, task_run_receipt_finish, task_run_receipt_open
-from app.ia.task_store import (
-    IdentityConflictError,
-    ProjectionDebtError,
-    TaskStore,
-    VALID_TASK_STATUSES as VALID_STATUSES,
-    build_migration_manifest,
-    task_create_fingerprint,
-)
-from app.task_refs import new_task_prefix, task_ref as public_task_ref
+from app.task_runtime import active_runtime
+from app.task_refs import project_key
 
-_TASK_CREATE_LOCK = threading.RLock()
+VALID_STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled'})
+
+from app.task_refs import task_ref as public_task_ref
+
 _TASK_CREATE_REQUEST_KEY = re.compile(r"[A-Za-z0-9._:-]{16,128}")
-_TASK_BINDING_LOCK = threading.RLock()
 
-# TEMPORARY 2026-09-01: VPS and laptop both issued #426-#435 independently.
-_VPS_TASK_PAR_FLOOR = 500
 
 
 class TaskCreateRequestError(RuntimeError):
@@ -52,6 +36,9 @@ class TaskIdentity(TypedDict):
     project_id: str
     par_number: int
     sync_revision: int
+    ref_prefix: str
+    stable_id: str
+    task_snapshot_ref: str
 
 
 class ScopedTaskResolution(TypedDict):
@@ -173,65 +160,6 @@ def _parse_task_ref(ref: str) -> tuple[str, int]:
     raise ValueError(f"Cannot parse task ref: {ref}")
 
 
-def _task_project_scope(conn: sqlite3.Connection, project_id: str) -> str:
-    row = conn.execute(
-        "SELECT scope FROM tm_projects WHERE id = ?", (project_id,)
-    ).fetchone()
-    return str(row[0] or "") if row else ""
-
-
-def _next_available_task_number(
-    conn: sqlite3.Connection, project_id: str, candidate: int,
-) -> int:
-    """Apply repository-owned number reservations to either store's candidate."""
-    n = candidate
-    # .orchestra/tasks/<n>/ survives task deletion — never reissue a number that still has a dir
-    scope = _task_project_scope(conn, project_id)
-    if scope:
-        if scope == "/home/kesha/orchestra" and not new_task_prefix():
-            n = max(n, _VPS_TASK_PAR_FLOOR)
-        tasks_root = Path(scope) / ".orchestra" / "tasks"
-        while (tasks_root / public_task_ref({"par_number": n, "ref_prefix": new_task_prefix()})).is_dir():
-            n += 1
-    return n
-
-
-def _next_par_candidate(conn: sqlite3.Connection, project_id: str) -> int:
-    row = conn.execute(
-        "SELECT COALESCE(MAX(par_number), 0) + 1 FROM tm_tasks WHERE project_id = ?",
-        (project_id,),
-    ).fetchone()
-    return int(row[0])
-
-
-def _next_par(conn: sqlite3.Connection, project_id: str) -> int:
-    return _next_available_task_number(
-        conn, project_id, _next_par_candidate(conn, project_id),
-    )
-
-
-def _agreed_next_task_number(conn: sqlite3.Connection, project_id: str, store) -> int:
-    """Reject store divergence before shared repository reservations are applied."""
-    legacy_candidate = _next_par_candidate(conn, project_id)
-    canonical_candidate = int(
-        store.task_list(project=project_id)["next_display_number"]
-    )
-    if (
-        _task_project_scope(conn, project_id) == "/home/kesha/orchestra"
-        and canonical_candidate < _VPS_TASK_PAR_FLOOR
-        and not new_task_prefix()
-    ):
-        canonical_candidate = legacy_candidate
-    if canonical_candidate != legacy_candidate:
-        raise IdentityConflictError(
-            f"task display counter mismatch in {project_id}: "
-            f"canonical={canonical_candidate}, legacy={legacy_candidate}"
-        )
-    return _next_available_task_number(conn, project_id, canonical_candidate)
-
-
-# --- Projects ---
-
 def _generate_prefix(conn: sqlite3.Connection, project_id: str) -> str:
     """Generate a unique 3-letter prefix from project_id."""
     base = project_id.replace("-", "").replace("_", "")[:3].upper()
@@ -279,12 +207,12 @@ def ensure_project(conn: sqlite3.Connection, project_id: str, name: str = "",
     now = _now()
     pfx = prefix.upper() if prefix else _generate_prefix(conn, canonical_id)
     conn.execute(
-        "INSERT INTO tm_projects (id, name, prefix, scope, created_at) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (canonical_id, name or project_id, pfx, scope, now),
+        "INSERT INTO tm_projects (id, name, prefix, scope, created_at, canonical_id) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (canonical_id, name or project_id, pfx, scope, now, project_key(canonical_id)),
     )
     return {"id": canonical_id, "name": name or project_id, "prefix": pfx, "scope": scope,
-            "created_at": now}
+            "created_at": now, "canonical_id": project_key(canonical_id)}
 
 
 def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
@@ -347,117 +275,22 @@ def get_project_by_prefix(conn: sqlite3.Connection, prefix: str) -> dict | None:
 
 # --- Tasks ---
 
-def create_task(conn: sqlite3.Connection, project_id: str, title: str,
-                price_rub: int = 0, description: str = "", assignee: str = "",
-                status: str = "new",
-                par_number: int | None = None, priority: int = 2,
-                acceptance_command: str = "",
-                acceptance_manifest: list[str] | None = None,
-                acceptance_required: bool = False,
-                acceptance_actor: dict | None = None) -> dict:
-    if status not in VALID_STATUSES:
-        raise ValueError(f"Invalid status: {status}")
-    if price_rub < 0:
-        raise ValueError("price_rub must be >= 0")
-
-    now = _now()
-    # Номер выдаёт ОДИН владелец — `api_create_task`, который согласует его с canonical и
-    # передаёт сюда явно. Собственная выдача номера здесь и есть механизм, которым
-    # открывается новая дверь мимо canonical: legacy-счётчик уезжает вперёд, гейт
-    # `task display counter mismatch` заклинивает проект насмерть (28.08, comfy: разрыв 3 → 8
-    # за три часа, ни одной новой задачи). Fail loud вместо тихого расхождения.
-    if par_number is None:
-        if _ia_context() is not None:
-            raise RuntimeError(
-                "create_task cannot allocate a task number: call api_create_task, "
-                "which agrees the number with the canonical store first"
-            )
-        par = _next_par(conn, project_id)
-    else:
-        par = par_number
-
-    command = (acceptance_command or "").strip()
-    from app.acceptance import parse_acceptance_command
-
-    parse_acceptance_command(command)
-    manifest = _normalize_acceptance_manifest(acceptance_manifest)
-    oracle_json = "{}"
-    if acceptance_required or manifest:
-        if not command:
-            raise ValueError("required acceptance oracle has no command")
-        actor = _normalize_acceptance_actor(acceptance_actor)
-        oracle_json = _acceptance_oracle_json(
-            required=acceptance_required,
-            manifest=manifest,
-            revision=1,
-            actor=actor,
-        )
-    conn.execute(
-        """INSERT INTO tm_tasks
-           (par_number, project_id, title, description, price_rub, paid_rub,
-            status, assignee, sync_revision,
-            git_commits, created_at, updated_at, priority, acceptance_command,
-            acceptance_oracle_json, ref_prefix)
-           VALUES (?, ?, ?, ?, ?, 0, ?, ?, 0, '[]', ?, ?, ?, ?, ?, ?)""",
-        (par, project_id, title, description, price_rub,
-         status, assignee, now, now, priority, command, oracle_json, new_task_prefix()),
-    )
-    task_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
-    return {
-        "id": task_id,
-        "par_number": par,
-        "ref_prefix": new_task_prefix(),
-        "project_id": project_id,
-        "title": title,
-        "description": description,
-        "price_rub": price_rub,
-        "status": status,
-        "assignee": assignee,
-        "sync_revision": 0,
-        "priority": priority,
-        "acceptance_command": command,
-        "acceptance_oracle_json": oracle_json,
-        "created_at": now,
-        "updated_at": now,
-        "worker_session_id": None,
-        "sync_revision": 0,
-    }
-
-
 def create_task_for_scope(scope: str, title: str) -> dict:
-    """Create an unbound task in the project owning ``scope``.
-
-    Идёт тем же путём, что и `task_create` агента, и это ЕДИНСТВЕННАЯ причина, по которой
-    функция не пишет в legacy напрямую. Прямая запись была вторым владельцем нумерации: она
-    двигала legacy-счётчик, не трогая canonical, а `api_create_task` потом сверяет их и
-    отказывает НАВСЕГДА (`task display counter mismatch`). 28.08 веер из трёх детей развёл
-    счётчики на 3, и проект не мог завести ни одной задачи.
-    """
+    """Create through the Git owner using the scope's registered project."""
     with _conn() as conn:
         project = get_project_by_scope(conn, scope.rstrip("/"))
         if not project:
             raise ValueError(f"scope '{scope}' has no task project")
         project_id = project["id"]
     created = api_create_task(project_id, title, status="new")
-    # Вызывающий (спавн, app/routes/sessions.py) строит имя ветки из `par_number`, а
-    # `api_create_task` отдаёт номер как строковый `par`. Отдаём оба, чтобы форма ответа
-    # осталась прежней и ветка не превратилась в `task-None/<worker>`.
-    if "par_number" not in created:
-        created = {**created, "par_number": _parse_task_ref(created["par"])[1], "ref_prefix": "V" if created["par"].startswith("V-") else ""}
     return created
 
 
 def discard_unbound_task(task_id: int) -> bool:
-    """Retire a task allocated for a spawn that never published its worker.
-
-    Отменяем, а не удаляем: canonical-хранилище удаления задач не поддерживает, поэтому
-    снос одной legacy-строки возвращал legacy-счётчик назад при неподвижном canonical, и
-    гейт `task display counter mismatch` заклинивал проект насмерть. Отмена идёт через
-    того же владельца, что и остальные переходы статуса, — он пишет оба хранилища.
-    """
+    """Cancel an unpublished allocation without reusing its task number."""
     with _conn() as conn:
         task = conn.execute(
-            "SELECT id, project_id, par_number, sync_revision FROM tm_tasks "
+            "SELECT * FROM tm_tasks "
             "WHERE id=? AND worker_session_id IS NULL AND status='new' "
             "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations WHERE task_id=tm_tasks.id)",
             (task_id,),
@@ -468,66 +301,10 @@ def discard_unbound_task(task_id: int) -> bool:
         id=task["id"],
         project_id=task["project_id"],
         par_number=task["par_number"],
-        sync_revision=task["sync_revision"],
+        sync_revision=task["sync_revision"], ref_prefix=task["ref_prefix"],
+        stable_id=task["stable_id"], task_snapshot_ref=_task_run_refs(dict(task))[1],
     )
     return bool(api_update_task_if_current(identity, status="cancelled").get("ok"))
-
-
-def _discard_shadow_created_task(legacy: dict) -> bool:
-    """Remove only the untouched legacy half of a failed shadow create."""
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        cur = conn.execute(
-            "DELETE FROM tm_tasks WHERE id=? AND project_id=? AND par_number=? "
-            "AND sync_revision=0 AND worker_session_id IS NULL AND git_commits='[]' "
-            "AND NOT EXISTS (SELECT 1 FROM tm_task_reservations "
-            "WHERE task_id=tm_tasks.id)",
-            (int(legacy["id"]), str(legacy["project"]), _parse_task_ref(legacy["par"])[1]),
-        )
-        conn.commit()
-        return cur.rowcount == 1
-
-
-def _compensate_failed_task_create(store, legacy: dict) -> None:
-    """Undo the legacy half of a failed create ONLY when canonical proves it wrote nothing.
-
-    Canonical материализует состояние ДО перестройки проекции, поэтому исключение из
-    `task_create` не доказывает отсутствие задачи. Снос legacy-строки вслепую двигает
-    legacy-счётчик назад при уехавшем canonical — это и есть `task display counter
-    mismatch`, который хоронит нумерацию проекта насмерть.
-    """
-    candidate_absent = False
-    try:
-        store.task_get(str(legacy["par"]), project=legacy["project"])
-    except ValueError as probe_error:
-        candidate_absent = str(probe_error) == f"{legacy['par']} not found"
-        if not candidate_absent:
-            logger.warning(
-                "task create candidate probe was ambiguous for %s#%s: %s: %s",
-                legacy["project"], legacy["par"],
-                type(probe_error).__name__, probe_error,
-            )
-    except Exception as probe_error:
-        logger.warning(
-            "task create candidate probe failed for %s#%s: %s: %s",
-            legacy["project"], legacy["par"],
-            type(probe_error).__name__, probe_error,
-        )
-    if not candidate_absent:
-        return
-    try:
-        discarded = _discard_shadow_created_task(legacy)
-    except Exception as cleanup_error:
-        logger.warning(
-            "task create compensation failed: %s: %s",
-            type(cleanup_error).__name__, cleanup_error,
-        )
-        return
-    if not discarded:
-        logger.warning(
-            "task create compensation refused for %s#%s",
-            legacy["project"], legacy["par"],
-        )
 
 
 def update_task(conn: sqlite3.Connection, task_id: int, *,
@@ -738,25 +515,27 @@ def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str) -> dic
 
 def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
     """Resolve one task through the session's authoritative project scope."""
-    normalized_scope = scope.rstrip("/")
-    if not normalized_scope:
-        raise ValueError("session scope is required for task assignment")
-    with _conn() as conn:
-        project = get_project_by_scope(conn, normalized_scope)
-        if not project:
-            raise ValueError(f"scope '{normalized_scope}' has no task project")
-        task = resolve_task_ref(conn, ref, project['id'])
-        if not task:
-            raise ValueError(
-                f"task '{ref}' not found in session project {project['id']}"
+    with active_runtime().operation():
+        normalized_scope = scope.rstrip("/")
+        if not normalized_scope:
+            raise ValueError("session scope is required for task assignment")
+        with _conn() as conn:
+            project = get_project_by_scope(conn, normalized_scope)
+            if not project:
+                raise ValueError(f"scope '{normalized_scope}' has no task project")
+            task = resolve_task_ref(conn, ref, project['id'])
+            if not task:
+                raise ValueError(
+                    f"task '{ref}' not found in session project {project['id']}"
+                )
+            return TaskIdentity(
+                id=task["id"],
+                project_id=task["project_id"],
+                par_number=task["par_number"],
+                sync_revision=task["sync_revision"],
+                ref_prefix=task["ref_prefix"], stable_id=task["stable_id"],
+                task_snapshot_ref=_task_run_refs(task)[1],
             )
-        return TaskIdentity(
-            id=task["id"],
-            project_id=task["project_id"],
-            par_number=task["par_number"],
-            sync_revision=task["sync_revision"],
-            **({"ref_prefix": task["ref_prefix"]} if task.get("ref_prefix") else {}),
-        )
 
 
 def resolve_scoped_task_identities(
@@ -777,52 +556,54 @@ def resolve_scoped_task_identities(
     Замер 06.09 (comfy-image-pipeline): коммит `#110: …` в проекте с нумерацией от #3 валил
     ВСЮ операцию до git-шага с `NO_COMMITS_MERGED`, блокируя работу трёх воркеров.
     """
-    normalized_scope = scope.rstrip("/")
-    if not normalized_scope:
-        raise ValueError("session scope is required for task assignment")
-    with _conn() as conn:
-        project = get_project_by_scope(conn, normalized_scope)
-        if not project:
-            raise ValueError(f"scope '{normalized_scope}' has no task project")
-        tasks: list[TaskIdentity] = []
-        canonical_refs: list[str] = []
-        unresolved: list[str] = []
-        seen_task_ids: set[int] = set()
-        for index, ref in enumerate(refs):
-            task = resolve_task_ref(conn, ref, project["id"])
-            if not task and skip_unknown:
-                unresolved.append(str(ref))
-                canonical_refs.append(str(ref).lstrip("#"))
-                continue
-            if not task:
-                raise ValueError(
-                    f"task '{ref}' not found in session project {project['id']}"
-                )
-            if (
-                index == 0
-                and bound_session_id
-                and task.get("worker_session_id") != bound_session_id
-            ):
-                raise ValueError(
-                    f"task '{ref}' is not bound to session '{bound_session_id}'"
-                )
-            if task["id"] in seen_task_ids:
-                continue
-            seen_task_ids.add(task["id"])
-            tasks.append(TaskIdentity(
-                id=task["id"],
-                project_id=task["project_id"],
-                par_number=task["par_number"],
-                sync_revision=task["sync_revision"],
-                **({"ref_prefix": task["ref_prefix"]} if task.get("ref_prefix") else {}),
-            ))
-            canonical_refs.append(public_task_ref(task))
-        return ScopedTaskResolution(
-            project_id=project["id"],
-            tasks=tasks,
-            canonical_refs=canonical_refs,
-            unresolved_refs=unresolved,
-        )
+    with active_runtime().operation():
+        normalized_scope = scope.rstrip("/")
+        if not normalized_scope:
+            raise ValueError("session scope is required for task assignment")
+        with _conn() as conn:
+            project = get_project_by_scope(conn, normalized_scope)
+            if not project:
+                raise ValueError(f"scope '{normalized_scope}' has no task project")
+            tasks: list[TaskIdentity] = []
+            canonical_refs: list[str] = []
+            unresolved: list[str] = []
+            seen_task_ids: set[int] = set()
+            for index, ref in enumerate(refs):
+                task = resolve_task_ref(conn, ref, project["id"])
+                if not task and skip_unknown:
+                    unresolved.append(str(ref))
+                    canonical_refs.append(str(ref).lstrip("#"))
+                    continue
+                if not task:
+                    raise ValueError(
+                        f"task '{ref}' not found in session project {project['id']}"
+                    )
+                if (
+                    index == 0
+                    and bound_session_id
+                    and task.get("worker_session_id") != bound_session_id
+                ):
+                    raise ValueError(
+                        f"task '{ref}' is not bound to session '{bound_session_id}'"
+                    )
+                if task["id"] in seen_task_ids:
+                    continue
+                seen_task_ids.add(task["id"])
+                tasks.append(TaskIdentity(
+                    id=task["id"],
+                    project_id=task["project_id"],
+                    par_number=task["par_number"],
+                    sync_revision=task["sync_revision"],
+                    ref_prefix=task["ref_prefix"], stable_id=task["stable_id"],
+                task_snapshot_ref=_task_run_refs(task)[1],
+                ))
+                canonical_refs.append(public_task_ref(task))
+            return ScopedTaskResolution(
+                project_id=project["id"],
+                tasks=tasks,
+                canonical_refs=canonical_refs,
+                unresolved_refs=unresolved,
+            )
 
 
 def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -> dict:
@@ -886,6 +667,8 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
                 )
                 if updated.rowcount != 1:
                     raise ValueError("session binding compare-and-swap failed")
+            active_runtime().publish(conn, task['id'])
+            task = get_task_by_id(conn, task['id'])
             _open_task_run_for_task(conn, task, session_id)
             bound = get_task_by_id(conn, task["id"])
             conn.commit()
@@ -896,7 +679,7 @@ def _bind_task_to_session_unlocked(scope: str, session_id: str, task_ref: str) -
 
 
 def bind_task_to_session(scope: str, session_id: str, task_ref: str) -> dict:
-    with _TASK_BINDING_LOCK:
+    with active_runtime().operation():
         return _bind_task_to_session_unlocked(scope, session_id, task_ref)
 
 
@@ -912,22 +695,9 @@ def _live_bindings(
 
 
 def _task_run_refs(task: dict) -> tuple[str, str]:
-    context = _ia_context()
-    if context is None or context.store is None:
-        return "", ""
-    try:
-        detail = context.store.task_get(
-            str(task["par_number"]), project=task["project_id"],
-        )
-    except (KeyError, ValueError):
-        return "", ""
-    stable_id = str(detail.get("stable_id") or "")
-    canonical_head = str(detail.get("canonical_head") or "")
-    if not stable_id or not canonical_head:
-        return stable_id, ""
-    return stable_id, (
-        f"orch://project/{task['project_id']}/tasks/{stable_id}/state@{canonical_head}"
-    )
+    stable_id = str(task.get('stable_id') or '')
+    head = str(task.get('task_commit') or '')
+    return stable_id, f'git-task:{stable_id}@{head}' if stable_id and head else ''
 
 
 def _open_task_run_for_task(
@@ -1007,62 +777,63 @@ def prepare_merge_finalization(
     The payload is frozen here on purpose: after Git the session has already moved, so
     re-deriving the intent from it would describe the new state, not the merged one.
     """
-    if outcome not in {"continue", "complete"}:
-        raise ValueError(f"unknown task outcome '{outcome}'")
-    reservation_id = operation_id or f"session:{session_id}"
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            if outcome == "complete":
-                others = _live_bindings(conn, scope, public_task_ref(task), session_id)
-                if others:
-                    raise ValueError(
-                        f"task #{task['par_number']} still has live workers "
-                        f"({', '.join(sorted(others))}) — complete is refused"
-                    )
-                _reserve_task(conn, task["id"], reservation_id, "complete", session_id)
-            if next_task:
-                _reserve_task(conn, next_task["id"], reservation_id, "assign", session_id)
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-    if next_task:
-        terminal_session = {"task_id": public_task_ref(next_task), "needs_switch": False}
-    elif outcome == "continue":
-        terminal_session = {"task_id": public_task_ref(task), "needs_switch": False}
-    else:
-        terminal_session = {"task_id": "", "needs_switch": True}
-    return {
-        "stage": "PREPARED",
-        "outcome": outcome,
-        "operation_id": operation_id,
-        "reservation_id": reservation_id,
-        "session_id": session_id,
-        "scope": scope,
-        "project_id": project_id,
-        "task": {
-            "project_id": task["project_id"],
-            "task_id": task["id"],
-            "par_number": task["par_number"],
-        },
-        "next_task": (
-            {
-                "project_id": next_task["project_id"],
-                "task_id": next_task["id"],
-                "par_number": next_task["par_number"],
-            }
-            if next_task else None
-        ),
-        "candidate_refs": [],
-        "terminal_session": terminal_session,
-        "target_branch": "",
-        "target_before": "",
-        "target_after": "",
-        "expected_tree": "",
-        "worker_head": "",
-        "commits": {},
-    }
+    with active_runtime().operation():
+        if outcome not in {"continue", "complete"}:
+            raise ValueError(f"unknown task outcome '{outcome}'")
+        reservation_id = operation_id or f"session:{session_id}"
+        with _conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                if outcome == "complete":
+                    others = _live_bindings(conn, scope, public_task_ref(task), session_id)
+                    if others:
+                        raise ValueError(
+                            f"task #{task['par_number']} still has live workers "
+                            f"({', '.join(sorted(others))}) — complete is refused"
+                        )
+                    _reserve_task(conn, task["id"], reservation_id, "complete", session_id)
+                if next_task:
+                    _reserve_task(conn, next_task["id"], reservation_id, "assign", session_id)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
+        if next_task:
+            terminal_session = {"task_id": public_task_ref(next_task), "needs_switch": False}
+        elif outcome == "continue":
+            terminal_session = {"task_id": public_task_ref(task), "needs_switch": False}
+        else:
+            terminal_session = {"task_id": "", "needs_switch": True}
+        return {
+            "stage": "PREPARED",
+            "outcome": outcome,
+            "operation_id": operation_id,
+            "reservation_id": reservation_id,
+            "session_id": session_id,
+            "scope": scope,
+            "project_id": project_id,
+            "task": {
+                "project_id": task["project_id"],
+                "task_id": task["id"],
+                "par_number": task["par_number"],
+            },
+            "next_task": (
+                {
+                    "project_id": next_task["project_id"],
+                    "task_id": next_task["id"],
+                    "par_number": next_task["par_number"],
+                }
+                if next_task else None
+            ),
+            "candidate_refs": [],
+            "terminal_session": terminal_session,
+            "target_branch": "",
+            "target_before": "",
+            "target_after": "",
+            "expected_tree": "",
+            "worker_head": "",
+            "commits": {},
+        }
 
 
 def _reserve_task(
@@ -1096,313 +867,19 @@ def release_merge_finalization(payload: dict) -> None:
             )
 
 
-def _repair_snapshot(legacy: dict, canonical: dict) -> dict:
-    canonical_project = canonical.get("project", canonical.get("project_id"))
-    canonical_par = canonical.get("par", canonical.get("display_number"))
-    canonical_state = {
-        "status": canonical.get("status"),
-        "completed_at": canonical.get("completed_at"),
-    }
-    legacy_state = {
-        "status": legacy.get("status"),
-        "completed_at": legacy.get("completed_at"),
-    }
-    mismatches = {
-        field: {"legacy": legacy_state[field], "canonical": canonical_state[field]}
-        for field in ("status",)
-        if legacy_state[field] != canonical_state[field]
-    }
-    if not canonical_state["completed_at"]:
-        mismatches["completed_at"] = {
-            "legacy": legacy_state["completed_at"],
-            "canonical": None,
-        }
-    if (
-        str(canonical_project) != str(legacy["project_id"])
-        or int(canonical_par) != int(legacy["par_number"])
-    ):
-        raise ValueError(
-            "repair reader identity mismatch for "
-            f"project '{legacy['project_id']}' task #{legacy['par_number']}"
-        )
-    return {
-        "needs_repair": bool(mismatches),
-        "projection_debt": {"mismatches": mismatches} if mismatches else {},
-        "legacy": legacy_state,
-        "canonical": canonical_state,
-    }
-
-
-def _canonical_state_snapshot(store):
-    raw_store = getattr(store, "_store", store)
-    if not all(hasattr(raw_store, name) for name in ("_states", "_write_states")):
-        return None
-    states = copy.deepcopy(raw_store._states())
-    return raw_store, states, raw_store.canonical_head
-
-
-def _restore_canonical_state(snapshot) -> None:
-    if snapshot is None:
-        return
-    raw_store, states, head = snapshot
-    raw_store._write_states(states, head)
-
-
-def _canonical_task_details_by_identity(store):
-    raw_store = getattr(store, "_store", store)
-    states_reader = getattr(raw_store, "_states", None)
-    facade_detail = getattr(raw_store, "_facade_detail", None)
-    if not callable(states_reader) or not callable(facade_detail):
-        return None
-    canonical_to_legacy = getattr(store, "_canonical_to_legacy", {})
-    details = {}
-    for state in states_reader().values():
-        canonical_project = str(state["project_id"])
-        legacy_project = str(canonical_to_legacy.get(canonical_project, canonical_project))
-        detail = dict(facade_detail(state))
-        detail["project"] = legacy_project
-        detail["_canonical_project_id"] = canonical_project
-        key = (legacy_project, int(state["display_number"]))
-        if key in details:
-            previous = details[key]["_canonical_project_id"]
-            raise ValueError(
-                "canonical projects "
-                f"'{previous}' and '{canonical_project}' both map to "
-                f"legacy project '{legacy_project}' task #{key[1]}"
-            )
-        details[key] = detail
-    return details
-
-
-def repair_shadow_task_drift(
-    store,
-    *,
-    expected_refs: list[dict],
-) -> dict:
-    with _TASK_BINDING_LOCK:
-        return _repair_shadow_task_drift_unlocked(
-            store,
-            expected_refs=expected_refs,
-        )
-
-
-def _repair_shadow_task_drift_unlocked(
-    store,
-    *,
-    expected_refs: list[dict],
-) -> dict:
-    """Repair one operator-approved, freshly recomputed shadow-drift set.
-
-    The caller must provide the runtime-owned store. The store is deliberately not
-    opened here, preventing a second owner of its Git lock.
-    """
-    if not expected_refs:
-        raise ValueError("repair list is empty")
-    expected: dict[tuple[str, int], dict] = {}
-    for raw in expected_refs:
-        if not isinstance(raw, dict):
-            raise ValueError("repair list contains an invalid task reference")
-        project_id = str(raw.get("project_id") or "")
-        raw_par_number = raw.get("par_number")
-        if (
-            isinstance(raw_par_number, bool)
-            or not isinstance(raw_par_number, int)
-            or raw_par_number <= 0
-        ):
-            raise ValueError("repair list contains an invalid task reference")
-        par_number = raw_par_number
-        if not project_id:
-            raise ValueError("repair list contains an invalid task reference")
-        key = (project_id, par_number)
-        if key in expected:
-            raise ValueError(f"repair list contains duplicate task {project_id}#{par_number}")
-        expected[key] = {"project_id": project_id, "par_number": par_number}
-
-    with _conn() as conn:
-        rows = conn.execute(
-            "SELECT t.id, t.project_id, t.par_number, t.status, t.completed_at, "
-            "t.sync_revision FROM tm_tasks t WHERE t.status='done' "
-            "ORDER BY t.project_id, t.par_number"
-        ).fetchall()
-    try:
-        canonical_details = _canonical_task_details_by_identity(store)
-    except Exception as error:
-        details = f"{type(error).__name__}: {error}"
-        errors = [
-            {
-                "ref": ref,
-                "error": details,
-                "before": {"needs_repair": True, "projection_debt": {}},
-                "after": {"needs_repair": True, "projection_debt": {}},
-            }
-            for ref in expected.values()
-        ]
-        return {
-            "ok": False,
-            "changed": 0,
-            "idempotent": False,
-            "items": [],
-            "errors": errors,
-            "reason": "fresh scan failed; no records were mutated",
-        }
-    fresh: dict[tuple[str, int], dict] = {}
-    states: dict[tuple[str, int], tuple[dict, dict]] = {}
-    scan_errors = []
-    for row in rows:
-        legacy = dict(row)
-        key = (legacy["project_id"], int(legacy["par_number"]))
-        if key not in expected:
-            continue
-        try:
-            if canonical_details is None:
-                canonical = store.task_get(
-                    str(legacy["par_number"]), project=legacy["project_id"]
-                )
-            else:
-                canonical = canonical_details.get(key)
-                if canonical is None:
-                    if key not in expected:
-                        continue
-                    canonical_projects = sorted({
-                        str(detail.get("_canonical_project_id") or detail.get("project"))
-                        for (project, number), detail in canonical_details.items()
-                        if number == key[1]
-                    })
-                    suffix = (
-                        "; canonical project ids: " + ", ".join(canonical_projects)
-                        if canonical_projects else ""
-                    )
-                    raise ValueError(
-                        f"{legacy['par_number']} not found in project {legacy['project_id']}"
-                        f"{suffix}"
-                    )
-            snapshot = _repair_snapshot(legacy, canonical)
-        except Exception as error:
-            scan_errors.append({
-                "ref": {"project_id": key[0], "par_number": key[1]},
-                "error": f"{type(error).__name__}: {error}",
-                "before": {"needs_repair": True, "projection_debt": {}},
-                "after": {"needs_repair": True, "projection_debt": {}},
-            })
-            continue
-        states[key] = (legacy, snapshot)
-        if snapshot["needs_repair"]:
-            fresh[key] = expected.get(key, {"project_id": key[0], "par_number": key[1]})
-
-    if scan_errors:
-        return {
-            "ok": False,
-            "changed": 0,
-            "idempotent": False,
-            "items": [],
-            "errors": scan_errors,
-            "reason": "fresh scan failed; no records were mutated",
-        }
-
-    if not fresh:
-        if set(expected).issubset(states) and all(
-            not states[key][1]["needs_repair"] for key in expected
-        ):
-            return {"ok": True, "changed": 0, "idempotent": True, "items": []}
-        if not set(expected).issubset(states):
-            raise ValueError(
-                "repair drift list changed: "
-                f"expected={sorted(expected)} fresh=[]"
-            )
-        raise ValueError("fresh repair drift list is empty")
-    if set(fresh) != set(expected):
-        raise ValueError(
-            "repair drift list changed: "
-            f"expected={sorted(expected)} fresh={sorted(fresh)}"
-        )
-
-    items = []
-    errors = []
-    changed = 0
-    for key in sorted(fresh):
-        legacy, before = states[key]
-        ref = expected[key]
-        canonical_state_before = None
-        try:
-            canonical_state_before = _canonical_state_snapshot(store)
-            store.task_update(
-                str(key[1]),
-                project=key[0],
-                status="done",
-                completed_at=legacy.get("completed_at"),
-            )
-            canonical = store.task_get(str(key[1]), project=key[0])
-            with _conn() as conn:
-                repaired_legacy = dict(conn.execute(
-                    "SELECT project_id, par_number, status, completed_at, sync_revision "
-                    "FROM tm_tasks WHERE id=?", (legacy["id"],)
-                ).fetchone())
-            after = _repair_snapshot(repaired_legacy, canonical)
-            item = {"ref": ref, "before": before, "after": after}
-            if after["needs_repair"]:
-                errors.append({
-                    "ref": ref,
-                    "error": "post-repair verification failed",
-                    "state": "committed_unknown",
-                    "before": before,
-                    "after": after,
-                })
-                continue
-            changed += 1
-            items.append(item)
-        except Exception as error:
-            restore_error = (
-                "canonical rollback unavailable"
-                if canonical_state_before is None else None
-            )
-            try:
-                _restore_canonical_state(canonical_state_before)
-            except Exception as rollback_error:
-                restore_error = f"{type(rollback_error).__name__}: {rollback_error}"
-            try:
-                with _conn() as conn:
-                    current_legacy = dict(conn.execute(
-                        "SELECT project_id, par_number, status, completed_at, sync_revision "
-                        "FROM tm_tasks WHERE id=?", (legacy["id"],)
-                    ).fetchone())
-                current_canonical = store.task_get(str(key[1]), project=key[0])
-                after = _repair_snapshot(current_legacy, current_canonical)
-            except Exception as snapshot_error:
-                after = {
-                    "needs_repair": True,
-                    "projection_debt": {
-                        "error": f"{type(snapshot_error).__name__}: {snapshot_error}"
-                    },
-                }
-            errors.append({
-                "ref": ref,
-                "error": f"{type(error).__name__}: {error}",
-                "state": "rolled_back" if restore_error is None else "committed_unknown",
-                "before": before,
-                "after": after,
-            })
-            if restore_error is not None:
-                errors[-1]["rollback_error"] = restore_error
-    return {
-        "ok": not errors,
-        "changed": changed,
-        "idempotent": False,
-        "items": items,
-        "errors": errors,
-    }
-
-
 def _finalization_task_identity(task_id: int) -> TaskIdentity:
-    with _conn() as conn:
-        task = get_task_by_id(conn, task_id)
-    if not task:
-        raise ValueError(f"task {task_id} disappeared before finalization")
-    return {
-        "id": task["id"],
-        "project_id": task["project_id"],
-        "par_number": task["par_number"],
-        "sync_revision": task["sync_revision"],
-    }
+    with active_runtime().operation():
+        with _conn() as conn:
+            task = get_task_by_id(conn, task_id)
+        if not task:
+            raise ValueError(f"task {task_id} disappeared before finalization")
+        return {
+            "id": task["id"],
+            "project_id": task["project_id"],
+            "par_number": task["par_number"],
+            "sync_revision": task["sync_revision"], "ref_prefix": task["ref_prefix"],
+            "stable_id": task["stable_id"], "task_snapshot_ref": _task_run_refs(task)[1],
+        }
 
 
 def _apply_finalization_task_update(
@@ -1418,35 +895,15 @@ def _apply_finalization_task_update(
             identity,
             status=status,
             worker_session_id=worker_session_id,
-            _canonical_first=True,
         )
     except Exception as error:
         detail = f"{type(error).__name__}: {error}"
         payload["task_status"] = {"ok": False, "error": detail}
         raise RuntimeError(f"task finalization failed: {detail}") from error
-    debt = result.get("projection_debt") or {}
-    mismatches = debt.get("mismatches") or {}
-    replay_match = (
-        result.get("shadow_match") is False
-        and mismatches
-        and set(mismatches) <= {"updated", "sync_revision"}
-        and result.get("new_status") == status
-    )
-    if not result.get("ok") or (result.get("shadow_match") is False and not replay_match):
-        if mismatches:
-            detail = "; ".join(
-                f"{field}: canonical={values.get('canonical')!r}, "
-                f"legacy={values.get('legacy')!r}"
-                for field, values in mismatches.items()
-            )
-        else:
-            detail = str(debt.get("message") or result.get("error") or "task update failed")
-        payload["task_status"] = {
-            "ok": False,
-            "error": detail,
-            "result": result,
-        }
-        raise RuntimeError(f"canonical task finalization failed: {detail}")
+    if not result.get('ok'):
+        detail = str(result.get('error') or 'task update failed')
+        payload['task_status'] = {'ok': False, 'error': detail, 'result': result}
+        raise RuntimeError(f'task finalization failed: {detail}')
     payload["task_status"] = {"ok": True, "result": result}
     return result
 
@@ -1524,7 +981,7 @@ def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> N
     `in_progress` — blind requeueing would abandon work that is still running.
     """
     rows = conn.execute(
-        "SELECT t.id, t.par_number, t.status, p.scope FROM tm_tasks t "
+        "SELECT t.*, p.scope FROM tm_tasks t "
         "JOIN tm_projects p ON p.id = t.project_id WHERE t.worker_session_id = ?",
         (session_id,),
     ).fetchall()
@@ -1574,10 +1031,11 @@ def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> N
             "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
             (status, now, row["id"]),
         )
+        active_runtime().publish(conn, row['id'])
 
 
 def format_task_ref(conn: sqlite3.Connection, task: dict) -> str:
-    """Format task as plain number string."""
+    """Format the persisted task namespace and number."""
     return public_task_ref(task)
 
 
@@ -1611,18 +1069,21 @@ def _link_commits_to_task(
 
 
 def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) -> dict:
-    """Link one commit group while preserving the legacy stable result DTO."""
+    """Publish one commit group and update its local task projection."""
     if not project_id:
         raise ValueError("project authority is required for commit linking")
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            result = _link_commits_to_task(conn, task_ref, commits, project_id)
-            conn.commit()
-            return result
-        except Exception:
-            conn.rollback()
-            raise
+    with active_runtime().operation():
+        with _conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                result = _link_commits_to_task(conn, task_ref, commits, project_id)
+                if result.get('added'):
+                    active_runtime().publish(conn, result['task_id'])
+                conn.commit()
+                return result
+            except Exception:
+                conn.rollback()
+                raise
 
 
 
@@ -1660,72 +1121,36 @@ def list_tasks(conn: sqlite3.Connection, project_id: str = "",
 # --- High-level API for routes/MCP ---
 
 def api_create_task(project_id: str, title: str, price: int = 0,
-                    description: str = "", assignee: str = "",
-                    status: str = "new", scope: str = "",
-                    priority: int = 2, acceptance_command: str = "",
+                    description: str = '', assignee: str = '', status: str = 'new',
+                    scope: str = '', priority: int = 2, acceptance_command: str = '',
                     acceptance_manifest: list[str] | None = None,
-                    acceptance_required: bool = False,
-                    acceptance_actor: dict | None = None,
-                    _canonical_par_number: int | None = None) -> dict:
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            project = None
-            if project_id:
-                project = resolve_project_selector(conn, project_id)
-            elif scope:
-                project = _project_for_session_scope(conn, scope)
-
-            if not project or not str(project.get("scope") or "").strip():
-                allowed = sorted(
-                    row["scope"]
-                    for row in conn.execute(
-                        "SELECT scope FROM tm_projects "
-                        "WHERE NULLIF(TRIM(scope), '') IS NOT NULL"
-                    ).fetchall()
-                )
-                requested = project_id or scope
-                allowed_text = ", ".join(allowed) or "none"
-                raise ValueError(
-                    f"project '{requested}' is not registered; "
-                    f"allowed project scopes: {allowed_text}"
-                )
-
-            resolved_project_id = project["id"]
-            legacy_next = _next_par(conn, resolved_project_id)
-            if (
-                _canonical_par_number is not None
-                and legacy_next != _canonical_par_number
-            ):
-                raise IdentityConflictError(
-                    f"task display counter mismatch in {resolved_project_id}: "
-                    f"canonical={_canonical_par_number}, legacy={legacy_next}"
-                )
-            task = create_task(
-                conn, resolved_project_id, title,
-                price_rub=price,
-                description=description,
-                assignee=assignee,
-                status=status,
-                priority=priority,
-                acceptance_command=acceptance_command,
-                acceptance_manifest=acceptance_manifest,
-                acceptance_required=acceptance_required,
-                acceptance_actor=acceptance_actor,
-                par_number=_canonical_par_number,
-            )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-    return {
-        "par": public_task_ref(task),
-        "id": task["id"],
-        "title": task["title"],
-        "project": resolved_project_id,
-        "price_rub": task["price_rub"],
-        "status": task["status"],
-    }
+                    acceptance_required: bool = False, acceptance_actor: dict | None = None,
+                    request_key: str = '') -> dict:
+    from app.acceptance import parse_acceptance_command
+    request_key = normalize_task_create_request_key(request_key)
+    if status not in VALID_STATUSES:
+        raise ValueError(f'Invalid status: {status}')
+    command = (acceptance_command or '').strip()
+    parse_acceptance_command(command)
+    manifest = _normalize_acceptance_manifest(acceptance_manifest)
+    acceptance = {'command': command, 'manifest_paths': manifest, 'required': acceptance_required}
+    if acceptance_required or manifest:
+        if not command:
+            raise ValueError('required acceptance oracle has no command')
+        acceptance.update(json.loads(_acceptance_oracle_json(
+            required=acceptance_required, manifest=manifest, revision=1,
+            actor=_normalize_acceptance_actor(acceptance_actor))))
+    runtime = active_runtime()
+    with runtime.operation():
+        resolved = _resolve_task_create_project(project_id, scope)
+        with _conn() as conn:
+            project = resolve_project_id(conn, resolved)
+        task = runtime.create(project, title, request_key=request_key, description=description,
+            status=status, assignee=assignee, priority=priority, price_rub=price, acceptance=acceptance)
+        return {'par': public_task_ref(task), 'par_number': task['par_number'],
+                'ref_prefix': task['ref_prefix'], 'id': task['id'], 'stable_id': task['stable_id'],
+                'title': task['title'], 'project': task['project_id'], 'price_rub': task['price_rub'],
+                'status': task['status'], 'request_key': request_key}
 
 
 def api_update_task(par: str, title: str | None = None,
@@ -1739,55 +1164,57 @@ def api_update_task(par: str, title: str | None = None,
                     acceptance_manifest: list[str] | None = None,
                     acceptance_required: bool | None = None,
                     acceptance_actor: dict | None = None) -> dict:
-    task_id = None
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            task = resolve_task_ref(conn, par, project)
-            if not task:
-                raise ValueError(f"{par} not found")
-            task_id = task["id"]
+    with active_runtime().operation():
+        task_id = None
+        with _conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                task = resolve_task_ref(conn, par, project)
+                if not task:
+                    raise ValueError(f"{par} not found")
+                task_id = task["id"]
 
-            price_rub = price if price is not None else None
-            result = update_task(
-                conn, task_id,
-                title=title, description=description,
-                price_rub=price_rub, status=status,
-                assignee=assignee, priority=priority,
-                acceptance_command=acceptance_command,
-                acceptance_manifest=acceptance_manifest,
-                acceptance_required=acceptance_required,
-                acceptance_actor=acceptance_actor,
-            )
-            if status == "cancelled" and task.get("worker_session_id"):
-                _finish_task_run_for_task(
-                    conn,
-                    task,
-                    str(task["worker_session_id"]),
-                    status="interrupted",
-                    failure_code="task_cancelled",
+                price_rub = price if price is not None else None
+                result = update_task(
+                    conn, task_id,
+                    title=title, description=description,
+                    price_rub=price_rub, status=status,
+                    assignee=assignee, priority=priority,
+                    acceptance_command=acceptance_command,
+                    acceptance_manifest=acceptance_manifest,
+                    acceptance_required=acceptance_required,
+                    acceptance_actor=acceptance_actor,
                 )
+                if status == "cancelled" and task.get("worker_session_id"):
+                    _finish_task_run_for_task(
+                        conn,
+                        task,
+                        str(task["worker_session_id"]),
+                        status="interrupted",
+                        failure_code="task_cancelled",
+                    )
 
-            updated = get_task_by_id(conn, task_id)
-            task_ref = format_task_ref(conn, updated)
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+                active_runtime().publish(conn, task_id)
+                updated = get_task_by_id(conn, task_id)
+                task_ref = format_task_ref(conn, updated)
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
-    response = {
-        "par": task_ref,
-        "project": updated["project_id"],
-        "updated": result["changed"],
-    }
-    if result["changed"] in (["acceptance_command"], ["acceptance_oracle"]):
-        return response
-    return {
-        **response,
-        "old_status": result.get("old_status", updated["status"]),
-        "new_status": updated["status"],
-        "price_rub": updated["price_rub"],
-    }
+        response = {
+            "par": task_ref,
+            "project": updated["project_id"],
+            "updated": result["changed"],
+        }
+        if result["changed"] in (["acceptance_command"], ["acceptance_oracle"]):
+            return response
+        return {
+            **response,
+            "old_status": result.get("old_status", updated["status"]),
+            "new_status": updated["status"],
+            "price_rub": updated["price_rub"],
+        }
 
 
 def _infer_task_worker_session(
@@ -1902,7 +1329,7 @@ def validate_task_promotion_target(
     expected_branch: str,
 ) -> None:
     """Fail early for UX; the mutation owner repeats these checks transactionally."""
-    with _TASK_BINDING_LOCK, _conn() as conn:
+    with active_runtime().operation(), _conn() as conn:
         conn.execute("BEGIN IMMEDIATE")
         try:
             session = conn.execute(
@@ -1966,7 +1393,7 @@ def validate_task_binding_repair(
     scope: str, session_id: str, task_ref: str,
 ) -> dict:
     """Validate the existing live binding without changing either owner."""
-    with _TASK_BINDING_LOCK, _conn() as conn:
+    with active_runtime().operation(), _conn() as conn:
         session = conn.execute(
             "SELECT task_id FROM sessions WHERE id=? AND status!='archived'",
             (session_id,),
@@ -1999,490 +1426,154 @@ def api_update_task_if_current(
     require_unreserved: bool = False,
 ) -> dict:
     """Update a prevalidated task only while its immutable identity/version matches."""
-    if status not in VALID_STATUSES:
-        raise ValueError(f"Invalid status: {status}")
-    binding_inferred = worker_session_id is None and status == "in_progress"
-    worker_session_id = _infer_task_worker_session(
-        identity, status=status, worker_session_id=worker_session_id,
-    )
-    task_id = identity["id"]
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            task = get_task_by_id(conn, task_id)
-            if not task:
-                conn.rollback()
-                return {
-                    "ok": False,
-                    "task_id": task_id,
-                    "error": "prevalidated task no longer exists",
-                }
-            if (
-                task["project_id"] != identity["project_id"]
-                or task["par_number"] != identity["par_number"]
-            ):
-                conn.rollback()
-                return {
-                    "ok": False,
-                    "task_id": task_id,
-                    "error": "prevalidated task identity changed before status update",
-                }
-            if task["sync_revision"] != identity["sync_revision"]:
-                conn.rollback()
-                return {
-                    "ok": False,
-                    "task_id": task_id,
-                    "error": (
-                        "prevalidated task revision changed before status update: "
-                        f"expected {identity['sync_revision']}, "
-                        f"found {task['sync_revision']}"
-                    ),
-                }
-            claim_error = _task_claim_precondition_error(
-                conn,
-                task,
-                expected_status=expected_status,
-                require_unreserved=require_unreserved,
-            )
-            if claim_error:
-                conn.rollback()
-                return {"ok": False, "task_id": task_id, "error": claim_error}
-            if binding_inferred and worker_session_id:
-                _validate_inferred_task_worker(conn, task, worker_session_id)
-            result = update_task(
-                conn,
-                task_id,
-                status=status,
-                worker_session_id=worker_session_id,
-            )
-            updated = get_task_by_id(conn, task_id)
-            if status == "in_progress" and worker_session_id:
-                _open_task_run_for_task(conn, updated, worker_session_id)
-            elif status == "cancelled" and task.get("worker_session_id"):
-                _finish_task_run_for_task(
+    with active_runtime().operation():
+        if status not in VALID_STATUSES:
+            raise ValueError(f"Invalid status: {status}")
+        binding_inferred = worker_session_id is None and status == "in_progress"
+        worker_session_id = _infer_task_worker_session(
+            identity, status=status, worker_session_id=worker_session_id,
+        )
+        task_id = identity["id"]
+        with _conn() as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            try:
+                task = get_task_by_id(conn, task_id)
+                if not task:
+                    conn.rollback()
+                    return {
+                        "ok": False,
+                        "task_id": task_id,
+                        "error": "prevalidated task no longer exists",
+                    }
+                if (
+                    task["project_id"] != identity["project_id"]
+                    or task["par_number"] != identity["par_number"]
+                    or task['ref_prefix'] != identity.get('ref_prefix', '')
+                    or (identity.get('stable_id') and task['stable_id'] != identity['stable_id'])
+                ):
+                    conn.rollback()
+                    return {
+                        "ok": False,
+                        "task_id": task_id,
+                        "error": "prevalidated task identity changed before status update",
+                    }
+                if task["sync_revision"] != identity["sync_revision"]:
+                    conn.rollback()
+                    return {
+                        "ok": False,
+                        "task_id": task_id,
+                        "error": (
+                            "prevalidated task revision changed before status update: "
+                            f"expected {identity['sync_revision']}, "
+                            f"found {task['sync_revision']}"
+                        ),
+                    }
+                claim_error = _task_claim_precondition_error(
                     conn,
                     task,
-                    str(task["worker_session_id"]),
-                    status="interrupted",
-                    failure_code="task_cancelled",
+                    expected_status=expected_status,
+                    require_unreserved=require_unreserved,
                 )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+                if claim_error:
+                    conn.rollback()
+                    return {"ok": False, "task_id": task_id, "error": claim_error}
+                if binding_inferred and worker_session_id:
+                    _validate_inferred_task_worker(conn, task, worker_session_id)
+                result = update_task(
+                    conn,
+                    task_id,
+                    status=status,
+                    worker_session_id=worker_session_id,
+                )
+                active_runtime().publish(conn, task_id)
+                updated = get_task_by_id(conn, task_id)
+                if status == "in_progress" and worker_session_id:
+                    _open_task_run_for_task(conn, updated, worker_session_id)
+                elif status == "cancelled" and task.get("worker_session_id"):
+                    _finish_task_run_for_task(
+                        conn,
+                        task,
+                        str(task["worker_session_id"]),
+                        status="interrupted",
+                        failure_code="task_cancelled",
+                    )
+                conn.commit()
+            except Exception:
+                conn.rollback()
+                raise
 
-    return {
-        "ok": True,
-        "task_id": task_id,
-        "par": public_task_ref(identity),
-        "updated": result["changed"],
-        "new_status": updated["status"],
-        "sync_revision": updated["sync_revision"],
-    }
+        return {
+            "ok": True,
+            "task_id": task_id,
+            "par": public_task_ref(identity),
+            "updated": result["changed"],
+            "new_status": updated["status"],
+            "sync_revision": updated["sync_revision"],
+        }
 
 
 def api_list_tasks(project: str = "", status: str = "",
                    assignee: str = "") -> dict:
-    with _conn() as conn:
-        resolved_project = ""
-        if project:
-            project_row = resolve_project_id(conn, project)
-            if not project_row:
-                raise ValueError(f"project '{project}' not found")
-            resolved_project = project_row["id"]
-        tasks = list_tasks(
-            conn, project_id=resolved_project, status=status, assignee=assignee,
-        )
+    with active_runtime().operation():
+        with _conn() as conn:
+            resolved_project = ""
+            if project:
+                project_row = resolve_project_id(conn, project)
+                if not project_row:
+                    raise ValueError(f"project '{project}' not found")
+                resolved_project = project_row["id"]
+            tasks = list_tasks(
+                conn, project_id=resolved_project, status=status, assignee=assignee,
+            )
 
-    return {
-        "tasks": [
-            {
-                "par": public_task_ref(t),
-                "title": t["title"],
-                "project": t["project_id"],
-                "price": _fmt_amount(t["price_rub"]),
-                "status": t["status"],
-                "assignee": t["assignee"],
-                "priority": t.get("priority", 2),
-            }
-            for t in tasks
-        ],
-        "count": len(tasks),
-    }
+        return {
+            "tasks": [
+                {
+                    "par": public_task_ref(t),
+                    "title": t["title"],
+                    "project": t["project_id"],
+                    "price": _fmt_amount(t["price_rub"]),
+                    "status": t["status"],
+                    "assignee": t["assignee"],
+                    "priority": t.get("priority", 2),
+                }
+                for t in tasks
+            ],
+            "count": len(tasks),
+        }
 
 
 def api_get_task(par: str, project: str = "") -> dict:
-    with _conn() as conn:
-        task = resolve_task_ref(conn, par, project)
-        if not task:
-            raise ValueError(f"{par} not found")
+    with active_runtime().operation():
+        with _conn() as conn:
+            task = resolve_task_ref(conn, par, project)
+            if not task:
+                raise ValueError(f"{par} not found")
 
-        task_ref = format_task_ref(conn, task)
+            task_ref = format_task_ref(conn, task)
 
-    commits = json.loads(task["git_commits"]) if task["git_commits"] else []
+        commits = json.loads(task["git_commits"]) if task["git_commits"] else []
 
-    return {
-        "par": task_ref,
-        "title": task["title"],
-        "description": task["description"],
-        "project": task["project_id"],
-        "price_rub": task["price_rub"],
-        "status": task["status"],
-        "assignee": task["assignee"],
-        "priority": task.get("priority", 2),
-        "created_at": task["created_at"],
-        "completed_at": task["completed_at"],
-        "commits": commits,
-        "sync_revision": task["sync_revision"],
-    }
-
-
-# The legacy functions above remain the exact default path.  The aliases make
-# the opt-in adapter explicit and keep routes/MCP on the existing public owner.
-_legacy_resolve_scoped_task_identity = resolve_scoped_task_identity
-_legacy_link_commits_to_task = link_commits_to_task
-_legacy_api_create_task = api_create_task
-_legacy_api_update_task = api_update_task
-_legacy_api_update_task_if_current = api_update_task_if_current
-_legacy_api_list_tasks = api_list_tasks
-_legacy_api_get_task = api_get_task
-
-
-@dataclass(frozen=True)
-class _IATaskStoreContext:
-    mode: str
-    store: TaskStore | None
-
-
-_IA_TASK_STORE_CONTEXT: ContextVar[_IATaskStoreContext | None] = ContextVar(
-    "ia_task_store_context",
-    default=None,
-)
-_IA_PROCESS_TASK_STORE_CONTEXT: _IATaskStoreContext | None = None
-
-
-def _ia_context() -> _IATaskStoreContext | None:
-    context = _IA_TASK_STORE_CONTEXT.get()
-    if context is None:
-        context = _IA_PROCESS_TASK_STORE_CONTEXT
-    if context is None or context.mode == "legacy":
-        return None
-    return context
-
-
-@contextmanager
-def ia_process_task_store_mode(*, store: TaskStore, mode: str = "shadow"):
-    """Configure the task candidate for all HTTP/background execution contexts.
-
-    Lifespan ContextVars do not propagate into Uvicorn request tasks. The production owner is one
-    process-global store; its adapter supplies the serialization policy.
-    """
-
-    if mode not in {"shadow", "canonical"}:
-        raise ValueError(f"unsupported IA task store mode: {mode}")
-    global _IA_PROCESS_TASK_STORE_CONTEXT
-    if _IA_PROCESS_TASK_STORE_CONTEXT is not None:
-        raise RuntimeError("process task store is already configured")
-    _IA_PROCESS_TASK_STORE_CONTEXT = _IATaskStoreContext(mode=mode, store=store)
-    try:
-        yield store
-    finally:
-        _IA_PROCESS_TASK_STORE_CONTEXT = None
-
-
-def _legacy_task_snapshot(*, cutoff: str, source_head: str) -> dict:
-    """Read one transactionally consistent legacy snapshot for an opt-in store."""
-
-    with _conn() as conn:
-        conn.execute("BEGIN")
-        try:
-            projects = [dict(row) for row in conn.execute(
-                "SELECT * FROM tm_projects ORDER BY id"
-            ).fetchall()]
-            tasks = []
-            for row in conn.execute("SELECT * FROM tm_tasks ORDER BY id").fetchall():
-                task = dict(row)
-                task["git_commits"] = json.loads(task.get("git_commits") or "[]")
-                task["acceptance_oracle_json"] = parse_acceptance_oracle(
-                    task.get("acceptance_oracle_json")
-                )
-                tasks.append(task)
-            clients = [dict(row) for row in conn.execute(
-                "SELECT * FROM tm_clients ORDER BY id"
-            ).fetchall()]
-            payments = [dict(row) for row in conn.execute(
-                "SELECT * FROM tm_payments ORDER BY id"
-            ).fetchall()]
-            allocations = [dict(row) for row in conn.execute(
-                "SELECT * FROM tm_payment_allocations ORDER BY id"
-            ).fetchall()]
-            sync_rows = [dict(row) for row in conn.execute(
-                "SELECT * FROM tm_sync_log ORDER BY id"
-            ).fetchall()]
-            schema = {
-                table: [tuple(row) for row in conn.execute(
-                    f"PRAGMA table_info({table})"
-                ).fetchall()]
-                for table in ("tm_projects", "tm_tasks")
-            }
-            conn.rollback()
-        except Exception:
-            conn.rollback()
-            raise
-    schema_bytes = json.dumps(
-        schema,
-        ensure_ascii=False,
-        separators=(",", ":"),
-        sort_keys=True,
-    ).encode("utf-8")
-    return {
-        "source": {
-            "cutoff": cutoff,
-            "source_head": source_head,
-            "source_schema_sha256": f"sha256:{sha256(schema_bytes).hexdigest()}",
-        },
-        "projects": projects,
-        "tasks": tasks,
-        "evidence": [],
-        "clients": clients,
-        "payments": payments,
-        "payment_allocations": allocations,
-        "sync_log": sync_rows,
-    }
-
-
-@contextmanager
-def ia_task_store_mode(
-    *,
-    mode: str = "legacy",
-    canonical_root: Path | None = None,
-    projection_path: Path | None = None,
-    cutoff: str = "",
-    source_head: str = "",
-) -> Iterator[TaskStore | None]:
-    """Temporarily select legacy, synchronous shadow, or canonical task ownership."""
-
-    if mode not in {"legacy", "shadow", "canonical"}:
-        raise ValueError(f"unsupported IA task store mode: {mode}")
-    store = None
-    if mode != "legacy":
-        if canonical_root is None or projection_path is None:
-            raise ValueError("canonical_root and projection_path are required")
-        if not cutoff or not source_head:
-            raise ValueError("cutoff and source_head are required")
-        store = TaskStore(
-            canonical_root=Path(canonical_root),
-            projection_path=Path(projection_path),
-        )
-        manifest = build_migration_manifest(
-            _legacy_task_snapshot(cutoff=cutoff, source_head=source_head)
-        )
-        store.migrate(manifest)
-    token = _IA_TASK_STORE_CONTEXT.set(_IATaskStoreContext(mode=mode, store=store))
-    try:
-        yield store
-    finally:
-        _IA_TASK_STORE_CONTEXT.reset(token)
-
-
-def _candidate_receipts(candidate: dict, context: _IATaskStoreContext) -> dict:
-    store = context.store
-    assert store is not None
-    return {
-        "ia_mode": context.mode,
-        "stable_id": candidate["stable_id"],
-        "canonical_head": candidate.get("canonical_head") or store.canonical_head,
-        "projection_head": candidate.get("projection_head") or store.projection_head,
-        "evidence_refs": list(candidate.get("evidence_refs") or []),
-    }
-
-
-def _candidate_rejection_debt(candidate: dict) -> dict:
-    """Describe a store rejection, which carries no receipts to report."""
-    return {
-        "reason": "candidate_update_rejected",
-        "message": str(candidate.get("error") or "canonical task update rejected"),
-    }
-
-
-def _list_receipts(context: _IATaskStoreContext) -> dict:
-    store = context.store
-    assert store is not None
-    return {
-        "ia_mode": context.mode,
-        "canonical_head": store.canonical_head,
-        "projection_head": store.projection_head,
-    }
-
-
-_CREATE_COMPARE_FIELDS = ("par", "title", "project", "price_rub", "status")
-_GET_COMPARE_FIELDS = (
-    "par",
-    "title",
-    "description",
-    "project",
-    "price_rub",
-    "status",
-    "assignee",
-    "priority",
-    "created_at",
-    "completed_at",
-    "commits",
-    "sync_revision",
-)
-_UPDATE_COMPARE_FIELDS = (
-    "par",
-    "project",
-    "updated",
-    "old_status",
-    "new_status",
-    "price_rub",
-)
-
-
-def _comparison_debt(legacy: dict, candidate: dict, fields: tuple[str, ...]) -> dict:
-    differences = {
-        field: {"legacy": legacy.get(field), "canonical": candidate.get(field)}
-        for field in fields
-        if legacy.get(field) != candidate.get(field)
-        and not (field == "par" and str(legacy.get(field)) == f"V-{candidate.get(field)}")
-    }
-    return {"mismatches": differences} if differences else {}
-
-
-def _shadow_result(
-    legacy: dict,
-    candidate: dict,
-    context: _IATaskStoreContext,
-    fields: tuple[str, ...],
-) -> dict:
-    debt = _comparison_debt(legacy, candidate, fields)
-    additive = {
-        field: candidate[field]
-        for field in ("acceptance", "display_ref", "worker_session_id")
-        if field in candidate
-    }
-    return {
-        **legacy,
-        **additive,
-        **_candidate_receipts(candidate, context),
-        "shadow_match": not debt,
-        "projection_debt": debt,
-    }
-
-
-def _shadow_failure(
-    legacy: dict,
-    context: _IATaskStoreContext,
-    error: BaseException,
-) -> dict:
-    store = context.store
-    assert store is not None
-    debt = {
-        "reason": "candidate_write_failed",
-        "exception_type": type(error).__name__,
-        "message": str(error),
-    }
-    recorder = getattr(store, "record_debt", None)
-    if callable(recorder):
-        recorder(debt)
-    try:
-        canonical_head = store.canonical_head
-    except Exception:
-        canonical_head = ""
-    try:
-        projection_head = store.projection_head
-    except Exception:
-        projection_head = ""
-    return {
-        **legacy,
-        "ia_mode": context.mode,
-        "canonical_head": canonical_head,
-        "projection_head": projection_head,
-        "shadow_match": False,
-        "projection_debt": debt,
-    }
-
-
-def _canonical_result(
-    candidate: dict,
-    legacy: dict,
-    context: _IATaskStoreContext,
-    fields: tuple[str, ...],
-) -> dict:
-    debt = _comparison_debt(legacy, candidate, fields)
-    return {
-        **candidate,
-        **({"par": legacy["par"]} if "par" in legacy else {}),
-        **_candidate_receipts(candidate, context),
-        "projection_debt": debt,
-    }
-
-
-def _canonical_task_ref(ref: str, project: str) -> str:
-    value = str(ref).lstrip('#')
-    return str(int(value[2:])) if value.upper().startswith('V-') else ref
-
-
-def _merge_canonical_task_identity(
-    legacy: TaskIdentity,
-    detail: dict,
-) -> TaskIdentity:
-    """Require canonical and legacy readers to identify the same task."""
-    stable_id = str(detail.get("stable_id") or "")
-    project_id = str(detail.get("project") or detail.get("project_id") or "")
-    raw_par = detail.get("par", detail.get("display_number"))
-    try:
-        par_number = int(raw_par)
-    except (TypeError, ValueError):
-        par_number = 0
-    if not stable_id:
-        raise ValueError(
-            "canonical task identity missing stable_id for "
-            f"project '{legacy['project_id']}' task #{legacy['par_number']}"
-        )
-    if (
-        project_id != str(legacy["project_id"])
-        or par_number != int(legacy["par_number"])
-        or (
-            legacy.get("stable_id")
-            and str(legacy["stable_id"]) != stable_id
-        )
-    ):
-        raise ValueError(
-            "canonical task identity mismatch for "
-            f"project '{legacy['project_id']}' task #{legacy['par_number']}: "
-            f"reader returned project '{project_id}' task #{par_number} "
-            f"stable_id '{stable_id}'"
-        )
-    merged = dict(legacy)
-    merged.pop("canonical_head", None)
-    merged.pop("task_snapshot_ref", None)
-    merged["stable_id"] = stable_id
-    return merged
-
-
-def resolve_scoped_task_identity(scope: str, ref: str) -> TaskIdentity:
-    legacy = _legacy_resolve_scoped_task_identity(scope, ref)
-    context = _ia_context()
-    if context is None:
-        return legacy
-    store = context.store
-    assert store is not None
-    try:
-        candidate = store.task_get(str(legacy["par_number"]), project=legacy["project_id"])
-    except (KeyError, ValueError) as error:
-        raise ValueError(
-            "canonical task identity unavailable for "
-            f"project '{legacy['project_id']}' task #{legacy['par_number']}: {error}"
-        ) from error
-    merged = _merge_canonical_task_identity(legacy, candidate)
-    canonical_head = str(candidate.get("canonical_head") or store.canonical_head)
-    merged["task_snapshot_ref"] = (
-        f"orch://project/{merged['project_id']}/tasks/{merged['stable_id']}/state@"
-        f"{canonical_head}"
-    )
-    return merged
+        return {
+            "id": task['id'], "stable_id": task['stable_id'],
+            "ref_prefix": task['ref_prefix'], "task_revision": task['task_revision'],
+            "task_snapshot_ref": _task_run_refs(task)[1],
+            "acceptance_command": task['acceptance_command'],
+            "acceptance": parse_acceptance_oracle(task['acceptance_oracle_json']),
+            "par": task_ref,
+            "title": task["title"],
+            "description": task["description"],
+            "project": task["project_id"],
+            "price_rub": task["price_rub"],
+            "status": task["status"],
+            "assignee": task["assignee"],
+            "priority": task.get("priority", 2),
+            "created_at": task["created_at"],
+            "completed_at": task["completed_at"],
+            "commits": commits,
+            "sync_revision": task["sync_revision"], "ref_prefix": task["ref_prefix"],
+            "stable_id": task["stable_id"], "task_snapshot_ref": _task_run_refs(task)[1],
+        }
 
 
 def normalize_task_create_request_key(value: str = "") -> str:
@@ -2517,1048 +1608,21 @@ def _resolve_task_create_project(project_id: str, scope: str) -> str:
     )
 
 
-def _task_create_request_row(
-    conn: sqlite3.Connection,
-    project_id: str,
-    request_key: str,
-) -> sqlite3.Row | None:
-    return conn.execute(
-        "SELECT * FROM tm_task_create_requests WHERE project_id=? AND request_key=?",
-        (project_id, request_key),
-    ).fetchone()
 
 
-def _task_create_replay(row: sqlite3.Row) -> dict | None:
-    raw = str(row["response_json"] or "")
-    if not raw:
-        return None
-    response = json.loads(raw)
-    if not isinstance(response, dict):
-        raise RuntimeError("task-create receipt response is not an object")
-    response["request_key"] = str(row["request_key"])
-    response["replayed"] = True
-    return response
-
-
-def _raise_task_create_conflict(row: sqlite3.Row, fingerprint: str) -> None:
-    if str(row["fingerprint"]) != fingerprint:
-        raise TaskCreateRequestError(
-            "IDEMPOTENCY_FINGERPRINT_MISMATCH",
-            str(row["request_key"]),
-            "idempotency key was already used with a different task body",
-        )
-
-
-def _legacy_task_create_response(
-    task: dict,
-    *,
-    request_key: str,
-    replayed: bool,
-) -> dict:
-    return {
-        "par": public_task_ref(task),
-        "id": task["id"],
-        "title": task["title"],
-        "project": task["project_id"],
-        "price_rub": task["price_rub"],
-        "status": task["status"],
-        "request_key": request_key,
-        "replayed": replayed,
-    }
-
-
-def _legacy_create_idempotent(
-    *,
-    project_id: str,
-    request_key: str,
-    fingerprint: str,
-    final_state: str,
-    title: str,
-    price: int,
-    description: str,
-    assignee: str,
-    status: str,
-    priority: int,
-    acceptance_command: str,
-    acceptance_manifest: list[str] | None,
-    acceptance_required: bool,
-    acceptance_actor: dict | None,
-) -> tuple[dict, bool]:
-    now = _now()
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            row = _task_create_request_row(conn, project_id, request_key)
-            if row is not None:
-                _raise_task_create_conflict(row, fingerprint)
-                replay = _task_create_replay(row)
-                if replay is None:
-                    raise TaskCreateRequestError(
-                        "IDEMPOTENCY_REQUEST_PENDING",
-                        request_key,
-                        "task-create request is still pending",
-                    )
-                conn.commit()
-                return replay, True
-            conn.execute(
-                "INSERT INTO tm_task_create_requests("
-                "project_id,request_key,fingerprint,active_owner,generation,state,"
-                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
-                (
-                    project_id,
-                    request_key,
-                    fingerprint,
-                    "legacy",
-                    1,
-                    "PENDING",
-                    now,
-                    now,
-                ),
-            )
-            task = create_task(
-                conn,
-                project_id,
-                title,
-                price_rub=price,
-                description=description,
-                assignee=assignee,
-                status=status,
-                priority=priority,
-                acceptance_command=acceptance_command,
-                acceptance_manifest=acceptance_manifest,
-                acceptance_required=acceptance_required,
-                acceptance_actor=acceptance_actor,
-            )
-            response = _legacy_task_create_response(
-                task,
-                request_key=request_key,
-                replayed=False,
-            )
-            conn.execute(
-                "UPDATE tm_task_create_requests SET state=?,task_id=?,par_number=?,"
-                "response_json=?,updated_at=? WHERE project_id=? AND request_key=?",
-                (
-                    final_state,
-                    task["id"],
-                    task["par_number"],
-                    json.dumps(response, ensure_ascii=False, sort_keys=True),
-                    _now(),
-                    project_id,
-                    request_key,
-                ),
-            )
-            conn.commit()
-            return response, False
-        except Exception:
-            conn.rollback()
-            raise
-
-
-def _reserve_canonical_create(
-    project_id: str,
-    request_key: str,
-    fingerprint: str,
-) -> tuple[bool, dict | None]:
-    now = _now()
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            row = _task_create_request_row(conn, project_id, request_key)
-            if row is not None:
-                _raise_task_create_conflict(row, fingerprint)
-                replay = _task_create_replay(row)
-                conn.commit()
-                return False, replay
-            conn.execute(
-                "INSERT INTO tm_task_create_requests("
-                "project_id,request_key,fingerprint,active_owner,generation,state,"
-                "created_at,updated_at) VALUES (?,?,?,?,?,?,?,?)",
-                (
-                    project_id,
-                    request_key,
-                    fingerprint,
-                    "canonical",
-                    1,
-                    "PENDING",
-                    now,
-                    now,
-                ),
-            )
-            conn.commit()
-            return True, None
-        except Exception:
-            conn.rollback()
-            raise
-
-
-def _save_task_create_request(
-    *,
-    project_id: str,
-    request_key: str,
-    fingerprint: str,
-    state: str,
-    task_id: str | int,
-    par_number: int,
-    response: dict,
-    error: BaseException | None = None,
-) -> None:
-    error_json = ""
-    if error is not None:
-        error_json = json.dumps(
-            {"exception_type": type(error).__name__, "message": str(error)},
-            ensure_ascii=False,
-            sort_keys=True,
-        )
-    with _conn() as conn:
-        updated = conn.execute(
-            "UPDATE tm_task_create_requests SET state=?,task_id=?,par_number=?,"
-            "response_json=?,error_json=?,updated_at=? "
-            "WHERE project_id=? AND request_key=? AND fingerprint=?",
-            (
-                state,
-                task_id,
-                par_number,
-                json.dumps(response, ensure_ascii=False, sort_keys=True),
-                error_json,
-                _now(),
-                project_id,
-                request_key,
-                fingerprint,
-            ),
-        )
-        if updated.rowcount != 1:
-            raise RuntimeError("task-create receipt disappeared during commit")
-        conn.commit()
-
-
-def _delete_pending_task_create_request(
-    *,
-    project_id: str,
-    request_key: str,
-    fingerprint: str,
-) -> None:
-    with _conn() as conn:
-        conn.execute(
-            "DELETE FROM tm_task_create_requests "
-            "WHERE project_id=? AND request_key=? AND fingerprint=? AND state='PENDING'",
-            (project_id, request_key, fingerprint),
-        )
-        conn.commit()
-
-
-def _legacy_mirror_canonical_create(
-    *,
-    project_id: str,
-    display_number: int,
-    request_key: str,
-    title: str,
-    price: int,
-    description: str,
-    assignee: str,
-    status: str,
-    priority: int,
-    acceptance_command: str,
-    acceptance_manifest: list[str] | None,
-    acceptance_required: bool,
-    acceptance_actor: dict | None,
-) -> dict:
-    with _conn() as conn:
-        conn.execute("BEGIN IMMEDIATE")
-        try:
-            stored = conn.execute(
-                "SELECT * FROM tm_tasks WHERE project_id=? AND par_number=?",
-                (project_id, display_number),
-            ).fetchone()
-            if stored is not None:
-                task = dict(stored)
-                expected = (
-                    title,
-                    description,
-                    price,
-                    status,
-                    assignee,
-                    priority,
-                )
-                observed = tuple(task[field] for field in (
-                    "title",
-                    "description",
-                    "price_rub",
-                    "status",
-                    "assignee",
-                    "priority",
-                ))
-                if observed != expected:
-                    raise IdentityConflictError(
-                        f"legacy mirror #{display_number} has different task content"
-                    )
-            else:
-                legacy_next = _next_par(conn, project_id)
-                if legacy_next != display_number:
-                    raise IdentityConflictError(
-                        f"task display counter mismatch in {project_id}: "
-                        f"canonical={display_number}, legacy={legacy_next}"
-                    )
-                task = create_task(
-                    conn,
-                    project_id,
-                    title,
-                    price_rub=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    par_number=display_number,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    acceptance_actor=acceptance_actor,
-                )
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
-    return _legacy_task_create_response(task, request_key=request_key, replayed=False)
-
-
-def api_task_create_status(
-    request_key: str,
-    *,
-    project_id: str = "",
-    scope: str = "",
-) -> dict:
+def api_task_create_status(request_key: str, *, project_id: str = '', scope: str = '') -> dict:
     request_key = normalize_task_create_request_key(request_key)
-    resolved_project_id = _resolve_task_create_project(project_id, scope)
-    with _conn() as conn:
-        row = _task_create_request_row(conn, resolved_project_id, request_key)
-    if row is None:
-        raise ValueError("task-create request not found")
-    response = _task_create_replay(row) or {}
-    task_id: str | int | None = response.get("id") or response.get("task_id") or row["task_id"]
-    if isinstance(task_id, str) and task_id.isdigit():
-        task_id = int(task_id)
-    return {
-        "project": resolved_project_id,
-        "request_key": request_key,
-        "fingerprint": row["fingerprint"],
-        "active_owner": row["active_owner"],
-        "generation": row["generation"],
-        "state": row["state"],
-        "task_id": task_id,
-        "par_number": row["par_number"],
-        "result": response or None,
-        "error": json.loads(row["error_json"]) if row["error_json"] else None,
-    }
-
-
-def api_create_task(project_id: str, title: str, price: int = 0,
-                    description: str = "", assignee: str = "",
-                    status: str = "new", scope: str = "",
-                    priority: int = 2, acceptance_command: str = "",
-                    acceptance_manifest: list[str] | None = None,
-                    acceptance_required: bool = False,
-                    acceptance_actor: dict | None = None,
-                    request_key: str = "") -> dict:
-    # A caller-held key makes an ambiguous shadow result replayable. Internal allocations have
-    # no key to retry with, so they must compensate a proven legacy-only row and fail loudly.
-    durable_request = bool(str(request_key or "").strip())
-    request_key = normalize_task_create_request_key(request_key)
-    resolved_project_id = _resolve_task_create_project(project_id, scope)
-    fingerprint = task_create_fingerprint(
-        project_id=resolved_project_id,
-        title=title,
-        price=price,
-        description=description,
-        assignee=assignee,
-        status=status,
-        priority=priority,
-        acceptance_command=acceptance_command,
-        acceptance_manifest=acceptance_manifest,
-        acceptance_required=acceptance_required,
-    )
-    context = _ia_context()
-    if context is None:
-        result, _replayed = _legacy_create_idempotent(
-            project_id=resolved_project_id,
-            request_key=request_key,
-            fingerprint=fingerprint,
-            final_state="MIRRORS_COMMITTED",
-            title=title,
-            price=price,
-            description=description,
-            assignee=assignee,
-            status=status,
-            priority=priority,
-            acceptance_command=acceptance_command,
-            acceptance_manifest=acceptance_manifest,
-            acceptance_required=acceptance_required,
-            acceptance_actor=acceptance_actor,
-        )
-        return result
-    store = context.store
-    assert store is not None
-
-    if context.mode == "shadow":
-        if not durable_request:
-            with _TASK_CREATE_LOCK:
-                with ia_task_store_mode(mode="legacy"):
-                    legacy = _legacy_api_create_task(
-                        resolved_project_id, title, price, description, assignee, status,
-                        priority=priority,
-                        acceptance_command=acceptance_command,
-                        acceptance_manifest=acceptance_manifest,
-                        acceptance_required=acceptance_required,
-                        acceptance_actor=acceptance_actor,
-                    )
-                try:
-                    candidate = store.task_create(
-                        **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
-                        project_id=legacy["project"],
-                        title=title,
-                        price=price,
-                        description=description,
-                        assignee=assignee,
-                        status=status,
-                        priority=priority,
-                        acceptance_command=acceptance_command,
-                        acceptance_manifest=acceptance_manifest,
-                        acceptance_required=acceptance_required,
-                        display_number=_parse_task_ref(legacy["par"])[1],
-                        expected_head=store.canonical_head,
-                    )
-                except Exception as error:
-                    _compensate_failed_task_create(store, legacy)
-                    try:
-                        _shadow_failure(legacy, context, error)
-                    except Exception as debt_error:
-                        logger.warning(
-                            "shadow task create debt recording failed: %s: %s",
-                            type(debt_error).__name__, debt_error,
-                        )
-                    raise RuntimeError(
-                        "shadow task creation failed: "
-                        f"{type(error).__name__}: {error}"
-                    ) from error
-                return _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
-
-        with _TASK_CREATE_LOCK:
-            with ia_task_store_mode(mode="legacy"):
-                legacy, replayed = _legacy_create_idempotent(
-                    project_id=resolved_project_id,
-                    request_key=request_key,
-                    fingerprint=fingerprint,
-                    final_state="ACTIVE_COMMITTED",
-                    title=title,
-                    price=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    acceptance_actor=acceptance_actor,
-                )
-            if replayed:
-                return legacy
-            try:
-                candidate = store.task_create(
-                    **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
-                    project_id=legacy["project"],
-                    title=title,
-                    price=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    display_number=_parse_task_ref(legacy["par"])[1],
-                    expected_head=store.canonical_head,
-                    request_key=request_key,
-                )
-            except Exception as error:
-                result = _shadow_failure(legacy, context, error)
-                _save_task_create_request(
-                    project_id=resolved_project_id,
-                    request_key=request_key,
-                    fingerprint=fingerprint,
-                    state="ACTIVE_COMMITTED",
-                    task_id=legacy["id"],
-                    par_number=_parse_task_ref(legacy["par"])[1],
-                    response=result,
-                    error=error,
-                )
-                return result
-            result = _shadow_result(legacy, candidate, context, _CREATE_COMPARE_FIELDS)
-            _save_task_create_request(
-                project_id=resolved_project_id,
-                request_key=request_key,
-                fingerprint=fingerprint,
-                state="MIRRORS_COMMITTED",
-                task_id=legacy["id"],
-                par_number=_parse_task_ref(legacy["par"])[1],
-                response=result,
-            )
-            return result
-
-    if not durable_request:
-        with _TASK_CREATE_LOCK:
-            with _conn() as conn:
-                canonical_next = _agreed_next_task_number(
-                    conn, resolved_project_id, store,
-                )
-            legacy = _legacy_api_create_task(
-                resolved_project_id, title, price, description, assignee, status,
-                priority=priority,
-                acceptance_command=acceptance_command,
-                acceptance_manifest=acceptance_manifest,
-                acceptance_required=acceptance_required,
-                acceptance_actor=acceptance_actor,
-                _canonical_par_number=canonical_next,
-            )
-            try:
-                candidate = store.task_create(
-                    **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
-                    project_id=resolved_project_id,
-                    title=title,
-                    price=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    display_number=canonical_next,
-                    expected_head=store.canonical_head,
-                )
-            except Exception:
-                _compensate_failed_task_create(store, legacy)
-                raise
-        candidate["id"] = legacy["id"]
-        return _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
-
-    new_request, replay = _reserve_canonical_create(
-        resolved_project_id,
-        request_key,
-        fingerprint,
-    )
-    if replay is not None:
-        return replay
-    candidate = None
-    if not new_request:
-        lookup = getattr(store, "task_create_request", None)
-        if callable(lookup):
-            candidate = lookup(
-                project_id=resolved_project_id,
-                request_key=request_key,
-            )
-        if candidate is None:
-            raise TaskCreateRequestError(
-                "IDEMPOTENCY_REQUEST_PENDING",
-                request_key,
-                "task-create request is still pending",
-            )
-        if candidate.get("request_fingerprint") != fingerprint:
-            raise TaskCreateRequestError(
-                "IDEMPOTENCY_FINGERPRINT_MISMATCH",
-                request_key,
-                "canonical request identity has a different task body",
-            )
-
-    with _TASK_CREATE_LOCK:
-        legacy = None
-        if candidate is None:
-            try:
-                with _conn() as conn:
-                    canonical_next = _agreed_next_task_number(
-                        conn, resolved_project_id, store,
-                    )
-                legacy = _legacy_mirror_canonical_create(
-                    project_id=resolved_project_id,
-                    display_number=canonical_next,
-                    request_key=request_key,
-                    title=title,
-                    price=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    acceptance_actor=acceptance_actor,
-                )
-                candidate = store.task_create(
-                    **({"ref_prefix": new_task_prefix()} if new_task_prefix() else {}),
-                    project_id=resolved_project_id,
-                    title=title,
-                    price=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    display_number=canonical_next,
-                    expected_head=store.canonical_head,
-                    request_key=request_key,
-                )
-            except Exception as error:
-                lookup = getattr(store, "task_create_request", None)
-                try:
-                    recovered = (
-                        lookup(
-                            project_id=resolved_project_id,
-                            request_key=request_key,
-                        )
-                        if callable(lookup)
-                        else None
-                    )
-                except Exception:
-                    raise error
-                if recovered is None:
-                    if legacy is not None:
-                        _compensate_failed_task_create(store, legacy)
-                    _delete_pending_task_create_request(
-                        project_id=resolved_project_id,
-                        request_key=request_key,
-                        fingerprint=fingerprint,
-                    )
-                    raise error
-                if recovered.get("request_fingerprint") != fingerprint:
-                    raise TaskCreateRequestError(
-                        "IDEMPOTENCY_FINGERPRINT_MISMATCH",
-                        request_key,
-                        "canonical request identity has a different task body",
-                    )
-                candidate = recovered
-
-        canonical_next = int(candidate["par"])
-        candidate.setdefault("request_key", request_key)
-        candidate.setdefault("request_fingerprint", fingerprint)
-        candidate.setdefault("replayed", False)
-        _save_task_create_request(
-            project_id=resolved_project_id,
-            request_key=request_key,
-            fingerprint=fingerprint,
-            state="ACTIVE_COMMITTED",
-            task_id=candidate["task_id"],
-            par_number=canonical_next,
-            response=candidate,
-        )
-        try:
-            if legacy is None:
-                legacy = _legacy_mirror_canonical_create(
-                    project_id=resolved_project_id,
-                    display_number=canonical_next,
-                    request_key=request_key,
-                    title=title,
-                    price=price,
-                    description=description,
-                    assignee=assignee,
-                    status=status,
-                    priority=priority,
-                    acceptance_command=acceptance_command,
-                    acceptance_manifest=acceptance_manifest,
-                    acceptance_required=acceptance_required,
-                    acceptance_actor=acceptance_actor,
-                )
-        except Exception as error:
-            result = {**candidate, **_candidate_receipts(candidate, context)}
-            _save_task_create_request(
-                project_id=resolved_project_id,
-                request_key=request_key,
-                fingerprint=fingerprint,
-                state="ACTIVE_COMMITTED",
-                task_id=candidate["task_id"],
-                par_number=canonical_next,
-                response=result,
-                error=error,
-            )
-            return result
-
-    candidate["id"] = legacy["id"]
-    result = _canonical_result(candidate, legacy, context, _CREATE_COMPARE_FIELDS)
-    _save_task_create_request(
-        project_id=resolved_project_id,
-        request_key=request_key,
-        fingerprint=fingerprint,
-        state="MIRRORS_COMMITTED",
-        task_id=candidate["task_id"],
-        par_number=canonical_next,
-        response=result,
-    )
-    return result
-
-
-def api_update_task(par: str, title: str | None = None,
-                    description: str | None = None,
-                    price: int | None = None,
-                    status: str | None = None,
-                    assignee: str | None = None,
-                    project: str = "",
-                    priority: int | None = None,
-                    acceptance_command: str | None = None,
-                    acceptance_manifest: list[str] | None = None,
-                    acceptance_required: bool | None = None,
-                    acceptance_actor: dict | None = None) -> dict:
-    context = _ia_context()
-    if context is None:
-        return _legacy_api_update_task(
-            par, title, description, price, status, assignee, project, priority,
-            acceptance_command, acceptance_manifest, acceptance_required,
-            acceptance_actor,
-        )
-    store = context.store
-    assert store is not None
-    candidate_args = {
-        "project": project,
-        "title": title,
-        "description": description,
-        "price": price,
-        "status": status,
-        "assignee": assignee,
-        "priority": priority,
-        "acceptance_command": acceptance_command,
-        "acceptance_manifest": acceptance_manifest,
-        "acceptance_required": acceptance_required,
-    }
-    legacy_args = (
-        par, title, description, price, status, assignee, project, priority,
-        acceptance_command, acceptance_manifest, acceptance_required,
-        acceptance_actor,
-    )
-    if context.mode == "shadow":
-        legacy = _legacy_api_update_task(*legacy_args)
-        try:
-            candidate = store.task_update(
-                _canonical_task_ref(par, project),
-                **candidate_args,
-                expected_head=store.canonical_head,
-            )
-        except Exception as error:
-            return _shadow_failure(legacy, context, error)
-        return _shadow_result(legacy, candidate, context, _UPDATE_COMPARE_FIELDS)
-    # Тот же порядок, что и в создании: валидирующее хранилище идёт ПЕРВЫМ. Приёмочный
-    # оракул, актора и манифест проверяет только legacy (`acceptance_actor` в canonical не
-    # передаётся вовсе), а отменить canonical-обновление нечем — валидация после коммита
-    # оставляла бы canonical с правкой, которую вызывающий получил как 400.
-    legacy = _legacy_api_update_task(*legacy_args)
-    candidate = store.task_update(
-        _canonical_task_ref(par, project),
-        **candidate_args,
-        expected_head=store.canonical_head,
-    )
-    return _canonical_result(candidate, legacy, context, _UPDATE_COMPARE_FIELDS)
-
-
-def _api_update_task_if_current_unlocked(
-    identity: TaskIdentity,
-    *,
-    status: str,
-    worker_session_id: str | None = None,
-    _canonical_first: bool = False,
-    expected_status: str = "",
-    require_unreserved: bool = False,
-) -> dict:
-    binding_inferred = worker_session_id is None and status == "in_progress"
-    worker_session_id = _infer_task_worker_session(
-        identity, status=status, worker_session_id=worker_session_id,
-    )
-    if binding_inferred and worker_session_id:
-        with _conn() as conn:
-            conn.execute("BEGIN IMMEDIATE")
-            task = get_task_by_id(conn, identity["id"])
-            if not task:
-                conn.rollback()
-                return {
-                    "ok": False,
-                    "task_id": identity["id"],
-                    "error": "prevalidated task no longer exists",
-                }
-            claim_error = _task_claim_precondition_error(
-                conn,
-                task,
-                expected_status=expected_status,
-                require_unreserved=require_unreserved,
-            )
-            if claim_error:
-                conn.rollback()
-                return {"ok": False, "task_id": identity["id"], "error": claim_error}
-            _validate_inferred_task_worker(conn, task, worker_session_id)
-            conn.commit()
-    context = _ia_context()
-    if context is None:
-        return _legacy_api_update_task_if_current(
-            identity,
-            status=status,
-            worker_session_id=worker_session_id,
-            expected_status=expected_status,
-            require_unreserved=require_unreserved,
-        )
-    store = context.store
-    assert store is not None
-    try:
-        detail = store.task_get(
-            str(identity["par_number"]),
-            project=identity["project_id"],
-        )
-    except (KeyError, ValueError) as error:
-        raise ValueError(
-            "canonical task identity unavailable for "
-            f"project '{identity['project_id']}' task #{identity['par_number']}: {error}"
-        ) from error
-    candidate_identity = _merge_canonical_task_identity(identity, detail)
-    # У каждого хранилища СВОЙ счётчик ревизий: legacy двигают привязки воркеров
-    # (`bind_task_to_session`, requeue, финализация), canonical их не видит. Прогонять
-    # legacy-ревизию через canonical CAS — сравнение разных величин: любая задача, которую
-    # хоть раз привязывали, отказывается навсегда.
-    candidate_identity["sync_revision"] = int(
-        detail.get("sync_revision", candidate_identity["sync_revision"])
-    )
-    if expected_status and detail.get("status") != expected_status:
-        return {
-            "ok": False,
-            "error": (
-                f"promotion target must be {expected_status} "
-                f"(canonical found {detail.get('status')})"
-            ),
-            "ia_mode": context.mode,
-            "projection_debt": {},
-        }
-    if expected_status and detail.get("worker_session_id"):
-        return {
-            "ok": False,
-            "error": "canonical promotion target is already owned",
-            "ia_mode": context.mode,
-            "projection_debt": {},
-        }
-    if context.mode == "shadow":
-        if _canonical_first:
-            try:
-                candidate = store.task_update_if_current(
-                    candidate_identity,
-                    status=status,
-                    worker_session_id=worker_session_id,
-                )
-            except Exception:
-                raise
-            if not candidate.get("ok"):
-                return {
-                    **candidate,
-                    "ia_mode": context.mode,
-                    "shadow_match": False,
-                    "projection_debt": _candidate_rejection_debt(candidate),
-                }
-            legacy = _legacy_api_update_task_if_current(
-                identity,
-                status=status,
-                worker_session_id=worker_session_id,
-                expected_status=expected_status,
-                require_unreserved=require_unreserved,
-            )
-            return _shadow_result(
-                legacy,
-                candidate,
-                context,
-                ("ok", "par", "updated", "new_status", "sync_revision"),
-            )
-        legacy = _legacy_api_update_task_if_current(
-            identity,
-            status=status,
-            worker_session_id=worker_session_id,
-            expected_status=expected_status,
-            require_unreserved=require_unreserved,
-        )
-        if not legacy.get("ok"):
-            return legacy
-        try:
-            candidate = store.task_update_if_current(
-                candidate_identity,
-                status=status,
-                worker_session_id=worker_session_id,
-            )
-        except Exception as error:
-            return _shadow_failure(legacy, context, error)
-        if not candidate.get("ok"):
-            return {
-                **legacy,
-                "ia_mode": context.mode,
-                "shadow_match": False,
-                "projection_debt": _candidate_rejection_debt(candidate),
-            }
-        return _shadow_result(
-            legacy,
-            candidate,
-            context,
-            ("ok", "par", "updated", "new_status", "sync_revision"),
-        )
-    candidate = store.task_update_if_current(
-        candidate_identity,
-        status=status,
-        worker_session_id=worker_session_id,
-    )
-    # Отказ canonical обязан остановить ход ДО записи в legacy: иначе legacy уже
-    # мутирован, а вызывающий получает исключение и снимает привязку сессии.
-    if not candidate.get("ok"):
-        return {
-            **candidate,
-            "ia_mode": context.mode,
-            "projection_debt": _candidate_rejection_debt(candidate),
-        }
-    legacy = _legacy_api_update_task_if_current(
-        identity,
-        status=status,
-        worker_session_id=worker_session_id,
-        expected_status=expected_status,
-        require_unreserved=require_unreserved,
-    )
-    # Legacy-CAS — единственный оставшийся детектор устаревшей ревизии, и его отказ обязан
-    # дойти до вызывающего отказом: иначе canonical переведён в in_progress с привязкой, а
-    # `tm_tasks` остался `new`/NULL — то невозможное состояние, на котором гейт мержа
-    # отказывает навсегда («task 'N' is not bound to session»).
-    if not legacy.get("ok"):
-        return {
-            **legacy,
-            **_candidate_receipts(candidate, context),
-            "projection_debt": {
-                "reason": "legacy_update_rejected",
-                "message": str(legacy.get("error") or "legacy task update rejected"),
-                "canonical_applied": True,
-            },
-        }
-    return _canonical_result(
-        candidate,
-        legacy,
-        context,
-        ("ok", "par", "updated", "new_status", "sync_revision"),
-    )
-
-
-def api_update_task_if_current(
-    identity: TaskIdentity,
-    *,
-    status: str,
-    worker_session_id: str | None = None,
-    _canonical_first: bool = False,
-    expected_status: str = "",
-    require_unreserved: bool = False,
-) -> dict:
-    with _TASK_BINDING_LOCK:
-        return _api_update_task_if_current_unlocked(
-            identity,
-            status=status,
-            worker_session_id=worker_session_id,
-            _canonical_first=_canonical_first,
-            expected_status=expected_status,
-            require_unreserved=require_unreserved,
-        )
-
-
-def api_list_tasks(project: str = "", status: str = "",
-                   assignee: str = "") -> dict:
-    context = _ia_context()
-    if context is None:
-        return _legacy_api_list_tasks(project, status, assignee)
-    store = context.store
-    assert store is not None
-    if context.mode == "canonical":
-        candidate = store.task_list(project=project, status=status, assignee=assignee)
-        for item in candidate.get('tasks', []):
-            if item.get('ref_prefix'):
-                item['par'] = f"{item['ref_prefix']}-{item['par']}"
-        return {
-            **candidate,
-            **_list_receipts(context),
-            "projection_debt": [],
-        }
-    legacy = _legacy_api_list_tasks(project, status, assignee)
-    try:
-        candidate = store.task_list(project=project, status=status, assignee=assignee)
-    except Exception as error:
-        if context.mode == "shadow":
-            return _shadow_failure(legacy, context, error)
-        raise
-    debt = _comparison_debt(legacy, candidate, ("tasks", "count"))
-    if context.mode == "shadow":
-        return {
-            **legacy,
-            **_list_receipts(context),
-            "shadow_match": not debt,
-            "projection_debt": debt,
-        }
-    return {
-        **candidate,
-        **_list_receipts(context),
-        "projection_debt": debt,
-    }
-
-
-def api_get_task(par: str, project: str = "") -> dict:
-    context = _ia_context()
-    if context is None:
-        return _legacy_api_get_task(par, project)
-    store = context.store
-    assert store is not None
-    if context.mode == "canonical":
-        candidate = store.task_get(_canonical_task_ref(par, project), project=project)
-        prefixed_request = str(par).upper().lstrip('#').startswith('V-')
-        if prefixed_request != (candidate.get('ref_prefix') == 'V'):
-            raise ValueError(f"task '{par}' not found in this namespace")
-        public_ref = f"V-{candidate['par']}" if prefixed_request else candidate['par']
-        return {
-            **candidate,
-            "par": public_ref,
-            "ia_mode": context.mode,
-            "canonical_head": candidate.get("canonical_head") or store.canonical_head,
-            "projection_head": candidate.get("projection_head") or store.projection_head,
-            "projection_debt": list(candidate.get("projection_debt") or []),
-        }
-    legacy = _legacy_api_get_task(par, project)
-    try:
-        candidate = store.task_get(_canonical_task_ref(par, project), project=project)
-    except Exception as error:
-        if context.mode == "shadow":
-            return _shadow_failure(legacy, context, error)
-        raise
-    if context.mode == "shadow":
-        return _shadow_result(legacy, candidate, context, _GET_COMPARE_FIELDS)
-    return _canonical_result(candidate, legacy, context, _GET_COMPARE_FIELDS)
-
-
-def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) -> dict:
-    context = _ia_context()
-    if context is None:
-        return _legacy_link_commits_to_task(task_ref, commits, project_id)
-    store = context.store
-    assert store is not None
-    if context.mode == "shadow":
-        legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
-        if not legacy.get("ok"):
-            return legacy
-        try:
-            candidate = store.link_commits_to_task(
-                _canonical_task_ref(task_ref, project_id),
-                commits,
-                project_id,
-                expected_head=store.canonical_head,
-            )
-        except Exception as error:
-            return _shadow_failure(legacy, context, error)
-        return _shadow_result(legacy, candidate, context, ("ok", "added"))
-    # Legacy впереди по той же причине, что и в обновлении, плюс его отказ обязан
-    # остановить связывание: canonical нашёл задачу, а legacy — нет, и тихий `ok=True`
-    # из canonical объявил бы успехом коммиты, которых в `tm_tasks` нет.
-    legacy = _legacy_link_commits_to_task(task_ref, commits, project_id)
-    if not legacy.get("ok"):
-        return legacy
-    candidate = store.link_commits_to_task(
-        _canonical_task_ref(task_ref, project_id),
-        commits,
-        project_id,
-        expected_head=store.canonical_head,
-    )
-    return _canonical_result(candidate, legacy, context, ("ok", "added"))
+    runtime = active_runtime()
+    with runtime.operation():
+        project_id = _resolve_task_create_project(project_id, scope)
+        with _conn() as connection:
+            project = resolve_project_id(connection, project_id)
+        records = [r for r in runtime.store.list(project['canonical_id']) if r['creation_key'] == request_key]
+        if len(records) != 1:
+            raise ValueError('task-create request is missing or ambiguous')
+        record = records[0]
+        with _conn() as connection:
+            row = connection.execute('SELECT id FROM tm_tasks WHERE stable_id=?', (record['id'],)).fetchone()
+        return {'project': project_id, 'request_key': request_key, 'state': 'COMMITTED',
+                'task_id': row['id'], 'par_number': record['number'],
+                'result': {'id': row['id'], 'par': record['ref'], 'stable_id': record['id']}, 'error': None}

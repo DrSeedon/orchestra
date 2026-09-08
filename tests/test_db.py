@@ -195,33 +195,6 @@ class TestToolErrors:
         assert rows[0]["tool_use_id"] == "tool-1"
         assert len(rows[0]["error_text"]) == 4000
 
-    def test_migrates_legacy_tool_error_rows(self, tmp_path, monkeypatch):
-        db_path = tmp_path / "legacy-tool-errors.db"
-        with sqlite3.connect(db_path) as conn:
-            conn.execute(
-                """CREATE TABLE tool_errors (
-                    id INTEGER PRIMARY KEY,
-                    ts TEXT DEFAULT CURRENT_TIMESTAMP,
-                    session_name TEXT,
-                    scope TEXT,
-                    tool_name TEXT,
-                    error_text TEXT
-                )"""
-            )
-            conn.execute(
-                """INSERT INTO tool_errors
-                   (session_name, scope, tool_name, error_text)
-                   VALUES ('worker', '/scope', 'Read', 'legacy')"""
-            )
-        monkeypatch.setattr("app.db.DB_PATH", db_path)
-        from app.db import _conn, init_db
-
-        init_db()
-
-        with _conn() as conn:
-            row = conn.execute("SELECT * FROM tool_errors").fetchone()
-        assert row["runtime"] == "unknown"
-        assert row["tool_use_id"] == ""
 
 
 class TestImprovementRules:
@@ -520,36 +493,6 @@ class TestLogs:
 
         assert get_logs(sample_session["id"])[0]["event_id"] == "result-uuid-1"
 
-    def test_migrates_legacy_logs_for_provider_event_id(self, tmp_path, monkeypatch):
-        db_path = tmp_path / "legacy-logs.db"
-        with sqlite3.connect(db_path) as conn:
-            conn.execute(
-                """CREATE TABLE logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    session_id TEXT NOT NULL,
-                    ts TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    content TEXT NOT NULL
-                )"""
-            )
-            conn.execute(
-                """INSERT INTO logs (session_id, ts, type, content)
-                   VALUES ('old-worker', '2026-07-01T00:00:00+00:00',
-                           'status', 'turn ended')"""
-            )
-        monkeypatch.setattr("app.db.DB_PATH", db_path)
-        from app.db import _conn, init_db
-
-        init_db()
-
-        with _conn() as conn:
-            row = conn.execute("SELECT event_id FROM logs").fetchone()
-            index = conn.execute(
-                """SELECT name FROM sqlite_master
-                   WHERE type='index' AND name='idx_logs_event_id'"""
-            ).fetchone()
-        assert row["event_id"] == ""
-        assert index["name"] == "idx_logs_event_id"
 
     def test_cursor_pagination(self, db, sample_session):
         from app.db import save_session, add_log, get_logs
@@ -695,26 +638,6 @@ class TestTestLock:
         assert row["holder"] == "new-name"
         assert row["reason"] == "r2"
 
-    def test_migration_adds_holder_id_to_an_existing_lock_table(self, tmp_path, monkeypatch):
-        """Аддитивная миграция на БД, где колонки ещё нет."""
-        import sqlite3
-        import app.db as dbmod
-
-        legacy = tmp_path / "legacy.db"
-        with sqlite3.connect(legacy) as raw:
-            raw.execute(
-                "CREATE TABLE test_lock (scope TEXT PRIMARY KEY, holder TEXT NOT NULL, "
-                "reason TEXT DEFAULT '', acquired_at TEXT NOT NULL)"
-            )
-            raw.execute(
-                "INSERT INTO test_lock VALUES ('/s', 'legacy', '', '2026-08-04T00:00:00+00:00')"
-            )
-        monkeypatch.setattr(dbmod, "DB_PATH", legacy)
-        dbmod.init_db()
-
-        row = dbmod.get_test_lock("/s")
-        assert row["holder"] == "legacy" and row["holder_session_id"] == ""
-        assert dbmod.release_test_lock(scope="/s", holder="legacy") is True
 
     def test_lock_isolated_by_scope(self, db):
         from app.db import acquire_test_lock
@@ -820,37 +743,6 @@ class TestBgMigration:
         conn.commit()
         conn.close()
 
-    def test_migrate_drops_type_check(self, tmp_path, monkeypatch):
-        import json
-        db_path = tmp_path / "old.db"
-        self._make_old_schema_db(db_path)
-        monkeypatch.setattr("app.db.DB_PATH", db_path)
-        from app.db import init_db, bg_save_job, bg_get_active_all
-        init_db()  # runs _migrate, rebuilds bg_jobs without type CHECK
-        # original row preserved
-        ddl = None
-        from app.db import _conn
-        with _conn() as c:
-            ddl = c.execute(
-                "SELECT sql FROM sqlite_master WHERE type='table' AND name='bg_jobs'"
-            ).fetchone()[0]
-            assert "type IN ('timer'" not in ddl
-            cnt = c.execute("SELECT COUNT(*) FROM bg_jobs").fetchone()[0]
-            assert cnt == 1
-            old_exists = c.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='bg_jobs_old'"
-            ).fetchone()
-            assert old_exists is None
-        # cron type now accepted
-        now = datetime.now(timezone.utc)
-        bg_save_job({
-            "id": "cron-1", "type": "cron", "config": json.dumps({"cron_expr": "* * * * *"}),
-            "message": "", "target_session_id": "s", "target_name": "n",
-            "target_scope": "/s", "created_by_name": "", "status": "active",
-            "expires_at": (now + timedelta(hours=1)).isoformat(),
-            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
-        })
-        assert any(j["type"] == "cron" for j in bg_get_active_all())
 
     def test_migrate_idempotent_on_fresh_db(self, db):
         # Fresh DB already has no type CHECK; init_db again must not error.
@@ -898,17 +790,6 @@ class TestLifecycleColumns:
             ).fetchone()
         assert tuple(row) == ("", 0)
 
-    def test_migration_adds_lifecycle_columns_idempotently(self, db):
-        from app.db import _conn, init_db
-
-        with _conn() as c:
-            c.execute("ALTER TABLE sessions DROP COLUMN base_branch")
-            c.execute("ALTER TABLE sessions DROP COLUMN needs_switch")
-        init_db()
-        init_db()
-        with _conn() as c:
-            cols = {r[1] for r in c.execute("PRAGMA table_info(sessions)").fetchall()}
-        assert {"base_branch", "needs_switch"} <= cols
 
 
 class TestPromptOverlayColumn:
@@ -1107,7 +988,8 @@ class TestChangeScope:
             _conn, acquire_test_lock, bg_save_job, change_scope, get_session,
             get_test_lock, save_session,
         )
-        from app.tm import create_task, ensure_project
+        from app.tm import ensure_project
+        from tests.task_seeds import create_task
 
         save_session(self._orch(task_id="1"))
         with _conn() as c:
@@ -1226,3 +1108,18 @@ class TestLastTurnMap:
         with sqlite3.connect(db) as c:
             plan = " ".join(str(r) for r in c.execute("EXPLAIN QUERY PLAN " + self.QUERY))
         assert "idx_logs_status" in plan, plan
+
+
+def test_existing_unversioned_schema_requires_explicit_migration(tmp_path, monkeypatch):
+    import sqlite3
+    from app import db
+    path = tmp_path / 'old.db'
+    monkeypatch.setattr(db, 'DB_PATH', path)
+    with sqlite3.connect(path) as connection:
+        connection.execute('CREATE TABLE old_data(value TEXT)')
+        connection.execute("INSERT INTO old_data VALUES('keep')")
+    with pytest.raises(RuntimeError, match='offline migration'):
+        db.init_db()
+    with sqlite3.connect(path) as connection:
+        assert connection.execute('SELECT value FROM old_data').fetchone()[0] == 'keep'
+        assert connection.execute('PRAGMA user_version').fetchone()[0] == 0

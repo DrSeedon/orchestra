@@ -1,3 +1,5 @@
+
+from tests.task_seeds import create_task as seed_task
 from pathlib import Path
 import runpy
 import uuid
@@ -196,7 +198,7 @@ async def test_commit_during_idle_wait_cannot_replace_explicitly_accepted_head(t
     scope=str(repo)
     with tm._conn() as c:
         tm.ensure_project(c,'project',scope=scope)
-        task=tm.create_task(c,'project','Pinned work',par_number=42,status='in_progress')
+        task=seed_task(c,'project','Pinned work',par_number=42,status='in_progress')
         c.execute('UPDATE tm_tasks SET worker_session_id=? WHERE id=?',('pinned-worker',task['id']))
     tree=workspace.create_worktree(scope,'pinned-worker',task_id='42')
     head=_commit_file(tree.path,'work.py','#42: result shown to parent')
@@ -237,7 +239,7 @@ async def test_complete_new_work_path_runs_checks_then_merges_only_passing_resul
     command=f'{sys.executable} -B -c "import work; assert work.VALUE == 42"'
     with tm._conn() as c:
         tm.ensure_project(c,'project',scope=scope)
-        task=tm.create_task(c,'project','Return 42',par_number=42,status='in_progress',acceptance_command=command)
+        task=seed_task(c,'project','Return 42',par_number=42,status='in_progress',acceptance_command=command)
         c.execute('UPDATE tm_tasks SET worker_session_id=? WHERE id=?',('new-work',task['id']))
     tree=workspace.create_worktree(scope,'new-work',task_id='42')
     Path(tree.path,'work.py').write_text(f'VALUE = {value}\n')

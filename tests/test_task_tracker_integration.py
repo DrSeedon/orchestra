@@ -1,5 +1,7 @@
 """Acceptance oracles for #248: make task state part of orchestration."""
 
+from tests.task_seeds import create_task as seed_task
+
 import asyncio
 from datetime import datetime, timezone
 import inspect
@@ -223,7 +225,7 @@ async def test_t1_bound_worker_rejects_conflicting_leading_task_number(monkeypat
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        tm.create_task(connection, "project", "Current", par_number=42)
+        seed_task(connection, "project", "Current", par_number=42)
     target = SimpleNamespace(
         id="bound-worker",
         name="bound-worker",
@@ -266,7 +268,6 @@ def _prepare_merge(monkeypatch, *, session_id: str, scope: str = "/scope"):
         },
     )
     monkeypatch.setattr(sessions_route, "_session_base_branch", lambda *_args: "main")
-    monkeypatch.setattr("app.rag_service.is_enabled", lambda: False)
     return found
 
 
@@ -322,10 +323,10 @@ def _make_taskless_adhoc_worker(
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        tm.create_task(
+        seed_task(
             connection, "project", "Already completed", par_number=42, status="done",
         )
-        target = tm.create_task(
+        target = seed_task(
             connection, "project", "Adopt current work", par_number=43,
             status=target_status,
         )
@@ -358,7 +359,7 @@ async def test_t2_bound_task_and_outcome_are_validated_before_git(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        tm.create_task(connection, "project", "Real task", par_number=42)
+        seed_task(connection, "project", "Real task", par_number=42)
 
     calls = []
 
@@ -405,7 +406,7 @@ async def test_t2_merge_rejects_target_equal_worker_branch_before_git(monkeypatc
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Bound task", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -458,7 +459,7 @@ async def test_t2_zero_commit_merge_does_not_close_task(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "No-op task", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -537,7 +538,7 @@ async def test_t2_unknown_commit_header_is_rejected_before_target_mutation(
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        tm.create_task(
+        seed_task(
             connection, "project", "Bound task", par_number=42, status="in_progress",
         )
     worktree = create_worktree(scope, "forged-header", task_id="42")
@@ -596,7 +597,7 @@ async def test_t2_all_candidate_refs_are_scoped_and_canonicalized(monkeypatch, t
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
         for number in (42, 44, 45):
-            task = tm.create_task(
+            task = seed_task(
                 connection, "project", f"Task {number}",
                 par_number=number, status="in_progress",
             )
@@ -662,14 +663,14 @@ async def test_t2_repo_lock_recheck_rejects_substituted_or_foreign_ref(monkeypat
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Bound", par_number=42, status="in_progress",
         )
         connection.execute(
             "UPDATE tm_tasks SET worker_session_id=? WHERE id=?", ("substitute", task["id"]),
         )
         tm.ensure_project(connection, "foreign", scope="/foreign")
-        tm.create_task(connection, "foreign", "Foreign", par_number=77)
+        seed_task(connection, "foreign", "Foreign", par_number=77)
     worktree = workspace.create_worktree(scope, "substitute", task_id="42")
     worker_head = _commit_file(worktree.path, "valid.txt", "#42: valid before lock")
     _save_worker(
@@ -713,7 +714,7 @@ async def test_t3_complete_merge_atomically_links_and_closes_current_task(monkey
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Finish me", par_number=42,
             status="in_progress", price_rub=100,
         )
@@ -763,7 +764,7 @@ async def test_t1_normal_complete_persists_null_done_control(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Normal completion", par_number=42,
             status="in_progress",
         )
@@ -1000,7 +1001,7 @@ async def test_t2_promotion_reservation_race_fails_claim_and_preserves_head(
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     "failure_kind",
-    ["exception", "canonical_partial", "shadow_failure", "shadow_rejection"],
+    ["git_write_failed", "sql_commit_failed"],
 )
 async def test_t2_promotion_unknown_binding_keeps_promoted_head_quarantined(
     monkeypatch, tmp_path, failure_kind,
@@ -1017,26 +1018,7 @@ async def test_t2_promotion_unknown_binding_keeps_promoted_head_quarantined(
     task_branch = f"task-43/{found.name}"
 
     def ambiguous_binding(*_args, **_kwargs):
-        if failure_kind == "exception":
-            raise RuntimeError("binding outcome unknown")
-        if failure_kind == "canonical_partial":
-            return {
-                "ok": False,
-                "error": "legacy binding rejected after canonical commit",
-                "projection_debt": {"canonical_applied": True},
-            }
-        if failure_kind == "shadow_failure":
-            return {
-                "ok": True,
-                "error": "shadow candidate write failed",
-                "projection_debt": {"reason": "candidate_write_failed"},
-            }
-        return {
-            "ok": True,
-            "shadow_match": False,
-            "error": "shadow candidate rejected",
-            "projection_debt": {"reason": "candidate_rejected"},
-        }
+        raise RuntimeError(f'accepted task binding could not be confirmed: {failure_kind}')
 
     monkeypatch.setattr(tm, "api_update_task_if_current", ambiguous_binding)
     result = await sessions_route.switch_branch(
@@ -1223,7 +1205,7 @@ async def test_t3_real_complete_merge_transfers_commits_before_closing_task(
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Real transfer", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -1274,7 +1256,7 @@ async def test_t3_completion_reservation_blocks_a_concurrent_bind(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Serialized close", par_number=42,
             status="in_progress",
         )
@@ -1348,7 +1330,7 @@ async def test_t3_complete_rejects_an_existing_second_live_binding_before_git(mo
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Shared task", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -1384,7 +1366,7 @@ async def test_t3_continue_merge_keeps_task_bound_on_fresh_branch(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Multi-phase", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -1438,14 +1420,14 @@ async def test_t3_continue_rejects_next_task_before_git(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        current = tm.create_task(
+        current = seed_task(
             connection, "project", "Current", par_number=42, status="in_progress",
         )
         connection.execute(
             "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
             ("continue-next", current["id"]),
         )
-        tm.create_task(connection, "project", "Next", par_number=43)
+        seed_task(connection, "project", "Next", par_number=43)
     _save_worker(session_id="continue-next", task_id="42")
     found = _prepare_merge(monkeypatch, session_id="continue-next")
     merge = MagicMock(return_value={"ok": True, "commits_merged": 1})
@@ -1478,14 +1460,14 @@ async def test_t3_complete_and_next_transition_is_one_atomic_finalizer(monkeypat
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        current = tm.create_task(
+        current = seed_task(
             connection, "project", "Current", par_number=42, status="in_progress",
         )
         connection.execute(
             "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
             ("handoff-worker", current["id"]),
         )
-        next_task = tm.create_task(connection, "project", "Next", par_number=43)
+        next_task = seed_task(connection, "project", "Next", par_number=43)
     _save_worker(session_id="handoff-worker", task_id="42")
     found = _prepare_merge(monkeypatch, session_id="handoff-worker")
     monkeypatch.setattr(
@@ -1539,8 +1521,8 @@ def test_t3_links_survive_late_finalizer_failure(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        first = tm.create_task(connection, "project", "First", par_number=590)
-        second = tm.create_task(connection, "project", "Second", par_number=591)
+        first = seed_task(connection, "project", "First", par_number=590)
+        second = seed_task(connection, "project", "Second", par_number=591)
 
     def fail_status_update(*_args, **_kwargs):
         raise RuntimeError("status stage exploded")
@@ -1594,7 +1576,7 @@ async def test_t3_switch_assignment_exception_rolls_back_branch_and_lifecycle(mo
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Current", par_number=90, status="in_progress",
         )
         connection.execute(
@@ -1658,7 +1640,7 @@ async def test_t3_removing_last_worker_requeues_in_progress_task(monkeypatch):
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Interrupted", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -1688,7 +1670,7 @@ async def test_t3_removing_one_of_two_workers_preserves_active_task(monkeypatch)
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Still active", par_number=42,
             status="in_progress",
         )
@@ -1733,7 +1715,7 @@ async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcom
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Durable close", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -1847,7 +1829,7 @@ async def test_t3_first_post_git_checkpoint_loss_recovers_by_exact_trailer(
     operation_id = str(uuid.uuid4())
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Checkpoint recovery", par_number=42,
             status="in_progress",
         )
@@ -1906,7 +1888,7 @@ async def test_t3_first_post_git_checkpoint_loss_recovers_by_exact_trailer(
                 raise sqlite3.OperationalError("injected first post-Git checkpoint loss")
             return self.raw.execute(sql, parameters)
 
-    def fault_conn():
+    def fault_conn(path=None):
         return FailFirstPostGitWrite()
 
     monkeypatch.setattr(db, "_conn", fault_conn)
@@ -2017,7 +1999,7 @@ async def test_t3_old_shape_merge_on_new_server_is_safe_legacy_continue(monkeypa
     _init_db()
     _seed_project()
     with tm._conn() as connection:
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Legacy caller", par_number=42, status="in_progress",
         )
         connection.execute(

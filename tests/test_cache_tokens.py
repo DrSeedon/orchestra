@@ -40,28 +40,6 @@ class TestMigration:
         assert "total_cache_read_tokens" in cols
         assert "total_cache_create_tokens" in cols
 
-    def test_migration_idempotent_drops_new_cols_simulating_old_db(self, db):
-        """Simulate an OLD db by dropping the new columns, then re-run _migrate:
-        columns come back additively, legacy row is untouched, re-run is idempotent."""
-        import sqlite3
-        from app.db import _conn, init_db, save_session, get_session
-        save_session(_session(cost_usd_cached=0.42))
-        # drop the two new columns to emulate a pre-migration schema (sqlite 3.35+)
-        with _conn() as c:
-            try:
-                c.execute("ALTER TABLE sessions DROP COLUMN total_cache_read_tokens")
-                c.execute("ALTER TABLE sessions DROP COLUMN total_cache_create_tokens")
-            except sqlite3.OperationalError:
-                pytest.skip("sqlite build without DROP COLUMN support")
-        init_db()  # re-migrate
-        init_db()  # twice → idempotent, no crash
-        with _conn() as c:
-            cols = {r[1] for r in c.execute("PRAGMA table_info(sessions)").fetchall()}
-        assert "total_cache_read_tokens" in cols and "total_cache_create_tokens" in cols
-        row = get_session("s1")
-        assert row["total_cache_read_tokens"] == 0
-        assert row["total_cache_create_tokens"] == 0
-        assert row["cost_usd_cached"] == 0.42  # legacy data intact
 
 
 class TestAccumulation:

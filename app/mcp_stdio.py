@@ -3521,32 +3521,9 @@ async def bg_cancel(job_id: str) -> str:
     return f"Job {job_id} cancelled."
 
 
-async def knowledge(
-    operation: str,
-    detail: str = "summary",
-    payload: dict[str, Any] | None = None,
-) -> str:
-    """Promote, query, or import canonical structured knowledge.
-
-    ``detail`` progressively expands ``summary`` → ``record`` → ``evidence``.
-    Direct file, SQLite, and vector operations are intentionally unsupported.
-    """
-
-    body = {
-        "operation": operation,
-        "detail": detail,
-        "payload": payload or {},
-    }
-    try:
-        result = await _api("POST", "/api/knowledge", json=body)
-    except ApiToolError as exc:
-        result = {"error": _canonical_error(exc)}
-    return json.dumps(result, ensure_ascii=False, sort_keys=True)
-
-
 @mcp.tool()
 async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
-    """Compatibility callable for old in-process consumers; not an agent MCP tool."""
+    """Search project Markdown and original session logs."""
     # scope НЕ параметр: берём ORCHESTRA_SCOPE из env воркера → нельзя запросить чужой проект.
     if not SCOPE:
         return "search_memory: no project scope (orchestrator context) — nothing to search."
@@ -3564,22 +3541,10 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
                       "search_busy": "очередь поиска переполнена",
                       "search_stale": "запрос протух в очереди"}[e.code]
             return f"search_memory: {reason}. Не жди и не повторяй — {grep}"
-        if "RAG disabled" in e.message:
-            return f"search_memory: семантический поиск выключен (RAG_ENABLED=false) — {grep}"
         return f"search_memory: {e.code} — {e.message}. {grep}"
     hits = result.get("results", []) if isinstance(result, dict) else []
-    # `index` появился позже самого эндпоинта: старый роут его не отдаёт → .get, а не [].
-    index = (result.get("index") or {}) if isinstance(result, dict) else {}
-    pending = index.get("pending_files") or 0
-    debt = (f"\n\n[индекс не догнан: {pending} файлов ещё не проиндексированы — "
-            f"пустой ответ не доказывает отсутствие факта]") if pending else ""
     if not hits:
-        # «долг 0» и «долга не знаем» — РАЗНОЕ: index_status отдаёт пустой словарь, пока в
-        # процессе не было ни одного прохода, и молчание честнее нуля
-        if "pending_files" not in index:
-            debt = ("\n\n[состояние индекса неизвестно: в этом процессе ещё не было прохода — "
-                    "пустой ответ ничего не доказывает]")
-        return f"No memory matches for: {query!r}. Проверь — {grep}{debt}"
+        return f"No memory matches for: {query!r}. Проверь — {grep}"
     lines = []
     for h in hits:
         if h.get("source") == "file":
@@ -3591,7 +3556,7 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
         if cross_project:
             head = f"({h.get('project')}) {head}"
         lines.append(f"{head}\n{h.get('content', '').strip()}")
-    return "\n\n---\n\n".join(lines) + debt
+    return "\n\n---\n\n".join(lines)
 
 
 # Wrapper reloads Orchestra .env on every invocation, so Codex review follows the same

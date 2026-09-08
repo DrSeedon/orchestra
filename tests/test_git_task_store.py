@@ -124,3 +124,26 @@ def test_lost_commit_acknowledgement_is_replayed_once(pair, monkeypatch):
     recovered = a.create('project', 'Accepted task', request_key='lost')
     assert recovered['ref'] == '1'
     assert len(a.list('project')) == 1
+
+
+@pytest.mark.parametrize('damage', ['delete', 'renumber', 'invalid'])
+def test_invalid_remote_cannot_advance_local_head(pair, damage):
+    a, b = pair
+    task = a.create('project', 'Original', request_key='one')
+    a.sync(); b.sync()
+    before = a.head
+    path = b._path(task)
+    if damage == 'delete':
+        path.unlink()
+    else:
+        record = json.loads(path.read_text())
+        record['number' if damage == 'renumber' else 'status'] = 7 if damage == 'renumber' else 'nonsense'
+        path.write_text(json.dumps(record))
+    git(b.root, 'add', '-A')
+    git(b.root, 'commit', '-m', 'Manual damaged task edit')
+    git(b.root, 'push', 'origin', 'main')
+    with pytest.raises((TaskConflict, ValueError)):
+        a.sync()
+    assert a.head == before
+    assert a.get('project', '1')['id'] == task['id']
+    assert git(a.root, 'status', '--porcelain') == ''

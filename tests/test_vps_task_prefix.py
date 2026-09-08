@@ -1,3 +1,5 @@
+
+from tests.task_seeds import create_task as seed_task
 import pytest
 
 @pytest.fixture
@@ -16,18 +18,18 @@ def test_prefix_is_persisted_only_for_new_tasks(task_db, monkeypatch):
     monkeypatch.setenv('ORCHESTRA_TASK_PREFIX', 'V-')
     new = tm.api_create_task('project', 'new')
     assert old['par'] == '1'
-    assert new['par'] == 'V-2'
+    assert new['par'] == 'V-1'
     assert tm.api_get_task('1', 'project')['title'] == 'old'
-    assert tm.api_get_task('V-2', 'project')['title'] == 'new'
+    assert tm.api_get_task('V-1', 'project')['title'] == 'new'
     with pytest.raises(ValueError):
         tm.resolve_scoped_task_identity(scope, '2')
     with pytest.raises(ValueError):
-        tm.resolve_scoped_task_identity(scope, 'V-1')
-    identity = tm.resolve_scoped_task_identity(scope, 'V-2')
+        tm.resolve_scoped_task_identity(scope, 'V-2')
+    identity = tm.resolve_scoped_task_identity(scope, 'V-1')
     assert identity['ref_prefix'] == 'V'
     monkeypatch.delenv('ORCHESTRA_TASK_PREFIX')
-    assert tm.api_get_task('V-2', 'project')['par'] == 'V-2'
-    assert tm.create_task_for_scope(scope, 'local')['par'] == '3'
+    assert tm.api_get_task('V-1', 'project')['par'] == 'V-1'
+    assert tm.create_task_for_scope(scope, 'local')['par'] == '2'
 
 
 def test_git_preserves_node_prefix_and_keeps_legacy_aliases():
@@ -52,7 +54,7 @@ async def test_prefixed_assignment_reaches_real_merge(tmp_path, monkeypatch):
     scope = str(repo)
     with tm._conn() as c:
         tm.ensure_project(c, 'project', scope=scope)
-        task = tm.create_task(c, 'project', 'VPS result', par_number=42, status='in_progress')
+        task = seed_task(c, 'project', 'VPS result', par_number=42, status='in_progress')
         c.execute("UPDATE tm_tasks SET worker_session_id='v-worker' WHERE id=?", (task['id'],))
     tree = workspace.create_worktree(scope, 'v-worker', task_id='V-42')
     assert tree.branch == 'task-V-42/v-worker'
@@ -76,23 +78,21 @@ async def test_prefixed_assignment_reaches_real_merge(tmp_path, monkeypatch):
     assert tm.api_get_task('V-42', 'project')['status'] == 'done'
 
 
-from tests.test_task_par_collision_406 import canonical_tasks
+from tests.test_task_runtime import runtime
 
 
-def test_prefix_through_canonical_facade_and_replay(canonical_tasks, monkeypatch):
-    tm, store, database = canonical_tasks
-    monkeypatch.setenv('ORCHESTRA_TASK_PREFIX', 'V-')
+def test_prefix_through_canonical_facade_and_replay(runtime):
+    from app import tm
+    runtime.store.origin = 'V'
     key = 'prefix-request-000001'
-    result = tm.api_create_task('orchestra', 'prefixed', request_key=key)
-    assert result['par'] == 'V-1', result
-    assert next(iter(store._states().values()))['ref_prefix'] == 'V'
-    assert store.task_get('1', project='orchestra')['ref_prefix'] == 'V'
-    assert tm.api_create_task('orchestra', 'prefixed', request_key=key)['par'] == 'V-1'
-    assert tm.api_get_task('V-1', 'orchestra')['par'] == 'V-1'
-    assert tm.api_list_tasks('orchestra')['tasks'][0]['par'] == 'V-1'
-    changed = tm.api_update_task('V-1', title='renamed', project='orchestra')
-    assert changed['par'] == 'V-1'
-    assert store.task_get('1', project='orchestra')['title'] == 'renamed'
+    result = tm.api_create_task('local-project', 'prefixed', request_key=key)
+    assert result['par'] == 'V-1'
+    assert runtime.store.get('project', 'V-1')['origin'] == 'V'
+    assert tm.api_create_task('local-project', 'prefixed', request_key=key)['par'] == 'V-1'
+    assert tm.api_get_task('V-1', 'local-project')['par'] == 'V-1'
+    assert tm.api_list_tasks('local-project')['tasks'][0]['par'] == 'V-1'
+    tm.api_update_task('V-1', title='renamed', project='local-project')
+    assert runtime.store.get('project', 'V-1')['title'] == 'renamed'
 
 
 def test_ready_publication_and_restart_preserve_prefixed_assignment(task_db, monkeypatch):

@@ -13,6 +13,8 @@ Each test carries a PERMITTING control arm: a recovery that accepts everything, 
 release that drops every reservation, is not a fix and must not pass.
 """
 
+from tests.task_seeds import create_task as seed_task
+
 import asyncio
 import json
 import subprocess
@@ -64,7 +66,7 @@ async def _merge_then_rewind_to_crash(monkeypatch, tmp_path, *, worker: str):
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Wedge me", par_number=42, status="in_progress",
         )
         connection.execute(

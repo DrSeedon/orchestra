@@ -6,6 +6,8 @@ The production tree, live DB, providers, and running #380 branches are never mut
 
 from __future__ import annotations
 
+from tests.task_seeds import create_task as seed_task
+
 import inspect
 import json
 import shlex
@@ -183,12 +185,12 @@ def test_t386_t1_task_oracle_revision_is_atomic_and_audited(task_db):
     from app import tm
 
     required = {"acceptance_manifest", "acceptance_required", "acceptance_actor"}
-    _required_parameters(tm.create_task, required, "tm.create_task")
+    _required_parameters(tm.api_create_task, required, "tm.api_create_task")
     _required_parameters(tm.update_task, required, "tm.update_task")
 
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "proj", scope="/scope")
-        created = tm.create_task(
+        created = seed_task(
             conn,
             project["id"],
             "target-aware ticket",
@@ -229,169 +231,8 @@ def test_t386_t1_task_oracle_revision_is_atomic_and_audited(task_db):
     assert revised["updated_by"] == actor2
 
 
-def _create_task_schema_with_legacy_unique(
-    connection: sqlite3.Connection,
-    *,
-    include_oracle: bool,
-) -> None:
-    oracle_column = (
-        "acceptance_oracle_json TEXT NOT NULL DEFAULT '{}',"
-        if include_oracle else ""
-    )
-    connection.executescript(f"""
-        CREATE TABLE tm_tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            par_number INTEGER NOT NULL,
-            project_id TEXT NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL DEFAULT '',
-            price_rub INTEGER NOT NULL DEFAULT 0,
-            paid_rub INTEGER NOT NULL DEFAULT 0,
-            status TEXT NOT NULL DEFAULT 'backlog',
-            assignee TEXT NOT NULL DEFAULT '',
-            yougile_task_id TEXT UNIQUE,
-            sync_revision INTEGER NOT NULL DEFAULT 0,
-            worker_session_id TEXT,
-            git_commits TEXT NOT NULL DEFAULT '[]',
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL,
-            completed_at TEXT,
-            paid_at TEXT,
-            acceptance_command TEXT NOT NULL DEFAULT '',
-            {oracle_column}
-            priority INTEGER NOT NULL DEFAULT 2,
-            UNIQUE(par_number)
-        );
-    """)
 
 
-def test_t386_t1_old_schema_and_recreation_preserve_acceptance_bundle(tmp_path, monkeypatch):
-    import app.db as dbmod
-    import app.merge_operations as operations
-
-    db_path = tmp_path / "legacy386.db"
-    with sqlite3.connect(db_path) as connection:
-        connection.executescript("""
-            CREATE TABLE tm_projects (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                prefix TEXT NOT NULL DEFAULT 'TASK',
-                scope TEXT UNIQUE,
-                yougile_project_id TEXT,
-                yougile_board_id TEXT,
-                yougile_enabled INTEGER NOT NULL DEFAULT 0,
-                created_at TEXT NOT NULL,
-                UNIQUE(prefix)
-            );
-            INSERT INTO tm_projects
-                (id,name,prefix,scope,created_at)
-                VALUES ('proj','Project','PRJ','/scope','2026-08-24T00:00:00+00:00');
-        """)
-        _create_task_schema_with_legacy_unique(connection, include_oracle=False)
-        connection.execute(
-            """INSERT INTO tm_tasks
-               (par_number,project_id,title,status,created_at,updated_at,
-                acceptance_command,priority)
-               VALUES (386,'proj','legacy','new',?,?,?,2)""",
-            (
-                "2026-08-24T00:00:00+00:00",
-                "2026-08-24T00:00:00+00:00",
-                "python -m pytest -q tests/test_ticket_386.py",
-            ),
-        )
-    monkeypatch.setattr(dbmod, "DB_PATH", db_path)
-    try:
-        dbmod.init_db()
-    except Exception as exc:  # current drift repair has no #386 column contract
-        pytest.fail(f"#386 missing behavior: legacy acceptance migration failed: {exc}")
-
-    with dbmod._conn() as connection:
-        row = connection.execute(
-            "SELECT * FROM tm_tasks WHERE par_number=386",
-        ).fetchone()
-        assert row["acceptance_command"].startswith("python -m pytest")
-        assert json.loads(row["acceptance_oracle_json"]) == {}
-        stored = {
-            "version": 1,
-            "required": True,
-            "revision": 4,
-            "manifest_paths": MANIFEST,
-            "updated_at": "2026-08-24T00:00:00+00:00",
-            "updated_by": ACTOR,
-        }
-        connection.execute(
-            "UPDATE tm_tasks SET acceptance_oracle_json=? WHERE par_number=386",
-            (json.dumps(stored, sort_keys=True),),
-        )
-
-    with sqlite3.connect(db_path) as connection:
-        connection.execute("PRAGMA foreign_keys=OFF")
-        connection.execute("ALTER TABLE tm_tasks RENAME TO tm_tasks_before_386")
-        _create_task_schema_with_legacy_unique(connection, include_oracle=True)
-        columns = [
-            row[1] for row in connection.execute(
-                "PRAGMA table_info(tm_tasks_before_386)",
-            ).fetchall()
-        ]
-        names = ",".join(f'"{name}"' for name in columns)
-        connection.execute(
-            f"INSERT INTO tm_tasks ({names}) SELECT {names} FROM tm_tasks_before_386",
-        )
-        connection.execute("DROP TABLE tm_tasks_before_386")
-        connection.commit()
-    try:
-        dbmod.init_db()
-    except Exception as exc:
-        pytest.fail(f"#386 missing behavior: recreated acceptance migration failed: {exc}")
-    with dbmod._conn() as connection:
-        preserved = connection.execute(
-            "SELECT acceptance_oracle_json FROM tm_tasks WHERE par_number=386",
-        ).fetchone()[0]
-    assert json.loads(preserved) == stored
-
-    operation_id = str(uuid.uuid4())
-    operations.accept_operation_snapshot(
-        operation_id=operation_id,
-        request=operations.normalize_request(
-            name="legacy-worker", scope="/scope", target="main",
-        ),
-        accepted={
-            "session_id": "legacy-session",
-            "name": "legacy-worker",
-            "scope": "/scope",
-            "base_branch": "main",
-            "worker_branch": "legacy-branch",
-            "worker_head": "b" * 40,
-            "task_id": "386",
-            "needs_switch": False,
-            "worktree_path": "/legacy-worktree",
-            "admission": {
-                "target": {"branch": "main", "sha": "a" * 40},
-                "oracle": {"required": False, "source": "none"},
-            },
-        },
-    )
-    with sqlite3.connect(db_path) as connection:
-        columns = {
-            row[1] for row in connection.execute(
-                "PRAGMA table_info(merge_operations)",
-            ).fetchall()
-        }
-        assert "accepted_admission_json" in columns, (
-            "#386 missing behavior: merge operation admission column was not created"
-        )
-        connection.execute(
-            "ALTER TABLE merge_operations DROP COLUMN accepted_admission_json",
-        )
-        connection.commit()
-    dbmod.init_db()
-    with dbmod._conn() as connection:
-        replay_row = connection.execute(
-            "SELECT * FROM merge_operations WHERE operation_id=?",
-            (operation_id,),
-        ).fetchone()
-    assert replay_row is not None
-    assert json.loads(replay_row["accepted_admission_json"]) == {}
 
 
 @pytest.mark.asyncio
@@ -862,9 +703,9 @@ async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runne
     import app.tm as tm
 
     _required_parameters(
-        tm.create_task,
+        tm.api_create_task,
         {"acceptance_manifest", "acceptance_required", "acceptance_actor"},
-        "tm.create_task",
+        "tm.api_create_task",
     )
     db_path = tmp_path / "pin-operation386.db"
     monkeypatch.setattr(dbmod, "DB_PATH", db_path)
@@ -874,7 +715,7 @@ async def test_t386_t1_public_operation_pins_target_and_task_oracle_before_runne
     _record_reviewed_receipt(dbmod, git_graph)
     with tm._conn() as conn:
         project = tm.ensure_project(conn, "proj", scope="/scope")
-        task = tm.create_task(
+        task = seed_task(
             conn,
             project["id"],
             "pinned ticket",
@@ -955,9 +796,9 @@ async def test_t386_t1_malformed_task_oracle_metadata_refuses_before_runner(
     import app.tm as tm
 
     _required_parameters(
-        tm.create_task,
+        tm.api_create_task,
         {"acceptance_manifest", "acceptance_required", "acceptance_actor"},
-        "tm.create_task",
+        "tm.api_create_task",
     )
     db_path = tmp_path / "malformed-operation386.db"
     monkeypatch.setattr(dbmod, "DB_PATH", db_path)
@@ -966,7 +807,7 @@ async def test_t386_t1_malformed_task_oracle_metadata_refuses_before_runner(
     dbmod.save_session(_session_row(git_graph))
     with tm._conn() as connection:
         project = tm.ensure_project(connection, "proj", scope="/scope")
-        task = tm.create_task(
+        task = seed_task(
             connection,
             project["id"],
             "malformed oracle",

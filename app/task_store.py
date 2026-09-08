@@ -29,10 +29,10 @@ class TaskConflict(RuntimeError):
 _DEFAULTS = {
     'description': '', 'status': 'new', 'priority': 2, 'assignee': '', 'price_rub': 0,
     'acceptance': {'command': '', 'manifest_paths': [], 'required': False},
-    'git_commits': [], 'evidence_refs': [],
+    'git_commits': [], 'evidence_refs': [], 'completed_at': None,
 }
 _MUTABLE = frozenset({'title', *_DEFAULTS})
-_STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled'})
+_STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled', 'paid'})
 
 
 def _bytes(value: dict) -> bytes:
@@ -65,6 +65,8 @@ def _validate(record: dict) -> None:
     for field in ('description', 'assignee', 'created_at', 'updated_at', 'creation_key', 'creation_fingerprint'):
         if not isinstance(record[field], str):
             raise ValueError(f'{field} must be a string')
+    if record['completed_at'] is not None and not isinstance(record['completed_at'], str):
+        raise ValueError('completion time must be a string or null')
     if record['status'] not in _STATUSES:
         raise ValueError('invalid task status')
     if type(record['priority']) is not int or not 0 <= record['priority'] <= 3:
@@ -141,13 +143,33 @@ class TaskStore:
     def _path(self, record: dict) -> Path:
         return self.root / 'projects' / _project(record['project_id']) / 'tasks' / (record['id'] + '.json')
 
-    def _records(self, project: str = '') -> list[dict]:
-        base = self.root / 'projects'
-        paths = (base / _project(project) / 'tasks').glob('*.json') if project else base.glob('*/tasks/*.json')
+    def _tree_records(self, tree: str) -> list[dict]:
+        entries = self._git('ls-tree', '-r', '-z', tree, '--', 'projects').stdout.split('\0')
+        paths, hashes = [], []
+        for entry in filter(None, entries):
+            meta, path = entry.split('\t', 1)
+            mode, kind, oid = meta.split()
+            if not re.fullmatch(r'projects/[^/]+/tasks/[^/]+\.json', path):
+                continue
+            if mode != '100644' or kind != 'blob':
+                raise TaskConflict('task records must be regular files')
+            paths.append(self.root / path)
+            hashes.append(oid)
+        result = subprocess.run(['git', '-C', str(self.root), 'cat-file', '--batch'],
+            input=('\n'.join(hashes) + '\n' if hashes else '').encode(),
+            capture_output=True, timeout=60, check=True)
+        data, offset, records = result.stdout, 0, []
+        for path in paths:
+            end = data.index(b'\n', offset)
+            size = int(data[offset:end].split()[2])
+            records.append((path, json.loads(data[end+1:end+1+size])))
+            offset = end + 1 + size + 1
+        return self._validate_records(records)
+
+    def _validate_records(self, entries) -> list[dict]:
         records = []
         identities, refs, requests = set(), set(), set()
-        for path in sorted(paths):
-            record = json.loads(path.read_text())
+        for path, record in entries:
             _validate(record)
             if path != self._path(record):
                 raise TaskConflict('task identity does not match its file')
@@ -158,6 +180,11 @@ class TaskStore:
             identities.add(record['id']); refs.add(ref); requests.add(request)
             records.append(record)
         return records
+
+    def _records(self, project: str = '') -> list[dict]:
+        base = self.root / 'projects'
+        paths = (base / _project(project) / 'tasks').glob('*.json') if project else base.glob('*/tasks/*.json')
+        return self._validate_records((path, json.loads(path.read_text())) for path in sorted(paths))
 
     def _find(self, project: str, ref: str) -> dict:
         parsed = parse_task_ref(ref)
@@ -176,7 +203,7 @@ class TaskStore:
             self._ready()
             return _view(self._find(project, ref))
 
-    def create(self, project: str, title: str, *, request_key: str, **fields: Any) -> dict:
+    def create(self, project: str, title: str, *, request_key: str, reserved_numbers: set[int] | None = None, **fields: Any) -> dict:
         _project(project)
         if not isinstance(request_key, str) or not request_key.strip():
             raise ValueError('a caller-held creation request key is required')
@@ -195,12 +222,16 @@ class TaskStore:
                     raise TaskConflict('creation key belongs to another task payload')
                 return _view(existing)
             number = max((r['number'] for r in records if r['origin'] == self.origin), default=0) + 1
+            while number in (reserved_numbers or set()):
+                number += 1
             now = datetime.now(timezone.utc).isoformat()
             record = {**body, 'schema_version': 1, 'project_id': project, 'origin': self.origin,
                       'number': number, 'id': str(uuid.uuid5(uuid.NAMESPACE_URL,
                           f'orchestra-task:{project}:{self.origin}:{request_key}')),
                       'created_at': now, 'updated_at': now, 'creation_key': request_key,
                       'creation_fingerprint': fingerprint}
+            if record['status'] in {'done', 'paid'}:
+                record['completed_at'] = record['completed_at'] or now
             _validate(record)
             self._commit_files({self._path(record): _bytes(record)}, f'Create task {TaskRef(self.origin, number).display}')
             return _view(record)
@@ -216,6 +247,8 @@ class TaskStore:
             if all(old[k] == v for k, v in fields.items()):
                 return _view(old)
             record = {**old, **copy.deepcopy(fields), 'updated_at': datetime.now(timezone.utc).isoformat()}
+            if 'status' in fields and 'completed_at' not in fields:
+                record['completed_at'] = (old['completed_at'] or record['updated_at']) if record['status'] in {'done', 'paid'} else None
             _validate(record)
             self._commit_files({self._path(record): _bytes(record)}, f'Update task {TaskRef(record["origin"], record["number"]).display}')
             return _view(record)
@@ -260,11 +293,21 @@ class TaskStore:
         with self._lock():
             self._ready()
             branch = self._git('symbolic-ref', '--short', 'HEAD').stdout.strip()
-            result = self._git('merge', '--no-edit', f'{remote}/{branch}', check=False)
-            if result.returncode:
-                self._git('merge', '--abort', check=False)
-                raise TaskConflict(result.stderr.strip() or result.stdout.strip())
-            self._records()
+            remote_head = self._git('rev-parse', f'{remote}/{branch}').stdout.strip()
+            candidate = self._git('merge-tree', '--write-tree', self.head, remote_head, check=False)
+            if candidate.returncode:
+                raise TaskConflict(candidate.stderr.strip() or candidate.stdout.strip())
+            tree = candidate.stdout.splitlines()[0]
+            if json.loads(self._git('show', f'{tree}:task-store.json').stdout) != {'schema_version': 1}:
+                raise TaskConflict('incoming task store version is unsupported')
+            merged = {r['id']: r for r in self._tree_records(tree)}
+            immutable = {'id', 'project_id', 'origin', 'number', 'creation_key', 'creation_fingerprint', 'created_at'}
+            for old in self._records() + self._tree_records(remote_head):
+                new = merged.get(old['id'])
+                if new is None or any(old[k] != new[k] for k in immutable):
+                    raise TaskConflict('sync cannot remove or rename existing task identities')
+            # Only a validated native merge may advance the branch/worktree.
+            self._git('merge', '--no-edit', remote_head)
             head = self.head
         self._git('push', remote, branch)
         return {'head': head}

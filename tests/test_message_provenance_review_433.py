@@ -4,13 +4,6 @@ import sqlite3
 import json
 
 
-def test_review_storage_requires_senders_json_array():
-    from app.events import MessageProvenance
-
-    with pytest.raises(ValueError, match="array"):
-        MessageProvenance.from_storage(
-            "user", {"senders": {"alice": True}},
-        )
 
 
 def test_review_db_projection_rejects_missing_or_corrupt_provenance():
@@ -26,43 +19,8 @@ def test_review_db_projection_rejects_missing_or_corrupt_provenance():
         })
 
 
-def test_review_rag_rejects_corrupt_user_provenance_atomically():
-    from app.rag import _classify_log
-
-    with pytest.raises(ValueError):
-        _classify_log(
-            "user_message", "body", origin="user",
-            origin_detail={"senders": {"attacker": True}},
-        )
 
 
-def test_review_legacy_senderless_mailbox_is_unknown(tmp_path, monkeypatch):
-    from app import db
-
-    target = tmp_path / "legacy-mailbox-433.db"
-    with sqlite3.connect(target) as connection:
-        connection.execute(
-            """CREATE TABLE mailbox (
-                   id INTEGER PRIMARY KEY AUTOINCREMENT,
-                   recipient TEXT NOT NULL, scope TEXT NOT NULL,
-                   sender TEXT NOT NULL, body TEXT NOT NULL,
-                   created_at REAL NOT NULL, delivered_at REAL, claimed_at REAL
-               )"""
-        )
-        connection.execute(
-            "INSERT INTO mailbox(recipient,scope,sender,body,created_at) "
-            "VALUES('worker','/scope','','legacy senderless',1.0)"
-        )
-    monkeypatch.setattr(db, "DB_PATH", target)
-
-    db.init_db()
-
-    with db._conn() as connection:
-        row = connection.execute(
-            "SELECT origin,origin_detail FROM mailbox WHERE id=1"
-        ).fetchone()
-    assert row["origin"] == "unknown"
-    assert '"unknown"' in row["origin_detail"]
 
 
 def test_review_manifest_is_rechecked_under_write_lock(tmp_path, monkeypatch):

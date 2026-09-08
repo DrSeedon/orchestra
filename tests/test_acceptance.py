@@ -4,6 +4,8 @@
 команду. «Команда отработала» (нулевой exit без отказа мержа) оракулом не является.
 Текст DONE не читаем — это вторая копия правды.
 """
+
+from tests.task_seeds import create_task as seed_task
 import asyncio
 import subprocess
 import uuid
@@ -114,7 +116,7 @@ def acc_db(tmp_path, monkeypatch):
     dbmod.save_session(_session_row(str(worktree)))
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope="/scope")
-        tm.create_task(
+        seed_task(
             conn, "proj", "ticket",
             par_number=42,
             acceptance_command="python3 -c 'import sys; print(\"ACC240-RED\", file=sys.stderr); raise SystemExit(2)'",
@@ -292,11 +294,9 @@ def test_create_and_update_reject_invalid_command_before_db_write(
         before = tm.get_task_by_par(conn, 42, "proj")
 
         with pytest.raises(AcceptanceCommandError):
-            tm.create_task(
-                conn,
+            tm.api_create_task(
                 "proj",
                 "invalid-create",
-                par_number=384,
                 acceptance_command=invalid_command,
             )
         assert conn.execute(
@@ -335,8 +335,8 @@ def test_create_is_wired_to_canonical_validator(acc_db, monkeypatch):
     acceptance = _install_rejecting_parser(monkeypatch)
     with tm._conn() as conn:
         with pytest.raises(acceptance.AcceptanceCommandError, match="sentinel"):
-            tm.create_task(
-                conn, "proj", "sentinel-create", par_number=384,
+            tm.api_create_task(
+                "proj", "sentinel-create",
                 acceptance_command="true",
             )
         assert conn.execute(
