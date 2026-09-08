@@ -1335,11 +1335,21 @@ class CodexBackend(JsonRpcStdioTransport):
             return
         proc = self._proc
         if proc is None and self._scope_unit is None:
-            if self._adopted_fds is not None or self._adopted_writer is not None:
+            if self._adopted_fds is not None or self._adopted_writer is not None or self._teardown_error:
                 # An ADOPTED backend owns no Process, but it very much owns a running CLI:
                 # returning here left it alive next to its replacement (found in impl review).
                 self._disconnecting = True
-                await self.teardown_adopted()
+                try:
+                    await self.teardown_adopted()
+                    home = self._managed_codex_home_path()
+                    if home is not None and self._thread_id:
+                        async with asyncio.timeout(CODEX_PROCESS_TIMEOUT_SECONDS):
+                            while codex_writer_conflict(home.name, self._thread_id) is not None:
+                                await asyncio.sleep(0.05)
+                    self._teardown_error = None
+                except BaseException as error:
+                    self._teardown_error = f"{type(error).__name__}: {error}"
+                    raise
             return
         self._disconnecting = True
         try:

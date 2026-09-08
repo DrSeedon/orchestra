@@ -1,4 +1,4 @@
-"""Advisory review for new work; execution history never authorizes a merge."""
+"""Advisory review for all assignments; execution history never authorizes a merge."""
 from __future__ import annotations
 
 import subprocess
@@ -31,31 +31,19 @@ def assignment(scope: str, session_id: str, task_id: str, *, connection=None) ->
     return dict(row) if row else None
 
 
-def is_advisory(run: dict | None) -> bool:
-    return bool(run and int(run.get("schema_version") or 1) >= ASSIGNMENT_VERSION)
 
 
-def assignment_version(connection, scope: str, task_id: str, stable_id: str) -> int:
-    # A replacement executor inherits the TASK's policy, not the time of its own spawn.
-    identity = "(task_stable_id=? OR (task_stable_id='' AND task_id=?))" if stable_id else "task_id=?"
-    args = (stable_id, task_id) if stable_id else (task_id,)
-    row = connection.execute(
-        "SELECT schema_version FROM review_receipts WHERE subject_kind='task_run' "
-        f"AND scope=? AND {identity} ORDER BY requested_at, rowid LIMIT 1",
-        (scope, *args),
-    ).fetchone()
-    return int(row[0]) if row else ASSIGNMENT_VERSION
 
 
 def _task_reviews(connection, run: dict) -> list[dict]:
     stable_id = str(run.get("task_stable_id") or "")
-    key = "task_stable_id" if stable_id else "task_id"
-    value = stable_id or str(run["task_id"])
+    identity = "(task_stable_id=? OR (task_stable_id='' AND task_id=?))" if stable_id else "task_id=?"
+    args = (stable_id, str(run["task_id"])) if stable_id else (str(run["task_id"]),)
     return [dict(row) for row in connection.execute(
-        f"SELECT * FROM review_receipts WHERE scope=? AND {key}=? "
+        f"SELECT * FROM review_receipts WHERE scope=? AND {identity} "
         "AND mode IN ('implementation','exec','review') "
         "ORDER BY requested_at DESC, rowid DESC",
-        (run["scope"], value),
+        (run["scope"], *args),
     ).fetchall()]
 
 
@@ -63,7 +51,7 @@ def reserve_budget(connection, values: dict) -> None:
     """Called inside the receipt insert's BEGIN IMMEDIATE transaction."""
     run = assignment(str(values.get("scope") or ""), str(values.get("session_id") or ""),
                      str(values.get("task_id") or ""), connection=connection)
-    if not is_advisory(run):
+    if run is None:
         return
     if run["status"] != "requested":
         raise ReviewBudgetError("review_task_not_active", "The task assignment is already closed; no new review can be requested.")
@@ -83,8 +71,8 @@ def summarize_review(*, scope: str, session_id: str, task_id: str,
     from app.db import _conn
     with _conn() as conn:
         run = assignment(scope, session_id, task_id, connection=conn)
-        if not is_advisory(run):
-            raise ValueError("assignment does not use advisory review")
+        if run is None:
+            raise ValueError("task assignment not found")
         rows = _task_reviews(conn, run)
     reviews = [{
         "receipt_id": row["receipt_id"], "mode": row["mode"], "status": row["status"],
@@ -118,3 +106,15 @@ def summarize_review(*, scope: str, session_id: str, task_id: str,
         "changed_after_review": delta, "comparison_error": comparison_error,
         "attempts_used": len(rows), "attempt_limit": MAX_REVIEW_REQUESTS,
     }
+
+
+def resolve_implementation_subject(worktree: str, target_ref: str) -> dict[str, str]:
+    def git(*args: str) -> str:
+        result = subprocess.run(["git", *args], cwd=worktree, capture_output=True, text=True, timeout=15)
+        if result.returncode:
+            raise ValueError(result.stderr.strip() or "cannot resolve review commit")
+        return result.stdout.strip()
+    if git("status", "--porcelain", "--untracked-files=all"):
+        raise ValueError("implementation review requires a clean committed worktree")
+    return {"target_sha": git("rev-parse", "--verify", f"{target_ref}^{{commit}}"),
+            "worker_head": git("rev-parse", "--verify", "HEAD^{commit}")}

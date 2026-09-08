@@ -15,7 +15,7 @@ def work(tmp_path,monkeypatch):
     import app.merge_operations as operations
     import app.acceptance as acceptance
     db.init_db()
-    helpers=runpy.run_path(str(Path(__file__).with_name('test_review_coverage_gate_462.py')))
+    helpers=runpy.run_path(str(Path(__file__).with_name('_work_review_helpers.py')))
     repo,_base=helpers['_repo'](tmp_path)
     for sid,name,role,orch in [('sid','worker','worker',False),('parent','parent','orchestrator',True)]:
         helpers['_save_session'](db,session_id=sid,name=name,scope=str(repo),worktree=str(repo),role=role,is_orchestrator=orch)
@@ -100,13 +100,13 @@ async def test_negative_review_and_subsequent_fix_are_visible_not_a_signature_ga
     assert not list(repo.rglob('review-attestation.json'))
 
 
-async def test_legacy_task_still_requires_its_old_coverage(work):
+async def test_legacy_task_uses_same_advisory_acceptance(work):
     db,_ops,_repo,_snapshot,run=work
     with db._conn() as c:
         c.execute('UPDATE review_receipts SET schema_version=2 WHERE receipt_id=?',(run['receipt_id'],))
     result,status=await submit(work)
-    assert status==409
-    assert result['error']['code']=='REVIEW_COVERAGE_MISSING'
+    assert status==202
+    assert result['admission']['review']['required'] is False
 
 
 async def test_changed_head_after_acceptance_is_still_rejected(work,monkeypatch):
@@ -166,7 +166,7 @@ async def test_new_mcp_review_does_not_require_verdict_heading_or_coverage_hash(
     assert captured['config']['success_pattern']==''
     receipt=db.review_receipt_get(captured['receipt_id'])
     assert receipt['schema_version']==3
-    assert receipt['production_snapshot_sha256']==''
+    assert 'production_snapshot_sha256' not in receipt
 
 
 async def test_new_size_skip_creates_no_receipt(work,monkeypatch):
@@ -260,3 +260,24 @@ async def test_complete_new_work_path_runs_checks_then_merges_only_passing_resul
     with db._conn() as c:
         assert c.execute("SELECT count(*) FROM review_receipts WHERE mode IN ('skip','implementation')").fetchone()[0]==0
     assert not list(Path(tree.path).rglob('review-attestation.json'))
+
+
+async def test_retired_review_metadata_cannot_block_an_already_accepted_operation(work,monkeypatch):
+    import json
+    from app.routes import sessions
+    db,ops,_repo,_snapshot,_run=work
+    result,status=await submit(work)
+    assert status==202
+    operation_id=result['operation_id']
+    record=ops.get_operation_record(operation_id)
+    admission=record['accepted_admission']
+    admission.pop('acceptance_decision')
+    admission.pop('review',None)
+    admission['review_coverage']={'status':'blocked','reason':'review_missing'}
+    with db._conn() as c:
+        c.execute('UPDATE merge_operations SET accepted_admission_json=? WHERE operation_id=?',
+                  (json.dumps(admission),operation_id))
+    executor=AsyncMock(side_effect=RuntimeError('executor reached; stop before Git'))
+    monkeypatch.setattr(sessions,'execute_merge_session',executor)
+    await ops._run_operation(operation_id)
+    executor.assert_awaited_once()

@@ -2866,6 +2866,11 @@ def publish_backend_fds(session) -> bool:
 
     stored: list[str] = []
     try:
+        pid = getattr(backend, "pid", 0)
+        started_at = getattr(backend, "cli_started_at", 0)
+        if isinstance(pid, int) and pid > 0 and isinstance(started_at, int) and started_at > 0:
+            from app.db import save_cli_process_identity
+            save_cli_process_identity(session.id, pid, started_at)
         for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
                          (fd_store_name(session.id, "stdout"), fd_out)):
             fdstore.store_fds(name, [fd])
