@@ -71,3 +71,17 @@ def test_archiving_vps_worker_requeues_only_its_git_task(runtime):
         assert task['worker_session_id'] is None
         receipt = connection.execute("SELECT * FROM review_receipts WHERE session_id='vps-worker'").fetchone()
         assert receipt['task_id'] == 'V-1' and receipt['status'] == 'interrupted'
+
+
+def test_http_creation_key_conflict_keeps_the_409_contract(runtime, monkeypatch):
+    from fastapi.testclient import TestClient
+    from app.main import app
+    monkeypatch.delenv('DASHBOARD_USER', raising=False)
+    monkeypatch.delenv('DASHBOARD_PASSWORD', raising=False)
+    client = TestClient(app)
+    headers = {'Idempotency-Key': 'idempotency-conflict-test'}
+    assert client.post('/api/tm/tasks', json={'project': 'local-project', 'title': 'Original'}, headers=headers).status_code == 200
+    response = client.post('/api/tm/tasks', json={'project': 'local-project', 'title': 'Different'}, headers=headers)
+    assert response.status_code == 409
+    assert response.json()['reason'] == 'IDEMPOTENCY_FINGERPRINT_MISMATCH'
+    assert len(runtime.store.list()) == 1

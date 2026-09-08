@@ -26,6 +26,10 @@ class TaskConflict(RuntimeError):
     """A concurrent edit, duplicate identity or native Git conflict needs resolution."""
 
 
+class TaskCreateConflict(TaskConflict):
+    """An accepted creation request belongs to a different payload."""
+
+
 _DEFAULTS = {
     'description': '', 'status': 'new', 'priority': 2, 'assignee': '', 'price_rub': 0,
     'acceptance': {'command': '', 'manifest_paths': [], 'required': False},
@@ -219,7 +223,7 @@ class TaskStore:
             existing = next((r for r in records if r['creation_key'] == request_key), None)
             if existing:
                 if existing['creation_fingerprint'] != fingerprint:
-                    raise TaskConflict('creation key belongs to another task payload')
+                    raise TaskCreateConflict('creation key belongs to another task payload')
                 return _view(existing)
             number = max((r['number'] for r in records if r['origin'] == self.origin), default=0) + 1
             while number in (reserved_numbers or set()):
