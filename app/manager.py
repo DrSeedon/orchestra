@@ -2367,6 +2367,13 @@ class SessionManager:
                 seen.add(s.id)
         for row in get_all_sessions(scope):
             if row["id"] not in seen:
+                if runtime_for_record(row) == "codex" and row.get("session_id"):
+                    from app.backend_codex import codex_writer_conflict
+
+                    error = codex_writer_conflict(row["id"], row["session_id"])
+                    if error is not None:
+                        row.update(status="broken", runtime_connection="writer_conflict",
+                                   runtime_error=error.envelope())
                 result.append(row)
         # Cache-timer metadata is runtime-derived; Codex exposes only an approximate window.
         turn_map = get_last_turn_map()

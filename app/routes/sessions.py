@@ -28,6 +28,7 @@ from app.db import (
     get_session_by_name,
 )
 from app.deps import manager
+from app.backend_codex import CodexWriterConflictError
 from app.errtext import err_text
 from app.events import MessageProvenance
 from app.models import ensure_dashboard_visible, ensure_spawn_allowed, resolve_model, MODELS
@@ -1157,6 +1158,8 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
             result["task"] = task_state
         return result
     except LifecycleQuarantineError as e:
+        return JSONResponse({"ok": False, "error": e.envelope()}, status_code=409)
+    except CodexWriterConflictError as e:
         return JSONResponse({"ok": False, "error": e.envelope()}, status_code=409)
     except QuotaGateError as e:
         return JSONResponse(e.envelope(), status_code=e.status_code)
