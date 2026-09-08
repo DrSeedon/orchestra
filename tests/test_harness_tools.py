@@ -280,6 +280,48 @@ def test_t6_max_rounds_value_100():
     assert loop.MAX_TOOL_ROUNDS == 100
 
 
+@pytest.mark.asyncio
+async def test_t3_model_authored_round_guard_prefix_survives_history_cleanup(tmp_path):
+    from app.harness.loop import AgentLoop
+
+    class ModelExplainingTheGuard:
+        async def stream(self, history, tool_schemas, abort=None, effort=None):
+            yield type("Ev", (), {
+                "kind": "text_delta",
+                "text": "[round guard] is the prefix used by the platform.",
+            })()
+            yield type("Ev", (), {
+                "kind": "final",
+                "finish_reason": "stop",
+                "reasoning_details": [],
+                "usage": None,
+            })()
+
+    history = []
+    loop = AgentLoop(
+        ModelExplainingTheGuard(), _NoMCP(), str(tmp_path), history, [],
+        max_context=100_000, max_rounds=1,
+    )
+
+    async for _event in loop.run("Explain the platform's round guard"):
+        pass
+
+    expected = [{
+        "role": "assistant",
+        "content": "[round guard] is the prefix used by the platform.",
+    }]
+    actual = {
+        "history": [entry for entry in history if entry.get("role") == "assistant"],
+        "new_messages": [
+            entry for entry in loop.new_messages if entry.get("role") == "assistant"
+        ],
+    }
+    assert actual == {"history": expected, "new_messages": expected}, (
+        "T3 seam: model-authored prose was deleted from history/new_messages "
+        "by prefix instead of producer identity"
+    )
+
+
 class _NoMCP:
     def has_tool(self, name): return False
     async def call(self, name, args): return "[noop]"

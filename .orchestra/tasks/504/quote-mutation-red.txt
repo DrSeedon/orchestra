@@ -1,0 +1,64 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_codex_review_quotes_exec_resume_uuid ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-504/test_codex_review_quotes_exec_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73331733cda0>
+
+    def test_codex_review_quotes_exec_resume_uuid(tmp_path, monkeypatch):
+        import app.mcp_stdio as mcp
+    
+        _prepare_usage_db(tmp_path, monkeypatch)
+        injected = tmp_path / "injected"
+        resume_uuid = f"thread$(touch {injected})"
+        (tmp_path / "codex_sessions.json").write_text(json.dumps({
+            "sessions": {"resume-review": {"uuid": resume_uuid}},
+        }))
+        args_file = tmp_path / "args.txt"
+        fake_codex = tmp_path / "fake-codex"
+        fake_codex.write_text(f"""#!/bin/sh
+    printf '%s\\n' "$@" > "{args_file}"
+    out=
+    while [ "$#" -gt 0 ]; do
+        if [ "$1" = "-o" ]; then
+            shift
+            out=$1
+        fi
+        shift
+    done
+    printf '%s\\n' '## Summary' 'Resume completed.' '## Verdict' 'PASS' > "$out"
+    printf '%s\\n' '{{"type":"thread.started","thread_id":"resumed-thread"}}'
+    printf '%s\\n' '{{"type":"turn.completed","usage":{{"input_tokens":100,"cached_input_tokens":60,"output_tokens":20}}}}'
+    printf '%s\\n' '{{"type":"item.completed","item":{{"type":"command_execution","status":"completed","exit_code":0}}}}'
+    printf '%s\\n' '{{"type":"item.completed","item":{{"type":"agent_message","text":"Resume completed."}}}}'
+    exit 0
+    """)
+        os.chmod(fake_codex, 0o755)
+    
+        captured = {}
+        monkeypatch.setattr(mcp, "_api", _fake_api(tmp_path, captured))
+        monkeypatch.setattr(mcp, "_codex_bin", lambda: str(fake_codex))
+        monkeypatch.setattr(mcp, "WORKER_NAME", "sandbox-test")
+        monkeypatch.setattr(mcp.time, "time", lambda: 2_000_000_001)
+    
+        asyncio.run(mcp.codex_review(
+            context=PROJECT_CONTEXT, target="artifact.txt",
+            output="resume-review.md", mode="exec", resume=True,
+        ))
+        result = subprocess.run(
+            ["dash", "-c", captured["config"]["command"]],
+            capture_output=True, text=True,
+        )
+    
+        assert result.returncode == 0
+>       assert resume_uuid in args_file.read_text().splitlines()
+E       AssertionError: assert 'thread$(touch /tmp/pytest-of-maxim/pytest-504/test_codex_review_quotes_exec_0/injected)' in ['-m', 'gpt-5.6-luna', '-s', 'danger-full-access', '-a', 'never', ...]
+E        +  where ['-m', 'gpt-5.6-luna', '-s', 'danger-full-access', '-a', 'never', ...] = <built-in method splitlines of str object at 0x733314493550>()
+E        +    where <built-in method splitlines of str object at 0x733314493550> = '-m\ngpt-5.6-luna\n-s\ndanger-full-access\n-a\nnever\nexec\nresume\nthread\n--skip-git-repo-check\n--json\n-o\n/tmp/pytest-of-maxim/pytest-504/test_codex_review_quotes_exec_0/resume-review.md.d0b9b8f0-b2dc-40c8-8ea0-06c9a8e45cf7.round\n-\n'.splitlines
+E        +      where '-m\ngpt-5.6-luna\n-s\ndanger-full-access\n-a\nnever\nexec\nresume\nthread\n--skip-git-repo-check\n--json\n-o\n/tmp/pytest-of-maxim/pytest-504/test_codex_review_quotes_exec_0/resume-review.md.d0b9b8f0-b2dc-40c8-8ea0-06c9a8e45cf7.round\n-\n' = read_text()
+E        +        where read_text = PosixPath('/tmp/pytest-of-maxim/pytest-504/test_codex_review_quotes_exec_0/args.txt').read_text
+
+tests/test_codex_review_sandbox.py:266: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_codex_review_sandbox.py::test_codex_review_quotes_exec_resume_uuid
+1 failed in 2.63s

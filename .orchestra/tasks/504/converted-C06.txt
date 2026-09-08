@@ -1,0 +1,27 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestSafeguardRefusal.test_refusal_recognised_from_typed_event_when_it_is_not_last_text _
+
+self = <tests.test_session.TestSafeguardRefusal object at 0x75cf41b1c8c0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    def test_refusal_recognised_from_typed_event_when_it_is_not_last_text(self, session):
+        """Порядок событий непостоянен: сперва длинный обычный текст, отказ следом."""
+        from app.events import AgentEvent
+    
+        session._log = lambda *a, **k: None
+        session._handle_event(AgentEvent("text", self.AGENT_QUOTING_IT))
+        assert session._safeguard_refusal == ""
+    
+        session._handle_event(AgentEvent("safeguard_refusal", self.VERBATIM))
+>       assert session._safeguard_refusal == self.VERBATIM
+E       AssertionError: assert '' == 'API Error: c...yYxoRQweVSmGK'
+E         
+E         - API Error: claude-opus-5[1m]'s safeguards flagged this message for a cybersecurity topic. If your work requires this access, you can apply for an exemption: https://claude.com/form/cyber-use-case
+E         - Try rephrasing the request in a new session or change your model.
+E         - Request ID: req_011CdnzxjQByYxoRQweVSmGK
+
+tests/test_session.py:5027: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestSafeguardRefusal::test_refusal_recognised_from_typed_event_when_it_is_not_last_text
+1 failed in 2.87s

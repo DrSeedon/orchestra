@@ -1,0 +1,87 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+______ test_t4_model_xml_prose_is_not_classified_as_unexecuted_tool_call _______
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/maxim/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_t4_model_xml_prose_is_not_classified_as_unexecuted_tool_call(
+        dashboard_browser: Browser,
+    ):
+        source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+        page = dashboard_browser.new_page()
+        page.route(
+            "**/static/js/chat.js*",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/javascript",
+                body=source,
+            ),
+        )
+        _goto_dashboard(page)
+        try:
+            prose = (
+                "The legacy protocol used <function_calls><invoke name=\"Bash\">"
+                "<parameter name=\"cmd\">pwd</parameter></invoke>; this sentence "
+                "does not claim that a tool ran."
+            )
+            rendered = page.evaluate(
+                """text => {
+                    const chat = document.querySelector('#chat');
+                    chat.replaceChildren();
+                    addChatEntry('text', text, null, null, {type: 'text'});
+                    return {
+                        text: chat.textContent,
+                        warnings: chat.querySelectorAll('.unexecuted-tool-call-warning').length,
+                    };
+                }""",
+                prose,
+            )
+            assert "legacy protocol used" in rendered["text"]
+            # Before #504 this assertion required one warning. Inverted: prose is
+            # never evidence of tool execution or non-execution.
+            warning_count = rendered["warnings"]
+>           assert warning_count == 0, (
+                "T4 seam: model prose is still labelled as an unexecuted tool call; "
+                f"warnings={warning_count}"
+            )
+E           AssertionError: T4 seam: model prose is still labelled as an unexecuted tool call; warnings=1
+E           assert 1 == 0
+
+tests/test_frontend.py:576: AssertionError
+_________ test_t4_model_text_classifier_has_no_python_or_browser_owner _________
+
+    def test_t4_model_text_classifier_has_no_python_or_browser_owner():
+        root = Path(__file__).resolve().parents[1]
+        forbidden = (
+            "looks_like_unexecuted_tool_call",
+            "mark_unexecuted_tool_call",
+            "_looksLikeUnexecutedToolCall",
+            "_markUnexecutedToolCall",
+        )
+        hits = []
+        for relative in (
+            "app/tool_call_guard.py",
+            "app/tg_bridge.py",
+            "app/static/js/chat.js",
+        ):
+            path = root / relative
+            if not path.exists():
+                continue
+            text = path.read_text(encoding="utf-8")
+            hits.extend(f"{relative}:{symbol}" for symbol in forbidden if symbol in text)
+    
+>       assert hits == [], (
+            "T4 ownership seam: model-text classifier still has production owners: "
+            + ", ".join(hits)
+        )
+E       AssertionError: T4 ownership seam: model-text classifier still has production owners: app/tool_call_guard.py:looks_like_unexecuted_tool_call, app/tool_call_guard.py:mark_unexecuted_tool_call, app/tg_bridge.py:mark_unexecuted_tool_call, app/static/js/chat.js:_looksLikeUnexecutedToolCall, app/static/js/chat.js:_markUnexecutedToolCall
+E       assert ['app/tool_ca...utedToolCall'] == []
+E         
+E         Left contains 5 more items, first extra item: 'app/tool_call_guard.py:looks_like_unexecuted_tool_call'
+E         Use -v to get more diff
+
+tests/test_model_text_control_flow_504.py:98: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_t4_model_xml_prose_is_not_classified_as_unexecuted_tool_call
+FAILED tests/test_model_text_control_flow_504.py::test_t4_model_text_classifier_has_no_python_or_browser_owner
+2 failed in 14.31s
