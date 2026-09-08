@@ -22,6 +22,11 @@ def _req(*, session_id: str = "", proof: str = "", cookie: str = "") -> Request:
     return Request({"type": "http", "method": "POST", "path": "/", "headers": headers})
 
 
+@pytest.fixture(autouse=True)
+def _proof_test_secret(monkeypatch):
+    monkeypatch.setenv("INTERNAL_TOKEN", "mcp-proof-test-secret")
+
+
 @pytest.fixture
 def proof_db(tmp_path, monkeypatch):
     import app.db as dbmod
@@ -311,6 +316,36 @@ def test_rebuilding_live_session_config_keeps_running_mcp_proof():
     assert check_mcp_proof("live-rebuild-538", foreign_proof) is False
     assert check_mcp_proof("other-session-538", running_process_proof) is False
     assert check_mcp_proof("live-rebuild-538", "") is False
+
+
+def test_adopted_process_proof_survives_server_generation():
+    """An adopted MCP process keeps its proof after the server module reloads."""
+    import importlib
+    import app.mcp_proof as proof_module
+
+    running_process_proof = proof_module.issue_mcp_proof("adopted-session-539")
+    proof_module = importlib.reload(proof_module)
+
+    assert proof_module.check_mcp_proof(
+        "adopted-session-539", running_process_proof,
+    ) is True
+    assert proof_module.check_mcp_proof(
+        "other-session-539", running_process_proof,
+    ) is False
+    assert proof_module.check_mcp_proof("adopted-session-539", "") is False
+
+
+def test_proof_rotation_revokes_previous_server_secret(monkeypatch):
+    from app.mcp_proof import check_mcp_proof, issue_mcp_proof
+
+    monkeypatch.setenv("INTERNAL_TOKEN", "server-secret-a")
+    proof_a = issue_mcp_proof("rotating-session-539")
+
+    monkeypatch.setenv("INTERNAL_TOKEN", "server-secret-b")
+    proof_b = issue_mcp_proof("rotating-session-539")
+
+    assert check_mcp_proof("rotating-session-539", proof_a) is False
+    assert check_mcp_proof("rotating-session-539", proof_b) is True
 
 
 @pytest.mark.asyncio
