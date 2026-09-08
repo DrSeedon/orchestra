@@ -3349,12 +3349,20 @@ class TestIdentityRefreshOnRename:
 
     def test_rebuilds_config_and_defers_restart_to_turn_boundary(self, mgr, monkeypatch):
         from tests.conftest import make_backend_mock
+        from app.manager import _make_mcp_config
+        from app.mcp_proof import PROOF_ENV, check_mcp_proof
 
         session = self._live_session(monkeypatch, backend=make_backend_mock())
+        session.mcp_servers = _make_mcp_config(
+            session.name, session.scope, session.role, session_id=session.id,
+        )
+        running_process_proof = session.mcp_servers["orchestra"]["env"][PROOF_ENV]
         session.name = "new-name"
 
         assert mgr.refresh_identity(session) == "restart-pending"
         assert session.mcp_servers["orchestra"]["env"]["WORKER_NAME"] == "new-name"
+        assert session.mcp_servers["orchestra"]["env"][PROOF_ENV] == running_process_proof
+        assert check_mcp_proof(session.id, running_process_proof) is True
         # Живой бэкенд НЕ гасим здесь: дисконнект внутри хода оборвал бы ход.
         assert session._backend is not None
         assert session._identity_stale is True

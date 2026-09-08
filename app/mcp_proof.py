@@ -10,10 +10,11 @@ or rewrite this file. Against an executor who bypasses on purpose there is
 no defense — they have a shell as kesha with full sudo. bash/curl/SQL
 stay out of the model. Same wording as `_acceptance_command_from_caller`.
 
-The proof lives only in that MCP process env (issued in `_make_mcp_config`,
-re-issued on spawn / load / refresh_identity / reconnect). It is not in the
-systemd/shared env. A clean channel needs this secret; we do not pretend
-X-Orchestra-Session-Id is one.
+The proof lives only in that MCP process env (issued in `_make_mcp_config`).
+Configuration may be rebuilt while that process is still serving a live turn,
+so rebuilds reuse the session's proof. It is not in the systemd/shared env. A
+clean channel needs this secret; we do not pretend X-Orchestra-Session-Id is
+one.
 """
 
 from __future__ import annotations
@@ -30,9 +31,13 @@ _proofs: dict[str, str] = {}
 
 
 def issue_mcp_proof(session_id: str) -> str:
+    """Return the session proof, creating it once per server process."""
     sid = (session_id or "").strip()
     if not sid:
         return ""
+    existing = _proofs.get(sid)
+    if existing:
+        return existing
     token = secrets.token_hex(32)
     _proofs[sid] = token
     return token

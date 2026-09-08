@@ -287,14 +287,30 @@ def test_dashboard_cookie_still_may_waive(proof_db, monkeypatch):
     ) is True
 
 
-def test_reissue_invalidates_old_proof():
+def test_rebuilding_config_reuses_existing_proof():
     from app.mcp_proof import check_mcp_proof, issue_mcp_proof
 
     first = issue_mcp_proof("sid-1")
     second = issue_mcp_proof("sid-1")
-    assert first != second
-    assert check_mcp_proof("sid-1", first) is False
+    assert first == second
+    assert check_mcp_proof("sid-1", first) is True
     assert check_mcp_proof("sid-1", second) is True
+
+
+def test_rebuilding_live_session_config_keeps_running_mcp_proof():
+    from app.manager import _make_mcp_config
+    from app.mcp_proof import PROOF_ENV, check_mcp_proof, issue_mcp_proof
+
+    first = _make_mcp_config("w", "/s", "worker", session_id="live-rebuild-538")
+    running_process_proof = first["orchestra"]["env"][PROOF_ENV]
+    rebuilt = _make_mcp_config("renamed-w", "/s", "worker", session_id="live-rebuild-538")
+
+    assert rebuilt["orchestra"]["env"][PROOF_ENV] == running_process_proof
+    assert check_mcp_proof("live-rebuild-538", running_process_proof) is True
+    foreign_proof = issue_mcp_proof("foreign-session-538")
+    assert check_mcp_proof("live-rebuild-538", foreign_proof) is False
+    assert check_mcp_proof("other-session-538", running_process_proof) is False
+    assert check_mcp_proof("live-rebuild-538", "") is False
 
 
 @pytest.mark.asyncio

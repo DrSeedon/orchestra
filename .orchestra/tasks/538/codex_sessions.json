@@ -1,0 +1,11 @@
+{
+  "sessions": {
+    "mcp-proof-review": {
+      "uuid": "01a07fb2-f4b1-7eb0-8007-20c54b25ebba",
+      "started": "2026-09-08T06:28:47Z",
+      "last_used": "2026-09-08T06:28:47Z",
+      "turns": 1,
+      "reviewer_model": "gpt-5.6-luna"
+    }
+  }
+}
