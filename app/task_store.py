@@ -125,7 +125,7 @@ class TaskStore:
 
     def _ready(self):
         marker = self.root / 'task-store.json'
-        if not marker.is_file() or json.loads(marker.read_text()) != {'schema_version': 1}:
+        if marker.is_symlink() or not marker.is_file() or json.loads(marker.read_text()) != {'schema_version': 1}:
             raise TaskConflict('task repository is not initialized')
         if self._git('ls-files', '-u').stdout:
             raise TaskConflict('task repository has unresolved Git conflicts')
@@ -153,10 +153,10 @@ class TaskStore:
         for entry in filter(None, entries):
             meta, path = entry.split('\t', 1)
             mode, kind, oid = meta.split()
+            if mode != '100644' or kind != 'blob':
+                raise TaskConflict('project data must be regular files, without symlinks or submodules')
             if not re.fullmatch(r'projects/[^/]+/tasks/[^/]+\.json', path):
                 continue
-            if mode != '100644' or kind != 'blob':
-                raise TaskConflict('task records must be regular files')
             paths.append(self.root / path)
             hashes.append(oid)
         result = subprocess.run(['git', '-C', str(self.root), 'cat-file', '--batch'],
@@ -188,7 +188,12 @@ class TaskStore:
     def _records(self, project: str = '') -> list[dict]:
         base = self.root / 'projects'
         paths = (base / _project(project) / 'tasks').glob('*.json') if project else base.glob('*/tasks/*.json')
-        return self._validate_records((path, json.loads(path.read_text())) for path in sorted(paths))
+        entries = []
+        for path in sorted(paths):
+            if path.resolve() != path:
+                raise TaskConflict('task records cannot follow symlinks')
+            entries.append((path, json.loads(path.read_text())))
+        return self._validate_records(entries)
 
     def _find(self, project: str, ref: str) -> dict:
         parsed = parse_task_ref(ref)
@@ -258,6 +263,8 @@ class TaskStore:
             return _view(record)
 
     def _commit_files(self, files: dict[Path, bytes], message: str):
+        if any(path.resolve() != path for path in files):
+            raise TaskConflict('task writes cannot follow symlinks')
         before_head = self._git('rev-parse', '--verify', 'HEAD', check=False).stdout.strip()
         previous = {p: p.read_bytes() if p.exists() else None for p in files}
         relative = [str(p.relative_to(self.root)) for p in files]
@@ -302,6 +309,8 @@ class TaskStore:
             if candidate.returncode:
                 raise TaskConflict(candidate.stderr.strip() or candidate.stdout.strip())
             tree = candidate.stdout.splitlines()[0]
+            if not self._git('ls-tree', tree, '--', 'task-store.json').stdout.startswith('100644 blob '):
+                raise TaskConflict('task-store marker must be a regular file')
             if json.loads(self._git('show', f'{tree}:task-store.json').stdout) != {'schema_version': 1}:
                 raise TaskConflict('incoming task store version is unsupported')
             merged = {r['id']: r for r in self._tree_records(tree)}

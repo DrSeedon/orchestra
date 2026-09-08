@@ -156,3 +156,21 @@ def test_creation_retry_preserves_identity_after_node_prefix_changes(pair):
     replay = a.create('project', 'Accepted before prefix change', request_key='stable-request')
     assert replay['id'] == task['id'] and replay['ref'] == '1'
     assert a.create('project', 'New VPS task', request_key='new-request')['ref'] == 'V-1'
+
+
+def test_remote_project_symlink_cannot_redirect_task_writes(pair, tmp_path):
+    a, b = pair
+    outside = tmp_path / 'outside'
+    (outside / 'tasks').mkdir(parents=True)
+    (b.root / 'projects').mkdir()
+    (b.root / 'projects' / 'foreign').symlink_to(outside, target_is_directory=True)
+    git(b.root, 'add', 'projects')
+    git(b.root, 'commit', '-m', 'Invalid project link')
+    git(b.root, 'push', 'origin', 'main')
+    head = a.head
+    with pytest.raises(TaskConflict, match='symlinks'):
+        a.sync()
+    assert a.head == head
+    with pytest.raises(TaskConflict, match='symlinks'):
+        b.create('foreign', 'Must stay inside the repository', request_key='unsafe')
+    assert not list((outside / 'tasks').iterdir())
