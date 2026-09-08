@@ -1,0 +1,30 @@
+"""Portable task references; origin belongs to the task, not its current host."""
+from dataclasses import dataclass
+import re
+
+
+@dataclass(frozen=True)
+class TaskRef:
+    origin: str
+    number: int
+
+    def __post_init__(self):
+        if self.origin not in {'', 'V'}:
+            raise ValueError('task origin must be empty or V')
+        if type(self.number) is not int or not 0 < self.number < 2**63:
+            raise ValueError('task number must be a positive SQLite integer')
+
+    @property
+    def key(self) -> str:
+        return f'V-{self.number}' if self.origin else str(self.number)
+
+    @property
+    def display(self) -> str:
+        return self.key if self.origin else f'#{self.number}'
+
+
+def parse_task_ref(value: str) -> TaskRef:
+    match = re.fullmatch(r'#?(?:(V)-)?([0-9]+)', str(value).strip().upper())
+    if not match:
+        raise ValueError(f'invalid task reference: {value!r}')
+    return TaskRef(match.group(1) or '', int(match.group(2)))
