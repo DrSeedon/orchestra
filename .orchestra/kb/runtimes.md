@@ -214,3 +214,9 @@
 ### Muse Spark
 
 - `.orchestra/tasks/469/research.md` — доступ, цена, CLI и MSP, контекст, шлюз, веса и таблица фактов по бенчмаркам — без рекомендации.
+
+## Established
+- **Codex 0.153.4 «already has an active writer» означает занятый native flock, а не просто оставшийся lock-файл.** Старый voice-astra thread после рестарта удерживал живой PID 1169478; KillMode=process сохраняет потомков, а adoption пайпов без PID identity не гарантирует завершение writer при следующем refresh · ищи: `active writer`, `thread-writer-locks`, `teardown_adopted`, «писатель пережил рестарт» · `.orchestra/tasks/536/research.md`; upstream `writer_lock.rs` https://raw.githubusercontent.com/openai/codex/rust-v0.153.4/codex-rs/thread-store/src/local/writer_lock.rs · 2026-09-07, #536
+
+## Gaps
+- **Причина потери PID identity во всех пяти исходных отказах #536 не восстановлена.** Часть воркеров уже пересобрала треды; живой lock owner подтверждён для одного старого thread, автоматическое убийство writer не обосновано · ищи: `cli_pid`, `active writer`, «почему воркер глухой после рестарта» · `.orchestra/tasks/536/research.md` · 2026-09-07, #536

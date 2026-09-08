@@ -1,0 +1,11 @@
+{
+  "sessions": {
+    "review": {
+      "uuid": "01a07ed4-7f80-7733-ba8b-e584384f86d8",
+      "started": "2026-09-08T02:26:17Z",
+      "last_used": "2026-09-08T02:26:17Z",
+      "turns": 1,
+      "reviewer_model": "gpt-5.6-luna"
+    }
+  }
+}

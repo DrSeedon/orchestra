@@ -447,6 +447,45 @@ class CodexProtocolError(RuntimeError):
         super().__init__(f"{method}: {error.get('message', 'Codex app-server error')}")
 
 
+class CodexWriterConflictError(RuntimeError):
+    """The native thread has an owner this session cannot submit through."""
+
+    def __init__(self, thread_id: str):
+        self.thread_id = thread_id
+        super().__init__(f"Codex thread {thread_id} already has an active writer")
+
+    def envelope(self) -> dict:
+        return {
+            "code": "CODEX_WRITER_CONFLICT",
+            "message": str(self),
+            "retryable": True,
+            "outcome_unknown": False,
+            "details": {"thread_id": self.thread_id},
+        }
+
+
+def codex_writer_conflict(session_id: str, thread_id: str):
+    """Observe Linux's native writer lock without acquiring or unlinking it."""
+    if not _SAFE_HOME_KEY.fullmatch(session_id) or not _SAFE_HOME_KEY.fullmatch(thread_id):
+        return None
+    path = _CODEX_HOME_ROOT / session_id / "thread-writer-locks" / f"{thread_id}.lock"
+    try:
+        stat = path.stat()
+        identity = (os.major(stat.st_dev), os.minor(stat.st_dev), stat.st_ino)
+        for line in Path("/proc/locks").read_text().splitlines():
+            fields = line.split()
+            if len(fields) < 6 or fields[1:4] != ["FLOCK", "ADVISORY", "WRITE"]:
+                continue
+            major, minor, inode = fields[5].split(":")
+            if (int(major, 16), int(minor, 16), int(inode)) == identity:
+                return CodexWriterConflictError(thread_id)
+    except (OSError, ValueError):
+        # An unavailable observation is not permission to take another writer's lock.
+        # The native resume remains the authoritative check.
+        pass
+    return None
+
+
 class CodexBackend(JsonRpcStdioTransport):
     """Persistent Codex app-server client with native turn steering.
 
