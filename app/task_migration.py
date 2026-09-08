@@ -11,7 +11,7 @@ import subprocess
 import shutil
 
 from app import db
-from app.task_refs import project_key
+from app.task_refs import project_key, TaskRef
 from app.task_store import TaskStore, TaskConflict, _bytes, _validate, _DEFAULTS
 import copy
 
@@ -77,6 +77,16 @@ def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | N
             'creation_key': f'migrated:{stable_id}',
             'creation_fingerprint': hashlib.sha256(_bytes(old)).hexdigest(),
         }
+        binding_preserved = False
+        if row.get('worker_session_id') and row['status'] == 'in_progress' and old['status'] in {'new', 'backlog'}:
+            owner = connection.execute(
+                'SELECT s.task_id,s.status,s.scope,p.scope AS project_scope FROM sessions s '
+                'JOIN tm_projects p ON p.id=? WHERE s.id=?', (row['project_id'], row['worker_session_id'])).fetchone()
+            if (owner and owner['status'] != 'archived' and owner['project_scope']
+                    and (owner['scope'] or '').rstrip('/') == owner['project_scope'].rstrip('/')
+                    and owner['task_id'] == TaskRef(key[1], key[2]).key):
+                record['status'], record['completed_at'] = 'in_progress', None
+                binding_preserved = True
         request = old.get('create_request')
         associated = [q for q in requests if q['project_id'] == row['project_id'] and q['par_number'] == row['par_number']]
         if request or associated:
@@ -110,6 +120,8 @@ def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | N
                   if row.get(k) != record[k]]
         if any(acceptance[k] != old['acceptance'][k] for k in ('command', 'manifest_paths', 'required')):
             fields.append('acceptance')
+        if binding_preserved:
+            fields.append('active_binding_status')
         if fields:
             differences.append({'task_id': row['id'], 'stable_id': stable_id, 'fields': fields})
         records.append(record)
