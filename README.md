@@ -244,8 +244,10 @@ line, with exact paths, symbols and the command that proves it.
 The vector index and its ML dependencies have been removed. `search_memory` reads project
 Markdown and the original SQLite logs directly; edits are visible without reindexing.
 Tasks have one private Git store and one projection in the runtime SQLite database.
-Existing installations must prepare an offline migration with `python -m scripts.migrate_task_storage`
-before switching to schema version 1. Use `python -m scripts.sync_tasks` to merge the private task
+Existing installations first prepare a conversion with `python -m scripts.migrate_task_storage`.
+After stopping the old service, `python -m scripts.finalize_task_storage` copies fresh runtime data
+and rejects any task changes since preparation. Switch code and database paths together only after
+that check succeeds; restore the old configuration if it fails. Use `python -m scripts.sync_tasks` to merge the private task
 repository and refresh its projection. Task repositories must never use the public code remote.
 
 ### 📊 Real-Time Dashboard
