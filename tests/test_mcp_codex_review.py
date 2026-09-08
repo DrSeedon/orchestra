@@ -106,8 +106,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert set(config) == {"command", "success_file", "success_pattern"}
     output = str(tmp_path / "docs/review.md")
     assert config["success_file"] == output
-    if mode == "exec":
-        assert "Verdict" in config["success_pattern"]
+    assert config["success_pattern"] == ""
     command = config["command"]
     # Model omitted → server-owned default reaches the Codex CLI and the usage record,
     # and the model advertised by readiness does not leak into either.
@@ -120,7 +119,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
     assert f"-o {output}.round" in command
     assert "codex_review_artifact.py" in command
     assert '[ "$FINALIZE_RC" -eq 0 ] || exit "$FINALIZE_RC"' in command
-    assert "--require-verdict" in command
+    assert "--require-verdict" not in command
     assert command.index("rm -f") < command.index(" | tee ")
     assert "Scale: test-owned production" in command
     assert "PROJECT CONTEXT IS UNKNOWN" not in command
@@ -333,6 +332,13 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
     class Session:
         id = "immutable-requester-id"
 
+    from datetime import datetime, timezone
+    from app.mcp_proof import issue_mcp_proof
+    from starlette.requests import Request
+    from app.session import AgentSession
+    db.save_session(AgentSession(id=Session.id, name="requester", scope=str(tmp_path),
+        cwd=str(tmp_path), model="gpt-5.6-luna", role="worker", task_id="215")._to_db_dict())
+    db.task_run_receipt_open(session_id=Session.id, worker_name="requester", scope=str(tmp_path), task_id="215")
     monkeypatch.setattr(bg_route.manager, "get_by_name", lambda *_args: Session())
     monkeypatch.setattr(jobs.bg_manager, "_trigger", AsyncMock())
     created = {}
@@ -348,7 +354,10 @@ printf '%s\n' '{"type":"turn.completed","usage":{"input_tokens":100,"cached_inpu
             }
         request = bg_route.BgJobCreateRequest(**kwargs["json"])
         created.update(kwargs["json"])
-        result = await bg_route.bg_job_create(request)
+        proof_request = Request({'type':'http', 'headers':[
+            (b'x-orchestra-session-id', Session.id.encode()),
+            (b'x-orchestra-mcp-proof', issue_mcp_proof(Session.id).encode())]})
+        result = await bg_route.bg_job_create(request, proof_request)
         created["job_id"] = result["id"]
         return result
 

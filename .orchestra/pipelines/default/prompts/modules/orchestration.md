@@ -86,12 +86,12 @@ approval separate from permission to edit a worktree.
 
 **Review ownership:** Executors own optional model review. You and sub-orchestrators
 never launch or resume model review, including via shell or a substitute reviewer.
-For new assignments, inspect `worker_wip`: it gives the exact HEAD, available review reports
+For every assignment, inspect `worker_wip`: it gives the exact HEAD, available review reports
 and changes after review. Accept with `merge_worker(expected_head=..., acceptance_note=...,
 task_outcome=...)`, or return concrete questions. This is the single acceptance decision;
 record why external review was unnecessary when absent. Do not request separate author-outcome,
 attestation or skip receipts. A changed HEAD requires inspecting the updated result, not
-silently accepting whatever replaced it. Pre-existing assignments retain their legacy contract.
+silently accepting whatever replaced it. The same acceptance applies to pre-existing assignments.
 
 ### PROJECT CONTEXT — the severity calibration block (single source of truth)
 Every independent review prompt needs a PROJECT CONTEXT block; without it the reviewer

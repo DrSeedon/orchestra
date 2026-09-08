@@ -1094,11 +1094,15 @@ class AgentSession:
                     f"so new tools and prompt take effect")
         old = self._backend
         if old is not None:
+            from app.manager import retire_backend_fds
+            retire_backend_fds(self)
             try:
                 await old.disconnect()
             except Exception as error:
                 logger.warning(f"[{self.name}] releasing the stale CLI failed: "
                                f"{err_text(error)}")
+                self._runtime_error = err_text(error)
+                raise
         if self._listen_task and not self._listen_task.done():
             self._listen_task.cancel()
         self._listen_task = None
@@ -4138,6 +4142,8 @@ class AgentSession:
             self._hibernate_task = None
         backend = self._backend
         if backend:
+            from app.manager import retire_backend_fds
+            retire_backend_fds(self)
             await backend.disconnect()
             if self._backend is backend:
                 self._backend = None

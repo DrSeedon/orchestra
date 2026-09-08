@@ -163,19 +163,6 @@ def _record_terminal_receipt(
             "completed", "failed", "interrupted", "timed_out", "cancelled",
         }:
             return
-        coverage_outcome = (
-            "reviewed"
-            if (
-                receipt.get("subject_kind") == "implementation"
-                and status == "completed"
-                and return_code == 0
-                and artifact_exists
-                and jsonl_response_present
-                and verdict_present
-            )
-            else "unknown"
-        )
-
         review_receipt_finish(
             receipt_id,
             {
@@ -190,7 +177,6 @@ def _record_terminal_receipt(
                 "verdict_value": verdict_value,
                 "jsonl_response_present": int(jsonl_response_present),
                 "recovery_source": recovery_source,
-                "coverage_outcome": coverage_outcome,
             },
         )
     except Exception as error:

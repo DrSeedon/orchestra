@@ -335,8 +335,8 @@ async def get_session(name: str, scope: str):
         return JSONResponse({"error": "not found"}, status_code=404)
     # detached: raw DB row keeps legacy response shape (richer than to_dict)
     info = found.to_dict() if found.loaded else dict(found.db_row)
-    from app.work_review import assignment, is_advisory
-    if is_advisory(assignment(scope, str(info.get("id") or ""), str(info.get("task_id") or ""))):
+    from app.work_review import assignment
+    if assignment(scope, str(info.get("id") or ""), str(info.get("task_id") or "")) is not None:
         info["work_review_version"] = 3
     return info
 
@@ -3073,8 +3073,8 @@ async def session_wip(name: str, scope: str = "", base_ref: str = ""):
         d = found.to_dict()
         result["context_pct"] = d.get("context_pct", 0)
         result["status"] = d.get("status", "unknown")
-        from app.work_review import assignment, is_advisory, summarize_review
-        if is_advisory(assignment(scope, str(d.get("id") or ""), str(d.get("task_id") or ""))):
+        from app.work_review import assignment, summarize_review
+        if assignment(scope, str(d.get("id") or ""), str(d.get("task_id") or "")) is not None:
             import subprocess
             head = subprocess.check_output(["git", "rev-parse", "HEAD^{commit}"], cwd=worktree_path, text=True, timeout=15).strip()
             result["worker_head"] = head

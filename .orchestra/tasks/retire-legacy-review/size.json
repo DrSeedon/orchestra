@@ -1,0 +1,13 @@
+{
+  "base": "715f0fc9",
+  "python": {
+    "before": 81109,
+    "after": 78453,
+    "delta": -2656
+  },
+  "javascript": {
+    "before": 13882,
+    "after": 13733,
+    "delta": -149
+  }
+}
