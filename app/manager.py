@@ -2532,10 +2532,15 @@ class SessionManager:
                             leftover=row.get("leftover") or "",
                             cli_pid=int(row.get("cli_pid") or 0),
                             cli_started_at=int(row.get("cli_started_at") or 0),
+                            recover_turn=(row["id"] in was_running
+                                          and not row.get("active_turn_id")),
                         )
+                        from app.db import clear_consumed_handover
+
+                        clear_consumed_handover(session.id)
                         logger.info(
                             "[%s] adopted a live CLI; %s", session.name,
-                            "its turn keeps running" if row.get("active_turn_id")
+                            "its turn keeps running" if session.status == AgentStatus.RUNNING
                             else "no turn was in flight")
                         continue  # no restart notice: nothing was interrupted
                     if row["id"] in was_waiting:
@@ -2870,6 +2875,15 @@ def publish_backend_fds(session) -> bool:
                          (fd_store_name(session.id, "stdout"), fd_out)):
             fdstore.store_fds(name, [fd])
             stored.append(name)
+        from app.db import save_backend_identity
+
+        pid = getattr(backend, "pid", 0) or 0
+        started_at = getattr(backend, "cli_started_at", 0) or 0
+        if hasattr(backend, "pid") and hasattr(backend, "cli_started_at"):
+            save_backend_identity(session.id, pid, started_at)
+        if not pid or not started_at:
+            logger.warning("[%s] published pipes without process identity; "
+                           "automatic process replacement is unsafe", session.id)
     except Exception as error:
         # Громко: молчаливый отказ вернул бы прежнюю условную независимость, ничего об этом
         # не сказав, то есть тот же дефект, но уже невидимый.
