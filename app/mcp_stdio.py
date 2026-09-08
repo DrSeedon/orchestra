@@ -1812,7 +1812,10 @@ async def list_agents() -> str:
         r = s.get("role", "worker")
         role = _icons.get(r, "⚙️")
         st = "🟢" if s.get("status") in ("running", "idle") else "⚪"
-        if s.get("runtime_error"):
+        runtime_error = s.get("runtime_error")
+        if isinstance(runtime_error, dict):
+            runtime_error = runtime_error.get("message") or runtime_error.get("code")
+        if runtime_error:
             st = "🔴"
         ctx = s.get('context_pct', 0)
         ctx_str = f" | ctx:{ctx}%" if ctx else ""
@@ -1832,7 +1835,7 @@ async def list_agents() -> str:
                 f" | {lifecycle.get('code', 'LIFECYCLE_BLOCKED')}: "
                 f"{repair.get('call', lifecycle.get('message', 'repair required'))}"
             )
-        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}" + (f" | runtime error: {s['runtime_error']}" if s.get("runtime_error") else "")
+        return f"{st} {role} **{s['name']}** | {s.get('status','?')} | {s.get('model','?')}{ctx_str}{cache_str}{task_str}{desc_str}{owner_str}{lifecycle_str}" + (f" | runtime error: {runtime_error}" if runtime_error else "")
 
     is_worker = ROLE not in _ORCH_ROLES
     orchestrators, my_workers, other_workers = [], [], []
