@@ -14,6 +14,7 @@ from typing import TypedDict
 from app.acceptance import PYTEST_CONFIG_NAMES
 from app.db import _conn, task_run_receipt_finish, task_run_receipt_open
 from app.task_runtime import active_runtime
+from app.task_store import TaskCreateConflict
 from app.task_refs import project_key
 
 VALID_STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled'})
@@ -1145,8 +1146,11 @@ def api_create_task(project_id: str, title: str, price: int = 0,
         resolved = _resolve_task_create_project(project_id, scope)
         with _conn() as conn:
             project = resolve_project_id(conn, resolved)
-        task = runtime.create(project, title, request_key=request_key, description=description,
-            status=status, assignee=assignee, priority=priority, price_rub=price, acceptance=acceptance)
+        try:
+            task = runtime.create(project, title, request_key=request_key, description=description,
+                status=status, assignee=assignee, priority=priority, price_rub=price, acceptance=acceptance)
+        except TaskCreateConflict as error:
+            raise TaskCreateRequestError('IDEMPOTENCY_FINGERPRINT_MISMATCH', request_key, str(error)) from error
         return {'par': public_task_ref(task), 'par_number': task['par_number'],
                 'ref_prefix': task['ref_prefix'], 'id': task['id'], 'stable_id': task['stable_id'],
                 'title': task['title'], 'project': task['project_id'], 'price_rub': task['price_rub'],
