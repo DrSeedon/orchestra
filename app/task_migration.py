@@ -16,6 +16,23 @@ from app.task_store import TaskStore, TaskConflict, _bytes, _validate, _DEFAULTS
 import copy
 
 
+def _creation_body(state: dict) -> dict:
+    return {**copy.deepcopy(_DEFAULTS),
+            **{k: state[k] for k in ('title', 'description', 'status', 'priority', 'assignee', 'price_rub')},
+            'acceptance': {k: state['acceptance'][k] for k in ('command', 'manifest_paths', 'required')}}
+
+
+def _old_request_fingerprint(state: dict, project: str) -> str:
+    body = {'project_id': project, 'title': state['title'], 'price': state['price_rub'],
+            'description': state['description'], 'assignee': state['assignee'],
+            'status': state['status'], 'priority': state['priority'],
+            'acceptance_command': state['acceptance']['command'].strip(),
+            'acceptance_manifest': sorted(state['acceptance']['manifest_paths']),
+            'acceptance_required': bool(state['acceptance']['required'])}
+    return 'sha256:' + hashlib.sha256(json.dumps(body, ensure_ascii=False,
+        sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+
+
 def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | None = None) -> dict:
     """Match exact project/namespace/number identities, never titles or timestamps."""
     mapping = mapping or {}
@@ -30,6 +47,9 @@ def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | N
     by_ref = {(projects[r['project_id']], r.get('ref_prefix') or '', r['par_number']): r for r in rows}
     if len(by_ref) != len(rows):
         raise TaskConflict('duplicate SQL task references')
+    request_table = connection.execute("SELECT 1 FROM sqlite_master WHERE name='tm_task_create_requests'").fetchone()
+    requests = [dict(r) for r in connection.execute('SELECT * FROM tm_task_create_requests')] if request_table else []
+    preserved_requests = set()
     records, bindings, differences = [], {}, []
     for path in sorted(canonical.rglob('state.json')):
         old = json.loads(path.read_text())
@@ -58,20 +78,30 @@ def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | N
             'creation_fingerprint': hashlib.sha256(_bytes(old)).hexdigest(),
         }
         request = old.get('create_request')
-        if request:
+        associated = [q for q in requests if q['project_id'] == row['project_id'] and q['par_number'] == row['par_number']]
+        if request or associated:
             created = []
             for event_path in (path.parent / 'events').glob('*.json'):
                 event = json.loads(event_path.read_text())
                 if event.get('event_type') == 'task.created':
                     created.append(event['result_state'])
-            if len(created) != 1:
-                raise TaskConflict(f'creation history is missing or ambiguous for {stable_id}')
-            initial = created[0]
-            body = {**copy.deepcopy(_DEFAULTS),
-                    **{k: initial[k] for k in ('title', 'description', 'status', 'priority', 'assignee', 'price_rub')},
-                    'acceptance': {k: initial['acceptance'][k] for k in ('command', 'manifest_paths', 'required')}}
+            if request:
+                if len(created) != 1:
+                    raise TaskConflict(f'creation history is missing or ambiguous for {stable_id}')
+                initial = created[0]
+            else:
+                if len(associated) != 1:
+                    raise TaskConflict(f'creation receipts are ambiguous for {stable_id}')
+                request = associated[0]
+                # A legacy ACTIVE_COMMITTED receipt can lack Git request metadata.
+                # Recover only a payload proven by its original request hash.
+                initial = next((state for state in [*created, old]
+                    if _old_request_fingerprint(state, row['project_id']) == request['fingerprint']), None)
+                if initial is None:
+                    raise TaskConflict(f'original creation payload cannot be proven for {stable_id}')
             record['creation_key'] = request['request_key']
-            record['creation_fingerprint'] = hashlib.sha256(_bytes(body)).hexdigest()
+            record['creation_fingerprint'] = hashlib.sha256(_bytes(_creation_body(initial))).hexdigest()
+            preserved_requests.add((row['project_id'], record['creation_key']))
         _validate(record)
         if stable_id in bindings:
             raise TaskConflict('duplicate canonical task UUID')
@@ -83,6 +113,8 @@ def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | N
         if fields:
             differences.append({'task_id': row['id'], 'stable_id': stable_id, 'fields': fields})
         records.append(record)
+    if any((q['project_id'], q['request_key']) not in preserved_requests for q in requests):
+        raise TaskConflict('unresolved task-create receipts must be recovered before migration')
     if by_ref:
         raise TaskConflict(f'{len(by_ref)} SQL tasks are absent from the canonical snapshot')
     projects = {key: project_map.get(value, value) for key, value in projects.items()}
@@ -149,6 +181,10 @@ def prepare_migration(*, source_db: Path, source_repo: Path, registry_path: Path
     source_db, source_repo, destination = map(Path, (source_db, source_repo, destination))
     if not source_db.is_file() or not source_repo.is_dir():
         raise ValueError('source database and canonical repository must exist')
+    source_store = TaskStore(source_repo, origin=origin)
+    before_head = source_store.head
+    if source_store._git('status', '--porcelain', '--untracked-files=all').stdout:
+        raise TaskConflict('source canonical repository has uncommitted data; finish recovery before migration')
     destination.mkdir(parents=True, exist_ok=False)
     target_db, target_repo = destination / 'orchestra.db', destination / 'tasks'
     snapshot = destination / 'source.sqlite'
@@ -158,6 +194,8 @@ def prepare_migration(*, source_db: Path, source_repo: Path, registry_path: Path
     with closing(sqlite3.connect(source_db.resolve().as_uri() + '?mode=ro', uri=True)) as source:
         with closing(sqlite3.connect(snapshot)) as target:
             source.backup(target)
+    if source_store.head != before_head or source_store._git('status', '--porcelain', '--untracked-files=all').stdout:
+        raise TaskConflict('source canonical repository changed while taking the snapshot')
     registry = json.loads(Path(registry_path).read_text())
     mapping = json.loads(mapping_path.read_text()) if mapping_path else {}
     node = mapping.get('node', 'vps' if origin == 'V' else 'laptop')

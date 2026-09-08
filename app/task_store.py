@@ -174,7 +174,7 @@ class TaskStore:
             if path != self._path(record):
                 raise TaskConflict('task identity does not match its file')
             ref = (record['project_id'], record['origin'], record['number'])
-            request = (record['project_id'], record['origin'], record['creation_key'])
+            request = (record['project_id'], record['creation_key'])
             if record['id'] in identities or ref in refs or request in requests:
                 raise TaskConflict('task repository contains a duplicate identity/reference/request')
             identities.add(record['id']); refs.add(ref); requests.add(request)
@@ -216,7 +216,7 @@ class TaskStore:
         with self._lock():
             self._ready()
             records = self._records(project)
-            existing = next((r for r in records if r['origin'] == self.origin and r['creation_key'] == request_key), None)
+            existing = next((r for r in records if r['creation_key'] == request_key), None)
             if existing:
                 if existing['creation_fingerprint'] != fingerprint:
                     raise TaskConflict('creation key belongs to another task payload')

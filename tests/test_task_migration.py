@@ -103,3 +103,31 @@ def test_joined_histories_keep_old_numbers_and_distinct_identities(migration_sou
     with db._conn(local_dir / 'orchestra.db') as connection:
         assert connection.execute('SELECT id FROM tm_tasks WHERE stable_id=?', (original,)).fetchone()[0] == 71
         assert connection.execute('SELECT COUNT(*) FROM tm_tasks').fetchone()[0] == 2
+
+
+def test_uncommitted_source_is_not_silently_lost(migration_source):
+    source = migration_source['source_repo']
+    (source / 'uncommitted-evidence.json').write_text('{}')
+    with pytest.raises(TaskConflict, match='uncommitted data'):
+        prepare_migration(**migration_source)
+    assert not migration_source['destination'].exists()
+
+
+def test_accepted_sql_creation_receipt_is_recovered_without_duplicate(migration_source, monkeypatch):
+    import hashlib
+    for key, value in {'GIT_AUTHOR_NAME': 'Test', 'GIT_COMMITTER_NAME': 'Test',
+                       'GIT_AUTHOR_EMAIL': 'test@example.invalid', 'GIT_COMMITTER_EMAIL': 'test@example.invalid'}.items():
+        monkeypatch.setenv(key, value)
+    body = {'project_id': 'project', 'title': 'Canonical title', 'price': 0,
+            'description': '', 'assignee': '', 'status': 'done', 'priority': 2,
+            'acceptance_command': '', 'acceptance_manifest': [], 'acceptance_required': False}
+    fingerprint = 'sha256:' + hashlib.sha256(json.dumps(body, ensure_ascii=False,
+        sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    with sqlite3.connect(migration_source['source_db']) as connection:
+        connection.execute('CREATE TABLE tm_task_create_requests(project_id TEXT,request_key TEXT,par_number INTEGER,fingerprint TEXT,state TEXT)')
+        connection.execute("INSERT INTO tm_task_create_requests VALUES('project','accepted-request',1,?,'ACTIVE_COMMITTED')", (fingerprint,))
+    prepare_migration(**migration_source)
+    store = TaskStore(migration_source['destination'] / 'tasks', origin='V')
+    original = store.get('project', '1')
+    replay = store.create('project', 'Canonical title', status='done', request_key='accepted-request')
+    assert replay['id'] == original['id'] and len(store.list()) == 1

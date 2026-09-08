@@ -147,3 +147,12 @@ def test_invalid_remote_cannot_advance_local_head(pair, damage):
     assert a.head == before
     assert a.get('project', '1')['id'] == task['id']
     assert git(a.root, 'status', '--porcelain') == ''
+
+
+def test_creation_retry_preserves_identity_after_node_prefix_changes(pair):
+    a, _ = pair
+    task = a.create('project', 'Accepted before prefix change', request_key='stable-request')
+    a.origin = 'V'
+    replay = a.create('project', 'Accepted before prefix change', request_key='stable-request')
+    assert replay['id'] == task['id'] and replay['ref'] == '1'
+    assert a.create('project', 'New VPS task', request_key='new-request')['ref'] == 'V-1'
