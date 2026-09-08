@@ -10,36 +10,38 @@ or rewrite this file. Against an executor who bypasses on purpose there is
 no defense — they have a shell as kesha with full sudo. bash/curl/SQL
 stay out of the model. Same wording as `_acceptance_command_from_caller`.
 
-The proof lives only in that MCP process env (issued in `_make_mcp_config`,
-re-issued on spawn / load / refresh_identity / reconnect). It is not in the
-systemd/shared env. A clean channel needs this secret; we do not pretend
-X-Orchestra-Session-Id is one.
+The proof is derived from the server's existing INTERNAL_TOKEN and the session
+id. Configuration may be rebuilt while that process is still serving a live
+turn, and adopted processes keep working across server generations. The proof
+is still passed only in the MCP process env; a clean channel needs this secret,
+and we do not pretend X-Orchestra-Session-Id is one.
 """
 
 from __future__ import annotations
 
+import hashlib
 import hmac
-import secrets
+import os
 
 from fastapi import Request
 
 PROOF_ENV = "ORCHESTRA_MCP_PROOF"
 PROOF_HEADER = "x-orchestra-mcp-proof"
 
-_proofs: dict[str, str] = {}
-
 
 def issue_mcp_proof(session_id: str) -> str:
+    """Derive the session proof from the server secret, not process state."""
     sid = (session_id or "").strip()
-    if not sid:
+    secret = os.environ.get("INTERNAL_TOKEN", "")
+    if not sid or not secret:
         return ""
-    token = secrets.token_hex(32)
-    _proofs[sid] = token
-    return token
+    return hmac.new(
+        secret.encode(), f"mcp-proof:{sid}".encode(), hashlib.sha256,
+    ).hexdigest()
 
 
 def check_mcp_proof(session_id: str, presented: str) -> bool:
-    expected = _proofs.get((session_id or "").strip(), "")
+    expected = issue_mcp_proof(session_id)
     got = (presented or "").strip()
     if not expected or not got or len(expected) != len(got):
         return False

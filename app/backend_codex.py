@@ -693,6 +693,7 @@ class CodexBackend(JsonRpcStdioTransport):
         would also block, because the stream may be silent for minutes.
         """
         self._notifications = asyncio.Queue()
+        self._request_seq = int.from_bytes(os.urandom(6), "big")
         self._disconnecting = False
         self._last_stderr = ""
         await self.adopt_pipes(fd_in, fd_out, limit=CODEX_STREAM_LIMIT,
@@ -705,6 +706,24 @@ class CodexBackend(JsonRpcStdioTransport):
         self._reader_failure = None
         self._terminal_reader_failure = False
         self._reader_task = asyncio.create_task(self._read_stdout())
+
+    async def recover_adopted_turn(self) -> str | None:
+        """Read the surviving server's latest turn when shutdown saved no turn identity."""
+        result = await asyncio.wait_for(self._request("thread/turns/list", {
+            "threadId": self._thread_id,
+            "limit": 1,
+            "sortDirection": "desc",
+            "itemsView": "notLoaded",
+        }), timeout=10)
+        turns = result.get("data")
+        if not isinstance(turns, list):
+            raise RuntimeError("Codex turn recovery returned no turn list")
+        turn = turns[0] if turns else {}
+        if turns and (not isinstance(turn, dict) or not isinstance(turn.get("id"), str) or not turn["id"] or
+                      turn.get("status") not in {"inProgress", "completed", "failed", "interrupted"}):
+            raise RuntimeError("Codex turn recovery returned an invalid turn")
+        self._active_turn_id = turn.get("id") if turn.get("status") == "inProgress" else None
+        return self._active_turn_id
 
     async def connect(self) -> None:
         home = self._managed_codex_home_path()
@@ -1335,11 +1354,21 @@ class CodexBackend(JsonRpcStdioTransport):
             return
         proc = self._proc
         if proc is None and self._scope_unit is None:
-            if self._adopted_fds is not None or self._adopted_writer is not None:
+            if self._adopted_fds is not None or self._adopted_writer is not None or self._teardown_error:
                 # An ADOPTED backend owns no Process, but it very much owns a running CLI:
                 # returning here left it alive next to its replacement (found in impl review).
                 self._disconnecting = True
-                await self.teardown_adopted()
+                try:
+                    await self.teardown_adopted()
+                    home = self._managed_codex_home_path()
+                    if home is not None and self._thread_id:
+                        async with asyncio.timeout(CODEX_PROCESS_TIMEOUT_SECONDS):
+                            while codex_writer_conflict(home.name, self._thread_id) is not None:
+                                await asyncio.sleep(0.05)
+                    self._teardown_error = None
+                except BaseException as error:
+                    self._teardown_error = f"{type(error).__name__}: {error}"
+                    raise
             return
         self._disconnecting = True
         try:
@@ -2477,6 +2506,8 @@ class CodexBackend(JsonRpcStdioTransport):
         those processes alive.  Reconnect here preserves the thread id through
         `thread/resume` while making the next turn use current context/config settings.
         """
+        if not self.can_replace_adopted_process:
+            return
         if self._managed_codex_home_path() is None:
             return
         desired = await _run_home_io(self._refresh_managed_config_sha256)

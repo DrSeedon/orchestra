@@ -27,7 +27,6 @@ from app.db import (
 )
 from app.pidfd_exec import pidfd_send_group
 from app.events import InjectedMessage, MessageProvenance
-from app.codex_review_artifact import review_result_error
 from app.tasks import spawn_supervised
 
 logger = logging.getLogger(__name__)
@@ -38,7 +37,7 @@ MAX_TIMER_TIMEOUT = 8 * 86400
 DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
 _CRON_COMMAND_TIMEOUT_SECONDS = 30
-_NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
+_NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command", "idle"})
 _PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
 _PIDFD_HANDSHAKE_TIMEOUT = 5
 _PIDFD_TERM_GRACE = 3
@@ -69,6 +68,8 @@ def _validate_regex(
 
 
 def _validate_config(job_type: str, config: dict) -> str | None:
+    if job_type == "idle":
+        return None
     if job_type == "timer":
         delay = config.get("delay_seconds")
         if not isinstance(delay, (int, float)) or delay <= 0:
@@ -334,6 +335,13 @@ class BgJobManager:
         err = _validate_config(job_type, config)
         if err:
             return {"error": err}
+        if job_type == "idle":
+            from app.db import get_session
+            target = get_session(target_session_id)
+            if not target or not (target.get('is_orchestrator') or target.get('role') in {'orchestrator','sub-orchestrator'}):
+                return {"error": "idle watches require an orchestrator target"}
+            config = {}
+            replace_key = f"idle-watch:{target_session_id}"
         if job_type == "merge":
             from app.merge_operations import get_operation_record
 
@@ -397,7 +405,9 @@ class BgJobManager:
     def _start_task(self, job_id, job_type, config, message, target_session_id,
                     target_name, target_scope, timeout, trigger_at=None):
         watch_timeout = None if config.get("no_expiry") else timeout
-        if job_type == "timer":
+        if job_type == "idle":
+            coro = self._run_idle(job_id, watch_timeout)
+        elif job_type == "timer":
             delay = config["delay_seconds"]
             if trigger_at:
                 remaining = (datetime.fromisoformat(trigger_at) - datetime.now(timezone.utc)).total_seconds()
@@ -423,8 +433,7 @@ class BgJobManager:
             coro = self._run_exec(job_id, config["command"], message, target_name,
                                   target_scope, timeout, host=host,
                                   success_file=config.get("success_file"),
-                                  success_pattern=config.get("success_pattern", ""),
-                                  review_advisory=bool(config.get("review_advisory")))
+                                  success_pattern=config.get("success_pattern", ""))
         elif job_type == "merge":
             coro = self._run_merge_watch(job_id, config["operation_id"], message,
                                          target_name, target_scope, timeout)
@@ -543,7 +552,7 @@ class BgJobManager:
         self._procs.clear()
 
     def has_active_jobs(self, session_id: str) -> bool:
-        return len(bg_get_jobs(session_id=session_id, active_only=True)) > 0
+        return any(job["type"] != "idle" for job in bg_get_jobs(session_id=session_id, active_only=True))
 
     # ── Trigger ──
 
@@ -748,6 +757,23 @@ class BgJobManager:
                                       f"Merge {operation_id} may still be running; check the same operation.")
         except Exception as exc:
             await self._fail_notify(job_id, message, target_name, target_scope, str(exc))
+
+    async def _run_idle(self, job_id, timeout):
+        from app.idle_watch import check
+        deadline = time.monotonic() + timeout if timeout else None
+        try:
+            while deadline is None or time.monotonic() < deadline:
+                row = bg_get_job(job_id)
+                if not row or row['status'] != 'active':
+                    return
+                try:
+                    await check(job_id, self._session_manager)
+                except Exception:
+                    logger.exception('idle watch %s could not deliver its notification', job_id)
+                await asyncio.sleep(2)
+            self._expire(job_id)
+        except asyncio.CancelledError:
+            pass
 
     async def _run_timer(self, job_id, delay, message, target_name, target_scope):
         try:
@@ -978,7 +1004,7 @@ class BgJobManager:
 
     async def _run_exec(self, job_id, command, message, target_name,
                         target_scope, timeout, host=None, success_file=None,
-                        success_pattern="", review_advisory=False):
+                        success_pattern=""):
         proc = None
         reader_task = None
         output_buf = []
@@ -1068,8 +1094,6 @@ class BgJobManager:
                                 f"Required output artifact does not match success pattern: "
                                 f"{success_file}"
                             )
-                        elif not review_advisory:
-                            validation_error = review_result_error(artifact)
                 except OSError as e:
                     validation_error = f"Cannot validate output artifact {success_file}: {e}"
             if validation_error:

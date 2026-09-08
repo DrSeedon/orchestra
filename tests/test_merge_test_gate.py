@@ -43,65 +43,6 @@ def _repo(tmp_path: Path, *, files: dict[str, str]) -> Path:
     return repo
 
 
-def _record_reviewed_receipt(dbmod, worktree: Path) -> None:
-    """Квитанция ревью на текущий продовый снимок — предусловие, а не предмет этих тестов.
-
-    Предмет здесь тест-гейт (#255). С приходом review-coverage (#462) мерж, меняющий
-    `app/**`, требует ещё и квитанции; без неё эти тесты меряли бы чужой гейт и краснели бы
-    на нём, так и не дойдя до своего. Покрытие ревью проверяется отдельно —
-    `tests/test_review_coverage_gate_462.py` и `tests/test_review_coverage_target_drift_474.py`.
-    """
-    from app.review_coverage import production_paths, production_snapshot
-
-    head = worker_head(str(worktree))
-    target_sha = subprocess.run(
-        ["git", "rev-parse", "main"],
-        cwd=worktree, capture_output=True, text=True, check=True,
-    ).stdout.strip()
-    snapshot = production_snapshot(
-        str(worktree), target_sha=target_sha, worker_head=head,
-    )
-    if not production_paths(list(snapshot["production_paths"])):
-        return
-    now = datetime.now(timezone.utc).isoformat()
-    dbmod.review_receipt_create({
-        "receipt_id": f"review-receipt:{uuid.uuid4()}",
-        "schema_version": 1,
-        "runtime": "codex",
-        "reviewer_model": "gpt-5.6-luna",
-        "model_source": "direct",
-        "session_id": "merge-session",
-        "worker_name": "worker",
-        "scope": "/scope",
-        "task_id": "42",
-        "task_source": "session_lookup",
-        "artifact_path": f"/tmp/gate-review-{uuid.uuid4()}.md",
-        "mode": "implementation",
-        "round": 1,
-        "job_id": "bg-255",
-        "usage_event_id": "usage-255",
-        "requested_at": now,
-        "completed_at": now,
-        "status": "completed",
-        "return_code": 0,
-        "failure_code": "",
-        "artifact_exists": 1,
-        "artifact_bytes": 10,
-        "artifact_sha256": "a" * 64,
-        "verdict_present": 1,
-        "verdict_value": "ACK",
-        "jsonl_response_present": 1,
-        "recovery_source": "",
-        "author_outcome": "accepted",
-        "outcome_source": "direct",
-        "outcome_evidence_ref": ".orchestra/tasks/474/report.md#gate-fixture",
-        "notification_event_id": "",
-        "subject_kind": "implementation",
-        "coverage_outcome": "reviewed",
-        "policy_ref": "",
-        "decision_actor": "",
-        **snapshot,
-    })
 
 
 @pytest.fixture
@@ -130,7 +71,6 @@ def gate_db(tmp_path, monkeypatch, request):
         "app.workspace.inspect_worktree_identity",
         lambda _path: ("task-42/worker", worker_head(str(worktree))),
     )
-    _record_reviewed_receipt(dbmod, worktree)
     return worktree
 
 
@@ -617,7 +557,7 @@ def test_live_probe_inventory_is_explicit():
     from app.merge_test_gate import LIVE_PROBE_MARKER
 
     expected = {
-        "tests/test_native_history_import.py": 2,
+        "tests/test_native_history_import.py": 1,
         "tests/test_runtime_history.py": 1,
         # Требует настоящий `~/.codex/auth.json` владельца: предмет проверки — живая
         # подписка, герметичным он не бывает. На публичном раннике таких кред нет и быть
@@ -663,8 +603,8 @@ def test_browser_inventory_is_explicit():
     root = Path(__file__).resolve().parent.parent
     expected = {
     # Collection includes the voice-input test explicitly skipped since #365;
-    # 104 passing tests plus that retained node make 105, regardless of execution.
-    "tests/test_frontend.py": 105,
+    # 101 passing tests plus that retained node make 102, regardless of execution.
+    "tests/test_frontend.py": 102,
     "tests/test_t344_quota_lines_browser.py": 17,
     "tests/test_usage_analytics_frontend.py": 14,
     "tests/test_usage_history_frontend.py": 11,

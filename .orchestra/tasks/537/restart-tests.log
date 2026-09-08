@@ -1,0 +1,110 @@
+...........................................................F.......      [100%]Task was destroyed but it is pending!
+task: <Task pending name='Task-233' coro=<HibernateManager._idle_hibernate() running at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-stuck-writer/app/session_hibernate.py:57> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+Task was destroyed but it is pending!
+task: <Task pending name='Task-232' coro=<AgentSession._persist_loop() running at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-stuck-writer/app/session.py:5192> wait_for=<Future pending cb=[_chain_future.<locals>._call_check_cancel() at /usr/lib/python3.12/asyncio/futures.py:387, Task.task_wakeup()]> cb=[AgentSession._on_persist_done()]>
+
+=================================== FAILURES ===================================
+___________ test_t9_stale_adopted_session_respawns_cli_on_next_turn ____________
+
+mgr = <app.manager.SessionManager object at 0x793cd4e8ac90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x793cd4e6bce0>
+
+    @pytest.mark.asyncio
+    async def test_t9_stale_adopted_session_respawns_cli_on_next_turn(mgr, monkeypatch):
+        """The adopted CLI keeps the OLD tool list and prompt: those can only change by
+        re-spawning it, and that must happen at the turn boundary, not mid-turn."""
+        from tests.conftest import make_backend_mock
+    
+        _save_running_session("stale-1")
+        cli_out_r, cli_out_w, cli_in_r, cli_in_w = _pipe_pair()
+        monkeypatch.setattr("app.fdstore.acquire_fds", lambda: {
+            "agent.stale-1.stdin": cli_in_w, "agent.stale-1.stdout": cli_out_r,
+        })
+        connects = []
+        backend = make_backend_mock()
+    
+        async def track_connect(*a, **kw):
+            connects.append(True)
+    
+        async def noop_adopt(*a, **kw):
+            return None
+    
+        backend.connect = track_connect
+        backend.adopt = noop_adopt
+        try:
+            with patch("app.session.AgentSession._make_backend", return_value=backend):
+                await mgr.auto_resume_all()
+                session = mgr.get("stale-1")
+                assert session is not None
+                assert session.tools_are_stale is True, (
+                    "an adopted CLI carries the tool list it was born with")
+                assert connects == [], "mid-turn the CLI must NOT be re-spawned"
+    
+                old_backend = session._backend
+                disconnected, assembled = [], []
+                # async, because the real contract is `async def disconnect` — a sync double here
+                # would force defensive code in production (my own note: a double must not be
+                # weaker than the object it replaces)
+                async def track_disconnect(*a, **kw):
+                    disconnected.append(True)
+    
+                backend.disconnect = track_disconnect
+                monkeypatch.setattr(
+                    "app.manager.SessionManager.assemble_prompt",
+                    # returns a TUPLE, like the real assemble_prompt (prompt, overlay)
+                    lambda self, *a, **kw: (assembled.append(True) or "fresh prompt", None),
+                    raising=False,
+                )
+                fresh = make_backend_mock()
+    
+                async def fresh_connect(*a, **kw):
+                    connects.append(True)
+    
+                fresh.connect = fresh_connect
+                with patch("app.session.AgentSession._make_backend", return_value=fresh):
+                    # driven through the REAL next turn: a perfect refresh method that send()
+                    # never calls would swap nothing in production. Bounded because send() takes
+                    # the non-reentrant `_lifecycle_lock` (app/session.py:411): a refresh that
+                    # re-enters it would deadlock the suite instead of failing.
+                    from app.events import MessageProvenance
+                    await asyncio.wait_for(
+                        session.send(
+                            "next turn starts here",
+                            provenance=MessageProvenance(origin="user", senders=("user",)),
+                        ),
+                        timeout=10,
+                    )
+    
+>               assert session._backend is not old_backend, (
+                    "toggling a flag and calling connect() on the SAME backend keeps the old "
+                    "tool list — the CLI process itself must be replaced")
+E                   AssertionError: toggling a flag and calling connect() on the SAME backend keeps the old tool list — the CLI process itself must be replaced
+E                   assert <AsyncMock id='133302176958800'> is not <AsyncMock id='133302176958800'>
+E                    +  where <AsyncMock id='133302176958800'> = AgentSession(id='stale-1', name='stale-1', scope='/tmp', cwd='/tmp', model='gpt-5.6-luna', system_prompt='<platform>\n...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._backend
+
+tests/test_fd_adopt.py:1310: AssertionError
+----------------------------- Captured stderr call -----------------------------
+inherited live pipes for 1 session(s): stale-1
+backend mismatch for stale-1: stored=claude, model implies=codex. Using codex.
+Resumed worker: stale-1
+[stale-1] could not publish agent pipes to systemd: FdStoreUnavailable: SYSTEMD_EXEC_PID=1537281 does not name this process: refusing inherited systemd notification 'FDSTOREREMOVE=1\nFDNAME=agent.stale-1.stdin'
+[stale-1] adopted a live CLI; its turn keeps running
+[stale-1] heartbeat started
+[stale-1] codex turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.manager:manager.py:2481 inherited live pipes for 1 session(s): stale-1
+WARNING  app.manager:manager.py:2091 backend mismatch for stale-1: stored=claude, model implies=codex. Using codex.
+INFO     app.manager:manager.py:2543 Resumed worker: stale-1
+ERROR    app.manager:manager.py:2906 [stale-1] could not publish agent pipes to systemd: FdStoreUnavailable: SYSTEMD_EXEC_PID=1537281 does not name this process: refusing inherited systemd notification 'FDSTOREREMOVE=1\nFDNAME=agent.stale-1.stdin'
+INFO     app.manager:manager.py:2557 [stale-1] adopted a live CLI; its turn keeps running
+INFO     app.session:session_hibernate.py:120 [stale-1] heartbeat started
+INFO     app.session:session.py:2347 [stale-1] codex turn started
+--------------------------- Captured stderr teardown ---------------------------
+[stale-1] heartbeat cancelled
+[stale-1] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [stale-1] heartbeat cancelled
+WARNING  app.session:session.py:2674 [stale-1] listen task exited without exception (silent death), status=AgentStatus.IDLE
+=========================== short test summary info ============================
+FAILED tests/test_fd_adopt.py::test_t9_stale_adopted_session_respawns_cli_on_next_turn
+1 failed, 66 passed in 23.38s

@@ -48,7 +48,6 @@ class TestInitDb:
         assert "logs" in tables
         assert "voice_costs" in tables
         assert "tool_errors" in tables
-        assert "improvement_rules" in tables
         assert "merge_operations" in tables
 
     def test_idempotent(self, db):
@@ -195,50 +194,6 @@ class TestToolErrors:
         assert rows[0]["tool_use_id"] == "tool-1"
         assert len(rows[0]["error_text"]) == 4000
 
-
-
-class TestImprovementRules:
-    def test_propose_and_list(self, db):
-        from app.db import rule_list, rule_propose
-
-        rule_id = rule_propose(
-            "When a tool fails, record the error",
-            "repeated tool failure",
-            "worker-1",
-            "CLAUDE.md",
-        )
-
-        rules = rule_list()
-        assert len(rules) == 1
-        assert rules[0]["id"] == rule_id
-        assert rules[0]["rule_text"] == "When a tool fails, record the error"
-        assert rules[0]["source_signal"] == "repeated tool failure"
-        assert rules[0]["proposed_by"] == "worker-1"
-        assert rules[0]["target_file"] == "CLAUDE.md"
-        assert rules[0]["status"] == "proposed"
-        assert rules[0]["proposed_at"] is not None
-
-    def test_approve_and_filter(self, db):
-        from app.db import rule_approve, rule_list, rule_propose
-
-        active_id = rule_propose("active rule", "signal", "worker")
-        rule_propose("pending rule", "signal", "worker")
-        rule_approve(active_id)
-
-        active = rule_list(status="active")
-        assert [rule["id"] for rule in active] == [active_id]
-        assert active[0]["approved_at"] is not None
-        assert active[0]["retired_at"] is None
-
-    def test_retire(self, db):
-        from app.db import rule_list, rule_propose, rule_retire
-
-        rule_id = rule_propose("obsolete rule", "signal", "worker")
-        rule_retire(rule_id)
-
-        retired = rule_list(status="retired")
-        assert [rule["id"] for rule in retired] == [rule_id]
-        assert retired[0]["retired_at"] is not None
 
 
 class TestSaveAndGetSession:
@@ -1123,3 +1078,22 @@ def test_existing_unversioned_schema_requires_explicit_migration(tmp_path, monke
     with sqlite3.connect(path) as connection:
         assert connection.execute('SELECT value FROM old_data').fetchone()[0] == 'keep'
         assert connection.execute('PRAGMA user_version').fetchone()[0] == 0
+
+
+def test_database_upgrade_preserves_retired_rule_records(tmp_path, monkeypatch):
+    """Retiring the rule API must not drop an existing user's historical table."""
+    import sqlite3
+    from app import db
+    path = tmp_path / 'old-rules.db'
+    with sqlite3.connect(path) as connection:
+        connection.execute('CREATE TABLE improvement_rules(id INTEGER PRIMARY KEY, rule_text TEXT)')
+        connection.execute("INSERT INTO improvement_rules VALUES (1, 'historical observation')")
+    monkeypatch.setattr(db, 'DB_PATH', path)
+    from app.task_migration import _copy_runtime_tables
+    target = tmp_path / "new-rules.db"
+    _copy_runtime_tables(path, target)
+    monkeypatch.setattr(db, "DB_PATH", target)
+    db.init_db()
+    with db._conn() as connection:
+        assert [tuple(row) for row in connection.execute('SELECT * FROM improvement_rules')] == [(1, 'historical observation')]
+

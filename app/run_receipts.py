@@ -60,8 +60,8 @@ def build_task_run_trace(receipt_id: str, *, as_of: str | None = None) -> dict:
         ).fetchall()
         reviews = [
             dict(item) for item in conn.execute(
-                "SELECT receipt_id,requested_at,completed_at,status,coverage_outcome,"
-                "verdict_present,verdict_value,author_outcome,outcome_evidence_ref "
+                "SELECT receipt_id,requested_at,completed_at,status,"
+                "verdict_present,verdict_value "
                 "FROM review_receipts WHERE subject_kind!='task_run' "
                 "AND session_id=? AND scope=? AND task_id=? "
                 "AND requested_at>=? AND requested_at<=? ORDER BY requested_at",

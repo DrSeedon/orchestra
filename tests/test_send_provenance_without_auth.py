@@ -154,3 +154,26 @@ async def test_senderless_send_with_valid_auth_is_user(tmp_path, monkeypatch):
 
     assert captured[0].origin == "user"
     assert captured[0].senders == ("user",)
+
+
+@pytest.mark.asyncio
+async def test_dashboard_channel_labels_source_without_claiming_authenticated_user(wired):
+    routes, captured = wired
+    await routes.send_message(
+        'target', routes.SendRequest(message='hello', scope='/scope', channel='dashboard'),
+        request=_request(),
+    )
+    assert captured[0].origin == 'unknown'
+    assert captured[0].senders == ('dashboard',)
+    assert captured[0].subtype == 'dashboard'
+
+
+@pytest.mark.asyncio
+async def test_dashboard_channel_cannot_override_agent_sender(wired):
+    routes, captured = wired
+    await routes.send_message(
+        'target', routes.SendRequest(message='hello', scope='/scope', sender='worker-1', channel='dashboard'),
+        request=_request(),
+    )
+    assert captured[0].origin == 'agent'
+    assert captured[0].senders == ('worker-1',)

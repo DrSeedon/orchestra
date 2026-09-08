@@ -154,6 +154,14 @@ def _copy_runtime_tables(source: Path, target: Path) -> dict:
             source_columns = {r[1] for r in connection.execute(f'PRAGMA old.table_info({table})')}
             target_columns = {r[1] for r in connection.execute(f'PRAGMA main.table_info({table})')}
             dropped = source_columns - target_columns
+            historical_review = {'author_outcome','outcome_source','outcome_evidence_ref',
+                'production_snapshot_sha256','production_diff_sha256','production_paths_json',
+                'production_path_heads_json','coverage_outcome','decision_actor'}
+            if table == 'review_receipts':
+                for name in sorted(dropped & historical_review):
+                    connection.execute(f'ALTER TABLE main.review_receipts ADD COLUMN "{name}" TEXT')
+                    target_columns.add(name)
+                dropped = source_columns - target_columns
             if dropped - (RETIRED_TASK_COLUMNS if table == 'tm_tasks' else set()):
                 raise TaskConflict(f'unknown columns need explicit preservation: {table}: {sorted(dropped)}')
             columns = ','.join('"'+name+'"' for name in sorted(source_columns & target_columns))

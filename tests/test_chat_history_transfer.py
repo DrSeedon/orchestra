@@ -56,7 +56,6 @@ async def test_switch_does_not_probe_or_write_native_history(monkeypatch, old, n
     s._disconnect_backend = AsyncMock()
     s._log = MagicMock()
     s._make_backend = MagicMock(side_effect=AssertionError('no canary or target model call'))
-    s._change_runtime_with_packet_locked = AsyncMock(side_effect=AssertionError('no native graft'))
     result = await s.change_model(new)
     assert result['ok']
     assert result['history_transfer']['mode'] == 'chat_history_v1'

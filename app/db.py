@@ -15,7 +15,6 @@ from uuid import uuid4
 
 logger = logging.getLogger("db")
 
-REVIEW_AUTHOR_OUTCOMES = frozenset({"accepted", "disputed", "partial"})
 
 _DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
 
@@ -64,6 +63,7 @@ def _conn(path: Path | None = None) -> sqlite3.Connection:
 SCHEMA_VERSION = 1
 
 
+
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
@@ -78,6 +78,7 @@ def init_db(path: Path | None = None) -> None:
         connection.executemany('INSERT INTO kv(key,value) VALUES(?,?)',
             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
+
 
 
 def kv_get(key: str, default: str = "") -> str:
@@ -98,6 +99,7 @@ def kv_set(key: str, value: str) -> None:
 def kv_delete(key: str) -> None:
     with _conn() as c:
         c.execute("DELETE FROM kv WHERE key=?", (key,))
+
 
 
 def save_session(
@@ -1316,16 +1318,13 @@ _REVIEW_RECEIPT_COLUMNS = (
     "mode", "round", "job_id", "usage_event_id", "requested_at", "completed_at",
     "status", "return_code", "failure_code", "artifact_exists", "artifact_bytes",
     "artifact_sha256", "verdict_present", "verdict_value", "jsonl_response_present",
-    "recovery_source", "author_outcome", "outcome_source", "outcome_evidence_ref",
+    "recovery_source",
     "notification_event_id", "subject_kind", "target_sha", "worker_head",
-    "production_snapshot_sha256", "production_diff_sha256", "production_paths_json",
-    "production_path_heads_json", "requested_by_session_id", "requested_by_worker",
-    "coverage_outcome",
-    "policy_ref", "decision_actor", "task_stable_id", "task_snapshot_ref",
+    "requested_by_session_id", "requested_by_worker",
+    "policy_ref", "task_stable_id", "task_snapshot_ref",
     "prompt_template_start", "prompt_template_end", "terminal_operation_id",
 )
 _REVIEW_RECEIPT_SOURCES = frozenset({"direct", "derived", "unknown"})
-_REVIEW_COVERAGE_OUTCOMES = frozenset({"unknown", "reviewed", "skipped", "unavailable"})
 
 
 
@@ -1381,12 +1380,12 @@ def task_run_receipt_open(
             if any(str(saved[key] or "") != value for key, value in expected.items()):
                 raise ValueError("open task run conflicts with current assignment provenance")
             return saved
-        from app.work_review import assignment_version
+        from app.work_review import ASSIGNMENT_VERSION
 
         values = {key: None for key in _REVIEW_RECEIPT_COLUMNS}
         values.update({
             "receipt_id": f"task-run:{uuid4()}",
-            "schema_version": (2 if task_source == "legacy_inflight" else assignment_version(c, scope, task_id, task_stable_id)),
+            "schema_version": ASSIGNMENT_VERSION,
             "runtime": "",
             "reviewer_model": "",
             "model_source": "unknown",
@@ -1408,22 +1407,13 @@ def task_run_receipt_open(
             "verdict_value": "",
             "jsonl_response_present": None,
             "recovery_source": "",
-            "author_outcome": "unknown",
-            "outcome_source": "unknown",
-            "outcome_evidence_ref": "",
             "notification_event_id": "",
             "subject_kind": "task_run",
             "target_sha": "",
             "worker_head": "",
-            "production_snapshot_sha256": "",
-            "production_diff_sha256": "",
-            "production_paths_json": "[]",
-            "production_path_heads_json": "",
             "requested_by_session_id": "",
             "requested_by_worker": "",
-            "coverage_outcome": "unknown",
             "policy_ref": "",
-            "decision_actor": "",
             "prompt_template_end": "",
             "terminal_operation_id": "",
         })
@@ -1574,10 +1564,6 @@ def review_receipt_create(receipt: dict) -> bool:
         raise ValueError("review receipt missing fields: " + ", ".join(missing))
     if receipt["model_source"] not in _REVIEW_RECEIPT_SOURCES:
         raise ValueError("invalid review receipt model_source")
-    if receipt.get("outcome_source", "unknown") not in _REVIEW_RECEIPT_SOURCES:
-        raise ValueError("invalid review receipt outcome_source")
-    if receipt.get("coverage_outcome", "unknown") not in _REVIEW_COVERAGE_OUTCOMES:
-        raise ValueError("invalid review receipt coverage_outcome")
     values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
     values["schema_version"] = int(values["schema_version"] or 1)
     values["round"] = None if values["round"] is None else int(values["round"])
@@ -1587,22 +1573,13 @@ def review_receipt_create(receipt: dict) -> bool:
     values["artifact_sha256"] = values["artifact_sha256"] or ""
     values["verdict_value"] = values["verdict_value"] or ""
     values["recovery_source"] = values["recovery_source"] or ""
-    values["author_outcome"] = values["author_outcome"] or "unknown"
-    values["outcome_source"] = values["outcome_source"] or "unknown"
-    values["outcome_evidence_ref"] = values["outcome_evidence_ref"] or ""
     values["notification_event_id"] = values["notification_event_id"] or ""
     values["subject_kind"] = values["subject_kind"] or "unknown"
     values["target_sha"] = values["target_sha"] or ""
     values["worker_head"] = values["worker_head"] or ""
-    values["production_snapshot_sha256"] = values["production_snapshot_sha256"] or ""
-    values["production_diff_sha256"] = values["production_diff_sha256"] or ""
-    values["production_paths_json"] = values["production_paths_json"] or "[]"
-    values["production_path_heads_json"] = values["production_path_heads_json"] or ""
     values["requested_by_session_id"] = values["requested_by_session_id"] or ""
     values["requested_by_worker"] = values["requested_by_worker"] or ""
-    values["coverage_outcome"] = values["coverage_outcome"] or "unknown"
     values["policy_ref"] = values["policy_ref"] or ""
-    values["decision_actor"] = values["decision_actor"] or ""
     values["task_stable_id"] = values["task_stable_id"] or ""
     values["task_snapshot_ref"] = values["task_snapshot_ref"] or ""
     values["prompt_template_start"] = values["prompt_template_start"] or ""
@@ -1638,53 +1615,6 @@ def review_receipt_get(receipt_id: str) -> dict | None:
     return dict(row) if row else None
 
 
-def review_receipt_record_skip(receipt: dict) -> dict:
-    """Create one idempotent authorized skip; decision identity owns retries."""
-    stable = (
-        "runtime", "reviewer_model", "model_source", "session_id", "worker_name",
-        "scope", "task_id", "task_source", "artifact_path", "mode",
-        "status", "failure_code", "subject_kind", "target_sha", "worker_head",
-        "production_snapshot_sha256", "production_paths_json", "coverage_outcome",
-        "policy_ref", "decision_actor", "outcome_evidence_ref",
-    )
-    # `production_diff_sha256` в identity НЕ входит намеренно: он выводится из того же `raw`,
-    # что и `production_snapshot_sha256`, который здесь уже есть вместе с `target_sha`, —
-    # то есть ничего не добавляет к пиннингу предмета. Зато у квитанций, выписанных до #474,
-    # колонка пуста, и включение её сюда превращало повтор ТОГО ЖЕ решения в
-    # `skip decision id conflicts with existing provenance` (#474, раунд 2).
-    receipt_id = str(receipt.get("receipt_id") or "")
-    if not receipt_id:
-        raise ValueError("skip receipt_id is required")
-    if receipt.get("coverage_outcome") != "skipped":
-        raise ValueError("skip receipt must have coverage_outcome=skipped")
-    with _conn() as c:
-        c.execute("BEGIN IMMEDIATE")
-        existing = c.execute(
-            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,),
-        ).fetchone()
-        if existing:
-            if any(existing[key] != receipt.get(key) for key in stable):
-                raise ValueError("skip decision id conflicts with existing provenance")
-            return dict(existing)
-        _require_bound_task_run_for_review(c, receipt)
-        values = {key: receipt.get(key) for key in _REVIEW_RECEIPT_COLUMNS}
-        for key in (
-            "task_stable_id", "task_snapshot_ref", "prompt_template_start",
-            "prompt_template_end", "terminal_operation_id", "production_diff_sha256",
-            "production_path_heads_json", "requested_by_session_id",
-            "requested_by_worker",
-        ):
-            values[key] = values[key] or ""
-        placeholders = ", ".join("?" for _ in _REVIEW_RECEIPT_COLUMNS)
-        columns = ", ".join(_REVIEW_RECEIPT_COLUMNS)
-        c.execute(
-            f"INSERT INTO review_receipts ({columns}) VALUES ({placeholders})",
-            tuple(values[key] for key in _REVIEW_RECEIPT_COLUMNS),
-        )
-        saved = c.execute(
-            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,),
-        ).fetchone()
-    return dict(saved)
 
 
 def review_receipt_reserve(receipt: dict) -> dict:
@@ -1703,22 +1633,13 @@ def review_receipt_reserve(receipt: dict) -> dict:
     values.setdefault("artifact_sha256", "")
     values.setdefault("verdict_value", "")
     values.setdefault("recovery_source", "")
-    values.setdefault("author_outcome", "unknown")
-    values.setdefault("outcome_source", "unknown")
-    values.setdefault("outcome_evidence_ref", "")
     values.setdefault("notification_event_id", "")
     values.setdefault("subject_kind", "unknown")
     values.setdefault("target_sha", "")
     values.setdefault("worker_head", "")
-    values.setdefault("production_snapshot_sha256", "")
-    values.setdefault("production_diff_sha256", "")
-    values.setdefault("production_paths_json", "[]")
-    values.setdefault("production_path_heads_json", "")
     values.setdefault("requested_by_session_id", "")
     values.setdefault("requested_by_worker", "")
-    values.setdefault("coverage_outcome", "unknown")
     values.setdefault("policy_ref", "")
-    values.setdefault("decision_actor", "")
     values.setdefault("task_stable_id", "")
     values.setdefault("task_snapshot_ref", "")
     values.setdefault("prompt_template_start", "")
@@ -1753,15 +1674,13 @@ def review_receipt_finish(receipt_id: str, updates: dict) -> bool:
         "job_id", "completed_at", "status", "return_code", "failure_code",
         "artifact_exists", "artifact_bytes", "artifact_sha256", "verdict_present",
         "verdict_value", "jsonl_response_present", "recovery_source",
-        "notification_event_id", "coverage_outcome",
+        "notification_event_id",
     }
     unknown = set(updates) - allowed
     if unknown:
         raise ValueError("review receipt terminal fields not allowed: " + ", ".join(sorted(unknown)))
     if updates.get("status") not in {None, "requested", "completed", "failed", "timed_out", "interrupted"}:
         raise ValueError("invalid review receipt status")
-    if updates.get("coverage_outcome") not in {None, *_REVIEW_COVERAGE_OUTCOMES}:
-        raise ValueError("invalid review receipt coverage_outcome")
     if not updates:
         return False
     assignments = ", ".join(f"{key}=?" for key in updates)
@@ -1773,49 +1692,6 @@ def review_receipt_finish(receipt_id: str, updates: dict) -> bool:
         return cursor.rowcount == 1
 
 
-def review_receipt_set_outcome(
-    receipt_id: str, outcome: str, outcome_evidence_ref: str = "",
-) -> dict:
-    """Set an author outcome once; identical replay returns the existing row."""
-    if outcome not in REVIEW_AUTHOR_OUTCOMES:
-        raise ValueError("outcome must be accepted, disputed, or partial")
-    evidence = str(outcome_evidence_ref or "").strip()
-    if outcome == "disputed" and not evidence:
-        raise ValueError("outcome_evidence_ref is required for disputed outcome")
-    with _conn() as c:
-        row = c.execute(
-            "SELECT author_outcome, outcome_evidence_ref FROM review_receipts WHERE receipt_id=?",
-            (receipt_id,),
-        ).fetchone()
-        if not row:
-            raise LookupError("review receipt not found")
-        current = row["author_outcome"] or "unknown"
-        current_ref = row["outcome_evidence_ref"] or ""
-        if current != "unknown":
-            if current == outcome and current_ref == evidence:
-                saved = c.execute(
-                    "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
-                ).fetchone()
-                return dict(saved)
-            raise ValueError("review receipt outcome is already fixed")
-        c.execute(
-            "UPDATE review_receipts SET author_outcome=?, outcome_source='direct', "
-            "outcome_evidence_ref=? WHERE receipt_id=? AND author_outcome='unknown'",
-            (outcome, evidence, receipt_id),
-        )
-        if c.execute("SELECT changes()").fetchone()[0] == 0:
-            current_row = c.execute(
-                "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
-            ).fetchone()
-            current = current_row["author_outcome"] or "unknown"
-            current_ref = current_row["outcome_evidence_ref"] or ""
-            if current == outcome and current_ref == evidence:
-                return dict(current_row)
-            raise ValueError("review receipt outcome is already fixed")
-        saved = c.execute(
-            "SELECT * FROM review_receipts WHERE receipt_id=?", (receipt_id,)
-        ).fetchone()
-    return dict(saved)
 
 
 # ── Background Jobs ──
@@ -2178,58 +2054,6 @@ def turn_usage_add(
         return cursor.rowcount == 1
 
 
-def rule_propose(
-    rule_text: str,
-    source_signal: str,
-    proposed_by: str,
-    target_file: str = "",
-) -> int:
-    """Create a proposed improvement rule and return its database id."""
-    with _conn() as c:
-        cursor = c.execute(
-            """INSERT INTO improvement_rules
-               (rule_text, source_signal, proposed_by, target_file)
-               VALUES (?, ?, ?, ?)""",
-            (rule_text, source_signal, proposed_by, target_file),
-        )
-        return cursor.lastrowid
-
-
-def rule_approve(rule_id: int) -> None:
-    """Mark an improvement rule active and record its approval time."""
-    with _conn() as c:
-        c.execute(
-            """UPDATE improvement_rules
-               SET status = 'active', approved_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
-            (rule_id,),
-        )
-
-
-def rule_retire(rule_id: int) -> None:
-    """Mark an improvement rule retired and record its retirement time."""
-    with _conn() as c:
-        c.execute(
-            """UPDATE improvement_rules
-               SET status = 'retired', retired_at = CURRENT_TIMESTAMP
-               WHERE id = ?""",
-            (rule_id,),
-        )
-
-
-def rule_list(status: str | None = None) -> list[dict]:
-    """Return all improvement rules, optionally filtered by status."""
-    query = "SELECT * FROM improvement_rules"
-    params: tuple[str, ...] = ()
-    if status is not None:
-        query += " WHERE status = ?"
-        params = (status,)
-    query += " ORDER BY proposed_at DESC, id DESC"
-    with _conn() as c:
-        rows = c.execute(query, params).fetchall()
-        return [dict(row) for row in rows]
-
-
 # ── Usage Snapshots ──
 
 def voice_cost_add(session_name: str, scope: str, duration_sec: float,
@@ -2538,6 +2362,25 @@ def ack_facts(session_id: str, keys: list[str]) -> int:
             (session_id, *keys),
         )
         return cur.rowcount
+
+
+def clear_consumed_handover(session_id: str) -> None:
+    """Do not replay a previous supervisor's buffered bytes on a later crash."""
+    with _conn() as c:
+        c.execute("UPDATE sessions SET active_turn_id = '', leftover = '' WHERE id = ?",
+                  (session_id,))
+
+
+def save_backend_identity(session_id: str, cli_pid: int, cli_started_at: int) -> None:
+    """Persist process identity without overwriting a graceful handover's buffered turn."""
+    with _conn() as c:
+        updated = c.execute(
+            "UPDATE sessions SET cli_pid = ?, cli_started_at = ? WHERE id = ?",
+            (int(cli_pid or 0), int(cli_started_at or 0), session_id),
+        )
+        if updated.rowcount != 1:
+            raise RuntimeError(f"cannot publish CLI identity: session {session_id} is missing")
+
 
 
 def save_handover_state(session_id: str, active_turn_id: str, leftover: str,

@@ -103,6 +103,16 @@ class JsonRpcStdioTransport:
         return self._owned_fds[1] if self._owned_fds is not None else None
 
     @property
+    def can_replace_adopted_process(self) -> bool:
+        """Unknown or reused adopted identities must keep their working transport."""
+        if self._adopted_fds is None:
+            return True
+        return bool(
+            self._adopted_pid and self._adopted_started_at
+            and process_start_time(self._adopted_pid) == self._adopted_started_at
+        )
+
+    @property
     def cli_started_at(self) -> int:
         """Start time of the CLI, so a reused pid cannot be mistaken for it (#230)."""
         if self._adopted_started_at:
