@@ -53,3 +53,21 @@ def test_cached_identity_cannot_change_a_different_task(runtime, field, value):
     identity[field] = value
     assert not tm.api_update_task_if_current(identity, status='done')['ok']
     assert runtime.store.get('project', '1')['status'] == 'new'
+
+
+def test_archiving_vps_worker_requeues_only_its_git_task(runtime):
+    from tests.test_task_tracker_integration import _save_worker
+    local = tm.api_create_task('local-project', 'Laptop')
+    runtime.store.origin = 'V'
+    remote = tm.api_create_task('local-project', 'VPS')
+    for name, task in [('local-worker', local), ('vps-worker', remote)]:
+        _save_worker(session_id=name, task_id=task['par'], scope='/project')
+        tm.bind_task_to_session('/project', name, task['par'])
+    db.archive_session('vps-worker')
+    assert runtime.store.get('project', 'V-1')['status'] == 'new'
+    assert runtime.store.get('project', '1')['status'] == 'in_progress'
+    with db._conn() as connection:
+        task = connection.execute('SELECT * FROM tm_tasks WHERE id=?', (remote['id'],)).fetchone()
+        assert task['worker_session_id'] is None
+        receipt = connection.execute("SELECT * FROM review_receipts WHERE session_id='vps-worker'").fetchone()
+        assert receipt['task_id'] == 'V-1' and receipt['status'] == 'interrupted'
