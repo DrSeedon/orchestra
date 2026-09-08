@@ -1,0 +1,32 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestRateLimitClassification.test_t1_monthly_spend_words_are_not_terminal_without_typed_event _
+
+self = <tests.test_session.TestRateLimitClassification object at 0x748755657cb0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    def test_t1_monthly_spend_words_are_not_terminal_without_typed_event(self, session):
+        from app.events import AgentEvent
+        spawned = self._capture_coroutines(session)
+    
+        session._handle_event(AgentEvent(
+            type="text",
+            content=(
+                "We are debugging a monthly spend limit false positive; "
+                "the provider did not limit this turn."
+            ),
+        ))
+    
+        # Before #504 this prose set `_session_limit_hit=True`. Inverted: model
+        # text cannot select the terminal path.
+>       assert session._session_limit_hit is False, (
+            "T1 seam: ordinary model prose still marks the session limited"
+        )
+E       AssertionError: T1 seam: ordinary model prose still marks the session limited
+E       assert True is False
+E        +  where True = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)._session_limit_hit
+
+tests/test_session.py:2930: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestRateLimitClassification::test_t1_monthly_spend_words_are_not_terminal_without_typed_event
+1 failed in 3.23s
