@@ -1,0 +1,81 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestCompactGuards.test_compact_rejects_typed_limit_event_and_preserves_session _
+
+self = <tests.test_session.TestCompactGuards object at 0x7207c25030b0>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test', p...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7207c2501520>
+
+    @pytest.mark.asyncio
+    async def test_compact_rejects_typed_limit_event_and_preserves_session(
+        self, session, monkeypatch
+    ):
+        from app.events import AgentEvent
+    
+        class LimitBackend:
+            async def connect(self):
+                return None
+    
+            async def send(self, _message):
+                return None
+    
+            async def events(self):
+                yield AgentEvent(
+                    type="rate_limit",
+                    metadata={
+                        "status": "rejected",
+                        "limit_kind": "monthly",
+                        "rate_limit_type": "overage",
+                        "resets_at": None,
+                    },
+                )
+                # A valid summary keeps unchanged production from retrying an
+                # empty result for 30/60s after it ignores the typed event.
+                yield AgentEvent(
+                    type="text",
+                    content="VALID SUMMARY: " + "x" * 250,
+                )
+                yield AgentEvent(
+                    type="turn_end",
+                    metadata={"session_id": "bad-compact-session"},
+                )
+    
+            async def disconnect(self):
+                return None
+    
+        monkeypatch.setattr(
+            "app.session._claude_subscription_limit_active",
+            lambda: False,
+        )
+        session.session_id = "original-session"
+        session.last_summary = "previous valid summary"
+        session.session_id_history = []
+        session._log = MagicMock()
+        backend = LimitBackend()
+        session._make_backend = MagicMock(return_value=backend)
+    
+        async def finish_unexpected_ack(force_fresh=False):
+            session._backend = backend
+    
+            async def finish():
+                await asyncio.sleep(0)
+                if session._compact_ack_event:
+                    session._compact_ack_event.set()
+    
+            asyncio.create_task(finish())
+            return backend
+    
+        session._ensure_backend = AsyncMock(side_effect=finish_unexpected_ack)
+    
+        result = await session.compact()
+    
+>       assert result["ok"] is False
+E       assert True is False
+
+tests/test_session.py:1732: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:164 preserved tail unavailable for test-001: no such table: logs
+WARNING  app.session:session.py:2413 [w1] durable message-delivery wake failed: OperationalError: no such table: message_deliveries
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestCompactGuards::test_compact_rejects_typed_limit_event_and_preserves_session
+1 failed in 3.26s

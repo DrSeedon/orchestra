@@ -1,0 +1,1419 @@
+....FFFFFFFFFFFFFFFFFFFFFFFF.FFFFFFFFFFF                                 [100%]
+=================================== FAILURES ===================================
+________ test_missing_binary_gives_actionable_text_instead_of_exit_127 _________
+
+mcp = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/mcp_stdio.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9777215160>
+
+    def test_missing_binary_gives_actionable_text_instead_of_exit_127(mcp, monkeypatch):
+        """Главное требование задачи: вместо `/bin/sh: ...: not found` (exit 127) — текст,
+        из которого видно, что чинить."""
+        monkeypatch.setattr(mcp.shutil, "which", lambda _: None)
+        monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
+        monkeypatch.setattr(mcp, "SCOPE", "/home/kesha/orchestra")
+    
+        async def fake_api(method, path, **kwargs):
+            assert method == "GET"
+            assert path == "/api/sessions/perf"
+            return {"id": "test-session", "worktree_path": "/home/kesha/orchestra"}
+    
+        monkeypatch.setattr(mcp, "_api", fake_api)
+    
+>       out = asyncio.run(mcp.codex_review(
+            context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+        ))
+
+tests/test_codex_bin_resolution.py:80: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/home/kesha/orchestra', args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/home/kesha/orchestra', 'rev-parse', '--git-common-dir'], returncode=128, stdout=b'', stderr=b"fatal: cannot change to '/home/kesha/orchestra': No such file or directory\n")
+detail = "fatal: cannot change to '/home/kesha/orchestra': No such file or directory"
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: cannot change to '/home/kesha/orchestra': No such file or directory
+
+app/mcp_stdio.py:3639: ValueError
+________________ test_resolved_binary_reaches_the_shell_command ________________
+
+mcp = <module 'app.mcp_stdio' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/mcp_stdio.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e977701c590>
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-520/test_resolved_binary_reaches_t0')
+
+    def test_resolved_binary_reaches_the_shell_command(mcp, monkeypatch, tmp_path):
+        """Позитивный случай: в команду уходит именно разрешённый путь, а не константа."""
+        started = {}
+    
+        async def fake_api(method, path, **kwargs):
+            if method == "GET":
+                return {"id": "test-session", "worktree_path": str(tmp_path)}
+            assert method == "POST"
+            assert path == "/api/bg/jobs"
+            started["command"] = kwargs["json"]["config"]["command"]
+            return {"id": "bg-test"}
+    
+        monkeypatch.setattr(mcp.shutil, "which", lambda _: "/usr/bin/codex")
+        monkeypatch.setattr(mcp, "WORKER_NAME", "perf")
+        monkeypatch.setattr(mcp, "SCOPE", str(tmp_path))
+        monkeypatch.setattr(mcp, "_api", fake_api)
+    
+>       result = asyncio.run(mcp.codex_review(
+            context="PROJECT CONTEXT: test fixture", target="", output="CODEX_REVIEW.md",
+        ))
+
+tests/test_codex_bin_resolution.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:195: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_resolved_binary_reaches_t0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_resolved_binary_reaches_t0', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+________________ test_message_without_sender_is_never_buffered _________________
+
+fanned = <module 'app.fan_barrier' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/fan_barrier.py'>
+spy = <tests.test_fan_barrier_gates._SpyManager object at 0x7e97770afb60>
+
+    def test_message_without_sender_is_never_buffered(fanned, spy):
+        """Internal caller без sender не получает человеческое происхождение."""
+        response = _send(None)
+>       assert getattr(response, "status_code", None) == 403, (
+            "неаутентифицированный internal caller был принят за человека"
+        )
+E       AssertionError: неаутентифицированный internal caller был принят за человека
+E       assert None == 403
+E        +  where None = getattr({'ok': True, 'parent_name': 'parent'}, 'status_code', None)
+
+tests/test_fan_barrier_gates.py:186: AssertionError
+______ test_explicit_send_message_keeps_child_text_reachable_via_manifest ______
+
+db = <module 'app.db' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/db.py'>
+spy = <tests.test_fan_report_delivery._SpyManager object at 0x7e9774c1f680>
+
+    def test_explicit_send_message_keeps_child_text_reachable_via_manifest(db, spy):
+        """Прод-роут send_message. Текст, который ребёнок передал, обязан быть
+        доступен родителю по пути из манифеста. Не вклейкой в пробуждение."""
+        fb = _open_fan(["c1", "c2"])
+        _send("c1", LONG_BODY)
+        _send("c2", "ok")
+    
+>       assert len(spy.sent) == 1, f"пробуждений {len(spy.sent)}, ждали одно"
+E       AssertionError: пробуждений 0, ждали одно
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_fan_report_delivery._SpyManager object at 0x7e9774c1f680>.sent
+
+tests/test_fan_report_delivery.py:128: AssertionError
+_______ test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text ________
+
+db = <module 'app.db' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/db.py'>
+spy = <tests.test_fan_report_delivery._SpyManager object at 0x7e97744ae270>
+
+    def test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text(db, spy):
+        """Молчаливый путь не беднее и не богаче явного: те же поля, свой файл."""
+        fb = _open_fan(["c1", "c2"])
+        _send("c1", EXPLICIT_MARKER)
+        _silent("c2", [SILENT_MARKER])
+    
+        explicit = _member(fb, "c1")
+        silent = _member(fb, "c2")
+        assert set(explicit) == set(silent), (
+            f"разный набор полей манифеста: explicit={sorted(explicit)} "
+            f"silent={sorted(silent)}"
+        )
+>       assert explicit["report_path"], "явный путь оставил report_path пустым"
+E       AssertionError: явный путь оставил report_path пустым
+E       assert None
+
+tests/test_fan_report_delivery.py:156: AssertionError
+_____ test_change_model_refusal_names_the_blocking_call_not_only_its_code ______
+
+session = AgentSession(id='handoff-effects', name='effects-canary', scope='/test', cwd='/tmp', model='gpt-5.6-sol', system_promp...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_change_model_refusal_names_the_blocking_call_not_only_its_code(session):
+        from app.runtime_history import PreparationResult
+        from app.session import AgentStatus
+    
+        session.model = "gpt-5.6-sol"
+        session.backend_type = "codex"
+        session.session_id = "source-thread"
+        session.status = AgentStatus.IDLE
+        session._backend = AsyncMock()
+        session._log = MagicMock()
+        session._ensure_backend = AsyncMock()
+        session._prepare_runtime_handoff = AsyncMock(return_value=PreparationResult(
+            ok=False,
+            error_code="handoff_pending_effect",
+            pending_effects=1,
+            pending_effect_details=({
+                "call_id": "call-9",
+                "tool_name": "Bash",
+                "call_log_id": 2,
+                "call_ts": "2026-08-11T10:00:02+00:00",
+            },),
+        ))
+    
+        result = await session.change_model("gpt-5.6-luna")
+    
+        assert result["ok"] is False
+>       assert result["error_code"] == "handoff_pending_effect"
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'error_code'
+
+tests/test_handoff_effect_classification.py:265: KeyError
+_______________________ test_lost_log_write_is_reported ________________________
+
+db = <module 'app.db' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/db.py'>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x7e9773b2ac30>
+
+    @pytest.mark.asyncio
+    async def test_lost_log_write_is_reported(db, caplog):
+        """Потеря записи обязана назвать агента, тип записи, класс ошибки и содержимое."""
+        from app.session import AgentSession
+    
+        session = AgentSession.__new__(AgentSession)
+        session.id = "ghost"  # строки в sessions нет — FK упадёт
+        session.name = "Orchestra-orchestrator"
+        session._log_futures = set()
+    
+        with caplog.at_level("ERROR", logger="app.session"):
+            session._log("error", "connect failed: TimeoutError")
+            await asyncio.gather(*session._log_futures, return_exceptions=True)
+            await asyncio.sleep(0)  # дать done-callback отработать
+    
+>       assert "log write lost" in caplog.text
+E       assert 'log write lost' in "ERROR    asyncio:base_events.py:1833 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n"
+E        +  where "ERROR    asyncio:base_events.py:1833 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint ...ation] = (\n    ^^^^^^^^^^^^^^^^^^^^^^^\nAttributeError: 'AgentSession' object has no attribute '_failed_log_writes'\n" = <_pytest.logging.LogCaptureFixture object at 0x7e9773b2ac30>.text
+
+tests/test_log_write_loss.py:45: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    asyncio:base_events.py:1833 Exception in callback AgentSession._log.<locals>.completed(<Future finis...aint failed')>) at /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/session.py:5286
+handle: <Handle AgentSession._log.<locals>.completed(<Future finis...aint failed')>) at /mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/session.py:5286>
+Traceback (most recent call last):
+  File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/session.py", line 5292, in completed
+    done.result()
+  File "/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/concurrent/futures/thread.py", line 59, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/db.py", line 2105, in add_log
+    cur = c.execute(
+          ^^^^^^^^^^
+sqlite3.IntegrityError: FOREIGN KEY constraint failed
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/maxim/.local/share/uv/python/cpython-3.12.12-linux-x86_64-gnu/lib/python3.12/asyncio/events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/session.py", line 5297, in completed
+    self._failed_log_writes[generation] = (
+    ^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AgentSession' object has no attribute '_failed_log_writes'
+_______________________ test_available_review_starts_job _______________________
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+
+    @pytest.mark.asyncio
+    async def test_available_review_starts_job(api):
+>       result = await _review(api)
+                 ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:173: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_available_review_starts_j0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_available_review_starts_j0', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+________________ test_codex_review_is_blocked_before_the_bg_job ________________
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+
+    @pytest.mark.asyncio
+    async def test_codex_review_is_blocked_before_the_bg_job(api):
+        api.state["readiness"] = _readiness("blocked")
+    
+        with pytest.raises(mcp.ApiToolError) as caught:
+>           await _review(api)
+
+tests/test_mcp_quota_gate.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_codex_review_is_blocked_b0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_codex_review_is_blocked_b0', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+________ test_review_fails_open_on_unknown_malformed_or_transport[None] ________
+
+api = <class 'tests.test_mcp_quota_gate.Api'>, answer = None
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn0'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn0', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer0] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+answer = {'allowed': True, 'gated': True, 'hard_limit_pct': 99.0, 'lane': 'sol', ...}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn1'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn1', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer1] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+answer = {'allowed': True, 'gated': True, 'hard_limit_pct': 99.0, 'lane': 'sol', ...}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn2'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn2', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer2] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>, answer = {'unexpected': 'shape'}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn3'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn3', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+______ test_review_fails_open_on_unknown_malformed_or_transport[answer4] _______
+
+api = <class 'tests.test_mcp_quota_gate.Api'>
+answer = ApiToolError(code='transport_error', message='offline', status=None, retryable=False, request_id=None, retry_after_seconds=None, outcome_unknown=False, details={}, result=None)
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("answer", [
+        _readiness("unknown"),
+        _readiness("not_applicable"),
+        {"unexpected": "shape"},
+        None,
+        mcp.ApiToolError(code="transport_error", message="offline"),
+    ])
+    async def test_review_fails_open_on_unknown_malformed_or_transport(api, answer):
+        """Сквозное решение: неизвестная квота ПРОПУСКАЕТ и здесь.
+    
+        Раньше ревью упиралось в 429 там, где спавн той же модели проходил, — два
+        разных ответа одного правила (#227).
+        """
+        api.state["readiness"] = answer
+    
+>       assert "bg-test" in _review_text(await _review(api))
+                                         ^^^^^^^^^^^^^^^^^^
+
+tests/test_mcp_quota_gate.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_mcp_quota_gate.py:91: in _review
+    return await mcp.codex_review(
+app/mcp_stdio.py:4335: in codex_review
+    project_context, project_context_receipt = _load_review_project_context(
+app/mcp_stdio.py:3886: in _load_review_project_context
+    repository = _review_repository_root(cwd)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3784: in _review_repository_root
+    common_dir = Path(_git_review_text(cwd, "rev-parse", "--git-common-dir"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/mcp_stdio.py:3644: in _git_review_text
+    return _git_review_bytes(cwd, *args).decode("utf-8", "replace").strip()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+cwd = '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn4'
+args = ('rev-parse', '--git-common-dir')
+completed = CompletedProcess(args=['git', '-C', '/tmp/pytest-of-maxim/pytest-520/test_review_fails_open_on_unkn4', 'rev-parse', '-...ory (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).\n')
+detail = 'fatal: not a git repository (or any parent up to mount point /)\nStopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).'
+
+    def _git_review_bytes(cwd: str, *args: str) -> bytes:
+        completed = subprocess.run(
+            ["git", "-C", cwd, *args], capture_output=True, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).decode(
+                "utf-8", "replace",
+            ).strip()
+>           raise ValueError(detail or f"git {' '.join(args)} exited {completed.returncode}")
+E           ValueError: fatal: not a git repository (or any parent up to mount point /)
+E           Stopping at filesystem boundary (GIT_DISCOVERY_ACROSS_FILESYSTEM not set).
+
+app/mcp_stdio.py:3639: ValueError
+________ test_t401_quota_refusal_is_returned_before_receipt_or_user_log ________
+
+message_db = <module 'app.db' from '/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9773b2b6b0>
+
+    @pytest.mark.asyncio
+    async def test_t401_quota_refusal_is_returned_before_receipt_or_user_log(
+        message_db, monkeypatch,
+    ):
+        """A known quota refusal is visible to the MCP caller, not an accepted queue row."""
+        from app.quota_gate import evaluate_worker_admission
+        from app.mcp_proof import issue_mcp_proof
+        from app.routes import sessions as routes
+    
+        target = routes.manager.get_by_name(TARGET_NAME, SCOPE)
+        assert target is not None
+        target.model = "claude-sonnet-5[1m]"
+        now = datetime.now(timezone.utc).timestamp()
+        reset_at = datetime.fromtimestamp(
+            now + 10080 * 60 / 2, timezone.utc,
+        ).isoformat()
+        blocked = evaluate_worker_admission(
+            target.model,
+            {"anthropic": {"label": "Claude", "windows": [{
+                "id": "seven_day",
+                "window_minutes": 10080,
+                "utilization": 95,
+                "resets_at": reset_at,
+            }]}},
+            {"anthropic": now},
+            now=now,
+        )
+        target._admission_service = AsyncMock(return_value=blocked)
+        monkeypatch.setitem(routes.manager.sessions, TARGET_ID, target)
+        request = _request_with_proof(SOURCE_ID, issue_mcp_proof(SOURCE_ID))
+        response = await routes.send_message(
+            TARGET_NAME,
+            routes.SendRequest(
+                delivery_id=DELIVERY_ID,
+                message=MESSAGE,
+                sender=SOURCE_NAME,
+                scope=SCOPE,
+            ),
+            request=request,
+        )
+    
+>       assert getattr(response, "status_code", None) == 429
+E       AssertionError: assert 202 == 429
+E        +  where 202 = getattr(<starlette.responses.JSONResponse object at 0x7e9773929190>, 'status_code', None)
+
+tests/test_message_delivery_receipts_380.py:1168: AssertionError
+__________________ test_encoding_matches_real_cli_directories __________________
+
+    def test_encoding_matches_real_cli_directories():
+        """Сверка с ЖИВЫМИ парами (cwd → имя каталога), взятыми из самих транскриптов.
+    
+        Не подгонка под список имён: cwd читается из первой строки .jsonl, то есть
+        из того, что CLI записал сам. Нет каталогов на машине → тест пропускается.
+        """
+        root = pathlib.Path.home() / ".claude" / "projects"
+        if not root.is_dir():
+            pytest.skip("нет ~/.claude/projects на этой машине")
+    
+        pairs = []
+        for directory in sorted(root.iterdir()):
+            if not directory.is_dir():
+                continue
+            transcript = next(iter(sorted(directory.glob("*.jsonl"))), None)
+            if not transcript:
+                continue
+            with transcript.open() as fh:
+                for line in fh:
+                    try:
+                        cwd = (json.loads(line) or {}).get("cwd")
+                    except (json.JSONDecodeError, AttributeError):
+                        break
+                    if cwd:
+                        pairs.append((cwd, directory.name))
+                        break
+        if not pairs:
+            pytest.skip("не нашёл ни одной пары cwd → каталог")
+    
+        mismatched = [(c, real) for c, real in pairs if migrate_agent.enc_cli_dir(c) != real]
+>       assert not mismatched, f"кодирование разошлось с реальностью: {mismatched[:3]}"
+E       AssertionError: кодирование разошлось с реальностью: [('/mnt/data/Рабочий стол/Cursor/COG-second-brain', '-mnt-data--------------Cursor-COG-second-brain'), ('/mnt/data/Рабочий стол/Cursor/Sensar', '-mnt-data--------------Cursor-Sensar')]
+E       assert not [('/mnt/data/Рабочий стол/Cursor/COG-second-brain', '-mnt-data--------------Cursor-COG-second-brain'), ('/mnt/data/Рабочий стол/Cursor/Sensar', '-mnt-data--------------Cursor-Sensar')]
+
+tests/test_migrate_agent.py:71: AssertionError
+_________ test_t1_first_restart_reused_foreign_pid_survives_real_sweep _________
+
+manager = <app.manager.SessionManager object at 0x7e97756d2030>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9773937830>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x7e9773bbf680>
+
+    @pytest.mark.asyncio
+    async def test_t1_first_restart_reused_foreign_pid_survives_real_sweep(
+        manager,
+        monkeypatch,
+        caplog,
+    ):
+        """First restart: a handover PID is stale before the new supervisor sweeps its FD.
+    
+        This deliberately uses a real foreign process. The old implementation sends it SIGTERM;
+        the fixed path must open a pidfd, reject the mismatched lifetime/runtime, and leave it alive.
+        """
+        from app import backend_jsonrpc
+    
+        foreign = subprocess.Popen(["/usr/bin/sleep", "30"])
+        actual_start = backend_jsonrpc.process_start_time(foreign.pid)
+        assert actual_start > 1
+        _save_handover_identity(
+            "gone-after-handover",
+            pid=foreign.pid,
+            started_at=actual_start - 1,
+            backend_type="codex",
+        )
+        # A runtime switch is persisted independently of the handover tuple. The sweep must not
+        # use this mutable field as proof of what owns the old PID.
+        from app.db import _conn
+    
+        with _conn() as connection:
+            connection.execute(
+                "UPDATE sessions SET backend_type = 'grok' WHERE id = ?",
+                ("gone-after-handover",),
+            )
+    
+        orphan_fd, peer_fd = os.pipe()
+        monkeypatch.setattr(
+            "app.fdstore.acquire_fds",
+            lambda: {"agent.gone-after-handover.stdout": orphan_fd},
+        )
+>       real_pidfd_open = os.pidfd_open
+                          ^^^^^^^^^^^^^
+E       AttributeError: module 'os' has no attribute 'pidfd_open'
+
+tests/test_orphan_pid_identity.py:109: AttributeError
+______ test_t1_unverifiable_candidate_does_not_abort_later_orphan_cleanup ______
+
+manager = <app.manager.SessionManager object at 0x7e977393cb90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9773b28fe0>
+caplog = <_pytest.logging.LogCaptureFixture object at 0x7e977393c800>
+
+    @pytest.mark.asyncio
+    async def test_t1_unverifiable_candidate_does_not_abort_later_orphan_cleanup(
+        manager,
+        monkeypatch,
+        caplog,
+    ):
+        """One malformed /proc record is local; the next verified orphan still gets reaped."""
+        from app.backend_codex import CODEX_BIN
+    
+        denied_pid, verified_pid = 2_147_480_011, 2_147_480_012
+        denied_start, verified_start = 882_011, 882_012
+        _save_handover_identity(
+            "unverifiable", pid=denied_pid, started_at=denied_start, backend_type="codex"
+        )
+        _save_handover_identity(
+            "later-valid", pid=verified_pid, started_at=verified_start, backend_type="codex"
+        )
+        denied_fd, denied_peer = os.pipe()
+        verified_fd, verified_peer = os.pipe()
+        monkeypatch.setattr(
+            "app.fdstore.acquire_fds",
+            lambda: {
+                "agent.unverifiable.stdout": denied_fd,
+                "agent.later-valid.stdout": verified_fd,
+            },
+        )
+    
+        real_open = builtins.open
+    
+        def fake_open(path, *args, **kwargs):
+            raw = os.fspath(path)
+            if raw in {
+                f"/proc/{denied_pid}/cmdline",
+                f"/proc/{verified_pid}/cmdline",
+            }:
+                return io.BytesIO(
+                    b"node\0" + os.fsencode(CODEX_BIN) + b"\0app-server\0--stdio\0"
+                )
+            if raw == f"/proc/{denied_pid}/stat":
+                malformed = ["S", *("0" for _ in range(18)), "not-a-number"]
+                return io.BytesIO(
+                    f"{denied_pid} (bad-stat) {' '.join(malformed)}\n".encode()
+                )
+            if raw == f"/proc/{verified_pid}/stat":
+                return io.BytesIO(_proc_stat(verified_pid, verified_start))
+            return real_open(path, *args, **kwargs)
+    
+        opened: list[int] = []
+    
+        def fake_pidfd_open(pid: int, flags: int = 0) -> int:
+            opened.append(pid)
+            return {denied_pid: 90_011, verified_pid: 90_012}[pid]
+    
+        signalled: list[tuple[int, signal.Signals]] = []
+        real_close = os.close
+        closed_pidfds: list[int] = []
+    
+        def fake_close(fd: int) -> None:
+            if fd in {90_011, 90_012}:
+                closed_pidfds.append(fd)
+                return
+            real_close(fd)
+    
+        numeric_signals: list[tuple[int, signal.Signals]] = []
+        monkeypatch.setattr(builtins, "open", fake_open)
+>       monkeypatch.setattr(os, "pidfd_open", fake_pidfd_open)
+E       AttributeError: <module 'os' (frozen)> has no attribute 'pidfd_open'
+
+tests/test_orphan_pid_identity.py:308: AttributeError
+______ test_t1_verified_codex_and_grok_orphans_signal_only_through_pidfd _______
+
+manager = <app.manager.SessionManager object at 0x7e9777217800>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e977393f080>
+
+    @pytest.mark.asyncio
+    async def test_t1_verified_codex_and_grok_orphans_signal_only_through_pidfd(
+        manager,
+        monkeypatch,
+    ):
+        """Positive controls: the safety check must not turn into 'never reap an orphan'."""
+        from app.backend_codex import CODEX_BIN
+        from app.backend_grok import GROK_BIN
+    
+        codex_pid, grok_pid = 2_147_480_001, 2_147_480_002
+        codex_start, grok_start = 881_001, 881_002
+        # backend_type is intentionally contradictory: it is not part of the coherent snapshot.
+        _save_handover_identity(
+            "verified-codex", pid=codex_pid, started_at=codex_start, backend_type="grok"
+        )
+        _save_handover_identity(
+            "verified-grok", pid=grok_pid, started_at=grok_start, backend_type="codex"
+        )
+    
+        codex_fd, codex_peer = os.pipe()
+        grok_fd, grok_peer = os.pipe()
+        monkeypatch.setattr(
+            "app.fdstore.acquire_fds",
+            lambda: {
+                "agent.verified-codex.stdout": codex_fd,
+                "agent.verified-grok.stdout": grok_fd,
+            },
+        )
+    
+        cmdlines = {
+            codex_pid: b"node\0" + os.fsencode(CODEX_BIN) + b"\0app-server\0--stdio\0",
+            grok_pid: (
+                b"node\0" + os.fsencode(GROK_BIN) + b"\0agent\0--always-approve\0stdio\0"
+            ),
+        }
+        starts = {codex_pid: codex_start, grok_pid: grok_start}
+        real_open = builtins.open
+        events: list[tuple] = []
+    
+        def fake_open(path, *args, **kwargs):
+            raw = os.fspath(path)
+            for pid in (codex_pid, grok_pid):
+                if raw == f"/proc/{pid}/cmdline":
+                    events.append(("cmdline", pid))
+                    return io.BytesIO(cmdlines[pid])
+                if raw == f"/proc/{pid}/stat":
+                    events.append(("stat", pid))
+                    return io.BytesIO(_proc_stat(pid, starts[pid]))
+            return real_open(path, *args, **kwargs)
+    
+        pidfds = {codex_pid: 90_001, grok_pid: 90_002}
+    
+        def fake_pidfd_open(pid: int, flags: int = 0) -> int:
+            events.append(("pidfd_open", pid))
+            return pidfds[pid]
+    
+        signalled: list[tuple[int, signal.Signals]] = []
+    
+        def fake_pidfd_send_signal(pidfd, sig, *args, **kwargs):
+            events.append(("pidfd_signal", pidfd))
+            signalled.append((pidfd, sig))
+    
+        real_close = os.close
+        closed_pidfds: list[int] = []
+    
+        def fake_close(fd: int) -> None:
+            if fd in pidfds.values():
+                events.append(("pidfd_close", fd))
+                closed_pidfds.append(fd)
+                return
+            real_close(fd)
+    
+        numeric_signals: list[tuple[int, signal.Signals]] = []
+        monkeypatch.setattr(builtins, "open", fake_open)
+>       monkeypatch.setattr(os, "pidfd_open", fake_pidfd_open)
+E       AttributeError: <module 'os' (frozen)> has no attribute 'pidfd_open'
+
+tests/test_orphan_pid_identity.py:220: AttributeError
+____________________ test_usage_visible_to_owner_with_login ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e977393b290>
+
+    @pytest.mark.asyncio
+    async def test_usage_visible_to_owner_with_login(monkeypatch):
+        _set_auth(monkeypatch)
+        monkeypatch.setenv("OWNER_MODE", "1")
+    
+        async def _fake_usage_data():
+            return {"anthropic": {"five_hour": {"utilization": 7}}}
+    
+        monkeypatch.setattr(system_routes, "_get_usage_data", _fake_usage_data)
+>       assert await system_routes.get_usage() == {
+            "anthropic": {"five_hour": {"utilization": 7}},
+        }
+E       AssertionError: assert {'anthropic':...adroom': None} == {'anthropic':...ization': 7}}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'quota_headroom': None}
+E         Use -v to get more diff
+
+tests/test_owner_mode.py:74: AssertionError
+____ test_gated_worker_is_refused_above_the_line[claude-claude-opus-5[1m]] _____
+
+mgr = <app.manager.SessionManager object at 0x7e977391e5a0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9773926150>
+name = 'claude', model = 'claude-opus-5[1m]'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
+    
+>       with pytest.raises(QuotaGateError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.quota_gate.QuotaGateError'>
+
+tests/test_quota_admission_e2e.py:104: Failed
+------------------------------ Captured log call -------------------------------
+WARNING  app.manager:manager.py:1030 task sync after publish failed: ImportError: cannot import name '_fire_sync' from 'app.tm' (/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/tm.py)
+_________ test_gated_worker_is_refused_above_the_line[sol-gpt-5.6-sol] _________
+
+mgr = <app.manager.SessionManager object at 0x7e9773938830>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9773927b60>
+name = 'sol', model = 'gpt-5.6-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
+    
+>       with pytest.raises(QuotaGateError):
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       Failed: DID NOT RAISE <class 'app.quota_gate.QuotaGateError'>
+
+tests/test_quota_admission_e2e.py:104: Failed
+------------------------------ Captured log call -------------------------------
+WARNING  app.manager:manager.py:1030 task sync after publish failed: ImportError: cannot import name '_fire_sync' from 'app.tm' (/mnt/data/Projects/Python/orchestra/worktrees/mnt-data-projects-python-orchestra/research-text-oracles/.orchestra/tasks/504/.main-failures.bGSvfw/app/tm.py)
+______________ test_quota_map_headroom_is_server_line_minus_fact _______________
+
+mapped = <function mapped.<locals>.run at 0x7e9773a67740>
+
+    @pytest.mark.asyncio
+    async def test_quota_map_headroom_is_server_line_minus_fact(mapped):
+        payload = await mapped(_observation())
+    
+        claude = _lane(_bucket(payload, "anthropic"), "claude")
+        sol = _lane(_bucket(payload, "codex"), "sol")
+        luna = _lane(_bucket(payload, "codex"), "luna")
+    
+        # Frozen values keep this oracle red when line_limit is shifted by a mutant.
+>       assert claude["headroom_pp"] == pytest.approx(55.5 - 30.0)
+E       assert None == 25.5 ± 2.5e-05
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 25.5 ± 2.5e-05
+
+tests/test_quota_headroom_447.py:80: AssertionError
+______________ test_gated_and_free_lanes_split_on_the_same_number ______________
+
+mapped = <function mapped.<locals>.run at 0x7e9773a66480>
+
+    @pytest.mark.asyncio
+    async def test_gated_and_free_lanes_split_on_the_same_number(mapped):
+        """90% в 10% окна: Sol и Claude стоят, Luna и Spark работают."""
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 90, window_id="seven_day", label="7d", progress=0.1)],
+            codex=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+            codex_spark=[_window(300, 90, window_id="primary", label="5h", progress=0.1)],
+        ))
+    
+        claude = _pool(payload, "anthropic")
+>       assert _lane(claude, "claude")["gated"] is True
+E       assert False is True
+
+tests/test_quota_map_api.py:454: AssertionError
+______________ test_release_fields_arrive_for_each_gating_status _______________
+
+mapped = <function mapped.<locals>.run at 0x7e9773a67060>
+
+    @pytest.mark.asyncio
+    async def test_release_fields_arrive_for_each_gating_status(mapped):
+        progress = 0.5
+        resets_at = _iso(NOW + 300 * 60 * (1.0 - progress))
+    
+        payload_open = await mapped(_observation(
+            codex=[_window(300, 55.5, window_id="primary", label="5h", progress=progress)],
+        ))
+        lane_open = _lane(_pool(payload_open, "codex"), "sol")
+        assert lane_open["release_status"] == "open"
+        assert lane_open["release_in_seconds"] is None
+    
+        payload_opens_in = await mapped(_observation(
+            codex=[_window(300, 60.0, window_id="primary", label="5h", progress=progress)],
+        ))
+        lane_opens_in = _lane(_pool(payload_opens_in, "codex"), "sol")
+        expected_status, expected_seconds = _expected_release_status(60.0, progress, resets_at)
+>       assert lane_opens_in["release_status"] == expected_status
+E       AssertionError: assert 'open' == 'opens_in'
+E         
+E         - opens_in
+E         + open
+
+tests/test_quota_map_api.py:414: AssertionError
+______________ test_rule_constants_reflect_environment_overrides _______________
+
+mapped = <function mapped.<locals>.run at 0x7e9773bc2480>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9773b41670>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_reflect_environment_overrides(mapped, monkeypatch):
+        gate = _reload_quota_gate_with_env(
+            monkeypatch,
+            QUOTA_HARD_STOP_PCT="92",
+            QUOTA_TOLERANCE_START_PP="13",
+            QUOTA_TOLERANCE_END_PP="2",
+            QUOTA_GATED_LANES="",
+        )
+        payload = await mapped(_observation(
+            codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": gate.HARD_STOP_PCT,
+            "tolerance_start_pp": gate.TOLERANCE_START_PP,
+            "tolerance_end_pp": gate.TOLERANCE_END_PP,
+        }
+E       AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'hard_stop_p...art_pp': 13.0}
+E         
+E         Omitting 3 identical items, use -vv to show
+E         Left contains 2 more items:
+E         {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:188: AssertionError
+_________________ test_rule_constants_travel_with_the_payload __________________
+
+mapped = <function mapped.<locals>.run at 0x7e9773883ec0>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_travel_with_the_payload(mapped):
+        """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 4, window_id="seven_day", label="7d")],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": 99.0,
+            "tolerance_start_pp": 10.0,
+            "tolerance_end_pp": 1.0,
+        }
+E       AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'hard_stop_p...art_pp': 10.0}
+E         
+E         Differing items:
+E         {'tolerance_start_pp': 13.0} != {'tolerance_start_pp': 10.0}
+E         {'tolerance_end_pp': 2.0} != {'tolerance_end_pp': 1.0}
+E         {'hard_stop_pct': 92.0} != {'hard_stop_pct': 99.0}
+E         Left contains 2 more items:
+E         {'curve_exponent': 2.5, 'curved_lanes': ['sol']}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:167: AssertionError
+____ test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e97744adc40>
+
+    @pytest.mark.asyncio
+    async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete(
+        monkeypatch,
+    ):
+        from app import main as app_main
+    
+        shutdown_runtime = getattr(app_main, "_shutdown_runtime", None)
+        assert callable(shutdown_runtime), (
+            "lifespan teardown is not an observable ordered shutdown sequence"
+        )
+    
+        order: list[tuple[str, str] | str] = []
+        monkeypatch.setattr(
+            "app.restart_guard.note_shutdown_phase",
+            lambda phase, task_class: order.append((phase, task_class)),
+        )
+        monkeypatch.setattr(
+            "app.merge_operations.shutdown_merge_operations",
+            AsyncMock(side_effect=lambda: order.append("merge_done")),
+        )
+        monkeypatch.setattr("app.rag_service.shutdown", lambda: order.append("rag_done"))
+        monkeypatch.setattr(
+            "app.tg_bridge.stop_bridge",
+            AsyncMock(side_effect=lambda: order.append("tg_done")),
+        )
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager.shutdown",
+            AsyncMock(side_effect=lambda: order.append("bg_done")),
+        )
+        monkeypatch.setattr(
+            app_main.manager,
+            "shutdown_all",
+            AsyncMock(side_effect=lambda: order.append("handoff_done")),
+        )
+    
+        done_task = asyncio.create_task(asyncio.sleep(0))
+        await done_task
+>       await shutdown_runtime(
+            restart_inbox_drain=None,
+            snapshot_task=done_task,
+            bridge_task=done_task,
+        )
+E       TypeError: _shutdown_runtime() missing 2 required positional arguments: 'projection_repair_task' and 'portfolio_watchdog_task'
+
+tests/test_restart_generation_liveness.py:853: TypeError
+___________ test_above_the_diagonal_stops_sol_but_not_luna_and_spark ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/maxim/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_above_the_diagonal_stops_sol_but_not_luna_and_spark(browser):
+        """Диагональ гейтит Sol; Luna и Spark живут до жёстких 99%."""
+        payload = _payload(codex_util=80.0, codex_progress=0.5, spark_util=39.0)
+        page, _ = _render(browser, payload)
+        verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+        assert "Sol" in verdict and "стоят" in verdict
+        sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+        luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
+        spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
+>       assert "блок" in sol
+E       AssertionError: assert 'блок' in 'Sol: работает'
+
+tests/test_t344_quota_lines_browser.py:209: AssertionError
+___________ test_hard_99_stops_everyone_and_orchestrator_still_works ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/maxim/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
+        page, _ = _render(browser, _payload(codex_util=99.5, spark_util=99.5))
+        sol = page.locator("[data-ql-panel='all'] [data-ql-lane='sol']").inner_text()
+        luna = page.locator("[data-ql-panel='all'] [data-ql-lane='luna']").inner_text()
+        spark = page.locator("[data-ql-panel='all'] [data-ql-lane='spark']").inner_text()
+>       assert "блок" in sol and "блок" in luna and "блок" in spark
+E       AssertionError: assert ('блок' in 'Sol: работает')
+
+tests/test_t344_quota_lines_browser.py:220: AssertionError
+__________________ test_committed_css_matches_current_sources __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-520/test_committed_css_matches_cur0')
+
+    @pytest.mark.skipif(shutil.which("npx") is None, reason="npx недоступен — сборку не проверить")
+    def test_committed_css_matches_current_sources(tmp_path):
+        """Пересборка из текущих исходников должна дать байт-в-байт закоммиченный файл."""
+        out = tmp_path / "tailwind.css"
+        proc = subprocess.run(
+            ["npx", "--yes", TAILWIND, "-c", "tailwind.config.js",
+             "-i", "app/static/css/tailwind.src.css", "-o", str(out), "--minify"],
+            cwd=ROOT, capture_output=True, text=True, timeout=300,
+        )
+        assert proc.returncode == 0, proc.stderr[-2000:]
+>       assert out.read_text(encoding="utf-8") == CSS.read_text(encoding="utf-8"), (
+            "собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали "
+            "классы. Почини запуском: bash scripts/build-tailwind.sh"
+        )
+E       AssertionError: собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали классы. Почини запуском: bash scripts/build-tailwind.sh
+E       assert '*,:after,:be...e-offset:2px}' == '*,:after,:be...e-offset:2px}'
+E         
+E         Skipping 5626 identical leading characters in diff, use -v to show
+E         - ft:1rem}.mt-0\.5{margin-top:.125rem}.mt-1{margin-top:.25rem}.mt-2{margin-top:.5rem}.mt-3{margin-top:.75rem}.\!block{display:block!important}.block{display:block}.inline{display:inline}.flex{display:flex}.table{display:table}.grid{display:grid}.hidden{display:none}.h-1{height:.25rem}.h-1\.5{height:.375rem}.h-16{height:4rem}.h-4{height:1rem}.h-full{height:100%}.h-screen{height:100vh}.max-h-48{max-height:12rem}.max-h-\[300px\]{max-height:300px}.max-h-\[80vh\]{max-height:80vh}.max-h-\[85vh\]{max-height:85vh...
+E         
+E         ...Full output truncated (2 lines hidden), use '-vv' to show
+
+tests/test_tailwind_css.py:45: AssertionError
+___ test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e9771efb9e0>
+
+    @pytest.mark.asyncio
+    async def test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome(
+        monkeypatch,
+    ):
+        """A PARTIAL replay resumes only the durable DB finalizer, never Git."""
+        import app.merge_operations as operations
+        import app.routes.merge_operations as merge_route
+        from app import tm
+    
+        _init_db()
+        _seed_project()
+        with tm._conn() as connection:
+            task = tm.create_task(
+                connection, "project", "Durable close", par_number=42, status="in_progress",
+            )
+            connection.execute(
+                "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+                ("durable-worker", task["id"]),
+            )
+        _save_worker(session_id="durable-worker", task_id="42")
+        found = _prepare_merge(monkeypatch, session_id="durable-worker")
+        monkeypatch.setattr(
+            "app.workspace.inspect_worktree_identity",
+            lambda _path: (found.branch, "e" * 40),
+        )
+        merge_calls = 0
+    
+        def merge(*_args, **_kwargs):
+            nonlocal merge_calls
+            merge_calls += 1
+            return {
+                "ok": True,
+                "commits_merged": 1,
+                "branch": found.branch,
+                "commit_point": "target_committed",
+                "merged_commits": {
+                    "42": [{"hash": "fedcba", "message": "#42: durable"}],
+                },
+            }
+    
+        monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+        real_link = tm.link_commits_to_task
+        link_attempts = 0
+    
+        def flaky_link(*args, **kwargs):
+            nonlocal link_attempts
+            link_attempts += 1
+            if link_attempts == 1:
+                raise RuntimeError("injected finalizer failure")
+            return real_link(*args, **kwargs)
+    
+        monkeypatch.setattr(tm, "link_commits_to_task", flaky_link)
+        operation_id = str(uuid.uuid4())
+        request = {
+            "operation_id": operation_id,
+            "name": found.name,
+            "scope": found.scope,
+            "task_outcome": "complete",
+            "merge_schema_version": 2,
+        }
+    
+        await merge_route.create_merge_operation(request)
+        await asyncio.gather(*list(operations._runner_tasks.values()))
+        first = await merge_route.get_merge_operation(operation_id)
+        partial = json.loads(first.body)["result"]
+    
+>       assert partial["operation_state"] == "PARTIAL"
+E       AssertionError: assert 'FAILED' == 'PARTIAL'
+E         
+E         - PARTIAL
+E         + FAILED
+
+tests/test_task_tracker_integration.py:1780: AssertionError
+________ test_model_cost_and_task_money_have_separate_currency_sources _________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/maxim/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_model_cost_and_task_money_have_separate_currency_sources(browser):
+        utils = UTILS_JS.read_text()
+        analytics = ANALYTICS_JS.read_text()
+        app = APP_JS.read_text()
+        usage = USAGE_JS.read_text()
+        model_modal = app.split("async function _renderClientModal()", 1)[1].split(
+            "async function _refreshModels", 1
+        )[0]
+>       task_renderer = "const _TASK_PRIORITY_META" + app.split(
+            "const _TASK_PRIORITY_META", 1
+        )[1].split("// Central renderer", 1)[0]
+E       IndexError: list index out of range
+
+tests/test_usage_analytics_frontend.py:319: IndexError
+________________ test_readiness_endpoint_blocks_above_the_line _________________
+
+isolated_usage = None
+
+    @pytest.mark.asyncio
+    async def test_readiness_endpoint_blocks_above_the_line(isolated_usage):
+        data = _anthropic(95)
+        # Ровно середина недельного окна: линия 55.5%, факт 95% — выше неё.
+        data["seven_day"]["resets_at"] = datetime.fromtimestamp(
+            NOW + 10080 * 60 / 2, timezone.utc,
+        ).isoformat()
+        system._usage_cache.update({"data": data, "ts": NOW})
+        result = await system.usage_readiness("claude-opus-5[1m]")
+        assert result["state"] == "blocked" and result["allowed"] is False
+>       assert result["limit_pct"] == pytest.approx(55.5)
+E       assert None == 55.5 ± 5.6e-05
+E         
+E         comparison failed
+E         Obtained: None
+E         Expected: 55.5 ± 5.6e-05
+
+tests/test_usage_readiness.py:213: AssertionError
+_________ test_readiness_endpoint_returns_the_execution_time_decision __________
+
+isolated_usage = None
+
+    @pytest.mark.asyncio
+    async def test_readiness_endpoint_returns_the_execution_time_decision(isolated_usage):
+        """95% без разбираемого `resets_at` — линию считать нечем, действует жёсткий стоп."""
+        system._usage_cache.update({"data": _anthropic(95), "ts": NOW})
+        result = await system.usage_readiness("claude-opus-5[1m]")
+        assert result["provider"] == "anthropic"
+>       assert result["lane"] == "claude" and result["gated"] is True
+E       AssertionError: assert ('claude' == 'claude'
+E         
+E           claude and False is True)
+
+tests/test_usage_readiness.py:197: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_codex_bin_resolution.py::test_missing_binary_gives_actionable_text_instead_of_exit_127
+FAILED tests/test_codex_bin_resolution.py::test_resolved_binary_reaches_the_shell_command
+FAILED tests/test_fan_barrier_gates.py::test_message_without_sender_is_never_buffered
+FAILED tests/test_fan_report_delivery.py::test_explicit_send_message_keeps_child_text_reachable_via_manifest
+FAILED tests/test_fan_report_delivery.py::test_silent_turn_manifest_is_as_rich_as_explicit_and_keeps_text
+FAILED tests/test_handoff_effect_classification.py::test_change_model_refusal_names_the_blocking_call_not_only_its_code
+FAILED tests/test_log_write_loss.py::test_lost_log_write_is_reported - assert...
+FAILED tests/test_mcp_quota_gate.py::test_available_review_starts_job - Value...
+FAILED tests/test_mcp_quota_gate.py::test_codex_review_is_blocked_before_the_bg_job
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[None]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer0]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer1]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer2]
+FAILED tests/test_mcp_quota_gate.py::test_review_fails_open_on_unknown_malformed_or_transport[answer4]
+FAILED tests/test_message_delivery_receipts_380.py::test_t401_quota_refusal_is_returned_before_receipt_or_user_log
+FAILED tests/test_migrate_agent.py::test_encoding_matches_real_cli_directories
+FAILED tests/test_orphan_pid_identity.py::test_t1_first_restart_reused_foreign_pid_survives_real_sweep
+FAILED tests/test_orphan_pid_identity.py::test_t1_unverifiable_candidate_does_not_abort_later_orphan_cleanup
+FAILED tests/test_orphan_pid_identity.py::test_t1_verified_codex_and_grok_orphans_signal_only_through_pidfd
+FAILED tests/test_owner_mode.py::test_usage_visible_to_owner_with_login - Ass...
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_refused_above_the_line[claude-claude-opus-5[1m]]
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_refused_above_the_line[sol-gpt-5.6-sol]
+FAILED tests/test_quota_headroom_447.py::test_quota_map_headroom_is_server_line_minus_fact
+FAILED tests/test_quota_map_api.py::test_gated_and_free_lanes_split_on_the_same_number
+FAILED tests/test_quota_map_api.py::test_release_fields_arrive_for_each_gating_status
+FAILED tests/test_quota_map_api.py::test_rule_constants_reflect_environment_overrides
+FAILED tests/test_quota_map_api.py::test_rule_constants_travel_with_the_payload
+FAILED tests/test_restart_generation_liveness.py::test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete
+FAILED tests/test_t344_quota_lines_browser.py::test_above_the_diagonal_stops_sol_but_not_luna_and_spark
+FAILED tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works
+FAILED tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+FAILED tests/test_task_tracker_integration.py::test_t3_merge_operation_replay_does_not_repeat_git_or_lose_task_outcome
+FAILED tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources
+FAILED tests/test_usage_readiness.py::test_readiness_endpoint_blocks_above_the_line
+FAILED tests/test_usage_readiness.py::test_readiness_endpoint_returns_the_execution_time_decision
+35 failed, 5 passed in 10.01s

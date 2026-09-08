@@ -1,0 +1,80 @@
+{
+  "collection_nodes": 3958,
+  "coverage_equal": true,
+  "failed_or_error_nodes": 42,
+  "observed_nodes": 3958,
+  "raw_nodeid_symmetric_difference": 4,
+  "schema_version": 1,
+  "shards": [
+    {
+      "observed_nodes": 660,
+      "rc": 1,
+      "shard": 1,
+      "statuses": {
+        "FAILED": 1,
+        "PASSED": 611,
+        "SKIPPED": 48
+      }
+    },
+    {
+      "observed_nodes": 660,
+      "rc": 1,
+      "shard": 2,
+      "statuses": {
+        "FAILED": 11,
+        "PASSED": 649
+      }
+    },
+    {
+      "observed_nodes": 660,
+      "rc": 1,
+      "shard": 3,
+      "statuses": {
+        "FAILED": 2,
+        "PASSED": 655,
+        "XFAIL": 3
+      }
+    },
+    {
+      "observed_nodes": 660,
+      "rc": 1,
+      "shard": 4,
+      "statuses": {
+        "FAILED": 7,
+        "PASSED": 653
+      }
+    },
+    {
+      "observed_nodes": 659,
+      "rc": 1,
+      "shard": 5,
+      "statuses": {
+        "FAILED": 12,
+        "PASSED": 629,
+        "SKIPPED": 18
+      }
+    },
+    {
+      "observed_nodes": 659,
+      "rc": 1,
+      "shard": 6,
+      "statuses": {
+        "FAILED": 9,
+        "PASSED": 628,
+        "SKIPPED": 22
+      }
+    }
+  ],
+  "statuses": {
+    "FAILED": 42,
+    "PASSED": 3825,
+    "SKIPPED": 88,
+    "XFAIL": 3
+  },
+  "worktree_status_after": [
+    " M .orchestra/tasks/504/check_anchors.py",
+    " M .orchestra/tasks/504/review-implementation.md",
+    "?? .orchestra/tasks/504/codex_sessions.json",
+    "?? .orchestra/tasks/504/full-suite/"
+  ]
+}

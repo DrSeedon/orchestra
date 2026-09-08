@@ -1,0 +1,142 @@
+FFFF.                                                                    [100%]
+=================================== FAILURES ===================================
+_ TestRunExecOutcome.test_t2_exit_zero_verdict_with_failure_phrase_is_not_rejected _
+
+self = <tests.test_bg_jobs.TestRunExecOutcome object at 0x761ab3b77290>
+db = PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_exit_zero_verdict_with0/test.db')
+mgr_mock = (<MagicMock id='129857022049072'>, <MagicMock id='129857023261248'>)
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_exit_zero_verdict_with0')
+
+    @pytest.mark.asyncio
+    async def test_t2_exit_zero_verdict_with_failure_phrase_is_not_rejected(
+        self, db, mgr_mock, tmp_path,
+    ):
+        artifact = tmp_path / "codex-review-impl.md"
+        artifact.write_text(
+            "bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted\n\n"
+            "## Verdict\nAPPROVED\n"
+        )
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-bwrap", datetime.now(timezone.utc)))
+    
+        await mgr._run_exec(
+            "run-bwrap", "true", "Codex review → .orchestra/tasks/179/codex-review-impl.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+    
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-bwrap")
+        # Before #504 this asserted `status == "failed"` solely because the
+        # model-authored artifact contained `bwrap:`. Inverted: exit code,
+        # finalizer/receipt state, and required Verdict own the decision.
+>       assert row["status"] == "triggered", (
+            "T2 seam: valid paid review is still rejected by its own prose"
+        )
+E       AssertionError: T2 seam: valid paid review is still rejected by its own prose
+E       assert 'failed' == 'triggered'
+E         
+E         - triggered
+E         + failed
+
+tests/test_bg_jobs.py:774: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.bg_jobs:bg_jobs.py:677 bg_job run-bwrap: FAILED → notified w1: review artifact is blind: execution never happened
+__ TestRunExecOutcome.test_t2_exit_zero_stdout_failure_phrase_is_not_rejected __
+
+self = <tests.test_bg_jobs.TestRunExecOutcome object at 0x761ab3b77890>
+db = PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_exit_zero_stdout_failu0/test.db')
+mgr_mock = (<MagicMock id='129857020673392'>, <MagicMock id='129857021382912'>)
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_exit_zero_stdout_failu0')
+
+    @pytest.mark.asyncio
+    async def test_t2_exit_zero_stdout_failure_phrase_is_not_rejected(
+        self, db, mgr_mock, tmp_path,
+    ):
+        artifact = tmp_path / "codex-review-impl.md"
+        artifact.write_text("## Summary\nChecked the diff.\n\n## Verdict\nAPPROVED\n")
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-stdout-phrase", datetime.now(timezone.utc)))
+    
+        await mgr._run_exec(
+            "run-stdout-phrase",
+            "printf 'bwrap: appears in inspected source\\n'",
+            "Codex review → codex-review-impl.md",
+            "w1", "/s", 10,
+            success_file=str(artifact),
+        )
+    
+        row = next(
+            job for job in bg_get_jobs(scope="/s")
+            if job["id"] == "run-stdout-phrase"
+        )
+>       assert row["status"] == "triggered", (
+            "T2 stdout seam: deterministic command output still triggers prose guard"
+        )
+E       AssertionError: T2 stdout seam: deterministic command output still triggers prose guard
+E       assert 'failed' == 'triggered'
+E         
+E         - triggered
+E         + failed
+
+tests/test_bg_jobs.py:804: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.bg_jobs:bg_jobs.py:677 bg_job run-stdout-phrase: FAILED → notified w1: review artifact is blind: execution never happened
+_________ test_t2_jsonl_agent_prose_does_not_signal_execution_failure __________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_jsonl_agent_prose_does0')
+
+    def test_t2_jsonl_agent_prose_does_not_signal_execution_failure(tmp_path):
+        prose_only = [{
+            "type": "item.completed",
+            "item": {
+                "type": "agent_message",
+                "text": "The reviewed code contains bwrap: as a historical marker.",
+            },
+        }]
+    
+>       assert _guard_returncode(tmp_path, prose_only) == 1, (
+            "T2 JSONL seam: review-model prose still declares execution failure"
+        )
+E       AssertionError: T2 JSONL seam: review-model prose still declares execution failure
+E       assert 0 == 1
+E        +  where 0 = _guard_returncode(PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_jsonl_agent_prose_does0'), [{'item': {'text': 'The reviewed code contains bwrap: as a historical marker.', 'type': 'agent_message'}, 'type': 'item.completed'}])
+
+tests/test_model_text_control_flow_504.py:41: AssertionError
+_________ test_t2_jsonl_failed_command_events_signal_execution_failure _________
+
+tmp_path = PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_jsonl_failed_command_e0')
+
+    def test_t2_jsonl_failed_command_events_signal_execution_failure(tmp_path):
+        all_commands_failed = [
+            {
+                "type": "item.completed",
+                "item": {
+                    "type": "command_execution",
+                    "status": "failed",
+                    "exit_code": 1,
+                },
+            },
+        ]
+    
+>       assert _guard_returncode(tmp_path, all_commands_failed) == 0, (
+            "T2 JSONL seam: failed typed command events did not declare execution failure"
+        )
+E       AssertionError: T2 JSONL seam: failed typed command events did not declare execution failure
+E       assert 1 == 0
+E        +  where 1 = _guard_returncode(PosixPath('/tmp/pytest-of-maxim/pytest-418/test_t2_jsonl_failed_command_e0'), [{'item': {'exit_code': 1, 'status': 'failed', 'type': 'command_execution'}, 'type': 'item.completed'}])
+
+tests/test_model_text_control_flow_504.py:58: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestRunExecOutcome::test_t2_exit_zero_verdict_with_failure_phrase_is_not_rejected
+FAILED tests/test_bg_jobs.py::TestRunExecOutcome::test_t2_exit_zero_stdout_failure_phrase_is_not_rejected
+FAILED tests/test_model_text_control_flow_504.py::test_t2_jsonl_agent_prose_does_not_signal_execution_failure
+FAILED tests/test_model_text_control_flow_504.py::test_t2_jsonl_failed_command_events_signal_execution_failure
+4 failed, 1 passed in 3.99s

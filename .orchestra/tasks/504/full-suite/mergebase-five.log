@@ -1,0 +1,23 @@
+F....                                                                    [100%]
+=================================== FAILURES ===================================
+_______________ test_installed_codex_history_version_matches_pin _______________
+
+    def test_installed_codex_history_version_matches_pin():
+        cli = shutil.which("codex")
+        if cli is None:
+            pytest.skip("Codex CLI is not installed")
+        result = subprocess.run(
+            [cli, "--version"], capture_output=True, text=True, check=True, timeout=10
+        )
+>       assert result.stdout.strip() == f"codex-cli {CODEX_CLI_HISTORY_VERSION}"
+E       AssertionError: assert 'codex-cli 0.153.4' == 'codex-cli 0.150.1'
+E         
+E         - codex-cli 0.150.1
+E         ?               ^ ^
+E         + codex-cli 0.153.4
+E         ?               ^ ^
+
+tests/test_backend_codex.py:78: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_backend_codex.py::test_installed_codex_history_version_matches_pin
+1 failed, 4 passed in 2.61s

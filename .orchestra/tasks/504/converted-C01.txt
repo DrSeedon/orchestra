@@ -1,0 +1,53 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_t1_rate_limit_event_preserves_structured_fields_and_exact_raw_payload __
+
+    def test_t1_rate_limit_event_preserves_structured_fields_and_exact_raw_payload():
+        if RateLimitEvent is None or RateLimitInfo is None:
+            pytest.skip("SDK does not expose rate-limit event types")
+        utilization = 0.16327272727272726
+        raw = {
+            "status": "allowed_warning",
+            "resetsAt": 1760000000,
+            "rateLimitType": "seven_day",
+            "utilization": utilization,
+            "unifiedWindows": {
+                "five_hour": {"utilization": 0.125, "resetsAt": 1759990000},
+                "seven_day": {"utilization": utilization, "resetsAt": 1760000000},
+            },
+            "providerField": {"preserved": True},
+        }
+        message = RateLimitEvent(
+            rate_limit_info=RateLimitInfo(
+                status="allowed_warning",
+                resets_at=1760000000,
+                rate_limit_type="seven_day",
+                utilization=utilization,
+                overage_status="allowed",
+                overage_resets_at=1760000100,
+                overage_disabled_reason=None,
+                raw=raw,
+            ),
+            uuid="rate-limit-uuid",
+            session_id="session-id",
+        )
+    
+        events = _backend()._convert(message)
+    
+        assert len(events) == 1
+        # Before #504 this asserted `type == "status"` and reparsed
+        # `RATE_LIMIT_RAW <json>` from content. The assertion is deliberately
+        # inverted: control fields must survive as typed metadata.
+>       assert events[0].type == "rate_limit", (
+            "T1 seam: Claude RateLimitEvent is still flattened into status text"
+        )
+E       AssertionError: T1 seam: Claude RateLimitEvent is still flattened into status text
+E       assert 'status' == 'rate_limit'
+E         
+E         - rate_limit
+E         + status
+
+tests/test_rate_limit_capture_441.py:61: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_rate_limit_capture_441.py::test_t1_rate_limit_event_preserves_structured_fields_and_exact_raw_payload
+1 failed in 2.49s
