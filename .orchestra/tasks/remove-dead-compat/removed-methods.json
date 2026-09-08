@@ -1,0 +1,50 @@
+[
+  {
+    "name": "_change_runtime_with_packet_locked",
+    "start": 4205,
+    "end": 4657,
+    "lines": 453
+  },
+  {
+    "name": "_retire_staged_handoff",
+    "start": 4157,
+    "end": 4173,
+    "lines": 17
+  },
+  {
+    "name": "_verify_handoff_capabilities",
+    "start": 3974,
+    "end": 4136,
+    "lines": 163
+  },
+  {
+    "name": "_run_handoff_ingress_canary",
+    "start": 3880,
+    "end": 3972,
+    "lines": 93
+  },
+  {
+    "name": "_stage_runtime_handoff_target",
+    "start": 3751,
+    "end": 3878,
+    "lines": 128
+  },
+  {
+    "name": "_retire_handoff_attempt",
+    "start": 3736,
+    "end": 3749,
+    "lines": 14
+  },
+  {
+    "name": "_prepare_handoff_staging_dir",
+    "start": 3715,
+    "end": 3734,
+    "lines": 20
+  },
+  {
+    "name": "_handoff_preflight_manifest",
+    "start": 3594,
+    "end": 3613,
+    "lines": 20
+  }
+]

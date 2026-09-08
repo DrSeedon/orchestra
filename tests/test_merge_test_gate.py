@@ -615,7 +615,7 @@ def test_live_probe_inventory_is_explicit():
     from app.merge_test_gate import LIVE_PROBE_MARKER
 
     expected = {
-        "tests/test_native_history_import.py": 2,
+        "tests/test_native_history_import.py": 1,
         "tests/test_runtime_history.py": 1,
         # Требует настоящий `~/.codex/auth.json` владельца: предмет проверки — живая
         # подписка, герметичным он не бывает. На публичном раннике таких кред нет и быть
