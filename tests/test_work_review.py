@@ -31,14 +31,14 @@ def finish(db, receipt):
                            'completed_at':'2026-09-08T00:00:00+00:00', 'return_code':0})
 
 
-def test_new_assignments_use_advisory_policy_and_legacy_handoff_stays_legacy(db):
+def test_new_assignments_use_one_policy_without_rewriting_historical_rows(db):
     fresh=run(db)
     assert fresh['schema_version']==3
     with db._conn() as c:
         c.execute('UPDATE review_receipts SET schema_version=2 WHERE receipt_id=?',(fresh['receipt_id'],))
     assert run(db)['schema_version']==2
     db.task_run_receipt_finish(session_id='worker',task_id='1',status='interrupted',prompt_template_end='')
-    assert run(db,session='replacement')['schema_version']==2
+    assert run(db,session='replacement')['schema_version']==3
     assert run(db,session='new-task',task='2',stable='task-b')['schema_version']==3
 
 
@@ -98,16 +98,6 @@ def test_unreviewed_work_has_explicit_advisory_state(db,tmp_path):
     assert summary['review_state']=='not_requested'
 
 
-def test_legacy_outcome_tool_rejects_new_task_receipts(db,monkeypatch):
-    import app.mcp_stdio as mcp
-    run(db)
-    receipt=db.review_receipt_reserve(review())
-    from unittest.mock import AsyncMock
-    monkeypatch.setattr(mcp,'_api',AsyncMock(return_value={'id':'worker'}))
-    import asyncio
-    with pytest.raises(mcp.ApiToolError) as error:
-        asyncio.run(mcp.record_review_outcome(receipt['receipt_id'],'accepted'))
-    assert error.value.code=='review_outcome_retired'
 
 
 def test_closed_assignment_cannot_reserve_more_reviews(db):
@@ -119,6 +109,6 @@ def test_closed_assignment_cannot_reserve_more_reviews(db):
     assert error.value.code=='review_task_not_active'
 
 
-def test_startup_adoption_keeps_preexisting_inflight_work_on_legacy_policy(db):
+def test_startup_adoption_uses_current_policy(db):
     adopted=db.task_run_receipt_open(session_id='old-worker',worker_name='old-worker',scope='/scope',task_id='7',task_source='legacy_inflight')
-    assert adopted['schema_version']==2
+    assert adopted['schema_version']==3

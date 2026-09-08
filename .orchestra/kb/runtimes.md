@@ -14,6 +14,8 @@
 
 ## Established
 
+- **Подготовлено исправление восстановления Codex:** PID/start-time сохраняются при ранней публикации pipes; перед заменой принятого backend снимаются копии FD и ожидается освобождение writer. На VPS painter-astra при проверке уже работал в новом треде, его не прерывали. Изолированные тесты включают kernel flock; реального рестарта новым кодом ещё не было · `.orchestra/tasks/retire-legacy-review/README.md`.
+
 - **Новые Codex homes больше не получают копию чужой state_5.sqlite и общий sessions.** В коде варианта Б connect передаёт создание/миграции SQLite самому CLI; отсутствующий sessions создаётся личной директорией, существующие директории и ссылки сохраняются. Посев и его единственный selector удалены, lock и проверка версии native history import сохранены; старые homes не мигрируются. Для живого процесса нужен рестарт владельца · ищи: `личный sessions`, `не сеять`, `новый CODEX_HOME`, `старый тред` · `app/backend_codex.py`, `.orchestra/tasks/523/implementation.md`; 152 passed, возврат старого seed даёт 1 failed на shared SQLite read · 2026-09-07, #523 · ключ `fact:codex-private-home-startup`
 - **Реальный CodexBackend на варианте Б: 3.10 MB после connect и 51.69 MB после двух ходов вместо прежнего ориентира 273 MB/home.** Подключение 1.591 с; MCP и shell вернули контрольные значения, после disconnect/connect сохранены thread-id и nonce; runtime_context читает личный rollout. Auth и production home preparation не подменялись, изолированы только пути и тестовый MCP; полный Orchestra routing после рестарта проверяет оркестратор · ищи: `размер home`, `273 МБ`, `private home`, `reconnect` · `.orchestra/tasks/523/implementation-probe.log`, `.orchestra/tasks/523/implementation_probe.py` · 2026-09-07, #523 · ключ `fact:codex-private-home-live-proof`
 
@@ -220,3 +222,9 @@
 
 ## Gaps
 - **Причина потери PID identity во всех пяти исходных отказах #536 не восстановлена.** Часть воркеров уже пересобрала треды; живой lock owner подтверждён для одного старого thread, автоматическое убийство writer не обосновано · ищи: `cli_pid`, `active writer`, «почему воркер глухой после рестарта» · `.orchestra/tasks/536/research.md` · 2026-09-07, #536
+
+## Established
+- **Публикация пайпов и усыновление без PID/starttime — разные гарантии: рабочие пайпы не разрешают замену неизвестного процесса.** Проверены missing/reused identity и доставка JSON-RPC через сохранённый транспорт; реализация #537 также защищает отдельный config-refresh disconnect в CodexBackend · ищи: `publish_backend_fds`, `cli_started_at`, `can_replace_adopted_process`, «воркер глухой после рестарта» · `tests/test_writer_restart_537.py`; `.orchestra/tasks/537/research.md` · 2026-09-08, #537
+
+## Gaps
+- **Восстановление недоступного живого writer через native thread/fork пока не реализовано и требует выбора цены восстановления.** Сохранённая история копируется, но дальнейшие внешние действия старого хода и записи после fork не синхронизируются с копией · ищи: `thread/fork`, `active writer`, «восстановить без потери контекста» · `.orchestra/tasks/537/research.md` · 2026-09-08, #537, запрос Orchestra-orchestrator

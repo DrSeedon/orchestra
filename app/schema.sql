@@ -77,19 +77,6 @@ CREATE TABLE fan_members (
                 PRIMARY KEY (fan_id, child)
             );
 
-CREATE TABLE improvement_rules (
-                id INTEGER PRIMARY KEY,
-                rule_text TEXT,
-                source_signal TEXT,
-                proposed_by TEXT,
-                proposed_at TEXT DEFAULT CURRENT_TIMESTAMP,
-                status TEXT DEFAULT 'proposed'
-                    CHECK (status IN ('proposed','active','retired')),
-                approved_at TEXT,
-                retired_at TEXT,
-                target_file TEXT
-            );
-
 CREATE TABLE initial_deliveries (
                 delivery_id TEXT PRIMARY KEY,
                 schema_version INTEGER NOT NULL,
@@ -372,24 +359,13 @@ CREATE TABLE review_receipts (
                 verdict_value TEXT NOT NULL DEFAULT '',
                 jsonl_response_present INTEGER,
                 recovery_source TEXT NOT NULL DEFAULT '',
-                author_outcome TEXT NOT NULL DEFAULT 'unknown'
-                    CHECK(author_outcome IN ('accepted','disputed','partial','unknown')),
-                outcome_source TEXT NOT NULL DEFAULT 'unknown'
-                    CHECK(outcome_source IN ('direct','derived','unknown')),
-                outcome_evidence_ref TEXT NOT NULL DEFAULT '',
                 notification_event_id TEXT NOT NULL DEFAULT '',
                 subject_kind TEXT NOT NULL DEFAULT 'unknown',
                 target_sha TEXT NOT NULL DEFAULT '',
                 worker_head TEXT NOT NULL DEFAULT '',
-                production_snapshot_sha256 TEXT NOT NULL DEFAULT '',
-                production_diff_sha256 TEXT NOT NULL DEFAULT '',
-                production_paths_json TEXT NOT NULL DEFAULT '[]',
-                production_path_heads_json TEXT NOT NULL DEFAULT '',
                 requested_by_session_id TEXT NOT NULL DEFAULT '',
                 requested_by_worker TEXT NOT NULL DEFAULT '',
-                coverage_outcome TEXT NOT NULL DEFAULT 'unknown',
                 policy_ref TEXT NOT NULL DEFAULT '',
-                decision_actor TEXT NOT NULL DEFAULT '',
                 task_stable_id TEXT NOT NULL DEFAULT '',
                 task_snapshot_ref TEXT NOT NULL DEFAULT '',
                 prompt_template_start TEXT NOT NULL DEFAULT '',
@@ -732,9 +708,7 @@ CREATE INDEX idx_restart_inbox_pending
 CREATE INDEX idx_review_receipts_artifact
                 ON review_receipts(artifact_path, round);
 
-CREATE INDEX idx_review_receipts_coverage ON review_receipts(scope, session_id, task_id, target_sha, production_snapshot_sha256, coverage_outcome, completed_at);
 
-CREATE INDEX idx_review_receipts_coverage_diff ON review_receipts(scope, session_id, task_id, production_diff_sha256, completed_at);
 
 CREATE INDEX idx_runtime_handoff_attempts_handoff
                 ON runtime_handoff_attempts(handoff_id, attempt_no);

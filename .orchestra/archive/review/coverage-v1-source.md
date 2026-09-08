@@ -1,3 +1,8 @@
+# Retired review gate source
+
+Historical implementation; not an executable policy. Retired by owner instruction.
+
+```python
 """Snapshot identity and policy reference for merge review coverage (#462)."""
 
 from __future__ import annotations
@@ -693,3 +698,5 @@ def _attested_decision(
         "reason_detail": str(checked["detail"]),
         "receipt_id": str(latest["receipt_id"]),
     }
+
+```

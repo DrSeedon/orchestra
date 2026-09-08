@@ -1,0 +1,56 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_failed_recovery_is_requeried_after_second_restart ____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-8977/test_failed_recovery_is_requer0/test.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78f017353650>
+
+    @pytest.mark.asyncio
+    async def test_failed_recovery_is_requeried_after_second_restart(db, monkeypatch):
+        from datetime import datetime, timezone
+        from app.session import AgentSession
+    
+        _save_running_session('twice-537', thread='thread-537')
+        monkeypatch.setattr('app.fdstore.acquire_fds', lambda: {
+            'agent.twice-537.stdin': 101, 'agent.twice-537.stdout': 102,
+        })
+        monkeypatch.setattr(manager, 'publish_backend_fds', lambda *args: True)
+        backends = [
+            SimpleNamespace(adopt=AsyncMock(), recover_adopted_turn=AsyncMock(
+                side_effect=TimeoutError('server did not answer')), active_turn_id=None),
+            SimpleNamespace(adopt=AsyncMock(), recover_adopted_turn=AsyncMock(
+                return_value=None), active_turn_id=None),
+        ]
+        for generation, backend in enumerate(backends):
+            mgr = manager.SessionManager()
+            async def load(row, **kwargs):
+                restored = AgentSession(
+                    id=row['id'], name=row['name'], scope=row['scope'], cwd=row['cwd'],
+                    model=row['model'], system_prompt='', backend_type='codex',
+                    created_at=datetime.now(timezone.utc), session_id=row['session_id'],
+                )
+                restored._make_backend = lambda: backend
+                restored._activate_backend_tasks = lambda: None
+                mgr.sessions[restored.id] = restored
+                return restored
+            monkeypatch.setattr(mgr, '_load_from_db', load)
+            await mgr.auto_resume_all()
+            restored = mgr.sessions['twice-537']
+            await restored._drain_persist()
+            with database._conn() as conn:
+                row = conn.execute('SELECT status, active_turn_id FROM sessions WHERE id=?',
+                                   ('twice-537',)).fetchone()
+            backend.recover_adopted_turn.assert_awaited_once()
+            if generation == 0:
+>               assert row['status'] == 'running'
+E               AssertionError: assert 'idle' == 'running'
+E                 
+E                 - running
+E                 + idle
+
+tests/test_writer_restart_537.py:252: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    app.manager:manager.py:2573 Failed to resume worker twice-537: server did not answer
+=========================== short test summary info ============================
+FAILED tests/test_writer_restart_537.py::test_failed_recovery_is_requeried_after_second_restart
+1 failed in 4.69s

@@ -32,7 +32,7 @@ async function sendChat() {
     try {
         await api(`/api/sessions/${selectedAgent}/send`, {
             method: 'POST',
-            body: JSON.stringify({ message: msg, scope: currentScope }),
+            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard" }),
             signal: AbortSignal.timeout(15000),
         });
     } catch (e) {
@@ -3263,17 +3263,6 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 && ['mcp__orchestra__task_create','mcp__orchestra__task_update'].includes(tn)) loadTasks();
             return;
         }
-        if (lastTool.dataset.toolRawName === 'mcp__orchestra__record_review_outcome') {
-            const receiptEl = renderReviewOutcomeResult(clean, lastTool.dataset.toolContent);
-            if (receiptEl) {
-                const sep = document.createElement('div');
-                sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
-                sep.appendChild(receiptEl);
-                lastTool.appendChild(sep);
-                addTimestamp(lastTool, ts);
-                return;
-            }
-        }
         const _orchSimpleResults = {
             'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
             'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
@@ -4064,7 +4053,9 @@ function addChatEntry(type, content, ts, anchor, payload) {
         const displayContent = payload && typeof payload.display_content === 'string'
             ? payload.display_content
             : content;
-        if (origin === 'user') {
+        const dashboardMessage = origin === 'unknown' && validDetail && suppliedDetail.subtype === 'dashboard';
+        if (origin === 'user' || dashboardMessage) {
+            if (dashboardMessage) div.setAttribute('aria-label', 'Сообщение из дашборда');
             div.className += ' markdown-body';
             div.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
             renderImages(div, displayContent);

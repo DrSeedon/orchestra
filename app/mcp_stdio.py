@@ -3402,6 +3402,9 @@ async def bg_create(type: str, message: str = "", target: str = "",
                     timeout_seconds: int = 3600) -> str:
     """Create a background job that wakes an agent when triggered. Survives hibernate.
     Types:
+    - idle: recurring watch of your own worker tree. Wakes you when idle with no running descendants
+            or other active background jobs. Fires once per new activity, not on every check.
+            Recreating it replaces your previous idle watch. timeout_seconds=0 keeps it until cancelled.
     - timer: fires after delay_seconds
     - file: watches file at path for pattern (regex)
     - command: runs command every interval_seconds, matches pattern in output
@@ -3413,7 +3416,9 @@ async def bg_create(type: str, message: str = "", target: str = "",
     - cron_command: runs command on cron_expr and wakes only when completed stdout/stderr
             matches pattern. Recurring, UTC, no backfill.
     target: agent name (default: you). timeout_seconds: max lifetime (default 1h,
-            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command."""
+            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command/idle."""
+    if type == "idle" and (ROLE not in _ORCH_ROLES or (target and target != WORKER_NAME)):
+        raise ApiToolError(code="idle_watch_self_only", message="An orchestrator sets an idle watch on itself")
     config = {}
     if type == "timer":
         config = {"delay_seconds": delay_seconds}
@@ -3977,202 +3982,10 @@ def _read_codex_uuid(sessions_path: str, slug: str) -> str:
         return ""
 
 
-async def _receipt_author_session(receipt_id: str) -> tuple[dict, dict]:
-    """Квитанция + сессия ВЫЗЫВАЮЩЕГО, уже сверенные между собой.
-
-    Исход ревью подписывает автор — та сессия, которая ревью и заказывала. Оркестратор видит
-    не фактуру, а отчёт воркера о ней, поэтому его подпись доказывает только то, что ему
-    рассказали (требование юзера 04.09, #493).
-    """
-    from app.db import review_receipt_get
-
-    receipt = review_receipt_get(receipt_id)
-    if not receipt:
-        raise ApiToolError(
-            code="not_found",
-            message="review receipt not found",
-            details={"receipt_id": receipt_id},
-        )
-    if int(receipt.get("schema_version") or 1) >= 3:
-        raise ApiToolError(code="review_outcome_retired", message="New tasks use advisory review. Submit your result; no author-outcome or attestation is required.")
-    info = await _api("GET", f"/api/sessions/{WORKER_NAME}", params={"scope": SCOPE})
-    caller_session_id = str(info.get("id") or "").strip() if isinstance(info, dict) else ""
-    if not caller_session_id:
-        raise ApiToolError(
-            code="caller_session_unresolved",
-            message="cannot resolve your own session; respawn the worker",
-            details={"worker": WORKER_NAME},
-        )
-    # Подписывает ЗАКАЗЧИК. Обычно это владелец предмета и он же; при `target_worker` ревью
-    # заказал оркестратор — фактуру он запинил сам и артефакт читает сам, поэтому подпись его,
-    # а не воркера, чей код проверяли. Пустое поле — квитанция до #509, там роли совпадали.
-    signer_session_id = str(
-        receipt.get("requested_by_session_id") or receipt.get("session_id") or ""
-    )
-    if caller_session_id != signer_session_id:
-        raise ApiToolError(
-            code="review_outcome_forbidden",
-            message=(
-                "only the requester of the review records its outcome: receipt "
-                f"{receipt_id} was requested by "
-                f"'{receipt.get('requested_by_worker') or receipt.get('worker_name')}'"
-            ),
-            details={
-                "receipt_id": receipt_id,
-                "receipt_worker": str(receipt.get("worker_name") or ""),
-                "caller": WORKER_NAME,
-            },
-        )
-    return receipt, info
 
 
-async def _write_delta_attestation(
-    receipt_id: str, closed_findings: list[str], statement: str,
-) -> CallToolResult:
-    from app.review_coverage import (
-        attestation_path,
-        resolve_implementation_subject,
-        verify_delta_attestation,
-    )
-
-    receipt, info = await _receipt_author_session(receipt_id)
-    # Аттестация подписывает дельту в дереве ВЛАДЕЛЬЦА предмета и коммитится вместе с его
-    # работой, а подписант с #509 может быть другой сессией. Писать в чужой worktree мы
-    # решили не давать, поэтому такой случай отказывает ИМЕНЕМ, а не общим «нет задачи»:
-    # у оркестратора `task_id` пуст, и прежний отказ назвал бы неверную причину.
-    if str(receipt.get("requested_by_session_id") or "") not in {
-        "", str(receipt.get("session_id") or ""),
-    }:
-        raise ApiToolError(
-            code="attestation_cross_worker_unsupported",
-            message=(
-                "this review was requested for another worker's code: the delta must be "
-                f"attested in the worktree of '{receipt.get('worker_name')}', or reviewed "
-                "again"
-            ),
-            details={
-                "receipt_id": receipt_id,
-                "subject_worker": str(receipt.get("worker_name") or ""),
-                "requested_by": str(receipt.get("requested_by_worker") or ""),
-            },
-        )
-    cwd = str(info.get("worktree_path") or info.get("cwd") or SCOPE)
-    task_id = str(info.get("task_id") or "")
-    if not task_id:
-        raise ApiToolError(
-            code="invalid_argument",
-            message="attestation needs a bound task; the session has none",
-            details={"field": "task_id"},
-        )
-    try:
-        subject = resolve_implementation_subject(
-            cwd, str(info.get("base_branch") or "main"),
-        )
-    except ValueError as error:
-        raise ApiToolError(
-            code="invalid_argument", message=str(error), details={"field": "worktree"},
-        ) from error
-    path = attestation_path(cwd, task_id)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    attestation = {
-        "receipt_id": receipt_id,
-        "reviewed_worker_head": str(receipt.get("worker_head") or ""),
-        "artifact_sha256": str(receipt.get("artifact_sha256") or ""),
-        "production_diff_sha256": str(subject["production_diff_sha256"]),
-        "closed_findings": list(closed_findings),
-        "statement": statement,
-        "recorded_at": datetime.now(timezone.utc).isoformat(),
-    }
-    previous = path.read_bytes() if path.exists() else None
-    path.write_text(
-        json.dumps(attestation, ensure_ascii=False, indent=2) + "\n", encoding="utf-8",
-    )
-    checked = verify_delta_attestation(
-        worktree=cwd, task_id=task_id, receipt=receipt,
-        target_sha=str(subject["target_sha"]), worker_head=str(subject["worker_head"]),
-        production_diff_sha256=str(subject["production_diff_sha256"]),
-    )
-    if not checked["ok"]:
-        # Непрошедшая аттестация не остаётся на диске: иначе следующий вызов сверял бы
-        # мусор, а автор читал бы «файл есть» как «подпись принята».
-        if previous is None:
-            path.unlink(missing_ok=True)
-        else:
-            path.write_bytes(previous)
-        raise ApiToolError(
-            code="attestation_rejected",
-            message=f"{checked['reason']}: {checked['detail']}",
-            details={"receipt_id": receipt_id, **checked},
-        )
-    return mcp_tool_result(
-        result={"attestation_path": str(path), **attestation, **checked},
-        text=f"Delta attestation recorded. COMMIT {path} before merging.",
-    )
 
 
-@mcp.tool()
-async def record_review_outcome(
-    receipt_id: str,
-    outcome: str,
-    outcome_evidence_ref: str = "",
-    target_worker: str = "",
-    decision_id: str = "",
-    closed_findings: list[str] | None = None,
-    statement: str = "",
-) -> CallToolResult:
-    """Legacy assignments only: record a review outcome. New work uses merge acceptance_note instead.
-
-    outcome:
-      accepted | disputed | partial — the author's verdict on the reviewer's findings.
-        `disputed` requires outcome_evidence_ref.
-      attested — sign the production delta committed AFTER the last review round. Needs
-        closed_findings: the `file:line` anchors from the artifact this delta closes, matched
-        literally against the artifact. Writes .orchestra/tasks/<id>/review-attestation.json;
-        COMMIT it, or the merge gate will not see it.
-      skipped — orchestrator-only decision not to review at all.
-    """
-    if outcome == "attested":
-        return await _write_delta_attestation(
-            receipt_id, list(closed_findings or []), statement,
-        )
-    if outcome == "skipped":
-        result = await _api(
-            "POST",
-            "/api/merge-operations/review-skip",
-            json={
-                "decision_id": decision_id,
-                "target_worker": target_worker,
-                "scope": SCOPE,
-                "outcome_evidence_ref": outcome_evidence_ref,
-            },
-        )
-        receipt = result.get("result") if isinstance(result, dict) else None
-        if not isinstance(receipt, dict):
-            error = result.get("error") if isinstance(result, dict) else None
-            code = str(error.get("code") or "review_skip_failed") if isinstance(error, dict) else "review_skip_failed"
-            message = str(error.get("message") or code) if isinstance(error, dict) else code
-            raise ApiToolError(code=code, message=message)
-        return mcp_tool_result(result=receipt, text="Review skip recorded.")
-    from app.db import review_receipt_set_outcome
-
-    await _receipt_author_session(receipt_id)
-    try:
-        receipt = review_receipt_set_outcome(
-            receipt_id, outcome, outcome_evidence_ref,
-        )
-    except ValueError as error:
-        raise ApiToolError(
-            code="invalid_argument",
-            message=str(error),
-            details={"field": "outcome"},
-        ) from error
-    except LookupError as error:
-        raise ApiToolError(
-            code="not_found",
-            message=str(error),
-            details={"receipt_id": receipt_id},
-        ) from error
-    return mcp_tool_result(result=receipt, text="Review outcome recorded.")
 
 
 @mcp.tool()
@@ -4239,7 +4052,6 @@ async def codex_review(
             message="executors request review of their own work; target_worker is no longer supported",
             details={"field": "target_worker"},
         )
-    advisory = int(info.get("work_review_version") or 1) >= 3
     requesting_session_id = str(info.get("id") or "").strip()
     if not requesting_session_id:
         return mcp_tool_result(
@@ -4274,12 +4086,7 @@ async def codex_review(
         "subject_kind": "unknown",
         "target_sha": "",
         "worker_head": "",
-        "production_snapshot_sha256": "",
-        "production_paths_json": "[]",
-        "production_path_heads_json": "",
-        "coverage_outcome": "unknown",
         "policy_ref": "",
-        "decision_actor": "",
     }
     if mode == "implementation":
         if target:
@@ -4288,7 +4095,7 @@ async def codex_review(
                 message="implementation review target is resolved by the server; omit target",
                 details={"field": "target"},
             )
-        from app.review_coverage import current_policy_ref, resolve_implementation_subject
+        from app.work_review import POLICY, resolve_implementation_subject
         from app.workspace import resolve_base_branch
 
         try:
@@ -4297,10 +4104,8 @@ async def codex_review(
             )
             subject = {
                 "subject_kind": "implementation",
-                **resolve_implementation_subject(cwd, owner["base_branch"], include_coverage=not advisory),
-                "coverage_outcome": "unknown",
-                "policy_ref": current_policy_ref(),
-                "decision_actor": "",
+                **resolve_implementation_subject(cwd, owner["base_branch"]),
+                "policy_ref": POLICY,
             }
         except ValueError as error:
             raise ApiToolError(
@@ -4308,8 +4113,6 @@ async def codex_review(
                 message=str(error),
                 details={"field": "mode"},
             ) from error
-        subject.pop("production_paths", None)
-        subject.pop("production_path_heads", None)
     requested_at = datetime.now(timezone.utc).isoformat()
     if mode == "implementation":
         size_decision = _implementation_review_size_decision(
@@ -4319,79 +4122,10 @@ async def codex_review(
             required=required,
         )
         if size_decision["status"] == "skip":
-            if advisory:
-                return mcp_tool_result(result={"kind": "review_skipped_by_size", **size_decision, "receipt_id": "", "worker_head": str(subject["worker_head"])}, text=str(size_decision["evidence"]) + " No skip receipt is needed; include this reason with the result.")
-            from app.db import init_db, review_receipt_record_skip
-
-            init_db()
-            evidence = (
-                f"{size_decision['evidence']} Evidence weakness: "
-                f"{_REVIEW_SKIP_EVIDENCE_WEAKNESS}"
-            )
-            identity = json.dumps(
-                {
-                    "session_id": owner["session_id"],
-                    "scope": SCOPE,
-                    "task_id": owner["task_id"],
-                    "target_sha": subject["target_sha"],
-                    "worker_head": subject["worker_head"],
-                    "policy_ref": subject["policy_ref"],
-                    "threshold_lines": _REVIEW_SKIP_MAX_LINES,
-                    "threshold_files": _REVIEW_SKIP_MAX_FILES,
-                },
-                sort_keys=True,
-                separators=(",", ":"),
-            )
-            receipt_id = "review-size-skip:" + hashlib.sha256(identity.encode()).hexdigest()
-            receipt = review_receipt_record_skip({
-                "receipt_id": receipt_id,
-                "schema_version": 1,
-                "runtime": "none",
-                "reviewer_model": "",
-                "model_source": "direct",
-                "session_id": owner["session_id"],
-                "worker_name": owner["worker_name"],
-                "scope": SCOPE,
-                "task_id": owner["task_id"],
-                "task_source": "session_lookup",
-                "requested_by_session_id": requesting_session_id,
-                "requested_by_worker": WORKER_NAME,
-                "artifact_path": "",
-                "mode": "skip",
-                "round": None,
-                "job_id": "",
-                "usage_event_id": "",
-                "requested_at": requested_at,
-                "completed_at": requested_at,
-                "status": "completed",
-                "return_code": None,
-                "failure_code": "",
-                "artifact_exists": 0,
-                "artifact_bytes": 0,
-                "artifact_sha256": "",
-                "verdict_present": 0,
-                "verdict_value": "",
-                "jsonl_response_present": 0,
-                "recovery_source": "",
-                "author_outcome": "unknown",
-                "outcome_source": "direct",
-                "outcome_evidence_ref": evidence,
-                "notification_event_id": "",
-                **subject,
-                "coverage_outcome": "skipped",
-                "decision_actor": WORKER_NAME,
-            })
-            payload = {
-                "kind": "review_skipped_by_size",
-                **size_decision,
-                "evidence": evidence,
-                "receipt_id": str(receipt["receipt_id"]),
-                "target_sha": str(subject["target_sha"]),
-                "worker_head": str(subject["worker_head"]),
-            }
             return mcp_tool_result(
-                result=payload,
-                text=f"{evidence} Receipt: {receipt['receipt_id']}",
+                result={"kind": "review_skipped_by_size", **size_decision, "receipt_id": "",
+                        "worker_head": str(subject["worker_head"])},
+                text=str(size_decision["evidence"]),
             )
     source_ref = str(subject.get("target_sha") or owner["base_branch"] or "main")
     try:
@@ -4455,8 +4189,6 @@ async def codex_review(
             "usage_event_id": usage_event_id,
             "requested_at": requested_at,
             "status": "requested",
-            "author_outcome": "unknown",
-            "outcome_source": "unknown",
             **subject,
         })
     except ReviewBudgetError as error:
@@ -4472,7 +4204,6 @@ async def codex_review(
                 "completed_at": datetime.now(timezone.utc).isoformat(),
                 "return_code": None,
                 "failure_code": refusal.code,
-                "coverage_outcome": "unavailable",
             },
         )
         raise refusal
@@ -4499,7 +4230,6 @@ async def codex_review(
                 "completed_at": datetime.now(timezone.utc).isoformat(),
                 "return_code": None,
                 "failure_code": "codex_binary_missing",
-                "coverage_outcome": "unavailable",
             },
         )
         return mcp_tool_result(result=None, text=_CODEX_MISSING_HINT)
@@ -4656,8 +4386,6 @@ async def codex_review(
     ]
     if is_resume:
         finalize_args.append("--resume")
-    if not advisory:
-        finalize_args.append("--require-verdict")
     finalize = " ".join(finalize_args)
     terminal_recorder = " ".join([
         q(sys.executable), q(finalizer),
@@ -4723,10 +4451,7 @@ async def codex_review(
             "config": {
                 "command": cmd,
                 "success_file": output_abs,
-                "success_pattern": (
-                    r"(?im)^##\s+(?:Verdict|Вердикт)\b"
-                    if not advisory and mode in {"implementation", "exec"} else ""
-                ),
+                "success_pattern": "",
             },
             # Без слова "done": то же поле подставляется в провал как
             # "[Background job FAILED] <message>", и "Codex exec done" читалось как успех.
