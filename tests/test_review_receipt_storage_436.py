@@ -46,5 +46,5 @@ def test_receipt_round_trip_preserves_provenance_and_unknowns(tmp_path, monkeypa
     saved = db.review_receipt_get(receipt["receipt_id"])
     assert saved["receipt_id"] == receipt["receipt_id"]
     assert saved["model_source"] == "direct"
-    assert saved["author_outcome"] == "unknown"
+    assert "author_outcome" not in saved
     assert json.loads(json.dumps(saved, sort_keys=True))["runtime"] == "codex"

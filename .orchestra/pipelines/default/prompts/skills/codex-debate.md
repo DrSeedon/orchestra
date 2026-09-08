@@ -1,6 +1,6 @@
 ---
 name: codex-debate
-description: "Optional executor-owned review: one focused second opinion, a server-enforced task budget, and advisory findings. New work is accepted by commit and tests, without outcome signatures or skip receipts."
+description: "Optional executor-owned review: one focused second opinion, a server-enforced task budget, and advisory findings. Work is accepted by commit and tests, without outcome signatures or skip receipts."
 ---
 
 # Review Routing
@@ -26,9 +26,9 @@ description: "Optional executor-owned review: one focused second opinion, a serv
   завершения; не создавай другой output. На `review_budget_exhausted` сдавай имеющиеся
   доказательства и перечисли неизвестное, не переименовывай задачу ради обхода.
 
-## Новая работа: ревью — приложение к результату
+## Работа: ревью — приложение к результату
 
-**work-review-v2** виден в `worker_wip` у новых назначений. Рабочий путь:
+**work-review-v2** применяется ко всем назначениям, включая уже начатые. Рабочий путь:
 
 1. Сделай работу, проверь критерий готовности, закоммить результат.
 2. Если полезно, запусти `codex_review(mode="implementation", context=..., output=...)`.
@@ -51,22 +51,13 @@ description: "Optional executor-owned review: one focused second opinion, a serv
 важнее заголовка, оформления Markdown и знака вердикта ревьюера.
 
 `required=false` может дать size-skip для полного diff не больше 40 строк/3 файлов без
-binary. Для новой работы это ответ инструмента без отдельной квитанции. Вызывать review
+binary. Это ответ инструмента без отдельной квитанции. Вызывать review
 только ради получения skip не требуется: причину укажи с результатом работы.
 
 На follow-up используй те же output, mode и model с resume=true. После запуска закончи
 ход или выполняй независимую работу; платформа сообщит исход. Не опрашивай job в цикле.
 Новая задача не создаётся ради нового лимита. Если изменился сам согласованный результат,
 обсуди область работы с постановщиком.
-
-## Старые назначения
-
-Назначения, начатые до перехода, сохраняют прежний контракт. Это видно по отсутствию
-work-review-v2 в `worker_wip`; после передачи исполнителю версия задачи сохраняется.
-Для них временно остаются `record_review_outcome` и старое покрытие реализации. Их
-исторический владелец — `.orchestra/guides/review-legacy-v1.md` в репозитории платформы;
-его bytes/hash не переписываются новым текстом этого скилла. Для новой работы legacy-тулы
-возвращают явный отказ и не создают подписи/skip-записи. Историю никто не мигрирует в APPROVED.
 
 ## Калибровка и результат
 

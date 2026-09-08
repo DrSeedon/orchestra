@@ -32,9 +32,10 @@ def test_spawn_publication_preserves_identity_and_graceful_buffer(db, monkeypatc
     assert stored == {'agent.identity-537.stdin': [11], 'agent.identity-537.stdout': [12]}
 
 
-def test_failed_identity_write_retires_both_published_ends(db, monkeypatch):
+def test_failed_identity_write_prevents_fd_publication(db, monkeypatch):
     removed = []
-    monkeypatch.setattr('app.fdstore.store_fds', lambda *args: None)
+    stored = []
+    monkeypatch.setattr('app.fdstore.store_fds', lambda *args: stored.append(args))
     monkeypatch.setattr('app.fdstore.remove_fds', removed.append)
     def fail(*args):
         raise OSError('identity storage unavailable')
@@ -42,7 +43,8 @@ def test_failed_identity_write_retires_both_published_ends(db, monkeypatch):
     session = SimpleNamespace(id='failed-537', name='failed-537',
                               _backend=SimpleNamespace(fd_in=11, fd_out=12, pid=1, cli_started_at=2))
     assert not manager.publish_backend_fds(session)
-    assert removed == ['agent.failed-537.stdin', 'agent.failed-537.stdout']
+    assert stored == []
+    assert removed == []
 
 
 def test_missing_identity_cannot_inherit_previous_process(db, monkeypatch):

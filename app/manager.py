@@ -2871,10 +2871,6 @@ def publish_backend_fds(session) -> bool:
 
     stored: list[str] = []
     try:
-        for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
-                         (fd_store_name(session.id, "stdout"), fd_out)):
-            fdstore.store_fds(name, [fd])
-            stored.append(name)
         from app.db import save_backend_identity
 
         pid = getattr(backend, "pid", 0) or 0
@@ -2882,8 +2878,12 @@ def publish_backend_fds(session) -> bool:
         if hasattr(backend, "pid") and hasattr(backend, "cli_started_at"):
             save_backend_identity(session.id, pid, started_at)
         if not pid or not started_at:
-            logger.warning("[%s] published pipes without process identity; "
+            logger.warning("[%s] publishing pipes without process identity; "
                            "automatic process replacement is unsafe", session.id)
+        for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
+                         (fd_store_name(session.id, "stdout"), fd_out)):
+            fdstore.store_fds(name, [fd])
+            stored.append(name)
     except Exception as error:
         # Громко: молчаливый отказ вернул бы прежнюю условную независимость, ничего об этом
         # не сказав, то есть тот же дефект, но уже невидимый.

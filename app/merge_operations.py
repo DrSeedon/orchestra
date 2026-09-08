@@ -477,7 +477,7 @@ def _admission_evidence(
 ) -> dict[str, Any]:
     target = dict(admission.get("target") or {})
     oracle = dict(admission.get("oracle") or {})
-    review = dict(admission.get("review_coverage") or {})
+    review = dict(admission.get("review") or {})
     evidence = {
         "target": {
             "branch": str(target.get("branch") or ""),
@@ -500,154 +500,11 @@ def _admission_evidence(
     }
     if admission.get("acceptance_decision"):
         evidence["acceptance_decision"] = dict(admission["acceptance_decision"])
-    if review.get("policy") == "work-review-v2":
+    if review:
         evidence["review"] = review
-    elif review:
-        evidence["review_coverage"] = {
-            "required": bool(review.get("required")),
-            "status": str(review.get("status") or "unknown"),
-            "reason": str(review.get("reason") or ""),
-            "production_paths": list(review.get("production_paths") or []),
-            "target_sha": str(review.get("target_sha") or ""),
-            "worker_head": str(review.get("worker_head") or ""),
-            "production_snapshot_sha256": str(
-                review.get("production_snapshot_sha256") or ""
-            ),
-            "production_diff_sha256": str(
-                review.get("production_diff_sha256") or ""
-            ),
-            "receipt_id": str(review.get("receipt_id") or ""),
-            "coverage_outcome": str(review.get("coverage_outcome") or "unknown"),
-            "author_outcome": str(review.get("author_outcome") or "unknown"),
-            "outcome_evidence_ref": str(review.get("outcome_evidence_ref") or ""),
-            # Вердикт в доказательстве мержа — тот, что сервер вычитал из артефакта при
-            # закрытии квитанции. Пересказ автора сюда не попадает ни на одном пути.
-            "verdict_value": str(review.get("verdict_value") or ""),
-            "attestation": dict(review.get("attestation") or {}),
-        }
     return evidence
 
 
-def _review_coverage_refusal(
-    operation_id: str,
-    review: dict[str, Any],
-    *,
-    execution: bool,
-) -> tuple[dict[str, Any], dict[str, str]]:
-    receipt_id = str(review.get("receipt_id") or "")
-    details = {
-        "reason": review.get("reason"),
-        "receipt_id": receipt_id,
-        "coverage_outcome": str(review.get("coverage_outcome") or "unknown"),
-        "author_outcome": str(review.get("author_outcome") or "unknown"),
-        "production_paths": review.get("production_paths") or [],
-        "production_snapshot_sha256": review.get(
-            "production_snapshot_sha256", ""
-        ),
-        "production_diff_sha256": review.get("production_diff_sha256", ""),
-        # Причина, по которой снимок вообще не посчитан (`fatal: …` от git). Без неё отказ
-        # называет только класс и заставляет гадать, какой именно ref не разрешился.
-        "reason_detail": review.get("reason_detail", ""),
-    }
-    if review.get("reason") == "author_outcome_missing":
-        error = _error(
-            "REVIEW_AUTHOR_OUTCOME_MISSING",
-            "review completed, but the author has not recorded accepted, disputed, or partial",
-            operation_id=operation_id,
-            status=409,
-            details=details,
-        )
-        action = _action(
-            "RECORD_AUTHOR_OUTCOME_THEN_NEW_OPERATION",
-            f"Call record_review_outcome for receipt {receipt_id}, then start a new operation.",
-        )
-        return error, action
-    if review.get("reason") == "author_outcome_invalid":
-        return (
-            _error(
-                "REVIEW_AUTHOR_OUTCOME_INVALID",
-                "review receipt has an invalid author outcome and cannot authorize a merge",
-                operation_id=operation_id,
-                status=409,
-                details=details,
-            ),
-            _action(
-                "RECONCILE_REVIEW_RECEIPT_THEN_NEW_OPERATION",
-                f"Reconcile invalid author outcome for receipt {receipt_id}, then start a new operation.",
-            ),
-        )
-    if review.get("reason") == "review_snapshot_unavailable":
-        # Причину подменять нельзя: «квитанции нет» и «предмет ревью вообще не посчитан» —
-        # разные утверждения, и второе чинится не ревью, а ссылками воркера (#416).
-        return (
-            _error(
-                "REVIEW_SNAPSHOT_UNAVAILABLE",
-                "cannot compute the production snapshot for this merge: "
-                + (str(review.get("reason_detail") or "") or "git refs did not resolve"),
-                operation_id=operation_id,
-                status=409,
-                details=details,
-            ),
-            _action(
-                "FIX_WORKER_REFS_THEN_NEW_OPERATION",
-                "Restore the worker branch/worktree refs, then start a new operation.",
-            ),
-        )
-    if review.get("reason") == "review_verdict_missing":
-        return (
-            _error(
-                "REVIEW_VERDICT_MISSING",
-                "the review artifact carries no '## Verdict' section, so this receipt "
-                "authorizes nothing",
-                operation_id=operation_id,
-                status=409,
-                details=details,
-            ),
-            _action(
-                "RERUN_REVIEW_THEN_NEW_OPERATION",
-                f"Re-run the review for receipt {receipt_id} until it produces a verdict, "
-                "then start a new operation.",
-            ),
-        )
-    if str(review.get("reason") or "").startswith("attestation_"):
-        # Дельта после последнего раунда СУЩЕСТВУЕТ и не подписана — это отдельное состояние,
-        # и лечится оно автором, а не «запишите ревью на этот снимок»: ревью на снимок ДО
-        # дельты уже есть.
-        return (
-            _error(
-                "REVIEW_DELTA_UNATTESTED",
-                "the production diff moved after the last review round and the author "
-                "attestation does not cover it: " + str(review.get("reason") or ""),
-                operation_id=operation_id,
-                status=409,
-                details=details,
-            ),
-            _action(
-                "ATTEST_DELTA_THEN_NEW_OPERATION",
-                "Call record_review_outcome(outcome='attested') for receipt "
-                f"{receipt_id}, commit the attestation, then start a new operation.",
-            ),
-        )
-    message = (
-        "review coverage became active before execution and this production snapshot "
-        "has no qualifying receipt"
-        if execution
-        else "production diff has no snapshot-bound review, authorized skip, or "
-        "machine-unavailable receipt"
-    )
-    return (
-        _error(
-            "REVIEW_COVERAGE_MISSING",
-            message,
-            operation_id=operation_id,
-            status=409,
-            details=details,
-        ),
-        _action(
-            "RECORD_REVIEW_THEN_NEW_OPERATION",
-            "Record review coverage for this exact snapshot, then start a new operation.",
-        ),
-    )
 
 
 def accept_operation_snapshot(
@@ -962,79 +819,19 @@ def _worker_head(worktree_path: str) -> str:
     return proc.stdout.strip()
 
 
-def review_coverage_policy_active() -> bool:
-    from app.review_coverage import policy_active
-
-    return policy_active()
 
 
-def _review_snapshot_unavailable(
-    *, target_sha: str, worker_head: str, detail: str,
-) -> dict[str, Any]:
-    """Снимок не посчитан → допуск ОТКАЗЫВАЕТ определённо, а не падает исключением.
-
-    Неразрешимый ref — возможное состояние прода, а не выдумка стенда: ветку сносят, worktree
-    переезжает, ссылку переписывают. Раньше `ValueError` из `_git_bytes` летел через
-    `_prepare_admission_snapshot` наружу и ронял ВЕСЬ путь мержа необработанным исключением
-    (04.09, #474: `fatal: Invalid symmetric difference expression <sha>...bbbb…`).
-    Исход fail-closed: не знаем предмет ревью — мерж не проходит.
-    """
-    return {
-        "required": True,
-        "status": "blocked",
-        "reason": "review_snapshot_unavailable",
-        "reason_detail": detail,
-        "production_paths": [],
-        "target_sha": target_sha,
-        "worker_head": worker_head,
-        "production_snapshot_sha256": "",
-        "production_diff_sha256": "",
-        "receipt_id": "",
-        "coverage_outcome": "unknown",
-    }
 
 
-def _review_coverage_for_snapshot(
-    *, accepted: dict[str, Any], request: dict[str, Any], target_sha: str,
-    changed: list[str], active: bool,
-) -> dict[str, Any]:
-    from app.work_review import assignment, is_advisory, summarize_review
+def _review_for_snapshot(accepted: dict[str, Any], request: dict[str, Any]) -> dict:
+    from app.work_review import assignment, summarize_review
     scope = str(request.get("scope") or accepted.get("scope") or "").rstrip("/")
     task_id = str(accepted.get("task_id") or "")
-    if is_advisory(assignment(scope, str(accepted["session_id"]), task_id)):
-        return summarize_review(scope=scope, session_id=str(accepted["session_id"]),
-                                task_id=task_id, worktree=accepted["worktree_path"],
-                                worker_head=str(accepted["worker_head"]))
-    from app.review_coverage import (
-        coverage_decision,
-        production_paths,
-        production_snapshot,
-    )
-
-    paths = production_paths(changed)
-    worker_head = str(accepted.get("worker_head") or "")
-    try:
-        worker_head = worker_head or _worker_head(accepted["worktree_path"])
-        snapshot = production_snapshot(
-            accepted["worktree_path"], target_sha=target_sha, worker_head=worker_head,
-        )
-    except (ValueError, OSError) as error:
-        return _review_snapshot_unavailable(
-            target_sha=target_sha, worker_head=worker_head, detail=err_text(error),
-        )
-    return coverage_decision(
-        scope=str(request.get("scope") or accepted.get("scope") or "").rstrip("/"),
-        session_id=str(accepted["session_id"]),
-        task_id=str(accepted.get("task_id") or ""),
-        target_sha=target_sha,
-        worker_head=worker_head,
-        production_paths=paths,
-        production_snapshot_sha256=str(snapshot["production_snapshot_sha256"]),
-        production_diff_sha256=str(snapshot["production_diff_sha256"]),
-        production_path_heads=dict(snapshot["production_path_heads"] or {}),
-        active=active,
-        worktree=str(accepted["worktree_path"]),
-    )
+    if assignment(scope, str(accepted["session_id"]), task_id) is None:
+        return {}
+    return summarize_review(scope=scope, session_id=str(accepted["session_id"]),
+                            task_id=task_id, worktree=accepted["worktree_path"],
+                            worker_head=str(accepted["worker_head"]))
 
 
 def _prepare_admission_snapshot(
@@ -1055,25 +852,7 @@ def _prepare_admission_snapshot(
                 "required": False, "manifest": [],
             },
         }
-    # Тот же шов, что и в `_revalidate_review_coverage`: цель может не разрешиться. Голый
-    # `ValueError` отсюда доезжал до вызывающего и получал код `ORACLE_METADATA_INVALID` —
-    # то есть отказ называл ПРИЧИНОЙ оракул, которого проблема не касается (#474, раунд 2).
-    try:
-        target_sha = _target_head(accepted["worktree_path"], target_branch)
-    except (ValueError, OSError) as error:
-        return {
-            "target": {"branch": target_branch, "sha": ""},
-            "oracle": {
-                "source": "none", "task_id": str(accepted.get("task_id") or ""),
-                "revision": 0, "ref": "", "hash": "", "command": "",
-                "required": False, "manifest": [],
-            },
-            "review_coverage": _review_snapshot_unavailable(
-                target_sha="",
-                worker_head=str(accepted.get("worker_head") or ""),
-                detail=err_text(error),
-            ),
-        }
+    target_sha = _target_head(accepted["worktree_path"], target_branch)
     changed = changed_paths(
         accepted["worktree_path"],
         target_ref=target_branch,
@@ -1081,13 +860,7 @@ def _prepare_admission_snapshot(
     )
     if changed is None:
         raise ValueError("cannot derive target-relative merge paths")
-    review_coverage = _review_coverage_for_snapshot(
-        accepted=accepted,
-        request=request,
-        target_sha=target_sha,
-        changed=changed,
-        active=review_coverage_policy_active(),
-    )
+    review = _review_for_snapshot(accepted, request)
     nested_behavioral = target_branch not in {"main", "master"} and any(
         path.startswith("app/") or path.startswith("tests/")
         for path in changed
@@ -1141,50 +914,10 @@ def _prepare_admission_snapshot(
     return {
         "target": {"branch": target_branch, "sha": target_sha},
         "oracle": oracle,
-        "review_coverage": review_coverage,
+        "review": review,
     }
 
 
-def _revalidate_review_coverage(
-    record: dict[str, Any], current: dict[str, Any],
-) -> dict[str, Any]:
-    from app.merge_test_gate import changed_paths
-
-    admission = dict(record.get("accepted_admission") or {})
-    target = dict(admission.get("target") or {})
-    target_branch = str(
-        target.get("branch")
-        or record.get("request", {}).get("target")
-        or record.get("accepted_base_branch")
-        or "main"
-    )
-    target_sha = str(target.get("sha") or "")
-    worker_head = str(current.get("worker_head") or "")
-    if not target_sha:
-        try:
-            target_sha = _target_head(current["worktree_path"], target_branch)
-        except (ValueError, OSError) as error:
-            return _review_snapshot_unavailable(
-                target_sha="", worker_head=worker_head, detail=err_text(error),
-            )
-    changed = changed_paths(
-        current["worktree_path"],
-        target_ref=target_branch,
-        target_sha=target_sha,
-    )
-    if changed is None:
-        return _review_snapshot_unavailable(
-            target_sha=target_sha,
-            worker_head=worker_head,
-            detail="cannot derive target-relative merge paths",
-        )
-    return _review_coverage_for_snapshot(
-        accepted=current,
-        request=record["request"],
-        target_sha=target_sha,
-        changed=changed,
-        active=True,
-    )
 
 
 def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | None, str]:
@@ -1956,24 +1689,6 @@ async def _run_operation(operation_id: str) -> None:
         return
     try:
         current, mismatch = await asyncio.to_thread(_verify_accepted_snapshot, record)
-        coverage_block = None
-        if (not mismatch and review_coverage_policy_active()
-                and not (record.get("accepted_admission") or {}).get("acceptance_decision")):
-            pinned_admission = dict(record.get("accepted_admission") or {})
-            refreshed_review = await asyncio.to_thread(
-                _revalidate_review_coverage, record, current,
-            )
-            # ПУСТОЙ `accepted_admission` — это признак legacy-операции, принятой до пиннинга,
-            # и ниже он читается как `legacy_unpinned` (строка ~1880), включая исполнение
-            # зарегистрированной приёмочной команды. Дописать сюда `review_coverage` в пустой
-            # словарь значит объявить операцию пиннингованной и МОЛЧА пропустить приёмку —
-            # ровно тот исход, против которого написан #240. Поймано 04.09 (#474) после того,
-            # как отказ перестал падать исключением и путь стал доходить досюда.
-            if pinned_admission:
-                pinned_admission["review_coverage"] = refreshed_review
-                record = {**record, "accepted_admission": pinned_admission}
-            if refreshed_review.get("status") == "blocked":
-                coverage_block = refreshed_review
         if mismatch:
             error = _error(
                 "SESSION_IDENTITY_CHANGED", mismatch, operation_id=operation_id,
@@ -1990,22 +1705,6 @@ async def _run_operation(operation_id: str) -> None:
                     "REFRESH_WORKER_THEN_NEW_OPERATION",
                     "Refresh the worker identity, then start a new operation.",
                 ),
-            )
-        elif coverage_block is not None:
-            error, next_action = _review_coverage_refusal(
-                operation_id, coverage_block, execution=True,
-            )
-            result = _base_result(
-                operation_id,
-                "FAILED",
-                target_branch=record["request"].get("target", ""),
-                worker_branch=record["accepted_worker_branch"],
-                worker_head=record["accepted_worker_head"],
-                error=error,
-                next_action=next_action,
-            )
-            result["admission"] = _admission_evidence(
-                record["accepted_admission"], oracle_status="not_run",
             )
         else:
             from app import acceptance as acceptance_module
@@ -2416,39 +2115,24 @@ async def accept_merge_operation(
                 "Repair the authoritative task oracle or target, then start a new operation.",
             ),
         ), 409
-    review_coverage = dict(
-        accepted.get("admission", {}).get("review_coverage") or {}
-    )
-    from app.work_review import assignment, is_advisory
+    review = dict(accepted.get("admission", {}).get("review") or {})
+    from app.work_review import assignment
     task_run = assignment(request["scope"], str(accepted["session_id"]), str(accepted.get("task_id") or ""))
-    if is_advisory(task_run) or review_coverage.get("policy") == "work-review-v2":
+    if task_run is not None:
         if not accepting_actor:
             return _base_result(canonical_id, "FAILED", error=_error("MERGE_ACCEPTOR_REQUIRED", "An authenticated acceptor is required (orchestrator, owner, or full-cycle parent into its own branch)", operation_id=canonical_id, status=403)), 403
         if not request.get("expected_head") or not request.get("acceptance_note"):
             return _base_result(canonical_id, "FAILED", error=_error("WORK_ACCEPTANCE_REQUIRED", "Inspect worker_wip, then provide its exact expected_head and an acceptance_note (including why no review was needed, if absent)", operation_id=canonical_id, status=409)), 409
         if request["expected_head"] != accepted["worker_head"]:
             return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", "Worker HEAD differs from the commit you accepted; inspect the new result", operation_id=canonical_id, status=409)), 409
-        if not is_advisory(task_run) or task_run["status"] != "requested" or review_coverage.get("task_run_id") != task_run["receipt_id"]:
+        if task_run["status"] != "requested" or review.get("task_run_id") != task_run["receipt_id"]:
             return _base_result(canonical_id, "FAILED", error=_error("WORK_ASSIGNMENT_CHANGED", "Cannot bind acceptance to the current task and snapshot; inspect worker_wip again", operation_id=canonical_id, status=409)), 409
         accepted["admission"]["acceptance_decision"] = {
             "actor": accepting_actor, "head": accepted["worker_head"],
             "note": request["acceptance_note"], "policy": "work-review-v2",
-            "task_run_id": review_coverage["task_run_id"],
+            "task_run_id": review["task_run_id"],
         }
 
-    if review_coverage.get("status") == "blocked":
-        error, next_action = _review_coverage_refusal(
-            canonical_id, review_coverage, execution=False,
-        )
-        return _base_result(
-            canonical_id,
-            "FAILED",
-            target_branch=request["target"] or accepted.get("base_branch", ""),
-            worker_branch=accepted["worker_branch"],
-            worker_head=accepted["worker_head"],
-            error=error,
-            next_action=next_action,
-        ), 409
     result, _created, status = await asyncio.to_thread(
         accept_operation_snapshot,
         operation_id=canonical_id,
