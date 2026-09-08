@@ -1,5 +1,7 @@
 """Frozen regression oracles for lifecycle quarantine visibility and repair (#499)."""
 
+from tests.task_seeds import create_task as seed_task
+
 import asyncio
 import json
 import uuid
@@ -58,12 +60,13 @@ async def test_quarantined_delivery_is_refused_before_accept_and_wip_is_loud(
     db.save_session(_session_row())
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope="/scope")
-        tm.create_task(connection, "project", "Interrupted task", par_number=90)
+        seed_task(connection, "project", "Interrupted task", par_number=90)
     tm.bind_task_to_session("/scope", "quarantined-session", "90")
 
     local_manager = SessionManager()
     monkeypatch.setattr(routes, "manager", local_manager)
     found = local_manager.get_by_name("worker", "/scope")
+    found.worktree_path = str(tm.active_runtime().store.root)
     await routes._persist_lifecycle_quarantine(
         found,
         branch="task-90/worker",
@@ -135,74 +138,6 @@ async def test_quarantined_delivery_is_refused_before_accept_and_wip_is_loud(
     assert "quarantined" in wip.lower()
 
 
-def test_unrelated_interference_converges_but_same_task_contention_loses(tmp_path):
-    from app.ia.task_store import TaskStore, build_migration_manifest
-    from tests.test_knowledge_runtime_debt_361 import _task_projection_snapshot
-
-    snapshot = _task_projection_snapshot()
-    snapshot["projects"][0].update(id="project", scope="/scope")
-    first = snapshot["tasks"][0]
-    first.update(id=1, project_id="project", par_number=104, title="repair target")
-    snapshot["tasks"].append({
-        **first, "id": 2, "par_number": 105, "title": "unrelated task",
-    })
-    class InterferingTaskStore(TaskStore):
-        interfere_with_same_task = False
-
-        @property
-        def canonical_head(self):
-            if self.interfere_with_same_task:
-                self.interfere_with_same_task = False
-                self.task_update(
-                    "105", project="project", title="genuine concurrent update",
-                    expected_head=self._current_head(),
-                )
-            return self._current_head()
-
-    store = InterferingTaskStore(
-        canonical_root=tmp_path / "tasks",
-        projection_path=tmp_path / "task-current.db",
-    )
-    store.migrate(build_migration_manifest(snapshot))
-
-    target = store.task_get("104", project="project")
-    target_identity = {
-        "project_id": "project",
-        "par_number": 104,
-        "stable_id": target["stable_id"],
-        "sync_revision": target["sync_revision"],
-    }
-    historical_head = target["canonical_head"]
-    store.task_update(
-        "105", project="project", title="unrelated task advanced",
-        expected_head=store.canonical_head,
-    )
-    advanced_head = store.canonical_head
-    assert historical_head != advanced_head
-
-    unrelated_result = store.task_update_if_current(
-        target_identity, status="in_progress",
-    )
-    assert unrelated_result["ok"] is True
-
-    same_target = store.task_get("105", project="project")
-    same_identity = {
-        "project_id": "project",
-        "par_number": 105,
-        "stable_id": same_target["stable_id"],
-        "sync_revision": same_target["sync_revision"],
-    }
-    store.interfere_with_same_task = True
-    contention_result = store.task_update_if_current(
-        same_identity, status="in_progress",
-    )
-
-    print(f"UNRELATED_INTERFERENCE={unrelated_result['ok']}")
-    print(f"SAME_TASK_CONTENTION={contention_result}")
-    assert contention_result == {
-        "ok": False,
-        "error": "prevalidated task revision changed",
-    }
 
 
 @pytest.mark.asyncio
@@ -223,7 +158,7 @@ async def test_one_predicate_drives_list_wip_and_delivery_together(
     db.save_session(row)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope="/scope")
-        tm.create_task(connection, "project", "Interrupted task", par_number=90)
+        seed_task(connection, "project", "Interrupted task", par_number=90)
     tm.bind_task_to_session("/scope", "quarantined-session", "90")
     db.update_session_lifecycle(
         "quarantined-session",
@@ -235,6 +170,7 @@ async def test_one_predicate_drives_list_wip_and_delivery_together(
 
     local_manager = SessionManager()
     found = local_manager.get_by_name("worker", "/scope")
+    found.worktree_path = str(tm.active_runtime().store.root)
     found.loaded = True
     local_manager.sessions[found.id] = found
     monkeypatch.setattr(routes, "manager", local_manager)
@@ -329,7 +265,7 @@ async def test_switch_repairs_current_binding_then_becomes_clean_noop(
     db.save_session(row)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope="/scope")
-        tm.create_task(connection, "project", "Interrupted task", par_number=90)
+        seed_task(connection, "project", "Interrupted task", par_number=90)
     tm.bind_task_to_session("/scope", "quarantined-session", "90")
     db.update_session_lifecycle(
         "quarantined-session",
@@ -424,80 +360,10 @@ def test_legacy_merge_warning_names_the_exact_repair_call():
     assert "idempotent" in warning["message"]
 
 
-def _allocator_store(tmp_path):
-    from app import db, tm
-    from app.ia.task_store import TaskStore, build_migration_manifest
-    from tests.test_knowledge_runtime_debt_361 import _task_projection_snapshot
-
-    db.init_db()
-    scope = str(tmp_path / "repo")
-    (tmp_path / "repo").mkdir()
-    with tm._conn() as connection:
-        tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(connection, "project", "existing", par_number=1)
-    snapshot = _task_projection_snapshot()
-    snapshot["projects"][0].update(id="project", scope=scope)
-    snapshot["tasks"][0].update(
-        id=task["id"], project_id="project", par_number=1, title="existing",
-    )
-    store = TaskStore(
-        canonical_root=tmp_path / "canonical-tasks",
-        projection_path=tmp_path / "task-current.db",
-    )
-    store.migrate(build_migration_manifest(snapshot))
-    return scope, store
 
 
-@pytest.mark.parametrize("request_key", ["", "request-key-499-gap"])
-def test_shared_allocator_skips_surviving_artifact_directories(tmp_path, request_key):
-    from app import tm
-
-    scope, store = _allocator_store(tmp_path)
-    artifacts = tmp_path / "repo" / ".orchestra" / "tasks"
-    (artifacts / "2").mkdir(parents=True)
-    (artifacts / "3").mkdir()
-
-    with tm.ia_process_task_store_mode(store=store, mode="canonical"):
-        created = tm.api_create_task(
-            "project", "after artifact gap", scope=scope, request_key=request_key,
-        )
-
-    assert created["par"] == "4"
-    assert store.task_get("4", project="project")["title"] == "after artifact gap"
-    with tm._conn() as connection:
-        numbers = [
-            row[0] for row in connection.execute(
-                "SELECT par_number FROM tm_tasks WHERE project_id='project' "
-                "ORDER BY par_number"
-            ).fetchall()
-        ]
-    assert numbers == [1, 4]
 
 
-def test_shared_allocator_still_refuses_genuine_store_divergence(tmp_path):
-    from app import tm
-    from app.ia.task_store import IdentityConflictError
-
-    scope, store = _allocator_store(tmp_path)
-    artifacts = tmp_path / "repo" / ".orchestra" / "tasks"
-    (artifacts / "2").mkdir(parents=True)
-    (artifacts / "3").mkdir()
-    with tm._conn() as connection:
-        tm.create_task(connection, "project", "legacy-only", par_number=3)
-
-    with tm.ia_process_task_store_mode(store=store, mode="canonical"):
-        with pytest.raises(
-            IdentityConflictError,
-            match="task display counter mismatch.*canonical=2, legacy=4",
-        ):
-            tm.api_create_task("project", "must refuse", scope=scope)
-
-    with pytest.raises(ValueError, match="2 not found"):
-        store.task_get("2", project="project")
-    with tm._conn() as connection:
-        assert connection.execute(
-            "SELECT count(*) FROM tm_tasks WHERE project_id='project'"
-        ).fetchone()[0] == 2
 
 
 @pytest.mark.asyncio
@@ -573,7 +439,7 @@ async def test_same_task_repair_refuses_actual_worktree_drift(tmp_path, monkeypa
     db.save_session(row)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope="/scope")
-        tm.create_task(connection, "project", "Interrupted task", par_number=90)
+        seed_task(connection, "project", "Interrupted task", par_number=90)
     tm.bind_task_to_session("/scope", "quarantined-session", "90")
     db.update_session_lifecycle(
         "quarantined-session", branch="task-90/worker", base_branch="main",
@@ -613,7 +479,7 @@ async def test_repair_persistence_failure_changes_neither_binding_owner(
     db.save_session(row)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope="/scope")
-        task = tm.create_task(connection, "project", "Interrupted task", par_number=90)
+        task = seed_task(connection, "project", "Interrupted task", par_number=90)
     tm.bind_task_to_session("/scope", "quarantined-session", "90")
     db.update_session_lifecycle(
         "quarantined-session", branch="task-90/worker", base_branch="main",
@@ -660,7 +526,7 @@ async def test_repair_refuses_to_create_a_missing_task_binding(tmp_path, monkeyp
     db.save_session(row)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope="/scope")
-        task = tm.create_task(connection, "project", "Unbound task", par_number=90)
+        task = seed_task(connection, "project", "Unbound task", par_number=90)
     manager = SessionManager()
     monkeypatch.setattr(routes, "manager", manager)
     monkeypatch.setattr(routes, "_session_base_branch", lambda *_args: "main")

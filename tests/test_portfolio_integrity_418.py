@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from tests.task_seeds import create_task as seed_task
+
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -48,7 +50,7 @@ def test_unlinked_portfolio_receipt_does_not_block_task_delete(portfolio_state):
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "namespace", name="Namespace", scope="/portfolio")
-        task = tm.create_task(conn, "namespace", "Disposable", par_number=1)
+        task = seed_task(conn, "namespace", "Disposable", par_number=1)
     portfolio.link_task(owner, "alpha", "namespace", "1")
     portfolio.unlink_task(owner, "alpha", "namespace", "1")
     with db._conn() as conn:

@@ -30,7 +30,7 @@ TERMINAL_STATES = ("SUCCEEDED", "PARTIAL", "FAILED", "UNKNOWN")
 # `TASK_LINK_PARTIAL` здесь нет намеренно: «номера не существует» до стадийных провалов
 # не доходит вовсе (см. `_link_status`), а недоступная БД задач обязана оставаться
 # провалом. Спорить про границу — здесь, в одном месте, а не в трёх ветках `if`.
-SECONDARY_STAGES = ("RAG_NOT_READY", "RAG_STATUS_INVALID", "NEXT_TASK_FAILED")
+SECONDARY_STAGES = ("NEXT_TASK_FAILED",)
 _runner_tasks: dict[str, asyncio.Task[None]] = {}
 
 
@@ -399,73 +399,75 @@ def resolve_operation(
             operation_id=operation_id, status=400,
         )
         return _base_result(operation_id, "FAILED", error=error), 400
-    with _conn() as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        row = connection.execute(
-            "SELECT * FROM merge_operations WHERE operation_id=?", (operation_id,),
-        ).fetchone()
-        if not row:
-            return operation_not_found_result(operation_id), 404
-        record = _decode_record(row)
-        result = record["result"]
-        if record["resolved_at"]:
-            return result, 200
-        if record["state"] not in {"PARTIAL", "UNKNOWN"}:
-            error = _error(
-                "OPERATION_NOT_BLOCKING",
-                f"operation is {record['state']}: only PARTIAL or UNKNOWN block new merges",
-                operation_id=operation_id, status=409,
-            )
-            return {**result, "error": error}, 409
-        now = _now()
-        previous_error = result.get("error")
-        resolved = {
-            key: value for key, value in result.items() if key != "error"
-        }
-        resolution = {
-            "resolved_at": now,
-            "reason": reason,
-            "actor": actor,
-        }
-        if previous_error is not None:
-            resolution["previous_error"] = previous_error
-        resolved.update({
-            "resolution": resolution,
-            "next_action": _action(
-                "NONE",
-                f"Operation {operation_id} is resolved; new merges for this worker are "
-                f"unblocked. Its state stays {record['state']} as the record of what happened.",
-            ),
-        })
-        connection.execute(
-            "DELETE FROM tm_task_reservations WHERE operation_id=?",
-            (operation_id,),
-        )
-        finalization = json.loads(record.get("finalization_json") or "{}")
-        final_session_id = str(finalization.get("session_id") or "")
-        final_task = finalization.get("task") or {}
-        final_task_ref = public_task_ref(final_task) if final_task.get("par_number") else ""
-        if final_session_id and final_task_ref:
-            session = connection.execute(
-                "SELECT task_id, status FROM sessions WHERE id=?",
-                (final_session_id,),
+    from app import tm
+    with tm.active_runtime().operation():
+        with _conn() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT * FROM merge_operations WHERE operation_id=?", (operation_id,),
             ).fetchone()
-            if (
-                session is None
-                or session["status"] == "archived"
-                or str(session["task_id"] or "") != final_task_ref
-            ):
-                from app import tm
+            if not row:
+                return operation_not_found_result(operation_id), 404
+            record = _decode_record(row)
+            result = record["result"]
+            if record["resolved_at"]:
+                return result, 200
+            if record["state"] not in {"PARTIAL", "UNKNOWN"}:
+                error = _error(
+                    "OPERATION_NOT_BLOCKING",
+                    f"operation is {record['state']}: only PARTIAL or UNKNOWN block new merges",
+                    operation_id=operation_id, status=409,
+                )
+                return {**result, "error": error}, 409
+            now = _now()
+            previous_error = result.get("error")
+            resolved = {
+                key: value for key, value in result.items() if key != "error"
+            }
+            resolution = {
+                "resolved_at": now,
+                "reason": reason,
+                "actor": actor,
+            }
+            if previous_error is not None:
+                resolution["previous_error"] = previous_error
+            resolved.update({
+                "resolution": resolution,
+                "next_action": _action(
+                    "NONE",
+                    f"Operation {operation_id} is resolved; new merges for this worker are "
+                    f"unblocked. Its state stays {record['state']} as the record of what happened.",
+                ),
+            })
+            connection.execute(
+                "DELETE FROM tm_task_reservations WHERE operation_id=?",
+                (operation_id,),
+            )
+            finalization = json.loads(record.get("finalization_json") or "{}")
+            final_session_id = str(finalization.get("session_id") or "")
+            final_task = finalization.get("task") or {}
+            final_task_ref = public_task_ref(final_task) if final_task.get("par_number") else ""
+            if final_session_id and final_task_ref:
+                session = connection.execute(
+                    "SELECT task_id, status FROM sessions WHERE id=?",
+                    (final_session_id,),
+                ).fetchone()
+                if (
+                    session is None
+                    or session["status"] == "archived"
+                    or str(session["task_id"] or "") != final_task_ref
+                ):
+                    from app import tm
 
-                tm.release_session_task_binding(connection, final_session_id)
-        connection.execute(
-            """UPDATE merge_operations
-               SET resolved_at=?, resolution_outcome=?, resolution_actor=?,
-                   result_json=?, result_hash=?, updated_at=?
-               WHERE operation_id=? AND resolved_at IS NULL""",
-            (now, reason, actor, _json(resolved), _hash(resolved), now, operation_id),
-        )
-        return resolved, 200
+                    tm.release_session_task_binding(connection, final_session_id)
+            connection.execute(
+                """UPDATE merge_operations
+                   SET resolved_at=?, resolution_outcome=?, resolution_actor=?,
+                       result_json=?, result_hash=?, updated_at=?
+                   WHERE operation_id=? AND resolved_at IS NULL""",
+                (now, reason, actor, _json(resolved), _hash(resolved), now, operation_id),
+            )
+            return resolved, 200
 
 
 def _admission_evidence(
@@ -1401,8 +1403,6 @@ def normalize_merge_result(
     operation_id: str,
     raw: Any,
     request: dict[str, Any],
-    *,
-    rag_enabled: bool | None = None,
 ) -> dict[str, Any]:
     if not isinstance(raw, dict):
         error = _error(
@@ -1483,15 +1483,6 @@ def normalize_merge_result(
         else "FAILED" if isinstance(lifecycle, dict)
         else "NOT_RUN"
     )
-    rag_raw = raw.get("rag_backfill_status")
-    if rag_raw == "not_ready" and rag_enabled is False:
-        rag_status = "DISABLED"
-    else:
-        rag_status = {
-            "accepted": "ACCEPTED",
-            "coalesced": "COALESCED",
-            "not_ready": "NOT_READY",
-        }.get(rag_raw, "NOT_RUN" if rag_raw is None else "FAILED")
     if not request.get("next_task_id"):
         next_status = "NOT_REQUESTED"
     else:
@@ -1512,10 +1503,6 @@ def normalize_merge_result(
             "LIFECYCLE_FAILED",
             _text(lifecycle.get("error") if isinstance(lifecycle, dict) else "", "lifecycle persistence failed"),
         ))
-    if rag_status == "NOT_READY":
-        stage_failures.append(("RAG_NOT_READY", "RAG backfill was not accepted"))
-    elif rag_status == "FAILED":
-        stage_failures.append(("RAG_STATUS_INVALID", f"unknown RAG status: {rag_raw!r}"))
     if next_status == "FAILED":
         switch = raw.get("switch") if isinstance(raw.get("switch"), dict) else {}
         task_status = raw.get("task_status") if isinstance(raw.get("task_status"), dict) else {}
@@ -1606,7 +1593,6 @@ def normalize_merge_result(
             "worker_head_pinned": raw.get("worker_head_pinned") or None,
         },
         "task_links": {"status": link_status, "items": link_items},
-        "rag": {"status": rag_status},
         "lifecycle": {"status": lifecycle_status},
         "next_task": {"status": next_status},
         "error": error,
@@ -2218,13 +2204,11 @@ async def _run_operation(operation_id: str) -> None:
                                 "error": f"verified merge receipt missing: {exc}",
                             }
                             raw.pop("receipt", None)
-                    from app import rag_service
 
                     result = normalize_merge_result(
                         operation_id,
                         raw,
                         record["request"],
-                        rag_enabled=rag_service.is_enabled(),
                     )
                     result["acceptance"] = acceptance
                     result["test_gate"] = test_gate

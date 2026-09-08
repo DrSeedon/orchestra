@@ -43,16 +43,16 @@ def test_legal_small_price_is_not_multiplied_on_restart(db):
             (now,),
         )
         c.execute(
-            "INSERT INTO tm_tasks (par_number, project_id, title, price_rub, paid_rub,"
-            " created_at, updated_at) VALUES (1, 'p1', 'task', 500, 300, ?, ?)",
+            "INSERT INTO tm_tasks (par_number, project_id, title, price_rub,"
+            " created_at, updated_at) VALUES (1, 'p1', 'task', 500, ?, ?)",
             (now, now),
         )
 
     dbm.init_db()  # рестарт сервиса
 
     with dbm._conn() as c:
-        row = c.execute("SELECT price_rub, paid_rub FROM tm_tasks").fetchone()
-    assert (row["price_rub"], row["paid_rub"]) == (500, 300)
+        row = c.execute("SELECT price_rub FROM tm_tasks").fetchone()
+    assert row["price_rub"] == 500
 
 
 def test_mid_delivery_run_job_stays_distinguishable_after_reset(db):
@@ -80,87 +80,3 @@ def test_mid_delivery_run_job_stays_distinguishable_after_reset(db):
 
     assert reset == ["run-delivering"], "id доставлявшего джоба обязан вернуться caller'у"
     assert bg_get_job("run-delivering")["last_output"] == "codex verdict tail"
-
-
-def test_money_migration_writes_a_journal_line_when_it_fires(db, caplog):
-    """Умножение живых денег на 1000 обязано оставить след: маркер после ветки одинаков."""
-    import logging
-
-    from app import db as dbm
-
-    now = datetime.now(timezone.utc).isoformat()
-    with dbm._conn() as c:
-        c.execute("DELETE FROM kv WHERE key='money_units_v1'")  # БД, созданная до фикса
-        c.execute(
-            "INSERT INTO tm_projects (id, name, created_at) VALUES ('p1', 'Proj', ?)",
-            (now,),
-        )
-        c.execute(
-            "INSERT INTO tm_tasks (par_number, project_id, title, price_rub, paid_rub,"
-            " created_at, updated_at) VALUES (1, 'p1', 'task', 500, 300, ?, ?)",
-            (now, now),
-        )
-
-    with caplog.at_level(logging.WARNING, logger="db"):
-        dbm.init_db()
-
-    with dbm._conn() as c:
-        row = c.execute("SELECT price_rub, paid_rub FROM tm_tasks").fetchone()
-    assert (row["price_rub"], row["paid_rub"]) == (500000, 300000)
-    fired = [r.getMessage() for r in caplog.records if "money units v1 migration fired" in r.getMessage()]
-    assert fired == ["money units v1 migration fired: max_price=500"]
-
-
-@pytest.mark.asyncio
-async def test_restart_mid_delivery_sends_run_result_instead_of_interruption(db):
-    """Рестарт на доставке результата: досылаем результат, а не 'запуск не выполнялся'.
-
-    Команда run-джоба в 'triggering' УЖЕ вышла (в этот статус его переводит только
-    _trigger после успешного прогона), её хвост лежит в last_output. Прежний
-    restore_from_db слал такому джобу '[Background job INTERRUPTED] … повторный запуск
-    не выполнялся' и выбрасывал результат. Джоб, убитый ВО ВРЕМЯ команды ('active'),
-    по-прежнему обязан получить INTERRUPTED.
-    """
-    from unittest.mock import AsyncMock, MagicMock
-
-    from app.bg_jobs import BgJobManager
-    from app.db import bg_claim_trigger, bg_get_job, bg_save_job
-
-    now = datetime.now(timezone.utc)
-    for job_id, output in (("run-delivering", "codex verdict tail"), ("run-executing", "")):
-        bg_save_job({
-            "id": job_id, "type": "run", "config": '{"command": "codex exec"}',
-            "message": "codex review", "target_session_id": "s-1",
-            "target_name": "w1", "target_scope": "/s", "created_by_name": "orch",
-            "status": "active", "expires_at": (now + timedelta(hours=1)).isoformat(),
-            "trigger_at": None, "created_at": now.isoformat(), "last_output": output,
-        })
-    assert bg_claim_trigger("run-delivering") is True  # рестарт застал доставку
-
-    session = MagicMock()
-    session.id = "s-1"
-    session.send = AsyncMock()
-    manager = MagicMock()
-    manager.ensure_loaded_by_id = AsyncMock(return_value=session)
-
-    async def deliver(_session_id, message, *, provenance):
-        await session.send(message, provenance=provenance)
-
-    manager.send = AsyncMock(side_effect=deliver)
-    mgr = BgJobManager()
-    mgr.set_session_manager(manager)
-
-    await mgr.restore_from_db()
-
-    delivered = {}
-    for call in session.send.await_args_list:
-        message = call.args[0]
-        assert message.provenance.origin == "background_task"
-        delivered[message.provenance.ref] = message.text
-    assert "[Background job completed] codex review" in delivered["run-delivering"]
-    assert "codex verdict tail" in delivered["run-delivering"]
-    assert "повторный запуск не выполнялся" not in delivered["run-delivering"]
-    assert bg_get_job("run-delivering")["status"] == "triggered"
-
-    assert "[Background job INTERRUPTED]" in delivered["run-executing"]
-    assert bg_get_job("run-executing")["status"] == "failed"

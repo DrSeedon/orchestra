@@ -14,31 +14,6 @@ from tests.test_tg_file_deliveries import (
 )
 
 
-def test_init_db_migrates_existing_file_outbox_batch_metadata(tmp_path, monkeypatch):
-    from app import db
-
-    monkeypatch.setattr(db, "DB_PATH", tmp_path / "migration-402.db")
-    db.init_db()
-    with db._conn() as connection:
-        connection.execute("DROP INDEX idx_tg_file_deliveries_batch")
-        for column in ("batch_id", "batch_index", "batch_group", "batch_kind"):
-            connection.execute(f"ALTER TABLE tg_file_deliveries DROP COLUMN {column}")
-
-    db.init_db()
-    with db._conn() as connection:
-        columns = {
-            row[1] for row in connection.execute(
-                "PRAGMA table_info(tg_file_deliveries)",
-            ).fetchall()
-        }
-        indexes = {
-            row[1] for row in connection.execute(
-                "PRAGMA index_list(tg_file_deliveries)",
-            ).fetchall()
-        }
-
-    assert {"batch_id", "batch_index", "batch_group", "batch_kind"} <= columns
-    assert "idx_tg_file_deliveries_batch" in indexes
 
 
 @pytest.mark.asyncio

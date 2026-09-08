@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+from tests.task_seeds import create_task as seed_task
+
 import pytest
 from starlette.requests import Request
 
@@ -86,7 +88,7 @@ async def test_spoofed_session_id_cannot_update_acceptance_command(proof_db):
     from app.routes.tm import TmTaskUpdate, tm_update_task
 
     with tm._conn() as conn:
-        task = tm.create_task(
+        task = seed_task(
             conn, "proj", "spoof-update", par_number=383,
             acceptance_command="original",
         )
@@ -111,7 +113,7 @@ async def test_bound_orchestrator_proof_may_update_acceptance_command(proof_db):
     from app.routes.tm import TmTaskUpdate, tm_update_task
 
     with tm._conn() as conn:
-        task = tm.create_task(
+        task = seed_task(
             conn, "proj", "valid-update", par_number=383,
             acceptance_command="original",
         )
@@ -182,7 +184,7 @@ async def test_bound_orchestrator_proof_cannot_update_foreign_acceptance(proof_d
 
     with tm._conn() as conn:
         tm.ensure_project(conn, "other", scope="/other")
-        foreign = tm.create_task(
+        foreign = seed_task(
             conn, "other", "foreign", par_number=383,
             acceptance_command="foreign-original",
         )
@@ -232,7 +234,7 @@ async def test_worker_and_spoofed_update_cannot_set_or_clear_acceptance(proof_db
     from app.routes.tm import TmTaskUpdate, tm_update_task
 
     with tm._conn() as conn:
-        tm.create_task(conn, "proj", "protected", par_number=42, acceptance_command="true")
+        seed_task(conn, "proj", "protected", par_number=42, acceptance_command="true")
 
     for request in (
         _req(session_id="worker-session", proof=issue_mcp_proof("worker-session")),
@@ -255,7 +257,7 @@ async def test_orchestrator_update_replaces_and_clears_acceptance(proof_db):
     from app.routes.tm import TmTaskUpdate, tm_update_task
 
     with tm._conn() as conn:
-        tm.create_task(conn, "proj", "editable", par_number=42, acceptance_command="true")
+        seed_task(conn, "proj", "editable", par_number=42, acceptance_command="true")
     request = _req(
         session_id="orch-session", proof=issue_mcp_proof("orch-session"),
     )

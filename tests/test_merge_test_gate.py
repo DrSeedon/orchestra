@@ -5,6 +5,8 @@
 """
 from __future__ import annotations
 
+from tests.task_seeds import create_task as seed_task
+
 import re
 import subprocess
 import sys
@@ -123,7 +125,7 @@ def gate_db(tmp_path, monkeypatch, request):
     dbmod.save_session(_session_row(str(worktree)))
     with tm._conn() as conn:
         tm.ensure_project(conn, "proj", scope="/scope")
-        tm.create_task(conn, "proj", "ticket", par_number=42, acceptance_command="")
+        seed_task(conn, "proj", "ticket", par_number=42, acceptance_command="")
     monkeypatch.setattr(
         "app.workspace.inspect_worktree_identity",
         lambda _path: ("task-42/worker", worker_head(str(worktree))),

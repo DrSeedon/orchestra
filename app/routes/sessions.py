@@ -1868,7 +1868,6 @@ async def _finalize_committed_merge(
     """Run the durable checkpoint and the DB stage of a merge that already committed."""
     from app import merge_operations as _ops
     from app.ia import merge_receipts
-    from app import rag_service
 
     finalization["commits"] = merged_commits
     finalization["target_after"] = result.get("target_after") or ""
@@ -1936,7 +1935,6 @@ async def _finalize_committed_merge(
         )
     result.update(applied)
     result["finalization"] = finalization
-    result["rag_backfill_status"] = rag_service.schedule_backfill(row_scope)
     return result
 
 
@@ -2377,8 +2375,6 @@ async def execute_merge_session(
                     }
                 return result
 
-            from app import rag_service
-            result["rag_backfill_status"] = rag_service.schedule_backfill(row_scope)
 
             if task_identity:
                 par = public_task_ref(task_identity)
@@ -2627,21 +2623,11 @@ async def _promote_current_work_for_task(
     except Exception as error:
         task_error = error
 
-    debt = (task_status or {}).get("projection_debt") or {}
-    partial = bool(
-        task_error is not None
-        or debt
-        or (task_status or {}).get("shadow_match") is False
-    )
-    complete = bool(
-        task_error is None
-        and task_status
-        and task_status.get("ok")
-        and not partial
-    )
+    partial = task_error is not None
+    complete = bool(task_error is None and task_status and task_status.get('ok'))
     if not complete and partial:
         message = err_text(task_error) if task_error is not None else str(
-            (task_status or {}).get("error") or debt.get("message") or "task binding is partial"
+            (task_status or {}).get("error") or "task binding is partial"
         )
         return {
             **promotion,

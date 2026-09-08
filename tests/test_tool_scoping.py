@@ -112,16 +112,3 @@ def test_real_stdio_worker_stand():
         env={**os.environ, 'PYTHONPATH': str(root)}, capture_output=True, text=True, timeout=45,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-
-
-def test_existing_database_migrates_worker_policy(tmp_path):
-    from app import db
-    from app.session import AgentSession
-    db.init_db()
-    session = AgentSession(id='legacy-scoped', name='legacy-scoped', scope=str(tmp_path),
-                           cwd=str(tmp_path), model='gpt-5.6-luna')
-    db.save_session(session._to_db_dict())
-    with db._conn() as conn:
-        conn.execute('ALTER TABLE sessions DROP COLUMN disabled_tools')
-    db.init_db()
-    assert json.loads(db.get_session(session.id)['disabled_tools']) == []

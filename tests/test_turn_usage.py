@@ -148,57 +148,6 @@ def test_cached_quota_state_returns_null_without_fresh_data(
     assert row["quota_sampled_at"] is None
 
 
-def test_turn_usage_migrates_existing_rows_with_unknown_quota(tmp_path, monkeypatch):
-    db_path = tmp_path / "old-turn-usage.db"
-    with sqlite3.connect(db_path) as conn:
-        conn.execute("""
-            CREATE TABLE turn_usage (
-                id INTEGER PRIMARY KEY,
-                event_id TEXT NOT NULL UNIQUE,
-                ts TEXT NOT NULL,
-                session_id TEXT NOT NULL,
-                scope TEXT NOT NULL DEFAULT '',
-                task_id TEXT NOT NULL DEFAULT '',
-                runtime TEXT NOT NULL,
-                model TEXT NOT NULL,
-                ok INTEGER NOT NULL,
-                stop_reason TEXT NOT NULL,
-                cost_usd REAL NOT NULL,
-                input_tokens INTEGER NOT NULL,
-                output_tokens INTEGER NOT NULL,
-                cache_read_tokens INTEGER NOT NULL,
-                cache_create_tokens INTEGER NOT NULL
-            )
-        """)
-        conn.execute("""
-            INSERT INTO turn_usage
-            (event_id, ts, session_id, runtime, model, ok, stop_reason,
-             cost_usd, input_tokens, output_tokens,
-             cache_read_tokens, cache_create_tokens)
-            VALUES ('old-turn', '2026-07-29T08:00:00+00:00', 'session-1',
-                    'codex', 'gpt-5.6-sol', 1, 'end_turn', 1, 10, 2, 5, 0)
-        """)
-    monkeypatch.setattr("app.db.DB_PATH", db_path)
-    from app.db import init_db
-
-    init_db()
-
-    with sqlite3.connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(turn_usage)")}
-        row = conn.execute(
-            "SELECT * FROM turn_usage WHERE event_id = 'old-turn'"
-        ).fetchone()
-    assert {
-        "quota_five_hour_pct",
-        "quota_seven_day_pct",
-        "quota_primary_pct",
-        "quota_sampled_at",
-    } <= columns
-    assert row["quota_five_hour_pct"] is None
-    assert row["quota_seven_day_pct"] is None
-    assert row["quota_primary_pct"] is None
-    assert row["quota_sampled_at"] is None
 
 
 def test_turn_usage_records_collection_start_without_claiming_history(usage_db):

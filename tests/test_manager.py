@@ -1,5 +1,7 @@
 """TDD tests for manager.py — SessionManager."""
 
+from tests.task_seeds import create_task as seed_task
+
 import asyncio
 import threading
 from datetime import datetime, timezone
@@ -616,8 +618,8 @@ class TestAtomicSpawnLifecycle:
         with tm._conn() as conn:
             tm.ensure_project(conn, "a", scope="/a")
             tm.ensure_project(conn, "b", scope="/b")
-            task_a = tm.create_task(conn, "a", "A", par_number=1)
-            task_b = tm.create_task(conn, "b", "B", par_number=2)
+            task_a = seed_task(conn, "a", "A", par_number=1)
+            task_b = seed_task(conn, "b", "B", par_number=2)
         results = await asyncio.gather(
             mgr.create_session(
                 name="repo-shared", scope="/a", cwd=str(repo),
@@ -710,8 +712,8 @@ class TestAtomicSpawnLifecycle:
                 "INSERT INTO tm_projects (id, name, prefix, scope, created_at) VALUES (?, ?, ?, ?, ?)",
                 ("seedon", "seedon", "LOW", "/lower", now),
             )
-            task_a = tm.create_task(conn, "Seedon", "A", par_number=93)
-            task_b = tm.create_task(conn, "seedon", "B", par_number=93)
+            task_a = seed_task(conn, "Seedon", "A", par_number=93)
+            task_b = seed_task(conn, "seedon", "B", par_number=93)
 
         session = await mgr.create_session(
             name="scoped-task", scope="/lower", cwd="/tmp",
@@ -734,7 +736,7 @@ class TestAtomicSpawnLifecycle:
 
         with tm._conn() as conn:
             tm.ensure_project(conn, "project", scope="/s")
-            task = tm.create_task(conn, "project", "next", par_number=93)
+            task = seed_task(conn, "project", "next", par_number=93)
         session = await mgr.create_session(
             name="warning", scope="/s", cwd="/tmp",
             model="claude-sonnet-5[1m]", task_id="93",
@@ -762,7 +764,7 @@ class TestAtomicSpawnLifecycle:
         repo = _git_repo(tmp_path)
         with tm._conn() as conn:
             tm.ensure_project(conn, "project", scope="/s")
-            task = tm.create_task(conn, "project", "next", par_number=93)
+            task = seed_task(conn, "project", "next", par_number=93)
 
         if failure_stage == "worktree":
             monkeypatch.setattr(

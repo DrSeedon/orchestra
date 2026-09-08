@@ -53,7 +53,7 @@ You are not the dispatcher. Deciding what to cut into tasks, who gets which one,
 git clone https://github.com/DrSeedon/orchestra.git
 cd orchestra
 cp .env.example .env
-uv sync              # --extra rag adds the deprecated vector memory, see Features
+uv sync
 
 # Run
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
@@ -123,7 +123,7 @@ not to*:
 | Free models as the default workhorse | 🚫 | Measured: 2 of 30 closed tickets solved (6.67 %), and 53 of 60 runs failed on availability rather than quality (#422) |
 | Grok kept current with Claude and Codex | 🚫 | Added for one narrow job and left unmaintained. It still runs; it is not a peer |
 | Lexical project memory agents must read before working | ✅ | `.orchestra/kb/`, one fact per line with the command that proves it |
-| Vector / semantic memory | 🚫 | Built, measured, retired: on an 18-question holdout from this repo, vector search scored **0 unique wins against 6 for plain `rg`**. The implementation still ships and still runs if you enable it (`--extra rag`, off by default) — we just don't build on it any more |
+| Vector / semantic memory | 🚫 | Built, measured, retired: on an 18-question holdout from this repo, vector search scored **0 unique wins against 6 for plain `rg`**. The implementation and optional ML dependencies have been removed |
 | Bounded shared startup instructions | ✅ | `AGENTS.md` and `CLAUDE.md` are byte-identical. The KB topic directory is not in them: the platform injects it into the system prompt from `.orchestra/kb/README.md` of the agent's own project, so a new topic is visible on the next turn without a restart. CI rejects drift, missing topics and oversized files (`python3 scripts/check_instruction_contract.py`). Topic details and the full former guide stay on demand |
 | Dashboard (`dashboard.html` via `app/routes/system.py:77`) and Telegram control (`app/tg_bridge.py`) | ✅ | Voice messages are transcribed with Deepgram `nova-3`, `app/transcription.py:72` |
 | Terminal client, desktop or mobile app | 🚫 | Never built: the workplace is the dashboard plus Telegram. Phone access is Telegram, not an app |
@@ -241,13 +241,12 @@ Agents search past work across task docs, project rules and prior agent messages
 Retrieval is lexical: plain `rg` over the knowledge base, which is written for that — one fact per
 line, with exact paths, symbols and the command that proves it.
 
-**The vector path is deprecated.** Hybrid retrieval (fastembed + sqlite-vec, fused with RRF,
-reindexed on every merge) is still in the code and still runs for anyone who turns it on with
-`uv sync --extra rag` + `RAG_ENABLED=true`, but it is off by default, it is not where new work
-goes, and we don't recommend building on it. The reason is our own A/B, not a preference: on an
-18-question holdout from this repository, vector search scored **0 unique wins against 6 for
-ordinary `rg`**. With the flag off nothing ML is loaded and `search_memory` replies with the grep
-command to run instead.
+The vector index and its ML dependencies have been removed. `search_memory` reads project
+Markdown and the original SQLite logs directly; edits are visible without reindexing.
+Tasks have one private Git store and one projection in the runtime SQLite database.
+Existing installations must prepare an offline migration with `python -m scripts.migrate_task_storage`
+before switching to schema version 1. Use `python -m scripts.sync_tasks` to merge the private task
+repository and refresh its projection. Task repositories must never use the public code remote.
 
 ### 📊 Real-Time Dashboard
 HTMX + SSE dashboard shows every agent, their status, context usage, cache hit rate, current task, and live logs. No polling, no refresh.
@@ -313,7 +312,6 @@ DEEPGRAM_API_KEY=your_key
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
 - Codex and Grok runtimes behind one backend contract (JSON-RPC over stdio), plus the in-process OpenRouter Harness
 - SQLite (WAL mode), git worktrees
-- fastembed + sqlite-vec — deprecated vector memory, off by default (`--extra rag`)
 - Tailwind CSS, highlight.js, marked.js (bundled offline)
 - aiogram 3.x (Telegram bridge)
 - Deepgram Nova-3 (voice transcription)

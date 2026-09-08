@@ -6,6 +6,8 @@ builder links the merge to whatever numeric tail they end in (`UTF-8` -> `#8`).
 Both directions are covered here; the control arm keeps the gate itself honest.
 """
 
+from tests.task_seeds import create_task as seed_task
+
 import json
 import subprocess
 from pathlib import Path
@@ -36,8 +38,8 @@ async def test_prose_token_neither_refuses_nor_relabels_an_honest_merge(
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
         # #8 is a real neighbouring task: mislinking must be observable, not silent.
-        tm.create_task(connection, "project", "Unrelated neighbour", par_number=8)
-        task = tm.create_task(
+        seed_task(connection, "project", "Unrelated neighbour", par_number=8)
+        task = seed_task(
             connection, "project", "Honest work", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -96,7 +98,7 @@ async def test_unknown_leading_ref_is_reported_without_blocking_merge(monkeypatc
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Bound", par_number=42, status="in_progress",
         )
         connection.execute(
@@ -147,7 +149,7 @@ async def test_reserved_operation_trailer_in_body_is_refused_before_git(
     scope = str(repo)
     with tm._conn() as connection:
         tm.ensure_project(connection, "project", scope=scope)
-        task = tm.create_task(
+        task = seed_task(
             connection, "project", "Bound", par_number=42, status="in_progress",
         )
         connection.execute(

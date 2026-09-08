@@ -258,7 +258,7 @@ def test_t1_dirty_check_occurs_inside_repository_mutation_lock(tmp_path: Path, m
     assert not (repo / ".orchestra").exists()
 
 
-def test_t4_startup_runs_migration_before_knowledge_runtime():
+def test_t4_startup_runs_layout_migration_before_task_runtime():
     tree = ast.parse((ROOT / "app" / "main.py").read_text(encoding="utf-8"))
     lifespan = next(
         node for node in tree.body
@@ -273,7 +273,7 @@ def test_t4_startup_runs_migration_before_knowledge_runtime():
         elif isinstance(node.func, ast.Attribute):
             calls.append((node.func.attr, node.lineno))
     migration_lines = [line for name, line in calls if name == "migrate_registered_project_layouts"]
-    knowledge_lines = [line for name, line in calls if name == "knowledge_runtime_mode"]
+    knowledge_lines = [line for name, line in calls if name == "task_runtime_mode"]
     resume_lines = [line for name, line in calls if name == "auto_resume_all"]
     assert len(migration_lines) == 1, "T4 lifespan must invoke fleet migration exactly once"
     assert len(knowledge_lines) == 1
@@ -297,41 +297,6 @@ def test_t3_pipeline_and_worker_memory_use_only_dot_orchestra(tmp_path: Path):
         prompting.load_worker_memory("w", "worker", str(repo))
 
 
-def test_t3_task_guard_knowledge_owner_and_evidence_validator_use_new_root(tmp_path: Path):
-    from app.ia.knowledge import KnowledgeService, PromotionValidationError
-    from app.ia.project_distribution import _destination_row
-    from app.ia.project_knowledge import ProjectKnowledgeRouter
-    from app.tm import _next_par
-
-    connection = sqlite3.connect(":memory:")
-    connection.execute("CREATE TABLE tm_tasks(project_id TEXT, par_number INTEGER)")
-    connection.execute("CREATE TABLE tm_projects(id TEXT, scope TEXT)")
-    connection.execute("INSERT INTO tm_tasks VALUES('p', 1)")
-    connection.execute("INSERT INTO tm_projects VALUES('p', ?)", (str(tmp_path),))
-    (tmp_path / ".orchestra" / "tasks" / "2").mkdir(parents=True)
-    assert _next_par(connection, "p") == 3
-
-    router = ProjectKnowledgeRouter(
-        project_roots={"p": tmp_path},
-        engine_state_path=tmp_path / "owner.json",
-        central_reader=lambda *_: {},
-    )
-    record = {"project_id": "p", "stable_id": str(uuid.uuid4()), "record_type": "knowledge.fact"}
-    assert router._record_path("p", record).relative_to(tmp_path).as_posix().startswith(
-        ".orchestra/kb/records/"
-    )
-
-    owner = {"project_root": tmp_path}
-    destination = _destination_row(
-        owner,
-        {"stable_id": str(uuid.uuid4()), "source_relative_path": "source", "size": 1, "sha256": "x"},
-    )
-    assert destination["destination_relative_path"].startswith(".orchestra/kb/records/")
-    assert KnowledgeService._cold_source_path(".orchestra/tasks/1/research.md").parts[:2] == (
-        ".orchestra", "tasks"
-    )
-    with pytest.raises(PromotionValidationError):
-        KnowledgeService._cold_source_path("docs/tasks/1/research.md")
 
 
 def _map_moved_path(old_path: str) -> str:

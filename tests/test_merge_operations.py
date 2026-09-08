@@ -843,7 +843,6 @@ def test_post_commit_stage_failures_preserve_all_stage_statuses():
     assert result["commit_point"] == "REACHED"
     assert result["task_links"]["status"] == "PARTIAL"
     assert result["lifecycle"]["status"] == "FAILED"
-    assert result["rag"]["status"] == "ACCEPTED"
     assert result["next_task"]["status"] == "FAILED"
     assert set(result["error"]["details"]["failed_stages"]) == {
         "TASK_LINK_PARTIAL", "LIFECYCLE_FAILED", "NEXT_TASK_FAILED",
@@ -873,26 +872,6 @@ def test_post_commit_failure_keeps_git_status_succeeded():
     assert result["commit_point"] == "REACHED"
     assert result["git"]["status"] == "SUCCEEDED"
 
-
-def test_disabled_rag_is_explicit_terminal_policy_not_partial():
-    import app.merge_operations as operations
-
-    result = operations.normalize_merge_result(
-        "00000000-0000-0000-0000-000000000006",
-        {
-            "ok": True, "state": "merged", "commit_point": "target_committed",
-            "target_branch": "main", "target_before": "a" * 40,
-            "target_after": "c" * 40, "worker_branch": "task-42/worker",
-            "worker_head": "b" * 40, "conflicts": [],
-            "lifecycle_status": {"ok": True}, "rag_backfill_status": "not_ready",
-        },
-        operations.normalize_request(name="worker", scope="/scope", target="main"),
-        rag_enabled=False,
-    )
-
-    assert result["operation_state"] == "SUCCEEDED"
-    assert result["rag"]["status"] == "DISABLED"
-    assert result["error"] is None
 
 
 def test_legacy_http_merge_is_426_and_capability_is_visible(monkeypatch):
@@ -1071,10 +1050,9 @@ def test_secondary_stage_failures_do_not_block_after_commit():
     assert result["operation_state"] == "SUCCEEDED"
     assert result["operation_state"] not in operations.ACTIVE_STATES
     assert result["error"] is None
-    assert result["rag"]["status"] == "NOT_READY"
     assert result["next_task"]["status"] == "FAILED"
     codes = {warning["code"] for warning in result["warnings"]}
-    assert codes == {"RAG_NOT_READY", "NEXT_TASK_FAILED"}
+    assert codes == {"NEXT_TASK_FAILED"}
     assert "branch busy" in result["next_action"]["message"]
 
 
@@ -1095,10 +1073,9 @@ def test_primary_stage_failure_after_commit_still_blocks():
     assert result["operation_state"] in operations.ACTIVE_STATES
     assert result["error"]["code"] == "LIFECYCLE_FAILED"
     assert set(result["error"]["details"]["failed_stages"]) == {
-        "LIFECYCLE_FAILED", "RAG_NOT_READY",
+        "LIFECYCLE_FAILED",
     }
-    # Вторичное не исчезает молча даже когда первичное уже держит операцию.
-    assert [warning["code"] for warning in result["warnings"]] == ["RAG_NOT_READY"]
+    assert result["warnings"] == []
 
 
 def test_unknown_commit_point_is_never_auto_closed_by_secondary_rule():

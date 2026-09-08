@@ -6,6 +6,8 @@
 результат ПЕРВОЙ операции, и новые коммиты в main не попадали никогда.
 """
 
+from tests.task_seeds import create_task as seed_task
+
 import asyncio
 import subprocess
 import uuid
@@ -83,7 +85,7 @@ def live_merge(tmp_path, monkeypatch):
     # Существует только задача 24. Номер 25 не существует — ровно как в инцидентах.
     with dbmod._conn() as connection:
         project = tm.ensure_project(connection, "proj", "proj", scope=str(repo))
-        tm.create_task(connection, project["id"], "живая задача", par_number=24)
+        seed_task(connection, project["id"], "живая задача", par_number=24)
 
     async def fake_execute(*, session_id, expected_name, expected_scope,
                            expected_branch, expected_head, expected_target_head,

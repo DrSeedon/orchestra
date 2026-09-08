@@ -324,14 +324,12 @@ async def _shutdown_runtime(
     restart_inbox_drain: "asyncio.Task | None",
     snapshot_task: asyncio.Task,
     bridge_task: asyncio.Task,
-    projection_repair_task: "asyncio.Task | None",
     portfolio_watchdog_task: "asyncio.Task | None",
 ) -> None:
     startup_tasks = {
         task for task in (
             restart_inbox_drain,
             snapshot_task,
-            projection_repair_task,
             portfolio_watchdog_task,
         )
         if task is not None and not task.done()
@@ -344,10 +342,6 @@ async def _shutdown_runtime(
     from app.merge_operations import shutdown_merge_operations
     restart_guard.note_shutdown_phase("merge_operations", "shutdown_merge_operations")
     await shutdown_merge_operations()
-
-    from app import rag_service
-    restart_guard.note_shutdown_phase("rag", "rag_service.shutdown")
-    rag_service.shutdown()
 
     from app.tg_file_deliveries import shutdown_file_delivery_service
     restart_guard.note_shutdown_phase(
@@ -386,6 +380,8 @@ async def _shutdown_runtime(
 async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
+    from app import db as database
+    database.DB_PATH = database._resolve_db_path()
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
     init_db()
@@ -400,9 +396,9 @@ async def lifespan(app: FastAPI):
                 result.get("code", "ORCHESTRA_LAYOUT_GIT_ERROR"),
                 result.get("error", "unknown migration error"),
             )
-    from app.ia.runtime import knowledge_runtime_mode, production_runtime_config
-    with knowledge_runtime_mode(production_runtime_config()) as knowledge_owner:
-        app.state.knowledge_runtime = knowledge_owner
+    from app.task_runtime import task_runtime_mode, production_runtime
+    with task_runtime_mode(production_runtime()) as task_owner:
+        app.state.task_runtime = task_owner
         from app.artifacts import cleanup_expired
         cleanup_expired()
         from app.models import refresh_models, is_proxy_connected
@@ -449,20 +445,15 @@ async def lifespan(app: FastAPI):
         portfolio_watchdog_task = ensure_portfolio_watchdog(app)
         from app.runaway_guard import ensure_task as ensure_runaway_guard
         ensure_runaway_guard(app)
-        from app import rag_service
-        if rag_service.is_enabled():
-            rag_service.initialize()
         from app.merge_operations import restore_merge_operations
         await restore_merge_operations()
         if _fdstore.notify_ready():
             logger.info("systemd readiness published after application startup gates")
-        projection_repair_task = knowledge_owner.schedule_projection_repair()
         yield
     await _shutdown_runtime(
         _restart_inbox_drain,
         snapshot_task,
         bridge_task,
-        projection_repair_task,
         portfolio_watchdog_task,
     )
     if getattr(app.state, "portfolio_watchdog_task", None) is portfolio_watchdog_task:
@@ -500,7 +491,6 @@ from app.routes.system import router as system_router
 from app.routes.tg import router as tg_router
 from app.routes.subagent import router as subagent_router
 from app.routes.memory import router as memory_router
-from app.routes.knowledge import router as knowledge_router
 from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
 from app.routes.portfolio import router as portfolio_router
@@ -511,7 +501,6 @@ app.include_router(system_router)
 app.include_router(tg_router)
 app.include_router(subagent_router)
 app.include_router(memory_router)
-app.include_router(knowledge_router)
 app.include_router(merge_operations_router)
 app.include_router(artifacts_router)
 app.include_router(portfolio_router)

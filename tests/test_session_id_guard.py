@@ -67,43 +67,6 @@ class TestGuardInDatabase:
                 c.execute("UPDATE sessions SET id='' WHERE id=?", (sid,))
         assert db.get_session(sid) is not None
 
-    def test_existing_database_gets_the_trigger_on_migration(self, tmp_path, monkeypatch):
-        """БД, созданная ДО фикса, чинится миграцией: та же схема, триггеров ещё нет."""
-        import app.db as dbmod
-
-        old = tmp_path / "old.db"
-        monkeypatch.setattr(dbmod, "DB_PATH", old)
-        dbmod.init_db()
-        # Откатываем схему к дофиксовой: тот же набор колонок, но без NOT NULL и без
-        # триггеров — ровно та БД, что лежит у нас в проде с мая.
-        with dbmod._conn() as c:
-            ddl = c.execute(
-                "SELECT sql FROM sqlite_master WHERE type='table' AND name='sessions'"
-            ).fetchone()[0]
-            c.executescript(f"""
-                PRAGMA foreign_keys=OFF;
-                DROP TRIGGER sessions_id_required_insert;
-                DROP TRIGGER sessions_id_required_update;
-                ALTER TABLE sessions RENAME TO sessions_pre_fix;
-                {ddl.replace("id TEXT PRIMARY KEY NOT NULL", "id TEXT PRIMARY KEY")};
-                INSERT INTO sessions SELECT * FROM sessions_pre_fix;
-                DROP TABLE sessions_pre_fix;
-            """)
-            c.execute("INSERT INTO sessions (id, name, scope, cwd, model, created_at) "
-                      "VALUES (NULL, 'ghost', '/s', '/s', 'm', '2026-08-03')")
-            ghosts = c.execute(
-                "SELECT COUNT(*) FROM sessions WHERE id IS NULL").fetchone()[0]
-        assert ghosts == 1, "предпосылка теста: до фикса строка-призрак вставляется"
-
-        dbmod.init_db()  # повторный запуск сервиса = миграция
-        with pytest.raises(sqlite3.IntegrityError):
-            with dbmod._conn() as c:
-                c.execute("INSERT INTO sessions (id, name, scope, cwd, model, created_at) "
-                          "VALUES (NULL, 'ghost2', '/s2', '/s', 'm', '2026-08-04')")
-        # уже лежащую строку триггер не трогает — это данные, их чинит человек
-        with dbmod._conn() as c:
-            assert c.execute(
-                "SELECT COUNT(*) FROM sessions WHERE id IS NULL").fetchone()[0] == 1
 
 
 class TestSilentZeroRowUpdateIsLoud:

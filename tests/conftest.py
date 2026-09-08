@@ -351,3 +351,31 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if _BROWSER_FIXTURES & set(getattr(item, "fixturenames", ())):
             item.add_marker("browser")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_git_task_owner(tmp_path, monkeypatch):
+    """Task API tests use real private Git; SQL-only tests need no repository setup."""
+    import subprocess
+    from app import db, tm, task_runtime
+    from app.task_store import TaskStore
+    from app.task_refs import new_task_prefix
+    runtimes = {}
+
+    def runtime():
+        if task_runtime._ACTIVE is not None:
+            return task_runtime._ACTIVE
+        path = Path(db.DB_PATH).resolve()
+        if path not in runtimes:
+            root = tmp_path / f'git-tasks-{len(runtimes)}'
+            subprocess.run(['git', 'init', '--initial-branch=main', str(root)], check=True, capture_output=True)
+            subprocess.run(['git', '-C', str(root), 'config', 'user.name', 'Task Test'], check=True)
+            subprocess.run(['git', '-C', str(root), 'config', 'user.email', 'test@example.invalid'], check=True)
+            store = TaskStore(root, origin=new_task_prefix())
+            store.initialize()
+            runtimes[path] = task_runtime.TaskRuntime(store, path)
+        runtimes[path].store.origin = new_task_prefix()
+        return runtimes[path]
+
+    monkeypatch.setattr(tm, 'active_runtime', runtime)
+    monkeypatch.setattr(task_runtime, 'active_runtime', runtime)

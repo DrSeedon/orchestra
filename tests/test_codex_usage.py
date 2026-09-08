@@ -365,29 +365,6 @@ def test_usage_history_includes_latest_snapshot_before_next_grid_point(tmp_path,
     assert history[-1]["providers"] == latest_providers
 
 
-def test_usage_snapshot_migrates_old_history_schema(tmp_path, monkeypatch):
-    db_path = tmp_path / "old-usage.db"
-    with sqlite3.connect(db_path) as conn:
-        conn.execute("""
-            CREATE TABLE usage_snapshots (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ts TEXT NOT NULL,
-                five_hour_pct REAL DEFAULT 0,
-                seven_day_pct REAL DEFAULT 0,
-                five_hour_resets_at TEXT,
-                seven_day_resets_at TEXT,
-                total_cost_usd REAL DEFAULT 0,
-                active_agents INTEGER DEFAULT 0
-            )
-        """)
-    monkeypatch.setattr("app.db.DB_PATH", db_path)
-    from app.db import init_db
-
-    init_db()
-
-    with sqlite3.connect(db_path) as conn:
-        columns = {row[1] for row in conn.execute("PRAGMA table_info(usage_snapshots)")}
-    assert "provider_usage" in columns
 
 
 @pytest.mark.asyncio
