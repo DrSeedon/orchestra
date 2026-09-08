@@ -16,6 +16,7 @@ import json
 import os
 import re
 import subprocess
+import threading
 import uuid
 
 from app.task_refs import TaskRef, parse_task_ref
@@ -71,7 +72,8 @@ def _validate(record: dict) -> None:
     if type(record['price_rub']) is not int or record['price_rub'] < 0:
         raise ValueError('task price must be a nonnegative integer')
     acceptance = record['acceptance']
-    if not isinstance(acceptance, dict) or set(acceptance) != {'command', 'manifest_paths', 'required'}:
+    if (not isinstance(acceptance, dict) or not {'command', 'manifest_paths', 'required'} <= set(acceptance)
+            or set(acceptance) - {'command', 'manifest_paths', 'required', 'version', 'revision', 'updated_at', 'updated_by'}):
         raise ValueError('invalid acceptance shape')
     if (not isinstance(acceptance['command'], str) or type(acceptance['required']) is not bool
             or not isinstance(acceptance['manifest_paths'], list)
@@ -87,6 +89,8 @@ class TaskStore:
         self.root = Path(root).resolve()
         TaskRef(origin, 1)
         self.origin = origin
+        self._mutex = threading.RLock()
+        self._lock_depth = 0
 
     def _git(self, *args: str, check: bool = True) -> subprocess.CompletedProcess:
         result = subprocess.run(['git', '-C', str(self.root), *args],
@@ -97,15 +101,21 @@ class TaskStore:
 
     @contextmanager
     def _lock(self):
-        path = Path(self._git('rev-parse', '--git-path', 'orchestra-tasks.lock').stdout.strip())
-        if not path.is_absolute():
-            path = self.root / path
-        with path.open('a+b') as stream:
-            fcntl.flock(stream, fcntl.LOCK_EX)
-            try:
+        with self._mutex:
+            if self._lock_depth:
                 yield
-            finally:
-                fcntl.flock(stream, fcntl.LOCK_UN)
+                return
+            path = Path(self._git('rev-parse', '--git-path', 'orchestra-tasks.lock').stdout.strip())
+            if not path.is_absolute():
+                path = self.root / path
+            with path.open('a+b') as stream:
+                fcntl.flock(stream, fcntl.LOCK_EX)
+                self._lock_depth = 1
+                try:
+                    yield
+                finally:
+                    self._lock_depth = 0
+                    fcntl.flock(stream, fcntl.LOCK_UN)
 
     def _ready(self):
         marker = self.root / 'task-store.json'
@@ -173,7 +183,9 @@ class TaskStore:
         if set(fields) - (_MUTABLE - {'title'}):
             raise ValueError('unsupported task fields')
         body = {**copy.deepcopy(_DEFAULTS), **copy.deepcopy(fields), 'title': title}
-        fingerprint = hashlib.sha256(_bytes(body)).hexdigest()
+        request_body = copy.deepcopy(body)
+        request_body['acceptance'] = {k: body['acceptance'][k] for k in ('command', 'manifest_paths', 'required')}
+        fingerprint = hashlib.sha256(_bytes(request_body)).hexdigest()
         with self._lock():
             self._ready()
             records = self._records(project)
@@ -209,6 +221,7 @@ class TaskStore:
             return _view(record)
 
     def _commit_files(self, files: dict[Path, bytes], message: str):
+        before_head = self._git('rev-parse', '--verify', 'HEAD', check=False).stdout.strip()
         previous = {p: p.read_bytes() if p.exists() else None for p in files}
         relative = [str(p.relative_to(self.root)) for p in files]
         try:
@@ -224,6 +237,13 @@ class TaskStore:
             self._git('add', '--', *relative)
             self._git('commit', '--only', '-m', message, '--', *relative)
         except BaseException:
+            after_head = self._git('rev-parse', '--verify', 'HEAD', check=False).stdout.strip()
+            if after_head and after_head != before_head and all(
+                self._git('show', f'HEAD:{path.relative_to(self.root)}', check=False).stdout.encode() == content
+                for path, content in files.items()
+            ):
+                # A committed operation survives a lost local acknowledgement.
+                raise
             # A failed commit leaves no accepted operation. Restore only our exact bytes.
             for path, content in files.items():
                 if path.exists() and path.read_bytes() == content:
