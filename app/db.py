@@ -3969,17 +3969,23 @@ def ack_facts(session_id: str, keys: list[str]) -> int:
         return cur.rowcount
 
 
-def save_cli_process_identity(session_id: str, pid: int, started_at: int) -> None:
-    """Publish process identity before pipes can outlive the supervisor."""
-    if pid <= 0 or started_at <= 0:
-        raise ValueError("CLI identity requires a positive PID and start time")
-    with _conn() as connection:
-        changed = connection.execute(
-            "UPDATE sessions SET cli_pid=?,cli_started_at=? WHERE id=?",
-            (pid, started_at, session_id),
+def clear_consumed_handover(session_id: str) -> None:
+    """Do not replay a previous supervisor's buffered bytes on a later crash."""
+    with _conn() as c:
+        c.execute("UPDATE sessions SET active_turn_id = '', leftover = '' WHERE id = ?",
+                  (session_id,))
+
+
+def save_backend_identity(session_id: str, cli_pid: int, cli_started_at: int) -> None:
+    """Persist process identity without overwriting a graceful handover's buffered turn."""
+    with _conn() as c:
+        updated = c.execute(
+            "UPDATE sessions SET cli_pid = ?, cli_started_at = ? WHERE id = ?",
+            (int(cli_pid or 0), int(cli_started_at or 0), session_id),
         )
-        if changed.rowcount != 1:
-            raise ValueError("cannot publish CLI identity for an absent session")
+        if updated.rowcount != 1:
+            raise RuntimeError(f"cannot publish CLI identity: session {session_id} is missing")
+
 
 
 def save_handover_state(session_id: str, active_turn_id: str, leftover: str,

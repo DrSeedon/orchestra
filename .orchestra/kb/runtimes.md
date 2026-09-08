@@ -222,3 +222,9 @@
 
 ## Gaps
 - **Причина потери PID identity во всех пяти исходных отказах #536 не восстановлена.** Часть воркеров уже пересобрала треды; живой lock owner подтверждён для одного старого thread, автоматическое убийство writer не обосновано · ищи: `cli_pid`, `active writer`, «почему воркер глухой после рестарта» · `.orchestra/tasks/536/research.md` · 2026-09-07, #536
+
+## Established
+- **Публикация пайпов и усыновление без PID/starttime — разные гарантии: рабочие пайпы не разрешают замену неизвестного процесса.** Проверены missing/reused identity и доставка JSON-RPC через сохранённый транспорт; реализация #537 также защищает отдельный config-refresh disconnect в CodexBackend · ищи: `publish_backend_fds`, `cli_started_at`, `can_replace_adopted_process`, «воркер глухой после рестарта» · `tests/test_writer_restart_537.py`; `.orchestra/tasks/537/research.md` · 2026-09-08, #537
+
+## Gaps
+- **Восстановление недоступного живого writer через native thread/fork пока не реализовано и требует выбора цены восстановления.** Сохранённая история копируется, но дальнейшие внешние действия старого хода и записи после fork не синхронизируются с копией · ищи: `thread/fork`, `active writer`, «восстановить без потери контекста» · `.orchestra/tasks/537/research.md` · 2026-09-08, #537, запрос Orchestra-orchestrator
