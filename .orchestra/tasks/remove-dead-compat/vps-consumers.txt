@@ -1,5 +1,0 @@
-Read-only VPS census, 2026-09-08T04:43:54.390557+00:00
-Current bound open task runs by schema: [(2, 28), (3, 3)]
-Handoff records by state: [(failed, 5)]
-Historical improvement rules: 0
-No data or service mutations performed.

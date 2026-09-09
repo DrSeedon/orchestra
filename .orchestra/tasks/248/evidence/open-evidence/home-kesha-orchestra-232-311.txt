@@ -1,3 +1,0 @@
-docs/grok-field-guide.md
-docs/tasks/232/codex-review-research.md
-docs/tasks/232/research.md

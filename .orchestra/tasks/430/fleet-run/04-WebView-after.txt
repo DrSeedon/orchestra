@@ -1,2 +1,0 @@
-?? .orchestra/kb/
-?? kiosk.log

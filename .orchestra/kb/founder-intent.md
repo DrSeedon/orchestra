@@ -6,7 +6,7 @@
 самодостаточные разделы с точными символами, условиями и ссылками на проверяемые источники.
 Владелец согласовал очистку KB и всех порождающих мусор промптов; обязательные шаблоны,
 квитанции и автоматическое пополнение после каждой задачи не нужны.
-[Результат изменения](../tasks/kb-agent-memory/README.md).
+[Результат изменения](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/kb-agent-memory/README.md).
 
 ## Дизайн HTML-артефактов
 
@@ -21,7 +21,20 @@
 продукта или отсутствие ответа не являются согласием. Историческое интервью сохранено
 отдельно; текущие полномочия принадлежат [AGENTS.md](../../AGENTS.md).
 
+## Что извлечено из старых HTML-артефактов
+
+Старые HTML-схемы compact/context, model limits, quota runway и usage analytics являются
+объяснением решений на дату создания, не отдельным владельцем настроек. Для новых визуальных
+артефактов используется html-artifacts; значение следует брать у владельца данных.
+
+Наглядность проверяется также на узком экране: горизонтальный overflow, доступность подписей,
+связь наведения с исходным значением и отсутствие декоративных фальшивых графиков. Для
+экспортируемой страницы отдельно проверь print background/color. Старые изображения схем
+не доказывают нынешний состав сервисов.
+
+Источники консолидированных наблюдений: [demo-artifact](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/workers/demo-artifact.md), [model-limits-source-of-truth](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/artifacts/model-limits-source-of-truth.html), [usage-analytics-v2](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/artifacts/usage-analytics-v2.html).
+
 ## Исторические исследования
 
-[Прежние записи с исходными якорями и доказательствами](../archive/knowledge-20260909/kb/founder-intent.md).
+[Прежние записи с исходными якорями и доказательствами](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/kb/founder-intent.md).
 Это материал для проверки гипотез, не текущие инструкции.

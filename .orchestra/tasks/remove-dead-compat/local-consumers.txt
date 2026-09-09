@@ -1,3 +1,0 @@
-Current bound open task runs by schema: [(2, 6), (3, 1)]
-Handoff records by state: [('failed', 2)]
-Historical improvement rules: 0

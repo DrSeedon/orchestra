@@ -6,7 +6,7 @@
 владение. Сначала проверь существующий ход и процессы конкретной сессии. Не сбрасывай native
 thread и не меняй модель вслепую: это может уничтожить доступ к живому контексту.
 Освобождение восстановленного writer исправлено в [backend_codex.py](../../app/backend_codex.py);
-[результат](../tasks/retire-legacy-review/README.md), [проверки повторных рестартов](../tasks/537/research.md).
+[результат](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/retire-legacy-review/README.md), [проверки повторных рестартов](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/537/research.md).
 Повтор того же ошибочного запроса без диагностики не является восстановлением.
 
 ## MCP: конфигурация на диске и tools/list в работающем CLI
@@ -26,5 +26,5 @@ thread и не меняй модель вслепую: это может уни�
 
 ## Исторические исследования
 
-[Прежние записи с исходными якорями и доказательствами](../archive/knowledge-20260909/kb/runtimes.md).
+[Прежние записи с исходными якорями и доказательствами](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/kb/runtimes.md).
 Это материал для проверки гипотез, не текущие инструкции.

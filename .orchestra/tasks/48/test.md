@@ -1,1 +1,0 @@
-Atomic merge+switch test
