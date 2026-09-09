@@ -1,0 +1,50 @@
+{
+  "unrestricted_OLS": {
+    "coef_pp_per_M": [
+      5.023669550315917,
+      0.0028608035691294405,
+      0.8707837543959316,
+      2.0012577778047675
+    ],
+    "warm_9920_pp": 0.003505383099155321,
+    "cold_9915_pp": 0.6470349953544215,
+    "assumed_reclassified_tokens": 100000,
+    "saving_100k_pp": 0.08679229508268022,
+    "max_pings_continuous": 24.759717448171138,
+    "approx_hours_within_work_window": 22.69640766082354,
+    "six_pings_pp": 0.021032298594931928,
+    "six_pings_one_return_probability_threshold": 0.24232909816356515
+  },
+  "free_read_equal_input_write_output5": {
+    "coef_pp_per_M": [
+      0.8246100245314847,
+      0,
+      0.8246100245314847,
+      4.123050122657423
+    ],
+    "warm_9920_pp": 0.0012971115685880255,
+    "cold_9915_pp": 0.6164265039081924,
+    "assumed_reclassified_tokens": 100000,
+    "saving_100k_pp": 0.08246100245314847,
+    "max_pings_continuous": 63.572790845518114,
+    "approx_hours_within_work_window": 58.27505827505827,
+    "six_pings_pp": 0.007782669411528153,
+    "six_pings_one_return_probability_threshold": 0.09438
+  },
+  "quota_proportional_API_1h": {
+    "coef_pp_per_M": [
+      0.1830312919729107,
+      0.01830312919729107,
+      0.3660625839458214,
+      0.9151564598645535
+    ],
+    "warm_9920_pp": 0.014511068587067109,
+    "cold_9915_pp": 0.310785797641571,
+    "assumed_reclassified_tokens": 100000,
+    "saving_100k_pp": 0.03477594547485304,
+    "max_pings_continuous": 2.3965116880397677,
+    "approx_hours_within_work_window": 2.19680238070312,
+    "six_pings_pp": 0.08706641152240266,
+    "six_pings_one_return_probability_threshold": 2.5036389473684206
+  }
+}
