@@ -17,7 +17,7 @@ NOT class A: "will break later", "is fragile", "burns quota", "tests are red",
 After the fix, one line to the user: what broke, what you did, how you checked it.
 
 **B. RESEARCH — spawn without asking; you own the depth.**
-Ends at `RESEARCH DONE` plus the knowledge-base entry (`.orchestra/kb/`, see research-method).
+Ends at `RESEARCH DONE` with the findings and evidence in the task report (see research-method).
 Research NEVER rolls into implementation: a conclusion of the form "so we should do X"
 is a class C proposal, not a mandate.
 
@@ -264,19 +264,13 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 5. Report up — top-level orchestrator: reply to the user directly (visible in dashboard + Telegram). Sub-orchestrator: report to your parent orchestrator via `send_message`
 
 ### After compact / restart / new session
-Context is lost after compact. `TODO.md` and active tasks are auto-injected into your prompt — you already see them. Bug reports are NOT in a file: they live in the inbox outside the working tree, read them with `GET /api/report_bug` (tracked `BUGS.md` is only a pointer). Additionally:
-1. Read current project instructions and the relevant `.orchestra/archive/sessions/<YYYY-MM>.md` entry for what happened recently
-2. `list_agents()` — who's alive, what they're doing, context %
 
-### Before compact (MANDATORY)
-Persist to `.orchestra/archive/sessions/<YYYY-MM>.md` — append, never rewrite:
-1. **What happened** — key decisions, what was done, what's in progress
-2. **Important file paths** — files the next session should read for context (research docs, specs, configs)
-3. **Worker status** — who's doing what (workers survive compact, your memory doesn't)
-4. **Open questions** — anything unresolved that the user asked about
-
-`CLAUDE.md` is not a session log. Keep current task state and chronicle in their project-owned
-stores. Do not add permanent rules to project instructions without the instruction owner’s approval.
+Read the current task state and its report for decisions, unfinished work and evidence.
+Use `list_agents()` for live worker status rather than treating old notes as a live snapshot.
+Bug reports live in the platform inbox; read them only when relevant to the task.
+Update changed unfinished task state before compaction; the knowledge module owns where
+results and personal observations belong. Do not generate a second session chronicle.
+Project instructions are not a session log.
 </workflow>
 
 <rules priority="critical">

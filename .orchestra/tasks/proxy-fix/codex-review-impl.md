@@ -1,1 +1,0 @@
-The changes consistently update the default/recommended Sonnet model references and add a bounded retry loop to the proxy checker without introducing an evident correctness regression in the touched code.

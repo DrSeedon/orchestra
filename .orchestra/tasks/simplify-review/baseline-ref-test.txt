@@ -1,5 +1,0 @@
-ERROR: not found: /mnt/data/Projects/Python/orchestra/tests/test_merge_ref_gate.py::test_unknown_leading_ref_is_still_refused_before_git
-(no match in any of [<Module test_merge_ref_gate.py>])
-
-
-no tests ran in 0.32s

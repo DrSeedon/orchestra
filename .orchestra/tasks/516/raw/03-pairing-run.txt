@@ -1,3 +1,0 @@
-rows loaded: 202475
-tuid pairs: 75365 (ambiguous tuid groups skipped: 87)
-ts   pairs: 100202

@@ -1,2 +1,0 @@
-docs/tasks/123/skill-html-artifacts-izmerenie.html
-docs/tasks/123/skill-html-artifacts-izmerenie.png

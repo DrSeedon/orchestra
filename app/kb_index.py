@@ -17,8 +17,8 @@ _ENTRY = re.compile(r"- \[[^\]]+\]\(([^)]+)\) — (.+)")
 _HEADER = """## Project knowledge base
 
 Index only — the topics are NOT loaded. Pick 1–3 anchors, run
-`rg -n -i -F --glob '*.md' '<anchor>' .orchestra/kb`, then read the matched fact with its
-status and date. Paths below are relative to the repository root."""
+`rg -n -i -F --glob '*.md' '<anchor>' .orchestra/kb`, then read the matching section and its evidence.
+Archived observations are not current instructions. Paths below are relative to the repository root."""
 
 
 def kb_topic_files(root: str | Path) -> set[str]:

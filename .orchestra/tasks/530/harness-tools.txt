@@ -1,5 +1,0 @@
-PYTHONPATH=. /mnt/data/Projects/Python/orchestra/.venv/bin/python -m pytest -q tests/test_harness_tools.py
-............................                                             [100%]
-28 passed in 4.43s
-
-RC=0
