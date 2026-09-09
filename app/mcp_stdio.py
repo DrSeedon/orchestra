@@ -3531,7 +3531,9 @@ async def bg_cancel(job_id: str) -> str:
 
 @mcp.tool()
 async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
-    """Search project Markdown and original session logs."""
+    """Optional literal search: current KB, personal notes, task evidence, then source logs.
+    File hits identify their area and matching line. Archives require targeted file search.
+    """
     # scope НЕ параметр: берём ORCHESTRA_SCOPE из env воркера → нельзя запросить чужой проект.
     if not SCOPE:
         return "search_memory: no project scope (orchestrator context) — nothing to search."
@@ -3556,7 +3558,12 @@ async def search_memory(query: str, limit: int = 5, cross_project: bool = False)
     lines = []
     for h in hits:
         if h.get("source") == "file":
-            head = f"[file: {h.get('path')}]"
+            location = str(h.get("path"))
+            if h.get("line"):
+                location += f":{h['line']}"
+            head = f"[file: {location}]"
+            if h.get("area"):
+                head += f" ({h['area']})"
         else:
             author = h.get("author")
             tag = f"{h.get('kind')}" + (f" from {author}" if author else "")

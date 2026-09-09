@@ -37,3 +37,31 @@ def test_log_search_uses_typed_authors_and_unicode_casefold(tmp_path):
     hits = search(str(tmp_path), 'задача', kinds=['agent_msg'])
     assert len(hits) == 1 and hits[0]['author'] == 'worker'
     assert hits[0]['kind'] == 'agent_msg' and hits[0]['content'] == 'ЗАДАЧА работника'
+
+
+def test_search_prefers_current_kb_and_labels_personal_and_task_evidence(tmp_path):
+    db.init_db()
+    with db._conn() as connection:
+        tm.ensure_project(connection, 'project', scope=str(tmp_path))
+    for area in ('kb', 'workers', 'tasks', 'archive', 'guides'):
+        target = tmp_path / '.orchestra' / area
+        target.mkdir(parents=True)
+        (target / 'note.md').write_text('# Heading\n\nNeedle in '+area)
+    results = search(str(tmp_path), 'Needle', limit=10)
+    assert [r['area'] for r in results] == ['kb', 'workers', 'tasks']
+    assert [r['line'] for r in results] == [3, 3, 3]
+    assert search(str(tmp_path), 'Needle', limit=1)[0]['area'] == 'kb'
+
+
+@pytest.mark.asyncio
+async def test_mcp_search_preserves_source_area_and_matching_line(monkeypatch):
+    from unittest.mock import AsyncMock
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, 'SCOPE', '/project')
+    monkeypatch.setattr(m, '_api', AsyncMock(return_value={'results': [{
+        'source': 'file', 'area': 'kb', 'line': 3,
+        'path': '.orchestra/kb/topic.md', 'content': 'Needle',
+    }]}))
+    text = await m.search_memory('Needle')
+    assert '.orchestra/kb/topic.md:3' in text
+    assert '(kb)' in text

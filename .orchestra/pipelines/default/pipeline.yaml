@@ -44,7 +44,7 @@ roles:
     model: claude-opus-5[1m]
     effort: &effort_policy {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [vps-deploy, grill-me, orchestra-agents]
-    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge, communication-style, user-values]
+    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     tg: {emoji: "👑"}
@@ -61,7 +61,7 @@ roles:
     model: claude-opus-5[1m]
     effort: *effort_policy
     skills: [orchestra-agents]
-    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, self-improvement, knowledge, communication-style, user-values]
+    modules: [model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: true
     tg: {emoji: "🎯"}
@@ -77,7 +77,7 @@ roles:
     model: claude-opus-5[1m]
     effort: *effort_policy
     skills: [codex-debate]
-    modules: [code-quality, git-workflow, report-format, self-improvement, knowledge, communication-style, user-values]
+    modules: [code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
     can_spawn: []
     allow_unrouted_workers: false
     tg: {emoji: "⚙️"}
@@ -100,7 +100,7 @@ roles:
     # ступени свои (#214, #373 и основания в комментарии над `roles:`).
     effort: *effort_policy
     skills: [codex-debate]
-    modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, self-improvement, knowledge, communication-style, user-values]
+    modules: [model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
     can_spawn: ["*"]
     allow_unrouted_workers: false
     tg: {emoji: "🔄"}

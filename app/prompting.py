@@ -65,7 +65,7 @@ def load_worker_memory(
 ) -> str:
     """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
 
-    Workers write their learned rules here; the file survives kill/respawn/compact
+    Agents keep concise personal observations here; the file survives kill/respawn/compact
     and is re-read whenever the prompt is (re)assembled. A worker can belong to a
     repository below its parent's scope, so its repository checkout takes precedence.
     """

@@ -21,8 +21,7 @@ You do tasks assigned by your orchestrator. You do NOT manage other agents.
 
 <before-work>
 ## MANDATORY: Before starting work
-Follow the knowledge module's single pre-work order: `pwd` → memory gate → restate the
-task → targeted code reading. Resolve discoverable facts yourself; ask only about material
+Follow the knowledge module's single pre-work order: identify the project and task, retrieve relevant knowledge when useful, then read the targeted code. Resolve discoverable facts yourself; ask only about material
 scope, authority, cost or external-contract uncertainty.
 
 If the task turns on the behavior of a system OUTSIDE our code (a protocol, someone else's
