@@ -144,21 +144,21 @@ class TestDefaultRolesResolve:
         """modules пробрасываются из манифеста в ResolvedRole без слияния с defaults."""
         assert P.get_role(PIPELINE, "orchestrator").modules == [
             "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
-            "background-jobs", "task-management", "self-improvement",
+            "background-jobs", "task-management",
             "knowledge", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "sub-orchestrator").modules == [
             "model-routing", "git-workflow", "orchestration", "worker-lifecycle",
-            "background-jobs", "task-management", "self-improvement",
+            "background-jobs", "task-management",
             "knowledge", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "worker").modules == [
-            "code-quality", "git-workflow", "report-format", "self-improvement",
+            "code-quality", "git-workflow", "report-format",
             "knowledge", "communication-style", "user-values",
         ]
         assert P.get_role(PIPELINE, "full-cycle").modules == [
             "model-routing", "research-method", "code-quality", "git-workflow", "worker-lifecycle",
-            "report-format", "task-management", "self-improvement",
+            "report-format", "task-management",
             "knowledge", "communication-style", "user-values",
         ]
 

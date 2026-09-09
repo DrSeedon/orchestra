@@ -19,3 +19,12 @@ def test_both_clients_get_the_same_bounded_rules_and_current_topic_index():
     from scripts.check_instruction_contract import check
     subprocess.run(["git", "ls-files", "--error-unmatch", "AGENTS.md", "CLAUDE.md"], cwd=ROOT, check=True)
     check(ROOT)
+
+
+def test_archived_source_documents_remain_byte_identical():
+    import json
+    archive = ROOT / '.orchestra/archive/knowledge-20260909'
+    manifest = json.loads((archive / 'manifest.json').read_text())
+    assert manifest
+    for relative, expected in manifest.items():
+        assert hashlib.sha256((archive / relative).read_bytes()).hexdigest() == expected, relative
