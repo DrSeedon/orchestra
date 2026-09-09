@@ -19,7 +19,7 @@ def search(scope: str, query: str, *, limit: int = 5, cross_project: bool = Fals
         needle = query.casefold()
         for project_scope in scopes:
             root = Path(project_scope)
-            for area in ('kb', 'workers', 'guides', 'tasks'):
+            for area in ('kb', 'workers', 'tasks'):
                 for path in sorted((root / '.orchestra' / area).rglob('*.md')):
                     # A project symlink must not turn scoped search into arbitrary-file access.
                     if not path.resolve().is_relative_to(root.resolve()):
@@ -30,7 +30,8 @@ def search(scope: str, query: str, *, limit: int = 5, cross_project: bool = Fals
                         continue
                     offset = content.casefold().find(needle)
                     if offset >= 0:
-                        results.append({'source': 'file', 'path': str(path.relative_to(root)),
+                        results.append({'source': 'file', 'area': area,
+                            'line': content.count('\n', 0, offset) + 1, 'path': str(path.relative_to(root)),
                             'scope': project_scope, 'project': project_scope, 'content': content[max(0, offset-200):offset+1800]})
                         if len(results) >= limit:
                             return results

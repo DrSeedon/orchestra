@@ -27,6 +27,6 @@ Commit the WIP first (`WIP #<task-id>: <what's unfinished>`), then report.
 
 ### Pipeline gates (full-cycle only)
 - After a phase that needs approval, report and STOP:
-  `RESEARCH DONE #<id>: <summary>. Findings in .orchestra/tasks/<id>/research.md; .orchestra/kb/<topic>.md updated (<what was appended>). Awaiting approval.`
+  `RESEARCH DONE #<id>: <summary>. Findings, evidence and limitations in .orchestra/tasks/<id>/research.md. Awaiting approval.`
   `PLAN READY #<id>: <summary>. Plan + selected review evidence in .orchestra/tasks/<id>/. Awaiting approval.`
 </report-format>

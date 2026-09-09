@@ -104,113 +104,14 @@ primary source, flag the conflict — don't silently prefer the newer one.
   does not exist for that runtime, a stale `cli_pid`, and a resume query excluding the row —
   six defects, one behind another, in a mechanism believed to work after a "successful" restart.
 
-### Step 6 — Write the topic file in `.orchestra/kb/`, then research.md
+### Step 6 — Preserve the result without creating duplicate memory
 
-**Research is not finished until a topic file carries its conclusion.** `.orchestra/tasks/<id>/research.md`
-is the raw artifact of one task; `.orchestra/kb/<topic>.md` is what the next agent actually reads at the
-memory gate. One topic = one file = one owner; topics are subsystems or recurring questions, never
-task numbers. Prefer an existing topic from `.orchestra/kb/README.md` — a new file needs a question
-none of them answers.
-
-Sections carry the STATUS of what is under them and are named in English, because the validator
-rejects the legacy Russian headings. One record = one line:
-
-```markdown
-# <human topic title>
-
-<one paragraph: which question this file answers>
-
-## Established
-- **<claim in bold, so it reads without the tail>** <detail, numbers, quotes> · ищи: `<anchor>`, «<phrasing>» · <evidence: file:line | command + number | url> · <YYYY-MM-DD, #task>
-
-## Historical observations
-- <a dated snapshot that was true then; applying it today needs a fresh check>
-
-## Rejected
-- **«<what we believed>» — нет.** <what refuted it> · опровергнуто: <evidence> · <YYYY-MM-DD, #task>
-
-## Gaps
-- <question left open> · упёрлось в: <what stopped you> · <YYYY-MM-DD, who asked>
-
-## Источники
-- .orchestra/tasks/<id>/research.md — <what a reader gets by opening it>
-```
-
-**Ссылка на артефакт задачи обязана открываться и после того, как файл убрали.** Путь, который
-резолвится сейчас, ничего не требует. Путь, который НЕ резолвится, закрывается в той же записи
-полем `· открыть:` ровно одного из трёх видов, и каждый НАЗЫВАЕТ закрываемый путь:
-`<путь> → `<живой путь>``, `` `git show <sha40>:<путь>` `` (полная команда; коммит ищется
-`git log --all --format=%H -- <путь>`, годится первый сверху, на котором
-`git cat-file -e <sha>:<путь>` даёт 0 и который достижим из `main`) или
-`<путь> — нет в репозитории: <почему>` с непустой причиной. Покрытие адресное: соседний живой
-путь в той же строке не закрывает ничего. `scripts/check_kb_contract.py` отказывает на любой
-ДОБАВЛЕННОЙ строке — не только в буллете — где нерезолвящийся путь не закрыт. Снимок на файл,
-вычищенный из-за секрета, не ставится: это указатель на секрет.
-
-Rules:
-1. **Append, never rewrite.** A line that turns out wrong gets ` — ОТОЗВАНО <date> #<task>: <what
-   refuted it>` appended and STAYS. Deleting it loses the only record that the road is closed.
-2. A finding without evidence in the same line does not go in. "We decided X" is not a finding.
-3. Don't retell `research.md` here — the conclusion and its evidence live in the topic, the full
-   text stays in the task.
-4. **Пробелы is where the next research comes from.** Leaving one is normal and expected; an empty
-   `Пробелы` on a real question means you did not look at the edges.
-5. New topic → also add its one-line entry to `.orchestra/kb/README.md`. A topic with no entry becomes a
-   second file about the same thing three weeks later.
-
-#### Forward-only lexical fact contract
-
-Каждый новый или изменённый факт — одна самодостаточная строка без местоименных ссылок. Начинай
-её с УТВЕРЖДЕНИЯ жирным, а не со служебного ключа: строку читает человек. `ищи:` содержит 1–6
-буквальных якорей будущего вопроса. Сохраняй точные symbol, path, command и прежнее имя.
-Добавь русскую или английскую формулировку, которой пользователь реально задаст вопрос.
-Evidence остаётся в той же строке.
-
-Стабильный ключ `` `fact:<durable-key>` `` больше не ставится в начало строки (#523, решение
-владельца: строка, начатая машинным ключом, не читается ни человеком, ни агентом). Он нужен
-только когда на запись ссылаются другая запись или код, и тогда живёт в ХВОСТЕ строки как
-`` · ключ `fact:<durable-key>` ``; ключ остаётся тем же при будущей переформулировке claim.
-
-Новые current facts пишутся в **Установлено**, закрытые или ошибочные дороги — в **Отвергнуто**
-либо получают `ОТОЗВАНО`; модель не удаляет и не перезаписывает старый факт автоматически.
-Legacy-факты не переписываются пачкой; контракт применяется только к новым и изменённым строкам.
-Перед merge проверь unified diff repository-скриптом `scripts/check_kb_contract.py --root .orchestra/kb
---diff <patch>`; обычный read и `rg` отдельным тулом не оборачиваются.
-
-#### Связи: proposal → approval → canonical fact
-
-LLM не записывает предложенную связь в `.orchestra/kb/` как истину.
-`candidate-link` остаётся в `.orchestra/tasks/` до явного апрува. Approval receipt в одобренном
-ticket/plan обязан дословно назвать source `fact:` key, relation и существующий target topic.
-
-Canonical `связи:` требует ссылку на approved ticket/plan anchor. Допустимые типы записываются
-ровно как `` `depends_on|explains|contradicts|supersedes|evidence_for|related` ``; validator
-отвергает unknown relation, missing или mismatched receipt, отсутствующий target, self-link,
-absolute path и `../` traversal. Модель может предложить строку в task artifact, но canonical
-fact меняется только в implementation уже одобренного ticket.
-
-Then write `.orchestra/tasks/<task-id>/research.md`:
-- **Question** — the framed question (Step 0)
-- **Hypotheses considered** — including the ones you ruled out, and why
-- **Findings** — each as atomic claims, each with inline source [n] or measured number
-- **Confidence per finding** — CONFIRMED / LIKELY / UNCERTAIN / REFUTED, with a
-  **one-line reason tied to evidence tier** (e.g. "LIKELY — single blog, not reproduced")
-- **Counter-evidence** — what argues against; if sources conflict, present BOTH
-- **Affected files, risks, edge cases** — for the code to come
-- **Sources** — numbered list; every URL is one you actually fetched this session
-
-### A good research output CONTAINS:
-- [ ] A topic file in `.orchestra/kb/` gained at least one line — with evidence, and a `Пробелы` entry
-      for what stayed open. Nothing appended there → the research is not accepted
-- [ ] The question restated with context / change-under-test / baseline / measurable outcome
-- [ ] ≥2 hypotheses considered (not a single foreground guess)
-- [ ] An explicit falsifier per hypothesis ("what would prove this wrong")
-- [ ] Every factual claim backed by a source you OPENED or a number you MEASURED
-- [ ] Each source tagged with its evidence tier (measurement > primary > multi-secondary > single > memory)
-- [ ] Confidence per finding + a one-line reason tied to that tier
-- [ ] Counter-evidence section; conflicting sources shown, not hidden
-- [ ] Numbers/outputs recorded verbatim (for any experiment)
-- [ ] Sources list where every URL was actually fetched this session
+Update the task's existing report with the question, findings, sources actually inspected,
+checks performed, counter-evidence and unresolved limitations that matter to the decision.
+Use the detail the task needs; do not invent hypotheses, gaps or additional artifacts to
+satisfy a template. A source-based conclusion and an executed experiment must be distinguishable.
+KB and personal-note updates follow the shared knowledge module. Research completion does
+not depend on adding a KB line; a research-only assignment ends with its report.
 
 ### Do NOT (each is a measured failure mode):
 - **Do NOT seek confirmation.** Go looking for what proves you WRONG. Step-by-step

@@ -1,3 +1,0 @@
-Running as unit: run-p1828686-i1855561.scope; invocation ID: d96bbd98aeaf4f828a9a44cd26943f57
-.                                                                        [100%]
-1 passed in 26.36s

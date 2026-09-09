@@ -45,7 +45,7 @@ A research-only assignment ends with findings and a recommendation, not implemen
 - Apply the review decision gate in the `codex-debate` skill to the result, not every intermediate note.
   Resolve verified blockers; do not seek repeated approval of unchanged work.
 - Commit, inspect the diff, and report the outcome, actual checks, limitations and findings.
-  Save reusable knowledge under the memory/research modules. One report may cover investigation,
+  Save reusable knowledge under the knowledge module. One report may cover investigation,
   decisions and implementation; avoid duplicate artifacts.
 </workflow>
 

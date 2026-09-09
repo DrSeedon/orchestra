@@ -1,7 +1,0 @@
-{
-  "core_tests": "python -m pytest tests/test_review_receipt_migration_436.py tests/test_review_receipt_storage_436.py tests/test_review_receipt_safety_436.py tests/test_review_receipt_outcome_tool_436.py tests/test_review_receipt_start_436.py tests/test_review_receipt_terminal_436.py tests/test_review_authorship_493.py tests/test_review_coverage_target_drift_474.py tests/test_review_coverage_gate_462.py tests/test_review_subject_absorbed_delta_509.py tests/test_codex_review_artifact.py tests/test_acceptance.py tests/test_merge_target_oracle_386.py -q --tb=short",
-  "task_run_tests": "python -m pytest .orchestra/tasks/466/test_run_receipt_466.py .orchestra/tasks/466/test_task_run_lifecycle_466.py .orchestra/tasks/466/test_task_run_self_review_466.py -q --tb=short",
-  "reproduction": "python .orchestra/tasks/receipt-audit/reproduce.py",
-  "execution_prefix": "systemd-run --user --scope --quiet -p MemoryMax=2G nice -n 15",
-  "interpreter": "/mnt/data/Projects/Python/orchestra/.venv/bin/python"
-}
