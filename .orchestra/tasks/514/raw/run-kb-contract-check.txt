@@ -1,2 +1,0 @@
-KB contract OK
-RC=0

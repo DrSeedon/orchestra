@@ -1,3 +1,0 @@
-........x                                                                [100%]
-8 passed, 1 xfailed in 8.05s
-RC=0

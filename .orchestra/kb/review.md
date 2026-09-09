@@ -11,7 +11,7 @@
 больше не являются требованиями для старых или новых назначений. Имена прежнего пути:
 `coverage_decision`, `review-attestation.json`, `author_outcome` — не повод создавать эти файлы
 или возвращать проверку покрытия.
-[Результат удаления](../tasks/retire-legacy-review/README.md), [work_review.py](../../app/work_review.py),
+[Результат удаления](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/retire-legacy-review/README.md), [work_review.py](../../app/work_review.py),
 [merge_operations.py](../../app/merge_operations.py).
 
 ## Как читать старые расследования ревью
@@ -23,5 +23,5 @@
 
 ## Исторические исследования
 
-[Прежние записи с исходными якорями и доказательствами](../archive/knowledge-20260909/kb/review.md).
+[Прежние записи с исходными якорями и доказательствами](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/kb/review.md).
 Это материал для проверки гипотез, не текущие инструкции.

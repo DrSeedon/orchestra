@@ -11,7 +11,7 @@ Choose exact identifiers, error text, commands or distinctive Russian/English te
 search the whole question as one literal. Read the matching heading and nearby paragraphs.
 Check the current code/config for changing runtime facts. Task evidence and archived notes
 are historical sources, not current instructions. If the KB has no answer, search the relevant
-`.orchestra/tasks/` or `.orchestra/archive/` paths; a failed search does not prove absence.
+`.orchestra/tasks/` paths or Git history (see `.orchestra/kb/history.md` when present); a failed search does not prove absence.
 Skip memory lookup when the named code, command or live-state check already answers the task.
 `search_memory`, if available, is an optional lexical shortcut, not a prerequisite.
 
@@ -37,7 +37,7 @@ No mandatory fact IDs, status headings, anchor fields, link types, approval rece
 sections or single-line records. Use a normal source link and a date when freshness matters.
 Replace an obsolete current explanation instead of appending another correction underneath.
 Keep a useful rejected approach with its reason, clearly marked historical; preserve its
-original evidence in tasks/archive when consolidating. Do not delete raw evidence merely
+original evidence in task files or a pinned reachable Git snapshot when consolidating. Do not delete raw evidence merely
 because a summary exists. Do not duplicate a finding across topics: link to its owner.
 A new topic is justified by a distinct recurring question, not a task number; list it once
 in `.orchestra/kb/README.md` as `- [name](topic.md) — description with search terms`.

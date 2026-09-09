@@ -1,2 +1,0 @@
-{'indexed_chunks': 2, 'search_completed': True, 'top_path': 'alpha.md', 'expected': 'alpha.md'}
-RC=0

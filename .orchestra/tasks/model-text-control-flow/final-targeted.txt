@@ -1,3 +1,0 @@
-Running as unit: run-p1761219-i1736452.scope; invocation ID: c0ebf33a1483401ab0d3f4061be19ada
-...................................................                      [100%]
-51 passed in 3.13s

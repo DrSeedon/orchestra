@@ -16,5 +16,5 @@
 
 ## Исторические исследования
 
-[Прежние записи с исходными якорями и доказательствами](../archive/knowledge-20260909/kb/external-harnesses.md).
+[Прежние записи с исходными якорями и доказательствами](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/kb/external-harnesses.md).
 Это материал для проверки гипотез, не текущие инструкции.

@@ -1,2 +1,0 @@
-..xxx                                                                    [100%]
-2 passed, 3 xfailed in 6.85s

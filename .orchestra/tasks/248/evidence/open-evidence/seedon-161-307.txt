@@ -1,2 +1,0 @@
-docs/tasks/161/codex-review-research.md
-docs/tasks/161/research.md

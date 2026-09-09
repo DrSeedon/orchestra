@@ -1,2 +1,0 @@
- M .serena/project.yml
-?? docs/kb/

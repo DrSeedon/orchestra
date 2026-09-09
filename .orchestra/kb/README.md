@@ -3,7 +3,7 @@
 Сначала ищи точный symbol, текст ошибки или характерный термин в нужной теме; читай совпавший
 раздел и его источник. Текущий код/конфиг важнее исторического снимка. Архивы не текущие правила.
 Порядок записи для всех ролей: [knowledge](../pipelines/default/prompts/modules/knowledge.md).
-Полный прежний корпус и его карта: [архив](../archive/knowledge-20260909/README.md).
+Исходные материалы до очистки: [история Git](history.md).
 
 - [current-operations](current-operations.md) — Запуск, startup failed, schema version, действующие владельцы состояния
 - [founder-intent](founder-intent.md) — Решения владельца, область разрешения, HTML-дизайн
@@ -21,3 +21,5 @@
 - [auto-work](auto-work.md) — bg_create idle watcher, fan-out, доклады и отсутствие активности
 - [external-harnesses](external-harnesses.md) — Prime Agent, Hermes, ADE, встроенные subagents и применимость
 - [chat-and-telegram](chat-and-telegram.md) — SSE snapshot, Unknown dashboard, message delivery, Telegram
+
+- [history](history.md) — Git-снимок исходных workers/tasks/archive/guides/artifacts, поиск старых доказательств

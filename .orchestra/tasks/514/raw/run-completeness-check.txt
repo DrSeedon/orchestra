@@ -1,3 +1,0 @@
-cited_artifacts=36 table_rows=33 scopes_measured=9
-RESULT=clean
-RC=0

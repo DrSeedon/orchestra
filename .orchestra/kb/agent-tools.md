@@ -21,7 +21,21 @@ Orchestra различаются жизненным циклом и изоляц
 взаимозаменяемыми. Не требуй необязательный `search_memory` как гейт до любой правки.
 [Поиск памяти](knowledge-base.md), [рантаймы и MCP](runtimes.md), [замеры](evidence-methods.md).
 
+## Точные команды и исход вызова
+
+`rg -r` означает замену, а не рекурсивный поиск. Для рекурсивного поиска файлов rg не
+требует этого флага. В shell pipeline проверяй код самой проверки: `pytest | tail` без
+pipefail может вернуть успешный код tail при упавшем pytest. Учитывай конкретную оболочку;
+Bash PIPESTATUS не является интерфейсом zsh. В zsh строка с набором опций не заменяет
+массив аргументов.
+
+`curl -o /dev/null -w '%{size_download}'` измеряет и тело ошибки тоже: записывай HTTP-код.
+`pgrep -af`/`pkill -f` могут совпасть с командой самого проверяющего; сначала установи точного
+владельца процесса. После таймаута операции проверь её результат до повторного вызова.
+
+Источники консолидированных наблюдений: [perf](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/perf.md), [prompt-engineer](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/prompt-engineer.md).
+
 ## Исторические исследования
 
-[Прежние записи с исходными якорями и доказательствами](../archive/knowledge-20260909/kb/agent-tools.md).
+[Прежние записи с исходными якорями и доказательствами](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/kb/agent-tools.md).
 Это материал для проверки гипотез, не текущие инструкции.
