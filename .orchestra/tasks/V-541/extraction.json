@@ -1,0 +1,16 @@
+{
+  "source": "/home/kesha/orchestra/data/storage-final-vps-20260908/orchestra.db",
+  "pid": 2015748,
+  "captured_at": "2026-09-09T14:30:49.369680+00:00",
+  "turns": 6116,
+  "snapshots": 10668,
+  "uncompressed_sha256": "cbc581157cf74aecac1d2c0b90ad14ea72ef9d3876bd3621f49a71ef1ca29de4",
+  "turn_range": [
+    "2026-08-03T06:33:39.118015+00:00",
+    "2026-09-09T14:29:22.790199+00:00"
+  ],
+  "snapshot_range": [
+    "2026-08-03T00:27:30.386605+00:00",
+    "2026-09-09T14:26:10.828503+00:00"
+  ]
+}

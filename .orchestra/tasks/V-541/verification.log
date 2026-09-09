@@ -1,0 +1,5 @@
+PASS frozen extraction SHA-256 and counts
+PASS linear solver synthetic known solution
+PASS independent QR matches main OLS; maximum coefficient difference 5.684341886080802e-14
+PASS numerical raw artifacts secret-shape filter; module /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-cache-quota/app/secret_mask.py
+PASS local report and KB links
