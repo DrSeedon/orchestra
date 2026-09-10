@@ -419,11 +419,6 @@ async def lifespan(app: FastAPI):
         await recover_message_deliveries()
         from app.fan_barrier import recover_deadlines
         recover_deadlines()
-        # #230 T7: descriptors that came back for sessions nobody owns any more.
-        # Fail-closed inside: an EMPTY registry sweeps nothing.
-        swept = await manager.sweep_orphan_fds()
-        if swept:
-            logger.warning('orphan sweep closed pipes of %d unknown session(s)', swept)
         from app.bootstrap import ensure_bootstrap
         await ensure_bootstrap()
         manager.start_background_tasks()

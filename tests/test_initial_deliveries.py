@@ -414,7 +414,6 @@ async def test_t2_session_context_logs_no_duplicate_and_brackets_backend_send(
         return FakeBackend()
 
     session._ensure_backend = ensure_backend
-    session._refresh_stale_backend = AsyncMock()
     session._apply_pending_identity_restart = AsyncMock()
     session._apply_manifest_effort = AsyncMock()
     session._shadow_reserve = AsyncMock(return_value=None)
@@ -614,7 +613,6 @@ def test_t2_startup_orders_recovery_before_background_delivery_sources():
     markers = [
         "await manager.auto_resume_all()",
         "await recover_initial_deliveries()",
-        "await manager.sweep_orphan_fds()",
         "manager.start_background_tasks()",
         "schedule_restart_inbox_drain()",
     ]
@@ -646,7 +644,6 @@ def _t381_session():
     session._log = MagicMock()
     session._persist = MagicMock()
     session._note_next_precompact_activity = MagicMock()
-    session._refresh_stale_backend = AsyncMock()
     session._apply_pending_identity_restart = AsyncMock()
     session._apply_manifest_effort = AsyncMock()
     session._notify_scope_running = AsyncMock()

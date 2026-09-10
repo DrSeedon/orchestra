@@ -8,7 +8,6 @@ import logging
 import os
 import re
 import shutil
-import sys
 import time
 import tomllib
 import uuid
@@ -18,10 +17,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncIterator, Optional
 
+from app.runtime_process_group import RuntimeProcessGroup
 from app.backend_jsonrpc import (
     JsonRpcStdioTransport,
     bounded_tool_arguments,
-    terminate_cli_process,
 )
 from app.events import AgentEvent
 from app.runtime_history import (
@@ -97,9 +96,6 @@ class CodexOversizedRecordError(RuntimeError):
     """The app-server JSONL framing was lost and this transport is unusable."""
 
 
-_scope_support_cache: tuple[bool, dict[str, str], str] | None = None
-
-
 async def _run_process(
     *cmd: str,
     env: dict[str, str] | None = None,
@@ -123,81 +119,6 @@ async def _run_process(
         stdout.decode(errors="replace").strip(),
         stderr.decode(errors="replace").strip(),
     )
-
-
-def _scope_unit(prefix: str = "orchestra-codex") -> str:
-    return f"{prefix}-{os.getpid()}-{uuid.uuid4().hex}.scope"
-
-
-async def _codex_scope_support() -> tuple[bool, dict[str, str], str]:
-    global _scope_support_cache
-    if _scope_support_cache is not None:
-        return _scope_support_cache
-    try:
-        runtime_dir = Path(f"/run/user/{os.getuid()}")
-        bus = runtime_dir / "bus"
-        commands = {
-            name: shutil.which(name)
-            for name in ("loginctl", "systemd-run", "systemctl")
-        }
-        missing = [name for name, path in commands.items() if not path]
-        if missing:
-            raise RuntimeError(f"missing commands: {', '.join(missing)}")
-        if not bus.is_socket():
-            raise RuntimeError(f"systemd user bus is unavailable: {bus}")
-
-        env = dict(os.environ)
-        env["XDG_RUNTIME_DIR"] = str(runtime_dir)
-        env["DBUS_SESSION_BUS_ADDRESS"] = f"unix:path={bus}"
-        rc, linger, stderr = await _run_process(
-            commands["loginctl"], "show-user", str(os.getuid()),
-            "-p", "Linger", "--value",
-        )
-        if rc or linger.lower() != "yes":
-            detail = stderr or f"Linger={linger or 'unknown'}"
-            raise RuntimeError(f"systemd user manager is not persistent: {detail}")
-
-        unit = _scope_unit("orchestra-codex-probe")
-        probe = (
-            "from pathlib import Path; "
-            "row = next(line for line in Path('/proc/self/cgroup').read_text().splitlines() "
-            "if line.startswith('0::')); "
-            "path = row.split('::', 1)[1]; "
-            "events = (Path('/sys/fs/cgroup') / path.lstrip('/') / 'cgroup.events').read_text(); "
-            "print(path); print(events)"
-        )
-        rc, cgroup, stderr = await _run_process(
-            commands["systemd-run"], "--user", "--scope", "--quiet", "--collect",
-            f"--unit={unit}", "--", sys.executable, "-c", probe,
-            env=env,
-        )
-        if rc:
-            raise RuntimeError(stderr or f"disposable scope exited with code {rc}")
-        lines = cgroup.splitlines()
-        control_group = lines[0] if lines else ""
-        events = dict(
-            line.split(maxsplit=1)
-            for line in lines[1:]
-            if " " in line
-        )
-        if unit not in control_group:
-            raise RuntimeError(
-                f"disposable process was not attached to {unit}: {control_group}"
-            )
-        if events.get("populated") != "1":
-            raise RuntimeError(
-                f"disposable scope has no usable cgroup.events: {events}"
-            )
-        _scope_support_cache = (True, env, "")
-    except Exception as exc:
-        reason = f"{type(exc).__name__}: {exc}"
-        logger.warning(
-            "Codex verified process scope unavailable; direct launch remains enabled "
-            "but hibernation is disabled: %s",
-            reason,
-        )
-        _scope_support_cache = (False, {}, reason)
-    return _scope_support_cache
 
 
 def _codex_cost(model: str, input_tokens: int, cached_input_tokens: int,
@@ -549,10 +470,9 @@ class CodexBackend(JsonRpcStdioTransport):
         self._compact_future: asyncio.Future | None = None
         self._compact_notifications: asyncio.Queue[dict] | None = None
         self._compact_context_tokens: int | None = None
-        self._scope_unit: str | None = None
-        self._scope_env: dict[str, str] = {}
+        self._process_group: RuntimeProcessGroup | None = None
         self._hibernate_safe = False
-        self._scope_reason = "scope preflight has not run"
+        self._scope_reason = "process containment has not been checked"
         self._teardown_error: str | None = None
         self._reader_failure: BaseException | None = None
         self._terminal_reader_failure = False
@@ -615,7 +535,7 @@ class CodexBackend(JsonRpcStdioTransport):
 
     @property
     def active_turn_id(self) -> Optional[str]:
-        """The turn the adopted bytes belong to (#230 T4)."""
+        """Current native turn identifier."""
         return self._active_turn_id
 
     @property
@@ -646,7 +566,7 @@ class CodexBackend(JsonRpcStdioTransport):
 
     @property
     def has_owned_processes(self) -> bool:
-        return self._proc is not None or self._scope_unit is not None
+        return self._proc is not None or self._process_group is not None
 
     def retarget_model(self, model: str) -> None:
         """Use app-server's per-turn model override without replacing the thread."""
@@ -682,48 +602,6 @@ class CodexBackend(JsonRpcStdioTransport):
                 f"native Codex history requires CLI {CODEX_CLI_HISTORY_VERSION}, got {actual}"
             )
 
-    async def adopt(self, fd_in: int, fd_out: int, thread_id: str,
-                    active_turn_id: str | None = None, *,
-                    leftover: str = "", cli_pid: int = 0, cli_started_at: int = 0) -> None:
-        """Take over an ALREADY RUNNING app-server over inherited pipes (#230 T2).
-
-        No process is spawned and no handshake is sent: the CLI outlived the supervisor
-        restart, it is already initialized, and its turn is still streaming into fd_out
-        (measured — .orchestra/tasks/230/research.md F1). Re-initializing here would be wrong and
-        would also block, because the stream may be silent for minutes.
-        """
-        self._notifications = asyncio.Queue()
-        self._request_seq = int.from_bytes(os.urandom(6), "big")
-        self._disconnecting = False
-        self._last_stderr = ""
-        await self.adopt_pipes(fd_in, fd_out, limit=CODEX_STREAM_LIMIT,
-                               leftover=leftover, cli_pid=cli_pid,
-                               cli_started_at=cli_started_at)
-        self._thread_id = thread_id
-        self._loaded_config_sha256 = None
-        self._active_turn_id = active_turn_id
-        self._teardown_error = None
-        self._reader_failure = None
-        self._terminal_reader_failure = False
-        self._reader_task = asyncio.create_task(self._read_stdout())
-
-    async def recover_adopted_turn(self) -> str | None:
-        """Read the surviving server's latest turn when shutdown saved no turn identity."""
-        result = await asyncio.wait_for(self._request("thread/turns/list", {
-            "threadId": self._thread_id,
-            "limit": 1,
-            "sortDirection": "desc",
-            "itemsView": "notLoaded",
-        }), timeout=10)
-        turns = result.get("data")
-        if not isinstance(turns, list):
-            raise RuntimeError("Codex turn recovery returned no turn list")
-        turn = turns[0] if turns else {}
-        if turns and (not isinstance(turn, dict) or not isinstance(turn.get("id"), str) or not turn["id"] or
-                      turn.get("status") not in {"inProgress", "completed", "failed", "interrupted"}):
-            raise RuntimeError("Codex turn recovery returned an invalid turn")
-        self._active_turn_id = turn.get("id") if turn.get("status") == "inProgress" else None
-        return self._active_turn_id
 
     async def connect(self) -> None:
         home = self._managed_codex_home_path()
@@ -753,52 +631,19 @@ class CodexBackend(JsonRpcStdioTransport):
         self._terminal_reader_failure = False
         codex_cmd = self._codex_command()
 
-        scope_ok, scope_env, scope_reason = await _codex_scope_support()
         env = self._build_env()
-        self._hibernate_safe = scope_ok
-        self._scope_reason = scope_reason
-        if scope_ok:
-            self._scope_unit = _scope_unit()
-            self._scope_env = scope_env
-            env.update({
-                key: scope_env[key]
-                for key in ("XDG_RUNTIME_DIR", "DBUS_SESSION_BUS_ADDRESS")
-            })
-            cmd = [
-                shutil.which("systemd-run") or "systemd-run",
-                "--user", "--scope", "--quiet", "--collect",
-                f"--unit={self._scope_unit}", "--", *codex_cmd,
-            ]
-        else:
-            self._scope_unit = None
-            self._scope_env = {}
-            cmd = codex_cmd
-
-        if scope_ok:
-            # A scoped launch puts `systemd-run` between us and the CLI, so `_proc.pid` is the
-            # launcher, not the app-server. Handing those pipes over would advertise a survivor
-            # we could not identify later, so this path keeps PIPE and stays non-adoptable —
-            # the same behaviour as before #237, but said out loud instead of silently.
-            logger.warning(
-                "Codex scope launch: seamless handover is unavailable for this session "
-                "(pid identity belongs to systemd-run, not to the app-server)"
-            )
-
+        self._process_group, self._scope_reason = RuntimeProcessGroup.create()
+        self._hibernate_safe = self._process_group is not None
+        if self._process_group is None:
+            logger.warning("Codex hibernation unavailable: %s", self._scope_reason)
+        cmd = self._process_group.command(codex_cmd) if self._process_group else codex_cmd
         child_stdin = child_stdout = our_stdin = our_stdout = None
         try:
-            if scope_ok:
-                stdio = {"stdin": asyncio.subprocess.PIPE,
-                         "stdout": asyncio.subprocess.PIPE}
-            else:
-                child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
-                stdio = {"stdin": child_stdin, "stdout": child_stdout}
+            child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
             spawn_started = time.monotonic()
             self._proc = await asyncio.create_subprocess_exec(
-                *cmd,
-                **stdio,
-                stderr=asyncio.subprocess.PIPE,
-                env=env,
-                cwd=self.cwd,
+                *cmd, stdin=child_stdin, stdout=child_stdout,
+                stderr=asyncio.subprocess.PIPE, env=env, cwd=self.cwd,
                 limit=CODEX_STREAM_LIMIT,
             )
             self._log_connect_stage("cli_spawn", spawn_started)
@@ -1233,81 +1078,8 @@ class CodexBackend(JsonRpcStdioTransport):
                 if self._lifecycle_belongs_to_turn(message, compact_turn_id):
                     return
 
-    async def _scope_populated(self) -> bool:
-        unit = self._scope_unit
-        if not unit:
-            return False
-        systemctl = shutil.which("systemctl") or "systemctl"
-        rc, stdout, stderr = await _run_process(
-            systemctl, "--user", "show", unit,
-            "-p", "LoadState", "-p", "ActiveState", "-p", "ControlGroup",
-            "--no-pager",
-            env=self._scope_env,
-        )
-        if rc:
-            raise RuntimeError(stderr or f"systemctl show exited with code {rc}")
-        state = {}
-        for line in stdout.splitlines():
-            key, separator, value = line.partition("=")
-            if separator:
-                state[key] = value
-        if state.get("LoadState") == "not-found":
-            return False
-        control_group = state.get("ControlGroup", "")
-        if control_group:
-            events_path = Path("/sys/fs/cgroup") / control_group.lstrip("/") / "cgroup.events"
-            try:
-                events = dict(
-                    line.split(maxsplit=1)
-                    for line in events_path.read_text().splitlines()
-                    if " " in line
-                )
-            except OSError as exc:
-                raise RuntimeError(
-                    f"cannot verify Codex scope {unit}: {type(exc).__name__}: {exc}"
-                ) from exc
-            if "populated" in events:
-                return events["populated"] == "1"
-        return state.get("ActiveState") not in ("inactive", "failed", "")
 
-    async def _signal_scope(self, signal_name: str) -> None:
-        if not await self._scope_populated():
-            return
-        systemctl = shutil.which("systemctl") or "systemctl"
-        rc, _, stderr = await _run_process(
-            systemctl, "--user", "kill", f"--signal={signal_name}",
-            "--kill-whom=all", self._scope_unit or "",
-            env=self._scope_env,
-        )
-        if rc and await self._scope_populated():
-            raise RuntimeError(
-                stderr or f"systemctl kill {signal_name} exited with code {rc}"
-            )
 
-    async def _wait_scope_empty(self) -> None:
-        async with asyncio.timeout(CODEX_PROCESS_TIMEOUT_SECONDS):
-            while await self._scope_populated():
-                await asyncio.sleep(0.05)
-
-    async def _wait_owned_process(self, proc: asyncio.subprocess.Process) -> None:
-        if proc.returncode is not None:
-            return
-        await asyncio.wait_for(
-            asyncio.shield(proc.wait()),
-            timeout=CODEX_PROCESS_TIMEOUT_SECONDS,
-        )
-
-    async def _disconnect_scoped(self, proc: asyncio.subprocess.Process | None) -> None:
-        await self._signal_scope("TERM")
-        try:
-            if proc:
-                await self._wait_owned_process(proc)
-            await self._wait_scope_empty()
-        except TimeoutError:
-            await self._signal_scope("KILL")
-            if proc:
-                await self._wait_owned_process(proc)
-            await self._wait_scope_empty()
 
     async def _disconnect_direct(self, proc: asyncio.subprocess.Process) -> None:
         if proc.returncode is None:
@@ -1335,7 +1107,7 @@ class CodexBackend(JsonRpcStdioTransport):
             )
         await self.teardown_owned_pipes()
         self._proc = None
-        self._scope_unit = None
+        self._process_group = None
         self._reader_task = None
         self._stderr_task = None
         self._active_turn_id = None
@@ -1343,39 +1115,15 @@ class CodexBackend(JsonRpcStdioTransport):
         self._teardown_error = None
 
     async def disconnect(self) -> None:
-        if self._terminal_reader_failure:
-            await self._abort_oversized_transport()
-            self._proc = None
-            self._scope_unit = None
-            self._reader_task = None
-            self._stderr_task = None
-            self._active_turn_id = None
-            self._teardown_error = None
-            return
         proc = self._proc
-        if proc is None and self._scope_unit is None:
-            if self._adopted_fds is not None or self._adopted_writer is not None or self._teardown_error:
-                # An ADOPTED backend owns no Process, but it very much owns a running CLI:
-                # returning here left it alive next to its replacement (found in impl review).
-                self._disconnecting = True
-                try:
-                    await self.teardown_adopted()
-                    home = self._managed_codex_home_path()
-                    if home is not None and self._thread_id:
-                        async with asyncio.timeout(CODEX_PROCESS_TIMEOUT_SECONDS):
-                            while codex_writer_conflict(home.name, self._thread_id) is not None:
-                                await asyncio.sleep(0.05)
-                    self._teardown_error = None
-                except BaseException as error:
-                    self._teardown_error = f"{type(error).__name__}: {error}"
-                    raise
+        if proc is None and self._process_group is None:
             return
         self._disconnecting = True
         try:
             if self._active_turn_id and proc and proc.returncode is None:
                 await self.interrupt()
-            if self._scope_unit:
-                await self._disconnect_scoped(proc)
+            if self._process_group:
+                await self._process_group.stop(proc, CODEX_PROCESS_TIMEOUT_SECONDS)
             elif proc:
                 await self._disconnect_direct(proc)
             await self._finalize_disconnect()
@@ -1475,14 +1223,7 @@ class CodexBackend(JsonRpcStdioTransport):
             if isinstance(exc, ValueError):
                 raise
         finally:
-            # ONE gate over the whole "the process died" story. A handover cancels this reader
-            # on a process that is very much alive, so none of it may run: not the pending
-            # futures, not the notification, and above all not `proc.wait()` — waiting for a
-            # live CLI to exit stalled every handover until the shutdown timeout (#237 T1).
-            if not self._handover_quiescing and not self._terminal_reader_failure:
-                # An ADOPTED transport has no Process object at all (#230 T2): the CLI is not
-                # our child. Its exit is then visible only as EOF on the pipe, which is why the
-                # reason is worded without a code instead of pretending we can wait() on it.
+            if not self._terminal_reader_failure:
                 proc = self._proc
                 returncode = await proc.wait() if proc is not None else None
                 stderr_task = self._stderr_task
@@ -1501,7 +1242,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 stderr = sanitize_sensitive_text(self._last_stderr).strip()
                 message = (
                     f"Codex app-server exited with code {returncode}" if proc is not None
-                    else "Codex app-server closed the adopted pipe (no process: adopted transport)"
+                    else "Codex app-server transport closed"
                 )
                 if stderr:
                     message = f"{message}: {stderr}"
@@ -1551,33 +1292,12 @@ class CodexBackend(JsonRpcStdioTransport):
 
     async def _abort_oversized_transport(self) -> None:
         """Stop only this app-server after JSONL framing becomes ambiguous."""
-        if self._adopted_writer is not None or self._adopted_read_transport is not None:
-            writer = self._adopted_writer
-            read_transport = self._adopted_read_transport
-            pid = self._adopted_pid
-            started_at = self._adopted_started_at
-            if writer is not None:
-                with suppress(Exception):
-                    writer.close()
-            if read_transport is not None:
-                with suppress(Exception):
-                    read_transport.close()
-            self._adopted_writer = None
-            self._adopted_reader = None
-            self._adopted_read_transport = None
-            self._adopted_fds = None
-            self._adopted_pid = None
-            self._adopted_started_at = 0
-            if pid:
-                terminate_cli_process(pid, self.RUNTIME_LABEL, started_at)
-            return
-
         with suppress(Exception):
             await self.teardown_owned_pipes()
         proc = self._proc
-        if self._scope_unit:
+        if self._process_group:
             with suppress(Exception):
-                await asyncio.wait_for(self._signal_scope("KILL"), timeout=1)
+                self._process_group.kill()
         if proc is not None and proc.returncode is None:
             with suppress(ProcessLookupError):
                 proc.kill()
@@ -2502,12 +2222,9 @@ class CodexBackend(JsonRpcStdioTransport):
         """Reconnect an idle managed app-server when its launch config is stale.
 
         Codex reads `config.toml` when the app-server starts.  Merely rewriting the file
-        does not update an already-running worker, and restart adoption intentionally keeps
-        those processes alive.  Reconnect here preserves the thread id through
+        does not update an already-running worker. Reconnect preserves the thread id through
         `thread/resume` while making the next turn use current context/config settings.
         """
-        if not self.can_replace_adopted_process:
-            return
         if self._managed_codex_home_path() is None:
             return
         desired = await _run_home_io(self._refresh_managed_config_sha256)

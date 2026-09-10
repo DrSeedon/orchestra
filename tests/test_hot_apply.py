@@ -382,7 +382,7 @@ async def test_t3_restart_never_attempts_live_turn_handover(monkeypatch):
     monkeypatch.setattr(app_main, "inflight_mutating_count", lambda: 0)
     monkeypatch.setattr(system, "_drain_sessions", lambda: [running])
     prepare = AsyncMock(return_value=would_refuse)
-    monkeypatch.setattr(system.manager, "prepare_restart_handover", prepare)
+    monkeypatch.setattr(system.manager, "prepare_restart_handover", prepare, raising=False)
     kill = MagicMock()
     monkeypatch.setattr(system.os, "kill", kill)
 
@@ -486,25 +486,20 @@ async def test_guard_failed_restart_never_leaves_the_agent_gate_closed(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_guard_watchdog_gives_a_prepared_fleet_its_readers_back(monkeypatch):
-    """Охранник, добавленный ПОСЛЕ заморозки #237 — не оракул тикета.
-
-    Найдено pre-mortem'ом: сторож переоткрывал гейты, но не откатывал уже переданный флот.
-    Рестарт, не случившийся после успешной подготовки, оставлял бы агентов КВИЕСЦИРОВАННЫМИ —
-    то есть живыми, но глухими навсегда, — а их дескрипторы копились бы в systemd до
-    исчерпания store. Сторож обязан вернуть читателя, а не только приём запросов.
-    """
+async def test_guard_watchdog_reopens_admission_after_aborting_guard(monkeypatch):
+    from app import main as app_main
     from app.routes import system
 
-    rollback = AsyncMock()
-    monkeypatch.setattr(system.manager, "rollback_restart_handover", rollback,
-                        raising=False)
+    abort = AsyncMock()
+    monkeypatch.setattr(system.restart_guard, "abort_guard", abort)
     monkeypatch.setattr(system, "_watchdog_budget_s", lambda: 0.01)
     monkeypatch.setattr(system, "_restart_attempt", 7)
-
+    system.manager.begin_drain()
+    app_main.close_mutating_admission()
     await asyncio.wait_for(system._reopen_admission_if_still_alive(7), timeout=2)
-
-    rollback.assert_awaited_once_with()
+    abort.assert_awaited_once()
+    assert not system.manager.draining
+    assert app_main.mutating_admission_verdict("POST", "/api/sessions/worker/send")["allowed"]
 
 
 def test_guard_watchdog_outlasts_mutating_drain_and_response_flush():

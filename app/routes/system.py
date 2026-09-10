@@ -2455,8 +2455,8 @@ async def _reopen_admission_if_still_alive(attempt: int = 0) -> None:
     await _abort_restart(
         f"no restart within {budget}s of a successful preflight")
     logger.error(
-        "restart did not happen within %ss after a successful preflight — handover rolled "
-        "back and both admissions reopened so agents are not starved", budget,
+        "restart did not happen within %ss after a successful preflight; "
+        "both admissions reopened", budget,
     )
 
 
@@ -2506,11 +2506,10 @@ async def _prepare_restart_service() -> dict:
         }
     except BaseException:
         from app import main as app_main
-        # The fleet may already be quiesced and stored: leaving it that way would abandon
-        # running CLIs that nobody owns any more, each of them deaf (#237 T3).
+        # A failed preparation must not leave admission closed indefinitely.
         await _abort_restart("the restart path failed")
         app_main.open_mutating_admission()
-        logger.exception("restart path failed; handover rolled back, admission reopened")
+        logger.exception("restart path failed; admission reopened")
         raise
 
 
@@ -2525,7 +2524,7 @@ async def _signal_restart_after_response() -> dict:
     except BaseException as error:
         reason = f"{type(error).__name__}: {error}"
         await _abort_restart(f"restart signal failed: {reason}")
-        logger.exception("restart signal failed; handover rolled back, admission reopened")
+        logger.exception("restart signal failed; admission reopened")
         raise
 
 
@@ -2546,7 +2545,7 @@ async def _restart_service_after_response(*, signal: bool = True) -> dict:
 
 
 async def _abort_restart(reason: str) -> None:
-    """Give every prepared agent back its reader, and reopen both gates (#237 T3)."""
+    """Reopen admission after disarming this restart attempt."""
     from app import main as app_main
 
     # Publish before cleanup: read-only heartbeat remains available even when rollback must
@@ -2564,12 +2563,6 @@ async def _abort_restart(reason: str) -> None:
             error,
         )
         raise
-    try:
-        await manager.rollback_restart_handover()
-    except Exception as error:
-        logger.error("could not roll back the prepared handover: %s: %s",
-                     type(error).__name__, error)
-        raise
     manager.end_drain()
     app_main.open_mutating_admission()
     # Отмена уходила ТОЛЬКО в лог: вызвавший получил ok/scheduled и ждал события, которого
@@ -2577,35 +2570,6 @@ async def _abort_restart(reason: str) -> None:
     global _last_restart_abort
     _last_restart_abort = {"reason": str(reason), "at": datetime.now(timezone.utc).isoformat()}
     logger.warning("restart aborted (%s): no signal sent", reason)
-
-
-def _can_be_handed_over(session) -> bool:
-    """Может ли живой ход этой сессии пережить рестарт (#230 T5).
-
-    Спрашиваем СПОСОБНОСТЬ, а не имя рантайма. Раньше здесь стоял литерал
-    `backend_type != "codex"`, и он требовал ручной правки ровно в тот момент, когда очередной
-    рантайм научится передаваться, — то есть забыть его означало ждать до 900 с того, кого
-    ждать уже не нужно.
-
-    FAIL-CLOSED, когда бэкенда нет: ход идёт (`is_busy`), а передавать нечего, значит рестарт
-    его оборвёт — такую сессию надо ждать, а не считать безопасной.
-    """
-    backend = getattr(session, "_backend", None)
-    if backend is None:
-        return False
-    return callable(getattr(backend, "adopt", None))
-
-
-def _blocking_runtimes() -> list:
-    """Ходы, которые нельзя передать. ПРОДОВЫХ вызывающих нет: рестарт не ждёт никого.
-
-    Ожидание живых ходов снято решением юзера 28.08.2026, поэтому «блокирует» здесь уже
-    ничего не значит. Функцию держит один оракул #230 T5 —
-    `tests/test_instant_restart.py::test_t5_blocking_follows_capability_not_a_literal`;
-    удалять её надо вместе с ним (follow-up), а не с одной стороны.
-    """
-    return [s for s in _drain_sessions()
-            if s.is_busy and not _can_be_handed_over(s)]
 
 
 async def _do_restart_service() -> dict:
@@ -2624,7 +2588,6 @@ async def _do_restart_service() -> dict:
     # Restart never hands a loaded backend over. shutdown_all() will call the ordinary
     # session.stop() path for every session; a RUNNING one persists INTERRUPTED and startup's
     # auto_resume_all() wakes it again.
-    manager.mark_for_restart_stop(sessions)
     # Работа, начавшаяся во время подготовки, рестарт больше НЕ отменяет: гонка «успел ли
     # кто-то влезть» решалась в пользу того, кто влез, и кнопка проигрывала её тем чаще, чем
     # больше в контуре агентов.

@@ -294,7 +294,6 @@ class GrokBackend(JsonRpcStdioTransport):
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._session_id: str | None = resume_session_id
-        self._active_turn_id: str | None = None
         self._mcp_env: dict[str, str] = mcp_env or {}
         self._mcp_servers: dict = mcp_servers or {}
         self._is_orchestrator = is_orchestrator
@@ -355,15 +354,6 @@ class GrokBackend(JsonRpcStdioTransport):
     def session_id(self) -> Optional[str]:
         return self._session_id
 
-    @property
-    def active_turn_id(self) -> Optional[str]:
-        """Ход, которому принадлежат принятые байты (#230 T4).
-
-        Читается менеджером при передаче (`_hand_over_backend`) и возвращается обратно в
-        `adopt` следующим поколением. Без этого свойства ход после рестарта терял бы свой
-        идентификатор молча: `getattr` вернул бы пустую строку, и никто бы не заметил.
-        """
-        return getattr(self, "_active_turn_id", None)
 
     async def retarget_model(self, model: str) -> None:
         """Switch the active ACP session without replacing its native history."""
@@ -695,12 +685,6 @@ class GrokBackend(JsonRpcStdioTransport):
         if not self._session_id:
             raise RuntimeError("Grok session is not initialized")
         self._active_prompts += 1
-        # Идентификатор живого хода (#230 T8). Менеджер снимает его при передаче, а
-        # `adopt_backend` по пустому значению ставит IDLE вместо RUNNING — то есть без этой
-        # строки ход Grok считался бы законченным, и усыновлённый CLI отпускался бы на
-        # границе хода. Своего идентификатора протокол на этом шаге не даёт: ответ
-        # `session/prompt` приходит только В КОНЦЕ хода, поэтому берём свой.
-        self._active_turn_id = secrets.token_hex(8)
         # Fire without awaiting: the session/prompt response only resolves when that turn
         # ENDS, so awaiting here would block the caller for the whole turn.
         task = asyncio.create_task(self._request("session/prompt", {
@@ -778,11 +762,6 @@ class GrokBackend(JsonRpcStdioTransport):
     async def disconnect(self) -> None:
         proc = self._proc
         if proc is None:
-            # У УСЫНОВЛЁННОГО бэкенда своего процесса нет, но есть читатель, транспорты и
-            # дескрипторы — выйти отсюда рано означало бы оставить их жить рядом с новым CLI
-            # (#230 T4). `teardown_adopted` гасит их и сигналит записанному процессу только
-            # после доказательства identity.
-            await self.teardown_adopted()
             self._cleanup_profile()
             return
         self._disconnecting = True
@@ -811,36 +790,8 @@ class GrokBackend(JsonRpcStdioTransport):
 
     # ── transport ──
 
-    async def adopt(self, fd_in: int, fd_out: int, session_id: str,
-                    active_turn_id: str | None = None, *,
-                    leftover: str = "", cli_pid: int = 0, cli_started_at: int = 0) -> None:
-        """Принять УЖЕ РАБОТАЮЩИЙ Grok CLI по унаследованным пайпам (#230 T4).
-
-        Процесс не поднимается и рукопожатия не шлётся: CLI пережил рестарт супервизора, он
-        уже инициализирован, и его ход продолжает стримить в fd_out. Повторный `initialize`
-        был бы не только семантически неверен, но и завис бы — поток молчит между событиями.
-        Ровно тот же контракт, что у Codex.
-        """
-        self._notifications = asyncio.Queue()
-        self._disconnecting = False
-        await self.adopt_pipes(fd_in, fd_out, limit=16 * 1024 * 1024,
-                               leftover=leftover, cli_pid=cli_pid,
-                               cli_started_at=cli_started_at)
-        self._session_id = session_id
-        self._active_turn_id = active_turn_id
-        # Промпт слал ПРЕДЫДУЩИЙ процесс, поэтому у этого объекта счётчик нулевой — а
-        # `events()` выходит, как только активных промптов и очереди нет (#230 T7). Пустой
-        # счётчик означал бы «ход кончился» на первом же событии: слушатель тихо умирал,
-        # статус падал в IDLE, и обновление на границе хода отпускало ЖИВОЙ CLI. Ход есть
-        # ровно тогда, когда нам передали его идентификатор.
-        self._active_prompts = 1 if active_turn_id else 0
-        self._reader_task = asyncio.create_task(self._read_stdout())
 
     async def _read_stdout(self) -> None:
-        # `self._out` — усыновлённый ридер, если он есть, иначе stdout своего процесса
-        # (#230 T4). Прежняя версия читала только `self._proc.stdout`, поэтому у принятого
-        # после рестарта бэкенда читатель не запускался вовсе: агент стримил в никуда и его
-        # ход не завершался никогда.
         stream = self._out
         if stream is None:
             return
@@ -1236,7 +1187,6 @@ class GrokBackend(JsonRpcStdioTransport):
             return []
         # Ход кончился — идентификатора быть не должно (#230 T8). Иначе следующий рестарт
         # объявит RUNNING на сессии, где ход давно закрыт, и она зависнет навсегда.
-        self._active_turn_id = None
         if key:
             self._completed_prompts.add(key)
         self._active_prompts = max(0, self._active_prompts - 1)

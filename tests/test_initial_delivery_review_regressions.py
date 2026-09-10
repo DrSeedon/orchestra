@@ -85,7 +85,6 @@ async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkey
     session._log = MagicMock()
     session._persist = MagicMock()
     session._ensure_backend = ensure_backend
-    session._refresh_stale_backend = AsyncMock()
     session._apply_pending_identity_restart = AsyncMock()
     session._apply_manifest_effort = AsyncMock()
     session._shadow_reserve = AsyncMock(return_value=None)
