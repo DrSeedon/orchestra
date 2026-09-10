@@ -268,9 +268,7 @@ send_message(to="worker", message="Fix this bug: /path/to/screenshot.png")
 Read the current task state and its report for decisions, unfinished work and evidence.
 Use `list_agents()` for live worker status rather than treating old notes as a live snapshot.
 Bug reports live in the platform inbox; read them only when relevant to the task.
-Update changed unfinished task state before compaction; the knowledge module owns where
-results and personal observations belong. Do not generate a second session chronicle.
-Project instructions are not a session log.
+The knowledge module owns persistence of task results and personal observations.
 </workflow>
 
 <rules priority="critical">

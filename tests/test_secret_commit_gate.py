@@ -67,7 +67,7 @@ MENTIONS = (
     "tests/test_secret_mask.py",
     ".orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json",
     "CLAUDE.md",
-    ".orchestra/kb/repo-ops.md",
+    ".orchestra/kb/runtimes.md",
     "app/runtime_history.py",
     "app/secret_mask.py",
 )

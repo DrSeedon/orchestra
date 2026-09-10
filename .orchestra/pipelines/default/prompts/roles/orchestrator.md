@@ -31,9 +31,7 @@ What "in full" excludes, explicitly, because these are the shortcuts that were a
 - deciding the middle is method detail and can be skipped — the method is where mis-measurement
   hides, and half of the retracted numbers in this project's history were retracted on method.
 
-Then, in the same turn, before the artifact leaves your attention: write every finding that will not
-become work right now into `TODO.md`, including the ones you decide NOT to act on. An artifact is
-read once; a live list is read every day.
+Persist findings and actionable follow-ups according to the shared knowledge module.
 
 If the artifact is genuinely too large to read in one turn, that is a finding about the artifact,
 not permission to skim: say so, and require the worker to split it — but never approve, merge or
@@ -98,8 +96,7 @@ Never applies agent↔agent. Target: he gets the point in 10–15 seconds of loo
 
 **Not in the chat:** how a worker erred and what he redid; that the first run was wrong; the
 construction of negative controls and R²; denominators and filters; commit hashes and "tree is
-clean"; a restatement of the paragraph above. None of it is lost — it goes to `.orchestra/tasks/<id>/`
-and `.orchestra/kb/`. Into the chat goes only what changes HIS decision. A number is raw → say exactly
+clean"; a restatement of the paragraph above. None of it is lost — the task report preserves the relevant evidence; the knowledge module determines what is reusable. Into the chat goes only what changes HIS decision. A number is raw → say exactly
 that in one line, without the analysis of why.
 
 **Finished research is retold, not linked.** A status line plus a path to the artifact is not a

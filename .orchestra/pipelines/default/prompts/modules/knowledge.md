@@ -1,45 +1,54 @@
 <knowledge>
-## Project memory — all roles
+## Knowledge — one policy for every role
 
-The project KB is `.orchestra/kb/`; its README indexes topics. These are working notes for
-agents to search, not a transcript and not a second instruction hierarchy.
+The KB stores findings that would be costly to rediscover: research results, non-obvious
+external behavior, hard-to-find constraints, empirical comparisons, failed approaches and
+why a non-obvious decision was made. It is not a description of the current repository.
 
-### Retrieve only what the task needs
+Before adding a finding, ask: what would another capable agent otherwise have to investigate
+or test again? Time spent alone is not evidence of value. Do not add general engineering
+advice, a paraphrase of accessible documentation, function/file inventories, current settings,
+status reports or a list of your edits. Read changing code/config directly. A code-related
+entry belongs only when it preserves an expensive experiment, rejected alternative or design
+reason that cannot be recovered by ordinary source reading.
 
-Use the topic index in your prompt, then `rg -n -i -F -e '<symbol>' -e '<symptom>' .orchestra/kb`.
-Choose exact identifiers, error text, commands or distinctive Russian/English terms; do not
-search the whole question as one literal. Read the matching heading and nearby paragraphs.
-Check the current code/config for changing runtime facts. Task evidence and archived notes
-are historical sources, not current instructions. If the KB has no answer, search the relevant
-`.orchestra/tasks/` paths or Git history (see `.orchestra/kb/history.md` when present); a failed search does not prove absence.
-Skip memory lookup when the named code, command or live-state check already answers the task.
-`search_memory`, if available, is an optional lexical shortcut, not a prerequisite.
+### Find the relevant experience
 
-### Write once, where the next agent will look
+Use the injected topic index, then search exact symbols, errors or distinctive terms:
+`rg -n -i -F -e '<symbol>' -e '<symptom>' .orchestra/kb`.
+Read the matching section with its conditions and evidence. Historical behavior is a hypothesis
+for today's version, not a current guarantee. If necessary, follow sources in the task or
+pinned Git history (`kb/history.md` when present). Skip lookup when the named code/command
+already answers the question. `search_memory` is optional; an empty search proves little.
 
-- Task result, verification, unresolved work and detailed evidence: the current task under
-  `.orchestra/tasks/<id>/`. Update its existing report; do not create daily summaries or a
-  second session chronicle for the same work. Before compaction, update unfinished task
-  state only if it changed; no separate memory receipt or mandatory ceremony.
-- Personal observation: `.orchestra/workers/<your-name>.md`. Keep only useful notes specific
-  to your work; link to existing project knowledge instead of copying it. No note is required
-  when nothing new was learned. Notes are included in your prompt, so keep them short and
-  move long investigations into the task evidence.
-- Shared reusable conclusion: update the relevant KB topic when the task calls for maintaining
-  project knowledge, or when a verified finding changes an existing entry. Ordinary work and
-  research do not require a KB addition. Unchecked promotion candidates stay in personal notes
-  or the task until a knowledge-maintenance task verifies them. Shared policy changes still
-  require the instruction owner's authorization.
+### Preserve the knowledge, not another transcript
 
-Write plain Markdown in short, self-contained sections. Put exact search terms naturally in
-headings/text; preserve decisive conditions, negations and version/scope qualifications.
-No mandatory fact IDs, status headings, anchor fields, link types, approval receipts, gap
-sections or single-line records. Use a normal source link and a date when freshness matters.
-Replace an obsolete current explanation instead of appending another correction underneath.
-Keep a useful rejected approach with its reason, clearly marked historical; preserve its
-original evidence in task files or a pinned reachable Git snapshot when consolidating. Do not delete raw evidence merely
-because a summary exists. Do not duplicate a finding across topics: link to its owner.
-A new topic is justified by a distinct recurring question, not a task number; list it once
-in `.orchestra/kb/README.md` as `- [name](topic.md) — description with search terms`.
-Check that changed source links open. Never publish secrets from private runtime logs.
+Write a concise, self-contained explanation in ordinary Markdown. Retain the observation,
+material conditions (version/environment/date when relevant), the unsuccessful attempts,
+and the reason for the conclusion. Distinguish measured behavior from interpretation and
+untested hypotheses. "Failed in this experiment" does not mean "never works".
+Link to inspected evidence or a recorded experiment; do not make up missing provenance.
+There is no required card, status vocabulary, fact ID, receipt, section count or line format.
+
+Search for an existing entry first. Another confirmation extends its conditions/evidence;
+a contradicting experiment qualifies or replaces the conclusion. Keep the decisive reason
+for rejecting an approach. Do not append duplicate versions across topics. A new topic needs
+a distinct recurring research question and one index line in `.orchestra/kb/README.md`:
+`- [name](topic.md) — description with search terms`.
+
+Verified reusable findings may update the KB within the authorized task. Unchecked candidates
+stay in the task or short personal notes; neither automatic promotion nor a separate approval
+receipt is required. New shared behavioral policy still needs the instruction owner's decision.
+
+Task results, unfinished work and detailed evidence belong in the existing report under
+`.orchestra/tasks/<id>/`. Personal observations belong in `.orchestra/workers/<your-name>.md`
+only when useful and not already in the KB; these files are injected into your prompt, so
+keep them short. No new finding means no memory entry. Research completion does not require
+adding a KB line. Do not make daily summaries, compulsory pre-compaction chronicles or a
+second record of the same result. Update changed unfinished task state in its existing place.
+TODO contains actionable follow-ups, not every observation or declined idea.
+
+Keep source evidence retrievable when consolidating: pinned reachable Git history may replace
+old checkout copies after authorized, verified cleanup. A summary alone does not prove complete
+extraction. Check changed links and never publish private credentials from the source material.
 </knowledge>
