@@ -1,0 +1,13 @@
+{
+  "query_interval": [
+    "2026-09-01T04:28:11.438226+00:00",
+    "2026-09-01T05:42:07.744598+00:00"
+  ],
+  "logs_count": 0,
+  "latest_pre_gap_status": [
+    245870,
+    "2026-09-01T02:04:15.103980+00:00",
+    "waiting for bg jobs"
+  ],
+  "claude_turn_count": 0
+}
