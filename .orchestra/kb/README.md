@@ -1,25 +1,12 @@
-# KB: оглавление для агентов
+# Исследования и опыт: оглавление KB
 
-Сначала ищи точный symbol, текст ошибки или характерный термин в нужной теме; читай совпавший
-раздел и его источник. Текущий код/конфиг важнее исторического снимка. Архивы не текущие правила.
-Порядок записи для всех ролей: [knowledge](../pipelines/default/prompts/modules/knowledge.md).
-Исходные материалы до очистки: [история Git](history.md).
+Порядок чтения и записи для всех ролей: [knowledge](../pipelines/default/prompts/modules/knowledge.md).
 
-- [current-operations](current-operations.md) — Запуск, startup failed, schema version, действующие владельцы состояния
-- [founder-intent](founder-intent.md) — Решения владельца, область разрешения, HTML-дизайн
-- [evidence-methods](evidence-methods.md) — Замеры, wall-clock, CPU, RSS, cgroup, токены
-- [code-and-tests](code-and-tests.md) — pytest, изоляция SQLite, регрессии и восстановление
-- [review](review.md) — Необязательное ревью, приёмка commit, удалённые coverage/attestation
-- [models-and-quotas](models-and-quotas.md) — Модели, effort, подписочные квоты, API-equivalent
-- [runtimes](runtimes.md) — Codex active writer, Claude/Grok CLI, MCP tools/list, перенос контекста
-- [agent-tools](agent-tools.md) — rg, размер tool_result, таймаут и неизвестный исход
-- [knowledge-base](knowledge-base.md) — KB, личная память, search_memory, архив и консолидация
-- [agent-control](agent-control.md) — Роли, system_prompt, pipeline, compaction и задачи
-- [tasks-and-projects](tasks-and-projects.md) — TaskStore, TaskRuntime, приватный Git, V-, sync и миграция
-- [token-efficiency](token-efficiency.md) — Контекст, cache-read, размер промпта, пределы конспекта
-- [repo-ops](repo-ops.md) — Git/worktree, merge/deploy, секреты и инфраструктура
-- [auto-work](auto-work.md) — bg_create idle watcher, fan-out, доклады и отсутствие активности
-- [external-harnesses](external-harnesses.md) — Prime Agent, Hermes, ADE, встроенные subagents и применимость
-- [chat-and-telegram](chat-and-telegram.md) — SSE snapshot, Unknown dashboard, message delivery, Telegram
-
-- [history](history.md) — Git-снимок исходных workers/tasks/archive/guides/artifacts, поиск старых доказательств
+- [evidence-methods](evidence-methods.md) — MemoryHigh/reclaim, GIL-профиль, ложная CSS-абляция, плавающий baseline
+- [models-and-quotas](models-and-quotas.md) — cache_read/input/reasoning, Claude Max V-541, reset/ценность пула V-542, ошибки фаз
+- [runtimes](runtimes.md) — Grok 1.0.3 doctor/trust/MCP, контроль Codex 0.153.4, bwrap RC=0
+- [chat-and-telegram](chat-and-telegram.md) — page.route и кеш, scroll anchoring, конечный SSE, coalescing без dropped
+- [knowledge-base](knowledge-base.md) — Luna #454: 8/11 и 6/11, отменённое правило как current, пределы оценки
+- [tasks-and-projects](tasks-and-projects.md) — 33 коллизии UUID независимых узлов и расходящийся acceptance-контракт
+- [agent-control](agent-control.md) — Инструкция не доставлена: ошибка до создания сессии в опыте #430
+- [history](history.md) — Закреплённый Git-снимок исходных исследований и старых материалов
