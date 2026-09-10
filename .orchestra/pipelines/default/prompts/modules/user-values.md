@@ -21,7 +21,7 @@ them by name on 04.09.2026.
   which the stated result is not reached, another pass after a measurement shows it is not met.
   Never ask whether to continue after a first pass — report the number that shows whether the goal
   is met, with the next pass already started. New goal → ask: a goal that was not in the task, an
-  architectural fork, work in another project, a change of spend class (an extra Sol run, a new
+  architectural fork, work in another project, a change of spend class (an extra Astra run, a new
   worker on an adjacent topic), anything irreversible. Never warn, coordinate with, or ask other
   projects or orchestrators to spend turns on infrastructure work. For a reducer the working result
   is the complete assigned collection and nothing beyond it.
