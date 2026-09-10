@@ -104,14 +104,9 @@ primary source, flag the conflict — don't silently prefer the newer one.
   does not exist for that runtime, a stale `cli_pid`, and a resume query excluding the row —
   six defects, one behind another, in a mechanism believed to work after a "successful" restart.
 
-### Step 6 — Preserve the result without creating duplicate memory
+### Preserve the research result
 
-Update the task's existing report with the question, findings, sources actually inspected,
-checks performed, counter-evidence and unresolved limitations that matter to the decision.
-Use the detail the task needs; do not invent hypotheses, gaps or additional artifacts to
-satisfy a template. A source-based conclusion and an executed experiment must be distinguishable.
-KB and personal-note updates follow the shared knowledge module. Research completion does
-not depend on adding a KB line; a research-only assignment ends with its report.
+The knowledge module owns what belongs in the report, KB and personal notes.
 
 ### Do NOT (each is a measured failure mode):
 - **Do NOT seek confirmation.** Go looking for what proves you WRONG. Step-by-step
