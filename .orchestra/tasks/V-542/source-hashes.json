@@ -1,0 +1,9 @@
+{
+  ".orchestra/tasks/V-542/site.json": "0ae040e04fa1de34f4877c5b1e096836f9146392ec1b9fcdbfcd44fb2cacf6e3",
+  ".orchestra/tasks/V-542/site-claude-evidence.json": "40408c121c5f9ac37bf28f858f30bbfe7a132f350d053953c2edb21287a72950",
+  ".orchestra/tasks/V-542/site-codex-evidence.json": "fd527dcea1438a77d3a2fb6938f0bc7dead9e590f23fc3eaaf5e46ecb21837a1",
+  "data/V-542-public-sources/points.json": "ec9b2981940855a3657c92258dff0a7d1a3da20ba829cbe6ded0c3cf04279e7e",
+  "data/V-542-public-sources/site.html": "0c13796826880023442f8148f08ab81a5a215f99a4f072f7b664c16015c2cca4",
+  "data/V-542-public-sources/site.js": "d9be57c159975a613217c6a08528bddf0df365eecf60eb0957f954489797277f",
+  "data/V-542-public-sources/site-codex-evidence-original.json": "7e37d5723bcdda49b0b09285b463b24c627e58066db5750ac5178f71622ca9a3"
+}
