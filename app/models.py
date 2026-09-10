@@ -53,7 +53,7 @@ class ProviderMetadata:
 # (Codex in backend_codex.py, Grok in backend_grok.py).
 SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
-        id="claude-fable-5[1m]", name="Fable 5 (1M)",
+        id="claude-fable-5-1[1m]", name="Fable 5.1 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=10.0, price_output=50.0,
     ),
@@ -161,11 +161,12 @@ CONTEXT_LIMITS: dict[str, int] = {}
 # Short aliases let agents use "opus", "sonnet" etc. in spawn_worker without
 # knowing the exact versioned model ID — reduces prompt brittleness on model upgrades
 ALIASES = {
-    "fable": "claude-fable-5[1m]",
-    "fable5": "claude-fable-5[1m]",
-    "claude-fable-5": "claude-fable-5[1m]",
-    "claude-fable-5-1m": "claude-fable-5[1m]",
-    "mythos": "claude-fable-5[1m]",
+    "fable": "claude-fable-5-1[1m]",
+    "fable5": "claude-fable-5-1[1m]",
+    "fable5.1": "claude-fable-5-1[1m]",
+    "claude-fable-5-1": "claude-fable-5-1[1m]",
+    "claude-fable-5-1-1m": "claude-fable-5-1[1m]",
+    "mythos": "claude-fable-5-1[1m]",
     "opus": "claude-opus-5[1m]",
     "opus5": "claude-opus-5[1m]",
     "claude-opus-5": "claude-opus-5[1m]",
