@@ -23,26 +23,26 @@ Make sure needed commits are in main and pushed to GitHub.
 
 ### 2. Update code on VPS
 ```bash
-ssh root@158.220.127.161 \
+ssh root@<VPS_IP> \
   "sudo -u kesha git -C /home/kesha/orchestra pull --ff-only origin main"
 ```
 
 ### 3. Restart the service
 ```bash
-ssh root@158.220.127.161 "systemctl restart orchestra"
+ssh root@<VPS_IP> "systemctl restart orchestra"
 ```
 `uv sync` runs automatically via `ExecStartPre` — dependencies install themselves.
 
 ### 4. Verify it's running
 ```bash
-ssh root@158.220.127.161 "sleep 3 && systemctl status orchestra --no-pager | head -8"
+ssh root@<VPS_IP> "sleep 3 && systemctl status orchestra --no-pager | head -8"
 curl -s --max-time 10 -o /dev/null -w '%{http_code}' https://orc.seedon.ru
 ```
 Expected: `active (running)` + HTTP 302 (redirect to login).
 
 ### 5. If it crashed — diagnose
 ```bash
-ssh root@158.220.127.161 "journalctl -u orchestra -n 30 --no-pager"
+ssh root@<VPS_IP> "journalctl -u orchestra -n 30 --no-pager"
 ```
 
 ## Rules
@@ -54,7 +54,7 @@ ssh root@158.220.127.161 "journalctl -u orchestra -n 30 --no-pager"
 - On `ModuleNotFoundError`, diagnose the pinned interpreter from the effective unit; do not run an unpinned `uv sync` in production.
 
 ## VPS parameters
-- Host: `root@158.220.127.161` (Contabo)
+- Host: `root@<VPS_IP>` (Contabo) — the address itself is not published in this repository; take it from the registry above or ask the owner.
 - Path: `/home/kesha/orchestra`
 - Service: `orchestra.service`
 - URL: `https://orc.seedon.ru`

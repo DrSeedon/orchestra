@@ -28,7 +28,7 @@ SSH_BASE = [
     "proxychains4", "-q", "ssh",
     "-i", "/home/maxim/.ssh/id_ed25519",
     "-o", "BatchMode=yes", "-o", "ConnectTimeout=5",
-    "root@158.220.127.161",
+    "root@<VPS_IP>",
 ]
 ORIGINS = {
     "local": "http://127.0.0.1:8888",

@@ -1359,7 +1359,7 @@ in vertical slices T1→T7; T4–T7 are frozen until the weekly Codex quota rese
   `ssh -L` tunnel to a VPS. After a network change or disabling Reality VPN, old SSH processes remained half-alive and
   held the local port; a new tunnel could not bind, and the proxy silently returned HTTP 000. Duplicates also accumulated:
   nine SSH processes for four tunnels.
-  - **Root cause:** NOT Russian network blocking. Contabo (158.220.127.161) and Fornex (89.127.206.225) were directly
+  - **Root cause:** NOT Russian network blocking. Contabo (<VPS_IP>) and Fornex (<Fornex IP>) were directly
     reachable from Russian Wi-Fi without VPN (verified by SSH banner plus
     `curl -x :12343 https://api.anthropic.com/v1/messages` → HTTP 405). Problems: (1) with VPN ON, xray TUN mode
     (`ip rule 9001 lookup 2022`) routed VPS traffic through tun0; (2) stale SSH processes were never killed.

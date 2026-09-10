@@ -11,7 +11,7 @@ target's orchestra root / scope root.
 
     python scripts/migrate_agent.py \
         --name ParsingMaxim \
-        --from root@laptop --to root@158.220.127.161 \
+        --from root@laptop --to root@<VPS_IP> \
         --from-orchestra /mnt/data/Projects/Python/orchestra \
         --to-orchestra   /home/kesha/orchestra \
         --from-scope /mnt/data/Projects/Python/Parsing \
@@ -482,7 +482,7 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="Migrate an Orchestra orchestrator + its workers between servers.")
     ap.add_argument("--name", required=True, help="orchestrator name")
     ap.add_argument("--from", dest="from_host", required=True, help="source ssh host, e.g. root@laptop")
-    ap.add_argument("--to", dest="to_host", required=True, help="target ssh host, e.g. root@158.220.127.161")
+    ap.add_argument("--to", dest="to_host", required=True, help="target ssh host, e.g. root@<VPS_IP>")
     ap.add_argument("--from-orchestra", required=True, help="orchestra root on source")
     ap.add_argument("--to-orchestra", required=True, help="orchestra root on target")
     ap.add_argument("--from-scope", required=True, help="project scope path on source")

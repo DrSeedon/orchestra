@@ -107,11 +107,11 @@ $ git rev-list --count --merges main
 $ git log main --format='%aN <%aE>' | sort | uniq -c | sort -nr
 2138 Maxim <65215214+DrSeedon@users.noreply.github.com>
  775 DrSeedon <katyas16k.ks@gmail.com>
-  20 vadimd <didenko.it.ai@gmail.com>
+  20 vadimd <email скрыт>
    1 Orchestra <orchestra@localhost>
 ```
 
-Все 2 934 достижимых из `main` коммита распределяются по этим четырём author identities: 2 913 — `Maxim`/`DrSeedon`, 20 — `vadimd`, 1 — служебный `Orchestra <orchestra@localhost>` (автоматическая миграция раскладки, `498c0d14`). Последние 20 — явно чужой вклад из контура `vadim`; они затрагивали, среди прочего, `app/auth.py`, `app/manager.py`, `app/mcp_stdio.py`, `app/tg_bridge.py`, `app/workspace.py` и соответствующие тесты. Это не даёт права назвать 2 913 коммитов ручной работой Максима: Git author identity не различает его правки и squash-коммиты работавших под его управлением моделей. Якорь — вывод команды выше и `git log main --author='vadimd <didenko.it.ai@gmail.com>'` (20 строк).
+Все 2 934 достижимых из `main` коммита распределяются по этим четырём author identities: 2 913 — `Maxim`/`DrSeedon`, 20 — `vadimd`, 1 — служебный `Orchestra <orchestra@localhost>` (автоматическая миграция раскладки, `498c0d14`). Последние 20 — явно чужой вклад из контура `vadim`; они затрагивали, среди прочего, `app/auth.py`, `app/manager.py`, `app/mcp_stdio.py`, `app/tg_bridge.py`, `app/workspace.py` и соответствующие тесты. Это не даёт права назвать 2 913 коммитов ручной работой Максима: Git author identity не различает его правки и squash-коммиты работавших под его управлением моделей. Якорь — вывод команды выше и `git log main --author='vadimd <email скрыт>'` (20 строк).
 
 ## Наблюдаемый operational scale
 

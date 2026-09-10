@@ -49,7 +49,7 @@ ExecStart=/usr/local/bin/telegram-bot-api \
     --http-port=8081 \
     --dir=/mnt/data/Projects/Python/orchestra/data/tg-bot-api/
 Restart=always
-User=maxim
+User=REPLACE_USER
 
 [Install]
 WantedBy=multi-user.target
