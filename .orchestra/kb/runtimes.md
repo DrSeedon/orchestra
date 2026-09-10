@@ -1,30 +1,33 @@
-# Рантаймы CLI: Codex, Claude, Grok, перенос контекста
+# Эксперименты с CLI и MCP
 
-## Codex active writer / восстановление после рестарта
+## Grok 1.0.3: doctor видел 37 tools, а сессия загружала ноль
 
-`already has an active writer` может означать реально продолжающийся ход или потерянное
-владение. Сначала проверь существующий ход и процессы конкретной сессии. Не сбрасывай native
-thread и не меняй модель вслепую: это может уничтожить доступ к живому контексту.
-Освобождение восстановленного writer исправлено в [backend_codex.py](../../app/backend_codex.py);
-[результат](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/retire-legacy-review/README.md), [проверки повторных рестартов](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/537/research.md).
-Повтор того же ошибочного запроса без диагностики не является восстановлением.
+В расследовании Grok 1.0.3 `grok mcp doctor` сообщал «37 tools, healthy», но рабочая сессия
+получала ноль серверов. `grok mcp list` тоже не отвечал на нужный вопрос: Orchestra передавала
+сервер через ACP session/new, а list показывал конфигурационные источники Grok.
 
-## MCP: конфигурация на диске и tools/list в работающем CLI
+Различающие наблюдения нашли в `grok agent --debug --debug-file <file> stdio`:
+`created with N MCP servers`, `folder untrusted: skipping repo-local`,
+`ensure_mcp_tools_initialized: config_count=`. Оказалось, project .mcp.json объединялся
+по имени до проверки folder trust. Коллизия имени вытесняла переданный сервер, а последующая
+проверка trust удаляла замещающий. Пять способов подключения, включая --plugin-dir, дали
+один отрицательный результат из-за общей причины, а не пяти независимых дефектов.
 
-Изменённый конфиг не доказывает, что уже запущенный native thread получил новые tools.
-Проверяй фактический реестр и ошибку handshake/resume. Подтверждение отправителя принадлежит
-[mcp_proof.py](../../app/mcp_proof.py), транспорт агента — [mcp_stdio.py](../../app/mcp_stdio.py).
-Отказ доставки доклада не означает, что исполнитель не сделал коммит.
+Не переносить порядок merge/trust на новую версию без проверки. Ценность опыта — разные
+области проверки doctor/list/session и найденный общий confound.
+Источник: [разбор Grok 1.0.3](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/workers/fix-grok-mcp.md);
+[отчёт #264](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/tasks/264/report.md).
 
-## Перенос истории и версия CLI
+## Codex 0.153.4: наличие context-management tools проверяли контрольным запуском
 
-Контекст межрантаймового перехода формирует [runtime_history.py](../../app/runtime_history.py)
-из исходных сообщений; это не доказательство сохранения всего native состояния. Не вмешивайся
-в файлы CLI вместо штатного механизма перехода. Версию, параметры и поддержку функции
-проверяй установленным CLI и его исходниками/документацией перед применением старого рецепта.
-Исторические Codex/Grok справочники доступны в архиве; старые модельные имена и квоты не текущие.
+В записи от 06.09.2026 описаны два изолированных CODEX_HOME: с
+`[features.context_management] experimental_mode = true` модель сообщила о new_context и
+get_context_remaining; без флага та же Astra перечислила набор без них. Зафиксированы
+4382 и 3380 токенов. Это наблюдение о видимости tools в той версии, не замер экономии
+недельного лимита и не основание автоматически включать флаг всему парку.
 
-## Исторические исследования
-
-[Прежние записи с исходными якорями и доказательствами](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/kb/runtimes.md).
-Это материал для проверки гипотез, не текущие инструкции.
+Та же запись содержит пробу vendor bwrap: RC=0 одновременно с
+`loopback: Failed RTM_NEWADDR: Operation not permitted`. В этом окружении успешный код
+запуска не подтверждал настройку loopback. Запись не содержит полного повторяемого стенда;
+это историческое свидетельство, которое стоит проверить при аналогичной диагностике.
+Источник: [запись двух проб от 06.09](https://github.com/DrSeedon/orchestra/blob/3208ceeda5a1c76ce9e0ed147b0c3fbce38ac497/AGENTS.md).
