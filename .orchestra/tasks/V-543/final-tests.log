@@ -1,0 +1,20 @@
+watcher=PidfdChildWatcher
+match: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+repeat: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+cancel: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+recv_cancel_before: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+recv_cancel_after: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+cleanup: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+bash: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+managed_spawn_cancel: N=12 before=0 after=0 delta=0
+.watcher=PidfdChildWatcher
+bash_spawn_cancel: N=12 before=0 after=0 delta=0
+...............................................s....................................
+91 passed, 1 skipped in 29.39s

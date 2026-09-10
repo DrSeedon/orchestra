@@ -139,15 +139,17 @@ async def _recv_pidfd(control: socket.socket) -> int:
     loop = asyncio.get_running_loop()
     future = loop.create_future()
     fd_size = array.array("i").itemsize
+    received_pidfd = None
 
     def receive() -> None:
+        nonlocal received_pidfd
         try:
             data, ancillary, _flags, _address = control.recvmsg(
                 256,
                 socket.CMSG_SPACE(fd_size),
                 socket.MSG_CMSG_CLOEXEC,
             )
-            result = _extract_pidfd(data, ancillary)
+            received_pidfd = _extract_pidfd(data, ancillary)
         except BlockingIOError:
             return
         except BaseException as exc:
@@ -155,7 +157,7 @@ async def _recv_pidfd(control: socket.socket) -> int:
                 future.set_exception(exc)
         else:
             if not future.done():
-                future.set_result(result)
+                future.set_result(received_pidfd)
         finally:
             if future.done():
                 loop.remove_reader(control.fileno())
@@ -164,6 +166,12 @@ async def _recv_pidfd(control: socket.socket) -> int:
     loop.add_reader(control.fileno(), receive)
     try:
         return await future
+    except BaseException:
+        # A ready callback can receive the fd just before cancellation wins the
+        # awaiting task's next step, even after set_result(). Ownership stays here.
+        if received_pidfd is not None:
+            os.close(received_pidfd)
+        raise
     finally:
         loop.remove_reader(control.fileno())
 
@@ -260,6 +268,23 @@ async def _kill_proc(proc: asyncio.subprocess.Process) -> None:
     await asyncio.shield(cleanup)
 
 
+async def _cleanup_cancelled_spawn(spawn: asyncio.Task) -> None:
+    proc = await spawn
+    await _kill_proc(proc)
+
+
+async def _await_owned_spawn(spawn: asyncio.Task) -> asyncio.subprocess.Process:
+    try:
+        return await asyncio.shield(spawn)
+    except asyncio.CancelledError:
+        # Keep an owner even if cancellation interrupts the second await too.
+        cleanup = spawn_supervised(
+            _cleanup_cancelled_spawn(spawn), "cancelled process spawn cleanup",
+        )
+        await asyncio.shield(cleanup)
+        raise
+
+
 def _orphan_session_stats(session_id: int) -> tuple[int, float]:
     """Return process count and oldest process age for a finished job's session."""
     try:
@@ -319,12 +344,7 @@ class BgJobManager:
         spawn_task = asyncio.create_task(
             _spawn_bg_process(command, shell=shell, **kwargs)
         )
-        try:
-            proc = await asyncio.shield(spawn_task)
-        except asyncio.CancelledError:
-            proc = await asyncio.shield(spawn_task)
-            await _kill_proc(proc)
-            raise
+        proc = await _await_owned_spawn(spawn_task)
         self._procs[job_id] = proc
         return proc
 
@@ -962,6 +982,7 @@ class BgJobManager:
                     stdout, stderr = b"", b""
                 finally:
                     self._procs.pop(job_id, None)
+                    await _kill_proc(proc)
                 output = stdout.decode(errors="replace") + stderr.decode(errors="replace")
                 if re.search(pattern, output):
                     await self._trigger(job_id, message, target_name, target_scope, output.strip())
