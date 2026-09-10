@@ -140,7 +140,6 @@ async def test_resume_conflict_is_typed_and_visible_until_success(session, monke
     session._persist = MagicMock()
     session._hibernate.schedule = MagicMock()
     monkeypatch.setattr('app.workspace.sync_agents_md', lambda *args: None)
-    monkeypatch.setattr('app.manager.publish_backend_fds', lambda *args: None)
     candidate = SimpleNamespace(has_owned_processes=False, connect=AsyncMock(
         side_effect=CodexProtocolError('thread/resume', {'message':
             f'thread {THREAD_ID} already has an active writer'})))

@@ -1308,7 +1308,6 @@ async def test_t2_385_real_bg_result_uses_immutable_provenance_through_history(
     backend = FakeBackend()
     session._backend = backend
     session._ensure_backend = AsyncMock(return_value=backend)
-    session._refresh_stale_backend = AsyncMock()
     session._apply_pending_identity_restart = AsyncMock()
     session._apply_manifest_effort = AsyncMock()
     session._notify_scope_running = AsyncMock()
@@ -1445,7 +1444,6 @@ async def test_t2_385_running_bg_delivery_logs_provenance_once_then_queues_text(
     backend = FakeBackend()
     session._backend = backend
     session._ensure_backend = AsyncMock(return_value=backend)
-    session._refresh_stale_backend = AsyncMock()
     session._apply_pending_identity_restart = AsyncMock()
     session._apply_manifest_effort = AsyncMock()
     session._persist = MagicMock()

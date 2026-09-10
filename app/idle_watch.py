@@ -31,15 +31,13 @@ def snapshot(target_id: str, manager) -> dict | None:
                 if getattr(live, '_compacting', False) or (row['id'] == target_id and getattr(live, '_pending_messages', [])):
                     return None
                 row['status'] = getattr(live.status, 'value', live.status)
-                if getattr(live, '_adopted_recovery_pending', False):
-                    row['status'] = 'recovering'
                 pending_report = getattr(live, '_auto_report_task', None)
                 if pending_report is not None and not pending_report.done():
                     return None
         root = next((row for row in tree if row['id'] == target_id), None)
         if root is None or root['status'] != 'idle':
             return None
-        if any(row['status'] in {'running','starting','interrupted','recovering'} for row in tree):
+        if any(row['status'] in {'running','starting','interrupted'} for row in tree):
             return None
         ids = sorted(row['id'] for row in tree)
         marks = ','.join('?' for _ in ids)

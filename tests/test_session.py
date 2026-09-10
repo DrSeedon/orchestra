@@ -591,7 +591,6 @@ class TestTurn:
         session._refresh_codex_project_doc = AsyncMock()
         session._build_runtime_handoff = AsyncMock(return_value="bounded handoff")
         session._activate_backend_tasks = MagicMock()
-        monkeypatch.setattr("app.manager.publish_backend_fds", MagicMock())
 
         backend = await session._ensure_backend(
             exclude_history_users=("current message",),

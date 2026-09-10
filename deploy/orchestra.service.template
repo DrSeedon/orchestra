@@ -16,6 +16,10 @@ ExecStart=/opt/orchestra/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 
 Restart=always
 RestartSec=5
 TimeoutStopSec=30
+KillMode=control-group
+SendSIGKILL=yes
+Delegate=yes
+FileDescriptorStoreMax=0
 StandardOutput=journal
 StandardError=journal
 

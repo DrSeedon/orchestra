@@ -3,9 +3,7 @@
 import asyncio
 import itertools
 import json
-import contextlib
 import logging
-import os
 import re
 import sqlite3
 import shutil
@@ -14,7 +12,6 @@ import sys
 import time
 import uuid
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Awaitable, Callable, Optional
@@ -75,7 +72,6 @@ from app.tasks import spawn_supervised
 logger = logging.getLogger(__name__)
 
 _adhoc_serial = itertools.count(1)
-_HANDOVER_RESUME_BUDGET_S = 2.0
 
 
 def enc_cli_dir(cwd: str) -> str:
@@ -88,11 +84,6 @@ def enc_cli_dir(cwd: str) -> str:
     """
     return cwd.replace("/", "-").replace(".", "-")
 
-
-@dataclass(frozen=True, slots=True)
-class OrphanProcessIdentity:
-    pid: int
-    started_at: int
 
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,
 # чтобы вызывающий получил внятный отказ, а не ReadTimeout, неотличимый от мёртвого сервера.
@@ -566,13 +557,7 @@ class SessionManager:
         # #237 T3: sessions this restart attempt already handed to systemd. Objects, not ids:
         # a rollback has to reach their backends, and an abandoned restart may leave them out
         # of `self.sessions`.
-        self._prepared_restart: list = []
-        self._restart_force_stop: set[str] = set()
 
-    @property
-    def _prepared_restart_sessions(self) -> set[str]:
-        """Ids of the sessions currently prepared for handover (#237 T3)."""
-        return {session.id for session in self._prepared_restart}
 
     def begin_drain(self) -> None:
         """Закрыть приём новых ходов. СИНХРОННО — в этом весь смысл.
@@ -1308,7 +1293,6 @@ class SessionManager:
             )
         # Сессии больше нет — снять её имена из FD store (#230 T2). Иначе store дорастает до
         # `FileDescriptorStoreMax=256`, и новые агенты молча перестают быть защищёнными.
-        retire_backend_fds(session)
         archive_session(session_id)
         self.sessions.pop(session_id, None)
         await asyncio.to_thread(self._cleanup_cli_home, session_id)
@@ -2401,69 +2385,9 @@ class SessionManager:
 
     # ── Startup / Shutdown ──
 
-    @staticmethod
-    def _inherited_agent_pipes() -> dict[str, tuple[int, int]]:
-        """Sessions whose CLI outlived our restart, keyed by session id (#230 T5).
-
-        Only a session with BOTH ends is adoptable: half a transport is not a transport, and
-        adopting it would leave a turn that can be read but never answered.
-        """
-        from app import fdstore
-
-        ends: dict[str, dict[str, int]] = {}
-        for name, fd in fdstore.acquire_fds().items():
-            parsed = parse_fd_store_name(name)
-            if parsed is None:
-                continue
-            session_id, side = parsed
-            ends.setdefault(session_id, {})[side] = fd
-        return {
-            session_id: (sides["stdin"], sides["stdout"])
-            for session_id, sides in ends.items()
-            if "stdin" in sides and "stdout" in sides
-        }
-
-    async def sweep_orphan_fds(self) -> int:
-        """Close descriptors that came back from systemd but belong to no live session (#230 T7).
-
-        FAIL-CLOSED: with an EMPTY session registry nothing is swept. An empty registry means
-        "I know nothing", not "they are all dead" — sweeping then would kill every surviving
-        agent at the first startup that failed to load its sessions.
-
-        Closing a descriptor only gives the CLI EOF (measured: it dies with BrokenPipeError),
-        which is not a guarantee — so a known pid is terminated explicitly.
-        """
-        inherited = _inherited_named_fds()
-        if not inherited:
-            return 0
-        if not self.sessions:
-            logger.warning(
-                "orphan sweep refused: %d inherited descriptor(s) but the session registry "
-                "is EMPTY — refusing to close descriptors of possibly live agents",
-                len(inherited),
-            )
-            return 0
-
-        pids = orphan_pids()
-        swept = 0
-        for session_id, fd in inherited:
-            if session_id in self.sessions:
-                continue
-            close_orphan_fd(fd)
-            identity = pids.get(fd)
-            if identity:
-                terminate_orphan_process(identity)
-            logger.warning(
-                "orphan sweep: closed fd %s of unknown session %s", fd, session_id)
-            swept += 1
-        return swept
 
     async def auto_resume_all(self) -> None:
         from app.db import _conn
-        adoptable = self._inherited_agent_pipes()
-        if adoptable:
-            logger.info("inherited live pipes for %d session(s): %s",
-                        len(adoptable), ", ".join(sorted(adoptable)))
         with _conn() as c:
             # 'interrupted' — graceful shutdown успел пометить оборванный ход;
             # 'running' — не успел (SIGKILL/OOM). Оба означают одно: ход прерван
@@ -2475,36 +2399,12 @@ class SessionManager:
             was_waiting = {r["id"] for r in c.execute(
                 "SELECT id FROM sessions WHERE status = 'waiting'"
             ).fetchall()}
-            # A COMPLETE inherited pair is stronger evidence of a live turn than `session_id`:
-            # the CLI is provably still running and streaming. Requiring session_id here left
-            # such a survivor unloaded, and an unloaded session's descriptors then look like an
-            # orphan to the sweep — we would reap the very agent we just rescued (#237 T2).
-            adoption_filter = ""
-            adoption_params: tuple = ()
-            if adoptable:
-                adoption_filter = f" OR id IN ({','.join('?' * len(adoptable))})"
-                adoption_params = tuple(adoptable)
             resumable = [dict(r) for r in c.execute(
-                f"SELECT * FROM sessions WHERE (session_id IS NOT NULL{adoption_filter}) "
-                "AND status IN ('running', 'interrupted', 'idle', 'waiting')",
-                adoption_params,
+                "SELECT * FROM sessions WHERE session_id IS NOT NULL "
+                "AND status IN ('running', 'interrupted', 'idle', 'waiting')"
             ).fetchall()]
-            # Reset to idle before loading: prevents any session from resuming
-            # as 'running' (the backend process died on server restart).
-            # #230: EXCEPT the sessions whose pipes systemd just handed back — their CLI is
-            # alive and their turn is still running, so forgetting it here is exactly the
-            # loss this task removes.
-            if adoptable:
-                placeholders = ",".join("?" * len(adoptable))
-                c.execute(
-                    "UPDATE sessions SET status='idle' "
-                    "WHERE status IN ('running', 'interrupted', 'waiting') "
-                    f"AND id NOT IN ({placeholders})",
-                    tuple(adoptable),
-                )
-            else:
-                c.execute("UPDATE sessions SET status='idle' "
-                          "WHERE status IN ('running', 'interrupted', 'waiting')")
+            c.execute("UPDATE sessions SET status='idle' "
+                      "WHERE status IN ('running', 'interrupted', 'waiting')")
 
         # R1: load orchestrators first — workers need their parent_name resolved,
         # and the orchestrator's on_idle callback registered before workers resume
@@ -2525,24 +2425,6 @@ class SessionManager:
                         row, recovery_handoff=pending_handoffs.get(row["id"]),
                     )
                     logger.info("Resumed %s: %s", kind, row["name"])
-                    if row["id"] in adoptable:
-                        fd_in, fd_out = adoptable[row["id"]]
-                        await session.adopt_backend(
-                            fd_in, fd_out, active_turn_id=row.get("active_turn_id") or None,
-                            leftover=row.get("leftover") or "",
-                            cli_pid=int(row.get("cli_pid") or 0),
-                            cli_started_at=int(row.get("cli_started_at") or 0),
-                            recover_turn=(row["id"] in was_running
-                                          and not row.get("active_turn_id")),
-                        )
-                        from app.db import clear_consumed_handover
-
-                        clear_consumed_handover(session.id)
-                        logger.info(
-                            "[%s] adopted a live CLI; %s", session.name,
-                            "its turn keeps running" if session.status == AgentStatus.RUNNING
-                            else "no turn was in flight")
-                        continue  # no restart notice: nothing was interrupted
                     if row["id"] in was_waiting:
                         from app.bg_jobs import bg_manager
                         if bg_manager and bg_manager.has_active_jobs(row["id"]):
@@ -2568,7 +2450,9 @@ class SessionManager:
             await self.send(
                 session.id,
                 "[system] Orchestra server restarted. "
-                "Your session was restored — continue where you left off.",
+                "Your previous turn and local commands were interrupted. "
+                "The saved conversation was restored. Check files and external action outcomes "
+                "before continuing; do not blindly repeat the last operation.",
                 provenance=provenance,
             )
             logger.info(f"Restart notice injected: {session.name}")
@@ -2596,149 +2480,6 @@ class SessionManager:
             except Exception as e:
                 logger.warning(f"Periodic worktree cleanup failed: {e}")
 
-    async def _hand_over_backend(self, session) -> bool:
-        """Give this session's pipes to systemd and leave the CLI running (#230 T4).
-
-        Returns False when there is nothing to hand over, and the caller then stops the
-        session the old way. Never raises: a failed handover must not block shutdown of the
-        rest, it only costs THIS agent its turn — the same thing that happens today anyway.
-        """
-        from app import fdstore
-        from app.db import save_handover_state
-
-        backend = getattr(session, "_backend", None)
-        if backend is None:
-            return False
-        fd_in = getattr(backend, "fd_in", None)
-        fd_out = getattr(backend, "fd_out", None)
-        if fd_in is None or fd_out is None:
-            return False
-        # Stop reading BEFORE snapshotting: a live reader keeps pulling bytes into a process
-        # that is about to die, and moves parsed events into a queue nothing transfers.
-        quiesce = getattr(backend, "quiesce_for_handover", None)
-        if quiesce is not None:
-            try:
-                if not await quiesce():
-                    logger.error("[%s] refusing handover: parsed events could not be carried "
-                                 "forward, stopping the agent instead", session.name)
-                    return False
-            except Exception as error:
-                logger.error("[%s] could not quiesce before handover: %s",
-                             session.name, err_text(error))
-                return False
-
-        stored: list[str] = []
-        try:
-            for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
-                             (fd_store_name(session.id, "stdout"), fd_out)):
-                fdstore.store_fds(name, [fd])
-                stored.append(name)
-            # `_conn()` applies SQLite busy_timeout=5s. Keep this bounded write synchronous:
-            # cancellation can then happen only before it starts or after it commits, never in
-            # the executor race where state committed after descriptor rollback.
-            save_handover_state(
-                session.id,
-                getattr(backend, "active_turn_id", "") or "",
-                getattr(backend, "leftover", "") or "",
-                getattr(backend, "pid", 0) or 0,
-                getattr(backend, "cli_started_at", 0) or 0,
-            )
-        except BaseException as error:
-            # Half a pair is worse than none: it is not adoptable, and the sweep keeps it
-            # because the session still exists. Roll back what we already handed over.
-            for name in stored:
-                try:
-                    fdstore.remove_fds(name)
-                except Exception as rollback_error:
-                    logger.error("[%s] could not roll back %s: %s",
-                                 session.name, name, err_text(rollback_error))
-            # Quiesce already succeeded, so this backend is paused and readerless RIGHT NOW.
-            # Undoing that is mandatory and belongs here, not to the caller: an agent left
-            # quiesced is alive, looks healthy, and is permanently deaf. The earlier code only
-            # cleared the quiescing flag — and the fleet rollback then skipped this very
-            # session BECAUSE the flag was already clear.
-            await self._resume_after_failed_handover(session, backend)
-            logger.error(
-                "[%s] handover failed (rolled back %d descriptor(s)), stopping the agent: %s",
-                session.name, len(stored), err_text(error),
-            )
-            if isinstance(error, asyncio.CancelledError):
-                raise
-            return False
-        return True
-
-    @staticmethod
-    async def _resume_after_failed_handover(session, backend) -> bool:
-        """Give a quiesced backend its reader back or stop it into recovery state."""
-        resume = getattr(backend, "resume_after_aborted_handover", None)
-        if resume is None:
-            return True
-        try:
-            await asyncio.wait_for(resume(), timeout=_HANDOVER_RESUME_BUDGET_S)
-            return True
-        except Exception as resume_error:
-            logger.error("[%s] could not resume after a failed handover: %s",
-                         session.name, err_text(resume_error))
-            stop = getattr(session, "stop", None)
-            if callable(stop):
-                try:
-                    await asyncio.wait_for(stop(), timeout=5.0)
-                    logger.warning(
-                        "[%s] quiesced handover fallback stopped the session as INTERRUPTED",
-                        session.name,
-                    )
-                    return True
-                except Exception as error:
-                    logger.error(
-                        "[%s] could neither resume nor stop after failed handover: %s",
-                        session.name,
-                        err_text(error),
-                    )
-            return False
-
-    async def prepare_restart_handover(self, sessions: list) -> dict:
-        """Hand this whole live fleet to systemd, all or none, before any signal (#237 T3).
-
-        Partial success is the state that must not exist: some CLIs keep running while the
-        restart is abandoned, and nobody owns them afterwards. So the first refusal rolls back
-        everything this call already stored.
-        """
-        self._prepared_restart = []
-        for session in sessions:
-            handed = False
-            try:
-                handed = await self._hand_over_backend(session)
-            except Exception as error:
-                logger.error("[%s] handover raised: %s", session.name, err_text(error))
-            if handed:
-                self._prepared_restart.append(session)
-                continue
-            # The refusing session restored itself inside `_hand_over_backend`. Stop after the
-            # first bounded refusal: retrying the rest under the same locked dependency only
-            # spends N×busy_timeout and defeats the preparation ceiling.
-            prepared, self._prepared_restart = self._prepared_restart, []
-            await self._rollback_handover(prepared)
-            self._restart_force_stop.add(session.id)
-            return {
-                "ok": False,
-                "reason": f"{session.name} refused the handover",
-                "refused_ids": [session.id],
-                "refused_names": [session.name],
-            }
-        return {
-            "ok": True,
-            "handed_over": [session.id for session in self._prepared_restart],
-        }
-
-    def mark_for_restart_stop(self, sessions: list) -> None:
-        """Route this restart generation through normal ``session.stop()`` teardown."""
-        self._restart_force_stop.update(session.id for session in sessions)
-
-    async def rollback_restart_handover(self) -> None:
-        """Undo a completed fleet handover when the restart will not happen (#237 T3)."""
-        prepared, self._prepared_restart = self._prepared_restart, []
-        self._restart_force_stop.clear()
-        await self._rollback_handover(prepared)
 
     async def drain_restart_persistence(self) -> dict:
         """Flush every current session's queued persistence before restart signalling."""
@@ -2765,37 +2506,6 @@ class SessionManager:
             outcome["losses"] = losses
         return outcome
 
-    async def _rollback_handover(self, prepared: list) -> None:
-        """Take these sessions back out of systemd's store and give them their readers back.
-
-        Every session here was quiesced by THIS attempt, so the resume is unconditional. It
-        used to be gated on `_handover_quiescing`, which is the same flag the failure path
-        clears — so the one session that needed resuming most was the one being skipped.
-        Asking the backend whether it feels quiesced is not a check, it is a coin flip.
-        """
-        from app import fdstore
-
-        # `remove_fds` is a same-process sd_notify datagram, not an executor operation. Keeping
-        # it synchronous prevents a timed-out old thread from deleting a later retry's names.
-        for session in prepared:
-            for side in ("stdin", "stdout"):
-                name = fd_store_name(session.id, side)
-                try:
-                    fdstore.remove_fds(name)
-                except Exception as error:
-                    logger.error("[%s] could not roll back %s: %s",
-                                 session.name, name, err_text(error))
-        resumed = await asyncio.gather(*(
-            self._resume_after_failed_handover(
-                session, getattr(session, "_backend", None)
-            )
-            for session in prepared
-        ))
-        if not all(resumed):
-            failed = [session.name for session, ok in zip(prepared, resumed) if not ok]
-            raise RuntimeError(
-                "handover rollback could neither resume nor stop: " + ", ".join(failed)
-            )
 
     async def shutdown_all(self) -> None:
         background_tasks = [
@@ -2813,177 +2523,16 @@ class SessionManager:
         self._cleanup_task = None
         self._wt_cleanup_task = None
         sessions = list(self.sessions.values())
-        # #230: hand the live CLI over to systemd instead of killing it. Whatever cannot be
-        # handed over falls back to the old stop() path, so a partial handover degrades into
-        # today's behaviour instead of leaving an unowned process behind.
-        # #237 T3: whatever the restart workflow already prepared is DONE — storing it again
-        # would add a second entry under the same name, and stopping it would kill the very
-        # CLI we just promised to keep alive.
-        already_prepared = self._prepared_restart_sessions
-        handed_over = [s for s in sessions if s.id in already_prepared]
-        for session in sessions:
-            if (
-                session.id not in already_prepared
-                and session.id not in self._restart_force_stop
-                and await self._hand_over_backend(session)
-            ):
-                handed_over.append(session)
-        to_stop = [s for s in sessions if s not in handed_over]
         results = await asyncio.gather(
-            *(session.stop() for session in to_stop),
+            *(session.stop() for session in sessions),
             return_exceptions=True,
         )
-        for session, result in zip(to_stop, results):
+        for session, result in zip(sessions, results):
             if isinstance(result, BaseException):
                 logger.warning(
                     "session '%s' stop failed on shutdown: %s",
                     session.name,
                     result,
                 )
-        if handed_over:
-            logger.info(
-                "handed %d live agent(s) to systemd; their turns keep running: %s",
-                len(handed_over), ", ".join(s.name for s in handed_over),
-            )
         self.sessions.clear()
         self._session_locks.clear()
-        self._restart_force_stop.clear()
-
-
-def publish_backend_fds(session) -> bool:
-    """Отдать пайпы агента systemd СРАЗУ при спавне, а не в момент выключения (#230 T2).
-
-    До этого `store_fds` звался ровно из одного места — с пути выключения, — и потому
-    независимость агента была условной: она существовала, только если сервер успел провести
-    транзакцию. При `kill -9`/OOM CLI переживает нас, а дескрипторы умирают вместе с нами, и
-    подхватить его становится нечем.
-
-    Всё или ничего: половина пары выглядит как защищённый агент, которого нельзя принять —
-    для adopt нужны обе стороны. Поэтому упавшая вторая сторона снимает уже положенную первую.
-    """
-    from app import fdstore
-
-    backend = getattr(session, "_backend", None)
-    fd_in = getattr(backend, "fd_in", None)
-    fd_out = getattr(backend, "fd_out", None)
-    if fd_in is None or fd_out is None:
-        return False  # рантайм без собственных пайпов (Claude): передавать нечего
-
-    stored: list[str] = []
-    try:
-        from app.db import save_backend_identity
-
-        pid = getattr(backend, "pid", 0) or 0
-        started_at = getattr(backend, "cli_started_at", 0) or 0
-        if hasattr(backend, "pid") and hasattr(backend, "cli_started_at"):
-            save_backend_identity(session.id, pid, started_at)
-        if not pid or not started_at:
-            logger.warning("[%s] publishing pipes without process identity; "
-                           "automatic process replacement is unsafe", session.id)
-        for name, fd in ((fd_store_name(session.id, "stdin"), fd_in),
-                         (fd_store_name(session.id, "stdout"), fd_out)):
-            fdstore.store_fds(name, [fd])
-            stored.append(name)
-    except Exception as error:
-        # Громко: молчаливый отказ вернул бы прежнюю условную независимость, ничего об этом
-        # не сказав, то есть тот же дефект, но уже невидимый.
-        logger.error("[%s] could not publish agent pipes to systemd: %s",
-                     getattr(session, "name", session.id), err_text(error))
-        for name in stored:
-            with contextlib.suppress(Exception):
-                fdstore.remove_fds(name)
-        return False
-    return True
-
-
-def retire_backend_fds(session) -> None:
-    """Снять имена, когда сессия закончилась штатно (#230 T2).
-
-    Без этого store упирается в `FileDescriptorStoreMax=256`, и новые сессии молча перестают
-    быть защищёнными — то есть защита исчезает ровно тогда, когда агентов стало много.
-    """
-    from app import fdstore
-
-    for side in ("stdin", "stdout"):
-        with contextlib.suppress(Exception):
-            fdstore.remove_fds(fd_store_name(session.id, side))
-
-
-def fd_store_name(session_id: str, side: str) -> str:
-    """The FDNAME an agent pipe is stored under (#237 T2).
-
-    Dots, not colons: `:` separates entries in LISTEN_FDNAMES, and systemd answers a name
-    containing it by silently storing everything as `stored` instead.
-    """
-    return f"agent.{session_id}.{side}"
-
-
-def parse_fd_store_name(name: str) -> tuple[str, str] | None:
-    """`agent.<id>.<side>` -> (session id, side), or None if this is not an agent pipe."""
-    parts = name.split(".")
-    if len(parts) != 3 or parts[0] != "agent" or parts[2] not in ("stdin", "stdout"):
-        return None
-    return parts[1], parts[2]
-
-
-def _inherited_named_fds() -> list[tuple[str, int]]:
-    """Every inherited `agent.<id>.<side>` descriptor as (session_id, fd) (#230 T7).
-
-    Deliberately NOT the adoptable-pairs view: a descriptor whose partner is missing cannot be
-    adopted at all, which makes it the most likely orphan of the lot. The side is dropped on
-    purpose — #258 only closes these and matches them to a stored identity, and for that
-    stdin/stdout are interchangeable.
-    """
-    from app import fdstore
-
-    found: list[tuple[str, int]] = []
-    for name, fd in fdstore.acquire_fds().items():
-        parsed = parse_fd_store_name(name)
-        if parsed is None:
-            logger.warning("inherited descriptor %r is not an agent pipe; leaving it alone", name)
-            continue
-        found.append((parsed[0], fd))
-    return found
-
-
-def close_orphan_fd(fd: int) -> None:
-    """Close our end of an orphaned pipe; the CLI then sees EOF (#230 T7)."""
-    try:
-        os.close(fd)
-    except OSError as error:
-        logger.warning("could not close orphan fd %s: %s", fd, err_text(error))
-
-
-def orphan_pids() -> dict[int, OrphanProcessIdentity]:
-    """Map inherited descriptor -> stored CLI identity, for descriptors whose session is gone.
-
-    Both fields come from the same handover row. A row that no longer exists leaves the identity
-    unknown, and then closing the descriptor is all we can honestly do.
-    """
-    from app.db import _conn
-
-    mapping: dict[int, OrphanProcessIdentity] = {}
-    with _conn() as c:
-        rows = c.execute(
-            "SELECT id, cli_pid, cli_started_at FROM sessions "
-            "WHERE cli_pid IS NOT NULL AND cli_pid != 0"
-        ).fetchall()
-    by_session = {
-        row["id"]: OrphanProcessIdentity(
-            pid=int(row["cli_pid"]),
-            started_at=int(row["cli_started_at"] or 0),
-        )
-        for row in rows
-    }
-    for session_id, fd in _inherited_named_fds():
-        identity = by_session.get(session_id)
-        if identity:
-            mapping[fd] = identity
-    return mapping
-
-
-def terminate_orphan_process(identity: OrphanProcessIdentity) -> None:
-    """Reap a verified agent process nobody owns any more (#258)."""
-    from app import backend_jsonrpc
-
-    backend_jsonrpc.terminate_cli_process(identity.pid, None, identity.started_at)

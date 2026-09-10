@@ -148,30 +148,6 @@ async def test_signal_failure_is_exposed_on_restart_error_header(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_failed_handover_rollback_keeps_admission_fail_closed(monkeypatch):
-    from urllib.parse import unquote
-
-    from app import main as app_main
-    from app.routes import system
-
-    app_main.close_mutating_admission()
-    system.manager.begin_drain()
-    monkeypatch.setattr(system.restart_guard, "abort_guard", AsyncMock())
-    monkeypatch.setattr(
-        system.manager,
-        "rollback_restart_handover",
-        AsyncMock(side_effect=RuntimeError("resume and stop both failed")),
-    )
-
-    with pytest.raises(RuntimeError, match="resume and stop both failed"):
-        await system._abort_restart("synthetic rollback failure")
-
-    assert app_main.mutating_admission_open() is False
-    assert system.manager.draining is True
-    assert unquote(app_main.restart_failure_header()) == "synthetic rollback failure"
-
-
-@pytest.mark.asyncio
 async def test_restart_preparation_deadline_returns_a_reason(monkeypatch):
     from app.routes import system
 

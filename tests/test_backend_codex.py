@@ -332,119 +332,6 @@ def test_codex_inherits_orchestra_proxy(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_scope_preflight_requires_linger_and_real_attachment(monkeypatch):
-    import app.backend_codex as module
-
-    monkeypatch.setattr(module, "_scope_support_cache", None)
-    monkeypatch.setattr(module.Path, "is_socket", lambda _path: True)
-    monkeypatch.setattr(module.shutil, "which", lambda name: f"/usr/bin/{name}")
-
-    async def run(*cmd, **_kwargs):
-        if cmd[0].endswith("loginctl"):
-            return 0, "yes", ""
-        unit = next(arg.split("=", 1)[1] for arg in cmd if arg.startswith("--unit="))
-        return 0, f"/user.slice/{unit}\npopulated 1\nfrozen 0", ""
-
-    monkeypatch.setattr(module, "_run_process", run)
-
-    supported, env, reason = await module._codex_scope_support()
-
-    assert supported is True
-    assert env["XDG_RUNTIME_DIR"] == f"/run/user/{module.os.getuid()}"
-    assert reason == ""
-
-
-@pytest.mark.asyncio
-async def test_scope_preflight_requires_teardown_cgroup_contract(monkeypatch):
-    import app.backend_codex as module
-
-    monkeypatch.setattr(module, "_scope_support_cache", None)
-    monkeypatch.setattr(module.Path, "is_socket", lambda _path: True)
-    monkeypatch.setattr(module.shutil, "which", lambda name: f"/usr/bin/{name}")
-
-    async def run(*cmd, **_kwargs):
-        if cmd[0].endswith("loginctl"):
-            return 0, "yes", ""
-        unit = next(arg.split("=", 1)[1] for arg in cmd if arg.startswith("--unit="))
-        return 0, f"/user.slice/{unit}", ""
-
-    monkeypatch.setattr(module, "_run_process", run)
-
-    supported, env, reason = await module._codex_scope_support()
-
-    assert supported is False
-    assert env == {}
-    assert reason.startswith("RuntimeError:")
-    assert "cgroup.events" in reason
-
-
-@pytest.mark.asyncio
-async def test_scope_preflight_falls_back_with_visible_reason(monkeypatch, caplog):
-    import app.backend_codex as module
-
-    monkeypatch.setattr(module, "_scope_support_cache", None)
-    monkeypatch.setattr(module.Path, "is_socket", lambda _path: True)
-    monkeypatch.setattr(module.shutil, "which", lambda name: f"/usr/bin/{name}")
-    monkeypatch.setattr(
-        module,
-        "_run_process",
-        AsyncMock(return_value=(0, "no", "")),
-    )
-
-    with caplog.at_level("WARNING", logger="app.backend_codex"):
-        supported, env, reason = await module._codex_scope_support()
-
-    assert supported is False
-    assert env == {}
-    assert reason.startswith("RuntimeError:")
-    assert "hibernation is disabled" in caplog.text
-
-
-@pytest.mark.asyncio
-async def test_connect_uses_scope_and_preserves_stdio(monkeypatch):
-    import app.backend_codex as module
-
-    proc = _FakeProcess()
-    create = AsyncMock(return_value=proc)
-    monkeypatch.setattr(module.asyncio, "create_subprocess_exec", create)
-    monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(True, {
-            "XDG_RUNTIME_DIR": "/run/user/1000",
-            "DBUS_SESSION_BUS_ADDRESS": "unix:path=/run/user/1000/bus",
-        }, "")),
-    )
-    monkeypatch.setattr(module, "_scope_unit", lambda prefix="orchestra-codex": f"{prefix}-unit.scope")
-    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
-    backend._read_stdout = AsyncMock()
-    backend._drain_stderr = AsyncMock()
-    backend._notify = AsyncMock()
-
-    async def request(method, _params):
-        return {"thread": {"id": "thread-1"}} if method == "thread/start" else {}
-
-    backend._request = AsyncMock(side_effect=request)
-    await backend.connect()
-
-    args = create.await_args.args
-    kwargs = create.await_args.kwargs
-    assert args[:6] == (
-        module.shutil.which("systemd-run") or "systemd-run",
-        "--user", "--scope", "--quiet", "--collect",
-        "--unit=orchestra-codex-unit.scope",
-    )
-    assert "--" in args
-    assert args[-2:] == ("app-server", "--stdio")
-    assert "features.multi_agent=false" in args
-    assert kwargs["stdin"] is asyncio.subprocess.PIPE
-    assert kwargs["stdout"] is asyncio.subprocess.PIPE
-    assert kwargs["env"]["XDG_RUNTIME_DIR"] == "/run/user/1000"
-    assert backend.hibernate_safe is True
-    assert backend.session_id == "thread-1"
-
-
-@pytest.mark.asyncio
 async def test_connect_direct_fallback_is_not_hibernate_safe(monkeypatch):
     import app.backend_codex as module
 
@@ -452,9 +339,9 @@ async def test_connect_direct_fallback_is_not_hibernate_safe(monkeypatch):
     create = AsyncMock(return_value=proc)
     monkeypatch.setattr(module.asyncio, "create_subprocess_exec", create)
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "RuntimeError: Linger=no")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "delegation unavailable"),
     )
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     backend._read_stdout = AsyncMock()
@@ -466,7 +353,7 @@ async def test_connect_direct_fallback_is_not_hibernate_safe(monkeypatch):
 
     assert create.await_args.args[0] == module.CODEX_BIN
     assert backend.hibernate_safe is False
-    assert backend.hibernate_unavailable_reason == "RuntimeError: Linger=no"
+    assert backend.hibernate_unavailable_reason == "delegation unavailable"
 
 
 @pytest.mark.asyncio
@@ -577,32 +464,6 @@ async def test_oversized_record_without_eof_aborts_instead_of_waiting_for_newlin
 
 
 @pytest.mark.asyncio
-async def test_oversized_record_closes_adopted_transport_and_verified_process(monkeypatch):
-    import app.backend_codex as module
-
-    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
-    stdout = asyncio.StreamReader(limit=CODEX_STREAM_LIMIT)
-    writer = SimpleNamespace(close=MagicMock())
-    read_transport = SimpleNamespace(close=MagicMock())
-    backend._adopted_reader = stdout
-    backend._adopted_writer = writer
-    backend._adopted_read_transport = read_transport
-    backend._adopted_pid = 12345
-    backend._adopted_started_at = 67890
-    terminate = MagicMock()
-    monkeypatch.setattr(module, "terminate_cli_process", terminate)
-    stdout.feed_data(b"x" * (CODEX_STREAM_LIMIT + 1))
-
-    await asyncio.wait_for(backend._read_stdout(), timeout=0.2)
-
-    writer.close.assert_called_once()
-    read_transport.close.assert_called_once()
-    terminate.assert_called_once_with(12345, backend.RUNTIME_LABEL, 67890)
-    assert backend._adopted_writer is None
-    assert backend._adopted_read_transport is None
-
-
-@pytest.mark.asyncio
 async def test_non_oversize_reader_value_error_is_loud():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
 
@@ -650,9 +511,9 @@ async def test_resume_rejects_substituted_thread_before_turn(monkeypatch):
     import app.backend_codex as module
 
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "unsupported")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -718,9 +579,9 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
     import app.backend_codex as module
 
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "unsupported")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "unsupported"),
     )
     backend = CodexBackend(
         model="gpt-5.6-sol",
@@ -751,9 +612,9 @@ async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monk
 
     history = _history_import()
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "unsupported")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -840,9 +701,9 @@ async def test_resume_protocol_error_without_structured_field_is_not_summary_eli
     import app.backend_codex as module
 
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "unsupported")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -876,9 +737,9 @@ async def test_history_initialize_protocol_error_is_not_summary_eligible(monkeyp
     import app.backend_codex as module
 
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "unsupported")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -910,9 +771,9 @@ async def test_history_connect_auth_failure_is_not_summary_eligible(monkeypatch)
     import app.backend_codex as module
 
     monkeypatch.setattr(
-        module,
-        "_codex_scope_support",
-        AsyncMock(return_value=(False, {}, "unsupported")),
+        module.RuntimeProcessGroup,
+        "create",
+        lambda: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -935,64 +796,6 @@ async def test_history_connect_auth_failure_is_not_summary_eligible(monkeypatch)
         await backend.connect()
 
     backend.disconnect.assert_awaited_once()
-
-
-@pytest.mark.asyncio
-async def test_scoped_disconnect_interrupts_then_clears_verified_owner():
-    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
-    backend._proc = _FakeProcess()
-    backend._scope_unit = "codex.scope"
-    backend._active_turn_id = "turn-1"
-    order = []
-    backend.interrupt = AsyncMock(side_effect=lambda: order.append("interrupt"))
-    backend._signal_scope = AsyncMock(side_effect=lambda sig: order.append(sig))
-    backend._wait_owned_process = AsyncMock(side_effect=lambda _proc: order.append("root-gone"))
-    backend._wait_scope_empty = AsyncMock(side_effect=lambda: order.append("scope-empty"))
-
-    await backend.disconnect()
-
-    assert order == ["interrupt", "TERM", "root-gone", "scope-empty"]
-    assert backend.has_owned_processes is False
-    assert backend._teardown_error is None
-
-
-@pytest.mark.asyncio
-async def test_scoped_disconnect_failure_retains_retryable_owner():
-    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
-    proc = _FakeProcess()
-    backend._proc = proc
-    backend._scope_unit = "codex.scope"
-    backend._signal_scope = AsyncMock(side_effect=PermissionError("denied"))
-
-    with pytest.raises(PermissionError, match="denied"):
-        await backend.disconnect()
-
-    assert backend._proc is proc
-    assert backend._scope_unit == "codex.scope"
-    assert backend.has_owned_processes is True
-    assert backend._teardown_error == "PermissionError: denied"
-
-    backend._signal_scope = AsyncMock()
-    backend._wait_owned_process = AsyncMock()
-    backend._wait_scope_empty = AsyncMock()
-    await backend.disconnect()
-    assert backend.has_owned_processes is False
-
-
-@pytest.mark.asyncio
-async def test_scoped_disconnect_escalates_timeout_to_unit_kill():
-    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
-    backend._proc = _FakeProcess()
-    backend._scope_unit = "codex.scope"
-    backend._signal_scope = AsyncMock()
-    backend._wait_owned_process = AsyncMock(side_effect=[TimeoutError, None])
-    backend._wait_scope_empty = AsyncMock()
-
-    await backend.disconnect()
-
-    assert [call.args[0] for call in backend._signal_scope.await_args_list] == [
-        "TERM", "KILL",
-    ]
 
 
 @pytest.mark.asyncio

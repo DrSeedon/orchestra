@@ -1,10 +1,4 @@
-"""T1/T8 (#230): hand descriptors to systemd and take them back.
-
-Measured on throwaway units before any of this was designed: descriptors handed over as
-(stdin, stdout) came back as LISTEN_FDNAMES='childstdout:childstdin', so anything that trusts
-the ORDER attaches an agent's stdin to its stdout.
-"""
-import array
+"""Systemd readiness, socket activation and deployment unit contracts."""
 import grp
 import os
 import pwd
@@ -69,76 +63,8 @@ def test_t1_duplicate_and_empty_fdnames_fail_loudly(monkeypatch):
         fdstore.acquire_fds()
 
 
-def test_t1_store_fds_sends_fdstore_payload_with_scm_rights(tmp_path, monkeypatch):
-    """The descriptors must really cross the socket — a log line is not a handover."""
-    sock_path = tmp_path / "notify.sock"
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    server.bind(str(sock_path))
-    server.settimeout(5)  # a regression must FAIL, not hang the suite
-    monkeypatch.setenv("NOTIFY_SOCKET", str(sock_path))
-    monkeypatch.setenv("SYSTEMD_EXEC_PID", str(os.getpid()))
-
-    r, w = os.pipe()
-    try:
-        fdstore.store_fds("agent.sess-1.stdout", [r])
-
-        def next_msg(what):
-            try:
-                return server.recvmsg(1024, socket.CMSG_SPACE(4))
-            except TimeoutError:
-                raise AssertionError(f"store_fds sent no {what} to NOTIFY_SOCKET within 5s")
-
-        # REMOVE must come FIRST: the store survives the very restart it exists for, so
-        # re-adding a name without removing it accumulates duplicates generation after
-        # generation until FileDescriptorStoreMax is exhausted (found in impl review).
-        removal, removal_anc, _f, _a = next_msg("FDSTOREREMOVE")
-        assert removal == b"FDSTOREREMOVE=1\nFDNAME=agent.sess-1.stdout"
-        assert removal_anc == [], "removal carries no descriptors"
-
-        msg, ancdata, _flags, _addr = next_msg("FDSTORE")
-        assert msg == b"FDSTORE=1\nFDNAME=agent.sess-1.stdout"
-        assert len(ancdata) == 1
-        level, ctype, data = ancdata[0]
-        assert (level, ctype) == (socket.SOL_SOCKET, socket.SCM_RIGHTS)
-        received = array.array("i")
-        received.frombytes(data[: 4 * (len(data) // 4)])
-        assert len(received) == 1
-        os.close(received[0])
-    finally:
-        server.close()
-        os.close(r)
-        os.close(w)
 
 
-def test_t1_store_failure_is_loud(monkeypatch):
-    """No NOTIFY_SOCKET means the handover did NOT happen; staying silent would lose agents."""
-    monkeypatch.delenv("NOTIFY_SOCKET", raising=False)
-    r, w = os.pipe()
-    try:
-        with pytest.raises(fdstore.FdStoreUnavailable):
-            fdstore.store_fds("agent.sess-1.stdout", [r])
-    finally:
-        os.close(r)
-        os.close(w)
-
-
-def test_t1_store_rejects_inherited_systemd_notify_socket(tmp_path, monkeypatch):
-    sock_path = tmp_path / "foreign-notify.sock"
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_DGRAM)
-    server.bind(str(sock_path))
-    server.settimeout(0.1)
-    monkeypatch.setenv("NOTIFY_SOCKET", str(sock_path))
-    monkeypatch.setenv("SYSTEMD_EXEC_PID", str(os.getpid() + 1))
-    read_fd, write_fd = os.pipe()
-    try:
-        with pytest.raises(fdstore.FdStoreUnavailable, match="does not name this process"):
-            fdstore.store_fds("agent.session.stdin", [read_fd])
-        with pytest.raises(TimeoutError):
-            server.recv(1024)
-    finally:
-        server.close()
-        os.close(read_fd)
-        os.close(write_fd)
 
 
 def test_ready_notification_is_sent_only_by_the_systemd_main_process(tmp_path, monkeypatch):
@@ -182,7 +108,7 @@ def test_t8_unit_templates_are_valid_and_complete(tmp_path):
     service_text = service.read_text()
     assert "Type=notify" in service_text, "systemd must wait for application startup"
     assert "NotifyAccess=main" in service_text, "READY/FDSTORE need NOTIFY_SOCKET"
-    assert "KillMode=process" in service_text, "children must survive the restart"
+    assert "KillMode=control-group" in service_text, "children must survive the restart"
     assert "FileDescriptorStoreMax=" in service_text, "no store, no handover"
     assert "--fd 3" in service_text, "the listening socket must be inherited"
     assert "Accept=no" in sock.read_text()

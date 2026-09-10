@@ -518,16 +518,6 @@ async def test_t1_production_path_arms_guard_after_interrupt_mark_and_durable_st
         "handed_over": [],
     })
     monkeypatch.setattr(
-        system.manager,
-        "prepare_restart_handover",
-        handover,
-    )
-    monkeypatch.setattr(
-        system.manager,
-        "mark_for_restart_stop",
-        lambda _sessions: order.append("interrupt"),
-    )
-    monkeypatch.setattr(
         system,
         "_drain_restart_durable_state",
         AsyncMock(side_effect=lambda: order.append("durable_state")),
@@ -555,8 +545,7 @@ async def test_t1_production_path_arms_guard_after_interrupt_mark_and_durable_st
     result = await system._restart_service_after_response()
 
     assert result["ok"] is True
-    handover.assert_not_awaited()
-    assert order == ["interrupt", "durable_state", "record", "guard", "broker", "signal"]
+    assert order == ["durable_state", "record", "guard", "broker", "signal"]
 
 
 @pytest.mark.asyncio
@@ -576,11 +565,6 @@ async def test_t1_durable_state_timeout_still_restarts_and_reports_journal_loss(
     monkeypatch.setattr(system, "_RESPONSE_FLUSH_PAUSE_S", 0)
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(system, "_drain_sessions", lambda: [])
-    monkeypatch.setattr(
-        system.manager,
-        "prepare_restart_handover",
-        AsyncMock(return_value={"ok": True, "handed_over": []}),
-    )
     monkeypatch.setattr(
         system,
         "_drain_restart_durable_state",
@@ -753,7 +737,7 @@ async def test_t1_real_durable_barrier_names_persistent_log_loss(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_t1_after_arm_signal_failure_aborts_guard_before_handover_rollback(
+async def test_t1_after_arm_signal_failure_aborts_guard_before_reopening_admission(
     monkeypatch,
 ):
     from app import main as app_main
@@ -771,11 +755,6 @@ async def test_t1_after_arm_signal_failure_aborts_guard_before_handover_rollback
     monkeypatch.setattr(app_main, "drain_mutating_requests", AsyncMock(return_value=True))
     monkeypatch.setattr(system, "_drain_sessions", lambda: [])
     monkeypatch.setattr(
-        system.manager,
-        "prepare_restart_handover",
-        AsyncMock(return_value={"ok": True, "handed_over": []}),
-    )
-    monkeypatch.setattr(
         system,
         "_drain_restart_durable_state",
         AsyncMock(return_value={"ok": True, "drained": 0}),
@@ -790,11 +769,6 @@ async def test_t1_after_arm_signal_failure_aborts_guard_before_handover_rollback
         "abort_guard",
         AsyncMock(side_effect=lambda _reason: order.append("guard_abort")),
     )
-    monkeypatch.setattr(
-        system.manager,
-        "rollback_restart_handover",
-        AsyncMock(side_effect=lambda: order.append("rollback")),
-    )
     monkeypatch.setattr("app.live_broker.broker.close_subscribers", lambda: None)
 
     def signal_fails(_pid, _signal):
@@ -806,7 +780,7 @@ async def test_t1_after_arm_signal_failure_aborts_guard_before_handover_rollback
     with pytest.raises(RuntimeError, match="injected signal failure"):
         await system._restart_service_after_response()
 
-    assert order == ["arm", "signal", "guard_abort", "rollback"]
+    assert order == ["arm", "signal", "guard_abort"]
     assert system.manager.draining is False
     assert app_main.mutating_admission_verdict(
         "POST", "/api/sessions/worker/send",
