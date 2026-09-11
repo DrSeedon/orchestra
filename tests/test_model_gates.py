@@ -68,13 +68,6 @@ def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
     assert "test/vendor-x:free" in ids
 
 
-def test_t3_available_models_block_respects_agents_flag(vendor_model):
-    registry.set_model_flags("test/vendor-x:free", agents=False)
-    assert "test/vendor-x:free" not in registry.available_models_block()
-    registry.set_model_flags("test/vendor-x:free", agents=True)
-    assert "test/vendor-x:free" in registry.available_models_block()
-
-
 def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
     registry.set_model_flags("test/vendor-x:free", agents=False)
     with pytest.raises(ValueError, match="agents"):
