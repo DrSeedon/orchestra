@@ -121,18 +121,6 @@
   ]
  ],
  [
-  "/api/merge-operations/review-skip",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/merge-operations/review-subject",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/merge-operations/{operation_id}",
   [
    "GET"
