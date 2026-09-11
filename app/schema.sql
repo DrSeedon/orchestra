@@ -494,7 +494,7 @@ CREATE TABLE tg_file_deliveries (
                 source_path TEXT NOT NULL,
                 original_name TEXT NOT NULL,
                 snapshot_path TEXT NOT NULL,
-                size_bytes INTEGER NOT NULL CHECK(size_bytes > 0 AND size_bytes <= 52428800),
+                size_bytes INTEGER NOT NULL CHECK(size_bytes > 0 AND size_bytes <= 2097152000),
                 content_sha256 TEXT NOT NULL CHECK(length(content_sha256) = 64),
                 caption TEXT NOT NULL,
                 outbound_caption TEXT NOT NULL,
@@ -517,7 +517,7 @@ CREATE TABLE tg_file_delivery_targets (
                 chat_id INTEGER NOT NULL,
                 thread_id INTEGER,
                 state TEXT NOT NULL CHECK(state IN
-                    ('QUEUED','SUBMITTING','SENT','FAILED_BEFORE_SUBMIT','UNKNOWN')),
+                    ('QUEUED','SUBMITTING','SENT','FAILED_BEFORE_SUBMIT','FAILED','UNKNOWN')),
                 message_id INTEGER,
                 attempt_count INTEGER NOT NULL DEFAULT 0 CHECK(attempt_count >= 0),
                 lease_generation INTEGER NOT NULL DEFAULT 0 CHECK(lease_generation >= 0),
