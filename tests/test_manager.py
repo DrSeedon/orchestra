@@ -2734,58 +2734,6 @@ class TestPromptIsolation:
         assert "ROLE coder" in out
 
 
-class TestPromptBlocksFailLoud:
-    """#108 T2: сбой сборки блока промпта не смеет притворяться пустым списком.
-
-    Раньше оба блока были обёрнуты в `except Exception: return ""`. Агент получал
-    промпт БЕЗ списка воркеров/оркестраторов и читал это как «их нет» — то есть
-    плодил дубликаты вместо переиспользования. При этом объемлющая
-    ROLE_SYSTEM_PROMPT в своём докстринге объявляет «Fail loud».
-    """
-
-    def _boom(self, *_a, **_kw):
-        raise KeyError("name")
-
-    def test_workers_block_logs_and_marks_on_failure(self, db, monkeypatch, caplog):
-        import logging
-        from app import manager
-        monkeypatch.setattr(manager, "get_all_sessions", self._boom)
-        with caplog.at_level(logging.ERROR, logger="app.manager"):
-            out = manager._workers_block("/s")
-        assert out != ""                        # НЕ пустая строка — иначе агент решит «воркеров нет»
-        assert "⚠️" in out and "unavailable" in out
-        assert "list_agents" in out             # обходной путь агенту дан
-        assert "KeyError" in caplog.text        # класс исключения в логе
-
-    def test_other_orchestrators_block_logs_and_marks_on_failure(self, db, monkeypatch, caplog):
-        import logging
-        from app import manager
-        monkeypatch.setattr(manager, "get_all_sessions", self._boom)
-        with caplog.at_level(logging.ERROR, logger="app.manager"):
-            out = manager._other_orchestrators_block("/s")
-        assert out != ""
-        assert "⚠️" in out and "unavailable" in out
-        assert "list_orchestrators" in out
-        assert "KeyError" in caplog.text
-
-    def test_healthy_path_unchanged(self, db):
-        """На здоровой БД поведение прежнее: воркеров нет → пустой блок, не маркер."""
-        from app import manager
-        assert manager._workers_block("/s") == ""
-        assert manager._other_orchestrators_block("/s") == ""
-
-    def test_unexpected_exception_propagates(self, db, monkeypatch):
-        """except сужен: неожиданное исключение летит наверх, а не глотается."""
-        from app import manager
-
-        def _weird(*_a, **_kw):
-            raise RuntimeError("something genuinely unexpected")
-
-        monkeypatch.setattr(manager, "get_all_sessions", _weird)
-        with pytest.raises(RuntimeError):
-            manager._workers_block("/s")
-
-
 class TestValidateSpawnIntegration:
     @pytest.mark.asyncio
     async def test_forbidden_spawn_blocked_before_side_effect(self, mgr, pipeline_dir, tmp_path):
@@ -3557,3 +3505,49 @@ async def test_worker_disabled_tools_survive_create_and_identity_refresh(mgr):
     # Rebuilding MCP config during identity refresh must preserve worker restrictions.
     mgr.refresh_identity(session)
     assert json.loads(session.mcp_servers['orchestra']['env']['ORCHESTRA_DISABLED_TOOLS']) == ['get_worker_info']
+
+
+class TestPromptSourceStability:
+    """Live project state must not rewrite the provider's cached prefix."""
+
+    @pytest.mark.parametrize('role', ['pm-glava', 'worker'])
+    def test_database_changes_preserve_prompt_bytes(self, db, pipeline_dir, tmp_path, role):
+        import json
+        from app import db as storage
+        from app.manager import SessionManager
+        from app.models import MODELS, MODEL_FLAGS_KV_KEY
+        from tests.task_seeds import create_task
+
+        scope = str(tmp_path / 'project')
+        manager = SessionManager()
+        args = dict(pipeline='testpipe', role=role, scope=scope,
+                    is_orch=role == 'pm-glava', name='subject', owned_dirs=[],
+                    branch='task-540/subject', stored_overlay='', old_prompt='',
+                    parent_name='parent')
+        before, _ = manager.assemble_prompt(**args)
+        with storage._conn() as c:
+            c.execute("INSERT INTO tm_projects(id,name,scope,created_at) VALUES ('p','Project',?,'2026-09-09')", (scope,))
+            create_task(c, 'p', 'new assignment', status='in_progress')
+        for name, is_orch, project in [('worker-a', False, scope), ('other-orch', True, '/other')]:
+            with storage._conn() as c:
+                c.execute("INSERT INTO sessions(id,name,scope,cwd,model,status,is_orchestrator,context_pct,created_at) VALUES (?,?,?,?,'claude-sonnet-5[1m]','idle',?,2,'2026-09-09')",
+                          (name, name, project, project, is_orch))
+        storage.kv_set(MODEL_FLAGS_KV_KEY, json.dumps({m: {'agents': False} for m in MODELS}))
+        populated, _ = manager.assemble_prompt(**args)
+        with storage._conn() as c:
+            c.execute("UPDATE sessions SET status='running',context_pct=98,description='different task'")
+            c.execute("UPDATE tm_tasks SET title='changed assignment',status='done'")
+        changed, _ = manager.assemble_prompt(**args)
+        assert before.encode() == populated.encode() == changed.encode()
+
+    def test_markdown_edit_changes_next_assembly(self, db, pipeline_dir, tmp_path):
+        from app.manager import SessionManager
+        manager = SessionManager()
+        args = dict(pipeline='testpipe', role='pm-glava', scope=str(tmp_path / 'project'),
+                    is_orch=True, name='subject', owned_dirs=[], branch='',
+                    stored_overlay='', old_prompt='')
+        before, _ = manager.assemble_prompt(**args)
+        source = pipeline_dir / 'testpipe/prompts/base.md'
+        source.write_text(source.read_text() + '\nAdditional source instructions.')
+        after, _ = manager.assemble_prompt(**args)
+        assert before.encode() != after.encode()

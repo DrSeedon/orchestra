@@ -1,0 +1,16 @@
+Imported app.manager: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-prompt-cache/app/manager.py
+baseline.jsonl secret_form_scan= PASS
+evidence.jsonl secret_form_scan= PASS
+history.jsonl secret_form_scan= PASS
+inspect_history.py secret_form_scan= PASS
+measure_usage.py secret_form_scan= PASS
+mutation_check.py secret_form_scan= PASS
+probe_tool_order.py secret_form_scan= PASS
+summarize_evidence.py secret_form_scan= PASS
+test-focused.log secret_form_scan= PASS
+test-mutations.log secret_form_scan= PASS
+test-red.log secret_form_scan= PASS
+test-regression.log secret_form_scan= PASS
+tool-order.log secret_form_scan= PASS
+Orphan Claude usage rows: 0
+All final task artifacts secret-form scan: PASS

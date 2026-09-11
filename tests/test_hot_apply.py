@@ -652,3 +652,16 @@ class _AsyncReturn:
 
     async def __call__(self, *a, **kw):
         return self.value
+
+
+@pytest.mark.asyncio
+async def test_resume_preserves_saved_parent_identity(mock_db, monkeypatch):
+    """A resumed worker must keep addressing its assigned parent."""
+    import app.manager as manager
+    monkeypatch.setattr(manager, 'ROLE_SYSTEM_PROMPT',
+                        lambda *a: 'Owner {orchestrator_name}; worker {worker_name}')
+    s = _worker(prompt_overlay='', parent_name='assigned-parent')
+    s._current_prompt = 'Owner assigned-parent; worker w1'
+    s._prompt_injected = False
+    sent = await _run_one_turn(s, _MockBackend())
+    assert f'Owner {s.parent_name}; worker {s.name}' in sent

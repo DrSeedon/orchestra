@@ -806,26 +806,3 @@ def runtime_for_record(record: dict) -> str:
         except ValueError:
             pass
     return "unknown"
-
-
-def available_models_block() -> str:
-    """Prompt block listing agent-allowed models for spawn_worker (#366)."""
-    lines = ["## Available models for spawn_worker(model=...)"]
-    for model_id, label in MODELS.items():
-        if not get_model_flags(model_id)["agents"]:
-            continue
-        spec = get_model_spec(model_id)
-        if spec.runtime == "harness":
-            try:
-                validate_harness_model_spec(spec)
-            except ValueError:
-                continue
-        ctx = spec.context_length
-        ctx_k = f"{ctx // 1000}k"
-        alias_list = [a for a, m in ALIASES.items() if m == model_id]
-        alias_str = f" (aliases: {', '.join(alias_list[:3])})" if alias_list else ""
-        lines.append(
-            f"- `{model_id}` — {label}, {ctx_k} context, "
-            f"runtime: {spec.runtime}, provider: {spec.provider}{alias_str}"
-        )
-    return "\n".join(lines)
