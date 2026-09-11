@@ -605,12 +605,15 @@ def test_browser_inventory_is_explicit():
     # Collection includes the voice-input test explicitly skipped since #365;
     # 101 passing tests plus that retained node make 102, regardless of execution.
     "tests/test_frontend.py": 102,
-    "tests/test_t344_quota_lines_browser.py": 17,
+    # +1 с #V-546: потолок полосы на графике (`test_lane_ceiling_is_drawn_and_capped_like_the_gate`).
+    "tests/test_t344_quota_lines_browser.py": 18,
     "tests/test_usage_analytics_frontend.py": 14,
     "tests/test_usage_history_frontend.py": 11,
     "tests/test_grok_usage_frontend.py": 11,
     "tests/test_antigravity_usage_frontend.py": 6,
-    "tests/test_system_chat_entry.py": 1,
+    # +1 с 5f7e72c5 (08.09): `test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender`
+    # пришёл вместе с меткой канала сообщений на дашборде, инвентарь тогда не обновили.
+    "tests/test_system_chat_entry.py": 2,
     "tests/test_quota_headroom_447.py": 1,
     "tests/test_model_catalog_frontend.py": 1,
     "tests/test_frontend_context_panel_468.py": 1,

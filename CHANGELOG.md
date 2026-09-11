@@ -4,6 +4,11 @@
 > their CHANGELOGs independently, so versions 2.31.0-2.33.0 were used TWICE for different
 > content: the VPS block comes first below, followed by the laptop block. Task #52 fixes the format.
 
+## v2.45.0 — 2026-09-11 — жёсткий стоп пула стал свойством полосы: хвост недели остаётся дешёвой модели
+
+### Changed
+- 🚦 **Потолок жёсткого стопа теперь у каждой полосы свой** (`app/quota_gate.py`, `QuotaPolicy.hard_stop_for`, `line_limit`, `evaluate_worker_admission`). По умолчанию `sol` (туда же попадает Astra) встаёт на **95%**, `luna` остаётся на **99%**, `claude` и `spark` не меняются — у Claude свой пул, у Spark свой кошелёк. Настраивается как остальное правило: `QUOTA_LANE_HARD_STOP_PCT=sol=95,luna=90` в окружении или в `.env` с той же горячей перечиткой по mtime, что у `QUOTA_HARD_STOP_PCT`. Общий `QUOTA_HARD_STOP_PCT` остаётся общим: `hard_stop_for` берёт `min` из него и потолка полосы, поэтому опустив общий стоп владелец опускает и полосу со своим потолком, а не открывает ей дорогу выше. Решение полосы едет наружу в `QuotaDecision.hard_limit_pct` и в блоке `rule.lane_hard_stop_pct` карты квот; панель (`app/static/js/quota-lines.js`, `_qlHardStop`) рисует для такой полосы отдельную линию стопа и кладёт на неё же свою кривую — иначе картинка показывала бы 99% там, где гейт уже не пускает. *Triggered case:* 11.09.2026 недельный пул Codex выжран до 99% дорогой моделью, до сброса четверо суток, не стартует ни один Codex-воркер — при том что те же 5 п.п. по кредитной модели провайдера это ~800 ходов Luna против ~9 ходов Astra.
+
 ## v2.44.0 — 2026-09-06 — оглавление базы знаний собирает платформа, а не корневой файл
 
 ### Added

@@ -46,7 +46,15 @@ function _qlLimitAt(t, rule, lane) {
     const exponent = Number(rule.curve_exponent) || 1;
     const curved = lane && (rule.curved_lanes || []).includes(lane) && exponent > 1;
     const norm = (curved && t > 0) ? Math.pow(t, 1 / exponent) : t;
-    return Math.min(Number(rule.hard_stop_pct), norm * 100 + start + (end - start) * t);
+    return Math.min(_qlHardStop(rule, lane), norm * 100 + start + (end - start) * t);
+}
+
+// Жёсткий стоп — свойство ПОЛОСЫ: хвост пула зарезервирован под дешёвую модель,
+// поэтому Sol встаёт раньше Luna. Зеркало `QuotaPolicy.hard_stop_for`.
+function _qlHardStop(rule, lane) {
+    const hard = Number(rule.hard_stop_pct);
+    const laneHard = Number((rule.lane_hard_stop_pct || {})[lane]);
+    return Number.isFinite(laneHard) ? Math.min(hard, laneHard) : hard;
 }
 
 function _qlBucket(bucketId) {
@@ -186,7 +194,15 @@ function _qlChartSvg(panel, rule) {
 
     const hard = Number(rule.hard_stop_pct);
     p.push(`<line class="ql-hard" x1="${_qlX(0)}" y1="${_qlY(hard)}" x2="${_qlX(1)}" y2="${_qlY(hard)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">жёсткие ${_qlNum(hard)}% — стоп для всех воркеров</text>`);
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">жёсткие ${_qlNum(hard)}% — стоп полос без своего потолка</text>`);
+    // Своя линия у полосы с более низким потолком: одна общая соврала бы, что дорогая
+    // полоса работает до последнего процента пула.
+    for (const lane of _qlLanes(panel)) {
+        const stop = _qlHardStop(rule, lane.lane);
+        if (!(stop < hard)) continue;
+        p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${_escHtml(lane.label || lane.lane)} — жёсткие ${_qlNum(stop)}%</text>`);
+    }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">оркестратор работает всегда — предела нет</text>`);
 
@@ -231,7 +247,7 @@ function _qlChartSvg(panel, rule) {
         if (!point) continue;
         if (point.progress === null) {
             if (i === 0) {
-                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${_escHtml(bucket.label || bucket.bucket)}: срок сброса неизвестен — только жёсткие ${_qlNum(hard)}%</text>`);
+                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${_escHtml(bucket.label || bucket.bucket)}: срок сброса неизвестен — только жёсткие ${_qlNum(_qlHardStop(rule, lane.lane))}%</text>`);
             }
             continue;
         }
@@ -258,7 +274,7 @@ function _qlChartSvg(panel, rule) {
         const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
         const head = `факт ${_qlNum(point.util)}% · норма ${_qlNum(point.progress * 100)}%`;
         const detail = !lane.gated
-            ? `${head} · диагональ не применяется — только жёсткие ${_qlNum(hard)}%`
+            ? `${head} · диагональ не применяется — только жёсткие ${_qlNum(_qlHardStop(rule, lane.lane))}%`
             : laneLimit === null
             ? `${head} · порога нет`
             : `${head} · допуск ${_qlNum(point.tolerance, 1)} п.п. · порог ${_qlNum(laneLimit, 1)}%`;
