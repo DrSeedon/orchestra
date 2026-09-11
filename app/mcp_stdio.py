@@ -2089,7 +2089,16 @@ async def send_file(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept a file for durable Telegram delivery and return its status id."""
+    """Accept a file for durable Telegram delivery and return its status id.
+
+    Limits are OURS, not the public 50 MB cloud cap: deliveries go through a local
+    Bot API server. A document may be up to 2000 MB, and 200 MB is measured as
+    actually delivered (#V-544, 11.09.2026) — send the file, do not substitute a
+    link because you remember a smaller public limit.
+    An image above 10 MB is sent as a document: Telegram's photo cap is 10 485 760
+    bytes and the local server does NOT raise it. This is automatic; as_document
+    only forces a document for smaller images.
+    """
     event_id = event_id.strip() if isinstance(event_id, str) else ""
     if event_id:
         try:
@@ -2159,7 +2168,14 @@ async def send_files(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept an ordered file batch for durable Telegram album delivery."""
+    """Accept an ordered file batch for durable Telegram album delivery.
+
+    Same limits as send_file: up to 2000 MB per document through our local Bot API
+    (200 MB measured, #V-544), and any image above 10 485 760 bytes travels as a
+    document because Telegram's photo cap is not raised locally. One album holds
+    at most 10 files of one kind; longer batches are split automatically, so a
+    heavy image lands in its own group instead of failing the whole album.
+    """
     if (
         not isinstance(paths, list)
         or not paths
