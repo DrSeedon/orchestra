@@ -204,6 +204,28 @@ def test_panel_curve_matches_the_limit_the_server_computed(browser):
     page.close()
 
 
+def test_lane_ceiling_is_drawn_and_capped_like_the_gate(browser):
+    """Потолок полосы обязан доехать до картинки: Sol стоит на 95%, Luna живёт до 99%.
+
+    Иначе панель рисует дорогой полосе чужие 99% ровно там, где гейт её уже не пускает.
+    """
+    payload = _payload(codex_util=96.0, codex_progress=0.9)
+    payload["rule"]["lane_hard_stop_pct"] = {"sol": 95.0}
+    page, errors = _render(browser, payload)
+    drawn = page.evaluate(
+        """rule => [
+            QuotaPanel.limitAt(1.0, rule, 'sol'),
+            QuotaPanel.limitAt(1.0, rule, 'claude'),
+        ]""",
+        payload["rule"],
+    )
+    assert drawn == [95.0, HARD]
+    assert page.locator("[data-ql-hard-lane='sol']").count() == 1
+    assert page.locator("[data-ql-hard-lane='luna']").count() == 0
+    assert errors == [], errors
+    page.close()
+
+
 def test_point_moves_with_utilization(browser):
     """Точка «где мы сейчас» обязана ехать за фактом, а не стоять картинкой."""
     low, _ = _render(browser, _payload(codex_util=20.0))

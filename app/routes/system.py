@@ -1819,6 +1819,9 @@ async def build_quota_map() -> dict:
         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
         "rule": {
             "hard_stop_pct": policy.hard_stop_pct,
+            # Потолок полосы: без него панель нарисует всем общие 99% там, где гейт
+            # останавливает Sol на 95% — то самое расхождение картинки с отказом.
+            "lane_hard_stop_pct": dict(sorted(policy.lane_hard_stop_pct.items())),
             "tolerance_start_pp": policy.tolerance_start_pp,
             "tolerance_end_pp": policy.tolerance_end_pp,
             "curve_exponent": policy.curve_exponent,

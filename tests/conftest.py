@@ -197,6 +197,7 @@ def _hermetic_dashboard_env(monkeypatch):
         "STATE_DIRECTORY",
         "XDG_STATE_HOME",
         "QUOTA_HARD_STOP_PCT",
+        "QUOTA_LANE_HARD_STOP_PCT",
         "QUOTA_TOLERANCE_START_PP",
         "QUOTA_TOLERANCE_END_PP",
         "QUOTA_CURVE_EXPONENT",
