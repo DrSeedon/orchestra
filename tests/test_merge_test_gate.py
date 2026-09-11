@@ -987,3 +987,36 @@ def test_real_failure_mentioning_the_timeout_flag_stays_red(tmp_path, monkeypatc
 
     assert result["status"] == FAILED
     assert result["reason"] == "exit_nonzero"
+
+
+def test_renamed_file_reports_both_sides_so_the_gate_sees_the_removal(tmp_path: Path) -> None:
+    """#V-546: переименование должно давать ОБА пути, а не одну строку R100.
+
+    Краснеет, если вернуть детектор переименований: git свернёт пару в один путь,
+    и старый путь исчезнет из списка — выбор тестов и бюджет перестанут видеть,
+    что файл из прежнего каталога удалён. Тот же детектор на бинарных ассетах
+    стоил 37 с против 0.026 с и валил merge_worker по таймауту (репорт 11.09.2026).
+    """
+    from app.merge_test_gate import changed_paths
+
+    repo = tmp_path / "renames"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    payload = ("x" * 80 + "\n") * 40
+    (repo / "old").mkdir()
+    (repo / "old" / "asset.bin").write_text(payload, encoding="utf-8")
+    _git(repo, "add", "old/asset.bin")
+    _git(repo, "commit", "-m", "base")
+    _git(repo, "checkout", "-b", "task-1/worker")
+    (repo / "new").mkdir()
+    (repo / "old" / "asset.bin").rename(repo / "new" / "asset.bin")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "move asset")
+
+    paths = changed_paths(str(repo), target_ref="main")
+
+    assert paths is not None
+    assert "old/asset.bin" in paths, paths
+    assert "new/asset.bin" in paths, paths
