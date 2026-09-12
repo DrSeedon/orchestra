@@ -1,0 +1,48 @@
+F..                                                                      [100%]
+=================================== FAILURES ===================================
+_ TestPromptSourceStability.test_database_changes_preserve_prompt_bytes[pm-glava] _
+
+self = <tests.test_manager.TestPromptSourceStability object at 0x75691b6fdc10>
+db = PosixPath('/tmp/pytest-of-kesha/pytest-9033/test_database_changes_preserve0/test.db')
+pipeline_dir = PosixPath('/tmp/pytest-of-kesha/pytest-9033/test_database_changes_preserve0/pipelines')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9033/test_database_changes_preserve0')
+role = 'pm-glava'
+
+    @pytest.mark.parametrize('role', ['pm-glava', 'worker'])
+    def test_database_changes_preserve_prompt_bytes(self, db, pipeline_dir, tmp_path, role):
+        import json
+        from app import db as storage
+        from app.manager import SessionManager
+        from app.models import MODELS, MODEL_FLAGS_KV_KEY
+        from tests.task_seeds import create_task
+    
+        scope = str(tmp_path / 'project')
+        manager = SessionManager()
+        args = dict(pipeline='testpipe', role=role, scope=scope,
+                    is_orch=role == 'pm-glava', name='subject', owned_dirs=[],
+                    branch='task-540/subject', stored_overlay='', old_prompt='',
+                    parent_name='parent')
+        before, _ = manager.assemble_prompt(**args)
+        with storage._conn() as c:
+            c.execute("INSERT INTO tm_projects(id,name,scope,created_at) VALUES ('p','Project',?,'2026-09-09')", (scope,))
+            create_task(c, 'p', 'new assignment', status='in_progress')
+        for name, is_orch, project in [('worker-a', False, scope), ('other-orch', True, '/other')]:
+            with storage._conn() as c:
+                c.execute("INSERT INTO sessions(id,name,scope,cwd,model,status,is_orchestrator,context_pct,created_at) VALUES (?,?,?,?,'claude-sonnet-5[1m]','idle',?,2,'2026-09-09')",
+                          (name, name, project, project, is_orch))
+        storage.kv_set(MODEL_FLAGS_KV_KEY, json.dumps({m: {'agents': False} for m in MODELS}))
+        populated, _ = manager.assemble_prompt(**args)
+        with storage._conn() as c:
+            c.execute("UPDATE sessions SET status='running',context_pct=98,description='different task'")
+            c.execute("UPDATE tm_tasks SET title='changed assignment',status='done'")
+        changed, _ = manager.assemble_prompt(**args)
+>       assert before.encode() == populated.encode() == changed.encode()
+E       AssertionError: assert b'BASE-LAYER\..., grok-build)' == b'BASE-LAYER\...idle | ctx:2%'
+E         
+E         At index 292 diff: b'-' != b'\n'
+E         Use -v to get more diff
+
+tests/test_manager.py:3593: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_manager.py::TestPromptSourceStability::test_database_changes_preserve_prompt_bytes[pm-glava]
+1 failed, 2 passed in 5.76s

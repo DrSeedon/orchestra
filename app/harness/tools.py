@@ -121,7 +121,7 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
     in `su -s /bin/sh <user> -c` so bash runs as unprivileged user who cannot read
     Orchestra source code. The shared pidfd lifecycle cleans up the owned group
     on timeout and cancellation without relying on a reusable process ID."""
-    from app.bg_jobs import _spawn_bg_process, _kill_proc
+    from app.bg_jobs import _spawn_bg_process, _kill_proc, _await_owned_spawn
 
     requested_timeout = int(timeout or BASH_DEFAULT_TIMEOUT)
     timeout = max(1, min(requested_timeout, BASH_MAX_TIMEOUT))
@@ -138,11 +138,7 @@ async def bash(command: str, cwd: str, timeout: int = BASH_DEFAULT_TIMEOUT) -> s
         )
     )
     try:
-        proc = await asyncio.shield(spawn)
-    except asyncio.CancelledError:
-        proc = await asyncio.shield(spawn)
-        await _kill_proc(proc)
-        raise
+        proc = await _await_owned_spawn(spawn)
     except OSError as e:
         return f"[bash error] failed to start: {e}"
     # Keep captured bytes outside the reader task: an inherited pipe can stay open

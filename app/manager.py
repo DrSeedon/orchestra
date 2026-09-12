@@ -38,7 +38,6 @@ from app.workspace import (
 )
 from app.models import (
     CONTEXT_LIMITS,
-    available_models_block,
     backend_for_model,
     cache_policy_for_runtime,
     ensure_dashboard_visible,
@@ -212,85 +211,6 @@ def get_active_profile(scope: str = "", parent_profile: str = "") -> str:
     return parent_profile or ""
 
 
-def _other_orchestrators_block(exclude_scope: str = "", caller_role: str = "") -> str:
-    try:
-        all_orchs = [s for s in get_all_sessions()
-                     if bool(s.get("is_orchestrator")) and s.get("scope") != exclude_scope]
-        if caller_role == "sub-orchestrator":
-            orchs = [s for s in all_orchs if not s.get("parent_name")]
-        else:
-            orchs = all_orchs
-        if not orchs:
-            return ""
-        lines = ["## Other orchestrators", "You can message other orchestrators via `send_message(to=\"Name\", message=\"...\")`:"]
-        for o in orchs:
-            name = o["name"]
-            scope = o.get("scope", "")
-            project = Path(scope).name if scope else "?"
-            desc = o.get("description", "")
-            desc_part = f" — {desc}" if desc else ""
-            lines.append(f"- **{name}** — project: {project}{desc_part}")
-        lines.append("")
-        lines.append("Use this when the user says \"напиши оркестре X\", \"скажи Y оркестратору\", \"спроси у Z\", etc.")
-        return "\n".join(lines)
-    except (sqlite3.Error, KeyError, TypeError):
-        # Возвращать "" нельзя: пустой блок читается агентом как "других оркестраторов
-        # нет", а не как "список не собрался". Деградируем ГРОМКО — в лог и в промпт.
-        logger.exception(
-            f"prompt block 'other orchestrators' failed for scope={exclude_scope!r}"
-        )
-        return ("## Other orchestrators\n"
-                "⚠️ Orchestrator list unavailable (internal error) — "
-                "use `list_orchestrators` before assuming there are none.")
-
-
-def _workers_block(scope: str, orchestrator_name: str = "") -> str:
-    try:
-        workers = [s for s in get_all_sessions()
-                   if not bool(s.get("is_orchestrator")) and s.get("scope") == scope]
-        if not workers:
-            return ""
-
-        mine, others = [], []
-        for w in workers:
-            pn = w.get("parent_name", "")
-            if not orchestrator_name or pn == orchestrator_name or not pn:
-                mine.append(w)
-            else:
-                others.append(w)
-
-        def _fmt(w, show_owner=False):
-            n = w["name"]
-            model = w.get("model", "?")
-            status = w.get("status", "?")
-            ctx = w.get("context_pct", 0) or 0
-            desc = w.get("description", "")
-            desc_part = f" | \"{desc}\"" if desc else ""
-            owner_part = f" | owner: {w.get('parent_name', '?')}" if show_owner else ""
-            return f"- **{n}** — {model} | {status} | ctx:{ctx}%{desc_part}{owner_part}"
-
-        lines = ["## Your current workers",
-                 "These workers exist in your project. Reuse idle ones instead of spawning new; lifecycle and kill decisions follow the orchestration Kill gate."]
-        for w in mine:
-            lines.append(_fmt(w))
-
-        if others:
-            lines.append("")
-            lines.append("## Other orchestrators' workers")
-            lines.append("⚠️ These belong to other orchestrators. Do NOT send them tasks — message their orchestrator instead.")
-            for w in others:
-                lines.append(_fmt(w, show_owner=True))
-
-        return "\n".join(lines)
-    except (sqlite3.Error, KeyError, TypeError):
-        # Пустой блок агент читает как "воркеров нет" и плодит дубликаты вместо
-        # переиспользования живых. Молчать здесь дороже, чем признать сбой.
-        logger.exception(f"prompt block 'workers' failed for scope={scope!r}")
-        return ("## Your current workers\n"
-                "⚠️ Worker list unavailable (internal error) — "
-                "use `list_agents` before spawning, you may already have workers.")
-
-
 def _fmt_role_catalog_entry(rr) -> str:
     """Форматировать одну запись каталога ролей из :class:`ResolvedRole`.
 
@@ -340,11 +260,12 @@ def _roles_catalog_from_manifest(pipeline: str, parent_role: str) -> str:
 
 
 def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
-    """Системный промпт роли: статика слоёв пайплайна + динамика (каталог/блоки).
+    """Системный промпт роли из файлов: слои, индекс KB и статический каталог ролей.
 
     Единственный источник — ``.orchestra/pipelines/<pipeline>/prompts/`` через
     :func:`build_system_prompt`. Для оркестратора добавляется каталог ролей
-    (фильтр ``can_spawn``) + блоки других оркестраторов/воркеров из БД.
+    (фильтр ``can_spawn``). Живое состояние доступно через инструменты и API,
+    поэтому изменения БД не переписывают кешируемый префикс.
 
     Оглавление базы знаний ``scope`` идёт ЗДЕСЬ, а не в файлах ролей: список тем
     принадлежит проекту агента, а не пайплайну, и обязан обновляться без рестарта —
@@ -371,13 +292,6 @@ def ROLE_SYSTEM_PROMPT(pipeline: str, role: str, scope: str = "") -> str:
         catalog = _roles_catalog_from_manifest(pipeline, role)
         if catalog:
             base += f"\n\n{catalog}"
-        base += f"\n\n{available_models_block()}"
-        others = _other_orchestrators_block(scope, caller_role=role)
-        if others:
-            base += f"\n\n{others}"
-        workers = _workers_block(scope)
-        if workers:
-            base += f"\n\n{workers}"
     return base
 
 
@@ -1972,10 +1886,9 @@ class SessionManager:
         """
         current_base = ROLE_SYSTEM_PROMPT(pipeline, role, scope)
         if not is_orch:
-            orch_name = parent_name if parent_name is not None else self._find_orchestrator_name(scope)
             current_base = safe_format_prompt(
                 current_base,
-                worker_name=name, orchestrator_name=orch_name or "orchestrator",
+                worker_name=name, orchestrator_name=parent_name or "orchestrator",
                 scope=scope, branch=branch,
             )
         if stored_overlay is None:

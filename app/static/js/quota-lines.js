@@ -46,7 +46,15 @@ function _qlLimitAt(t, rule, lane) {
     const exponent = Number(rule.curve_exponent) || 1;
     const curved = lane && (rule.curved_lanes || []).includes(lane) && exponent > 1;
     const norm = (curved && t > 0) ? Math.pow(t, 1 / exponent) : t;
-    return Math.min(Number(rule.hard_stop_pct), norm * 100 + start + (end - start) * t);
+    return Math.min(_qlHardStop(rule, lane), norm * 100 + start + (end - start) * t);
+}
+
+// Жёсткий стоп — свойство ПОЛОСЫ: хвост пула зарезервирован под дешёвую модель,
+// поэтому Sol встаёт раньше Luna. Зеркало `QuotaPolicy.hard_stop_for`.
+function _qlHardStop(rule, lane) {
+    const hard = Number(rule.hard_stop_pct);
+    const laneHard = Number((rule.lane_hard_stop_pct || {})[lane]);
+    return Number.isFinite(laneHard) ? Math.min(hard, laneHard) : hard;
 }
 
 function _qlBucket(bucketId) {
@@ -89,6 +97,56 @@ function _qlReleaseText(lane) {
 
 function _qlLaneSummary(lane) {
     return _qlReleaseText(lane);
+}
+
+function _qlAllLanes() {
+    const lanes = [];
+    for (const bucket of (_quotaLinesData?.buckets || [])) {
+        for (const lane of (bucket.lanes || [])) lanes.push(lane);
+    }
+    return lanes;
+}
+
+function _qlLaneLabel(laneId) {
+    const found = _qlAllLanes().find(lane => lane.lane === laneId);
+    return found ? (found.label || laneId) : laneId;
+}
+
+// Потолки жёсткого стопа словами: у Sol свой (95%), у остальных общий. Подпись
+// обязана совпадать с линиями `ql-hard` на графике — обе берут одни и те же числа.
+function _qlCeilingText(rule) {
+    const own = Object.entries(rule.lane_hard_stop_pct || {})
+        .filter(([, pct]) => Number.isFinite(Number(pct)))
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([lane, pct]) => `${_qlLaneLabel(lane)} ${_qlNum(pct)}%`);
+    const common = `${_qlNum(rule.hard_stop_pct)}%`;
+    return own.length ? `${own.join(', ')}, прочие ${common}` : common;
+}
+
+// Состояние гейта — первое, что должно читаться с панели (#V-547). Раньше снятая со
+// ВСЕХ полос диагональ отличалась от работающего правила только курсивной припиской
+// у бейджа, и по панели два разных режима выглядели одинаково.
+// Источник — `rule.gated_lanes` сервера: панель не решает, кого гейтить.
+function _qlGateState() {
+    const rule = _quotaLinesData?.rule;
+    // Пока связь потеряна, вердикт панели уже «—»: печатать рядом уверенное
+    // «гейт включён» по прошлому ответу значит выдать устаревшее за текущее.
+    if (Connection.ownsErrors() || !rule || !Array.isArray(rule.gated_lanes)) {
+        return {state: 'nodata', text: 'гейт: нет данных'};
+    }
+    const ceilings = _qlCeilingText(rule);
+    if (!rule.gated_lanes.length) {
+        return {
+            state: 'off',
+            text: `гейт СНЯТ — диагональ не держит ни одну полосу, остаётся только потолок: ${ceilings}`,
+        };
+    }
+    const held = rule.gated_lanes.map(_qlLaneLabel);
+    const free = _qlAllLanes()
+        .filter(lane => !rule.gated_lanes.includes(lane.lane))
+        .map(lane => lane.label || lane.lane);
+    const tail = free.length ? ` · вне гейта: ${free.join(', ')}` : '';
+    return {state: 'on', text: `гейт ВКЛЮЧЁН: ${held.join(', ')}${tail} · потолок: ${ceilings}`};
 }
 
 function _qlTrace(bucket) {
@@ -177,16 +235,29 @@ function _qlChartSvg(panel, rule) {
     for (let i = 0; i <= 100; i++) { const t = i / 100; lineSol.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'sol'))}`); }
     p.push(`<polygon class="ql-band" points="${band.join(' ')}"/>`);
     p.push(`<line class="ql-diag" x1="${_qlX(0)}" y1="${_qlY(0)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    p.push(`<polyline class="ql-gated" points="${lineClaude.join(' ')}"/>`);
+    // Снятая с полосы диагональ рисуется призраком: сплошная линия означала бы порог,
+    // по которому кого-то останавливают, а её на этой полосе сейчас не применяют.
+    const gatedLanes = Array.isArray(rule.gated_lanes) ? rule.gated_lanes : [];
+    const _ghost = lane => gatedLanes.includes(lane) ? '' : ' ql-gated-off';
+    const _lifted = lane => gatedLanes.includes(lane) ? '' : ' — снят';
+    p.push(`<polyline class="ql-gated${_ghost('claude')}" data-ql-threshold="claude" points="${lineClaude.join(' ')}"/>`);
     if ((rule.curved_lanes || []).includes('sol')) {
-        p.push(`<polyline class="ql-gated ql-gated-sol" points="${lineSol.join(' ')}"/>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(_qlLimitAt(0.30, rule, 'sol')) - 9}" fill="#f472b6">порог Sol — жжём пул рано</text>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(_qlLimitAt(0.62, rule, 'claude')) + 17}" fill="#fb923c">порог Claude</text>`);
+        p.push(`<polyline class="ql-gated ql-gated-sol${_ghost('sol')}" data-ql-threshold="sol" points="${lineSol.join(' ')}"/>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(_qlLimitAt(0.30, rule, 'sol')) - 9}" fill="#f472b6">порог Sol${gatedLanes.includes('sol') ? ' — жжём пул рано' : _lifted('sol')}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(_qlLimitAt(0.62, rule, 'claude')) + 17}" fill="#fb923c">порог Claude${_lifted('claude')}</text>`);
     }
 
     const hard = Number(rule.hard_stop_pct);
     p.push(`<line class="ql-hard" x1="${_qlX(0)}" y1="${_qlY(hard)}" x2="${_qlX(1)}" y2="${_qlY(hard)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">жёсткие ${_qlNum(hard)}% — стоп для всех воркеров</text>`);
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">жёсткие ${_qlNum(hard)}% — стоп полос без своего потолка</text>`);
+    // Своя линия у полосы с более низким потолком: одна общая соврала бы, что дорогая
+    // полоса работает до последнего процента пула.
+    for (const lane of _qlLanes(panel)) {
+        const stop = _qlHardStop(rule, lane.lane);
+        if (!(stop < hard)) continue;
+        p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${_escHtml(lane.label || lane.lane)} — жёсткие ${_qlNum(stop)}%</text>`);
+    }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">оркестратор работает всегда — предела нет</text>`);
 
@@ -231,7 +302,7 @@ function _qlChartSvg(panel, rule) {
         if (!point) continue;
         if (point.progress === null) {
             if (i === 0) {
-                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${_escHtml(bucket.label || bucket.bucket)}: срок сброса неизвестен — только жёсткие ${_qlNum(hard)}%</text>`);
+                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${_escHtml(bucket.label || bucket.bucket)}: срок сброса неизвестен — только жёсткие ${_qlNum(_qlHardStop(rule, lane.lane))}%</text>`);
             }
             continue;
         }
@@ -258,7 +329,7 @@ function _qlChartSvg(panel, rule) {
         const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
         const head = `факт ${_qlNum(point.util)}% · норма ${_qlNum(point.progress * 100)}%`;
         const detail = !lane.gated
-            ? `${head} · диагональ не применяется — только жёсткие ${_qlNum(hard)}%`
+            ? `${head} · диагональ не применяется — только жёсткие ${_qlNum(_qlHardStop(rule, lane.lane))}%`
             : laneLimit === null
             ? `${head} · порога нет`
             : `${head} · допуск ${_qlNum(point.tolerance, 1)} п.п. · порог ${_qlNum(laneLimit, 1)}%`;
@@ -367,9 +438,11 @@ function renderQuotaLines() {
     const root = document.getElementById('quota-lines');
     if (!root) return;
     const body = _QL_PANELS.map(_qlPanelHtml).join('');
+    const gate = _qlGateState();
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} правило допуска</button>
+            <span class="ql-gate ql-gate-${gate.state}" data-ql-gate="${gate.state}">${_escHtml(gate.text)}</span>
             <div class="ql-sum">${_qlSummary()}</div>
         </div>
         <div class="ql-body" ${_quotaLinesOpen ? '' : 'hidden'}>${body}</div>`;

@@ -1819,10 +1819,16 @@ async def build_quota_map() -> dict:
         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
         "rule": {
             "hard_stop_pct": policy.hard_stop_pct,
+            # Потолок полосы: без него панель нарисует всем общие 99% там, где гейт
+            # останавливает Sol на 95% — то самое расхождение картинки с отказом.
+            "lane_hard_stop_pct": dict(sorted(policy.lane_hard_stop_pct.items())),
             "tolerance_start_pp": policy.tolerance_start_pp,
             "tolerance_end_pp": policy.tolerance_end_pp,
             "curve_exponent": policy.curve_exponent,
             "curved_lanes": sorted(policy.curved_lanes),
+            # Состав гейтящихся полос: без него панель не может сказать, действует
+            # правило вообще или снято со всех, — снятый гейт выглядел как обычный.
+            "gated_lanes": sorted(policy.gated_lanes),
         },
         "buckets": buckets,
         "outside_policy": outside_policy,

@@ -1162,6 +1162,15 @@ class ClaudeBackend:
         try:
             if client:
                 await client.disconnect()
+        except AttributeError as e:
+            # У SDK уже нет процесса: внутри его транспорта обращение к `.returncode`
+            # приходит на None. Цель disconnect — освободить ресурс, и он УЖЕ свободен,
+            # поэтому это успех, а не отказ. Прежний безусловный `raise` превращал мёртвый
+            # процесс в блокировку смены модели: 12.09.2026 владелец не смог переключить
+            # оркестратора, получив `dialog switch blocked; source retained:
+            # text_tail_source_release_failed` (`app/session.py:3411`), хотя отключать было
+            # уже нечего. Любая ДРУГАЯ ошибка по-прежнему пробрасывается.
+            logger.warning(f"ClaudeBackend disconnect: process already gone ({e})")
         except Exception as e:
             logger.warning(f"ClaudeBackend disconnect failed: {e}")
             raise

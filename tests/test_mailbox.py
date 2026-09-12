@@ -472,3 +472,59 @@ def test_t2_unknown_recipient_is_woken(db, spy):
         "неизвестный получатель не разбужен — сообщение залегло в ящике навсегда"
     )
     assert _mailbox().pending("recipient", "/repo") == []
+
+
+def test_v556_cancel_only_unclaimed(db):
+    mb = _mailbox()
+    message_id = mb.enqueue(
+        "recipient", "/repo", "", "отменить",
+        provenance=MessageProvenance(origin="user", senders=("user",)),
+    )
+    assert mb.cancel(message_id, "recipient", "/repo") is True
+    assert mb.pending("recipient", "/repo") == []
+
+    message_id = mb.enqueue(
+        "recipient", "/repo", "", "доставка",
+        provenance=MessageProvenance(origin="user", senders=("user",)),
+    )
+    assert mb.claim("recipient", "/repo")
+    assert mb.cancel(message_id, "recipient", "/repo") is False
+
+
+def test_v556_dashboard_after_turn_queues_busy_and_returns_id(db, spy):
+    from app.routes.sessions import SendRequest, send_message
+
+    class Busy:
+        name = "recipient"
+        scope = "/repo"
+        status = "running"
+
+    spy.sessions = {"recipient": Busy()}
+    result = asyncio.run(send_message("recipient", SendRequest(
+        message="после хода", scope="/repo", channel="dashboard", after_turn=True,
+    )))
+
+    assert result["queued"] is True
+    assert result["queue_id"]
+    assert spy.sent == []
+    pending = _mailbox().pending("recipient", "/repo")
+    assert [row["body"] for row in pending] == ["после хода"]
+
+
+def test_v556_dashboard_after_turn_idle_uses_immediate_delivery(db, spy):
+    from app.routes.sessions import SendRequest, send_message
+
+    class Idle:
+        name = "recipient"
+        scope = "/repo"
+        status = "idle"
+
+    spy.sessions = {"recipient": Idle()}
+    result = asyncio.run(send_message("recipient", SendRequest(
+        message="сразу", scope="/repo", channel="dashboard", after_turn=True,
+    )))
+
+    assert result["ok"] is True
+    assert "queued" not in result
+    assert len(spy.sent) == 1
+    assert _mailbox().pending("recipient", "/repo") == []

@@ -1,0 +1,36 @@
+diff --git a/.orchestra/kb/token-efficiency.md b/.orchestra/kb/token-efficiency.md
+index 8e42dfb9..ea2406a6 100644
+--- a/.orchestra/kb/token-efficiency.md
++++ b/.orchestra/kb/token-efficiency.md
+@@ -6,6 +6,7 @@
+ «токен-сберегающих» скиллов, способ доставки правил.
+ 
+ ## Established
++- **Сборка системного промпта больше не должна зависеть от живых workers/orchestrators/model_flags; денежный эффект пока не измерен.** Удалены DB-блоки и lookup родителя по живому составу; файлы роли, KB, личная память и сохранённая identity остаются источниками; 242 tests passed, возврат старой сборки краснит committed regression · ищи: `_workers_block`, `ROLE_SYSTEM_PROMPT`, `системный промпт никогда не менять` · `app/manager.py:271`, `.orchestra/tasks/V-540/research.md`, `.orchestra/tasks/V-540/test-mutations.log` · 2026-09-09, #V-540
+ 
+ - **Расход на Claude состоит из передачи контекста, а не из рассуждений: cache_read 68.6%,
+   cache_create 19.9%, output 11.1%, fresh input 0.4%** · замер живой `turn_usage` за 14 дней
+@@ -202,6 +203,7 @@
+ - **Локальный бенчмарк закрыт БЕЗ оценки эффекта: калибровка 0 вызовов, основной прогон 0 измерительных вызовов.** Первый контроль на бесплатном маршруте сделал 54 запроса (38 пригодных конвертов, 16 непригодных, 0 сопоставимых троек) и упёрся в доступность; второй контроль на Luna технически завершил 9/9, но дал только 1/3 верных плеч и не прошёл гейт качества · ищи: `main 0`, `calibration 0`, `54 requests`, `1/3 arms`, «почему закрыли SKILL.state» · `docs/tasks/430/pilot-audit.json`; `docs/tasks/430/evidence/luna-positive-control-v2.json`; решение владельца «закрывай тему блокнота» · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/pilot-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/evidence/luna-positive-control-v2.json`
+ 
+ ## Rejected
++- **«ctx/status меняют SYSTEM каждый ход и уничтожают весь кеш разговора» — нет для наблюдённого Claude resume.** Изменился только user-injected role: байт 80076, 0x39→0x38, следующий запрос read=230890/create=35399; после последней инъекции тот же CLI дал три записи >629k после пауз >1h, usage маркирует запись как ephemeral_1h · ищи: `ctx:9%`, `cache_create_tokens`, `почему слетает кеш Claude` · опровергнуто: `.orchestra/tasks/V-540/evidence.jsonl`, `.orchestra/tasks/V-540/research.md` · 2026-09-09, #V-540
+ 
+ - «22% экономии токенов доказаны и их можно перепроверить по опубликованному» — перепроверить
+   нечем: `EXPECTED-RESULTS.md` ссылается на 11 артефактов замера (`compare.py`, `adoption.py`,
+@@ -226,6 +228,7 @@
+ - **«На наших задачах измерен выигрыш или проигрыш SKILL.state» отвергнуто.** Ни калибровка, ни основной прогон не запускались, абсолютные пороги остались `null`, а положительный контроль на n=1 предназначался только для допуска стенда · ищи: `выигрыш не измерен`, `threshold null`, `positive control n=1`, «результат SKILL.state Orchestra» · опровергнуто: `docs/tasks/430/research.md`; `docs/tasks/430/positive-control-v2-audit.json`; `docs/tasks/430/CLOSED.md` · 2026-09-01, #430 · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/research.md`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/positive-control-v2-audit.json`; `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/CLOSED.md`
+ 
+ ## Gaps
++- **Доля причин дорогих Claude-ходов и экономия после снятия DB-блоков не установлены.** Нет исторических system/tools API payload, полных reconnect events и after после применения; быстрый miss 475637 токенов при интервале ответов 95.992 s не объяснён TTL-only · ищи: `prompt cache`, `замер до после`, `переподключения` · упёрлось в: отсутствие after без назначенного владельцем рестарта и API fingerprints; `.orchestra/tasks/V-540/research.md`, `.orchestra/tasks/V-540/evidence.jsonl` · 2026-09-09, #V-540
+ 
+ - ~~Наши 14.06 tool-вызовов на ход не разложены по типам~~ — ЗАКРЫТО 2026-08-19 #345: разведка
+   31.7%, потолок назван. Осталось уже: чтения через shell (`grep`, `sed -n`, `rg`, `head`) на
+@@ -257,6 +260,7 @@
+ - Выигрыш статьи заявлен на горизонтах в сотни шагов, а #430 измерил только короткие episodes, где экономить почти нечего; возвращаться имеет смысл только со стендом на длинных задачах и после стабилизации retention critical reason code, иначе причинный effect измерять нечем · evidence: user-supplied paper boundary; `docs/tasks/430/research.md`; `positive-control-v2-audit.json` · 2026-09-01, #430 closed by user · открыть: `git show 540ab7cb218a62fe489eea7140f690d3a6a0120f:docs/tasks/430/research.md`
+ 
+ ## Источники
++- .orchestra/tasks/V-540/research.md — byte-diff USER-инъекций, отрицательные плечи Claude cache, инвариант сборки и незавершённый after.
+ 
+ - .orchestra/tasks/345/research.md — разбор benjamin-plus: что за хук, на чём стоят 22%, метод
+   авторесёрча, применимость к нашему контуру, декомпозиция нашего расхода

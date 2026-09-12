@@ -41,7 +41,7 @@ def pending(recipient: str, scope: str) -> list[dict]:
     with db._conn() as connection:
         rows = connection.execute(
             """
-            SELECT id, sender, body, origin, origin_detail
+            SELECT id, sender, body, origin, origin_detail, created_at, claimed_at
             FROM mailbox
             WHERE recipient = ? AND scope = ? AND delivered_at IS NULL
             ORDER BY id
@@ -49,6 +49,19 @@ def pending(recipient: str, scope: str) -> list[dict]:
             (recipient, scope),
         ).fetchall()
     return [_resource(row) for row in rows]
+
+
+def cancel(message_id: int, recipient: str, scope: str) -> bool:
+    """Cancel an unclaimed message; a turn-end delivery already in flight wins."""
+    with db._conn() as connection:
+        cursor = connection.execute(
+            """UPDATE mailbox SET delivered_at = ?
+               WHERE id = ? AND recipient = ? AND scope = ?
+                 AND delivered_at IS NULL AND claimed_at IS NULL
+                 AND (origin = 'user' OR origin_detail LIKE '%\"subtype\":\"dashboard\"%')""",
+            (time.time(), int(message_id), recipient, scope),
+        )
+        return cursor.rowcount == 1
 
 
 def mark_delivered(ids: list[int]) -> None:

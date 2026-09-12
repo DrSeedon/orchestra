@@ -154,7 +154,7 @@ def _git(cwd: Path, *args: str) -> str | None:
             cwd=cwd,
             capture_output=True,
             text=True,
-            timeout=15,
+            timeout=60,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired):
@@ -186,7 +186,15 @@ def changed_paths(
                 break
     if not base:
         return None
-    named = _git(wt, "diff", "--name-only", f"{base}...HEAD")
+    # `--no-renames` здесь и быстрее, и ТОЧНЕЕ. Точнее — потому что нам нужен список
+    # затронутых путей: при переименовании тесты и бюджет должны видеть обе стороны,
+    # старый путь и новый, а не одну строку R100. Быстрее — потому что детектор
+    # переименований на бинарных ассетах стоит секунды: замер 11.09.2026 на ветке
+    # task-56/voice-astra (2402 файла, ~1900 изображений, 60 переименований) дал
+    # 37.0 с против 0.026 с — в 1400 раз. Прежние 37 с не укладывались в таймаут
+    # `_git`, тот отдавал None, и merge_worker падал с «cannot derive target-relative
+    # merge paths», отправляя чинить несуществующую поломку оракула.
+    named = _git(wt, "diff", "--no-renames", "--name-only", f"{base}...HEAD")
     if named is None:
         return None
     paths = [line.strip().replace("\\", "/") for line in named.splitlines() if line.strip()]

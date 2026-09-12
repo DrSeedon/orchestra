@@ -11,7 +11,6 @@ from app.models import (
     PROVIDER_METADATA,
     TOKEN_PRICES,
     ModelSpec,
-    available_models_block,
     backend_for_model,
     cache_policy_for_runtime,
     fetch_models_from_proxy,
@@ -46,7 +45,6 @@ def test_spark_is_registered_for_codex_workers():
     assert BACKENDS[model_id] == "codex"
     assert ALIASES["spark"] == model_id
     assert backend_for_model(model_id) == "codex"
-    assert "`gpt-5.3-codex-spark` — GPT-5.3 Codex Spark, 128k context" in available_models_block()
 
 
 def test_opus5_registry_and_aliases():
