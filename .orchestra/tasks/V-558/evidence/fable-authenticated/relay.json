@@ -1,0 +1,14 @@
+[
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  }
+]

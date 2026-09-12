@@ -1,0 +1,21 @@
+{
+  "state": "available",
+  "allowed": true,
+  "model": "claude-fable-5-1[1m]",
+  "provider": "anthropic",
+  "provider_label": "Claude",
+  "lane": "claude",
+  "gated": false,
+  "utilization": 89.0,
+  "progress": 0.6229132192380845,
+  "tolerance_pp": 4.39378102685724,
+  "limit_pct": null,
+  "hard_limit_pct": 99.0,
+  "observed_at": 1789227449.1696692,
+  "valid_until": 1789227749.1696692,
+  "reset_at": "2026-09-15T07:00:00.064695+00:00",
+  "window_starts_at": "2026-09-08T07:00:00.064695+00:00",
+  "reason": "lane 'claude' is not gated by the line; utilization 89% is below the hard stop 99%",
+  "release_status": "open",
+  "release_in_seconds": null
+}

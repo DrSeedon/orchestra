@@ -1,0 +1,47 @@
+[
+  {
+    "name": "luna",
+    "commit": "26a7712cb148e2418455f32e9aa47ee6e41aa6ec",
+    "status": "",
+    "removed_disposable_credentials": [
+      "home/.codex/auth.json"
+    ],
+    "scratch_preserved_ignored": false
+  },
+  {
+    "name": "sol",
+    "commit": "356dd886194f49ec94a6ca8b7ea22d55d3d96cc3",
+    "status": "",
+    "removed_disposable_credentials": [
+      "home/.codex/auth.json"
+    ],
+    "scratch_preserved_ignored": false
+  },
+  {
+    "name": "astra",
+    "commit": "f1462b46f0b7fc0242f91a59267d61849e000080",
+    "status": "",
+    "removed_disposable_credentials": [
+      "home/.codex/auth.json"
+    ],
+    "scratch_preserved_ignored": false
+  },
+  {
+    "name": "opus",
+    "commit": "6033cd9d18cf6e4bf21d939dd5d3b0c2eb5636ea",
+    "status": "",
+    "removed_disposable_credentials": [
+      "home/.claude/.credentials.json"
+    ],
+    "scratch_preserved_ignored": false
+  },
+  {
+    "name": "fable",
+    "commit": "0da8d38854eaf211e0cce6a6f14152cbadb4eb39",
+    "status": "",
+    "removed_disposable_credentials": [
+      "home/.claude/.credentials.json"
+    ],
+    "scratch_preserved_ignored": true
+  }
+]

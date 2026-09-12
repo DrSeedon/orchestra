@@ -1,0 +1,22 @@
+[
+  {
+    "name": "luna",
+    "imported_app_module": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-luna/app/quota_gate.py"
+  },
+  {
+    "name": "sol",
+    "imported_app_module": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-sol/app/quota_gate.py"
+  },
+  {
+    "name": "astra",
+    "imported_app_module": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-astra/app/quota_gate.py"
+  },
+  {
+    "name": "opus",
+    "imported_app_module": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-opus/app/quota_gate.py"
+  },
+  {
+    "name": "fable",
+    "imported_app_module": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-fable/app/quota_gate.py"
+  }
+]

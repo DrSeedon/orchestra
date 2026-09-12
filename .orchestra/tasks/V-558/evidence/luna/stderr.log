@@ -1,0 +1,3 @@
+2026-09-12T15:22:30.543733Z ERROR codex_core::tools::router: error=apply_patch verification failed: Failed to find expected lines in /home/kesha/.cache/orchestra-bench-V-558/arm-luna/work/app/quota_gate.py:
+    lane = lane_for_model(resolved, bucket)
+    gated = lane in policy.gated_lanes
