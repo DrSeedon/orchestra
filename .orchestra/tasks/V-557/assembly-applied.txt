@@ -1,0 +1,8 @@
+import: /home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-engineer/app/pipeline.py
+orchestrator: whole module count=1
+sub-orchestrator: whole module count=1
+full-cycle: whole module count=1
+worker: whole module count=0
+reducer: whole module count=0
+AGENTS.md: 13460 bytes
+CLAUDE.md: 13460 bytes

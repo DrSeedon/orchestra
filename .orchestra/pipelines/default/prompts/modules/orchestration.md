@@ -69,12 +69,8 @@ touches multiple files. Prefer one accountable worker over mandatory decompositi
 ### Step 1: Worker route
 - A clear bounded task → worker.
 - Investigation or an end-to-end task with unknowns → full-cycle.
-- State the desired outcome, evidence and explicit exclusions, not a mandatory sequence.
+- Use the assignment contract in worker-lifecycle for outcome, acceptance and boundaries.
 - Expected files are hints, not hidden acceptance boundaries.
-
-### Step 1.5: Open vs closed tasks (anti-convergence)
-- **Closed task** (clear spec, known approach) → give the worker a **directive**: "do X using Y". Determinism = feature.
-- **Open task** (research, architecture, "how should we…") → give the worker a **question**, NOT your pre-baked solution: "investigate X and propose an approach", NOT "do X via Y". If you prescribe the solution, the worker won't explore alternatives — you've already anchored their thinking.
 
 ### Step 2: Deliver the approved outcome
 Give one accountable worker the task and let it choose investigation, planning and implementation
