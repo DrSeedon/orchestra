@@ -1506,6 +1506,7 @@ class CodexBackend(JsonRpcStdioTransport):
             return self._turn_completed(turn)
 
         if method == "_process/exited":
+            event_id = self._active_turn_id or ""
             self._active_turn_id = None
             reader_failure = params.get("reader_failure") or ""
             model_error = "reader_failure" if reader_failure else "server_error"
@@ -1518,6 +1519,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 ),
             )
             return [AgentEvent("turn_end", "stop_reason=process_exit", metadata={
+                "event_id": event_id,
                 "session_id": self._thread_id,
                 "ok": False,
                 "stop_reason": f"process_exit_{params.get('returncode')}",

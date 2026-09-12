@@ -7,6 +7,7 @@ import hashlib
 import json
 import logging
 import sqlite3
+import time
 import uuid
 from datetime import datetime, timezone
 
@@ -16,6 +17,7 @@ from app.events import MessageProvenance
 
 logger = logging.getLogger("orchestra.message_deliveries")
 SCHEMA_VERSION = 2
+_STEERED_PROVIDER_REF_PREFIX = "steered:"
 _target_runner_tasks: dict[str, asyncio.Task[bool]] = {}
 _target_delivery_locks: dict[str, asyncio.Lock] = {}
 
@@ -45,6 +47,9 @@ def _payload_hash(**payload: object) -> str:
 
 def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
     error = json.loads(row["error_json"]) if row["error_json"] else None
+    provider_ref = row["provider_ref"]
+    if isinstance(provider_ref, str) and provider_ref.startswith(_STEERED_PROVIDER_REF_PREFIX):
+        provider_ref = provider_ref[len(_STEERED_PROVIDER_REF_PREFIX):]
     return {
         "ok": True,
         "acceptance": acceptance,
@@ -53,7 +58,7 @@ def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
         "payload_hash": row["payload_hash"],
         "accept_seq": row["accept_seq"],
         "status_url": f"/api/message-deliveries/{row['delivery_id']}",
-        "provider_ref": row["provider_ref"],
+        "provider_ref": provider_ref,
         "error": error,
         "next_action": _next_action(row),
     }
@@ -91,6 +96,15 @@ def _queue_block(row: sqlite3.Row | dict) -> dict:
 
 
 def _next_action(row: sqlite3.Row | dict) -> dict:
+    if row["state"] == "WAITING_NEXT_TURN":
+        return {
+            "code": "WAITING_NEXT_TURN",
+            "retryable": False,
+            "message": (
+                "The active turn ended before this message was processed; it is "
+                "durably queued for the target's next turn. Do not resend."
+            ),
+        }
     # Блокировка очереди едет в `next_action`, а не отдельным ключом: это единственное
     # поле receipt'а, которое читают потребители остальных доставок и мержей, — второй
     # носитель той же мысли просто никто бы не открыл.
@@ -369,6 +383,20 @@ def mark_message_delivery_submitted(delivery_id: str, provider_ref: str | None =
     return _update_state(delivery_id, "SUBMITTED", provider_ref=provider_ref)
 
 
+def mark_message_delivery_steered(delivery_id: str, provider_ref: str | None = None) -> dict:
+    """Record a successful injection while retaining its active-turn identity.
+
+    The prefix is storage-only: receipts still expose the provider turn id, while a
+    failed terminal event can find exactly the deliveries injected into that turn.
+    """
+    stored_ref = (
+        f"{_STEERED_PROVIDER_REF_PREFIX}{provider_ref}"
+        if isinstance(provider_ref, str) and provider_ref
+        else provider_ref
+    )
+    return _update_state(delivery_id, "SUBMITTED", provider_ref=stored_ref)
+
+
 def _mark_message_delivery_fan_buffered(delivery_id: str, fan_id: str) -> dict:
     row = _row(_validate_id(delivery_id))
     if row is None or row["state"] != "PREPARING":
@@ -470,13 +498,20 @@ class MessageDeliveryContext:
         self.history_user_message = history_user_message
         self.provenance = provenance
         self.dispatched = False
+        self.steered = False
+
+    def mark_running_steer(self) -> None:
+        self.steered = True
 
     async def before_submit(self) -> None:
         mark_message_delivery_dispatching(self.delivery_id)
         self.dispatched = True
 
     async def mark_submitted(self, provider_ref: str | None = None) -> None:
-        mark_message_delivery_submitted(self.delivery_id, provider_ref)
+        if self.steered:
+            mark_message_delivery_steered(self.delivery_id, provider_ref)
+        else:
+            mark_message_delivery_submitted(self.delivery_id, provider_ref)
 
     async def mark_unknown(self, error: BaseException) -> None:
         if self.dispatched:
@@ -500,6 +535,77 @@ class MessageDeliveryContext:
 _TERMINAL_DELIVERY_STATES = (
     "SUBMITTED", "FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED",
 )
+
+
+def requeue_failed_turn(target_session_id: str, provider_ref: str) -> int:
+    """Move steers from a failed turn into the durable after-turn mailbox.
+
+    The mailbox insert and receipt transition share one SQLite transaction, so a
+    repeated terminal event cannot create duplicate recovery messages.
+    """
+    if not provider_ref:
+        return 0
+    now = time.time()
+    stored_ref = f"{_STEERED_PROVIDER_REF_PREFIX}{provider_ref}"
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        rows = connection.execute(
+            """SELECT * FROM message_deliveries
+               WHERE target_session_id=? AND provider_ref=? AND state='SUBMITTED'
+               ORDER BY accept_seq""",
+            (target_session_id, stored_ref),
+        ).fetchall()
+        for row in rows:
+            provenance = MessageProvenance.from_storage(
+                row["origin"], row["origin_detail"],
+            )
+            sender = row["source_name"] or ", ".join(provenance.senders)
+            connection.execute(
+                """INSERT INTO mailbox (
+                       recipient, scope, sender, body, origin, origin_detail,
+                       created_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    row["target_name"], row["target_scope"], sender,
+                    row["message"], row["origin"],
+                    json.dumps({
+                        "senders": [sender],
+                        "subtype": "direct_message_recovery",
+                        "ref": row["delivery_id"],
+                    }, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    now,
+                ),
+            )
+            connection.execute(
+                """UPDATE message_deliveries
+                   SET state='WAITING_NEXT_TURN', updated_at=?
+                   WHERE delivery_id=? AND state='SUBMITTED'""",
+                (now, row["delivery_id"]),
+            )
+        return len(rows)
+
+
+def complete_recovered_mailbox_delivery(
+    mailbox_ids: list[int], delivery_ids: list[str],
+) -> None:
+    """Commit mailbox acknowledgement and recovered receipt completion together."""
+    if not mailbox_ids:
+        return
+    mailbox_placeholders = ",".join("?" * len(mailbox_ids))
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute(
+            f"UPDATE mailbox SET delivered_at=? WHERE id IN ({mailbox_placeholders})",
+            (time.time(), *mailbox_ids),
+        )
+        if delivery_ids:
+            placeholders = ",".join("?" * len(delivery_ids))
+            connection.execute(
+                f"""UPDATE message_deliveries SET state='SUBMITTED', updated_at=?
+                    WHERE delivery_id IN ({placeholders})
+                      AND state='WAITING_NEXT_TURN'""",
+                (datetime.now(timezone.utc).isoformat(), *delivery_ids),
+            )
 
 
 def targets_with_uncertain_delivery() -> set[str]:
