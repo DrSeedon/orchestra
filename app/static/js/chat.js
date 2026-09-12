@@ -63,9 +63,11 @@ async function sendChat(options = {}) {
     }
 }
 
+let _queuedUnsupported = false;
+
 async function refreshQueuedMessages() {
     const panel = $('#queued-messages');
-    if (!panel || !selectedAgent || !currentScope) return;
+    if (!panel || !selectedAgent || !currentScope || _queuedUnsupported) return;
     const targetName = selectedAgent;
     const targetScope = currentScope;
     try {
@@ -106,6 +108,16 @@ async function refreshQueuedMessages() {
             panel.appendChild(row);
         }
     } catch (error) {
+        // 404 означает не сбой, а СТАРЫЙ сервер: маршрут очереди появился вместе с
+        // кнопкой «After turn» и живёт только после рестарта Orchestra, тогда как этот
+        // файл подхватывается браузером сразу. Молча выключаем опрос и прячем панель,
+        // иначе консоль засыпается одинаковой ошибкой каждые несколько секунд.
+        if (String(error.message || '').startsWith('404')) {
+            _queuedUnsupported = true;
+            panel.replaceChildren();
+            panel.classList.add('hidden');
+            return;
+        }
         console.warn(`[chat] очередь после хода недоступна: ${error.name}: ${error.message}`);
     }
 }
