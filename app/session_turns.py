@@ -287,6 +287,22 @@ class TurnManager:
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
+        if not ok and event_id:
+            from app import message_deliveries
+
+            try:
+                recovered = message_deliveries.requeue_failed_turn(s.id, event_id)
+            except Exception as error:
+                logger.warning(
+                    f"[{s.name}] failed-turn steer recovery unavailable: "
+                    f"{type(error).__name__}: {error}"
+                )
+                recovered = 0
+            if recovered:
+                s._log(
+                    "status",
+                    f"steered messages waiting for next turn: {recovered}",
+                )
         try:
             quota_snapshot = _cached_quota_snapshot(s.backend_type, s.model)
         except Exception as error:
@@ -515,6 +531,12 @@ class TurnManager:
         from app.errtext import err_text
         s = self.s
         ids = [m["id"] for m in queued]
+        recovered_delivery_ids = [
+            m["provenance"].ref
+            for m in queued
+            if m["provenance"].subtype == "direct_message_recovery"
+            and m["provenance"].ref
+        ]
         try:
             text = "\n\n".join(
                 f"[from:{m['sender'] or ', '.join(m['provenance'].senders)}] {m['body']}"
@@ -558,9 +580,29 @@ class TurnManager:
                                 f"ждут в ящике: {err_text(esc)}")
                 self._idle_tail(live_pct, allow_auto_report=allow_auto_report)
                 return
-            mailbox.mark_delivered(ids)
+            if recovered_delivery_ids:
+                from app import message_deliveries
+
+                message_deliveries.complete_recovered_mailbox_delivery(
+                    ids, recovered_delivery_ids,
+                )
+                wake = getattr(s, "_wake_durable_message_deliveries", None)
+                if callable(wake):
+                    wake()
+            else:
+                mailbox.mark_delivered(ids)
             return
-        mailbox.mark_delivered(ids)
+        if recovered_delivery_ids:
+            from app import message_deliveries
+
+            message_deliveries.complete_recovered_mailbox_delivery(
+                ids, recovered_delivery_ids,
+            )
+            wake = getattr(s, "_wake_durable_message_deliveries", None)
+            if callable(wake):
+                wake()
+        else:
+            mailbox.mark_delivered(ids)
 
     def schedule_context_compaction(self, live_pct: int) -> None:
         """Run both automatic compaction decisions from one validated context."""

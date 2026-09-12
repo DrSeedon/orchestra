@@ -1359,6 +1359,12 @@ def _message_delivery_receipt_text(
             f"Message NOT delivered{target}; delivery_id={delivery_id}; state={state}.\n"
             f"{_safe_response_text(str(action.get('message') or ''))}"
         )
+    elif state == "WAITING_NEXT_TURN":
+        output = (
+            f"Message is waiting for the target's next turn{target}; "
+            f"delivery_id={delivery_id}; state={state}.\n"
+            f"{_safe_response_text(str(action.get('message') or ''))}"
+        )
     elif state == "DELIVERY_UNKNOWN":
         output = (
             f"Message delivery outcome is unknown{target}; delivery_id={delivery_id}; "

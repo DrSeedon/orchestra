@@ -1255,6 +1255,9 @@ class AgentSession:
                             )
                         injected, fact_keys = self._attach_pending_facts(message)
                         await delivery.before_submit()
+                        mark_running_steer = getattr(delivery, "mark_running_steer", None)
+                        if callable(mark_running_steer):
+                            mark_running_steer()
                         dispatch_started = True
                         await backend.send(injected)
                         provider_ref = getattr(backend, "active_turn_id", None)
