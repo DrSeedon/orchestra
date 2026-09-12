@@ -347,8 +347,16 @@ function stopVoiceInput(cancel = false) {
 
 function initVoiceInput() {
     const input = $('#chat-input');
-    const actions = $('#send-btn')?.parentElement;
-    if (!input || !actions || $('#voice-controls')) return;
+    // Опорный узел ищется подъёмом до ПРЯМОГО потомка контейнера ввода. Брать
+    // `#send-btn.parentElement` напрямую нельзя: кнопки могут быть обёрнуты ещё одним
+    // div (так и случилось, когда рядом появилась «After turn»), и тогда insertBefore
+    // падает `NotFoundError: the node before which the new node is to be inserted is
+    // not a child of this node` — на живом дашборде это убивало весь голосовой ввод.
+    let actions = $('#send-btn')?.parentElement;
+    while (actions && actions.parentElement && actions.parentElement !== input?.parentElement) {
+        actions = actions.parentElement;
+    }
+    if (!input || !actions || actions.parentElement !== input.parentElement || $('#voice-controls')) return;
     const controls = document.createElement('div');
     controls.id = 'voice-controls';
     controls.className = 'voice-controls';
