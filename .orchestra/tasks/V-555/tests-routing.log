@@ -1,0 +1,25 @@
+....................F................................................... [ 88%]
+.........                                                                [100%]
+=================================== FAILURES ===================================
+_________________________ test_real_stdio_worker_stand _________________________
+
+    def test_real_stdio_worker_stand():
+        import os
+        import subprocess
+        import sys
+        from pathlib import Path
+        root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, str(root / '.orchestra/tasks/532/live_probe.py')], cwd=root,
+            env={**os.environ, 'PYTHONPATH': str(root)}, capture_output=True, text=True, timeout=45,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3: can't open file '/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/532/live_probe.py': [Errno 2] No such file or directory
+E         
+E       assert 2 == 0
+E        +  where 2 = CompletedProcess(args=['/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3', '/home/ke...worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/532/live_probe.py': [Errno 2] No such file or directory\n").returncode
+
+tests/test_tool_scoping.py:114: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tool_scoping.py::test_real_stdio_worker_stand - AssertionEr...
+1 failed, 80 passed in 11.90s

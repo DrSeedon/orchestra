@@ -121,18 +121,6 @@
   ]
  ],
  [
-  "/api/merge-operations/review-skip",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/merge-operations/review-subject",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/merge-operations/{operation_id}",
   [
    "GET"
@@ -502,6 +490,18 @@
   "/api/sessions/{name}/prompt-blocks",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/queued-messages",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/queued-messages/{message_id}",
+  [
+   "DELETE"
   ]
  ],
  [

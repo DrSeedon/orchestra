@@ -1,0 +1,224 @@
+=== catalog: exit=1 ===
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_removed_tool_is_absent_and_cannot_dispatch ________________
+
+    @pytest.mark.asyncio
+    async def test_removed_tool_is_absent_and_cannot_dispatch():
+        retired = 'run' + '_fan'
+>       assert retired not in {tool.name for tool in await mcp_stdio.mcp.list_tools()}
+E       AssertionError: assert 'run_fan' not in {'acquire_test_lock', 'bg_cancel', 'bg_create', 'bg_list', 'change_worker_model', 'check_conflict', ...}
+
+tests/test_dynamic_workflows.py:18: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_dynamic_workflows.py::test_removed_tool_is_absent_and_cannot_dispatch
+1 failed in 6.11s
+
+=== module: exit=1 ===
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_workflow_module_reaches_launching_roles[orchestrator] __________
+
+role = 'orchestrator'
+
+    @pytest.mark.parametrize('role', ['orchestrator', 'sub-orchestrator', 'full-cycle'])
+    def test_workflow_module_reaches_launching_roles(role):
+        name = 'dynamic-workflows'
+        spec = pipeline.get_role('default', role)
+        assert spec.can_spawn
+>       assert name in spec.modules
+E       AssertionError: assert 'dynamic-workflows' in ['model-routing', 'git-workflow', 'orchestration', 'worker-lifecycle', 'background-jobs', 'task-management', ...]
+E        +  where ['model-routing', 'git-workflow', 'orchestration', 'worker-lifecycle', 'background-jobs', 'task-management', ...] = ResolvedRole(name='orchestrator', pipeline='default', kind='orchestrator', label='Orchestrator', order=0, can_spawn=['... worker roles are injected automatically from roles/ directory.\n', prompt_layers=['base.md', 'roles/orchestrator.md']).modules
+
+tests/test_dynamic_workflows.py:28: AssertionError
+________ test_workflow_module_reaches_launching_roles[sub-orchestrator] ________
+
+role = 'sub-orchestrator'
+
+    @pytest.mark.parametrize('role', ['orchestrator', 'sub-orchestrator', 'full-cycle'])
+    def test_workflow_module_reaches_launching_roles(role):
+        name = 'dynamic-workflows'
+        spec = pipeline.get_role('default', role)
+        assert spec.can_spawn
+>       assert name in spec.modules
+E       AssertionError: assert 'dynamic-workflows' in ['model-routing', 'git-workflow', 'orchestration', 'worker-lifecycle', 'background-jobs', 'task-management', ...]
+E        +  where ['model-routing', 'git-workflow', 'orchestration', 'worker-lifecycle', 'background-jobs', 'task-management', ...] = ResolvedRole(name='sub-orchestrator', pipeline='default', kind='orchestrator', label='Sub-Orchestrator', order=1, can_...hestrator. Reports up to parent, delegates down to workers.\n', prompt_layers=['base.md', 'roles/sub-orchestrator.md']).modules
+
+tests/test_dynamic_workflows.py:28: AssertionError
+___________ test_workflow_module_reaches_launching_roles[full-cycle] ___________
+
+role = 'full-cycle'
+
+    @pytest.mark.parametrize('role', ['orchestrator', 'sub-orchestrator', 'full-cycle'])
+    def test_workflow_module_reaches_launching_roles(role):
+        name = 'dynamic-workflows'
+        spec = pipeline.get_role('default', role)
+        assert spec.can_spawn
+>       assert name in spec.modules
+E       AssertionError: assert 'dynamic-workflows' in ['model-routing', 'research-method', 'code-quality', 'git-workflow', 'worker-lifecycle', 'report-format', ...]
+E        +  where ['model-routing', 'research-method', 'code-quality', 'git-workflow', 'worker-lifecycle', 'report-format', ...] = ResolvedRole(name='full-cycle', pipeline='default', kind='worker', label='Full-Cycle', order=3, can_spawn=['*'], disab...ts end at findings. Explicit approval boundaries remain in force.\n', prompt_layers=['base.md', 'roles/full-cycle.md']).modules
+
+tests/test_dynamic_workflows.py:28: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_dynamic_workflows.py::test_workflow_module_reaches_launching_roles[orchestrator]
+FAILED tests/test_dynamic_workflows.py::test_workflow_module_reaches_launching_roles[sub-orchestrator]
+FAILED tests/test_dynamic_workflows.py::test_workflow_module_reaches_launching_roles[full-cycle]
+3 failed in 6.30s
+
+=== routing: exit=1 ===
+.FF                                                                      [100%]
+=================================== FAILURES ===================================
+_____ test_default_dispatch_uses_default_subscription_model[verify-False] ______
+
+purpose = 'verify', escalate = False
+
+    @pytest.mark.parametrize('purpose,escalate', [('work', False), ('verify', False), ('work', True)])
+    def test_default_dispatch_uses_default_subscription_model(purpose, escalate):
+        from app.models import resolve_model
+>       assert wf_run.WorkflowEngine._candidates(None, purpose, escalate, False) == [resolve_model('luna')]
+E       AssertionError: assert ['gpt-5.6-sol'] == ['gpt-5.6-luna']
+E         
+E         At index 0 diff: 'gpt-5.6-sol' != 'gpt-5.6-luna'
+E         Use -v to get more diff
+
+tests/test_dynamic_workflows.py:36: AssertionError
+_______ test_default_dispatch_uses_default_subscription_model[work-True] _______
+
+purpose = 'work', escalate = True
+
+    @pytest.mark.parametrize('purpose,escalate', [('work', False), ('verify', False), ('work', True)])
+    def test_default_dispatch_uses_default_subscription_model(purpose, escalate):
+        from app.models import resolve_model
+>       assert wf_run.WorkflowEngine._candidates(None, purpose, escalate, False) == [resolve_model('luna')]
+E       AssertionError: assert ['gpt-5.6-sol'] == ['gpt-5.6-luna']
+E         
+E         At index 0 diff: 'gpt-5.6-sol' != 'gpt-5.6-luna'
+E         Use -v to get more diff
+
+tests/test_dynamic_workflows.py:36: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_dynamic_workflows.py::test_default_dispatch_uses_default_subscription_model[verify-False]
+FAILED tests/test_dynamic_workflows.py::test_default_dispatch_uses_default_subscription_model[work-True]
+2 failed, 1 passed in 5.67s
+
+=== target: exit=1 ===
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_cli_parallel_uses_target_repository_and_resume_preserves_it _______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9135/test_cli_parallel_uses_target_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e511da60f0>
+
+    @pytest.mark.asyncio
+    async def test_cli_parallel_uses_target_repository_and_resume_preserves_it(tmp_path, monkeypatch):
+        repo = _git_repo(tmp_path / 'target')
+        runner = tmp_path / 'runner'
+        runner.mkdir()
+        workflow = tmp_path / 'task.py'
+        workflow.write_text('result = await parallel([lambda: agent("one"), lambda: agent("two")])')
+        monkeypatch.setattr(wf_run, 'ROOT', runner)
+        monkeypatch.setattr(sys, 'argv', ['wf_run.py', str(workflow), '--repo', str(repo),
+                                        '--run-id', 'target-check', '--budget-usd', '1', '--max-calls', '2'])
+        arrived = []
+        both = asyncio.Event()
+    
+        async def adapter(prompt, *, cwd, **kwargs):
+            assert (Path(cwd) / 'seed.txt').read_text() == 'seed\n'
+            arrived.append(Path(cwd))
+            if len(arrived) == 2:
+                both.set()
+            await asyncio.wait_for(both.wait(), 5)
+            (Path(cwd) / 'output.txt').write_text(prompt)
+            return _result(prompt)
+    
+        async def readiness(model):
+            return {'state': 'available'}
+    
+        monkeypatch.setattr(wf_run, 'run_adapter', adapter)
+        monkeypatch.setattr(wf_run, '_readiness', readiness)
+        monkeypatch.setattr(wf_run, 'persist_turn_usage', lambda **kwargs: True)
+>       assert await wf_run._main() == 0
+               ^^^^^^^^^^^^^^^^^^^^
+
+tests/test_dynamic_workflows.py:67: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/wf_run.py:1059: in _main
+    engine = WorkflowEngine(
+scripts/wf_run.py:455: in __init__
+    _current_branch(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+repository = PosixPath('/tmp/pytest-of-kesha/pytest-9135/test_cli_parallel_uses_target_0/runner')
+
+    def _current_branch(repository: Path) -> str:
+        result = subprocess.run(
+            ["git", "branch", "--show-current"],
+            cwd=repository, capture_output=True, text=True,
+        )
+        branch = result.stdout.strip()
+        if result.returncode != 0 or not branch:
+            detail = result.stderr.strip() or result.stdout.strip() or "detached HEAD"
+>           raise RuntimeError(f"cannot resolve workflow workspace base branch: {detail}")
+E           RuntimeError: cannot resolve workflow workspace base branch: fatal: not a git repository (or any of the parent directories): .git
+
+scripts/wf_run.py:299: RuntimeError
+=========================== short test summary info ============================
+FAILED tests/test_dynamic_workflows.py::test_cli_parallel_uses_target_repository_and_resume_preserves_it
+1 failed in 5.93s
+
+=== resume: exit=1 ===
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_cli_parallel_uses_target_repository_and_resume_preserves_it _______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d668b6ae0c0>
+
+    @pytest.mark.asyncio
+    async def test_cli_parallel_uses_target_repository_and_resume_preserves_it(tmp_path, monkeypatch):
+        repo = _git_repo(tmp_path / 'target')
+        runner = tmp_path / 'runner'
+        runner.mkdir()
+        workflow = tmp_path / 'task.py'
+        workflow.write_text('result = await parallel([lambda: agent("one"), lambda: agent("two")])')
+        monkeypatch.setattr(wf_run, 'ROOT', runner)
+        monkeypatch.setattr(sys, 'argv', ['wf_run.py', str(workflow), '--repo', str(repo),
+                                        '--run-id', 'target-check', '--budget-usd', '1', '--max-calls', '2'])
+        arrived = []
+        both = asyncio.Event()
+    
+        async def adapter(prompt, *, cwd, **kwargs):
+            assert (Path(cwd) / 'seed.txt').read_text() == 'seed\n'
+            arrived.append(Path(cwd))
+            if len(arrived) == 2:
+                both.set()
+            await asyncio.wait_for(both.wait(), 5)
+            (Path(cwd) / 'output.txt').write_text(prompt)
+            return _result(prompt)
+    
+        async def readiness(model):
+            return {'state': 'available'}
+    
+        monkeypatch.setattr(wf_run, 'run_adapter', adapter)
+        monkeypatch.setattr(wf_run, '_readiness', readiness)
+        monkeypatch.setattr(wf_run, 'persist_turn_usage', lambda **kwargs: True)
+        assert await wf_run._main() == 0
+        manifest = json.loads((runner / 'data/workflow-runs/target-check/manifest.json').read_text())
+        assert manifest['complete'] and len(manifest['steps']) == 2
+        assert len(set(arrived)) == 2
+        assert all(Path(step['workspace_path'], 'output.txt').is_file() for step in manifest['steps'])
+        assert not (repo / 'output.txt').exists()
+        resume = shlex.split(manifest['resume_command'])
+>       assert resume[resume.index('--repo') + 1] == str(repo)
+                      ^^^^^^^^^^^^^^^^^^^^^^
+E       ValueError: '--repo' is not in list
+
+tests/test_dynamic_workflows.py:74: ValueError
+----------------------------- Captured stdout call -----------------------------
+WF_BG_MESSAGE="wf_run target-check interrupted; resume with: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/scripts/wf_run.py /tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/task.py --resume target-check --budget-usd 1 --max-calls 2"
+{"run_id":"target-check","complete":true,"partial_reason":null,"spent_usd":0.02,"budget_usd":1.0,"dispatched_calls":2,"steps":[{"call_key":"48c43be43b51a4192f2bf473b59c2c993d78e916ea2d6ef856bcfba2285c1ac9:0","reason":"completed","error":null,"result_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/steps/48c43be43b51a4192f2bf473b59c2c993d78e916ea2d6ef856bcfba2285c1ac9-0.json","workspace_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/workspaces/48c43be43b51a4192f2bf473b59c2c993d78e916ea2d6ef856bcfba2285c1ac9-0/attempt-1"},{"call_key":"6ace7a7f62c68ec4d4065853c3df1df61515e2f47573cd31e238d9d90a54a59d:0","reason":"completed","error":null,"result_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/steps/6ace7a7f62c68ec4d4065853c3df1df61515e2f47573cd31e238d9d90a54a59d-0.json","workspace_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/workspaces/6ace7a7f62c68ec4d4065853c3df1df61515e2f47573cd31e238d9d90a54a59d-0/attempt-1"}],"result":[{"data":"one","value_id":"48c43be43b51a4192f2bf473b59c2c993d78e916ea2d6ef856bcfba2285c1ac9:0","result_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/steps/48c43be43b51a4192f2bf473b59c2c993d78e916ea2d6ef856bcfba2285c1ac9-0.json","workspace_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/workspaces/48c43be43b51a4192f2bf473b59c2c993d78e916ea2d6ef856bcfba2285c1ac9-0/attempt-1","free_sources":[],"verified_sources":[]},{"data":"two","value_id":"6ace7a7f62c68ec4d4065853c3df1df61515e2f47573cd31e238d9d90a54a59d:0","result_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/steps/6ace7a7f62c68ec4d4065853c3df1df61515e2f47573cd31e238d9d90a54a59d-0.json","workspace_path":"/tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/data/workflow-runs/target-check/workspaces/6ace7a7f62c68ec4d4065853c3df1df61515e2f47573cd31e238d9d90a54a59d-0/attempt-1","free_sources":[],"verified_sources":[]}],"resume_command":"/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/scripts/wf_run.py /tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/task.py --resume target-check --budget-usd 1 --max-calls 2","wake_message":"wf_run target-check interrupted; resume with: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/runner/scripts/wf_run.py /tmp/pytest-of-kesha/pytest-9136/test_cli_parallel_uses_target_0/task.py --resume target-check --budget-usd 1 --max-calls 2"}
+=========================== short test summary info ============================
+FAILED tests/test_dynamic_workflows.py::test_cli_parallel_uses_target_repository_and_resume_preserves_it
+1 failed in 6.75s
+
+All five restored defects rejected.

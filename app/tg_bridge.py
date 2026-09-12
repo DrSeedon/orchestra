@@ -19,6 +19,7 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.enums import ContentType
 from aiogram.exceptions import (
     TelegramBadRequest,
+    TelegramForbiddenError,
     TelegramNetworkError,
     TelegramRetryAfter,
     TelegramServerError,
@@ -40,7 +41,7 @@ from app.user_message_display import (
     user_message_display_content,
 )
 from app.transcription import transcribe_audio as _transcribe_audio
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, PHOTO_EXTENSIONS
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo
 
 logger = logging.getLogger("tg-bridge")
 logger.setLevel(logging.DEBUG)
@@ -1058,6 +1059,7 @@ _TG_RELIABLE_QUEUE_MAX = 256
 _TG_RELIABLE_ADMISSION_MAX = 64
 _TG_RELIABLE_ADMISSION_TIMEOUT = 5.0
 _TG_RELIABLE_CALL_TIMEOUT = 30.0
+_TG_UPLOAD_FLOOR_BYTES_PER_SECOND = 2 * 1024 * 1024
 _TG_TELEMETRY_MAX_KEYS = 128
 _TG_TELEMETRY_MAX_AGE = 15.0
 _TG_TELEMETRY_CALL_TIMEOUT = 2.0
@@ -2510,6 +2512,22 @@ async def _tg_send_file_safe(
     )
 
 
+def file_submit_timeout(total_bytes: int) -> float:
+    """Сколько ждать загрузку такого объёма, прежде чем считать её зависшей.
+
+    Фиксированные 30 с — потолок не сети, а наш собственный: замер 11.09.2026
+    (#V-544) дал 200 МБ за 18.8 с (~11 МБ/с), то есть на постоянном таймауте
+    канал упирался бы около 330 МБ при заявленных 2000 МБ. Пол в 2 МБ/с взят
+    с пятикратным запасом к замеру, чтобы медленная загрузка дожила до конца,
+    а настоящее зависание всё-таки было ограничено.
+    """
+    return _TG_RELIABLE_CALL_TIMEOUT + total_bytes / _TG_UPLOAD_FLOOR_BYTES_PER_SECOND
+
+
+def _snapshot_bytes(paths: list[str]) -> int:
+    return sum(os.path.getsize(path) for path in paths)
+
+
 async def _submit_file_snapshot_once(
     chat_id: int,
     snapshot_path: str,
@@ -2524,7 +2542,7 @@ async def _submit_file_snapshot_once(
     from aiogram.types import FSInputFile
 
     tg_file = FSInputFile(snapshot_path, filename=Path(snapshot_path).name)
-    async with asyncio.timeout(_TG_RELIABLE_CALL_TIMEOUT):
+    async with asyncio.timeout(file_submit_timeout(_snapshot_bytes([snapshot_path]))):
         if is_photo:
             return await bot.send_photo(
                 chat_id,
@@ -2563,12 +2581,25 @@ async def _submit_file_group_once(
             caption=item.get("caption") or None,
             parse_mode=None,
         ))
-    async with asyncio.timeout(_TG_RELIABLE_CALL_TIMEOUT):
+    timeout = file_submit_timeout(
+        _snapshot_bytes([item["snapshot_path"] for item in items])
+    )
+    async with asyncio.timeout(timeout):
         return await bot.send_media_group(
             chat_id=chat_id,
             media=media,
             message_thread_id=thread_id,
         )
+
+
+def is_provider_rejection(exc: BaseException) -> bool:
+    """Отклонил ли Bot API сам запрос — то есть исход ИЗВЕСТЕН и он отрицательный.
+
+    400/403 отдаются вместо результата: сообщение не создано, повтор того же
+    payload вернёт тот же отказ. Такой исход нельзя записывать как UNKNOWN,
+    иначе отправитель считает, что доставка, возможно, состоялась (#V-544).
+    """
+    return isinstance(exc, (TelegramBadRequest, TelegramForbiddenError))
 
 
 async def _reserve_file_snapshot_slot(chat_id: int) -> bool:
@@ -2890,7 +2921,7 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
     label = label[:1024]
-    is_photo = not as_document and fp.suffix.lower() in PHOTO_EXTENSIONS
+    is_photo = send_as_photo(fp.name, file_size, as_document)
     msg = await _tg_send_file_safe(
         config["group_id"], path, label, thread_id,
         is_photo=is_photo, important=True,

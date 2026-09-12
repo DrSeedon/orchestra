@@ -525,8 +525,6 @@ class WorkflowEngine:
             candidates = [str(item) for item in model]
         elif hard:
             candidates = ["opus"]
-        elif purpose == "verify" or escalate:
-            candidates = ["sol"]
         else:
             candidates = ["luna"]
         if not candidates or any(not item.strip() for item in candidates):
@@ -983,6 +981,7 @@ class WorkflowEngine:
             f"{self.budget.maximum_usd:g}",
             "--max-calls",
             str(self.budget.maximum_calls),
+            *(["--repo", str(self.workspace_repo)] if self.workspace_repo is not None else []),
         ])
 
     def write_manifest(self) -> dict:
@@ -1048,6 +1047,7 @@ def _args() -> argparse.Namespace:
     parser.add_argument("--budget-usd", type=float, required=True)
     parser.add_argument("--max-calls", type=int, default=100)
     parser.add_argument("--max-concurrency", type=int, default=None)
+    parser.add_argument("--repo", type=Path, help="Target repository for isolated writable calls")
     return parser.parse_args()
 
 
@@ -1063,6 +1063,7 @@ async def _main() -> int:
         workflow_path=workflow,
         max_calls=args.max_calls,
         max_concurrency=args.max_concurrency,
+        workspace_repo=args.repo,
     )
     resume = engine.resume_command()
     print(f"WF_BG_MESSAGE={json.dumps(f'wf_run {run_id} interrupted; resume with: {resume}')}", flush=True)

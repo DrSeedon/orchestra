@@ -20,6 +20,7 @@ _QUOTA_ENV_NAMES = (
     "QUOTA_TOLERANCE_START_PP",
     "QUOTA_TOLERANCE_END_PP",
     "QUOTA_HARD_STOP_PCT",
+    "QUOTA_LANE_HARD_STOP_PCT",
     "QUOTA_GATED_LANES",
     "QUOTA_CURVE_EXPONENT",
     "QUOTA_CURVED_LANES",
@@ -193,12 +194,17 @@ async def test_rule_constants_travel_with_the_payload(mapped):
 
     assert payload["rule"] == {
         "hard_stop_pct": 99.0,
+        # Потолок Sol ниже общего: без этого поля панель нарисует ему чужие 99%.
+        "lane_hard_stop_pct": {"sol": 95.0},
         "tolerance_start_pp": 10.0,
         "tolerance_end_pp": 1.0,
         # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
         # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
         "curve_exponent": 2.5,
         "curved_lanes": ["sol"],
+        # Состав гейтящихся полос: по нему панель отличает работающее правило от
+        # снятого со всех полос — без него оба состояния выглядят одинаково.
+        "gated_lanes": ["claude", "sol"],
     }
     assert payload["observation_max_age_seconds"] == 300.0
 
@@ -207,6 +213,7 @@ async def test_rule_constants_travel_with_the_payload(mapped):
 async def test_rule_constants_reflect_environment_overrides(mapped, configured_quota_gate):
     configured_quota_gate(
         QUOTA_HARD_STOP_PCT="92",
+        QUOTA_LANE_HARD_STOP_PCT="sol=85",
         QUOTA_TOLERANCE_START_PP="13",
         QUOTA_TOLERANCE_END_PP="2",
         QUOTA_GATED_LANES="",
@@ -217,10 +224,14 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
 
     assert payload["rule"] == {
         "hard_stop_pct": 92.0,
+        "lane_hard_stop_pct": {"sol": 85.0},
         "tolerance_start_pp": 13.0,
         "tolerance_end_pp": 2.0,
         "curve_exponent": 2.5,
         "curved_lanes": ["sol"],
+        # Гейт снят оператором — панель обязана узнать об этом из правила, а не
+        # догадываться по тому, что ни одна полоса сейчас не блокируется.
+        "gated_lanes": [],
     }
     codex = _pool(payload, "codex")
     assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))

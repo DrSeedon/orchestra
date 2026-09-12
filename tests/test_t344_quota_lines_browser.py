@@ -46,6 +46,8 @@ def browser():
 
 CURVE_EXPONENT = 2.5
 CURVED_LANES = ("sol",)
+GATED_LANES = ("claude", "sol")
+LANE_HARD_STOP = {"sol": 95.0}
 RESET_IN_SECONDS = 402000.0
 
 
@@ -110,7 +112,9 @@ def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progres
         "observation_max_age_seconds": 300.0,
         "rule": {"hard_stop_pct": HARD, "tolerance_start_pp": TOL_START,
                  "tolerance_end_pp": TOL_END, "curve_exponent": CURVE_EXPONENT,
-                 "curved_lanes": list(CURVED_LANES)},
+                 "curved_lanes": list(CURVED_LANES),
+                 "lane_hard_stop_pct": dict(LANE_HARD_STOP),
+                 "gated_lanes": list(GATED_LANES)},
         "buckets": [
             _bucket("codex", "Codex", codex_util, codex_progress, [
                 _lane("sol", "Sol", True, codex_blocked or codex_hard,
@@ -202,6 +206,82 @@ def test_panel_curve_matches_the_limit_the_server_computed(browser):
     )
     assert abs(drawn - server_limit) < 0.01, (drawn, server_limit)
     page.close()
+
+
+def test_lane_ceiling_is_drawn_and_capped_like_the_gate(browser):
+    """Потолок полосы обязан доехать до картинки: Sol стоит на 95%, Luna живёт до 99%.
+
+    Иначе панель рисует дорогой полосе чужие 99% ровно там, где гейт её уже не пускает.
+    """
+    payload = _payload(codex_util=96.0, codex_progress=0.9)
+    page, errors = _render(browser, payload)
+    drawn = page.evaluate(
+        """rule => [
+            QuotaPanel.limitAt(1.0, rule, 'sol'),
+            QuotaPanel.limitAt(1.0, rule, 'claude'),
+        ]""",
+        payload["rule"],
+    )
+    assert drawn == [95.0, HARD]
+    assert page.locator("[data-ql-hard-lane='sol']").count() == 1
+    assert page.locator("[data-ql-hard-lane='luna']").count() == 0
+    assert errors == [], errors
+    page.close()
+
+
+def _gate_node(page) -> tuple:
+    node = page.locator("#quota-lines [data-ql-gate]")
+    return node.get_attribute("data-ql-gate"), node.get_attribute("class"), node.inner_text()
+
+
+def test_gate_state_names_the_lanes_the_diagonal_holds(browser):
+    """Состав гейта виден сразу: кто под диагональю, кто вне её и на чём стоп.
+
+    До #V-547 фронт вообще не получал `gated_lanes`, и состав правила был ему неизвестен.
+    """
+    page, errors = _render(browser, _payload())
+    state, css, text = _gate_node(page)
+    assert state == "on" and "ql-gate-on" in css
+    assert "Sol" in text and "Claude-воркеры" in text
+    # Полосы вне гейта — такой же факт из данных, как и гейтящиеся.
+    assert "Luna" in text and "Spark" in text
+    # Свой потолок Sol обязан читаться словами, а не только линией на графике.
+    assert "95" in text and "99" in text
+    assert page.locator("[data-ql-threshold='sol'].ql-gated-off").count() == 0
+    assert page.locator("[data-ql-threshold='claude'].ql-gated-off").count() == 0
+    assert errors == [], errors
+    page.close()
+
+
+def test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate(browser):
+    """Живое состояние с `QUOTA_GATED_LANES=`: диагональ снята со ВСЕХ полос.
+
+    Именно здесь панель была неотличима от работающего правила, поэтому проверяется
+    не наличие слова, а расхождение с включённым гейтом: состояние, оформление и текст.
+    """
+    lifted = _payload(codex_util=20.0, claude_util=20.0)
+    lifted["rule"]["gated_lanes"] = []
+    for bucket in lifted["buckets"]:
+        for lane in bucket["lanes"]:
+            lane["gated"] = False
+    off_page, errors = _render(browser, lifted)
+    off = _gate_node(off_page)
+    # Снятая диагональ рисуется призраком: сплошная линия означала бы живой порог.
+    assert off_page.locator("[data-ql-threshold='sol'].ql-gated-off").count() == 1
+    assert off_page.locator("[data-ql-threshold='claude'].ql-gated-off").count() == 1
+    assert "порог Sol — снят" in off_page.locator("[data-ql-chart='all']").text_content()
+    assert errors == [], errors
+    off_page.close()
+
+    on_page, _ = _render(browser, _payload(codex_util=20.0, claude_util=20.0))
+    on = _gate_node(on_page)
+    on_page.close()
+
+    assert off[0] == "off" and "ql-gate-off" in off[1]
+    assert off[0] != on[0] and off[1] != on[1] and off[2] != on[2]
+    assert "СНЯТ" in off[2]
+    # Потолок остаётся единственным стопом — и он тоже назван.
+    assert "95" in off[2] and "99" in off[2]
 
 
 def test_point_moves_with_utilization(browser):

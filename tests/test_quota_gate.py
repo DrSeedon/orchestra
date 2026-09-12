@@ -25,6 +25,8 @@ from app.quota_gate import (
 NOW = 1_770_000_000.0
 WEEK_SECONDS = 10080 * 60
 CODEX_WINDOW_MINUTES = 300
+# Потолок дорогой полосы: хвост недельного пула Codex зарезервирован под Luna.
+SOL_HARD_STOP_PCT = 95.0
 
 
 def _iso(timestamp: float) -> str:
@@ -352,11 +354,129 @@ def test_hard_stop_applies_to_every_worker_lane(model):
     assert _decide(model, providers).state == "blocked"
 
 
-@pytest.mark.parametrize("model", ["gpt-5.6-luna", "gpt-5.6-sol"])
-def test_just_under_the_hard_stop_at_the_end_of_the_window_is_admitted(model):
-    """Стоп именно `>= 99`, и линия у сброса совпадает с ним, а не режет раньше."""
-    decision = _decide(model, _providers(progress=1.0, codex=98.9))
+@pytest.mark.parametrize("model, utilization", [
+    ("gpt-5.6-luna", 98.9),
+    ("gpt-5.6-sol", 94.9),
+])
+def test_just_under_the_hard_stop_at_the_end_of_the_window_is_admitted(model, utilization):
+    """Стоп именно `>=`, и линия у сброса совпадает с ним, а не режет раньше.
+
+    Числа разные, потому что потолок разный: у Luna он 99%, у Sol — 95%.
+    """
+    decision = _decide(model, _providers(progress=1.0, codex=utilization))
     assert decision.state == "available", decision.reason
+
+
+# ── потолок полосы: хвост пула зарезервирован под дешёвую модель ──────────────
+# Дорогая полоса выедала недельный пул Codex до последнего процента, и после этого
+# не стартовал НИКТО — включая Luna, у которой те же 5 п.п. стоят сотни ходов.
+# Точка окна везде 1.0: диагональ там максимальна, поэтому вердикт даёт именно
+# жёсткий стоп, а не кривая.
+
+
+@pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-6-astra"])
+def test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work(model):
+    """Оба плеча в ОДНОЙ точке: Sol/Astra стоят, Luna в тот же момент работает."""
+    providers = _providers(progress=1.0, codex=96.0)
+
+    expensive = _decide(model, providers)
+    luna = _decide("gpt-5.6-luna", providers)
+
+    assert expensive.state == "blocked", expensive.reason
+    assert expensive.lane == "sol" and expensive.hard_limit_pct == SOL_HARD_STOP_PCT
+    assert luna.state == "available", luna.reason
+    assert luna.hard_limit_pct == HARD_STOP_PCT
+
+
+def test_above_the_common_hard_stop_both_codex_lanes_are_closed():
+    providers = _providers(progress=1.0, codex=99.5)
+
+    assert _decide("gpt-5.6-sol", providers).state == "blocked"
+    assert _decide("gpt-6-astra", providers).state == "blocked"
+    assert _decide("gpt-5.6-luna", providers).state == "blocked"
+
+
+@pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-6-astra", "gpt-5.6-luna"])
+def test_below_the_lane_ceiling_nothing_changed(model):
+    decision = _decide(model, _providers(progress=1.0, codex=94.9))
+    assert decision.state == "available", decision.reason
+
+
+@pytest.mark.parametrize("model, key, lane", [
+    ("claude-opus-5[1m]", "claude", "claude"),
+    ("gpt-5.3-codex-spark", "spark", "spark"),
+])
+def test_claude_and_spark_keep_the_common_hard_stop(model, key, lane):
+    """У Claude свой пул, у Spark свой кошелёк — резерв хвоста Codex их не касается."""
+    at_96 = _decide(model, _providers(progress=1.0, **{key: 96.0}))
+    at_99 = _decide(model, _providers(progress=1.0, **{key: HARD_STOP_PCT}))
+
+    assert at_96.state == "available", at_96.reason
+    assert at_96.lane == lane and at_96.hard_limit_pct == HARD_STOP_PCT
+    assert at_99.state == "blocked"
+
+
+def test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv(tmp_path, monkeypatch):
+    """Потолки настраиваются как остальное правило: env + перечитка `.env` по mtime."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("QUOTA_LANE_HARD_STOP_PCT=luna=90,sol=80\n")
+    monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+    for name in quota_gate._QUOTA_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                        {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+    monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+    monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+    monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+    monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+
+    policy = quota_gate.quota_policy()
+    assert policy.lane_hard_stop_pct == {"luna": 90.0, "sol": 80.0}
+    assert policy.hard_stop_for("sol") == 80.0
+    assert policy.hard_stop_for("claude") == HARD_STOP_PCT
+    assert _decide("gpt-5.6-sol", _providers(progress=1.0, codex=81.0)).state == "blocked"
+    assert _decide("gpt-5.6-luna", _providers(progress=1.0, codex=81.0)).state == "available"
+    assert _decide("gpt-5.6-luna", _providers(progress=1.0, codex=91.0)).state == "blocked"
+    assert _decide("claude-opus-5[1m]", _providers(progress=1.0, claude=91.0)).state == "available"
+
+    env_file.write_text("QUOTA_LANE_HARD_STOP_PCT=sol=97\n")
+    stat = env_file.stat()
+    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+
+    assert quota_gate.quota_policy().lane_hard_stop_pct == {"sol": 97.0}
+    assert _decide("gpt-5.6-sol", _providers(progress=1.0, codex=96.0)).state == "available"
+    # Полоса, исчезнувшая из переменной, возвращается к общему стопу пула.
+    assert _decide("gpt-5.6-luna", _providers(progress=1.0, codex=91.0)).state == "available"
+
+
+def test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling(monkeypatch):
+    """Общий стоп остаётся общим: он не поднимает полосу с собственным потолком."""
+    policy = quota_gate.QuotaPolicy(
+        hard_stop_pct=70.0, tolerance_start_pp=10.0, tolerance_end_pp=1.0,
+        curve_exponent=2.5, gated_lanes=frozenset({"sol"}), curved_lanes=frozenset({"sol"}),
+        lane_hard_stop_pct={"sol": 95.0},
+    )
+    assert policy.hard_stop_for("sol") == 70.0
+    assert policy.hard_stop_for("luna") == 70.0
+    assert policy.hard_stop_for(None) == 70.0
+
+
+@pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+    env_file = tmp_path / ".env"
+    env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+    monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+    for name in quota_gate._QUOTA_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                        {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+    monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+    monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+    monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+    monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+
+    with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+        quota_gate.quota_policy()
 
 
 # ── пулы и окна ───────────────────────────────────────────────────────────────
@@ -392,15 +512,15 @@ def test_claude_decides_by_the_weekly_window_and_ignores_the_five_hour_one():
 
 
 def test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop():
-    """Окно пройдено целиком: `progress` зажат в 1.0, и линия равна жёсткому стопу."""
-    window = _window("primary", CODEX_WINDOW_MINUTES, 97.0, None)
+    """Окно пройдено целиком: `progress` зажат в 1.0, и линия равна жёсткому стопу полосы."""
+    window = _window("primary", CODEX_WINDOW_MINUTES, 94.0, None)
     window["resets_at"] = _iso(NOW - 60)
     providers = {"codex": {"label": "Codex", "windows": [window]}}
 
     decision = _decide("gpt-5.6-sol", providers)
 
     assert decision.progress == 1.0
-    assert decision.limit_pct == HARD_STOP_PCT
+    assert decision.limit_pct == SOL_HARD_STOP_PCT
     assert decision.state == "available"
 
 
@@ -468,8 +588,8 @@ def test_unknown_model_is_unknown_not_exempt(model):
 # ── форма отказа ──────────────────────────────────────────────────────────────
 
 def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
-    # 95% на середине окна: выше кривой Sol (81.3%) и ещё под жёстким стопом.
-    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=95.0))
+    # 90% на середине окна: выше кривой Sol (81.3%) и ещё под её жёстким стопом (95%).
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=90.0))
     with pytest.raises(quota_gate.QuotaGateError) as error:
         require_worker_admission(decision)
 
@@ -479,10 +599,10 @@ def test_refusal_is_non_retryable_and_names_the_numbers_that_produced_it():
     assert envelope["code"] == "weekly_quota_blocked"
     assert envelope["retryable"] is False
     assert envelope["details"]["limit_pct"] == pytest.approx(line_limit(0.5, "sol"))
-    assert envelope["details"]["utilization"] == 95.0
+    assert envelope["details"]["utilization"] == 90.0
     # Сообщение обязано называть ФАКТИЧЕСКИЙ порог полосы и фактическую норму под ним,
     # иначе агент читает числа от чужой формулы (прямой) и не понимает отказ.
-    assert "81.29" in str(error.value) and "95%" in str(error.value)
+    assert "81.29" in str(error.value) and "90%" in str(error.value)
     assert "norm 75.79%" in str(error.value)
 
 
@@ -493,12 +613,13 @@ def test_a_non_blocked_decision_cannot_be_turned_into_a_refusal():
 
 
 def test_decision_serializes_every_field_the_panel_draws():
-    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=95.0))
+    decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=90.0))
     payload = decision.to_dict()
 
     assert payload["state"] == "blocked" and payload["allowed"] is False
     assert payload["lane"] == "sol" and payload["gated"] is True
-    assert payload["hard_limit_pct"] == HARD_STOP_PCT
+    # Панель рисует потолок ПОЛОСЫ: общий стоп пула у Sol не действует.
+    assert payload["hard_limit_pct"] == SOL_HARD_STOP_PCT
     assert set(payload) == set(QuotaDecision.__dataclass_fields__) | {"allowed"}
 
 

@@ -23,8 +23,8 @@ A research-only assignment ends with findings and a recommendation, not implemen
   Explain unexpected changes and preserve unrelated work.
 - Implement yourself by default. Delegate only a bounded independent task when its benefit
   exceeds coordination and context-transfer cost, not merely because a ticket exists.
-  If launching multiple independent children, use `run_fan(tasks=[...])` for durable collection;
-  this is a launch mechanism, not a requirement to create children.
+  For independent one-shot steps, use the dynamic-workflows module;
+  use ordinary workers when the task needs continued conversation or managed merging.
 - If delegating, give the outcome, context, acceptance criteria and explicit exclusions.
   Answer useful questions: clarification is not a failed attempt. Correct faulty premises
   before retrying; escalate models only when evidence shows a capability problem.

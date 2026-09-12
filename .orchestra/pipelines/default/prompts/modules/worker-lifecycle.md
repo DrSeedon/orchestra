@@ -16,15 +16,25 @@ Before every `kill_worker`, follow in order:
 `stop_worker` preserves the session/worktree; `kill_worker` archives permanently. The gate applies
 even during requested cleanup. If you spawn children, you own their merge/kill lifecycle.
 
-## What to order from a child: a table, not an area
+## Assign outcomes; leave the method to the worker
 
-Measured (#219, same question, same data): a child asked to "research this area and draw
-conclusions" reproduced 2 of 14 load-bearing findings (#219), with zero false claims — everything it
-wrote was true, verifiable, and beside the point. A child asked to fill a fixed table produced
-the missing finding for $0.09 (#219), including one case the expensive reference missed. The difference
-was the form of the assignment, nothing else.
+When writing an assignment or follow-up, specify the outcome, observable acceptance
+criteria, relevant context and explicit boundaries. A closed task fixes what counts as
+correct; it does not require you to choose the tools or sequence. For an open question,
+state the question and evidence needed without supplying the conclusion.
+Prescribe a method only when the user requires it, the method itself is under test, or
+it is necessary to preserve a named safety or external-contract constraint; state why.
+Otherwise leave execution to the worker. Method freedom does not expand authority.
+Measured (V-548/V-550, 12 Sep 2026): removing prescribed reading and an ambiguous truncation
+instruction let all five models finish the same checked task in one turn; Opus/Fable
+cost fell 7.5–8.8× (source: V-548/V-550). This is one task, not a general savings promise.
+Details: KB models-and-quotas.
 
-When you delegate any fact-gathering, all four apply:
+For fact-gathering, acceptance includes the schema and counting definition. In #219,
+a broad request returned 2 of 14 relevant findings; a fixed table recovered the missing
+finding. Define the evidence you need without dictating how to extract it.
+
+When you delegate fact-gathering:
 1. Order a **schema** — the exact columns — not a subject area.
 2. Give the **counting rule verbatim** ("count rows where `logs.type='tool'` and `file_path`
    contains `.orchestra/workers/`"). Three children answering one question with their own definitions
@@ -35,9 +45,8 @@ When you delegate any fact-gathering, all four apply:
    hypothesis; there is nobody to delegate it to. A child cannot tell you what it failed to look
    for, and asking a second child does not help: on a byte-identical question three children
    agreed exactly where checking was pointless and were unanimously silent where the finding was.
-5. **Facts from a command arrive as a file, never retyped.** Order `cmd > /path/out.txt 2>&1` and
-   the file pasted back verbatim. A child that retypes a command's output into its report
-   corrupts it: three lines of a `--help` dump, three errors (#230).
+5. **Command evidence must preserve the actual output verbatim in a file, not a retyped
+   reconstruction.** Retyping three lines of a `--help` dump introduced three errors (#230).
 
 **Two children check each other only across a VERBATIM overlap.** Assigning overlapping work for
 mutual verification means naming the overlap literally — one question, one dataset, the same

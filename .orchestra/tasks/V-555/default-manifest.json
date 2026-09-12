@@ -1,0 +1,44 @@
+{
+  "budget_usd": 1.0,
+  "complete": true,
+  "dispatched_calls": 2,
+  "partial_reason": null,
+  "result": [
+    {
+      "ended": 1789225685.4128127,
+      "label": "a",
+      "started": 1789225675.5498352,
+      "value": {
+        "answer": 5017
+      }
+    },
+    {
+      "ended": 1789225686.3590293,
+      "label": "b",
+      "started": 1789225675.8140352,
+      "value": {
+        "answer": 7807
+      }
+    }
+  ],
+  "resume_command": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py --resume V-555-default-2 --budget-usd 1 --max-calls 2 --repo /home/kesha/orchestra",
+  "run_id": "V-555-default-2",
+  "spent_usd": 0.004114,
+  "steps": [
+    {
+      "call_key": "a4b8670da39652b1440db07619629ae57e4b3946327cdd9b40c6679d2b0d971f:0",
+      "error": null,
+      "reason": "completed",
+      "result_path": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/data/workflow-runs/V-555-default-2/steps/a4b8670da39652b1440db07619629ae57e4b3946327cdd9b40c6679d2b0d971f-0.json",
+      "workspace_path": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/data/workflow-runs/V-555-default-2/workspaces/a4b8670da39652b1440db07619629ae57e4b3946327cdd9b40c6679d2b0d971f-0/attempt-1"
+    },
+    {
+      "call_key": "03cb7004177f77e6d9761354b869a6b222d33110a6179658590fbf09e8cadfb1:0",
+      "error": null,
+      "reason": "completed",
+      "result_path": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/data/workflow-runs/V-555-default-2/steps/03cb7004177f77e6d9761354b869a6b222d33110a6179658590fbf09e8cadfb1-0.json",
+      "workspace_path": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/data/workflow-runs/V-555-default-2/workspaces/03cb7004177f77e6d9761354b869a6b222d33110a6179658590fbf09e8cadfb1-0/attempt-1"
+    }
+  ],
+  "wake_message": "wf_run V-555-default-2 interrupted; resume with: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py --resume V-555-default-2 --budget-usd 1 --max-calls 2 --repo /home/kesha/orchestra"
+}

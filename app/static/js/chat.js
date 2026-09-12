@@ -5,13 +5,16 @@
 let pendingUserMsgs = [];
 let pendingBubble = null;
 let uiDebounceTimer = null;
+let chatSendInFlight = false;
 
-async function sendChat() {
+async function sendChat(options = {}) {
+    if (chatSendInFlight) return;
+    const afterTurn = Boolean(options.afterTurn);
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
     // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
     if (_pendingUploads.size) {
-        const btn = $('#send-btn');
+        const btn = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
         const label = btn.textContent;
         btn.textContent = '⏳';
         await Promise.allSettled([..._pendingUploads]);
@@ -19,6 +22,9 @@ async function sendChat() {
     }
     const msg = input.value.trim();
     if (!msg || !currentScope || !selectedAgent) return;
+    chatSendInFlight = true;
+    const actionButton = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
+    if (actionButton) actionButton.disabled = true;
     input.value = '';
     clearPastePreview();
 
@@ -30,11 +36,19 @@ async function sendChat() {
     uiDebounceTimer = setTimeout(() => finalizePending(), UI_DEBOUNCE_MS);
 
     try {
-        await api(`/api/sessions/${selectedAgent}/send`, {
+        const result = await api(`/api/sessions/${selectedAgent}/send`, {
             method: 'POST',
-            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard" }),
+            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard", after_turn: afterTurn }),
             signal: AbortSignal.timeout(15000),
         });
+        if (result?.queued) {
+            if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+            pendingUserMsgs = [];
+            if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; }
+            if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
+            removeWaitingIndicator();
+            await refreshQueuedMessages();
+        }
     } catch (e) {
         if (e.name === 'TimeoutError') return;
         if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
@@ -43,6 +57,68 @@ async function sendChat() {
         removeWaitingIndicator();
         // Перезапуск — штатная операция, и красная строка про неё выглядела бы аварией.
         addChatEntry(e.name === 'RestartPendingError' ? 'notification' : 'error', e.message);
+    } finally {
+        chatSendInFlight = false;
+        if (actionButton) actionButton.disabled = false;
+    }
+}
+
+let _queuedUnsupported = false;
+
+async function refreshQueuedMessages() {
+    const panel = $('#queued-messages');
+    if (!panel || !selectedAgent || !currentScope || _queuedUnsupported) return;
+    const targetName = selectedAgent;
+    const targetScope = currentScope;
+    try {
+        const result = await api(
+            `/api/sessions/${encodeURIComponent(targetName)}/queued-messages?scope=${encodeURIComponent(targetScope)}`,
+        );
+        if (targetName !== selectedAgent || targetScope !== currentScope) return;
+        panel.replaceChildren();
+        for (const item of result.messages || []) {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
+            const body = document.createElement('span');
+            body.className = 'min-w-0 flex-1 truncate';
+            body.textContent = `⏳ ${item.body}`;
+            row.appendChild(body);
+            if (item.claimed) {
+                const state = document.createElement('span');
+                state.textContent = 'доставляется';
+                state.className = 'text-slate-500';
+                row.appendChild(state);
+            } else {
+                const cancel = document.createElement('button');
+                cancel.type = 'button';
+                cancel.textContent = 'Отменить';
+                cancel.className = 'text-red-300 hover:text-red-200';
+                cancel.addEventListener('click', async () => {
+                    cancel.disabled = true;
+                    try {
+                        await api(`/api/sessions/${encodeURIComponent(targetName)}/queued-messages/${item.id}?scope=${encodeURIComponent(targetScope)}`, {method: 'DELETE'});
+                        await refreshQueuedMessages();
+                    } catch (error) {
+                        cancel.disabled = false;
+                        addChatEntry('error', error.message);
+                    }
+                });
+                row.appendChild(cancel);
+            }
+            panel.appendChild(row);
+        }
+    } catch (error) {
+        // 404 означает не сбой, а СТАРЫЙ сервер: маршрут очереди появился вместе с
+        // кнопкой «After turn» и живёт только после рестарта Orchestra, тогда как этот
+        // файл подхватывается браузером сразу. Молча выключаем опрос и прячем панель,
+        // иначе консоль засыпается одинаковой ошибкой каждые несколько секунд.
+        if (String(error.message || '').startsWith('404')) {
+            _queuedUnsupported = true;
+            panel.replaceChildren();
+            panel.classList.add('hidden');
+            return;
+        }
+        console.warn(`[chat] очередь после хода недоступна: ${error.name}: ${error.message}`);
     }
 }
 
@@ -283,8 +359,16 @@ function stopVoiceInput(cancel = false) {
 
 function initVoiceInput() {
     const input = $('#chat-input');
-    const actions = $('#send-btn')?.parentElement;
-    if (!input || !actions || $('#voice-controls')) return;
+    // Опорный узел ищется подъёмом до ПРЯМОГО потомка контейнера ввода. Брать
+    // `#send-btn.parentElement` напрямую нельзя: кнопки могут быть обёрнуты ещё одним
+    // div (так и случилось, когда рядом появилась «After turn»), и тогда insertBefore
+    // падает `NotFoundError: the node before which the new node is to be inserted is
+    // not a child of this node` — на живом дашборде это убивало весь голосовой ввод.
+    let actions = $('#send-btn')?.parentElement;
+    while (actions && actions.parentElement && actions.parentElement !== input?.parentElement) {
+        actions = actions.parentElement;
+    }
+    if (!input || !actions || actions.parentElement !== input.parentElement || $('#voice-controls')) return;
     const controls = document.createElement('div');
     controls.id = 'voice-controls';
     controls.className = 'voice-controls';
@@ -964,39 +1048,6 @@ function _renderJsonGrid(obj, container, maxDepth) {
     return grid;
 }
 
-function _runFanSummary(data) {
-    const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
-    const reuse = Array.isArray(data?.reuse) ? data.reuse : [];
-    const total = tasks.length + reuse.length;
-    const count = `${total} ${total === 1 ? 'воркер' : total < 5 ? 'воркера' : 'воркеров'}`;
-    const seconds = Number(data?.deadline_seconds);
-    let deadline = 'без дедлайна';
-    if (Number.isFinite(seconds) && seconds > 0) {
-        const minutes = Math.round(seconds / 60);
-        deadline = minutes >= 60
-            ? `${Math.floor(minutes / 60)} ч${minutes % 60 ? ` ${minutes % 60} мин` : ''}`
-            : `${minutes} мин`;
-    }
-    return `🎼 run_fan → ${count} · дедлайн ${deadline}`;
-}
-
-function _runFanItems(data) {
-    const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
-    const reuse = Array.isArray(data?.reuse) ? data.reuse : [];
-    return [
-        ...tasks.map(item => ({
-            name: item?.name || '?',
-            model: item?.model || '',
-            role: item?.role || 'worker',
-        })),
-        ...reuse.map(item => ({
-            name: item?.name || '?',
-            model: '',
-            role: 'reuse',
-        })),
-    ];
-}
-
 function buildCompactToolLine(type, content, ts, payload) {
     const line = document.createElement('div');
     line.className = 'flex items-center gap-2 text-xs py-0.5 px-2 cursor-pointer rounded group';
@@ -1040,9 +1091,6 @@ function buildCompactToolLine(type, content, ts, payload) {
                 icon = '✏️';
                 const status = typeof parsed.status === 'string' && parsed.status ? ` • статус ${parsed.status}` : '';
                 preview = `обновляет задачу #${taskNum(parsed.par) || '?'}${status}`;
-            }
-            else if (rawName === 'mcp__orchestra__run_fan') {
-                preview = _runFanSummary(parsed).replace(/^🎼 run_fan → /, '→ ');
             }
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = codexWebSearchCompactLabel(codexWebSearchSpec(parsed));
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
@@ -1652,50 +1700,12 @@ function _appendFullToolArguments(card, rawName, data) {
     details.appendChild(summary);
     details.addEventListener('click', event => event.stopPropagation());
 
-    if (rawName === 'mcp__orchestra__run_fan') {
-        const tasks = Array.isArray(data?.tasks) ? data.tasks : [];
-        const reuse = Array.isArray(data?.reuse) ? data.reuse : [];
-        const settings = document.createElement('div');
-        settings.className = 'tool-argument-settings';
-        for (const [key, value] of Object.entries(data || {})) {
-            if (key !== 'tasks' && key !== 'reuse') _appendArgumentField(settings, key, value);
-        }
-        details.appendChild(settings);
-        for (const item of [...tasks, ...reuse]) {
-            const worker = document.createElement('section');
-            worker.className = 'run-fan-detail';
-            const title = document.createElement('h4');
-            title.textContent = `${item?.name || '?'}${item?.model ? ` · ${item.model}` : ''}${item?.role ? ` · ${item.role}` : ''}`;
-            worker.appendChild(title);
-            for (const [key, value] of Object.entries(item || {})) {
-                if (key === 'task') {
-                    const task = document.createElement('pre');
-                    task.className = 'run-fan-task';
-                    task.textContent = String(value || '');
-                    worker.append(task);
-                } else if (key === 'owned_dirs' && Array.isArray(value)) {
-                    const dirs = document.createElement('ul');
-                    dirs.className = 'run-fan-owned-dirs';
-                    for (const dir of value) {
-                        const li = document.createElement('li');
-                        li.textContent = String(dir);
-                        dirs.appendChild(li);
-                    }
-                    worker.append(dirs);
-                } else if (!['name', 'model', 'role'].includes(key)) {
-                    _appendArgumentField(worker, key, value);
-                }
-            }
-            details.appendChild(worker);
-        }
-    } else {
-        const settings = document.createElement('div');
-        settings.className = 'tool-argument-settings';
-        for (const [key, value] of Object.entries(data || {})) {
-            _appendArgumentField(settings, key, value);
-        }
-        details.appendChild(settings);
+    const settings = document.createElement('div');
+    settings.className = 'tool-argument-settings';
+    for (const [key, value] of Object.entries(data || {})) {
+        _appendArgumentField(settings, key, value);
     }
+    details.appendChild(settings);
     card.appendChild(details);
 }
 
@@ -2281,29 +2291,6 @@ function _renderFullToolCall(content, payload, div) {
             div.dataset.isEdit = '1';
         } catch {}
     }
-    const isRunFan = rawName === 'mcp__orchestra__run_fan';
-    if (isRunFan) {
-        try {
-            const d = JSON.parse(body);
-            setCodexToolTitle(header, _runFanSummary(d).replace(/^🎼 /, ''), '🎼');
-            header.style.color = '#a78bfa';
-            const items = _runFanItems(d);
-            if (items.length) {
-                const list = document.createElement('div');
-                list.className = 'run-fan-items';
-                for (const item of items) {
-                    const row = document.createElement('div');
-                    row.className = 'run-fan-item';
-                    const model = item.model ? ` · ${_modelLabel(item.model)}` : '';
-                    row.textContent = `${item.name} · ${item.role}${model}`;
-                    list.appendChild(row);
-                }
-                div.appendChild(list);
-            }
-            _appendFullToolArguments(div, rawName, d);
-        } catch {}
-    }
-    if (isRunFan) div.dataset.isEdit = '1';
     const isWebSearchCall = rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch';
     if (isWebSearchCall) {
         try {
@@ -2764,7 +2751,7 @@ function _renderFullToolCall(content, payload, div) {
             }
         });
     } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
-               !isAgentTool && !isSpawnWorker && !isRunFan && !isWebSearchCall &&
+               !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                !isToolSearchCall && !isBugReport && !isWebFetch &&
                !isSendFile && !isSendFiles && !isOrchSimple && !isGlob && !isSkill &&
                !isFileChangeTool && !isViewImageTool &&

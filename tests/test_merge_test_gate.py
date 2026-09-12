@@ -605,12 +605,16 @@ def test_browser_inventory_is_explicit():
     # Collection includes the voice-input test explicitly skipped since #365;
     # 101 passing tests plus that retained node make 102, regardless of execution.
     "tests/test_frontend.py": 102,
-    "tests/test_t344_quota_lines_browser.py": 17,
+    # +1 с #V-546: потолок полосы на графике (`test_lane_ceiling_is_drawn_and_capped_like_the_gate`);
+    # +2 с #V-547: два плеча состояния гейта (включён на части полос / снят со всех).
+    "tests/test_t344_quota_lines_browser.py": 20,
     "tests/test_usage_analytics_frontend.py": 14,
     "tests/test_usage_history_frontend.py": 11,
     "tests/test_grok_usage_frontend.py": 11,
     "tests/test_antigravity_usage_frontend.py": 6,
-    "tests/test_system_chat_entry.py": 1,
+    # +1 с 5f7e72c5 (08.09): `test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender`
+    # пришёл вместе с меткой канала сообщений на дашборде, инвентарь тогда не обновили.
+    "tests/test_system_chat_entry.py": 2,
     "tests/test_quota_headroom_447.py": 1,
     "tests/test_model_catalog_frontend.py": 1,
     "tests/test_frontend_context_panel_468.py": 1,
@@ -987,3 +991,36 @@ def test_real_failure_mentioning_the_timeout_flag_stays_red(tmp_path, monkeypatc
 
     assert result["status"] == FAILED
     assert result["reason"] == "exit_nonzero"
+
+
+def test_renamed_file_reports_both_sides_so_the_gate_sees_the_removal(tmp_path: Path) -> None:
+    """#V-546: переименование должно давать ОБА пути, а не одну строку R100.
+
+    Краснеет, если вернуть детектор переименований: git свернёт пару в один путь,
+    и старый путь исчезнет из списка — выбор тестов и бюджет перестанут видеть,
+    что файл из прежнего каталога удалён. Тот же детектор на бинарных ассетах
+    стоил 37 с против 0.026 с и валил merge_worker по таймауту (репорт 11.09.2026).
+    """
+    from app.merge_test_gate import changed_paths
+
+    repo = tmp_path / "renames"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    payload = ("x" * 80 + "\n") * 40
+    (repo / "old").mkdir()
+    (repo / "old" / "asset.bin").write_text(payload, encoding="utf-8")
+    _git(repo, "add", "old/asset.bin")
+    _git(repo, "commit", "-m", "base")
+    _git(repo, "checkout", "-b", "task-1/worker")
+    (repo / "new").mkdir()
+    (repo / "old" / "asset.bin").rename(repo / "new" / "asset.bin")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "move asset")
+
+    paths = changed_paths(str(repo), target_ref="main")
+
+    assert paths is not None
+    assert "old/asset.bin" in paths, paths
+    assert "new/asset.bin" in paths, paths

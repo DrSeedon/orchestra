@@ -17,6 +17,18 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 
+# Снимается ДО импорта app: `app.quota_gate` читает эти переменные на уровне модуля
+# (`HARD_STOP_PCT`, `_startup_quota_env`), поэтому monkeypatch внутри фикстуры уже опаздывает.
+# Квотные переменные — настройка ЖИВОГО процесса, а не ожидание тестов; гейт мержа наследует
+# окружение сервера, и разовая правка `.env` красила 16 тестов и отбивала чужие мержи
+# (11.09.2026, `QUOTA_GATED_LANES=`). Тест, которому нужен нестандартный набор, ставит его сам.
+for _quota_var in (
+    "QUOTA_GATED_LANES", "QUOTA_CURVED_LANES", "QUOTA_HARD_STOP_PCT",
+    "QUOTA_LANE_HARD_STOP_PCT", "QUOTA_TOLERANCE_START_PP",
+    "QUOTA_TOLERANCE_END_PP", "QUOTA_CURVE_EXPONENT",
+):
+    os.environ.pop(_quota_var, None)
+
 
 def _sqlite_file_path(database, *, uri=False):
     try:
@@ -61,6 +73,13 @@ def _isolate_production_db(tmp_path):
         # Tests opt into VPS task refs explicitly; a shell-level prefix must not
         # turn legacy numeric fixtures into unresolved V-prefixed tasks.
         guard_patch.delenv("ORCHESTRA_TASK_PREFIX", raising=False)
+        # 11.09.2026: живой `ORCHESTRA_TASK_REPOSITORY` протёк в прогон тестов, и
+        # фикстура записала в БОЕВОЕ хранилище задачу «upper» с ключом `seed:`
+        # (`tests/task_seeds.py`). Она столкнулась по ссылке (project, origin, number=1)
+        # с настоящей задачей seedon от 08.08 — и ВСЕ мержи во всех проектах встали с
+        # `task repository contains a duplicate identity/reference/request`. Тест обязан
+        # работать в своём каталоге; тот, кому нужно боевое, задаёт путь явно.
+        guard_patch.setenv("ORCHESTRA_TASK_REPOSITORY", str(tmp_path / "tasks"))
         guard_patch.setattr(
             sqlite3,
             "connect",
@@ -178,6 +197,7 @@ def _hermetic_dashboard_env(monkeypatch):
         "STATE_DIRECTORY",
         "XDG_STATE_HOME",
         "QUOTA_HARD_STOP_PCT",
+        "QUOTA_LANE_HARD_STOP_PCT",
         "QUOTA_TOLERANCE_START_PP",
         "QUOTA_TOLERANCE_END_PP",
         "QUOTA_CURVE_EXPONENT",

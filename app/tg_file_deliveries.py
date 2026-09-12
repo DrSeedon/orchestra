@@ -22,8 +22,10 @@ from app.tg_bridge import (
     _reserve_file_snapshot_slot,
     _submit_file_group_once,
     _submit_file_snapshot_once,
+    file_submit_timeout,
+    is_provider_rejection,
 )
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, PHOTO_EXTENSIONS
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo
 
 logger = logging.getLogger("orchestra.tg_file_deliveries")
 
@@ -95,6 +97,17 @@ def _load_error(value: str | None) -> dict[str, Any] | None:
 
 
 def _next_action(event_id: str, state: str) -> dict[str, Any]:
+    if state == "FAILED":
+        return {
+            "code": "DELIVERY_REJECTED",
+            "tool": "file_delivery_status",
+            "arguments": {"event_id": event_id},
+            "retryable": False,
+            "message": (
+                "Telegram rejected this delivery and nothing was delivered; "
+                "see the error, fix the payload and send it under a new event id."
+            ),
+        }
     if state not in {"SUBMITTING", "UNKNOWN"}:
         return {}
     return {
@@ -124,6 +137,8 @@ def _aggregate_states(states: list[str]) -> str:
         return "FAILED_BEFORE_SUBMIT"
     if "QUEUED" in states:
         return "QUEUED"
+    if "FAILED" in states:
+        return "FAILED"
     return "SENT" if all(state == "SENT" for state in states) else "UNKNOWN"
 
 
@@ -319,17 +334,15 @@ def _payload_hash(
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _batch_kind(path: str, as_document: bool) -> str:
-    if as_document:
-        return "document"
-    return "photo" if Path(path).suffix.lower() in PHOTO_EXTENSIONS else "document"
+def _batch_kind(path: str, size_bytes: int, as_document: bool) -> str:
+    return "photo" if send_as_photo(path, size_bytes, as_document) else "document"
 
 
 def _plan_batch(prepared: list[dict[str, Any]], as_document: bool) -> None:
     buckets: dict[str, list[dict[str, Any]]] = {}
     kind_order: list[str] = []
     for index, item in enumerate(prepared):
-        kind = _batch_kind(item["original_name"], as_document)
+        kind = _batch_kind(item["original_name"], item["size_bytes"], as_document)
         item["batch_index"] = index
         item["batch_kind"] = kind
         if kind not in buckets:
@@ -1319,6 +1332,7 @@ def _claim_group_submitting(
     owner_token: str,
     generation: int,
     rows: list[sqlite3.Row],
+    lease_seconds: float = LEASE_SECONDS,
 ) -> bool:
     connection = db._conn()
     try:
@@ -1346,7 +1360,7 @@ def _claim_group_submitting(
             "UPDATE tg_file_chat_leases SET lease_expires_at=?, updated_at=? "
             "WHERE chat_id=? AND owner_token=? AND generation=?",
             (
-                (now + timedelta(seconds=LEASE_SECONDS)).isoformat(),
+                (now + timedelta(seconds=lease_seconds)).isoformat(),
                 now.isoformat(), chat_id, owner_token, generation,
             ),
         )
@@ -1470,8 +1484,14 @@ async def run_chat_deliveries(chat_id: int) -> None:
                     ):
                         return
                 continue
+            # Лизинг обязан пережить саму загрузку: истёк посреди отправки —
+            # чужой рантайм объявит уже доставленный файл UNKNOWN (#V-544).
+            submit_timeout = file_submit_timeout(
+                sum(candidate["size_bytes"] for candidate in ready)
+            )
             if not _claim_group_submitting(
                 chat_id, owner_token, generation, ready,
+                max(LEASE_SECONDS, submit_timeout + LEASE_SECONDS),
             ):
                 return
             try:
@@ -1485,10 +1505,10 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         is_photo=(
                             candidate["batch_kind"] == "photo"
                             if candidate["batch_id"]
-                            else (
-                                not bool(candidate["as_document"])
-                                and Path(candidate["original_name"]).suffix.lower()
-                                in PHOTO_EXTENSIONS
+                            else send_as_photo(
+                                candidate["original_name"],
+                                candidate["size_bytes"],
+                                bool(candidate["as_document"]),
                             )
                         ),
                     )
@@ -1515,6 +1535,13 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         raise ValueError("provider returned no integer message_id")
                     message_ids.append(message_id)
             except BaseException as exc:
+                rejected = is_provider_rejection(exc)
+                error = {
+                    "code": "PROVIDER_REJECTED" if rejected else "PROVIDER_OUTCOME_UNKNOWN",
+                    "message": err_text(exc),
+                    "retryable": False,
+                    "outcome_unknown": not rejected,
+                }
                 for candidate in ready:
                     _finish_target(
                         chat_id,
@@ -1522,13 +1549,8 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         generation,
                         candidate["event_id"],
                         candidate["target_kind"],
-                        state="UNKNOWN",
-                        error={
-                            "code": "PROVIDER_OUTCOME_UNKNOWN",
-                            "message": err_text(exc),
-                            "retryable": False,
-                            "outcome_unknown": True,
-                        },
+                        state="FAILED" if rejected else "UNKNOWN",
+                        error=error,
                     )
                 if isinstance(exc, asyncio.CancelledError):
                     raise
@@ -1695,7 +1717,7 @@ def _cleanup_file_deliveries_sync(now: datetime) -> None:
             if all(state == "SENT" for state in states):
                 if age >= SENT_SNAPSHOT_RETENTION_SECONDS:
                     _delete_snapshot(parent, timestamp)
-            elif "FAILED_BEFORE_SUBMIT" in states:
+            elif "FAILED_BEFORE_SUBMIT" in states or "FAILED" in states:
                 if age >= FAILED_SNAPSHOT_RETENTION_SECONDS:
                     _delete_snapshot(parent, timestamp)
         except Exception as exc:

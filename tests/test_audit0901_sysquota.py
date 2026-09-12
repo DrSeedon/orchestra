@@ -131,6 +131,7 @@ def _quota_map_payload() -> dict:
             "tolerance_end_pp": TOL_END,
             "curve_exponent": CURVE_EXPONENT,
             "curved_lanes": ["sol"],
+            "gated_lanes": ["sol"],
         },
         "buckets": [{
             "bucket": "codex", "label": "Codex", "observed_at": 1756728000.0,
