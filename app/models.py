@@ -111,14 +111,6 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="gpt-5.5", name="GPT-5.5",
         runtime="codex", provider="openai", context_length=258400,
     ),
-    ModelSpec(
-        id="gpt-5.4", name="GPT-5.4",
-        runtime="codex", provider="openai", context_length=258400,
-    ),
-    ModelSpec(
-        id="gpt-5.4-mini", name="GPT-5.4 Mini",
-        runtime="codex", provider="openai", context_length=258400,
-    ),
     # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
     # vendor README disagrees with the runtime on other numbers, so the runtime wins.
     ModelSpec(
@@ -195,9 +187,6 @@ ALIASES = {
     "gpt5.6luna": "gpt-5.6-luna",
     "codex": "gpt-5.6-sol",
     "gpt5.5": "gpt-5.5",
-    "gpt5.4": "gpt-5.4",
-    "gpt5.4mini": "gpt-5.4-mini",
-    "gpt-5.4mini": "gpt-5.4-mini",
     "grok": "grok-4.5",
     "grok4.6": "grok-4.6",
     "grok4.5": "grok-4.5",

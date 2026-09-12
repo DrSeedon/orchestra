@@ -9,7 +9,7 @@ function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENC
 const _MODEL_COLORS = {
     'claude-opus-5[1m]': '#d8b4fe',
     'claude-sonnet-5[1m]': '#38bdf8', 'claude-haiku-4-5': '#4ade80',
-    'claude-fable-5-1[1m]': '#fb923c', 'gpt-5.5': '#f472b6', 'gpt-5.4': '#f472b6',
+    'claude-fable-5-1[1m]': '#fb923c', 'gpt-5.5': '#f472b6',
 };
 function _modelMeta(id) {
     return _MODELS.find(m => m.id === id) || null;
