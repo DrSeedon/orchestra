@@ -1,0 +1,26 @@
+[
+  {
+    "event_id": "wf:V-555-default-2:03cb7004177f77e6d9761354b869a6b222d33110a6179658590fbf09e8cadfb1:0:1",
+    "session_id": "wf:V-555-default-2",
+    "task_id": "V-555",
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "ok": 1,
+    "input_tokens": 18190,
+    "output_tokens": 43,
+    "cache_read_tokens": 8960,
+    "cost_usd": 0.0020768
+  },
+  {
+    "event_id": "wf:V-555-default-2:a4b8670da39652b1440db07619629ae57e4b3946327cdd9b40c6679d2b0d971f:0:1",
+    "session_id": "wf:V-555-default-2",
+    "task_id": "V-555",
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "ok": 1,
+    "input_tokens": 18028,
+    "output_tokens": 37,
+    "cache_read_tokens": 8960,
+    "cost_usd": 0.0020372000000000003
+  }
+]

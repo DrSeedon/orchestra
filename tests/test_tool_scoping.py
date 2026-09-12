@@ -13,18 +13,18 @@ from app.tool_scoping import parse_disabled_tools
 @pytest.mark.parametrize('role,blocked', [('orchestrator', True), ('sub-orchestrator', True), ('full-cycle', False)])
 @pytest.mark.asyncio
 async def test_role_dispatch_both_arms(monkeypatch, role, blocked):
-    env = _make_mcp_config('probe', '', role)['orchestra']['env']
+    env = _make_mcp_config('probe', '', role, disabled_tools=['sentinel_tool'] if blocked else [])['orchestra']['env']
     monkeypatch.setattr(m, 'DISABLED_TOOLS', json.loads(env['ORCHESTRA_DISABLED_TOOLS']))
     server = m.OrchestraMCP('probe')
     calls = []
 
-    @server.tool(name='run_fan')
+    @server.tool(name='sentinel_tool')
     async def sentinel() -> str:
         calls.append(True)
         return 'executed'
 
     handler = server._mcp_server.request_handlers[CallToolRequest]
-    result = (await handler(CallToolRequest(params=CallToolRequestParams(name='run_fan', arguments={})))).root
+    result = (await handler(CallToolRequest(params=CallToolRequestParams(name='sentinel_tool', arguments={})))).root
     assert result.isError == blocked
     assert bool(calls) != blocked
     if blocked:
@@ -58,10 +58,10 @@ def test_role_and_worker_union():
         env = _make_mcp_config('probe', '', role, disabled_tools=['get_worker_info'])['orchestra']['env']
         denied = json.loads(env['ORCHESTRA_DISABLED_TOOLS'])
         assert 'get_worker_info' in denied
-        assert ('run_fan' in denied) == (role in ('orchestrator', 'sub-orchestrator'))
+        assert denied == ['get_worker_info']
 
 
-@pytest.mark.parametrize('value', [{}, [''], ['mcp__orchestra__run_fan '], [1], 'not json'])
+@pytest.mark.parametrize('value', [{}, [''], ['mcp__orchestra__sentinel_tool '], [1], 'not json'])
 def test_invalid_policy_fails_closed(value):
     with pytest.raises(ValueError):
         parse_disabled_tools(value)
@@ -93,12 +93,12 @@ async def test_spawn_forwards_worker_policy(monkeypatch):
 
     async def capture(method, path, **kwargs):
         assert method == 'POST' and path == '/api/sessions'
-        assert kwargs['json']['disabled_tools'] == ['run_fan']
+        assert kwargs['json']['disabled_tools'] == ['sentinel_tool']
         raise Captured
 
     monkeypatch.setattr(m, '_api', capture)
     with pytest.raises(Captured):
-        await m.spawn_worker('probe', 'task', '/unused', model='gpt5.6luna', disabled_tools=['run_fan'])
+        await m.spawn_worker('probe', 'task', '/unused', model='gpt5.6luna', disabled_tools=['sentinel_tool'])
 
 
 def test_real_stdio_worker_stand():
@@ -108,7 +108,7 @@ def test_real_stdio_worker_stand():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
-        [sys.executable, str(root / '.orchestra/tasks/532/live_probe.py')], cwd=root,
+        [sys.executable, str(root / 'tests/fixtures/mcp/tool_scoping_probe.py')], cwd=root,
         env={**os.environ, 'PYTHONPATH': str(root)}, capture_output=True, text=True, timeout=45,
     )
     assert result.returncode == 0, result.stdout + result.stderr

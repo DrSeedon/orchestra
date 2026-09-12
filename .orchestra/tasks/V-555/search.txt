@@ -1,0 +1,23 @@
+Command: git grep -n -i -E "run_fan|run-fan|runFan|RunFan|run fan" -- .
+Active matches: 0
+Historical raw CI matches: 66 in 16 files
+Task evidence matches: 11
+Historical paths (preserved by orchestrator confirmation):
+.orchestra/tasks/515/raw/before-shards/collection.txt
+.orchestra/tasks/515/raw/before-shards/shard-6.log
+.orchestra/tasks/515/raw/before-shards/shard-6.time
+.orchestra/tasks/515/raw/before-shards/shard-6.txt
+.orchestra/tasks/515/raw/ci-33956684131/shard-2.log
+.orchestra/tasks/515/raw/ci-33958809152/shard-2.log
+.orchestra/tasks/515/raw/ci-34088431455/shard-1.log
+.orchestra/tasks/515/raw/ci-34089352154/shard-2.log
+.orchestra/tasks/515/raw/ci-34121978004/shard-2.log
+.orchestra/tasks/515/raw/ci-34124017376/shard-2.log
+.orchestra/tasks/515/raw/ci-34124157522/shard-2.log
+.orchestra/tasks/515/raw/collect-before.txt
+.orchestra/tasks/515/raw/local-shards-after/shard-2.time
+.orchestra/tasks/515/raw/local-shards/shard-2.time
+.orchestra/tasks/515/raw/nodeids-after-shards.txt
+.orchestra/tasks/515/raw/nodeids-before.txt
+Active matches:
+
