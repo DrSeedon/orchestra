@@ -1826,6 +1826,9 @@ async def build_quota_map() -> dict:
             "tolerance_end_pp": policy.tolerance_end_pp,
             "curve_exponent": policy.curve_exponent,
             "curved_lanes": sorted(policy.curved_lanes),
+            # Состав гейтящихся полос: без него панель не может сказать, действует
+            # правило вообще или снято со всех, — снятый гейт выглядел как обычный.
+            "gated_lanes": sorted(policy.gated_lanes),
         },
         "buckets": buckets,
         "outside_policy": outside_policy,

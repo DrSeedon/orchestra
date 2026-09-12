@@ -202,6 +202,9 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
         "curve_exponent": 2.5,
         "curved_lanes": ["sol"],
+        # Состав гейтящихся полос: по нему панель отличает работающее правило от
+        # снятого со всех полос — без него оба состояния выглядят одинаково.
+        "gated_lanes": ["claude", "sol"],
     }
     assert payload["observation_max_age_seconds"] == 300.0
 
@@ -226,6 +229,9 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
         "tolerance_end_pp": 2.0,
         "curve_exponent": 2.5,
         "curved_lanes": ["sol"],
+        # Гейт снят оператором — панель обязана узнать об этом из правила, а не
+        # догадываться по тому, что ни одна полоса сейчас не блокируется.
+        "gated_lanes": [],
     }
     codex = _pool(payload, "codex")
     assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))
