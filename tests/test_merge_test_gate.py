@@ -605,8 +605,9 @@ def test_browser_inventory_is_explicit():
     # Collection includes the voice-input test explicitly skipped since #365;
     # 101 passing tests plus that retained node make 102, regardless of execution.
     "tests/test_frontend.py": 102,
-    # +1 с #V-546: потолок полосы на графике (`test_lane_ceiling_is_drawn_and_capped_like_the_gate`).
-    "tests/test_t344_quota_lines_browser.py": 18,
+    # +1 с #V-546: потолок полосы на графике (`test_lane_ceiling_is_drawn_and_capped_like_the_gate`);
+    # +2 с #V-547: два плеча состояния гейта (включён на части полос / снят со всех).
+    "tests/test_t344_quota_lines_browser.py": 20,
     "tests/test_usage_analytics_frontend.py": 14,
     "tests/test_usage_history_frontend.py": 11,
     "tests/test_grok_usage_frontend.py": 11,

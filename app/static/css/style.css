@@ -998,12 +998,22 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 
 /* Правило допуска по квоте — две линии расхода (#344). */
 #quota-lines { flex-shrink: 0; background: #0f172a; border-bottom: 1px solid rgba(30,41,59,0.5); font-size: 11px; }
-.ql-bar { display: flex; align-items: center; gap: 12px; padding: 4px 12px; min-height: 26px; }
+.ql-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 4px 12px; min-height: 26px; }
 #quota-lines-toggle {
   flex-shrink: 0; padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
   background: var(--surface-2); color: var(--ink-soft); font: 11px/1.4 var(--font-mono); cursor: pointer;
 }
 #quota-lines-toggle:hover { border-color: var(--accent); color: var(--ink); }
+/* Состояние гейта (#V-547): снятая диагональ обязана выглядеть иначе, чем работающая,
+   а не отличаться одним словом. Янтарь, а не красный: красный в этой панели уже
+   занят заблокированной полосой, и путать «полосу остановили» с «гейт снят» нельзя. */
+.ql-gate {
+  flex-shrink: 0; padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  font: 11px/1.4 var(--font-mono); color: var(--ink-soft);
+}
+.ql-gate-on { border-color: var(--ok); color: #86efac; }
+.ql-gate-off { border-color: #f59e0b; background: rgba(245,158,11,.14); color: #fcd34d; font-weight: 600; }
+.ql-gate-nodata { border-color: #475569; color: #cbd5e1; }
 .ql-sum { display: flex; flex-wrap: wrap; gap: 4px 18px; min-width: 0; color: var(--ink-faint); }
 .ql-sum-item b { color: var(--ink-soft); font-weight: 600; }
 .ql-body { max-height: 62vh; overflow: auto; padding: 4px 12px 12px; }
@@ -1022,6 +1032,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
    пороги у полос разные, и одинаковый цвет читался бы как один общий предел. */
 .ql-gated { fill: none; stroke: #fb923c; stroke-width: 2; }
 .ql-gated-sol { stroke: #f472b6; stroke-width: 2.5; }
+.ql-gated-off { stroke-dasharray: 3 7; opacity: .3; }
 .ql-hard { stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 2 4; }
 .ql-orch { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 8 5; opacity: .75; }
 .ql-trace { fill: none; stroke-width: 1.8; stroke-linecap: round; opacity: .92; }
