@@ -1,0 +1,50 @@
+[
+  {
+    "name": "repair",
+    "argv": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "scripts.local_bench",
+      "run",
+      "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/repair/bench.json",
+      "--output",
+      "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/repair"
+    ],
+    "exit_code": 1,
+    "stdout": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/repair/report.md\n",
+    "stderr": "",
+    "output": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/repair"
+  },
+  {
+    "name": "replay",
+    "argv": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "scripts.local_bench",
+      "run",
+      "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/repair/replay.json",
+      "--output",
+      "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay"
+    ],
+    "exit_code": 1,
+    "stdout": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/report.md\n",
+    "stderr": "",
+    "output": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay"
+  },
+  {
+    "name": "deadlines",
+    "argv": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "scripts.local_bench",
+      "run",
+      "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/deadlines.json",
+      "--output",
+      "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines"
+    ],
+    "exit_code": 1,
+    "stdout": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines/report.md\n",
+    "stderr": "",
+    "output": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines"
+  }
+]

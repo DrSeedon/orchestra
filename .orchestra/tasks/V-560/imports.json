@@ -1,0 +1,5 @@
+{
+  "python": "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+  "runner": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/runner.py",
+  "app_imported": false
+}
