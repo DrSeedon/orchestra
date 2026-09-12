@@ -1,0 +1,142 @@
+[
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "sdmntprcentralus.oaiusercontent.com:443",
+    "allowed": false
+  },
+  {
+    "target": "sdmntprsouthcentralus.oaiusercontent.com:443",
+    "allowed": false
+  },
+  {
+    "target": "sdmntprsouthcentralus.oaiusercontent.com:443",
+    "allowed": false
+  },
+  {
+    "target": "sdmntprwestcentralus.oaiusercontent.com:443",
+    "allowed": false
+  },
+  {
+    "target": "sdmntprsouthcentralus.oaiusercontent.com:443",
+    "allowed": false
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "ab.chatgpt.com:443",
+    "allowed": false
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "ab.chatgpt.com:443",
+    "allowed": false
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "ab.chatgpt.com:443",
+    "allowed": false
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "ab.chatgpt.com:443",
+    "allowed": false
+  }
+]

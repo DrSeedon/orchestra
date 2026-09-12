@@ -1,0 +1,21 @@
+{
+  "state": "available",
+  "allowed": true,
+  "model": "gpt-6-astra",
+  "provider": "codex",
+  "provider_label": "Codex",
+  "lane": "sol",
+  "gated": false,
+  "utilization": 9.0,
+  "progress": 0.008366367018648556,
+  "tolerance_pp": 9.924702696832163,
+  "limit_pct": null,
+  "hard_limit_pct": 99.0,
+  "observed_at": 1789227148.751308,
+  "valid_until": 1789227448.751308,
+  "reset_at": "2026-09-19T14:12:34Z",
+  "window_starts_at": "2026-09-12T14:12:34+00:00",
+  "reason": "lane 'sol' is not gated by the line; utilization 9% is below the hard stop 99%",
+  "release_status": "open",
+  "release_in_seconds": null
+}

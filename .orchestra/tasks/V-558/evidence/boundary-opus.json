@@ -1,0 +1,118 @@
+[
+  {
+    "probe": "own code read",
+    "outcome": "allowed",
+    "expected": "allowed",
+    "detail": 49309
+  },
+  {
+    "probe": "own write",
+    "outcome": "allowed",
+    "expected": "allowed",
+    "detail": 2
+  },
+  {
+    "probe": "main code",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "main git",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "report",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "changelog",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "KB",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "TODO",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "oracle",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "sibling",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "db",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "parent process environ",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "proc root alias",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "direct external HTTPS",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "dashboard TCP",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "host unix socket",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "github.com:443",
+    "outcome": "403",
+    "expected": "403"
+  },
+  {
+    "probe": "127.0.0.1:8888",
+    "outcome": "403",
+    "expected": "403"
+  },
+  {
+    "probe": "api.anthropic.com:443",
+    "outcome": "200",
+    "expected": "200"
+  },
+  {
+    "probe": "chatgpt.com:443",
+    "outcome": "200",
+    "expected": "200"
+  }
+]

@@ -1,0 +1,23 @@
+{
+  "text": "Реализовано и оставлено на диске: потолки полос, валидация и горячая перечитка настройки, согласованные допуск, прогноз и API. Все три сценария приёмки проходят.\n\nПроверки:\n- Новые тесты и MCP: **39 passed**.\n- Основной набор: **92 passed**, 6 падений из-за устаревших ожиданий.\n- Дополнительные проверки: **38 passed**; 10 E2E-падений из-за отсутствующего pipeline, 1 ошибка из-за отсутствующего Chromium.\n- `git diff --check` — без ошибок.\n\nProduction-изменения только в двух разрешённых файлах; UI и старые тесты не изменены.",
+  "runtime": "codex",
+  "model": "gpt-6-astra",
+  "ok": true,
+  "stop_reason": "end_turn",
+  "cost_usd": 0.99359,
+  "usage": {
+    "input_tokens": 428790,
+    "output_tokens": 5077,
+    "cache_read_tokens": 394240,
+    "cache_create_tokens": 0
+  },
+  "cost_unaccounted": false,
+  "error": "",
+  "name": "astra",
+  "wall_seconds": 210.8237949986942,
+  "process_rc": 0,
+  "out_of_scope_production": [],
+  "oracle_rc": 0,
+  "pass": true,
+  "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-astra/app/quota_gate.py"
+}

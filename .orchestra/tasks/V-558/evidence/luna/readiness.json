@@ -1,0 +1,21 @@
+{
+  "state": "available",
+  "allowed": true,
+  "model": "gpt-5.6-luna",
+  "provider": "codex",
+  "provider_label": "Codex",
+  "lane": "luna",
+  "gated": false,
+  "utilization": 7.0,
+  "progress": 0.006689959187356253,
+  "tolerance_pp": 9.939790367313794,
+  "limit_pct": null,
+  "hard_limit_pct": 99.0,
+  "observed_at": 1789226236.5445404,
+  "valid_until": 1789226536.5445404,
+  "reset_at": "2026-09-19T14:12:34Z",
+  "window_starts_at": "2026-09-12T14:12:34+00:00",
+  "reason": "lane 'luna' is not gated by the line; utilization 7% is below the hard stop 99%",
+  "release_status": "open",
+  "release_in_seconds": null
+}

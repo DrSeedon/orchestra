@@ -1,0 +1,158 @@
+[
+  {
+    "runtime": "codex",
+    "model": "gpt-5.6-luna",
+    "ok": true,
+    "stop_reason": "end_turn",
+    "cost_usd": 0.07631816000000001,
+    "usage": {
+      "input_tokens": 1654576,
+      "output_tokens": 19311,
+      "cache_read_tokens": 1543168,
+      "cache_create_tokens": 0
+    },
+    "cost_unaccounted": false,
+    "error": "",
+    "name": "luna",
+    "wall_seconds": 439.04572210181504,
+    "process_rc": 0,
+    "out_of_scope_production": [],
+    "oracle_rc": 0,
+    "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-luna/app/quota_gate.py",
+    "completion": "end_turn",
+    "tests": 93,
+    "failures": 0,
+    "skipped": 0,
+    "source_pass": true,
+    "artifact_folder": "luna",
+    "submitted_sha256": {
+      "app/quota_gate.py": "78451824613b1dfc9024b9880e65bba1ba11ad6ddeed673481de357a54bd29aa",
+      "app/routes/system.py": "9198fb40958b6b719fa19ea9ca7f961aecbcb072d6e58b54aa9d3b119318b826"
+    },
+    "initial_controller_pass": false
+  },
+  {
+    "runtime": "codex",
+    "model": "gpt-5.6-sol",
+    "ok": true,
+    "stop_reason": "end_turn",
+    "cost_usd": 1.3893352,
+    "usage": {
+      "input_tokens": 1650090,
+      "output_tokens": 19523,
+      "cache_read_tokens": 1555968,
+      "cache_create_tokens": 0
+    },
+    "cost_unaccounted": false,
+    "error": "",
+    "name": "sol",
+    "wall_seconds": 551.9700289699249,
+    "process_rc": 0,
+    "out_of_scope_production": [],
+    "oracle_rc": 0,
+    "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-sol/app/quota_gate.py",
+    "completion": "end_turn",
+    "tests": 93,
+    "failures": 0,
+    "skipped": 0,
+    "source_pass": true,
+    "artifact_folder": "sol",
+    "submitted_sha256": {
+      "app/quota_gate.py": "1dd2581d51d568cfeac38426ff30ee7e457d70caefaef31c20c301d62a26d542",
+      "app/routes/system.py": "c03cc24da95bfa0d9e9fe4c8b1f3a80edde44378df8174fcc228ae9e4758d4e4",
+      "tests/test_quota_lane_hard_stops.py": "cd92fcae1b1d133177607097c03767986da692d0450e032782fc8af7d891065f"
+    },
+    "initial_controller_pass": true
+  },
+  {
+    "runtime": "codex",
+    "model": "gpt-6-astra",
+    "ok": true,
+    "stop_reason": "end_turn",
+    "cost_usd": 0.99359,
+    "usage": {
+      "input_tokens": 428790,
+      "output_tokens": 5077,
+      "cache_read_tokens": 394240,
+      "cache_create_tokens": 0
+    },
+    "cost_unaccounted": false,
+    "error": "",
+    "name": "astra",
+    "wall_seconds": 210.8237949986942,
+    "process_rc": 0,
+    "out_of_scope_production": [],
+    "oracle_rc": 0,
+    "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-astra/app/quota_gate.py",
+    "completion": "end_turn",
+    "tests": 93,
+    "failures": 0,
+    "skipped": 0,
+    "source_pass": true,
+    "artifact_folder": "astra",
+    "submitted_sha256": {
+      "app/quota_gate.py": "0819e0ece7e250b013b58bfc0e9dac3b3341e82828f9b1deca34cafb60669c9e",
+      "app/routes/system.py": "3f1ddc0b178aad75abd9defdcbd2461bb0a2766c1b55c309babe5b2ff6150dde",
+      "tests/test_quota_lane_hard_stops.py": "af297a0eeca52ae6245d7b786b19b371b3b4b0afe2986a5bab410e759931419b"
+    },
+    "initial_controller_pass": true
+  },
+  {
+    "name": "opus",
+    "completion": "timeout",
+    "wall_seconds": 600,
+    "cost_usd": null,
+    "usage_complete": false,
+    "observed_usage": {
+      "input_tokens": 86,
+      "cache_creation_input_tokens": 71681,
+      "cache_read_input_tokens": 1869972,
+      "output_tokens": 399
+    },
+    "observed_messages": 43,
+    "cost_note": "No final result event; exact billed output and total_cost_usd unavailable. Partial message usage is not final billing.",
+    "oracle_rc": 0,
+    "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-opus/app/quota_gate.py",
+    "tests": 93,
+    "failures": 0,
+    "skipped": 0,
+    "out_of_scope_production": [],
+    "source_pass": true,
+    "artifact_folder": "opus-authenticated",
+    "submitted_sha256": {
+      "app/quota_gate.py": "8686e3990e678d297f7d13a33bb1d8e24e6950bee0376b09de8838af9fac9cb9",
+      "app/routes/system.py": "0a7f5c9a1a636041530c3d02f58e18dd0b30e7d016b399ccd33ec8b9eadb5eb7",
+      "tests/test_quota_lane_hard_stop.py": "5864fb51ed8a4773ecf239afe425be05880dbfebe02a9012a7487d7e45263c21"
+    }
+  },
+  {
+    "name": "fable",
+    "completion": "timeout",
+    "wall_seconds": 600,
+    "cost_usd": null,
+    "usage_complete": false,
+    "observed_usage": {
+      "input_tokens": 802,
+      "cache_creation_input_tokens": 74484,
+      "cache_read_input_tokens": 960412,
+      "output_tokens": 203
+    },
+    "observed_messages": 26,
+    "cost_note": "No final result event; exact billed output and total_cost_usd unavailable. Partial message usage is not final billing.",
+    "oracle_rc": 0,
+    "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-fable/app/quota_gate.py",
+    "tests": 93,
+    "failures": 0,
+    "skipped": 0,
+    "out_of_scope_production": [],
+    "source_pass": true,
+    "artifact_folder": "fable-authenticated",
+    "submitted_sha256": {
+      "app/quota_gate.py": "15e84d890ac1f499ccf2aca1ab17e320373c19824bacfe4d70e1fbf0bd00e168",
+      "app/routes/system.py": "b8130ed46225c08a69f4b9e46316e7bd6d067df7d2365575077a072b2f1dbcf7",
+      "tests/test_quota_gate.py": "9468165d84569b8462bc87b2eed7da2f753302af9ebf81c6568612b7935b9805",
+      "tests/test_quota_lane_hard_stop.py": "3fcdcfa7df12a9315236d0f0270ab5bb29aa3bdc714614ed073a0ae48405314a",
+      "tests/test_quota_map_api.py": "7fde0429ba7c901fa02a306784e2c807894f4d7d8e6410d8bc0bcd7ecb05ea22"
+    }
+  }
+]

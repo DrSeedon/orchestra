@@ -1,0 +1,46 @@
+{
+  "source_revision": "9948ab52542a52bb189cec6f84bb5b45a4729351",
+  "prompt_sha256": "7e3b29377b4b6b76f6d52837933438a37ee80972d6e87074125de0e68d1d21b5",
+  "arms": [
+    {
+      "model": "luna",
+      "root": "/home/kesha/.cache/orchestra-bench-V-558/arm-luna",
+      "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-luna/work",
+      "tree": "76adb0d55ef2a08b1f681e3f0a84b7c797296953",
+      "history_count": "1",
+      "remotes": ""
+    },
+    {
+      "model": "sol",
+      "root": "/home/kesha/.cache/orchestra-bench-V-558/arm-sol",
+      "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-sol/work",
+      "tree": "76adb0d55ef2a08b1f681e3f0a84b7c797296953",
+      "history_count": "1",
+      "remotes": ""
+    },
+    {
+      "model": "astra",
+      "root": "/home/kesha/.cache/orchestra-bench-V-558/arm-astra",
+      "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-astra/work",
+      "tree": "76adb0d55ef2a08b1f681e3f0a84b7c797296953",
+      "history_count": "1",
+      "remotes": ""
+    },
+    {
+      "model": "opus",
+      "root": "/home/kesha/.cache/orchestra-bench-V-558/arm-opus",
+      "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-opus/work",
+      "tree": "76adb0d55ef2a08b1f681e3f0a84b7c797296953",
+      "history_count": "1",
+      "remotes": ""
+    },
+    {
+      "model": "fable",
+      "root": "/home/kesha/.cache/orchestra-bench-V-558/arm-fable",
+      "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-fable/work",
+      "tree": "76adb0d55ef2a08b1f681e3f0a84b7c797296953",
+      "history_count": "1",
+      "remotes": ""
+    }
+  ]
+}

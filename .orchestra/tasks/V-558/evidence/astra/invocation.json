@@ -1,0 +1,28 @@
+{
+  "model": "gpt-6-astra",
+  "effort": "medium",
+  "argv": [
+    "/usr/bin/codex",
+    "-m",
+    "gpt-6-astra",
+    "-s",
+    "danger-full-access",
+    "-a",
+    "never",
+    "exec",
+    "--ephemeral",
+    "--ignore-rules",
+    "--ignore-user-config",
+    "--skip-git-repo-check",
+    "-c",
+    "web_search=\"disabled\"",
+    "-c",
+    "model_reasoning_effort=\"medium\"",
+    "--json",
+    "-"
+  ],
+  "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-astra/work",
+  "timeout_seconds": 600,
+  "prompt_sha256": "7e3b29377b4b6b76f6d52837933438a37ee80972d6e87074125de0e68d1d21b5",
+  "started_at": 1789227413.9831069
+}

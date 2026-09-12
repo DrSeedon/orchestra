@@ -1,0 +1,310 @@
+.....................................FF......FFFFFFF...F................ [ 77%]
+...F.FF..............                                                    [100%]
+=================================== FAILURES ===================================
+_ test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-5.6-sol] _
+
+model = 'gpt-5.6-sol'
+
+    @pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-6-astra"])
+    def test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work(model):
+        """Оба плеча в ОДНОЙ точке: Sol/Astra стоят, Luna в тот же момент работает."""
+        providers = _providers(progress=1.0, codex=96.0)
+    
+        expensive = _decide(model, providers)
+        luna = _decide("gpt-5.6-luna", providers)
+    
+>       assert expensive.state == "blocked", expensive.reason
+E       AssertionError: utilization 96% is at or below the line limit 99%
+E       assert 'available' == 'blocked'
+E         
+E         - blocked
+E         + available
+
+tests/test_quota_gate.py:385: AssertionError
+_ test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-6-astra] _
+
+model = 'gpt-6-astra'
+
+    @pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-6-astra"])
+    def test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work(model):
+        """Оба плеча в ОДНОЙ точке: Sol/Astra стоят, Luna в тот же момент работает."""
+        providers = _providers(progress=1.0, codex=96.0)
+    
+        expensive = _decide(model, providers)
+        luna = _decide("gpt-5.6-luna", providers)
+    
+>       assert expensive.state == "blocked", expensive.reason
+E       AssertionError: utilization 96% is at or below the line limit 99%
+E       assert 'available' == 'blocked'
+E         
+E         - blocked
+E         + available
+
+tests/test_quota_gate.py:385: AssertionError
+_____ test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv ______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9148/test_lane_ceilings_come_from_t0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459cad8e0>
+
+    def test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv(tmp_path, monkeypatch):
+        """Потолки настраиваются как остальное правило: env + перечитка `.env` по mtime."""
+        env_file = tmp_path / ".env"
+        env_file.write_text("QUOTA_LANE_HARD_STOP_PCT=luna=90,sol=80\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+        policy = quota_gate.quota_policy()
+>       assert policy.lane_hard_stop_pct == {"luna": 90.0, "sol": 80.0}
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'QuotaPolicy' object has no attribute 'lane_hard_stop_pct'. Did you mean: 'hard_stop_pct'?
+
+tests/test_quota_gate.py:434: AttributeError
+__ test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459cac140>
+
+    def test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling(monkeypatch):
+        """Общий стоп остаётся общим: он не поднимает полосу с собственным потолком."""
+>       policy = quota_gate.QuotaPolicy(
+            hard_stop_pct=70.0, tolerance_start_pp=10.0, tolerance_end_pp=1.0,
+            curve_exponent=2.5, gated_lanes=frozenset({"sol"}), curved_lanes=frozenset({"sol"}),
+            lane_hard_stop_pct={"sol": 95.0},
+        )
+E       TypeError: QuotaPolicy.__init__() got an unexpected keyword argument 'lane_hard_stop_pct'
+
+tests/test_quota_gate.py:454: TypeError
+___________________ test_malformed_lane_ceilings_raise[sol] ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9148/test_malformed_lane_ceilings_r0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459ccca40>
+value = 'sol'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+_________________ test_malformed_lane_ceilings_raise[sol=abc] __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9148/test_malformed_lane_ceilings_r1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459c4ac00>
+value = 'sol=abc'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+_________________ test_malformed_lane_ceilings_raise[sol=101] __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9148/test_malformed_lane_ceilings_r2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459d22420>
+value = 'sol=101'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+___________________ test_malformed_lane_ceilings_raise[=95] ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9148/test_malformed_lane_ceilings_r3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459cfda60>
+value = '=95'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+_________________ test_malformed_lane_ceilings_raise[sol=95,] __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9148/test_malformed_lane_ceilings_r4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x769459c67f80>
+value = 'sol=95,'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+____ test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop ____
+
+    def test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop():
+        """Окно пройдено целиком: `progress` зажат в 1.0, и линия равна жёсткому стопу полосы."""
+        window = _window("primary", CODEX_WINDOW_MINUTES, 94.0, None)
+        window["resets_at"] = _iso(NOW - 60)
+        providers = {"codex": {"label": "Codex", "windows": [window]}}
+    
+        decision = _decide("gpt-5.6-sol", providers)
+    
+        assert decision.progress == 1.0
+>       assert decision.limit_pct == SOL_HARD_STOP_PCT
+E       AssertionError: assert 99.0 == 95.0
+E        +  where 99.0 = QuotaDecision(state='available', model='gpt-5.6-sol', provider='codex', provider_label='Codex', lane='sol', gated=True...tilization 94% is at or below the line limit 99%', hard_limit_pct=99.0, release_status='open', release_in_seconds=None).limit_pct
+
+tests/test_quota_gate.py:523: AssertionError
+_____________ test_decision_serializes_every_field_the_panel_draws _____________
+
+    def test_decision_serializes_every_field_the_panel_draws():
+        decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=90.0))
+        payload = decision.to_dict()
+    
+        assert payload["state"] == "blocked" and payload["allowed"] is False
+        assert payload["lane"] == "sol" and payload["gated"] is True
+        # Панель рисует потолок ПОЛОСЫ: общий стоп пула у Sol не действует.
+>       assert payload["hard_limit_pct"] == SOL_HARD_STOP_PCT
+E       assert 99.0 == 95.0
+
+tests/test_quota_gate.py:622: AssertionError
+_________________ test_rule_constants_travel_with_the_payload __________________
+
+mapped = <function mapped.<locals>.run at 0x769459aec220>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_travel_with_the_payload(mapped):
+        """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 4, window_id="seven_day", label="7d")],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": 99.0,
+            # Потолок Sol ниже общего: без этого поля панель нарисует ему чужие 99%.
+            "lane_hard_stop_pct": {"sol": 95.0},
+            "tolerance_start_pp": 10.0,
+            "tolerance_end_pp": 1.0,
+            # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
+            # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
+            "curve_exponent": 2.5,
+            "curved_lanes": ["sol"],
+        }
+E       AssertionError: assert {'curve_expon...pp': 1.0, ...} == {'curve_expon...': 95.0}, ...}
+E         
+E         Omitting 5 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'lane_hard_stop_pct': {'sol': 95.0}}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:195: AssertionError
+______________ test_rule_constants_reflect_environment_overrides _______________
+
+mapped = <function mapped.<locals>.run at 0x769459aec860>
+configured_quota_gate = <function configured_quota_gate.<locals>.configure at 0x769459aec7c0>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_reflect_environment_overrides(mapped, configured_quota_gate):
+        configured_quota_gate(
+            QUOTA_HARD_STOP_PCT="92",
+            QUOTA_LANE_HARD_STOP_PCT="sol=85",
+            QUOTA_TOLERANCE_START_PP="13",
+            QUOTA_TOLERANCE_END_PP="2",
+            QUOTA_GATED_LANES="",
+        )
+        payload = await mapped(_observation(
+            codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": 92.0,
+            "lane_hard_stop_pct": {"sol": 85.0},
+            "tolerance_start_pp": 13.0,
+            "tolerance_end_pp": 2.0,
+            "curve_exponent": 2.5,
+            "curved_lanes": ["sol"],
+        }
+E       AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'curve_expon...': 85.0}, ...}
+E         
+E         Omitting 5 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'lane_hard_stop_pct': {'sol': 85.0}}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:222: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_quota_gate.py::test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-5.6-sol]
+FAILED tests/test_quota_gate.py::test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-6-astra]
+FAILED tests/test_quota_gate.py::test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv
+FAILED tests/test_quota_gate.py::test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol] - Fa...
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=abc]
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=101]
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[=95] - Fa...
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=95,]
+FAILED tests/test_quota_gate.py::test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop
+FAILED tests/test_quota_gate.py::test_decision_serializes_every_field_the_panel_draws
+FAILED tests/test_quota_map_api.py::test_rule_constants_travel_with_the_payload
+FAILED tests/test_quota_map_api.py::test_rule_constants_reflect_environment_overrides
+13 failed, 80 passed in 7.85s
