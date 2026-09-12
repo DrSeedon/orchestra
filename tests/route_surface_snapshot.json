@@ -493,6 +493,18 @@
   ]
  ],
  [
+  "/api/sessions/{name}/queued-messages",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/queued-messages/{message_id}",
+  [
+   "DELETE"
+  ]
+ ],
+ [
   "/api/sessions/{name}/rename",
   [
    "POST"

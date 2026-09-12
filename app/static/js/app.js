@@ -898,6 +898,8 @@ function restoreDraft() {
 
 document.addEventListener('DOMContentLoaded', () => {
     $('#send-btn').addEventListener('click', sendChat);
+    $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
+    window._queuedMessagesTimer = setInterval(() => refreshQueuedMessages(), 5000);
     $('#stop-btn').addEventListener('click', stopAgent);
     $('#chat-input').addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
@@ -2505,6 +2507,7 @@ async function onOrchestratorChange() {
     updateAgentInfo(null);
     updateInputState();
     restoreDraft();
+    refreshQueuedMessages();
     // История и поток идут первыми и не ждут refreshSessions: тому нужно два круга
     // (sessions+stats, затем orchestrators), а нам для показа чата не нужно ни одного (D2).
     _showChatFor(selectedAgent, currentScope);
@@ -2528,6 +2531,7 @@ async function selectAgent(name) {
     _prepareChatAnchorRestore(false);
     updateInputState();
     restoreDraft();
+    refreshQueuedMessages();
     const hadContext = Boolean(contextCache[`${currentScope}:${name}`]);
     renderAgentList(currentSessions);
     if (hadContext) fetchAgentContext(name);
@@ -2537,10 +2541,12 @@ async function selectAgent(name) {
 function updateInputState() {
     const input = $('#chat-input');
     const btn = $('#send-btn');
+    const afterTurnBtn = $('#send-after-turn-btn');
     if (!selectedAgent) {
         input.placeholder = 'Message...';
         input.disabled = false;
         btn.disabled = false;
+        if (afterTurnBtn) afterTurnBtn.disabled = false;
         return;
     }
     const sessions = [...document.querySelectorAll('.agent-item')];
@@ -2553,10 +2559,12 @@ function updateInputState() {
         input.placeholder = `${selectedAgent} — archived (read-only)`;
         input.disabled = true;
         btn.disabled = true;
+        if (afterTurnBtn) afterTurnBtn.disabled = true;
     } else {
         input.placeholder = `Message ${selectedAgent}...`;
         input.disabled = false;
         btn.disabled = false;
+        if (afterTurnBtn) afterTurnBtn.disabled = false;
     }
 }
 

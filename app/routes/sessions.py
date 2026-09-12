@@ -194,6 +194,7 @@ class SendRequest(BaseModel):
     # умолчанием — старые процессы `mcp_stdio.py` живут до реконнекта и его не
     # пошлют (грабля #215/#217). Неизвестное значение → буферизуем (fail-closed).
     message_kind: str | None = None
+    after_turn: bool = False
 
 
 class InitialDeliveryRequest(BaseModel):
@@ -720,7 +721,7 @@ async def mark_fan_member_terminal(req: FanMemberTerminalRequest):
 async def send_message(name: str, req: SendRequest, request: Request = None):
     try:
         if req.delivery_id.strip():
-            if not req.wake or req.message_kind is not None:
+            if not req.wake or req.message_kind is not None or req.after_turn:
                 return JSONResponse(
                     {
                         "ok": False,
@@ -953,6 +954,35 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 senders=("user",) if operator else (("dashboard",) if req.channel == "dashboard" else ("unknown",)),
                 subtype="dashboard" if req.channel == "dashboard" else "http_send",
             )
+        if req.after_turn and req.channel == "dashboard":
+            # The second dashboard mode queues only an active turn.  An idle target
+            # follows the existing immediate path below, so this flag never changes
+            # ordinary delivery semantics.
+            live = getattr(manager, "sessions", None) or {}
+            target = next(
+                (x for x in live.values()
+                 if getattr(x, "name", None) == name
+                 and getattr(x, "scope", None) == req.scope),
+                None,
+            )
+            busy = target is not None and str(
+                getattr(getattr(target, "status", ""), "value", getattr(target, "status", ""))
+            ) in {"running", "waiting"}
+            if busy:
+                from app import mailbox
+                queue_id = mailbox.enqueue(
+                    recipient=name,
+                    scope=req.scope,
+                    sender=req.sender or "",
+                    body=req.message,
+                    provenance=provenance,
+                )
+                return {
+                    "ok": True,
+                    "queued": True,
+                    "queue_id": queue_id,
+                    "message": req.message,
+                }
         # A non-waking delivery must not load or activate the recipient.  The
         # requested scope is the mailbox address supplied by the sender.
         if not req.wake:
@@ -1209,6 +1239,41 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
     except Exception as e:
         logger.error(f"send_message failed for {name}: {e}", exc_info=True)
         return JSONResponse({"error": f"Send failed: {e}"}, status_code=500)
+
+
+@router.get("/api/sessions/{name}/queued-messages")
+async def get_queued_messages(name: str, request: Request = None):
+    """Dashboard projection of the durable after-turn mailbox."""
+    from app import mailbox
+
+    scope = (request.query_params.get("scope", "") if request is not None else "").strip()
+    if not scope:
+        return JSONResponse({"error": "scope is required"}, status_code=400)
+    return {
+        "ok": True,
+        "messages": [
+            {
+                "id": item["id"],
+                "body": item["body"],
+                "created_at": item["created_at"],
+                "claimed": item["claimed_at"] is not None,
+            }
+            for item in mailbox.pending(name, scope)
+            if item["provenance"].origin == "user"
+            or item["provenance"].subtype == "dashboard"
+        ],
+    }
+
+
+@router.delete("/api/sessions/{name}/queued-messages/{message_id}")
+async def cancel_queued_message(name: str, message_id: int, request: Request = None):
+    """Cancel an after-turn message while its turn-end delivery has not claimed it."""
+    from app import mailbox
+
+    scope = (request.query_params.get("scope", "") if request is not None else "").strip()
+    if not scope:
+        return JSONResponse({"error": "scope is required"}, status_code=400)
+    return {"ok": True, "cancelled": mailbox.cancel(message_id, name, scope)}
 
 
 @router.get("/api/message-deliveries/{delivery_id}")
