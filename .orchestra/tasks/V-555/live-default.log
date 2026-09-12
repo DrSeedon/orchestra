@@ -1,0 +1,138 @@
+WF_BG_MESSAGE="wf_run V-555-default-1 interrupted; resume with: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py --resume V-555-default-1 --budget-usd 1 --max-calls 2 --repo /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan"
+{"run_id":"V-555-default-1","complete":false,"partial_reason":"error","spent_usd":0.0,"budget_usd":1.0,"dispatched_calls":1,"steps":[],"result":null,"resume_command":"/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py --resume V-555-default-1 --budget-usd 1 --max-calls 2 --repo /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan","wake_message":"wf_run V-555-default-1 interrupted; resume with: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py --resume V-555-default-1 --budget-usd 1 --max-calls 2 --repo /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan"}
+unhandled exception during asyncio.run() shutdown
+task: <Task finished name='Task-2' coro=<WorkflowEngine.parallel.<locals>.invoke() done, defined at /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py:949> exception=ValueError('repo_path must be a primary Git repository root; linked worktrees, gitfile repositories, and external Git directories are not supported: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan')>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 1071, in _main
+    await engine.execute(workflow)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 1036, in execute
+    await pending
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py", line 15, in <module>
+    result = await parallel([
+             ^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 953, in parallel
+    return list(await asyncio.gather(*(invoke(job) for job in jobs)))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 951, in invoke
+    return await value if inspect.isawaitable(value) else value
+           ^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py", line 5, in calculate
+    value = await agent(
+            ^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 700, in agent
+    result, workspace_path = await self._run_attempt(
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 822, in _run_attempt
+    await _await_despite_cancellation(prepare_task)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 274, in _await_despite_cancellation
+    return await asyncio.shield(task), cancellations
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 374, in _prepare_workspace_sync
+    prepared = create_worktree(str(repository), name, "", base_branch)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/app/workspace.py", line 526, in create_worktree
+    repo = validate_repo_root(repo_path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/app/workspace.py", line 321, in validate_repo_root
+    raise ValueError(
+ValueError: repo_path must be a primary Git repository root; linked worktrees, gitfile repositories, and external Git directories are not supported: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 951, in invoke
+    return await value if inspect.isawaitable(value) else value
+           ^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py", line 5, in calculate
+    value = await agent(
+            ^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 700, in agent
+    result, workspace_path = await self._run_attempt(
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 822, in _run_attempt
+    await _await_despite_cancellation(prepare_task)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 274, in _await_despite_cancellation
+    return await asyncio.shield(task), cancellations
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 374, in _prepare_workspace_sync
+    prepared = create_worktree(str(repository), name, "", base_branch)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/app/workspace.py", line 526, in create_worktree
+    repo = validate_repo_root(repo_path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/app/workspace.py", line 321, in validate_repo_root
+    raise ValueError(
+ValueError: repo_path must be a primary Git repository root; linked worktrees, gitfile repositories, and external Git directories are not supported: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 1082, in <module>
+    raise SystemExit(asyncio.run(_main()))
+                     ^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 1071, in _main
+    await engine.execute(workflow)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 1036, in execute
+    await pending
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py", line 15, in <module>
+    result = await parallel([
+             ^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 953, in parallel
+    return list(await asyncio.gather(*(invoke(job) for job in jobs)))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 951, in invoke
+    return await value if inspect.isawaitable(value) else value
+           ^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/.orchestra/tasks/V-555/live_default_workflow.py", line 5, in calculate
+    value = await agent(
+            ^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 700, in agent
+    result, workspace_path = await self._run_attempt(
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 822, in _run_attempt
+    await _await_despite_cancellation(prepare_task)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 274, in _await_despite_cancellation
+    return await asyncio.shield(task), cancellations
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/threads.py", line 25, in to_thread
+    return await loop.run_in_executor(None, func_call)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/scripts/wf_run.py", line 374, in _prepare_workspace_sync
+    prepared = create_worktree(str(repository), name, "", base_branch)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/app/workspace.py", line 526, in create_worktree
+    repo = validate_repo_root(repo_path)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan/app/workspace.py", line 321, in validate_repo_root
+    raise ValueError(
+ValueError: repo_path must be a primary Git repository root; linked worktrees, gitfile repositories, and external Git directories are not supported: /home/kesha/orchestra/worktrees/home-kesha-orchestra/kill-runfan
