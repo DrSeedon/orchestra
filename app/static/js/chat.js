@@ -5,13 +5,16 @@
 let pendingUserMsgs = [];
 let pendingBubble = null;
 let uiDebounceTimer = null;
+let chatSendInFlight = false;
 
-async function sendChat() {
+async function sendChat(options = {}) {
+    if (chatSendInFlight) return;
+    const afterTurn = Boolean(options.afterTurn);
     const input = $('#chat-input');
     // Картинка ещё летит → ждём её путь, иначе сообщение уйдёт без картинки.
     // Поле ввода при этом живое: всё, что допечатают за время ожидания, войдёт в msg.
     if (_pendingUploads.size) {
-        const btn = $('#send-btn');
+        const btn = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
         const label = btn.textContent;
         btn.textContent = '⏳';
         await Promise.allSettled([..._pendingUploads]);
@@ -19,6 +22,9 @@ async function sendChat() {
     }
     const msg = input.value.trim();
     if (!msg || !currentScope || !selectedAgent) return;
+    chatSendInFlight = true;
+    const actionButton = afterTurn ? $('#send-after-turn-btn') : $('#send-btn');
+    if (actionButton) actionButton.disabled = true;
     input.value = '';
     clearPastePreview();
 
@@ -30,11 +36,19 @@ async function sendChat() {
     uiDebounceTimer = setTimeout(() => finalizePending(), UI_DEBOUNCE_MS);
 
     try {
-        await api(`/api/sessions/${selectedAgent}/send`, {
+        const result = await api(`/api/sessions/${selectedAgent}/send`, {
             method: 'POST',
-            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard" }),
+            body: JSON.stringify({ message: msg, scope: currentScope, channel: "dashboard", after_turn: afterTurn }),
             signal: AbortSignal.timeout(15000),
         });
+        if (result?.queued) {
+            if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
+            pendingUserMsgs = [];
+            if (pendingBubble) { pendingBubble.remove(); pendingBubble = null; }
+            if (_finalizedBubble) { _finalizedBubble.remove(); _finalizedBubble = null; }
+            removeWaitingIndicator();
+            await refreshQueuedMessages();
+        }
     } catch (e) {
         if (e.name === 'TimeoutError') return;
         if (uiDebounceTimer) { clearTimeout(uiDebounceTimer); uiDebounceTimer = null; }
@@ -43,6 +57,56 @@ async function sendChat() {
         removeWaitingIndicator();
         // Перезапуск — штатная операция, и красная строка про неё выглядела бы аварией.
         addChatEntry(e.name === 'RestartPendingError' ? 'notification' : 'error', e.message);
+    } finally {
+        chatSendInFlight = false;
+        if (actionButton) actionButton.disabled = false;
+    }
+}
+
+async function refreshQueuedMessages() {
+    const panel = $('#queued-messages');
+    if (!panel || !selectedAgent || !currentScope) return;
+    const targetName = selectedAgent;
+    const targetScope = currentScope;
+    try {
+        const result = await api(
+            `/api/sessions/${encodeURIComponent(targetName)}/queued-messages?scope=${encodeURIComponent(targetScope)}`,
+        );
+        if (targetName !== selectedAgent || targetScope !== currentScope) return;
+        panel.replaceChildren();
+        for (const item of result.messages || []) {
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
+            const body = document.createElement('span');
+            body.className = 'min-w-0 flex-1 truncate';
+            body.textContent = `⏳ ${item.body}`;
+            row.appendChild(body);
+            if (item.claimed) {
+                const state = document.createElement('span');
+                state.textContent = 'доставляется';
+                state.className = 'text-slate-500';
+                row.appendChild(state);
+            } else {
+                const cancel = document.createElement('button');
+                cancel.type = 'button';
+                cancel.textContent = 'Отменить';
+                cancel.className = 'text-red-300 hover:text-red-200';
+                cancel.addEventListener('click', async () => {
+                    cancel.disabled = true;
+                    try {
+                        await api(`/api/sessions/${encodeURIComponent(targetName)}/queued-messages/${item.id}?scope=${encodeURIComponent(targetScope)}`, {method: 'DELETE'});
+                        await refreshQueuedMessages();
+                    } catch (error) {
+                        cancel.disabled = false;
+                        addChatEntry('error', error.message);
+                    }
+                });
+                row.appendChild(cancel);
+            }
+            panel.appendChild(row);
+        }
+    } catch (error) {
+        console.warn(`[chat] очередь после хода недоступна: ${error.name}: ${error.message}`);
     }
 }
 
