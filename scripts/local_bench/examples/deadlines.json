@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "name": "Offline deadline accounting controls",
+  "source": {"directory": "repair/source", "include": ["calc.py"]},
+  "prompt": "repair/prompt.txt",
+  "oracle": {"command": ["{python}", "check.py"], "files": {"check.py": "repair/oracle.py"}},
+  "controls": {"expect_baseline_failure": true, "reference_files": {"calc.py": "repair/reference.py"}},
+  "writable_paths": ["calc.py"],
+  "timeout_seconds": 0.5,
+  "grace_seconds": 0.2,
+  "arms": [
+    {"name": "graceful", "runtime": "fixture", "command": ["{python}", "{config_dir}/repair/fixture.py", "graceful"]},
+    {"name": "hard-kill", "runtime": "fixture", "command": ["{python}", "{config_dir}/repair/fixture.py", "uncooperative"]}
+  ]
+}

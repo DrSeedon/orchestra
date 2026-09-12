@@ -1,0 +1,233 @@
+{
+  "version": 1,
+  "runner_python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "name": "Offline runner check: repair total",
+  "mode": "offline_synthetic",
+  "start_policy": "parallel_after_prepare_barrier",
+  "config_sha256": "3e516bba5922713d32e6bf501862b2d1b19a37ba1f7e7b626b57fd2068248327",
+  "prompt_sha256": "39a9fc3e6b37791959abbd0d72bc8a56ab9ae179975e730a4e14f01936c929c5",
+  "results": [
+    {
+      "name": "correct-a",
+      "runtime": "fixture",
+      "model": null,
+      "oracle_pass": true,
+      "input_sha256": "89d823e46d7f1321792003b8f4ede13ec0babf7786c739e10c0689e15be2a308",
+      "process": {
+        "argv": [
+          "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+          "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/repair/fixture.py",
+          "good"
+        ],
+        "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/arms/correct-a/work",
+        "started_unix": 1789232537.1439605,
+        "completion": "exited",
+        "returncode": 0,
+        "pid": 15396,
+        "stdin_sent": true,
+        "wall_seconds": 0.21711228089407086,
+        "accounting": {
+          "status": "complete",
+          "final_received": true,
+          "cost_usd": 0.2,
+          "observed_cost_usd": 0.2,
+          "cost_source": "provider_final",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 5
+          },
+          "inflight_message": null,
+          "completed_messages": 0,
+          "errors": [],
+          "synthetic": true
+        }
+      },
+      "changed_paths": [
+        "calc.py"
+      ],
+      "out_of_scope": [],
+      "submitted_sha256": {
+        "calc.py": "3251dbf18617cd67c47707cb9bd1611dbac212ff0ee9814a75b8ce1f34b85aad"
+      },
+      "oracle": {
+        "passed": true,
+        "process": {
+          "argv": [
+            "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+            "check.py"
+          ],
+          "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/arms/correct-a/oracle/work",
+          "started_unix": 1789232537.3749878,
+          "completion": "exited",
+          "returncode": 0,
+          "pid": 15400,
+          "stdin_sent": true,
+          "wall_seconds": 0.039045125246047974,
+          "accounting": {
+            "status": "missing",
+            "final_received": false,
+            "cost_usd": null,
+            "observed_cost_usd": null,
+            "cost_source": null,
+            "usage": {},
+            "inflight_message": null,
+            "completed_messages": 0,
+            "errors": [],
+            "synthetic": true
+          }
+        }
+      }
+    },
+    {
+      "name": "correct-b",
+      "runtime": "fixture",
+      "model": null,
+      "oracle_pass": true,
+      "input_sha256": "89d823e46d7f1321792003b8f4ede13ec0babf7786c739e10c0689e15be2a308",
+      "process": {
+        "argv": [
+          "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+          "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/repair/fixture.py",
+          "good"
+        ],
+        "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/arms/correct-b/work",
+        "started_unix": 1789232537.1457617,
+        "completion": "exited",
+        "returncode": 0,
+        "pid": 15397,
+        "stdin_sent": true,
+        "wall_seconds": 0.23163258796557784,
+        "accounting": {
+          "status": "complete",
+          "final_received": true,
+          "cost_usd": 0.2,
+          "observed_cost_usd": 0.2,
+          "cost_source": "provider_final",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 5
+          },
+          "inflight_message": null,
+          "completed_messages": 0,
+          "errors": [],
+          "synthetic": true
+        }
+      },
+      "changed_paths": [
+        "calc.py"
+      ],
+      "out_of_scope": [],
+      "submitted_sha256": {
+        "calc.py": "3251dbf18617cd67c47707cb9bd1611dbac212ff0ee9814a75b8ce1f34b85aad"
+      },
+      "oracle": {
+        "passed": true,
+        "process": {
+          "argv": [
+            "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+            "check.py"
+          ],
+          "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/arms/correct-b/oracle/work",
+          "started_unix": 1789232537.3916984,
+          "completion": "exited",
+          "returncode": 0,
+          "pid": 15401,
+          "stdin_sent": true,
+          "wall_seconds": 0.04616450611501932,
+          "accounting": {
+            "status": "missing",
+            "final_received": false,
+            "cost_usd": null,
+            "observed_cost_usd": null,
+            "cost_source": null,
+            "usage": {},
+            "inflight_message": null,
+            "completed_messages": 0,
+            "errors": [],
+            "synthetic": true
+          }
+        }
+      }
+    },
+    {
+      "name": "wrong-control",
+      "runtime": "fixture",
+      "model": null,
+      "oracle_pass": false,
+      "input_sha256": "89d823e46d7f1321792003b8f4ede13ec0babf7786c739e10c0689e15be2a308",
+      "process": {
+        "argv": [
+          "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+          "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/repair/fixture.py",
+          "bad"
+        ],
+        "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/arms/wrong-control/work",
+        "started_unix": 1789232537.1482074,
+        "completion": "exited",
+        "returncode": 0,
+        "pid": 15398,
+        "stdin_sent": true,
+        "wall_seconds": 0.2462120451964438,
+        "accounting": {
+          "status": "complete",
+          "final_received": true,
+          "cost_usd": 0.2,
+          "observed_cost_usd": 0.2,
+          "cost_source": "provider_final",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 5
+          },
+          "inflight_message": null,
+          "completed_messages": 0,
+          "errors": [],
+          "synthetic": true
+        }
+      },
+      "changed_paths": [],
+      "out_of_scope": [],
+      "submitted_sha256": {
+        "calc.py": "418a09394e796cd166f670850e51e6351fa1682804b9c917e23a06e9df41e22a"
+      },
+      "oracle": {
+        "passed": false,
+        "process": {
+          "argv": [
+            "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+            "check.py"
+          ],
+          "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/replay/arms/wrong-control/oracle/work",
+          "started_unix": 1789232537.4098,
+          "completion": "exited",
+          "returncode": 1,
+          "pid": 15402,
+          "stdin_sent": true,
+          "wall_seconds": 0.04064731579273939,
+          "accounting": {
+            "status": "missing",
+            "final_received": false,
+            "cost_usd": null,
+            "observed_cost_usd": null,
+            "cost_source": null,
+            "usage": {},
+            "inflight_message": null,
+            "completed_messages": 0,
+            "errors": [],
+            "synthetic": true
+          }
+        }
+      }
+    }
+  ],
+  "accounting_complete": true,
+  "arm_cost_usd": 0.6000000000000001,
+  "known_arm_cost_usd": 0.6000000000000001,
+  "observed_arm_cost_usd": 0.6000000000000001,
+  "preparation_cost_usd": null,
+  "preparation_cost_note": null,
+  "preparation_fraction": null,
+  "preparation_seconds": 0.18056378792971373,
+  "wall_seconds": 0.4885539039969444,
+  "all_pass": false,
+  "over_budget_observed": null
+}

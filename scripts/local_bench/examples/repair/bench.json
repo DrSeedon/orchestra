@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "name": "Offline runner check: repair total",
+  "source": {"directory": "source", "include": ["calc.py"]},
+  "prompt": "prompt.txt",
+  "oracle": {"command": ["{python}", "check.py"], "files": {"check.py": "oracle.py"}},
+  "controls": {"expect_baseline_failure": true, "reference_files": {"calc.py": "reference.py"}},
+  "writable_paths": ["calc.py"],
+  "timeout_seconds": 5,
+  "grace_seconds": 1,
+  "preparation_cost_usd": 0,
+  "preparation_cost_note": "Synthetic local demonstration; no model calls or billed preparation.",
+  "arms": [
+    {"name": "correct-a", "runtime": "fixture", "command": ["{python}", "{config_dir}/fixture.py", "good"]},
+    {"name": "correct-b", "runtime": "fixture", "command": ["{python}", "{config_dir}/fixture.py", "good"]},
+    {"name": "wrong-control", "runtime": "fixture", "command": ["{python}", "{config_dir}/fixture.py", "bad"]}
+  ]
+}

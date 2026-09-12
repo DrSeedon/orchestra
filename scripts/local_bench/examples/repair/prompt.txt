@@ -1,0 +1,2 @@
+Make calc.total return the sum of its input numbers, including an empty input.
+Leave the corrected source in this checkout.

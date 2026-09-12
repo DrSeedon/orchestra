@@ -43,3 +43,35 @@ InferenceSession.run и профилем нативного стека; `_worker
 хост отдал 1 МБ за 0,55 с, пока путь до исследуемого сервера обрывался на 16 КБ: это отделяло
 общую проблему клиента от маршрута к конкретному серверу. Ни один адрес или скорость из
 этих опытов не задаёт сегодняшний маршрут. Источник: [сохранённые наблюдения frontend](https://github.com/DrSeedon/orchestra/blob/9a1735f1695519a445f393802c2154bd37337e38/.orchestra/archive/knowledge-20260909/workers/frontend.md).
+
+## Изоляция кодового replay V-558: /proc и незавершённый счётчик Claude
+
+12.09.2026, Linux с Landlock ABI 4, Codex 0.153.4 / Claude Code 2.1.263:
+разрешение Landlock на `/proc/self` оказалось разрешением каталога PID запускающего
+процесса. Дочерний Python получил PermissionError на свой `/proc/self/fd`;
+`unshare -Urnm` отказал на uid_map и в exec, и в bg. Поэтому pidfd-задача V-543
+не могла честно выполняться на этом стенде; вместо ослабления границы взята backend/API
+часть V-546. Её эталон прошёл одинаковые 93 теста снаружи и внутри границы.
+
+`claude --bare` в этой версии прямо исключает OAuth, поддерживая API-key auth:
+два старта дали 0 usage/$0/Not logged in. Удаление --bare при сохранённых private HOME,
+пустых settings/MCP и файловой границе позволило использовать подписочный OAuth.
+При остановке двух работающих Claude CLI через 600 с streaming assistant usage не
+содержал завершённого output/total_cost_usd. Сохранить stdout недостаточно для полного
+учёта стоимости оборванного хода; цена этих двух плеч осталась неизвестной.
+Код обеих моделей на дедлайне прошёл 93/93, поэтому timeout нельзя превращать в
+«не написала рабочий код». Условия, пробы, исходники и ограничения: [V-558](../tasks/V-558/report.md).
+
+### V-560: причина отказа namespace и выбранный рабочий путь
+
+При проверке V-560 vendor-bubblewrap найден по пути
+`/usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/codex-resources/bwrap`.
+Его наличие не даёт рабочую песочницу: `kernel.apparmor_restrict_unprivileged_userns=1`,
+запуск возвращает `bwrap: setting up uid map: Permission denied`. Это запрет
+непривилегированных user namespaces на этом хосте, а не отсутствие бинаря.
+Владелец выбрал «как есть оставляй»: защиту не меняли. Поэтому локальный
+`scripts.local_bench` проверяет sandbox до провайдеров и на этом хосте отказывает
+с причиной и указанием использовать offline fixture-режим или другую машину.
+Небезопасного provider fallback нет; положительная namespace-ветка здесь не доказана.
+Проверить текущее состояние заново: `python -m scripts.local_bench doctor`.
+Команда, точный отказ и 38 offline-проверок механизма: [V-560](../tasks/V-560/report.md).

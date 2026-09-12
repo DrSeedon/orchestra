@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "runner_python_version": "3.12.3 (main, Aug 31 2026, 10:18:26) [GCC 13.3.0]",
+  "name": "Offline deadline accounting controls",
+  "mode": "offline_synthetic",
+  "start_policy": "parallel_after_prepare_barrier",
+  "config_sha256": "8703bee7ea0f21ed8404cb3b0737a6f12fc2d568518bfdd9bb7c4c0661074b2b",
+  "prompt_sha256": "39a9fc3e6b37791959abbd0d72bc8a56ab9ae179975e730a4e14f01936c929c5",
+  "results": [
+    {
+      "name": "graceful",
+      "runtime": "fixture",
+      "model": null,
+      "oracle_pass": true,
+      "input_sha256": "89d823e46d7f1321792003b8f4ede13ec0babf7786c739e10c0689e15be2a308",
+      "process": {
+        "argv": [
+          "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+          "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/repair/fixture.py",
+          "graceful"
+        ],
+        "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines/arms/graceful/work",
+        "started_unix": 1789232537.7556782,
+        "completion": "deadline",
+        "returncode": 0,
+        "pid": 15414,
+        "stdin_sent": true,
+        "wall_seconds": 0.5153610678389668,
+        "accounting": {
+          "status": "complete",
+          "final_received": true,
+          "cost_usd": 0.2,
+          "observed_cost_usd": 0.2,
+          "cost_source": "provider_final",
+          "usage": {
+            "input_tokens": 10,
+            "output_tokens": 5
+          },
+          "inflight_message": null,
+          "completed_messages": 0,
+          "errors": [],
+          "synthetic": true
+        }
+      },
+      "changed_paths": [
+        "calc.py"
+      ],
+      "out_of_scope": [],
+      "submitted_sha256": {
+        "calc.py": "3251dbf18617cd67c47707cb9bd1611dbac212ff0ee9814a75b8ce1f34b85aad"
+      },
+      "oracle": {
+        "passed": true,
+        "process": {
+          "argv": [
+            "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+            "check.py"
+          ],
+          "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines/arms/graceful/oracle/work",
+          "started_unix": 1789232538.284706,
+          "completion": "exited",
+          "returncode": 0,
+          "pid": 15416,
+          "stdin_sent": true,
+          "wall_seconds": 0.035297769121825695,
+          "accounting": {
+            "status": "missing",
+            "final_received": false,
+            "cost_usd": null,
+            "observed_cost_usd": null,
+            "cost_source": null,
+            "usage": {},
+            "inflight_message": null,
+            "completed_messages": 0,
+            "errors": [],
+            "synthetic": true
+          }
+        }
+      }
+    },
+    {
+      "name": "hard-kill",
+      "runtime": "fixture",
+      "model": null,
+      "oracle_pass": true,
+      "input_sha256": "89d823e46d7f1321792003b8f4ede13ec0babf7786c739e10c0689e15be2a308",
+      "process": {
+        "argv": [
+          "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+          "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-master/scripts/local_bench/examples/repair/fixture.py",
+          "uncooperative"
+        ],
+        "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines/arms/hard-kill/work",
+        "started_unix": 1789232537.756894,
+        "completion": "deadline",
+        "returncode": -9,
+        "pid": 15415,
+        "stdin_sent": true,
+        "hard_killed": true,
+        "wall_seconds": 0.909498430788517,
+        "accounting": {
+          "status": "partial",
+          "final_received": false,
+          "cost_usd": null,
+          "observed_cost_usd": 0.1,
+          "cost_source": "progress",
+          "usage": {
+            "input_tokens": 10
+          },
+          "inflight_message": null,
+          "completed_messages": 0,
+          "errors": [],
+          "synthetic": true
+        }
+      },
+      "changed_paths": [
+        "calc.py"
+      ],
+      "out_of_scope": [],
+      "submitted_sha256": {
+        "calc.py": "3251dbf18617cd67c47707cb9bd1611dbac212ff0ee9814a75b8ce1f34b85aad"
+      },
+      "oracle": {
+        "passed": true,
+        "process": {
+          "argv": [
+            "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+            "check.py"
+          ],
+          "cwd": "/home/kesha/.cache/local-bench-V-560-acceptance-zeznr_b9/deadlines/arms/hard-kill/oracle/work",
+          "started_unix": 1789232538.681283,
+          "completion": "exited",
+          "returncode": 0,
+          "pid": 15418,
+          "stdin_sent": true,
+          "wall_seconds": 0.035658696200698614,
+          "accounting": {
+            "status": "missing",
+            "final_received": false,
+            "cost_usd": null,
+            "observed_cost_usd": null,
+            "cost_source": null,
+            "usage": {},
+            "inflight_message": null,
+            "completed_messages": 0,
+            "errors": [],
+            "synthetic": true
+          }
+        }
+      }
+    }
+  ],
+  "accounting_complete": false,
+  "arm_cost_usd": null,
+  "known_arm_cost_usd": 0.2,
+  "observed_arm_cost_usd": 0.30000000000000004,
+  "preparation_cost_usd": null,
+  "preparation_cost_note": null,
+  "preparation_fraction": null,
+  "preparation_seconds": 0.15402304520830512,
+  "wall_seconds": 1.1169294640421867,
+  "all_pass": false,
+  "over_budget_observed": null
+}

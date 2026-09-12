@@ -1,0 +1,1 @@
+local-bench: приватный /tmp недоступен: запрещены непривилегированные user namespaces (kernel.apparmor_restrict_unprivileged_userns=1). Снятие защиты — решение владельца; используйте offline fixture-режим или другую машину с разрешёнными namespaces. Детали: bwrap: setting up uid map: Permission denied
