@@ -1,0 +1,7 @@
+{
+  "initial_calls": 6,
+  "astra_repeat_calls": 2,
+  "sol_fable_calls": 0,
+  "more_calls_allowed": false,
+  "reason": "Parent explicitly stopped conditional Sol/Fable expansion after initial results; no new stimulus or additional repeats authorized."
+}

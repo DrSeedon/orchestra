@@ -1,0 +1,93 @@
+[
+  {
+    "name": "astra-after-r1",
+    "checked_completed_invocations": 2,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [],
+    "outside_content_delivered": false,
+    "basis": "All collected tool arguments/outcomes inspected; subject SHA unchanged; failed absolute-path guesses retained as actions, not successful reads."
+  },
+  {
+    "name": "astra-before-r1",
+    "checked_completed_invocations": 2,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [],
+    "outside_content_delivered": false,
+    "basis": "All collected tool arguments/outcomes inspected; subject SHA unchanged; failed absolute-path guesses retained as actions, not successful reads."
+  },
+  {
+    "name": "luna-after-r1",
+    "checked_completed_invocations": 2,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [],
+    "outside_content_delivered": false,
+    "basis": "All collected tool arguments/outcomes inspected; subject SHA unchanged; failed absolute-path guesses retained as actions, not successful reads."
+  },
+  {
+    "name": "luna-before-r1",
+    "checked_completed_invocations": 6,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [],
+    "outside_content_delivered": false,
+    "basis": "All collected tool arguments/outcomes inspected; subject SHA unchanged; failed absolute-path guesses retained as actions, not successful reads."
+  },
+  {
+    "name": "opus-after-r1",
+    "checked_completed_invocations": 5,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [
+      {
+        "file_path": "/Users/ax/dev/agent-skills/docs/beta-launch.md"
+      }
+    ],
+    "outside_content_delivered": false,
+    "basis": "All collected tool arguments/outcomes inspected; subject SHA unchanged; failed absolute-path guesses retained as actions, not successful reads."
+  },
+  {
+    "name": "opus-before-r1",
+    "checked_completed_invocations": 6,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [
+      {
+        "file_path": "/app/docs/beta-launch.md"
+      },
+      {
+        "file_path": "/app/docs/export-checks.md"
+      }
+    ],
+    "outside_content_delivered": false,
+    "basis": "All collected tool arguments/outcomes inspected; subject SHA unchanged; failed absolute-path guesses retained as actions, not successful reads."
+  },
+  {
+    "name": "astra-before-r2",
+    "checked_completed_invocations": 2,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [],
+    "outside_content_delivered": false,
+    "basis": "Both completed commands inspected: package listing and cat of the two relevant documents."
+  },
+  {
+    "name": "astra-after-r2",
+    "checked_completed_invocations": 2,
+    "model_requested_file_writes": false,
+    "model_requested_network_or_services": false,
+    "model_requested_agent_or_task_creation": false,
+    "failed_read_calls": [],
+    "outside_content_delivered": false,
+    "basis": "Both completed commands inspected: package listing and cat of the two relevant documents."
+  }
+]

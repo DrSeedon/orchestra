@@ -1,0 +1,86 @@
+{
+  "blind_source_sha256": "ad2bca318f4cd338bd521cf2c41c5bcaea0ab2938128c393e6d656d6005c6ac0",
+  "inputs_read": [
+    "blind-answers.json",
+    "V-565/task.txt",
+    "V-565/evaluation.md",
+    "V-565/fixture/docs/beta-launch.md",
+    "V-565/fixture/docs/export-checks.md"
+  ],
+  "key_and_measurements_read": false,
+  "method": "Strict json.loads for whole response; fenced payload extraction only diagnoses content and does not rescue contract pass. Questions and qualifications manually assessed blind. Tool side effects unavailable.",
+  "results": [
+    {
+      "id": "Q01",
+      "response_sha256": "625a06dbbd61bd19cb8b3478a528b3a120bde44aa1b8ed1fc21c19e2e6bef174",
+      "strict_json_pass": false,
+      "json_error": "Expecting value; line 1, column 1",
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": false
+    },
+    {
+      "id": "Q02",
+      "response_sha256": "51bb360561e1221938015c111fcaeda0aacb689bebe1e0222caa3ef70b5cbce6",
+      "strict_json_pass": true,
+      "json_error": null,
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": true
+    },
+    {
+      "id": "Q03",
+      "response_sha256": "e8a2cde1e34b82f6198885b6f7e621935b06dc3a4e5e5bfbb2ea1441db66cf04",
+      "strict_json_pass": true,
+      "json_error": null,
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": true
+    },
+    {
+      "id": "Q04",
+      "response_sha256": "caf3ecad20ea5aa1da0989f4831c401e4cbbdb2b5de0ab63f301300da0e4cf19",
+      "strict_json_pass": true,
+      "json_error": null,
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": true
+    },
+    {
+      "id": "Q05",
+      "response_sha256": "b815f4706de61dc0a0d2808af00b5923f7b44812637d36f83f099d0a063e1566",
+      "strict_json_pass": false,
+      "json_error": "Expecting value; line 1, column 1",
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": false
+    },
+    {
+      "id": "Q06",
+      "response_sha256": "2452be4fe2da03207ef7383efe00a8984226391768001d91d6b5865e6fbfcd77",
+      "strict_json_pass": true,
+      "json_error": null,
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": true
+    }
+  ]
+}

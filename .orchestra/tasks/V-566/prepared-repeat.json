@@ -1,0 +1,16 @@
+{
+  "names": [
+    "astra-before-r2",
+    "astra-after-r2"
+  ],
+  "doc_hashes": {
+    "docs/mobile-icon.md": "ef1860041ff46da8fea1d58bab3b5a5fbf563a3821e50a281021cd8ddfa929dc",
+    "docs/office-move.md": "d42acaf7ef9f40220ef83e8a58593e831358682a29b2ca60a0e66f8bb1fe910f",
+    "docs/export-checks.md": "3e1dbea45828f9925f967551f37ea466fcc6f54a1a61724fe48cd80535c7429d",
+    "docs/translation.md": "e0d22fb81e33e995da33a3c681be30e31d9eab9f807a0f9af1d38b6fe93b7d5e",
+    "docs/cafeteria.md": "04ffb7adc24554221c875f3a82e48bfa49b556546a17393bbfc74d12c9c94507",
+    "docs/beta-launch.md": "49f31549d5326467178a33dfb4ab4c8521d06f6800ecb909e41066dc2bc5e478"
+  },
+  "created_at": 1789277454.9934316,
+  "paid_calls_dispatched": false
+}

@@ -1,0 +1,68 @@
+{
+  "distinct_body_documents": 2,
+  "irrelevant_body_documents": 0,
+  "body_exposures": 3,
+  "repeats_after_complete": 1,
+  "matched_source_utf8_bytes": 2510,
+  "evidence": [
+    {
+      "call_id": "item_1",
+      "document": "beta-launch.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": true,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 875
+    },
+    {
+      "call_id": "item_2",
+      "document": "export-checks.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": true,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "duplicate_line_occurrences_in_call": 1,
+      "matched_source_utf8_bytes": 1113
+    },
+    {
+      "call_id": "item_2",
+      "document": "beta-launch.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": true,
+      "matched_lines": [
+        2,
+        3,
+        4,
+        5
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 522
+    }
+  ],
+  "interpretation": "Matched delivered source-line occurrences (without prefixes/newlines); repeats_after_complete counts cross-invocation repeats; duplicate fragments within one invocation are separate. Unfamiliar paraphrases/truncation are not inferred as full reads."
+}

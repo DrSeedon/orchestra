@@ -1,0 +1,82 @@
+[
+  {
+    "name": "astra-after-r1",
+    "completion": "exited",
+    "total_tokens": 43153,
+    "cost_usd": 0.200826,
+    "completed_actions": 2,
+    "distinct_body_documents": 2,
+    "irrelevant_body_documents": 0,
+    "structural_pass": true
+  },
+  {
+    "name": "astra-after-r2",
+    "completion": "exited",
+    "total_tokens": 43180,
+    "cost_usd": 0.120104,
+    "completed_actions": 2,
+    "distinct_body_documents": 2,
+    "irrelevant_body_documents": 0,
+    "structural_pass": true
+  },
+  {
+    "name": "astra-before-r1",
+    "completion": "exited",
+    "total_tokens": 43160,
+    "cost_usd": 0.16348,
+    "completed_actions": 2,
+    "distinct_body_documents": 2,
+    "irrelevant_body_documents": 0,
+    "structural_pass": true
+  },
+  {
+    "name": "astra-before-r2",
+    "completion": "exited",
+    "total_tokens": 43146,
+    "cost_usd": 0.119284,
+    "completed_actions": 2,
+    "distinct_body_documents": 2,
+    "irrelevant_body_documents": 0,
+    "structural_pass": true
+  },
+  {
+    "name": "luna-after-r1",
+    "completion": "exited",
+    "total_tokens": 36033,
+    "cost_usd": 0.0029505600000000005,
+    "completed_actions": 2,
+    "distinct_body_documents": 2,
+    "irrelevant_body_documents": 0,
+    "structural_pass": true
+  },
+  {
+    "name": "luna-before-r1",
+    "completion": "exited",
+    "total_tokens": 50153,
+    "cost_usd": 0.0047131199999999995,
+    "completed_actions": 6,
+    "distinct_body_documents": 6,
+    "irrelevant_body_documents": 4,
+    "structural_pass": true
+  },
+  {
+    "name": "opus-after-r1",
+    "completion": "exited",
+    "total_tokens": 31447,
+    "cost_usd": 0.11265700000000001,
+    "completed_actions": 5,
+    "distinct_body_documents": 6,
+    "irrelevant_body_documents": 4,
+    "structural_pass": false
+  },
+  {
+    "name": "opus-before-r1",
+    "completion": "exited",
+    "total_tokens": 39171,
+    "cost_usd": 0.155168,
+    "completed_actions": 6,
+    "distinct_body_documents": 6,
+    "irrelevant_body_documents": 4,
+    "structural_pass": false
+  }
+]
