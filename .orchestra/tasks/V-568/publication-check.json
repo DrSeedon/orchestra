@@ -1,0 +1,43 @@
+{
+  "scanned_files": [
+    ".orchestra/kb/models-and-quotas.md",
+    ".orchestra/tasks/V-568/.gitignore",
+    ".orchestra/tasks/V-568/active-sessions.json",
+    ".orchestra/tasks/V-568/analyze_wire.py",
+    ".orchestra/tasks/V-568/capture.py",
+    ".orchestra/tasks/V-568/dispatch-audit.json",
+    ".orchestra/tasks/V-568/duplicate-exposure.json",
+    ".orchestra/tasks/V-568/experiment-protocol.json",
+    ".orchestra/tasks/V-568/experiment-results.json",
+    ".orchestra/tasks/V-568/experiment.log",
+    ".orchestra/tasks/V-568/experiment.py",
+    ".orchestra/tasks/V-568/external-sources.json",
+    ".orchestra/tasks/V-568/finalize.log",
+    ".orchestra/tasks/V-568/finalize.py",
+    ".orchestra/tasks/V-568/json-minification.json",
+    ".orchestra/tasks/V-568/live-cli-metadata.json",
+    ".orchestra/tasks/V-568/mock_mcp.py",
+    ".orchestra/tasks/V-568/plan.md",
+    ".orchestra/tasks/V-568/profile.json",
+    ".orchestra/tasks/V-568/profile.py",
+    ".orchestra/tasks/V-568/publication-check.json",
+    ".orchestra/tasks/V-568/research.md",
+    ".orchestra/tasks/V-568/role-segments.json",
+    ".orchestra/tasks/V-568/turn-census.json",
+    ".orchestra/tasks/V-568/turns.py",
+    ".orchestra/tasks/V-568/usage-tests.log",
+    ".orchestra/tasks/V-568/verification.json",
+    ".orchestra/tasks/V-568/wire-analysis.json",
+    ".orchestra/tasks/V-568/wire-check.log"
+  ],
+  "flagged_files": [
+    ".orchestra/tasks/V-568/capture.py",
+    ".orchestra/tasks/V-568/experiment.py"
+  ],
+  "manual_adjudication": {
+    "capture.py": "Only v568-local-dummy, a deliberately non-working loopback-only key; no provider credential.",
+    "experiment.py": "Only the Python expression assigning token from json.loads(...), not a literal credential value. OAuth header is not saved."
+  },
+  "raw_directory_gitignored": true,
+  "result": "PASS after inspection of two source-code false positives"
+}

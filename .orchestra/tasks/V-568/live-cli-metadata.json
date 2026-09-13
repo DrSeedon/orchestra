@@ -1,0 +1,28 @@
+[
+  {
+    "pid": 4155462,
+    "flags": [
+      "--output-format",
+      "--verbose",
+      "--system-prompt",
+      "--max-turns",
+      "--disallowedTools",
+      "--model",
+      "--permission-prompt-tool",
+      "--permission-mode",
+      "--resume",
+      "--mcp-config",
+      "--include-partial-messages",
+      "--setting-sources=user,project,local",
+      "--effort",
+      "--input-format"
+    ],
+    "prompts": [
+      {
+        "flag": "--system-prompt",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ]
+  }
+]

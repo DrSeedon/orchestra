@@ -1,0 +1,284 @@
+[
+  {
+    "name": "1-before",
+    "rc": 0,
+    "seconds": 3.675706624984741,
+    "is_error": false,
+    "cost_usd": 0.626045,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 62376,
+      "cache_read_input_tokens": 0,
+      "output_tokens": 91,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 62376,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 91,
+        "cacheReadInputTokens": 0,
+        "cacheCreationInputTokens": 62376,
+        "webSearchRequests": 0,
+        "costUSD": 0.626045,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 0,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "output": "{\"A\": \"ALLOW\", \"B\": \"NEED_OWNER\", \"C\": \"NEED_OWNER\", \"D\": \"REJECT\", \"E\": \"ALLOW\", \"F\": \"REJECT\", \"G\": \"NEED_OWNER\", \"H\": \"ALLOW\"}",
+    "correct": true,
+    "requests": 1
+  },
+  {
+    "name": "2-before",
+    "rc": 0,
+    "seconds": 3.3251612186431885,
+    "is_error": false,
+    "cost_usd": 0.033298,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 62376,
+      "output_tokens": 84,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 84,
+        "cacheReadInputTokens": 62376,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.033298,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 0,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "output": "{\"A\":\"ALLOW\",\"B\":\"NEED_OWNER\",\"C\":\"NEED_OWNER\",\"D\":\"REJECT\",\"E\":\"ALLOW\",\"F\":\"REJECT\",\"G\":\"NEED_OWNER\",\"H\":\"ALLOW\"}",
+    "correct": true,
+    "requests": 1
+  },
+  {
+    "name": "3-after",
+    "rc": 0,
+    "seconds": 3.689316511154175,
+    "is_error": false,
+    "cost_usd": 0.1150055,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 10027,
+      "cache_read_input_tokens": 24901,
+      "output_tokens": 91,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 10027,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 91,
+        "cacheReadInputTokens": 24901,
+        "cacheCreationInputTokens": 10027,
+        "webSearchRequests": 0,
+        "costUSD": 0.1150055,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 0,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "output": "{\"A\": \"ALLOW\", \"B\": \"NEED_OWNER\", \"C\": \"NEED_OWNER\", \"D\": \"REJECT\", \"E\": \"ALLOW\", \"F\": \"REJECT\", \"G\": \"NEED_OWNER\", \"H\": \"ALLOW\"}",
+    "correct": true,
+    "requests": 1
+  },
+  {
+    "name": "4-after",
+    "rc": 0,
+    "seconds": 2.531378746032715,
+    "is_error": false,
+    "cost_usd": 0.019749,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 34928,
+      "output_tokens": 91,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 91,
+        "cacheReadInputTokens": 34928,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.019749,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 0,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "output": "{\"A\": \"ALLOW\", \"B\": \"NEED_OWNER\", \"C\": \"NEED_OWNER\", \"D\": \"REJECT\", \"E\": \"ALLOW\", \"F\": \"REJECT\", \"G\": \"NEED_OWNER\", \"H\": \"ALLOW\"}",
+    "correct": true,
+    "requests": 1
+  },
+  {
+    "name": "5-before",
+    "rc": 0,
+    "seconds": 2.905853271484375,
+    "is_error": false,
+    "cost_usd": 0.033473,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 62376,
+      "output_tokens": 91,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 91,
+        "cacheReadInputTokens": 62376,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.033473,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 0,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "output": "{\"A\": \"ALLOW\", \"B\": \"NEED_OWNER\", \"C\": \"NEED_OWNER\", \"D\": \"REJECT\", \"E\": \"ALLOW\", \"F\": \"REJECT\", \"G\": \"NEED_OWNER\", \"H\": \"ALLOW\"}",
+    "correct": true,
+    "requests": 1
+  },
+  {
+    "name": "6-after",
+    "rc": 0,
+    "seconds": 3.1235740184783936,
+    "is_error": false,
+    "cost_usd": 0.019574,
+    "usage": {
+      "input_tokens": 2,
+      "cache_creation_input_tokens": 0,
+      "cache_read_input_tokens": 34928,
+      "output_tokens": 84,
+      "output_tokens_details": {
+        "thinking_tokens": 0
+      },
+      "server_tool_use": {
+        "web_search_requests": 0,
+        "web_fetch_requests": 0
+      },
+      "service_tier": "standard",
+      "cache_creation": {
+        "ephemeral_1h_input_tokens": 0,
+        "ephemeral_5m_input_tokens": 0
+      },
+      "inference_geo": "not_available",
+      "iterations": [],
+      "speed": "standard"
+    },
+    "modelUsage": {
+      "claude-opus-5[1m]": {
+        "inputTokens": 2,
+        "outputTokens": 84,
+        "cacheReadInputTokens": 34928,
+        "cacheCreationInputTokens": 0,
+        "webSearchRequests": 0,
+        "costUSD": 0.019574,
+        "contextWindow": 1000000,
+        "maxOutputTokens": 64000,
+        "thinkingTokens": 0,
+        "canonicalModel": "claude-opus-5",
+        "provider": "firstParty",
+        "costBasis": "list"
+      }
+    },
+    "output": "{\"A\":\"ALLOW\",\"B\":\"NEED_OWNER\",\"C\":\"NEED_OWNER\",\"D\":\"REJECT\",\"E\":\"ALLOW\",\"F\":\"REJECT\",\"G\":\"NEED_OWNER\",\"H\":\"ALLOW\"}",
+    "correct": true,
+    "requests": 1
+  }
+]

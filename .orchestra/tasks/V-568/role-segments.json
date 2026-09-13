@@ -1,0 +1,91 @@
+{
+  "bytes": 71223,
+  "segments": [
+    {
+      "tag": "platform",
+      "bytes": 2201,
+      "sha256": "bc00d481e5da5fc5b0e30424b924163b278f460e2e7ded1155422c53c562b397"
+    },
+    {
+      "tag": "mcp-tools",
+      "bytes": 526,
+      "sha256": "46f039d536eb9479e378e9e3810be50671993ad20e9acbbcb979758495ffd2b9"
+    },
+    {
+      "tag": "background-jobs",
+      "bytes": 1662,
+      "sha256": "e996283e6743ba40ff6b827ad2830c2b77394cf06b704ab8ef2f0bdf0f190608"
+    },
+    {
+      "tag": "rules",
+      "bytes": 652,
+      "sha256": "4ca30fd836f0a70a4a04259136af82365be5d39378c9eb1a1c7fe8af28bdc219"
+    },
+    {
+      "tag": "rules",
+      "bytes": 423,
+      "sha256": "fd65b2598bbb66470a6c43b37f5ee0bbd6b52d9f308c4b83e40316c8d1ab51ed"
+    },
+    {
+      "tag": "artifact-skill",
+      "bytes": 510,
+      "sha256": "797607b5ac5ec89191859c7b53276732a2ade6940e2b567cdd9f29ca8b45703c"
+    },
+    {
+      "tag": "role",
+      "bytes": 8224,
+      "sha256": "f110e6c3f1b3a9e791dc853bedd1ada79c9548105391c519866ba6745bb29a5f"
+    },
+    {
+      "tag": "model-routing",
+      "bytes": 7325,
+      "sha256": "6a377545f70a5377011b17cf18250aa2a73b3b8eb6ec5493efc5be135b913c13"
+    },
+    {
+      "tag": "git-workflow",
+      "bytes": 1945,
+      "sha256": "bd3f33a0524e9deb3893a1eff2d78e87f7d3eee501b5cb568a1e1462dab1bdb9"
+    },
+    {
+      "tag": "orchestration",
+      "bytes": 19779,
+      "sha256": "b6691ff582e3de75bcae3e04d6feb464f39737e44077364b49f31d29d594d2e6"
+    },
+    {
+      "tag": "worker-lifecycle",
+      "bytes": 3222,
+      "sha256": "6510b85d0ceadba431a1a2cdc31ee3d240b187f78b60a38240f0b8ef8fd9779c"
+    },
+    {
+      "tag": "background-jobs",
+      "bytes": 2318,
+      "sha256": "e6f46aec8a4e36bae73d4e7c7009189292d9ed1c71ee421f688d5a6723c056ae"
+    },
+    {
+      "tag": "task-management",
+      "bytes": 1831,
+      "sha256": "35d1a170189fa27019c99448111f7ca3b861d57ff75574cc83c0cdce9be4209f"
+    },
+    {
+      "tag": "knowledge",
+      "bytes": 3599,
+      "sha256": "3700b9c6362530062d94008ed9833e88b6b2e1e65a400dc5ed2457a7fb68ba1d"
+    },
+    {
+      "tag": "communication-style",
+      "bytes": 3637,
+      "sha256": "c38c2cf60eb61995a927961d39b2e2e45bfeab50185b6ab36449019d3e714879"
+    },
+    {
+      "tag": "user-values",
+      "bytes": 4236,
+      "sha256": "1111772d2dd8931c5df44245fc44b5da04f5f03d149edfcbb4537e3f6102b248"
+    },
+    {
+      "tag": "worker-memory",
+      "bytes": 1543,
+      "sha256": "bf1c35be2115d81b3400a2b88d29704466261a275f81b920931c2467350acf79"
+    }
+  ],
+  "untagged_bytes": 7590
+}

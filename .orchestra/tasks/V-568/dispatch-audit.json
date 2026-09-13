@@ -1,0 +1,91 @@
+{
+  "method": "Random(568).sample from 715 dispatch-labelled turns; inspection of selected assistant text and named tool inputs; NOT a measurement of necessary model capability. Four not fully adjudicated remain unknown, not simple.",
+  "sample_size": 12,
+  "judgment_observed": 8,
+  "rows": [
+    {
+      "usage_id": 10408,
+      "category": "judgment_observed",
+      "reason": "Corrects own mistaken inference from images.",
+      "log_first": 323585,
+      "log_last": 323606
+    },
+    {
+      "usage_id": 9716,
+      "category": "judgment_observed",
+      "reason": "Evaluates numerical evidence and chooses a quality tradeoff.",
+      "log_first": 308401,
+      "log_last": 308418
+    },
+    {
+      "usage_id": 10822,
+      "category": "not_adjudicated",
+      "reason": "",
+      "log_first": 335672,
+      "log_last": 335687
+    },
+    {
+      "usage_id": 10635,
+      "category": "not_adjudicated",
+      "reason": "",
+      "log_first": 330361,
+      "log_last": 330370
+    },
+    {
+      "usage_id": 9623,
+      "category": "not_adjudicated",
+      "reason": "",
+      "log_first": 306205,
+      "log_last": 306263
+    },
+    {
+      "usage_id": 8868,
+      "category": "judgment_observed",
+      "reason": "Changes validation method after prior tests missed visual failures.",
+      "log_first": 291844,
+      "log_last": 291857
+    },
+    {
+      "usage_id": 9825,
+      "category": "not_adjudicated",
+      "reason": "",
+      "log_first": 310895,
+      "log_last": 310928
+    },
+    {
+      "usage_id": 8511,
+      "category": "judgment_observed",
+      "reason": "Accepts test evidence and designs next cross-product investigation.",
+      "log_first": 285346,
+      "log_last": 285369
+    },
+    {
+      "usage_id": 9805,
+      "category": "judgment_observed",
+      "reason": "Prioritizes task meaning over decorative content.",
+      "log_first": 310481,
+      "log_last": 310508
+    },
+    {
+      "usage_id": 9994,
+      "category": "judgment_observed",
+      "reason": "Derives output requirements, identifies resolution risk and authorization boundary.",
+      "log_first": 314085,
+      "log_last": 314090
+    },
+    {
+      "usage_id": 9278,
+      "category": "judgment_observed",
+      "reason": "Distinguishes competing failure mechanisms and supplies conditional recovery choices.",
+      "log_first": 299714,
+      "log_last": 299725
+    },
+    {
+      "usage_id": 9933,
+      "category": "judgment_observed",
+      "reason": "Defines acceptance limits and challenges an unverified launcher change.",
+      "log_first": 313107,
+      "log_last": 313118
+    }
+  ]
+}

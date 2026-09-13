@@ -1,0 +1,14 @@
+{
+  "all_six_outputs_correct": true,
+  "actual_model_requests": 6,
+  "sum_total_cost_usd": 0.8471445,
+  "input_token_reduction": 27448,
+  "warm_cost_before_mean": 0.0333855,
+  "warm_cost_after_mean": 0.0196615,
+  "same_output_transition_penalty": 0.0815325,
+  "same_output_warm_saving": 0.013724000000000004,
+  "estimated_duplicate_exposure_bytes": 21764820,
+  "conditional_57_session_penalty": 4.647352499999999,
+  "conditional_58_session_penalty": 4.728885,
+  "conditional_28_session_penalty": 2.2829099999999998
+}

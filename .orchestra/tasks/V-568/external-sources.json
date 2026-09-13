@@ -1,0 +1,36 @@
+{
+  "retrieved_date": "2026-09-13",
+  "sources": [
+    {
+      "url": "https://github.com/donvito/codex-astra-luna-orchestrator",
+      "opened": "README, Plus/Pro table and configurations",
+      "findings": {
+        "Plus_orchestrator": "Luna max",
+        "Pro_orchestrator": "Astra medium",
+        "reviewer": "Astra low",
+        "concurrency": 4
+      }
+    },
+    {
+      "url": "https://neocognition.io/blog/apprentice-bench/",
+      "bundle_url": "https://neocognition.io/assets/index-BhJAP4UZ.js",
+      "bundle_sha256": "9713e90ca96e2066b9805668a7635641377fb9a904694806c4f550a90d7c5918",
+      "bundle_bytes": 1012857,
+      "Luna_GUI_score": 7,
+      "Luna_API_score": 13,
+      "Luna_GUI_cost_per_task": 0.77,
+      "Luna_API_cost_per_task": 0.16,
+      "learning_ablation_scores": [
+        11,
+        31,
+        35,
+        43
+      ],
+      "limitation": "Configuration-level scores on one accounts-payable job, not Orchestra."
+    },
+    {
+      "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "opened": "Prefix order tools/system/messages and cache TTL; API documentation does not establish subscription pool tariff."
+    }
+  ]
+}
