@@ -727,6 +727,12 @@
   ]
  ],
  [
+  "/charts/{filename:path}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/docs",
   [
    "GET",

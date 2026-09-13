@@ -1052,7 +1052,7 @@ def _open_tool_fixture_page(browser: Browser) -> Page:
 def test_photo_batch_renders_as_compact_expandable_gallery(
     dashboard_browser: Browser,
 ):
-    page = _open_tool_fixture_page(dashboard_browser)
+    page = dashboard_browser.new_page()
     page.route(
         "**/api/files/raw?**",
         lambda route: route.fulfill(
@@ -1146,6 +1146,85 @@ def _route_frontend_sources(page: Page, source_path: Path | None = None) -> None
         "**/static/css/style.css*",
         lambda route: route.fulfill(status=200, content_type="text/css", body=style),
     )
+
+
+@pytest.mark.parametrize("compact", [False, True])
+def test_send_chart_result_renders_image_and_keeps_delivery_receipt(
+    dashboard_browser: Browser,
+    compact: bool,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+    page.route(
+        "**/static/js/chat.js*",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/javascript",
+            body=chat_source,
+        ),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => !document.querySelector('.chat-load-state')")
+    page.evaluate(
+        "([compact]) => { window.compactMode = compact; document.querySelector('#chat').innerHTML = ''; }",
+        [compact],
+    )
+    def serve_chart(route):
+        if route.request.url.endswith("/charts/report.png"):
+            route.fulfill(
+                status=200,
+                content_type="image/png",
+                body=base64.b64decode(
+                    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+                    "+AAAAAYAAjCB0C8AAAAASUVORK5CYII="
+                ),
+            )
+        else:
+            route.abort()
+
+    page.route("**/charts/**", serve_chart)
+    tool = (
+        'mcp__orchestra__send_chart: '
+        '{"kind":"bars","title":"Вес ответа","data":{}}'
+    )
+    result = (
+        "File accepted; event_id=chart-event-1; state=QUEUED | "
+        "chart: /srv/orchestra/data/charts/report.png"
+    )
+    invalid_result = (
+        "File accepted; event_id=chart-event-2; state=QUEUED | "
+        "chart: /srv/orchestra/data/charts/report.txt"
+    )
+    missing_result = (
+        "File accepted; event_id=chart-event-3; state=QUEUED | "
+        "chart: /srv/orchestra/data/charts/missing.png"
+    )
+    page.evaluate(
+        "([tool, result, invalidResult, missingResult]) => {"
+        "addChatEntry('tool', tool, null, null, {tool_use_id: 'chart-call-1'});"
+        "addChatEntry('tool_result', result, null, null, {tool_use_id: 'chart-call-1'});"
+        "addChatEntry('tool', tool, null, null, {tool_use_id: 'chart-call-2'});"
+        "addChatEntry('tool_result', invalidResult, null, null, {tool_use_id: 'chart-call-2'});"
+        "addChatEntry('tool', tool, null, null, {tool_use_id: 'chart-call-3'});"
+        "addChatEntry('tool_result', missingResult, null, null, {tool_use_id: 'chart-call-3'});"
+        "}",
+        [tool, result, invalid_result, missing_result],
+    )
+
+    image = page.locator("#chat img[alt='Chart']")
+    expect(image).to_have_count(1)
+    assert "/charts/report.png" in (image.get_attribute("src") or "")
+    assert "?t=" not in (image.get_attribute("src") or "")
+    warnings = page.locator("#chat [data-role='chart-status']")
+    expect(warnings).to_have_count(2)
+    warning_text = warnings.all_text_contents()
+    assert "/srv/orchestra/data/charts/report.txt" in warning_text[0]
+    assert "/srv/orchestra/data/charts/missing.png" in warning_text[1]
+    body = page.locator("#chat").inner_text()
+    assert "event_id=chart-event-1" in body
+    assert "/srv/orchestra/data/charts/report.png" not in body
+    page.close()
 
 
 def test_user_message_renders_display_only_payload_without_durable_timestamp(

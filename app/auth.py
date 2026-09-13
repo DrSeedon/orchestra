@@ -100,6 +100,8 @@ def requires_auth(path: str, method: str) -> bool:
         return False
     if path.startswith("/uploads/"):
         return True
+    if path.startswith("/charts/"):
+        return True
     from app.artifacts import is_public_artifact_request
     if is_public_artifact_request(path, method):
         return False
