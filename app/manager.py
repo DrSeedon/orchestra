@@ -183,6 +183,9 @@ from app.runtime_env import MCP_BASE_ENV, MCP_STDIO_CMD  # noqa: F401 — re-exp
 COLOR_PALETTE = [
     "#818cf8", "#34d399", "#f97316", "#38bdf8", "#f472b6",
     "#a78bfa", "#fbbf24", "#2dd4bf", "#fb7185", "#4ade80",
+    "#60a5fa", "#c084fc", "#facc15", "#22d3ee", "#fb923c",
+    "#f87171", "#a3e635", "#e879f9", "#67e8f9", "#93c5fd",
+    "#86efac", "#fca5a5", "#fde68a", "#5eead4",
 ]
 
 
@@ -754,7 +757,7 @@ class SessionManager:
             system_prompt=prompt, prompt_overlay=prompt_overlay, role=role,
             parent_id=parent_id, parent_name=parent_name,
             pipeline=pipeline, profile=profile,
-            color="" if is_orch else self._pick_color(),
+            color="" if is_orch else self._pick_color(scope),
             mcp_servers=_make_mcp_config(name, scope, role, parent_name=parent_name,
                                          extra=custom_mcp, session_id=session_id,
                                          pipeline=pipeline, disabled_tools=disabled_tools),
@@ -2011,7 +2014,9 @@ class SessionManager:
             parent_name=db_row.get("parent_name", ""),
             pipeline=pipeline,
             profile=db_row.get("profile", ""),
-            color="" if is_orch else (db_row.get("color") or self._pick_color()),
+            color="" if is_orch else (
+                db_row.get("color") or self._pick_color(db_row["scope"])
+            ),
             mcp_servers=_make_mcp_config(db_row["name"], db_row["scope"], role,
                                          parent_name=db_row.get("parent_name", ""),
                                          extra=custom_mcp, session_id=db_row["id"], pipeline=pipeline,
@@ -2280,18 +2285,92 @@ class SessionManager:
         db_row = get_session_by_name(name, scope)
         return db_row["id"] if db_row else None
 
-    def _pick_color(self) -> str:
-        # Check both in-memory sessions AND DB to avoid duplicates on concurrent spawn / resume
-        used = {s.color for s in self.sessions.values() if s.color}
-        for row in get_all_sessions():
-            if row.get("color"):
-                used.add(row["color"])
-        for c in COLOR_PALETTE:
-            if c not in used:
-                return c
+    def _pick_color(self, scope: str | None = None) -> str:
+        # Check both in-memory sessions AND DB to avoid duplicates on concurrent spawn / resume.
+        colors = self._live_worker_colors(scope)
+        used = set(colors)
+        for color in COLOR_PALETTE:
+            if color not in used:
+                return color
         from collections import Counter
-        counts = Counter(used)
-        return min(COLOR_PALETTE, key=lambda c: counts.get(c, 0))
+        counts = Counter(colors)
+        return min(COLOR_PALETTE, key=lambda color: (counts[color], COLOR_PALETTE.index(color)))
+
+    def _live_worker_colors(self, scope: str | None = None) -> list[str]:
+        """Return one color per live worker, optionally limited to one project."""
+        rows_by_id = {
+            row["id"]: row
+            for row in get_all_sessions()
+            if row.get("status") != "archived"
+            and not bool(row.get("is_orchestrator"))
+            and (scope is None or row.get("scope") == scope)
+        }
+        for session in self.sessions.values():
+            if session.is_orchestrator or (scope is not None and session.scope != scope):
+                continue
+            rows_by_id.setdefault(session.id, {"color": session.color})
+        return [row["color"] for row in rows_by_id.values() if row.get("color")]
+
+    def reconcile_live_colors(self) -> None:
+        """Reassign live worker colors evenly within each project and persist them."""
+        from collections import Counter, defaultdict
+        from app.db import _conn
+
+        rows_by_id = {
+            row["id"]: row
+            for row in get_all_sessions()
+            if row.get("status") != "archived"
+            and not bool(row.get("is_orchestrator"))
+        }
+        for session in self.sessions.values():
+            if session.is_orchestrator:
+                continue
+            rows_by_id.setdefault(session.id, {
+                "id": session.id,
+                "scope": session.scope,
+                "created_at": session.created_at.isoformat(),
+                "color": session.color,
+            })
+
+        by_scope = defaultdict(list)
+        for row in rows_by_id.values():
+            by_scope[row.get("scope") or ""].append(row)
+        assignments = {}
+        for scope_rows in by_scope.values():
+            counts = Counter()
+            for row in sorted(scope_rows, key=lambda item: (
+                item.get("created_at") or "", item["id"],
+            )):
+                color = min(
+                    COLOR_PALETTE,
+                    key=lambda candidate: (counts[candidate], COLOR_PALETTE.index(candidate)),
+                )
+                assignments[row["id"]] = color
+                counts[color] += 1
+
+        with _conn() as connection:
+            if assignments:
+                connection.executemany(
+                    "UPDATE sessions SET color=? WHERE id=? AND status != 'archived' "
+                    "AND is_orchestrator=0",
+                    [(color, session_id) for session_id, color in assignments.items()],
+                )
+            connection.execute(
+                "UPDATE sessions SET color='' WHERE status != 'archived' "
+                "AND is_orchestrator=1",
+            )
+        for session in self.sessions.values():
+            if session.is_orchestrator:
+                session.color = ""
+                if session.db_row is not None:
+                    session.db_row["color"] = ""
+                continue
+            color = assignments.get(session.id)
+            if color is None:
+                continue
+            session.color = color
+            if session.db_row is not None:
+                session.db_row["color"] = color
 
     def stats(self, scope: str | None = None) -> dict:
         return get_stats(scope)
@@ -2300,6 +2379,7 @@ class SessionManager:
 
 
     async def auto_resume_all(self) -> None:
+        self.reconcile_live_colors()
         from app.db import _conn
         with _conn() as c:
             # 'interrupted' — graceful shutdown успел пометить оборванный ход;
