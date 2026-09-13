@@ -1,0 +1,13 @@
+{
+  "external_sources_unchanged": true,
+  "git_and_archive_verbatim": true,
+  "personality_pointer_preserved": true,
+  "single_personal_source_symlink": true,
+  "ledger_all_nonempty_source_lines": true,
+  "proposed_bytes": {
+    "global-claude.md": 4495,
+    "global-codex.md": 4495,
+    "mcp-websearch-models.md": 1261
+  },
+  "secret_shape_scan": true
+}
