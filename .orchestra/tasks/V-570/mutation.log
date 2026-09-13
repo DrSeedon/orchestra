@@ -1,0 +1,29 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_ TestDefaultRolesResolve.test_shared_project_rules_are_delivered_once_to_their_readers[safety-readers0] _
+
+self = <tests.test_default_pipeline.TestDefaultRolesResolve object at 0x75e0a41a7770>
+module_name = 'safety'
+readers = {'full-cycle', 'orchestrator', 'reducer', 'sub-orchestrator', 'worker'}
+
+    @pytest.mark.parametrize("module_name,readers", [
+        ("safety", {"orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"}),
+        ("project-maintenance", {"orchestrator", "sub-orchestrator", "worker", "full-cycle"}),
+    ])
+    def test_shared_project_rules_are_delivered_once_to_their_readers(self, module_name, readers):
+        """Missing routing leaves a role without filesystem or maintenance rules."""
+        module = P.prompt_path(PIPELINE, f"modules/{module_name}.md").read_text().strip()
+        assert module
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            out = P.build_system_prompt(PIPELINE, role)
+>           assert out.count(module) == int(role in readers), (module_name, role)
+E           AssertionError: ('safety', 'orchestrator')
+E           assert 0 == 1
+E            +  where 0 = <built-in method count of str object at 0x35882610>("<safety>\n## Files, privileges and irreversible actions\n\n- Never use `rm -rf` or `rm -r`; use `trash` or `rm -i`. I... the project's current deployment inventory; do not guess the\nhost, account or port from historical notes.\n</safety>")
+E            +    where <built-in method count of str object at 0x35882610> = '<platform>\nYou are an AI agent running inside Orchestra — a multi-agent orchestration platform.\n\n**Communication.*...t when its cost exceeds its protective value and cannot cite his own\n  wording as external authority.\n</user-values>'.count
+E            +  and   1 = int('orchestrator' in {'full-cycle', 'orchestrator', 'reducer', 'sub-orchestrator', 'worker'})
+
+tests/test_default_pipeline.py:166: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_default_pipeline.py::TestDefaultRolesResolve::test_shared_project_rules_are_delivered_once_to_their_readers[safety-readers0]
+1 failed, 1 passed in 5.63s

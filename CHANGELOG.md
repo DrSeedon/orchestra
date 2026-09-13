@@ -4,6 +4,15 @@
 > their CHANGELOGs independently, so versions 2.31.0-2.33.0 were used TWICE for different
 > content: the VPS block comes first below, followed by the laptop block. Task #52 fixes the format.
 
+## Unreleased
+
+### Changed
+- Общие правила файловой безопасности и ведения документации доставляются модулями
+  safety и project-maintenance из pipeline.yaml. Code-quality подключён всем ролям,
+  которым разрешены изменения проекта. Причина: отдельные managed CODEX_HOME не
+  наследовали обычный глобальный AGENTS.md, поэтому личный файл не обеспечивал
+  одинаковую доставку этих правил разным рантаймам.
+
 ## v2.45.0 — 2026-09-11 — жёсткий стоп пула стал свойством полосы: хвост недели остаётся дешёвой модели
 
 ### Changed

@@ -1,0 +1,26 @@
+{
+  "global-claude.md": {
+    "source": "/home/kesha/.claude/CLAUDE.md",
+    "sha256": "838e0db95f644fe27076447e5d614e9211d0ef94808a380458972b1193d58e40",
+    "bytes": 17625,
+    "lines": 111
+  },
+  "global-codex.md": {
+    "source": "/home/kesha/.codex/AGENTS.md",
+    "sha256": "d17ff1bc0bfc404fc9e5792a0e777571c260f56e9d6ff35aa0f77dec985c5042",
+    "bytes": 13867,
+    "lines": 110
+  },
+  "mcp-websearch-models.md": {
+    "source": "/home/kesha/.claude/docs/mcp-websearch-models.md",
+    "sha256": "fc3ef2c764f23bb185f5e384e5fd755b646114bd9a82016da94a6b23f67e37df",
+    "bytes": 4078,
+    "lines": 59
+  },
+  "repo-agents.md": {
+    "source": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-engineer/AGENTS.md",
+    "sha256": "7ae258b6917ada7f43d0c48856e73bfe57daf9d2d5b6cf184ba9fca0bfd6255a",
+    "bytes": 13460,
+    "lines": 109
+  }
+}

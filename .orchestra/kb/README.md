@@ -8,6 +8,6 @@
 - [chat-and-telegram](chat-and-telegram.md) — page.route и кеш, scroll anchoring, конечный SSE, coalescing без dropped
 - [knowledge-base](knowledge-base.md) — Luna #454: 8/11 и 6/11, отменённое правило как current, пределы оценки
 - [tasks-and-projects](tasks-and-projects.md) — 33 коллизии UUID независимых узлов и расходящийся acceptance-контракт
-- [agent-control](agent-control.md) — Инструкция не доставлена: ошибка до создания сессии в опыте #430
+- [agent-control](agent-control.md) — Инструкция не доставлена: ошибка до создания сессии #430; V-570: глобальный AGENTS вне managed Codex
 - [history](history.md) — Закреплённый Git-снимок исходных исследований и старых материалов
 - [prompt-engineering](prompt-engineering.md) — #77: соблюдение ≠ сохранность; #147: фильтр и триггер; #148/#149: подписка и доставка; #125: пропущенная ветка; V-548/V-550: свобода метода; V-565/V-566: рекомендация для Astra помогла Luna

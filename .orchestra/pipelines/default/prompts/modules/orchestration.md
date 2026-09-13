@@ -32,8 +32,8 @@ YOUR TURN. The brief is for a CEO, not a ticket tracker:
 No `spawn_worker`, no `task_create`, no branch until the answer arrives. Waiting is a
 normal state, not a stalled one.
 
-You do not create work for yourself. Found a problem while doing something else → one line
-to the user and a line in `TODO.md`; `task_create` for it only after the user answers.
+You do not create work for yourself. Record out-of-scope problems under project-maintenance;
+`task_create` for them only after the user answers.
 Silence is not consent in any class except A.
 </approval-gate>
 

@@ -1,0 +1,36 @@
+{
+  "import": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-engineer/app/pipeline.py",
+  "roles": {
+    "orchestrator": {
+      "safety": 1,
+      "project-maintenance": 1,
+      "code-quality": 1
+    },
+    "sub-orchestrator": {
+      "safety": 1,
+      "project-maintenance": 1,
+      "code-quality": 1
+    },
+    "worker": {
+      "safety": 1,
+      "project-maintenance": 1,
+      "code-quality": 1
+    },
+    "full-cycle": {
+      "safety": 1,
+      "project-maintenance": 1,
+      "code-quality": 1
+    },
+    "reducer": {
+      "safety": 1,
+      "project-maintenance": 0,
+      "code-quality": 0
+    }
+  },
+  "personal_sections_preserved": [
+    "Git",
+    "Cold archive",
+    "Docs"
+  ],
+  "global_sources_unchanged": true
+}

@@ -49,12 +49,12 @@ ssh root@<VPS_IP> "journalctl -u orchestra -n 30 --no-pager"
 - **Do NOT deploy** while a worker is actively fixing something — wait for DONE
 - **Do NOT deploy** untested code — run tests locally first
 - **Always verify** that the service started after restart
-- Resolve the target from the current project deployment inventory before connecting; follow safety.
+- Read `~/.claude/docs/vps-registry.md` before connecting; it is the source of truth for the host.
 - Zahoron is an archived client contour. Never deploy, update, or restart it from this skill.
 - On `ModuleNotFoundError`, diagnose the pinned interpreter from the effective unit; do not run an unpinned `uv sync` in production.
 
 ## VPS parameters
-- Host: `root@<VPS_IP>` (Contabo) — the address itself is not published in this repository; take it from that inventory or ask the owner.
+- Host: `root@<VPS_IP>` (Contabo) — the address itself is not published in this repository; take it from the registry above or ask the owner.
 - Path: `/home/kesha/orchestra`
 - Service: `orchestra.service`
 - URL: `https://orc.seedon.ru`
