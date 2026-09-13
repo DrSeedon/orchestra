@@ -45,7 +45,7 @@ integrations: [web-search]
 ## Process Flow
 
 ### Phase 1: Silent Analysis
-Read documents relevant to the plan being challenged. Построить карту:
+Read ALL available docs. Построить карту:
 - Какие утверждения сделаны?
 - Какие доказательства есть?
 - Что принято на веру без проверки?

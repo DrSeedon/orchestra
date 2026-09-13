@@ -1,0 +1,29 @@
+{
+  "blind_source_sha256": "272a0900d3da2d12059ba9597c6189a9a90bd86f977d3bfb32711ef4de39f60e",
+  "blinding": "Before/after assignment and measurements hidden; model Astra known from repeat assignment. No key/measurements/arms read.",
+  "method": "Strict json.loads of entire response; numeric/structural checks plus manual semantic assessment against unchanged V-565 evaluation/fixture.",
+  "results": [
+    {
+      "id": "R01",
+      "response_sha256": "31a579a19a25cfdcbad80306ccfe6533c145435dfaff667edfb169fea291a5d8",
+      "strict_json_pass": true,
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": true
+    },
+    {
+      "id": "R02",
+      "response_sha256": "c458523faf9228327bef8593bf54093d11fbc576bdd7409ce8d4140eaf5c766a",
+      "strict_json_pass": true,
+      "numeric_fields_pass": true,
+      "semantic_pass": true,
+      "unsupported_rollback_guarantee": false,
+      "extra_request_or_wait_in_response": false,
+      "external_actions_checked": false,
+      "response_contract_pass": true
+    }
+  ]
+}
