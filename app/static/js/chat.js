@@ -1782,6 +1782,46 @@ const COMPACT_ORCHESTRA_SIMPLE_TOOLS = new Set([
     'mcp__orchestra__bg_cancel',
 ]);
 
+function _renderSendChartResult(card, content, ts) {
+    const chartResultMatch = content.match(/\s*\|\s*chart:\s*(\/[^\s]+)\s*$/);
+    if (!chartResultMatch) return false;
+    const receipt = content.slice(0, chartResultMatch.index).trimEnd();
+    if (receipt) {
+        const receiptEl = document.createElement('div');
+        receiptEl.className = 'text-xs';
+        receiptEl.style.cssText = 'margin-top:6px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere';
+        receiptEl.textContent = receipt;
+        card.appendChild(receiptEl);
+    }
+    const chartPath = chartResultMatch[1];
+    const filename = chartPath.split('/').pop() || '';
+    const chartStatus = document.createElement('div');
+    chartStatus.className = 'text-xs';
+    chartStatus.dataset.role = 'chart-status';
+    chartStatus.style.cssText = 'margin-top:4px;color:#64748b';
+    if (!/^\S+\.png$/i.test(filename)) {
+        chartStatus.textContent = `⚠️ График недоступен: некорректный файл — ${chartPath}`;
+        card.appendChild(chartStatus);
+    } else {
+        const image = document.createElement('img');
+        image.src = `/charts/${encodeURIComponent(filename)}`;
+        image.alt = 'Chart';
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.style.cssText = 'display:block;margin-top:6px;max-width:100%;max-height:360px;border-radius:8px;border:1px solid rgba(99,102,241,0.2);cursor:pointer';
+        image.addEventListener('click', () => openImageLightbox(image.src));
+        image.addEventListener('error', () => {
+            image.remove();
+            chartStatus.textContent = `⚠️ График недоступен: файл не найден — ${chartPath}`;
+            chartStatus.style.color = '#fbbf24';
+            card.appendChild(chartStatus);
+        }, {once: true});
+        card.appendChild(image);
+    }
+    addTimestamp(card, ts);
+    return true;
+}
+
 function _updateCompactToolResult(card, content, isBase64Image) {
     const resultSpan = card.querySelector('.compact-result');
     if (isBase64Image) {
@@ -1792,6 +1832,11 @@ function _updateCompactToolResult(card, content, isBase64Image) {
 
     const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
     const rawName = card.dataset.toolRaw || '';
+    const isSendChart = rawName === 'mcp__orchestra__send_chart' || rawName === 'send_chart';
+    if (isSendChart && _renderSendChartResult(card, content, null)) {
+        card.dataset.resultContent = content;
+        return;
+    }
     const isTask = COMPACT_TASK_TOOLS.has(rawName);
     const isAgentList = COMPACT_AGENT_LIST_TOOLS.has(rawName);
     if (!resultSpan) {
@@ -2412,6 +2457,15 @@ function _renderFullToolCall(content, payload, div) {
             }
         } catch {}
     }
+    const isSendChart = rawName === 'mcp__orchestra__send_chart' || rawName === 'send_chart';
+    if (isSendChart) {
+        try {
+            const d = JSON.parse(body);
+            header.textContent = `📊 Drawing: ${d.title || 'chart'}`;
+            header.style.color = '#38bdf8';
+            div.dataset.isSendChart = '1';
+        } catch {}
+    }
     const isSendFiles = rawName === 'mcp__orchestra__send_files';
     if (isSendFiles) {
         try {
@@ -2753,7 +2807,7 @@ function _renderFullToolCall(content, payload, div) {
     } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
                !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                !isToolSearchCall && !isBugReport && !isWebFetch &&
-               !isSendFile && !isSendFiles && !isOrchSimple && !isGlob && !isSkill &&
+               !isSendFile && !isSendFiles && !isSendChart && !isOrchSimple && !isGlob && !isSkill &&
                !isFileChangeTool && !isViewImageTool &&
                !isImageGenerationTool && !isSleepTool && !isTodoWrite && !isReviewTool) {
         let _inputJsonRendered = false;
@@ -2938,6 +2992,13 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             addTimestamp(div, ts);
             _insertAndFollow(div);
         }
+        return;
+    }
+    const isSendChart = lastTool &&
+        (lastTool.dataset.toolRawName === 'mcp__orchestra__send_chart' ||
+         lastTool.dataset.toolRawName === 'send_chart');
+    if (isSendChart && _renderSendChartResult(lastTool, content, ts)) {
+        delete lastTool.dataset.lastTool;
         return;
     }
     const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');

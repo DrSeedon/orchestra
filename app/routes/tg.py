@@ -9,9 +9,10 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Form, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 
 from app.events import MessageProvenance
+from app.charts import CHART_DIR
 from app.routes.errors import keyed_auth_required
 from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB
 
@@ -279,6 +280,20 @@ async def serve_upload(filename: str):
     if not path.exists() or not path.is_file():
         return JSONResponse({"error": "not found"}, status_code=404)
     return FileResponse(path, headers={"Content-Disposition": f'attachment; filename="{path.name}"'})
+
+
+@router.get("/charts/{filename:path}")
+async def serve_chart(filename: str):
+    """Serve rendered charts without exposing files outside the chart directory."""
+    root = CHART_DIR.resolve()
+    path = (root / filename).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    if path.suffix.lower() != ".png" or not path.is_file():
+        return JSONResponse({"error": "not found"}, status_code=404)
+    return FileResponse(path, media_type="image/png", headers={"Cache-Control": "private, max-age=3600"})
 
 
 @router.get("/api/tg/delivery-stats")

@@ -26,6 +26,10 @@ def test_api_and_root_require_auth():
     assert requires_auth("/", "GET") is True
 
 
+def test_chart_files_require_auth():
+    assert requires_auth("/charts/report.png", "GET") is True
+
+
 def test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema(monkeypatch):
     monkeypatch.setenv("DASHBOARD_USER", "operator")
     monkeypatch.setenv("DASHBOARD_PASSWORD", "secret")
