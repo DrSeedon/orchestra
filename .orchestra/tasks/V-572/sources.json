@@ -1,0 +1,13 @@
+{
+  "claude": {
+    "path": "/home/kesha/.claude/skills/laptop-access/SKILL.md",
+    "sha256": "9f5b5518d8546cf9ef1fce4dbbefdb462fbbd75d15c11cdb21d4e174fcd8f992",
+    "bytes": 5945,
+    "snapshot_note": "Publication copy masks the literal Bearer placeholder from the old skill. source sha256 remains for the untouched external original."
+  },
+  "agents": {
+    "path": "/home/kesha/.agents/skills/laptop-access/SKILL.md",
+    "sha256": "8d3815cee1f610363391f6ff680332429430b749cf7d66c4e1f2891b33cb1252",
+    "bytes": 2374
+  }
+}
