@@ -1,0 +1,814 @@
+{
+  "native_replay": {
+    "precompact": {
+      "raw_bytes": 4093051,
+      "sha256": "40e17bff60f6dd4ae11748373f4d1332dae673734b33e5979e376f8a5a162ac8",
+      "top_level_values_bytes": {
+        "model": 15,
+        "messages": 4017431,
+        "system": 11476,
+        "tools": 63701,
+        "metadata": 176,
+        "max_tokens": 5,
+        "thinking": 39,
+        "context_management": 59,
+        "output_config": 17,
+        "stream": 4
+      },
+      "top_level_syntax_bytes": 128,
+      "content_node_bytes": {
+        "user/other_text_including_history_and_platform": 198157,
+        "skill_index_with_wrapper": 21136,
+        "assistant/thinking": 720904,
+        "assistant/other_text_including_history_and_platform": 218392,
+        "role_reinjection_with_memory_and_wrappers": 219949,
+        "token_reminder": 32857,
+        "assistant/tool_use": 571947,
+        "user/tool_result": 1673223,
+        "midturn_feedback_and_messages": 21154,
+        "worker_messages": 62925,
+        "repository_instructions_with_wrappers": 139813,
+        "system/other_text_including_history_and_platform": 73386
+      },
+      "messages_envelope_bytes": 63588,
+      "message_count": 2069,
+      "tools": [
+        {
+          "name": "Bash",
+          "bytes": 2753
+        },
+        {
+          "name": "Edit",
+          "bytes": 966
+        },
+        {
+          "name": "EnterWorktree",
+          "bytes": 4027
+        },
+        {
+          "name": "ExitWorktree",
+          "bytes": 2511
+        },
+        {
+          "name": "ListAgents",
+          "bytes": 1159
+        },
+        {
+          "name": "NotebookEdit",
+          "bytes": 1627
+        },
+        {
+          "name": "Read",
+          "bytes": 1640
+        },
+        {
+          "name": "ReportFindings",
+          "bytes": 2181
+        },
+        {
+          "name": "SendMessage",
+          "bytes": 4834
+        },
+        {
+          "name": "Skill",
+          "bytes": 1811
+        },
+        {
+          "name": "TaskOutput",
+          "bytes": 1552
+        },
+        {
+          "name": "TaskStop",
+          "bytes": 805
+        },
+        {
+          "name": "WebFetch",
+          "bytes": 747
+        },
+        {
+          "name": "WebSearch",
+          "bytes": 841
+        },
+        {
+          "name": "Write",
+          "bytes": 639
+        },
+        {
+          "name": "mcp__orchestra__acquire_test_lock",
+          "bytes": 816
+        },
+        {
+          "name": "mcp__orchestra__bg_cancel",
+          "bytes": 228
+        },
+        {
+          "name": "mcp__orchestra__bg_create",
+          "bytes": 2111
+        },
+        {
+          "name": "mcp__orchestra__bg_list",
+          "bytes": 171
+        },
+        {
+          "name": "mcp__orchestra__change_worker_model",
+          "bytes": 337
+        },
+        {
+          "name": "mcp__orchestra__check_conflict",
+          "bytes": 452
+        },
+        {
+          "name": "mcp__orchestra__codex_review",
+          "bytes": 2520
+        },
+        {
+          "name": "mcp__orchestra__compact_worker",
+          "bytes": 471
+        },
+        {
+          "name": "mcp__orchestra__delivery_status",
+          "bytes": 285
+        },
+        {
+          "name": "mcp__orchestra__file_delivery_status",
+          "bytes": 293
+        },
+        {
+          "name": "mcp__orchestra__get_worker_info",
+          "bytes": 293
+        },
+        {
+          "name": "mcp__orchestra__get_worker_logs",
+          "bytes": 288
+        },
+        {
+          "name": "mcp__orchestra__kill_worker",
+          "bytes": 374
+        },
+        {
+          "name": "mcp__orchestra__list_agents",
+          "bytes": 195
+        },
+        {
+          "name": "mcp__orchestra__list_orchestrators",
+          "bytes": 248
+        },
+        {
+          "name": "mcp__orchestra__merge_worker",
+          "bytes": 1963
+        },
+        {
+          "name": "mcp__orchestra__message_delivery_status",
+          "bytes": 295
+        },
+        {
+          "name": "mcp__orchestra__notify_user",
+          "bytes": 2160
+        },
+        {
+          "name": "mcp__orchestra__open_fan",
+          "bytes": 602
+        },
+        {
+          "name": "mcp__orchestra__project_goal",
+          "bytes": 1010
+        },
+        {
+          "name": "mcp__orchestra__project_wait",
+          "bytes": 744
+        },
+        {
+          "name": "mcp__orchestra__publish_artifact",
+          "bytes": 437
+        },
+        {
+          "name": "mcp__orchestra__release_test_lock",
+          "bytes": 311
+        },
+        {
+          "name": "mcp__orchestra__rename_worker",
+          "bytes": 291
+        },
+        {
+          "name": "mcp__orchestra__report_bug",
+          "bytes": 1107
+        },
+        {
+          "name": "mcp__orchestra__resolve_merge_operation",
+          "bytes": 720
+        },
+        {
+          "name": "mcp__orchestra__retry_initial_delivery",
+          "bytes": 413
+        },
+        {
+          "name": "mcp__orchestra__search_memory",
+          "bytes": 515
+        },
+        {
+          "name": "mcp__orchestra__send_chart",
+          "bytes": 2151
+        },
+        {
+          "name": "mcp__orchestra__send_file",
+          "bytes": 975
+        },
+        {
+          "name": "mcp__orchestra__send_files",
+          "bytes": 888
+        },
+        {
+          "name": "mcp__orchestra__send_message",
+          "bytes": 433
+        },
+        {
+          "name": "mcp__orchestra__set_worker_owned_dirs",
+          "bytes": 1536
+        },
+        {
+          "name": "mcp__orchestra__spawn_worker",
+          "bytes": 2677
+        },
+        {
+          "name": "mcp__orchestra__stop_worker",
+          "bytes": 311
+        },
+        {
+          "name": "mcp__orchestra__switch_worker_branch",
+          "bytes": 1005
+        },
+        {
+          "name": "mcp__orchestra__task_create",
+          "bytes": 1297
+        },
+        {
+          "name": "mcp__orchestra__task_create_status",
+          "bytes": 364
+        },
+        {
+          "name": "mcp__orchestra__task_get",
+          "bytes": 324
+        },
+        {
+          "name": "mcp__orchestra__task_list",
+          "bytes": 366
+        },
+        {
+          "name": "mcp__orchestra__task_update",
+          "bytes": 1849
+        },
+        {
+          "name": "mcp__orchestra__test_lock_status",
+          "bytes": 256
+        },
+        {
+          "name": "mcp__orchestra__update_progress",
+          "bytes": 345
+        },
+        {
+          "name": "mcp__orchestra__update_worker_description",
+          "bytes": 381
+        },
+        {
+          "name": "mcp__orchestra__update_worker_prompt",
+          "bytes": 325
+        },
+        {
+          "name": "mcp__orchestra__worker_wip",
+          "bytes": 413
+        }
+      ],
+      "system_blocks": [
+        {
+          "bytes": 99,
+          "text_bytes": 74,
+          "sha256": "7580ed35f44d44875e512f0c401a62d3696a54ca5c5cb7f9608dd04118c2f3d4"
+        },
+        {
+          "bytes": 124,
+          "text_bytes": 62,
+          "sha256": "30d02993d788fda05e0558b10cb5672258e53af7e98350dbca2da249d3571939"
+        },
+        {
+          "bytes": 11249,
+          "text_bytes": 11089,
+          "sha256": "b470d8dd8cc71248bcb351be8559f3b194738454aa407a4e3c42d93a900bffe0"
+        }
+      ],
+      "duplicate_rule_occurrences": [
+        {
+          "sha256": "7ae258b6917ada7f43d0c48856e73bfe57daf9d2d5b6cf184ba9fca0bfd6255a",
+          "text_bytes": 13460,
+          "occurrences": 9
+        },
+        {
+          "sha256": "8ac7443ec10d0fd5425028e239e140811c479a7a65074bec072bd14986867a44",
+          "text_bytes": 16065,
+          "occurrences": 1
+        }
+      ],
+      "skill_exact_matches": [
+        {
+          "bytes": 20024,
+          "occurrences": 1
+        },
+        {
+          "bytes": 1767,
+          "occurrences": 1
+        }
+      ]
+    },
+    "postcompact": {
+      "raw_bytes": 1614425,
+      "sha256": "4fa130c32594f70688c03aa8980023386701e7ce48282375592e4f92f8c1a0e8",
+      "top_level_values_bytes": {
+        "model": 15,
+        "messages": 1538805,
+        "system": 11476,
+        "tools": 63701,
+        "metadata": 176,
+        "max_tokens": 5,
+        "thinking": 39,
+        "context_management": 59,
+        "output_config": 17,
+        "stream": 4
+      },
+      "top_level_syntax_bytes": 128,
+      "content_node_bytes": {
+        "user/other_text_including_history_and_platform": 42667,
+        "assistant/tool_use": 170321,
+        "user/tool_result": 948158,
+        "token_reminder": 12389,
+        "assistant/thinking": 194552,
+        "assistant/other_text_including_history_and_platform": 110826,
+        "worker_messages": 28496,
+        "midturn_feedback_and_messages": 4798,
+        "system/other_text_including_history_and_platform": 176,
+        "skill_index_with_wrapper": 5746
+      },
+      "messages_envelope_bytes": 20676,
+      "message_count": 673,
+      "tools": [
+        {
+          "name": "Bash",
+          "bytes": 2753
+        },
+        {
+          "name": "Edit",
+          "bytes": 966
+        },
+        {
+          "name": "EnterWorktree",
+          "bytes": 4027
+        },
+        {
+          "name": "ExitWorktree",
+          "bytes": 2511
+        },
+        {
+          "name": "ListAgents",
+          "bytes": 1159
+        },
+        {
+          "name": "NotebookEdit",
+          "bytes": 1627
+        },
+        {
+          "name": "Read",
+          "bytes": 1640
+        },
+        {
+          "name": "ReportFindings",
+          "bytes": 2181
+        },
+        {
+          "name": "SendMessage",
+          "bytes": 4834
+        },
+        {
+          "name": "Skill",
+          "bytes": 1811
+        },
+        {
+          "name": "TaskOutput",
+          "bytes": 1552
+        },
+        {
+          "name": "TaskStop",
+          "bytes": 805
+        },
+        {
+          "name": "WebFetch",
+          "bytes": 747
+        },
+        {
+          "name": "WebSearch",
+          "bytes": 841
+        },
+        {
+          "name": "Write",
+          "bytes": 639
+        },
+        {
+          "name": "mcp__orchestra__acquire_test_lock",
+          "bytes": 816
+        },
+        {
+          "name": "mcp__orchestra__bg_cancel",
+          "bytes": 228
+        },
+        {
+          "name": "mcp__orchestra__bg_create",
+          "bytes": 2111
+        },
+        {
+          "name": "mcp__orchestra__bg_list",
+          "bytes": 171
+        },
+        {
+          "name": "mcp__orchestra__change_worker_model",
+          "bytes": 337
+        },
+        {
+          "name": "mcp__orchestra__check_conflict",
+          "bytes": 452
+        },
+        {
+          "name": "mcp__orchestra__codex_review",
+          "bytes": 2520
+        },
+        {
+          "name": "mcp__orchestra__compact_worker",
+          "bytes": 471
+        },
+        {
+          "name": "mcp__orchestra__delivery_status",
+          "bytes": 285
+        },
+        {
+          "name": "mcp__orchestra__file_delivery_status",
+          "bytes": 293
+        },
+        {
+          "name": "mcp__orchestra__get_worker_info",
+          "bytes": 293
+        },
+        {
+          "name": "mcp__orchestra__get_worker_logs",
+          "bytes": 288
+        },
+        {
+          "name": "mcp__orchestra__kill_worker",
+          "bytes": 374
+        },
+        {
+          "name": "mcp__orchestra__list_agents",
+          "bytes": 195
+        },
+        {
+          "name": "mcp__orchestra__list_orchestrators",
+          "bytes": 248
+        },
+        {
+          "name": "mcp__orchestra__merge_worker",
+          "bytes": 1963
+        },
+        {
+          "name": "mcp__orchestra__message_delivery_status",
+          "bytes": 295
+        },
+        {
+          "name": "mcp__orchestra__notify_user",
+          "bytes": 2160
+        },
+        {
+          "name": "mcp__orchestra__open_fan",
+          "bytes": 602
+        },
+        {
+          "name": "mcp__orchestra__project_goal",
+          "bytes": 1010
+        },
+        {
+          "name": "mcp__orchestra__project_wait",
+          "bytes": 744
+        },
+        {
+          "name": "mcp__orchestra__publish_artifact",
+          "bytes": 437
+        },
+        {
+          "name": "mcp__orchestra__release_test_lock",
+          "bytes": 311
+        },
+        {
+          "name": "mcp__orchestra__rename_worker",
+          "bytes": 291
+        },
+        {
+          "name": "mcp__orchestra__report_bug",
+          "bytes": 1107
+        },
+        {
+          "name": "mcp__orchestra__resolve_merge_operation",
+          "bytes": 720
+        },
+        {
+          "name": "mcp__orchestra__retry_initial_delivery",
+          "bytes": 413
+        },
+        {
+          "name": "mcp__orchestra__search_memory",
+          "bytes": 515
+        },
+        {
+          "name": "mcp__orchestra__send_chart",
+          "bytes": 2151
+        },
+        {
+          "name": "mcp__orchestra__send_file",
+          "bytes": 975
+        },
+        {
+          "name": "mcp__orchestra__send_files",
+          "bytes": 888
+        },
+        {
+          "name": "mcp__orchestra__send_message",
+          "bytes": 433
+        },
+        {
+          "name": "mcp__orchestra__set_worker_owned_dirs",
+          "bytes": 1536
+        },
+        {
+          "name": "mcp__orchestra__spawn_worker",
+          "bytes": 2677
+        },
+        {
+          "name": "mcp__orchestra__stop_worker",
+          "bytes": 311
+        },
+        {
+          "name": "mcp__orchestra__switch_worker_branch",
+          "bytes": 1005
+        },
+        {
+          "name": "mcp__orchestra__task_create",
+          "bytes": 1297
+        },
+        {
+          "name": "mcp__orchestra__task_create_status",
+          "bytes": 364
+        },
+        {
+          "name": "mcp__orchestra__task_get",
+          "bytes": 324
+        },
+        {
+          "name": "mcp__orchestra__task_list",
+          "bytes": 366
+        },
+        {
+          "name": "mcp__orchestra__task_update",
+          "bytes": 1849
+        },
+        {
+          "name": "mcp__orchestra__test_lock_status",
+          "bytes": 256
+        },
+        {
+          "name": "mcp__orchestra__update_progress",
+          "bytes": 345
+        },
+        {
+          "name": "mcp__orchestra__update_worker_description",
+          "bytes": 381
+        },
+        {
+          "name": "mcp__orchestra__update_worker_prompt",
+          "bytes": 325
+        },
+        {
+          "name": "mcp__orchestra__worker_wip",
+          "bytes": 413
+        }
+      ],
+      "system_blocks": [
+        {
+          "bytes": 99,
+          "text_bytes": 74,
+          "sha256": "96d463fbb4605eab29a8352353ba91cafce6671214bae681ddc7cc4040ffd5ca"
+        },
+        {
+          "bytes": 124,
+          "text_bytes": 62,
+          "sha256": "30d02993d788fda05e0558b10cb5672258e53af7e98350dbca2da249d3571939"
+        },
+        {
+          "bytes": 11249,
+          "text_bytes": 11089,
+          "sha256": "b470d8dd8cc71248bcb351be8559f3b194738454aa407a4e3c42d93a900bffe0"
+        }
+      ],
+      "duplicate_rule_occurrences": [
+        {
+          "sha256": "7ae258b6917ada7f43d0c48856e73bfe57daf9d2d5b6cf184ba9fca0bfd6255a",
+          "text_bytes": 13460,
+          "occurrences": 0
+        },
+        {
+          "sha256": "8ac7443ec10d0fd5425028e239e140811c479a7a65074bec072bd14986867a44",
+          "text_bytes": 16065,
+          "occurrences": 0
+        }
+      ],
+      "skill_exact_matches": [
+        {
+          "bytes": 20024,
+          "occurrences": 0
+        },
+        {
+          "bytes": 1767,
+          "occurrences": 0
+        }
+      ]
+    }
+  },
+  "experiment": [
+    {
+      "file": "1-before-request-0.json",
+      "bytes": 215438,
+      "tools": 0,
+      "explicit_input_present_verbatim": true,
+      "stored_role_and_memory_present_verbatim": true,
+      "system_sha256": "63b5b2d79a23cde81fa0dbc2506b53a4d92e0c2e0599b828cc024786b21b577b",
+      "messages_sha256": "0003e7b1008e97107f79d78fd042a33c1e39b02282f2494fa07de441ec95f060",
+      "cache_controls": [
+        null,
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      ]
+    },
+    {
+      "file": "2-before-request-0.json",
+      "bytes": 215438,
+      "tools": 0,
+      "explicit_input_present_verbatim": true,
+      "stored_role_and_memory_present_verbatim": true,
+      "system_sha256": "63b5b2d79a23cde81fa0dbc2506b53a4d92e0c2e0599b828cc024786b21b577b",
+      "messages_sha256": "0003e7b1008e97107f79d78fd042a33c1e39b02282f2494fa07de441ec95f060",
+      "cache_controls": [
+        null,
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      ]
+    },
+    {
+      "file": "3-after-request-0.json",
+      "bytes": 108158,
+      "tools": 0,
+      "explicit_input_present_verbatim": true,
+      "stored_role_and_memory_present_verbatim": true,
+      "system_sha256": "63b5b2d79a23cde81fa0dbc2506b53a4d92e0c2e0599b828cc024786b21b577b",
+      "messages_sha256": "bb460f0c446935ad12d4af121a5b6131cde7b6fe7d6e980842af84a8e8bd816b",
+      "cache_controls": [
+        null,
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      ]
+    },
+    {
+      "file": "4-after-request-0.json",
+      "bytes": 108158,
+      "tools": 0,
+      "explicit_input_present_verbatim": true,
+      "stored_role_and_memory_present_verbatim": true,
+      "system_sha256": "63b5b2d79a23cde81fa0dbc2506b53a4d92e0c2e0599b828cc024786b21b577b",
+      "messages_sha256": "bb460f0c446935ad12d4af121a5b6131cde7b6fe7d6e980842af84a8e8bd816b",
+      "cache_controls": [
+        null,
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      ]
+    },
+    {
+      "file": "5-before-request-0.json",
+      "bytes": 215438,
+      "tools": 0,
+      "explicit_input_present_verbatim": true,
+      "stored_role_and_memory_present_verbatim": true,
+      "system_sha256": "63b5b2d79a23cde81fa0dbc2506b53a4d92e0c2e0599b828cc024786b21b577b",
+      "messages_sha256": "0003e7b1008e97107f79d78fd042a33c1e39b02282f2494fa07de441ec95f060",
+      "cache_controls": [
+        null,
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      ]
+    },
+    {
+      "file": "6-after-request-0.json",
+      "bytes": 108158,
+      "tools": 0,
+      "explicit_input_present_verbatim": true,
+      "stored_role_and_memory_present_verbatim": true,
+      "system_sha256": "63b5b2d79a23cde81fa0dbc2506b53a4d92e0c2e0599b828cc024786b21b577b",
+      "messages_sha256": "bb460f0c446935ad12d4af121a5b6131cde7b6fe7d6e980842af84a8e8bd816b",
+      "cache_controls": [
+        null,
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        },
+        {
+          "type": "ephemeral",
+          "ttl": "1h"
+        }
+      ]
+    }
+  ],
+  "comparisons": [
+    {
+      "from": 1,
+      "to": 2,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "system_equal": true,
+      "messages_equal": false,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "messages",
+        "metadata"
+      ]
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    },
+    {
+      "from": 1,
+      "to": 5,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    },
+    {
+      "from": 3,
+      "to": 6,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    }
+  ],
+  "lossless_scope_expansion": true
+}

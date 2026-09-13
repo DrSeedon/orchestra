@@ -1,0 +1,138 @@
+{
+  "replay": {
+    "precompact": {
+      "bytes": 4093051,
+      "parts": {
+        "user/other_text_including_history_and_platform": 198157,
+        "skill_index_with_wrapper": 21136,
+        "assistant/thinking": 720904,
+        "assistant/other_text_including_history_and_platform": 218392,
+        "role_reinjection_with_memory_and_wrappers": 219949,
+        "token_reminder": 32857,
+        "assistant/tool_use": 571947,
+        "user/tool_result": 1673223,
+        "midturn_feedback_and_messages": 21154,
+        "worker_messages": 62925,
+        "repository_instructions_with_wrappers": 139813,
+        "system/other_text_including_history_and_platform": 73386
+      },
+      "top": {
+        "model": 15,
+        "messages": 4017431,
+        "system": 11476,
+        "tools": 63701,
+        "metadata": 176,
+        "max_tokens": 5,
+        "thinking": 39,
+        "context_management": 59,
+        "output_config": 17,
+        "stream": 4
+      },
+      "duplicates": [
+        {
+          "sha256": "7ae258b6917ada7f43d0c48856e73bfe57daf9d2d5b6cf184ba9fca0bfd6255a",
+          "text_bytes": 13460,
+          "occurrences": 9
+        },
+        {
+          "sha256": "8ac7443ec10d0fd5425028e239e140811c479a7a65074bec072bd14986867a44",
+          "text_bytes": 16065,
+          "occurrences": 1
+        }
+      ]
+    },
+    "postcompact": {
+      "bytes": 1614425,
+      "parts": {
+        "user/other_text_including_history_and_platform": 42667,
+        "assistant/tool_use": 170321,
+        "user/tool_result": 948158,
+        "token_reminder": 12389,
+        "assistant/thinking": 194552,
+        "assistant/other_text_including_history_and_platform": 110826,
+        "worker_messages": 28496,
+        "midturn_feedback_and_messages": 4798,
+        "system/other_text_including_history_and_platform": 176,
+        "skill_index_with_wrapper": 5746
+      },
+      "top": {
+        "model": 15,
+        "messages": 1538805,
+        "system": 11476,
+        "tools": 63701,
+        "metadata": 176,
+        "max_tokens": 5,
+        "thinking": 39,
+        "context_management": 59,
+        "output_config": 17,
+        "stream": 4
+      },
+      "duplicates": [
+        {
+          "sha256": "7ae258b6917ada7f43d0c48856e73bfe57daf9d2d5b6cf184ba9fca0bfd6255a",
+          "text_bytes": 13460,
+          "occurrences": 0
+        },
+        {
+          "sha256": "8ac7443ec10d0fd5425028e239e140811c479a7a65074bec072bd14986867a44",
+          "text_bytes": 16065,
+          "occurrences": 0
+        }
+      ]
+    }
+  },
+  "comparisons": [
+    {
+      "from": 1,
+      "to": 2,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    },
+    {
+      "from": 2,
+      "to": 3,
+      "system_equal": true,
+      "messages_equal": false,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "messages",
+        "metadata"
+      ]
+    },
+    {
+      "from": 3,
+      "to": 4,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    },
+    {
+      "from": 1,
+      "to": 5,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    },
+    {
+      "from": 3,
+      "to": 6,
+      "system_equal": true,
+      "messages_equal": true,
+      "tools_equal": true,
+      "changed_top_keys": [
+        "metadata"
+      ]
+    }
+  ],
+  "lossless_scope_expansion": true
+}
