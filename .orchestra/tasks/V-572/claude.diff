@@ -1,0 +1,93 @@
+--- /home/kesha/.claude/skills/laptop-access/SKILL.md
++++ proposed/claude-SKILL.md
+@@ -1,85 +1,9 @@
+ ---
+ name: laptop-access
+-description: "Доступ к ноутбуку Максима через reverse SSH (run_on_laptop) + карта его проектов. Триггеры: 'проверь ноут', 'запусти на ноуте', 'что там с Parsing', 'спроси у проекта X', 'статус проекта', 'логи на ноуте', laptop. НЕ про Orchestra — она живёт на VPS, ходить к ней напрямую по HTTP."
+-roles: [all]
+-integrations: []
++description: Проверить ноутбук владельца или его проекты с VPS через обратный SSH-туннель.
+ ---
+
+-# Доступ к ноутбуку Максима
+-
+-Объединяет прежние `laptop-access` и `kesha-orchestrator` (слиты 08.08.2026 — карты путей в них противоречили друг другу).
+-
+-## Главное, что нужно знать сразу
+-
+-**Проекты Максима лежат на его ноутбуке, не на VPS.** На VPS только бот, Orchestra и vault.
+-
+-**Orchestra больше НЕ на ноутбуке.** Переехала на VPS 03.08.2026, ходить к ней напрямую: `http://127.0.0.1:8888` с заголовком `Authorization: Bearer [secret len=17 tail=EN>`] из `/home/kesha/orchestra/.env`. Через `run_on_laptop` её больше не дёргать — подробности в корневом `CLAUDE.md`.
+-
+-## Архитектура
+-
+-```
+-Telegram → Кеша (VPS) → run_on_laptop → SSH-туннель (VPS:2222 → ноут:22) → команда
+-```
+-
+-Туннель обратный: ноутбук сам подключается к VPS, systemd-юнит `ssh-tunnel-vps` держит автореконнект. Ноут спит или выключен → туннель мёртв, так и сказать Максиму, а не гадать.
+-
+-## Инструмент
+-
+-`mcp__kesha__run_on_laptop(command, timeout)`
+-
+-**Можно:** `uptime`, `free -h`, `df -h`, `ps aux`, `ls`, `cat`, `grep`, `find`, `curl`, `systemctl status/restart`, `journalctl`.
+-
+-**Нельзя:**
+-- Метасимволы `;` `|` `&` `$` `` ` `` `>` `<` — заблокированы парсером
+-- `rm`, `trash`, `chmod`, `chown` и прочее деструктивное
+-- Таймаут: по умолчанию 30 с, максимум 120 с
+-
+-**Обход блокировки метасимволов** — через Python, когда нужен pipe или редирект:
+-```
+-run_on_laptop('python3 -c "import subprocess; print(subprocess.check_output([\"ps\",\"aux\"]).decode()[:2000])"', 15)
+-```
+-
+-## Запуск Claude Code в проекте на ноуте
+-
+-```bash
+-cd /path/to/project && claude --continue -p "вопрос"
+-```
+-`--continue` подхватывает последнюю сессию проекта вместе с её контекстом.
+-
+-## Карта проектов ✅ сверено с ноутом 08.08.2026
+-
+-Пути проверены командой `ls` в тот же день, а не взяты из памяти.
+-
+-**Python — `/mnt/data/Projects/Python/`**
+-
+-| Проект | Что это |
+-|---|---|
+-| `Parsing` | Основной клиент. zahoron.ru, SEO-платформа, ai-assistants/Виктор, YouGile |
+-| `VPN-Service` | «Ёжик в Тумане» — прод-VPN, Marzban в Нидерландах (Timeweb), ~50 юзеров |
+-| `seedon` | Проекты ООО «Сидон» |
+-| `kesha-tg-bot` | Исходники этого бота (боевая копия крутится на VPS) |
+-| `orchestra`, `orchestra-enterprise` | Ноутбучные копии; **боевая Orchestra на VPS** |
+-| `TradingCryptoBot`, `PhotoServer`, `claude-server`, `VoiceType`, `TTS`, `WebView`, `LLM` | Прочие свои |
+-| `OF-Parser` | Клиент Павел |
+-| `Alexey-Projects` | Клиент Лёша Костюков |
+-| `Vitaliy-Projects` | Клиент Виталий |
+-| `Claude-Code-Game-Master`, `DnD-Music-MCP`, `inscryption-ai`, `slay-the-spire-analysis`, `stargate-tactics`, `civsim`, `space-sim`, `games`, `wmod`, `world-state` | Игровые и исследовательские |
+-| `CursorUsageAnalyzer`, `Aperant`, `BallisticSim`, `claude-plugins-official` | Утилиты |
+-
+-**Unity — `/mnt/data/Projects/Unity/`**
+-`Bashilov Story` (выставочная инсталляция, Лёша) · `WinterGame` (WinterMelt/Амням) · `Birusa2026` · `AIMedical` · `AISwapFace` · `POLUS`
+-
+-**Vault COG — `/mnt/data/Рабочий стол/Cursor/COG-second-brain`**
+-
+-⚠️ Именно этот путь, с русским «Рабочий стол» внутри `/mnt/data`. Прежний скилл указывал `/home/maxim/Рабочий стол/Cursor/COG-second-brain` — **такого пути на ноуте нет**, проверено 08.08.2026. Отсюда и брались ошибки.
+-
+-## Подводные камни
+-
+-- **Ты ретранслятор, а не эксперт.** Задал вопрос агенту в проекте — передал ответ Максиму. Не додумывать за агента и не пересказывать своими словами то, чего он не говорил
+-- **Один вопрос за раз** в один проект. Не параллелить сессии Claude Code на одной машине
+-- **Долгие операции — в background** (`run_in_background=true`). Пока ждёшь, отвечай Максиму на другое, а не молчи две минуты
+-- **Проверять путь перед работой**, если он взят из памяти, а не из свежего `ls`. Именно на этом сгорел прежний скилл
+-
+-## Диагностика
+-
+-Ноут не отвечает (`SSH connection refused` / таймаут) → выключен, спит или нет интернета. Сообщить и не пытаться обойти.
++Маршрут один: SSH через обратный туннель.
++Канон, ограничения и актуальная датированная карта проектов:
++/home/kesha/orchestra/.orchestra/pipelines/default/prompts/skills/laptop-access.md
++Перед работой прочитай канон; этот указатель не содержит отдельной инструкции доступа.

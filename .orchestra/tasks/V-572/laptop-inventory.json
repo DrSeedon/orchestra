@@ -1,0 +1,395 @@
+{
+  "observed_at_utc": "2026-09-13T14:00:29.258676+00:00",
+  "hostname": "maxim-911aird",
+  "user": "maxim",
+  "roots": {
+    "/mnt/data/Projects/Python": [
+      {
+        "name": "ai-proxy-manager",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "Alexey-Projects",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "Aperant",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "BallisticSim",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "civsim",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "Claude-Code-Game-Master",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "claude-plugins-official",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "claude-server",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "CursorUsageAnalyzer",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "DnD-Music-MCP",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "E-CommerceBench",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "games",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "inscryption-ai",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "inscryption-ai-public",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "kesha-tg-bot",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "LLM",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "OF-Parser",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "orchestra-architecture-audit",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-astra-usage",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-backups",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-bash-latency-20260905",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-codex-state-compat",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-day-20260907",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-db-research",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-design-gallery",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-enterprise",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "orchestra-handoff-context-window",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-html-skill",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-instruction-guard",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-knowledge-delivery",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-local-workflow",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-model-text-control-flow",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-receipt-audit",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-remove-dead-compat",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-retire-legacy-review",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-service-lifecycle",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-service-lifecycle-baseline",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-service-lifecycle-baseline.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-service-lifecycle-core.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-service-lifecycle-delivery.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-service-lifecycle-fds.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-service-lifecycle-merge.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-service-lifecycle-recovery.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-service-lifecycle-test.log",
+        "kind": "file",
+        "git_marker": null
+      },
+      {
+        "name": "orchestra-simplify-review",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-stability-recovery",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-storage",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-storage-baseline",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-sync-20260912",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "orchestra-worker-autonomy",
+        "kind": "directory",
+        "git_marker": "file"
+      },
+      {
+        "name": "Parsing",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "PhotoServer",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "seedon",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "slay-the-spire-analysis",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "space-sim",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "stargate-tactics",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "test-project",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "TradingCryptoBot",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "TTS",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "Vitaliy-Projects",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "VoiceType",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "VPN-Service",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "web_portfolio",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "WebView",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "wmod",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "world-state",
+        "kind": "directory",
+        "git_marker": null
+      }
+    ],
+    "/mnt/data/Projects/Unity": [
+      {
+        "name": "AIMedical",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "AISwapFace",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "Bashilov Story",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "Birusa2026",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "DefaultProjectUnity",
+        "kind": "directory",
+        "git_marker": "directory"
+      },
+      {
+        "name": "POLUS",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "Test",
+        "kind": "directory",
+        "git_marker": null
+      },
+      {
+        "name": "WinterGame",
+        "kind": "directory",
+        "git_marker": "directory"
+      }
+    ]
+  },
+  "vault_paths": {
+    "/mnt/data/Рабочий стол/Cursor/COG-second-brain": true,
+    "/home/maxim/Рабочий стол/Cursor/COG-second-brain": true
+  },
+  "tunnel_unit": [
+    "LoadState=loaded",
+    "ActiveState=active",
+    "SubState=running"
+  ]
+}

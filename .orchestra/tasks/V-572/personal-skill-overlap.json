@@ -1,0 +1,48 @@
+{
+  "scope": [
+    "/home/kesha/.claude/skills",
+    "/home/kesha/.agents/skills"
+  ],
+  "shared_names": {
+    "html-artifacts": {
+      "claude": [
+        {
+          "path": "/home/kesha/.claude/skills/html-artifacts/SKILL.md",
+          "resolved": "/home/kesha/.claude/skills/html-artifacts/SKILL.md",
+          "bytes": 16769,
+          "sha256": "8f4350a4d07b91f399a540033cefa2f721545a8f9ac799967661ec9fecc8c9a1"
+        }
+      ],
+      "agents": [
+        {
+          "path": "/home/kesha/.agents/skills/html-artifacts/SKILL.md",
+          "resolved": "/home/kesha/.claude/skills/html-artifacts/SKILL.md",
+          "bytes": 16769,
+          "sha256": "8f4350a4d07b91f399a540033cefa2f721545a8f9ac799967661ec9fecc8c9a1"
+        }
+      ]
+    },
+    "laptop-access": {
+      "claude": [
+        {
+          "path": "/home/kesha/.claude/skills/laptop-access/SKILL.md",
+          "resolved": "/home/kesha/.claude/skills/laptop-access/SKILL.md",
+          "bytes": 5945,
+          "sha256": "9f5b5518d8546cf9ef1fce4dbbefdb462fbbd75d15c11cdb21d4e174fcd8f992"
+        }
+      ],
+      "agents": [
+        {
+          "path": "/home/kesha/.agents/skills/laptop-access/SKILL.md",
+          "resolved": "/home/kesha/.agents/skills/laptop-access/SKILL.md",
+          "bytes": 2374,
+          "sha256": "8d3815cee1f610363391f6ff680332429430b749cf7d66c4e1f2891b33cb1252"
+        }
+      ]
+    }
+  },
+  "counts": [
+    18,
+    2
+  ]
+}

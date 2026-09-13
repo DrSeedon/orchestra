@@ -1,0 +1,9 @@
+{
+  "import": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/prompt-engineer/app/prompting.py",
+  "inventory_directory_counts": {
+    "/mnt/data/Projects/Python": 60,
+    "/mnt/data/Projects/Unity": 8
+  },
+  "external_originals_unchanged": true,
+  "secret_shape_scan": true
+}
