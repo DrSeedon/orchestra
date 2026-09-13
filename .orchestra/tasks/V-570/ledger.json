@@ -1,0 +1,268 @@
+[
+  {
+    "start": 1,
+    "end": 5,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md",
+    "reason": "Область уточнена; исходный заголовок и указатель личности сохранены."
+  },
+  {
+    "start": 6,
+    "end": 6,
+    "status": "Перенос",
+    "destination": "modules/safety.md",
+    "reason": "rm-r/rf, trash/rm-i, не обходить недоступный инструмент. Исторические 45/9/2 сохранены в original, не вклеиваются каждый ход."
+  },
+  {
+    "start": 7,
+    "end": 7,
+    "status": "Перенос",
+    "destination": "modules/safety.md",
+    "reason": "Вне проекта, конфигурации и dotfiles: отдельное явное разрешение владельца; задача на иной объект его не даёт."
+  },
+  {
+    "start": 8,
+    "end": 8,
+    "status": "Перенос",
+    "destination": "modules/safety.md",
+    "reason": "Запрет chmod777 и скачанный код в shell."
+  },
+  {
+    "start": 9,
+    "end": 9,
+    "status": "Перенос",
+    "destination": "modules/safety.md",
+    "reason": "Показ и разрешение деструктивного. Разрешение на ту же операцию не спрашивается снова."
+  },
+  {
+    "start": 10,
+    "end": 10,
+    "status": "Личное + перенос",
+    "destination": "proposed/global-claude.md; modules/safety.md; modules/user-values.md",
+    "reason": "SSH/sudo личное, проверено NNP1/SSH0. Читаемость/stderr в safety. Деструктивное/прод/restart ограничены gates. Whitelist ноутбука сохранён с вопросом."
+  },
+  {
+    "start": 12,
+    "end": 14,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md",
+    "reason": "Весь Git-блок ДОСЛОВНО, автор, Co-Authored-By, watermark."
+  },
+  {
+    "start": 16,
+    "end": 17,
+    "status": "Уже общий",
+    "destination": "modules/code-quality.md: Simplicity first",
+    "reason": "Минимальность, без спекулятивного и одноразовых абстракций."
+  },
+  {
+    "start": 19,
+    "end": 23,
+    "status": "Перенос",
+    "destination": "modules/code-quality.md: Simplicity first",
+    "reason": "Четыре ступени в исходном порядке одним пунктом."
+  },
+  {
+    "start": 25,
+    "end": 25,
+    "status": "Перенос",
+    "destination": "modules/safety.md",
+    "reason": "Защита trust boundaries, потери данных, безопасности, доступности."
+  },
+  {
+    "start": 27,
+    "end": 27,
+    "status": "Перенос",
+    "destination": "modules/code-quality.md: comments",
+    "reason": "Плотность добавлена к существующему правилу."
+  },
+  {
+    "start": 29,
+    "end": 29,
+    "status": "Уже общий",
+    "destination": "modules/code-quality.md: Surgical changes",
+    "reason": "Соседний/чужой мёртвый и осиротевший код, запрет постороннего refactor."
+  },
+  {
+    "start": 31,
+    "end": 31,
+    "status": "Уже общий",
+    "destination": "modules/user-values.md: proven new path",
+    "reason": "Callers без shim; действующее решение владельца защищает внешние контракты отдельно."
+  },
+  {
+    "start": 33,
+    "end": 33,
+    "status": "Уже общий",
+    "destination": "modules/code-quality.md: Pit of success",
+    "reason": "Flat/explicit/один способ/без side effects/три строки. Fail loud с действующей оговоркой про optional metadata."
+  },
+  {
+    "start": 35,
+    "end": 35,
+    "status": "Конфликт старого с действующим",
+    "destination": "modules/code-quality.md: Think before coding; modules/user-values.md",
+    "reason": "Простой вариант назвать. Любая неоднозначность→стоп уступает уже принятому gate существенных scope/authority/cost/contract; это явное разрешение конфликта, не дословный дубль."
+  },
+  {
+    "start": 37,
+    "end": 38,
+    "status": "Перенос",
+    "destination": "modules/project-maintenance.md: Issues",
+    "reason": "TODO неустранённой проблемы и сообщение; буквальный русский заголовок секции не навязан всем языкам."
+  },
+  {
+    "start": 40,
+    "end": 46,
+    "status": "Личное, один справочник",
+    "destination": "proposed/mcp-websearch-models.md: Web Search",
+    "reason": "Все шесть пунктов: WebSearch-first, sonar, pro-search, два запрета, язык, проверка Perplexity. Цены исторические."
+  },
+  {
+    "start": 48,
+    "end": 50,
+    "status": "Личное, один справочник",
+    "destination": "proposed/mcp-websearch-models.md: Image Generation",
+    "reason": "Тул, английский, nano-banana, lite/riverflow/seedream; недостающее добавлено из глобала. Цены не объявлены проверенными."
+  },
+  {
+    "start": 51,
+    "end": 51,
+    "status": "Личное",
+    "destination": "proposed/mcp-websearch-models.md",
+    "reason": "Запрет gpt-5-image-mini сохранён."
+  },
+  {
+    "start": 52,
+    "end": 53,
+    "status": "Личное",
+    "destination": "proposed/mcp-websearch-models.md",
+    "reason": "Одна картинка, показать сразу, не пересоздавать, восстановить из cache без повторного вопроса."
+  },
+  {
+    "start": 55,
+    "end": 56,
+    "status": "Личное",
+    "destination": "proposed/mcp-websearch-models.md",
+    "reason": "Serena: символы vs литералы/форматы, оба названных метода."
+  },
+  {
+    "start": 57,
+    "end": 59,
+    "status": "Личное",
+    "destination": "proposed/mcp-websearch-models.md",
+    "reason": "Pandoc рядом с источником, GitHub/CI, .mcp.json. Шаблон из справочника сохранён как ноутбучный, неприменимый на VPS."
+  },
+  {
+    "start": 61,
+    "end": 62,
+    "status": "Перенос",
+    "destination": "modules/project-maintenance.md: CHANGELOG",
+    "reason": "Вести существующий, создавать для крупного. Commit/публикация не дают отдельного разрешения push."
+  },
+  {
+    "start": 64,
+    "end": 64,
+    "status": "Перенос",
+    "destination": "modules/project-maintenance.md: CHANGELOG",
+    "reason": "Ручное ведение, запрет автосборки из внутренних отчётов. Инцидент04.08 остаётся в original."
+  },
+  {
+    "start": 66,
+    "end": 66,
+    "status": "Перенос",
+    "destination": "modules/project-maintenance.md: CHANGELOG",
+    "reason": "Что, symbols/files, triggering case для будущего читателя."
+  },
+  {
+    "start": 68,
+    "end": 70,
+    "status": "Перенос",
+    "destination": "modules/project-maintenance.md: CHANGELOG",
+    "reason": "Версии, шесть секций, честность недофиксов, исключение linter/dev/style."
+  },
+  {
+    "start": 72,
+    "end": 73,
+    "status": "Перенос",
+    "destination": "modules/project-maintenance.md: architecture",
+    "reason": "Обновлять существующий при значимых изменениях, не создавать самому."
+  },
+  {
+    "start": 75,
+    "end": 81,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md: Docs",
+    "reason": "Три указателя и действие по сохранению в глобал дословно."
+  },
+  {
+    "start": 83,
+    "end": 84,
+    "status": "Личное, уточнение",
+    "destination": "proposed/global-claude.md: VPS",
+    "reason": "Не поднимать Hiddify/1234x. HTTPS достигает ответа, не доказан успех API-модели. География не используется как разрешение."
+  },
+  {
+    "start": 86,
+    "end": 87,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md: Orchestra",
+    "reason": "Код, юнит, User, URL сохранены; дата начала не рабочее правило, остаётся в original."
+  },
+  {
+    "start": 88,
+    "end": 89,
+    "status": "Уже общий",
+    "destination": "modules/user-values.md; repo AGENTS.md",
+    "reason": "Owner-only restart и не втягивать чужие проекты; оставлен указатель. История отмены не повторяется в личном промпте."
+  },
+  {
+    "start": 90,
+    "end": 90,
+    "status": "Личное, вопрос",
+    "destination": "proposed/global-claude.md; questions.md",
+    "reason": "main/ноутбук сохранено как неподтверждённое. Git не различает машины при едином авторе."
+  },
+  {
+    "start": 91,
+    "end": 91,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md",
+    "reason": "Указатель на канонический AGENTS; CLAUDE остаётся синхронизированным зеркалом."
+  },
+  {
+    "start": 92,
+    "end": 92,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md",
+    "reason": "OOM800/−900 и запрет выравнивать сохранены; проверены на PID."
+  },
+  {
+    "start": 93,
+    "end": 93,
+    "status": "Перенос",
+    "destination": "modules/safety.md",
+    "reason": "Реальное состояние процесса, не только конфиг systemd."
+  },
+  {
+    "start": 95,
+    "end": 102,
+    "status": "Личное",
+    "destination": "proposed/global-claude.md: Cold archive",
+    "reason": "Раздел дословно: исторический снимок/исследования/не импортировать/не выводить живое состояние."
+  },
+  {
+    "start": 104,
+    "end": 108,
+    "status": "Перенос",
+    "destination": "modules/safety.md: service ownership",
+    "reason": "До работы проверить ownership; service user; root для пакетов; снимок владельцев, сохранить modes. find/chown не единственный маршрут. 3021 и дата сохранены в original."
+  },
+  {
+    "start": 110,
+    "end": 111,
+    "status": "Удалено по прямому решению",
+    "destination": "task V-570 owner quote",
+    "reason": "Запрет правки md/meta отменён владельцем, а не объявлен технически мёртвым."
+  }
+]

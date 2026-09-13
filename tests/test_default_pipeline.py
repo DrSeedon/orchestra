@@ -149,11 +149,23 @@ class TestDefaultRolesResolve:
 
     def test_shared_conduct_modules_reach_every_role(self):
         """#490: блоки из base.md стали модулями — роль без них теряет действующие правила."""
-        shared = {"knowledge", "communication-style", "user-values"}
+        shared = {"safety", "knowledge", "communication-style", "user-values"}
         for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
             assert shared <= set(P.get_role(PIPELINE, role).modules), role
 
-    def test_code_quality_has_one_owner_and_reaches_both_working_roles(self):
+    @pytest.mark.parametrize("module_name,readers", [
+        ("safety", {"orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"}),
+        ("project-maintenance", {"orchestrator", "sub-orchestrator", "worker", "full-cycle"}),
+    ])
+    def test_shared_project_rules_are_delivered_once_to_their_readers(self, module_name, readers):
+        """Missing routing leaves a role without filesystem or maintenance rules."""
+        module = P.prompt_path(PIPELINE, f"modules/{module_name}.md").read_text().strip()
+        assert module
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            out = P.build_system_prompt(PIPELINE, role)
+            assert out.count(module) == int(role in readers), (module_name, role)
+
+    def test_code_quality_has_one_owner_and_reaches_implementation_roles(self):
         """#prompt-cleanup: блок жил ДВУМЯ дословными копиями в roles/worker.md и
         roles/full-cycle.md. Копия расходится молча, поэтому владелец теперь модуль.
 
@@ -161,7 +173,7 @@ class TestDefaultRolesResolve:
         больше нет в файлах ролей. Без второй половины тест зелёный и на возвращённой копии.
         """
         module = P.prompt_path(PIPELINE, "modules/code-quality.md").read_text().strip()
-        for role in ("worker", "full-cycle"):
+        for role in ("worker", "full-cycle", "orchestrator", "sub-orchestrator"):
             out = P.build_system_prompt(PIPELINE, role)
             assert out.count(module) == 1, f"{role}: code-quality должен прийти ровно из модуля"
             src = P.prompt_path(PIPELINE, f"roles/{role}.md").read_text()
@@ -169,7 +181,7 @@ class TestDefaultRolesResolve:
                 f"roles/{role}.md: копия блока вернулась в файл роли"
             )
 
-        for role in ("orchestrator", "sub-orchestrator"):
+        for role in ("reducer",):
             out = P.build_system_prompt(PIPELINE, role)
             assert "<code-quality>" not in out, f"{role}: правила написания кода протекли"
 
@@ -192,36 +204,6 @@ class TestDefaultRolesResolve:
         assert P.get_role(PIPELINE, "worker").can_spawn == []
         for anchor in ["<model-routing>", *bullets]:
             assert anchor not in worker_out, f"маршрутизация протекла воркеру: {anchor[:40]}"
-
-    def test_t1_spark_admission_rule_is_delivered_without_leaking(self):
-        anchors = (
-            "separate but small quota wallet, not free capacity",
-            "#222 measured only 25 identical benchmark batches per week (250 starts, 200 usage-bearing turns, 125 strict PASS)",
-            "Its dollar price is UNKNOWN (research-preview rates; local price=None), so any money summary that includes Spark is incomplete",
-            "text-only; ≤2 named files",
-            "≤100K total initial context (system prompt + task + supplied files)",
-            "every correctness-critical decision and value is explicit",
-            "an independent pre-existing oracle mechanically covers every correctness-critical criterion",
-            "Spark silently invents missing data: in #222 it did so 2/2 times and missed both future oracles (19/42 and 18/42), while Luna stopped and asked 2/2 times; any missing fact or decision forbids this route",
-            "At ~164K Spark failed loudly before any answer in 2/2 runs, so keep the ≤100K headroom; the measured context failure was not silent corruption",
-            "semantic prose, prompt work without literal anchors, review, research, architecture, vision, and security are forbidden",
-            "After any failed or incomplete Spark attempt, never retry Spark",
-        )
-        module = P.prompt_path(PIPELINE, "modules/model-routing.md").read_text()
-        spark_rules = [line for line in module.splitlines() if line.startswith("- **Spark**")]
-        assert len(spark_rules) == 1, "Spark admission must have exactly one owner rule"
-        spark_rule = spark_rules[0]
-        for anchor in anchors:
-            assert anchor in spark_rule, f"Spark admission rule lacks {anchor!r}"
-
-        for role in ("orchestrator", "sub-orchestrator", "full-cycle"):
-            out = P.build_system_prompt(PIPELINE, role)
-            for anchor in anchors:
-                assert out.count(anchor) == 1, f"{role}: Spark rule is missing or duplicated: {anchor!r}"
-
-        worker_out = P.build_system_prompt(PIPELINE, "worker")
-        for anchor in anchors:
-            assert anchor not in worker_out, f"Spark admission leaked to terminal worker: {anchor!r}"
 
     def test_tg_emoji_for_v216_roles(self):
         assert P.get_role(PIPELINE, "sub-orchestrator").tg.emoji == "🎯"

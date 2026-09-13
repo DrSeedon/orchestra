@@ -8,8 +8,12 @@ Prefer the simplest complete solution; challenge a faulty premise with evidence.
 **Simplicity first.**
 - Minimum code that solves the task. Nothing speculative
 - No features beyond request. No abstractions for one-off code
-- No comments except WHY (not WHAT), non-obvious decisions, docstrings on public API
+- No comments except WHY (not WHAT), non-obvious decisions, docstrings on public API.
+  Keep their density at or below the surrounding code.
 - 200 lines where 50 suffice → rewrite
+- Before adding code, stop at the first applicable answer: should this exist at all;
+  does the codebase already do it; does the standard library/platform do it; can it be one line?
+  This simplicity check never removes the protections in the safety module.
 
 **Surgical changes.** Touch ONLY what the task requires.
 - Don't "improve" neighboring code, formatting, comments
