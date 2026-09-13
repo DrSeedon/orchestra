@@ -1,0 +1,93 @@
+{
+  "evidence_owner": "V-566 bench-master",
+  "source_sha256": {
+    "report.md": "01f99c0eaa5f3faedc094b1664f010b7cf540b15a7a8e74a0ab623fcb78a312d",
+    "results.json": "b44fdf3ad9945cd28acf8e6e900f2592a278ddc25517558e8ccace2405230558",
+    "measurements.csv": "02d0d5e0614cfcdb02f4a061797ed8eea0551a0850ad6b06e4fb344fa138df10"
+  },
+  "checks": [
+    {
+      "name": "astra-after-r1",
+      "native_total_verified": 43153,
+      "completed_calls_verified": 2,
+      "full_fixture_documents_independently_matched": [
+        "beta-launch.md",
+        "export-checks.md"
+      ],
+      "accepted": true
+    },
+    {
+      "name": "astra-after-r2",
+      "native_total_verified": 43180,
+      "completed_calls_verified": 2,
+      "full_fixture_documents_independently_matched": [
+        "beta-launch.md",
+        "export-checks.md"
+      ],
+      "accepted": true
+    },
+    {
+      "name": "astra-before-r1",
+      "native_total_verified": 43160,
+      "completed_calls_verified": 2,
+      "full_fixture_documents_independently_matched": [
+        "beta-launch.md",
+        "export-checks.md"
+      ],
+      "accepted": true
+    },
+    {
+      "name": "astra-before-r2",
+      "native_total_verified": 43146,
+      "completed_calls_verified": 2,
+      "full_fixture_documents_independently_matched": [
+        "beta-launch.md",
+        "export-checks.md"
+      ],
+      "accepted": true
+    },
+    {
+      "name": "luna-after-r1",
+      "native_total_verified": 36033,
+      "completed_calls_verified": 2,
+      "full_fixture_documents_independently_matched": [
+        "beta-launch.md",
+        "export-checks.md"
+      ],
+      "accepted": true
+    },
+    {
+      "name": "luna-before-r1",
+      "native_total_verified": 50153,
+      "completed_calls_verified": 6,
+      "full_fixture_documents_independently_matched": [
+        "beta-launch.md",
+        "cafeteria.md",
+        "export-checks.md",
+        "mobile-icon.md",
+        "office-move.md",
+        "translation.md"
+      ],
+      "accepted": true
+    },
+    {
+      "name": "opus-after-r1",
+      "native_total_verified": 31447,
+      "completed_calls_verified": 5,
+      "full_fixture_documents_independently_matched": [],
+      "accepted": false
+    },
+    {
+      "name": "opus-before-r1",
+      "native_total_verified": 39171,
+      "completed_calls_verified": 6,
+      "full_fixture_documents_independently_matched": [
+        "mobile-icon.md",
+        "office-move.md",
+        "translation.md"
+      ],
+      "accepted": false
+    }
+  ],
+  "note": "Full-document substring matching independently confirms Astra/Luna reads. Opus partial reads are not assessed by that full-document check."
+}

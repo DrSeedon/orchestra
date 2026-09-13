@@ -1,0 +1,17 @@
+{
+  "source_commit": "b15940ba5a9c9be64905e5b247512d9e4bab1c31",
+  "change_owner": ".orchestra/pipelines/default/prompts/skills/grill-me.md",
+  "change": "Only Phase 1 document-selection sentence; other skill instructions byte-identical",
+  "snapshot_scope": "Complete canonical grill-me skill; not whole assembled platform prompt",
+  "files": {
+    "fixture/docs/beta-launch.md": "49f31549d5326467178a33dfb4ab4c8521d06f6800ecb909e41066dc2bc5e478",
+    "fixture/docs/cafeteria.md": "04ffb7adc24554221c875f3a82e48bfa49b556546a17393bbfc74d12c9c94507",
+    "fixture/docs/export-checks.md": "3e1dbea45828f9925f967551f37ea466fcc6f54a1a61724fe48cd80535c7429d",
+    "fixture/docs/mobile-icon.md": "ef1860041ff46da8fea1d58bab3b5a5fbf563a3821e50a281021cd8ddfa929dc",
+    "fixture/docs/office-move.md": "d42acaf7ef9f40220ef83e8a58593e831358682a29b2ca60a0e66f8bb1fe910f",
+    "fixture/docs/translation.md": "e0d22fb81e33e995da33a3c681be30e31d9eab9f807a0f9af1d38b6fe93b7d5e",
+    "prompt-after.md": "fe9e0ba30dcb94e7149a2194754bb7044d74635145df42f014297a3ac40defe8",
+    "prompt-before.md": "131be5cf097aaef288f535a228119fe69cbf4d2dfc3a8d53e8b256d10742f14e",
+    "task.txt": "16563e378959f77776a626d061b6c3ad4036f75280176eed6e46d6f3e9ed2593"
+  }
+}
