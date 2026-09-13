@@ -1,0 +1,553 @@
+{
+  "actual_model_calls": 8,
+  "additional_models_stopped_by_parent": [
+    "sol",
+    "fable"
+  ],
+  "all_native_usage_complete": true,
+  "actual_arm_cost_usd": 0.87918268,
+  "astra": {
+    "before_tokens": [
+      43160,
+      43146
+    ],
+    "after_tokens": [
+      43153,
+      43180
+    ],
+    "before_range": 14,
+    "after_range": 27,
+    "mean_after_minus_before": 13.5,
+    "extra_reads_reproduced": false
+  },
+  "rows": [
+    {
+      "name": "astra-after-r1",
+      "model": "gpt-6-astra",
+      "runtime": "codex",
+      "variant": "after",
+      "repeat": 1,
+      "effort": "medium",
+      "runtime_version": "codex-cli 0.153.4",
+      "input_sha256": "cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 24.6772818332538,
+      "usage": {
+        "input_tokens": 42671,
+        "cached_input_tokens": 27776,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 482,
+        "reasoning_output_tokens": 0
+      },
+      "total_tokens": 43153,
+      "reasoning_tokens": 0,
+      "native_usage": {
+        "input_tokens": 42671,
+        "cached_input_tokens": 27776,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 482,
+        "reasoning_output_tokens": 0
+      },
+      "cost_usd": 0.200826,
+      "raw_reported_cost_usd": 0.200826,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 2,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 2,
+      "irrelevant_body_documents": 0,
+      "repeats_after_complete": 0,
+      "delivered_source_bytes_lower_bound": 1860,
+      "structural_pass": true,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": true,
+      "accepted": true,
+      "blind_id": "Q03",
+      "blind_batch": "initial"
+    },
+    {
+      "name": "astra-after-r2",
+      "model": "gpt-6-astra",
+      "runtime": "codex",
+      "variant": "after",
+      "repeat": 2,
+      "effort": "medium",
+      "runtime_version": "codex-cli 0.153.4",
+      "input_sha256": "cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 28.103402075823396,
+      "usage": {
+        "input_tokens": 42678,
+        "cached_input_tokens": 36864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 502,
+        "reasoning_output_tokens": 0
+      },
+      "total_tokens": 43180,
+      "reasoning_tokens": 0,
+      "native_usage": {
+        "input_tokens": 42678,
+        "cached_input_tokens": 36864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 502,
+        "reasoning_output_tokens": 0
+      },
+      "cost_usd": 0.120104,
+      "raw_reported_cost_usd": 0.120104,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 2,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 2,
+      "irrelevant_body_documents": 0,
+      "repeats_after_complete": 0,
+      "delivered_source_bytes_lower_bound": 1860,
+      "structural_pass": true,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": true,
+      "accepted": true,
+      "blind_id": "R01",
+      "blind_batch": "repeat"
+    },
+    {
+      "name": "astra-before-r1",
+      "model": "gpt-6-astra",
+      "runtime": "codex",
+      "variant": "before",
+      "repeat": 1,
+      "effort": "medium",
+      "runtime_version": "codex-cli 0.153.4",
+      "input_sha256": "12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 27.86367015587166,
+      "usage": {
+        "input_tokens": 42663,
+        "cached_input_tokens": 32000,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 497,
+        "reasoning_output_tokens": 0
+      },
+      "total_tokens": 43160,
+      "reasoning_tokens": 0,
+      "native_usage": {
+        "input_tokens": 42663,
+        "cached_input_tokens": 32000,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 497,
+        "reasoning_output_tokens": 0
+      },
+      "cost_usd": 0.16348,
+      "raw_reported_cost_usd": 0.16348,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 2,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 2,
+      "irrelevant_body_documents": 0,
+      "repeats_after_complete": 0,
+      "delivered_source_bytes_lower_bound": 1860,
+      "structural_pass": true,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": true,
+      "accepted": true,
+      "blind_id": "Q02",
+      "blind_batch": "initial"
+    },
+    {
+      "name": "astra-before-r2",
+      "model": "gpt-6-astra",
+      "runtime": "codex",
+      "variant": "before",
+      "repeat": 2,
+      "effort": "medium",
+      "runtime_version": "codex-cli 0.153.4",
+      "input_sha256": "12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 25.507496347185224,
+      "usage": {
+        "input_tokens": 42656,
+        "cached_input_tokens": 36864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 490,
+        "reasoning_output_tokens": 0
+      },
+      "total_tokens": 43146,
+      "reasoning_tokens": 0,
+      "native_usage": {
+        "input_tokens": 42656,
+        "cached_input_tokens": 36864,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 490,
+        "reasoning_output_tokens": 0
+      },
+      "cost_usd": 0.119284,
+      "raw_reported_cost_usd": 0.119284,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 2,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 2,
+      "irrelevant_body_documents": 0,
+      "repeats_after_complete": 0,
+      "delivered_source_bytes_lower_bound": 1860,
+      "structural_pass": true,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": true,
+      "accepted": true,
+      "blind_id": "R02",
+      "blind_batch": "repeat"
+    },
+    {
+      "name": "luna-after-r1",
+      "model": "gpt-5.6-luna",
+      "runtime": "codex",
+      "variant": "after",
+      "repeat": 1,
+      "effort": "high",
+      "runtime_version": "codex-cli 0.153.4",
+      "input_sha256": "cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 24.91892910702154,
+      "usage": {
+        "input_tokens": 35082,
+        "cached_input_tokens": 28928,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 951,
+        "reasoning_output_tokens": 403
+      },
+      "total_tokens": 36033,
+      "reasoning_tokens": 403,
+      "native_usage": {
+        "input_tokens": 35082,
+        "cached_input_tokens": 28928,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 951,
+        "reasoning_output_tokens": 403
+      },
+      "cost_usd": 0.0029505600000000005,
+      "raw_reported_cost_usd": 0.0029505600000000005,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 2,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 2,
+      "irrelevant_body_documents": 0,
+      "repeats_after_complete": 1,
+      "delivered_source_bytes_lower_bound": 2510,
+      "structural_pass": true,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": true,
+      "accepted": true,
+      "blind_id": "Q04",
+      "blind_batch": "initial"
+    },
+    {
+      "name": "luna-before-r1",
+      "model": "gpt-5.6-luna",
+      "runtime": "codex",
+      "variant": "before",
+      "repeat": 1,
+      "effort": "high",
+      "runtime_version": "codex-cli 0.153.4",
+      "input_sha256": "12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 43.91693672910333,
+      "usage": {
+        "input_tokens": 48282,
+        "cached_input_tokens": 39936,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1871,
+        "reasoning_output_tokens": 1125
+      },
+      "total_tokens": 50153,
+      "reasoning_tokens": 1125,
+      "native_usage": {
+        "input_tokens": 48282,
+        "cached_input_tokens": 39936,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1871,
+        "reasoning_output_tokens": 1125
+      },
+      "cost_usd": 0.0047131199999999995,
+      "raw_reported_cost_usd": 0.0047131199999999995,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 6,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 6,
+      "irrelevant_body_documents": 4,
+      "repeats_after_complete": 0,
+      "delivered_source_bytes_lower_bound": 4616,
+      "structural_pass": true,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": true,
+      "accepted": true,
+      "blind_id": "Q06",
+      "blind_batch": "initial"
+    },
+    {
+      "name": "opus-after-r1",
+      "model": "claude-opus-5[1m]",
+      "runtime": "claude",
+      "variant": "after",
+      "repeat": 1,
+      "effort": "high",
+      "runtime_version": "2.1.263 (Claude Code)",
+      "input_sha256": "cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 29.575036629103124,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 5096,
+        "cache_read_input_tokens": 24364,
+        "output_tokens": 1979
+      },
+      "total_tokens": 31447,
+      "reasoning_tokens": 284,
+      "native_usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 5096,
+        "cache_read_input_tokens": 24364,
+        "output_tokens": 1979,
+        "output_tokens_details": {
+          "thinking_tokens": 284
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 5096,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1271,
+            "cache_read_input_tokens": 7591,
+            "cache_creation_input_tokens": 1011,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1011
+            },
+            "type": "message",
+            "model": null
+          }
+        ],
+        "speed": "standard"
+      },
+      "cost_usd": 0.11265700000000001,
+      "raw_reported_cost_usd": 0.11265700000000001,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 5,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 6,
+      "irrelevant_body_documents": 4,
+      "repeats_after_complete": 2,
+      "delivered_source_bytes_lower_bound": 3552,
+      "structural_pass": false,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": false,
+      "accepted": false,
+      "blind_id": "Q05",
+      "blind_batch": "initial"
+    },
+    {
+      "name": "opus-before-r1",
+      "model": "claude-opus-5[1m]",
+      "runtime": "claude",
+      "variant": "before",
+      "repeat": 1,
+      "effort": "high",
+      "runtime_version": "2.1.263 (Claude Code)",
+      "input_sha256": "12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23",
+      "completion": "exited",
+      "returncode": 0,
+      "wall_seconds": 40.05700689041987,
+      "usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 8988,
+        "cache_read_input_tokens": 28126,
+        "output_tokens": 2047
+      },
+      "total_tokens": 39171,
+      "reasoning_tokens": 268,
+      "native_usage": {
+        "input_tokens": 10,
+        "cache_creation_input_tokens": 8988,
+        "cache_read_input_tokens": 28126,
+        "output_tokens": 2047,
+        "output_tokens_details": {
+          "thinking_tokens": 268
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 8988,
+          "ephemeral_5m_input_tokens": 0
+        },
+        "inference_geo": "not_available",
+        "iterations": [
+          {
+            "input_tokens": 2,
+            "output_tokens": 1203,
+            "cache_read_input_tokens": 7844,
+            "cache_creation_input_tokens": 1144,
+            "cache_creation": {
+              "ephemeral_5m_input_tokens": 0,
+              "ephemeral_1h_input_tokens": 1144
+            },
+            "type": "message",
+            "model": null
+          }
+        ],
+        "speed": "standard"
+      },
+      "cost_usd": 0.155168,
+      "raw_reported_cost_usd": 0.155168,
+      "native_error": false,
+      "accounting_status": "complete",
+      "completed_actions": 6,
+      "unknown_action_types": [],
+      "invalid_jsonl_lines": 0,
+      "distinct_body_documents": 6,
+      "irrelevant_body_documents": 4,
+      "repeats_after_complete": 0,
+      "delivered_source_bytes_lower_bound": 4455,
+      "structural_pass": false,
+      "semantic_pass": true,
+      "boundaries_pass": true,
+      "response_contract_pass": false,
+      "accepted": false,
+      "blind_id": "Q01",
+      "blind_batch": "initial"
+    }
+  ],
+  "pairs": [
+    {
+      "model": "astra",
+      "repeat": 1,
+      "accepted_pair": true,
+      "fixed_fields_match": {
+        "argv": true,
+        "cwd": true,
+        "home": true,
+        "effort": true,
+        "model": true,
+        "runtime_version": true
+      },
+      "before": "astra-before-r1",
+      "after": "astra-after-r1",
+      "delta_tokens": -7,
+      "delta_actions": 0,
+      "tokens_percent": -0.016218721037998145,
+      "actions_percent": 0.0,
+      "note": null
+    },
+    {
+      "model": "astra",
+      "repeat": 2,
+      "accepted_pair": true,
+      "fixed_fields_match": {
+        "argv": true,
+        "cwd": true,
+        "home": true,
+        "effort": true,
+        "model": true,
+        "runtime_version": true
+      },
+      "before": "astra-before-r2",
+      "after": "astra-after-r2",
+      "delta_tokens": 34,
+      "delta_actions": 0,
+      "tokens_percent": 0.07880220646178093,
+      "actions_percent": 0.0,
+      "note": null
+    },
+    {
+      "model": "luna",
+      "repeat": 1,
+      "accepted_pair": true,
+      "fixed_fields_match": {
+        "argv": true,
+        "cwd": true,
+        "home": true,
+        "effort": true,
+        "model": true,
+        "runtime_version": true
+      },
+      "before": "luna-before-r1",
+      "after": "luna-after-r1",
+      "delta_tokens": -14120,
+      "delta_actions": -4,
+      "tokens_percent": -28.15384922138257,
+      "actions_percent": -66.66666666666667,
+      "note": null
+    },
+    {
+      "model": "opus",
+      "repeat": 1,
+      "accepted_pair": false,
+      "fixed_fields_match": {
+        "argv": true,
+        "cwd": true,
+        "home": true,
+        "effort": true,
+        "model": true,
+        "runtime_version": true
+      },
+      "before": "opus-before-r1",
+      "after": "opus-after-r1",
+      "delta_tokens": null,
+      "delta_actions": null,
+      "tokens_percent": null,
+      "actions_percent": null,
+      "note": "No effect estimate for successful completion: both responses failed strict JSON contract."
+    }
+  ],
+  "untested": [
+    {
+      "model": "sol",
+      "status": "not_run",
+      "total_tokens": null,
+      "actions": null,
+      "cost_usd": null,
+      "effect": null
+    },
+    {
+      "model": "fable",
+      "status": "not_run",
+      "total_tokens": null,
+      "actions": null,
+      "cost_usd": null,
+      "effect": null
+    }
+  ]
+}

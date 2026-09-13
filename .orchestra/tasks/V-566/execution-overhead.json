@@ -1,0 +1,17 @@
+{
+  "at": "2026-09-13T05:42:35.659130+00:00",
+  "completed_turns": [
+    {
+      "ts": "2026-09-13T05:26:41.564869+00:00",
+      "session_id": "c97605d4-51aa-4836-aaba-e2a089924003",
+      "task_id": "V-566",
+      "model": "gpt-6-astra",
+      "cost_usd": 8.858928,
+      "input_tokens": 4318953,
+      "output_tokens": 33987,
+      "cache_read_tokens": 4003328
+    }
+  ],
+  "cost_usd": 8.858928,
+  "note": "Current unfinished reporting turn excluded; V-565 design/annotation cost excluded. No shared pool allocation."
+}

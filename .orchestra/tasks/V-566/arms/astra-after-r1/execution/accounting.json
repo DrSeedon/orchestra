@@ -1,0 +1,18 @@
+{
+  "status": "complete",
+  "final_received": true,
+  "cost_usd": 0.200826,
+  "observed_cost_usd": 0.200826,
+  "cost_source": "configured_rates",
+  "usage": {
+    "input_tokens": 42671,
+    "cached_input_tokens": 27776,
+    "cache_write_input_tokens": 0,
+    "output_tokens": 482,
+    "reasoning_output_tokens": 0
+  },
+  "inflight_message": null,
+  "completed_messages": 0,
+  "errors": [],
+  "synthetic": false
+}

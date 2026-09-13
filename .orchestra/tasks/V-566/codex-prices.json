@@ -1,0 +1,20 @@
+{
+  "gpt-6-astra": {
+    "input": 10.0,
+    "cached": 1.0,
+    "write": 12.5,
+    "output": 50.0
+  },
+  "gpt-5.6-luna": {
+    "input": 0.2,
+    "cached": 0.02,
+    "write": 0.25,
+    "output": 1.2
+  },
+  "gpt-5.6-sol": {
+    "input": 4.0,
+    "cached": 0.4,
+    "write": 5.0,
+    "output": 20.0
+  }
+}

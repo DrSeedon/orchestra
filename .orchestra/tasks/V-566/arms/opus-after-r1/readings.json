@@ -1,0 +1,142 @@
+{
+  "distinct_body_documents": 6,
+  "irrelevant_body_documents": 4,
+  "body_exposures": 8,
+  "repeats_after_complete": 2,
+  "matched_source_utf8_bytes": 3552,
+  "evidence": [
+    {
+      "call_id": "toolu_01WbU4vQZ8wC1NhLWZQmpsjM",
+      "document": "beta-launch.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": true,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 875
+    },
+    {
+      "call_id": "toolu_011qoHwmaakHcaejq5FZJWjA",
+      "document": "export-checks.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": true,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 985
+    },
+    {
+      "call_id": "toolu_011qeWCTfKZG4QfVNTpVYzEE",
+      "document": "mobile-icon.md",
+      "irrelevant": true,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        3
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 157
+    },
+    {
+      "call_id": "toolu_011qeWCTfKZG4QfVNTpVYzEE",
+      "document": "office-move.md",
+      "irrelevant": true,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        4
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 152
+    },
+    {
+      "call_id": "toolu_011qeWCTfKZG4QfVNTpVYzEE",
+      "document": "export-checks.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": true,
+      "matched_lines": [
+        0,
+        2,
+        3,
+        5
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 513
+    },
+    {
+      "call_id": "toolu_011qeWCTfKZG4QfVNTpVYzEE",
+      "document": "translation.md",
+      "irrelevant": true,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        4
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 145
+    },
+    {
+      "call_id": "toolu_011qeWCTfKZG4QfVNTpVYzEE",
+      "document": "cafeteria.md",
+      "irrelevant": true,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": false,
+      "matched_lines": [
+        5
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 161
+    },
+    {
+      "call_id": "toolu_011qeWCTfKZG4QfVNTpVYzEE",
+      "document": "beta-launch.md",
+      "irrelevant": false,
+      "body_delivered": true,
+      "full_in_call": false,
+      "header_only": false,
+      "repeat_after_complete": true,
+      "matched_lines": [
+        0,
+        1,
+        3,
+        4,
+        5
+      ],
+      "duplicate_line_occurrences_in_call": 0,
+      "matched_source_utf8_bytes": 564
+    }
+  ],
+  "interpretation": "Matched delivered source-line occurrences (without prefixes/newlines); repeats_after_complete counts cross-invocation repeats; duplicate fragments within one invocation are separate. Unfamiliar paraphrases/truncation are not inferred as full reads."
+}

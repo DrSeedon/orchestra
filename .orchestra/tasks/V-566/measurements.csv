@@ -1,0 +1,9 @@
+name,model,runtime_version,effort,completion,accepted,response_contract_pass,semantic_pass,total_tokens,completed_actions,distinct_body_documents,irrelevant_body_documents,reasoning_tokens,cost_usd,wall_seconds,input_sha256
+astra-before-r1,gpt-6-astra,codex-cli 0.153.4,medium,exited,True,True,True,43160,2,2,0,0,0.16348,27.86367015587166,12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23
+astra-after-r1,gpt-6-astra,codex-cli 0.153.4,medium,exited,True,True,True,43153,2,2,0,0,0.200826,24.6772818332538,cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2
+astra-before-r2,gpt-6-astra,codex-cli 0.153.4,medium,exited,True,True,True,43146,2,2,0,0,0.119284,25.507496347185224,12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23
+astra-after-r2,gpt-6-astra,codex-cli 0.153.4,medium,exited,True,True,True,43180,2,2,0,0,0.120104,28.103402075823396,cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2
+luna-before-r1,gpt-5.6-luna,codex-cli 0.153.4,high,exited,True,True,True,50153,6,6,4,1125,0.0047131199999999995,43.91693672910333,12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23
+luna-after-r1,gpt-5.6-luna,codex-cli 0.153.4,high,exited,True,True,True,36033,2,2,0,403,0.0029505600000000005,24.91892910702154,cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2
+opus-before-r1,claude-opus-5[1m],2.1.263 (Claude Code),high,exited,False,False,True,39171,6,6,4,268,0.155168,40.05700689041987,12a790d5cbab8698132a42987b13323b59755e47ec70d3a8ae559217cc339b23
+opus-after-r1,claude-opus-5[1m],2.1.263 (Claude Code),high,exited,False,False,True,31447,5,6,4,284,0.11265700000000001,29.575036629103124,cd7b450cda7858b32cca28659cfef321e5543ae7778b17b3bea97e8ce4137ce2

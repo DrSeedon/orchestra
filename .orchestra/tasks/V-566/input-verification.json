@@ -1,0 +1,51 @@
+{
+  "package_commit": "e858399f2ade6827c5f25f6497b85cbd9f74b2e7",
+  "checks": [
+    {
+      "file": "fixture/docs/beta-launch.md",
+      "expected": "49f31549d5326467178a33dfb4ab4c8521d06f6800ecb909e41066dc2bc5e478",
+      "actual": "49f31549d5326467178a33dfb4ab4c8521d06f6800ecb909e41066dc2bc5e478"
+    },
+    {
+      "file": "fixture/docs/cafeteria.md",
+      "expected": "04ffb7adc24554221c875f3a82e48bfa49b556546a17393bbfc74d12c9c94507",
+      "actual": "04ffb7adc24554221c875f3a82e48bfa49b556546a17393bbfc74d12c9c94507"
+    },
+    {
+      "file": "fixture/docs/export-checks.md",
+      "expected": "3e1dbea45828f9925f967551f37ea466fcc6f54a1a61724fe48cd80535c7429d",
+      "actual": "3e1dbea45828f9925f967551f37ea466fcc6f54a1a61724fe48cd80535c7429d"
+    },
+    {
+      "file": "fixture/docs/mobile-icon.md",
+      "expected": "ef1860041ff46da8fea1d58bab3b5a5fbf563a3821e50a281021cd8ddfa929dc",
+      "actual": "ef1860041ff46da8fea1d58bab3b5a5fbf563a3821e50a281021cd8ddfa929dc"
+    },
+    {
+      "file": "fixture/docs/office-move.md",
+      "expected": "d42acaf7ef9f40220ef83e8a58593e831358682a29b2ca60a0e66f8bb1fe910f",
+      "actual": "d42acaf7ef9f40220ef83e8a58593e831358682a29b2ca60a0e66f8bb1fe910f"
+    },
+    {
+      "file": "fixture/docs/translation.md",
+      "expected": "e0d22fb81e33e995da33a3c681be30e31d9eab9f807a0f9af1d38b6fe93b7d5e",
+      "actual": "e0d22fb81e33e995da33a3c681be30e31d9eab9f807a0f9af1d38b6fe93b7d5e"
+    },
+    {
+      "file": "prompt-after.md",
+      "expected": "fe9e0ba30dcb94e7149a2194754bb7044d74635145df42f014297a3ac40defe8",
+      "actual": "fe9e0ba30dcb94e7149a2194754bb7044d74635145df42f014297a3ac40defe8"
+    },
+    {
+      "file": "prompt-before.md",
+      "expected": "131be5cf097aaef288f535a228119fe69cbf4d2dfc3a8d53e8b256d10742f14e",
+      "actual": "131be5cf097aaef288f535a228119fe69cbf4d2dfc3a8d53e8b256d10742f14e"
+    },
+    {
+      "file": "task.txt",
+      "expected": "16563e378959f77776a626d061b6c3ad4036f75280176eed6e46d6f3e9ed2593",
+      "actual": "16563e378959f77776a626d061b6c3ad4036f75280176eed6e46d6f3e9ed2593"
+    }
+  ],
+  "single_replacement_verified": true
+}
