@@ -188,9 +188,11 @@ send_message("backend", "Continue #192")
 - **Task-local**: `impl-<what>` or `fix-<what>` — names aid navigation but NEVER classify lifecycle
 
 ### Worker selection
-- **Unknown scope / research needed** → `full-cycle` role. ALWAYS
+- If delegating work with unknown scope or substantial research, choose `full-cycle`;
+  bounded work you can complete yourself follows Step 0.5.
 - **Clear spec, known files** → system worker or disposable `worker` role
-- **Research still uses the `full-cycle` gates regardless of model.** Do not substitute a lightweight model such as Spark merely to save quota
+- Research scope and phase approvals follow Step 2 for every model;
+  model admission belongs to model-routing.
 - **Status outranks cache.** Reuse warm context only when the worker is **idle**; `running` or
   `waiting` is unavailable even for the same files/topic. A cold turn costs virtual money;
   split attention costs real focus and quality.

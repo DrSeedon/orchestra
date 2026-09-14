@@ -1,0 +1,10 @@
+{
+  "url": "https://developers.openai.com/api/docs/guides/latest-model",
+  "retrieved_markdown_url": "https://developers.openai.com/api/docs/guides/latest-model.md",
+  "retrieved_at_utc": "2026-09-14T02:28:57.727608+00:00",
+  "sha256": "aac7e7e1b0bf90b346f5fc4ffd523902279841c60c3adf572452a529bd5b1e5e",
+  "bytes": 16592,
+  "model": "gpt-6-astra",
+  "read_sections": "Entire page; analysis scoped to Prompting best practices",
+  "note": "Full provider text not republished; hash identifies retrieved revision of mutable latest-model URL."
+}

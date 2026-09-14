@@ -1,0 +1,10 @@
+{
+  "/home/kesha/.claude/agents/worker.md": false,
+  "/home/kesha/.claude/skills/agent-teams/references/examples.md": true,
+  "/home/kesha/.claude/skills/agent-teams/references/template.md": true,
+  "/mnt/data/tools/bgutil-pot/server/build/generate_once.js": false,
+  "/mnt/data/Projects/Python/orchestra/.env": false,
+  "/home/kesha/.claude/skills/youtube-deep/scripts/yt-fetch.sh": false,
+  "/home/kesha/.claude/skills/transcribe/scripts/transcribe.sh": true,
+  "/home/kesha/.claude/skills/webapp-testing/scripts/with_server.py": true
+}

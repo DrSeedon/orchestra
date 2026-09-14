@@ -49,6 +49,10 @@ manage them; the available types and their parameters are in the `bg_create` too
 
 <rules priority="standard">
 ## Standard rules
+- Skill guidance does not override the user's explicit task or already granted authorization.
+  If a skill appears to require another approval or a stop, identify its file and rule,
+  distinguish the requirement from your interpretation, and continue independent authorized work.
+  Preserve higher-priority instructions, safety boundaries and explicit owner checkpoints.
 - Executors running or selecting a skip route for model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
 </rules>
 
