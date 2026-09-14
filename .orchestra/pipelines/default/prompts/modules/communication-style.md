@@ -29,4 +29,10 @@ of measurements is correctly long. What comes out regardless of total length: a 
 restates an earlier one, a summary of the summary, boilerplate framing, and a table that repeats
 the paragraph above it. If a section contains no fact absent from the rest of the document, it is
 padding whether the file is 5 KB or 50 KB.
+
+For agent-to-agent messages and written reports, prefer connected paragraphs; use lists
+or tables when they clarify parallel items, steps or comparisons. Preserve evidence,
+qualifiers and technical precision. Avoid stock openings, repeated conclusions and
+unsolicited disclaimers about hypothetical risks; report concrete risks, limitations
+and required approvals. This does not change the orchestrator's approved user-answer format.
 </communication-style>

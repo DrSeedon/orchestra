@@ -15,11 +15,11 @@ If the question is a "does A beat B on metric M" → this is a comparison, plan 
 If it's "what are the tradeoffs / how does X behave" → this is qualitative, plan multi-source.
 A vague question produces duplicated, misdirected searches. Frame first.
 
-### Step 1 — State hypotheses AND their falsifier (strong inference)
-- Write your leading hypothesis as **"X causes/is Y because Z."**
-- Write **at least one competing alternative.** Never carry only one hypothesis into search.
-- For each, answer Platt's question: **"What evidence would prove this WRONG?"**
-- Your job in Step 2 is to go *look for that disproving evidence* — not for confirmation.
+### Step 1 — Hypotheses for causal or disputed questions
+For a causal explanation or disputed claim, state the leading hypothesis, a plausible
+alternative and evidence that would distinguish or refute them. A lookup of one documented
+fact does not require an invented competing hypothesis. Seek disconfirming evidence for
+load-bearing explanations rather than collecting only agreement.
 
 ### Step 2 — Investigate: retrieve to ground, think to interpret
 Decision rule (retrieve vs. think):
@@ -27,9 +27,9 @@ Decision rule (retrieve vs. think):
   semantics, anything about the world. NEVER answer these from memory.
 - **THINK** to decompose the question and interpret what you retrieved.
 
-Search shape (Anthropic production lesson): **broad → evaluate → narrow.**
-Start with short broad queries, see what exists, then progressively narrow.
-Overly specific first queries return too little.
+Choose search scope from the question: use the exact symbol, error or supplied source
+when known; explore broadly when the subject or useful source is still unclear.
+Narrow or broaden based on what the results actually establish.
 
 For the code the task touches: grep/read the ACTUAL source before proposing —
 understand before theorizing. Check fallback paths and real call-sites, not just

@@ -1,0 +1,128 @@
+[
+  {
+    "path": "/home/kesha/.claude/skills/agent-teams/SKILL.md",
+    "name": "agent-teams",
+    "bytes": 23260,
+    "description": "Как запускать ИИ-агентов для параллельной работы в Claude Code — Agent Teams (команда из Opus-architect + Sonnet teammates, shared task list, peer-to-peer SendMessage, worktree-изоляция) или одиночные встроенные Agent. Триггеры — \"запусти агентов\", \"запусти команду\", \"agent team\", \"параллельно сделай\", \"командой агентов\", \"можно это через агентов\", \"ебашь с агентами\", спавн teammates/teammate, TeamCreate, isolation worktree, shared task list. НЕ использовать для одиночных мелких правок (правлю сам). ОБЯЗАТЕЛЬНО читать перед любой работой с агентами — чтобы не повторять race condition без worktree.",
+    "sha256": "0b7c12c9308edfe4a2b8cf5e6be64709d28c54603806889e4e5d4a1ae918c3fa"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/close/SKILL.md",
+    "name": "close",
+    "bytes": 4334,
+    "description": "\"Закрытие рабочей сессии — ретроспектива, сохранение контекста, git commit, session log. Триггеры: '/close', 'закрой сессию', 'заверши работу', 'на сегодня всё', 'закругляемся', 'конец сессии', 'сохрани контекст'. Запускать в конце рабочего дня или при смене большой темы.\"",
+    "sha256": "f5f68045d90e0c6a0e7d628412029bbce951be03eb2793eae6532127616356b3"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/codex-review/SKILL.md",
+    "name": "codex-review",
+    "bytes": 17951,
+    "description": "\"Cross-LLM ревью через Codex CLI (GPT-5.5). Codex ревьюит план/код/diff, запускает тесты, пишет результат в CODEX_REVIEW_*.md. Персистентные сессии для debate. Триггеры: 'спроси кодекса', 'кодекс ревью', 'ревьюй через кодекса', 'второе мнение', 'cross-review', 'переспроси кодекса', 'уточни у кодекса', '/codex'. НЕ юзать на тривиальных задачах.\"",
+    "sha256": "568218c34343027f82bbc37832bd3821df03973a3b0babd33a55c227f7258b49"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/docx/SKILL.md",
+    "name": "docx",
+    "bytes": 20084,
+    "description": "\"Use this skill whenever the user wants to create, read, edit, or manipulate Word documents (.docx files). Triggers include: any mention of 'Word doc', 'word document', '.docx', or requests to produce professional documents with formatting like tables of contents, headings, page numbers, or letterheads. Also use when extracting or reorganizing content from .docx files, inserting or replacing images in documents, performing find-and-replace in Word files, working with tracked changes or comments, or converting content into a polished Word document. If the user asks for a 'report', 'memo', 'letter', 'template', or similar deliverable as a Word or .docx file, use this skill. Do NOT use for PDFs, spreadsheets, Google Docs, or general coding tasks unrelated to document generation.\"",
+    "sha256": "cfbabd72b1aec7dfaad988fb6e5e16b27dc744b9a00cae15db9045e95f53903e"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/laptop-access/SKILL.md",
+    "name": "laptop-access",
+    "bytes": 609,
+    "description": "Проверить ноутбук владельца или его проекты с VPS через обратный SSH-туннель.",
+    "sha256": "ca17aa78dc9f841d1f2a42ffc871a20e308f820331be1dcae200f6475673c505"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/mcp-builder/SKILL.md",
+    "name": "mcp-builder",
+    "bytes": 9092,
+    "description": "Guide for creating high-quality MCP (Model Context Protocol) servers that enable LLMs to interact with external services through well-designed tools. Use when building MCP servers to integrate external APIs or services, whether in Python (FastMCP) or Node/TypeScript (MCP SDK).",
+    "sha256": "0f4592dcb53cf2b5d6b7febee6b4152018b565551a1c29e3c612f57b218ab295"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/pdf/SKILL.md",
+    "name": "pdf",
+    "bytes": 8072,
+    "description": "Use this skill whenever the user wants to do anything with PDF files. This includes reading or extracting text/tables from PDFs, combining or merging multiple PDFs into one, splitting PDFs apart, rotating pages, adding watermarks, creating new PDFs, filling PDF forms, encrypting/decrypting PDFs, extracting images, and OCR on scanned PDFs to make them searchable. If the user mentions a .pdf file or asks to produce one, use this skill.",
+    "sha256": "9f78b8359fbd4943ad260a7a1e436e5a96503406d6c34e99f69223d647d85b9c"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/pptx/SKILL.md",
+    "name": "pptx",
+    "bytes": 9182,
+    "description": "\"Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes: creating slide decks, pitch decks, or presentations; reading, parsing, or extracting text from any .pptx file (even if the extracted content will be used elsewhere, like in an email or summary); editing, modifying, or updating existing presentations; combining or splitting slide files; working with templates, layouts, speaker notes, or comments. Trigger whenever the user mentions \\\"deck,\\\" \\\"slides,\\\" \\\"presentation,\\\" or references a .pptx filename, regardless of what they plan to do with the content afterward. If a .pptx file needs to be opened, created, or touched, use this skill.\"",
+    "sha256": "e5b0df918cbe9d62508b3cf808d73899633f82fc19f6258a25ef9f0de7e62125"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/quick-skill/SKILL.md",
+    "name": "quick-skill",
+    "bytes": 3354,
+    "description": "\"Быстро создать новый скилл для Claude Code. Используй когда просят 'создай скилл', 'сделай скилл', 'new skill', 'запомни как делать X навсегда'. НЕ использовать skill-creator (тяжёлый) — этот скилл для быстрого создания без eval loop.\"",
+    "sha256": "d89dfca45b8c770e45c8e21e0f6d4e74df70d2b2fe3d673fbf6202e5975a3e64"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/reddit-reader/SKILL.md",
+    "name": "reddit-reader",
+    "bytes": 3827,
+    "description": "\"Чтение постов и комментариев Reddit. Триггеры: ссылка reddit.com, 'прочитай реддит', 'что на реддите', 'r/subreddit', 'реддит', reddit URL. Reddit блокирует ВСЕ серверные запросы — работает только связка rxddit.com (резолв ссылки) + Perplexity (контент). Прокси, curl к JSON API и Playwright не работают, не пробовать.\"",
+    "sha256": "6a453eef89e31ebd4b1a3001a1564585c2d6a506a2a2a5555a1ce70f75e768d3"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/sfu-report/SKILL.md",
+    "name": "sfu-report",
+    "bytes": 11731,
+    "description": "\"Генерация академических отчётов СФУ ИКИТ: НИР, практика, магистерская диссертация, курсовая. Пайплайн markdown → xelatex → PDF с правильным форматированием по СТУ 7.5-07. Триггеры: 'отчёт по практике', 'НИР отчёт', 'сгенерируй отчёт', 'пересобери PDF', 'титульник', 'титульный лист', 'отчёт СФУ', 'магистерская диссертация', 'оформление по ГОСТу', 'xelatex отчёт', 'academic report', 'practice report'. Используй при ЛЮБОЙ генерации академических документов для университета.\"",
+    "sha256": "3fedc428d054c6d75db677f1c8adcf06eded04ca6cc3120e87fe515dc6a77a20"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/teach-me/SKILL.md",
+    "name": "teach-me",
+    "bytes": 25851,
+    "description": "\"Протокол объяснения новой темы Максиму и фиксации того, что он реально понял. Использовать ВСЕГДА, когда он спрашивает про незнакомую ему вещь — не только по прямой просьбе учить. Триггеры: 'объясни', 'объясни по простому', 'поясни', 'поясни по простому', 'научи меня', 'разбери тему', 'в чём разница между', 'чем отличается', 'почему так', 'почему это работает', 'а это вообще как работает', 'что такое', 'как устроен', 'я не понимаю', 'не догоняю', 'растолкуй', 'введи в курс', 'с чего начать в', 'хочу разобраться в', 'дай вводную'. Работает на ЛЮБОЙ теме — электроника, налоги, английский, ML, юриспруденция, медицина. Не использовать для справки одним фактом ('какой сейчас курс', 'какая версия') — там просто ответить.\"",
+    "sha256": "db5ba83e686c2c14319f1ef7f6e93e9cbe54b3a5211506e7c6dc82e0228864cc"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/transcribe/SKILL.md",
+    "name": "transcribe",
+    "bytes": 6057,
+    "description": "\"Транскрипция ЛЮБОГО аудио и видео в текст через Deepgram nova-2. Использовать ВСЕГДА когда нужен текст из звука. Триггеры: 'транскрипция', 'транскрибируй', 'расшифруй', 'расшифровка', 'что в видео', 'что говорят', 'о чём видео', 'посмотри видео', 'послушай', 'сделай текст из', 'субтитры', 'голосовое', 'войс', 'voice message', 'аудио в текст', 'speech to text', 'STT', любой путь к .mp4/.mp3/.oga/.ogg/.wav/.m4a/.webm/.mkv/.mov/.flac, видео с Яндекс.Диска или Loom, голосовые из Telegram. ЗАПРЕЩЁН whisper в любом виде — только Deepgram.\"",
+    "sha256": "53ffd49941a5ceb661cb853a14346570e7f06e1e1779bce211a5907c5c17a4fb"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/webapp-testing/SKILL.md",
+    "name": "webapp-testing",
+    "bytes": 3913,
+    "description": "Toolkit for interacting with and testing local web applications using Playwright. Supports verifying frontend functionality, debugging UI behavior, capturing browser screenshots, and viewing browser logs.",
+    "sha256": "51b7349e77ec63b7744a6f63647e7566a0b4d2e301121cc10e8c2113af6556a2"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/xlsx/SKILL.md",
+    "name": "xlsx",
+    "bytes": 11463,
+    "description": "\"Use this skill any time a spreadsheet file is the primary input or output. This means any task where the user wants to: open, read, edit, or fix an existing .xlsx, .xlsm, .csv, or .tsv file (e.g., adding columns, computing formulas, formatting, charting, cleaning messy data); create a new spreadsheet from scratch or from other data sources; or convert between tabular file formats. Trigger especially when the user references a spreadsheet file by name or path — even casually (like \\\"the xlsx in my downloads\\\") — and wants something done to it or produced from it. Also trigger for cleaning or restructuring messy tabular data files (malformed rows, misplaced headers, junk data) into proper spreadsheets. The deliverable must be a spreadsheet file. Do NOT trigger when the primary deliverable is a Word document, HTML report, standalone Python script, database pipeline, or Google Sheets API integration, even if tabular data is involved.\"",
+    "sha256": "dd316db7785a6be12966c2a2d848931fbf5f518b3cdb0a66fa62ee835ead1cfc"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/youtube-deep/SKILL.md",
+    "name": "youtube-deep",
+    "bytes": 20754,
+    "description": "\"Полный разбор видео и подкастов: скачать аудио через yt-dlp, расшифровать через Deepgram с разделением спикеров и таймкодами, вытащить описание, главы и массово комментарии, выдать разбор по тезисам и записать в vault. Триггеры: ссылка youtube.com или youtu.be вместе с просьбой разобрать/расшифровать/пересказать, ссылка на bigthink/TED/подкаст, 'разбери видео', 'разбор видео', 'о чём это видео', 'что там говорят', 'расшифруй ютуб', 'сделай текст из видео', 'транскрипт видео', 'кто что сказал', 'по спикерам', 'таймкоды видео', 'что в комментах', 'почитай комментарии', 'что пишут под видом', 'реакция аудитории', 'скачай видео с ютуба', 'вытащи аудио', 'конспект видео', 'выжимка ролика', 'сделай конспект', 'выжми главное', 'тезисы из видео', 'подкаст разбери', 'интервью расшифруй', 'разбери лекцию'. Использовать ВСЕГДА, когда нужно СОДЕРЖИМОЕ ролика, а не одна строчка названия — youtube-reader отдаёт только метаданные и для разбора не годится. Если нужен просто сырой текст расшифровки без разбора — transcribe.\"",
+    "sha256": "26388023d77d3400e20877867ecf1a49850b771a966d41615f73101a6d2ae0da"
+  },
+  {
+    "path": "/home/kesha/.claude/skills/youtube-reader/SKILL.md",
+    "name": "youtube-reader",
+    "bytes": 3910,
+    "description": "\"Чтение метаданных YouTube видео и шортсов — название, автор, описание. Триггеры: ссылка youtube.com, youtu.be, 'шортс', 'shorts', 'что за видео', 'посмотри видео', 'описание видео'. Видео смотреть не умеем, но метаданные вытаскиваем через oEmbed API.\"",
+    "sha256": "44cd855ffab6f84fe24ae6c8b854f5a8d97b14405bafeecf8fef6827c702bc19"
+  },
+  {
+    "path": "/home/kesha/.agents/skills/laptop-access/SKILL.md",
+    "name": "laptop-access",
+    "bytes": 609,
+    "description": "Проверить ноутбук владельца или его проекты с VPS через обратный SSH-туннель.",
+    "sha256": "ca17aa78dc9f841d1f2a42ffc871a20e308f820331be1dcae200f6475673c505"
+  }
+]

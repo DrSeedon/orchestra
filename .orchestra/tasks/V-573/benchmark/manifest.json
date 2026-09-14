@@ -1,0 +1,12 @@
+{
+  "source_commit": "3cdb0d9f1e9258179c2424c1c851baec8e6f8e26",
+  "canonical_skill": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+  "intervention": "Only description changes; identical body and task; catalogue built from description",
+  "files": {
+    "catalogue-after.txt": "bfe8e74c45f75b3917f04bc9066e8ad5da2df4f932e7c848a8e871406ca8d49f",
+    "catalogue-before.txt": "0e381cad7f767e45ff2b15f50c16782a70a5099b2979010f591a9d4a7e1a78bd",
+    "task.txt": "762699186386429a07c411eb52b922bd72a49e1abc32753c5276b5b909dc1fea",
+    "skill-after.md": "5e7dabc83cff7ba22978c1c55dff898cb975c73b5da0263a2ae54a33e0ecfbf7",
+    "skill-before.md": "3d2eaea24738dbe1b605330932552bac522130710264ad3b2b3a6a244de16fde"
+  }
+}
