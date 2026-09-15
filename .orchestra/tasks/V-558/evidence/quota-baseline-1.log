@@ -1,0 +1,1051 @@
+.....................................FF......FFFFFFF...F................ [ 53%]
+...F.FF..............FFFFFFFFFF..E...........................F           [100%]
+==================================== ERRORS ====================================
+___ ERROR at setup of test_usage_bar_renders_worker_headroom_from_quota_map ____
+
+    @pytest.fixture(scope="module")
+    def browser():
+        from playwright.sync_api import sync_playwright
+    
+        with sync_playwright() as playwright:
+>           instance = playwright.chromium.launch(headless=True)
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_headroom_447.py:100: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f18170a2f00>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f1816130540>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+=================================== FAILURES ===================================
+_ test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-5.6-sol] _
+
+model = 'gpt-5.6-sol'
+
+    @pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-6-astra"])
+    def test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work(model):
+        """Оба плеча в ОДНОЙ точке: Sol/Astra стоят, Luna в тот же момент работает."""
+        providers = _providers(progress=1.0, codex=96.0)
+    
+        expensive = _decide(model, providers)
+        luna = _decide("gpt-5.6-luna", providers)
+    
+>       assert expensive.state == "blocked", expensive.reason
+E       AssertionError: utilization 96% is at or below the line limit 99%
+E       assert 'available' == 'blocked'
+E         
+E         - blocked
+E         + available
+
+tests/test_quota_gate.py:385: AssertionError
+_ test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-6-astra] _
+
+model = 'gpt-6-astra'
+
+    @pytest.mark.parametrize("model", ["gpt-5.6-sol", "gpt-6-astra"])
+    def test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work(model):
+        """Оба плеча в ОДНОЙ точке: Sol/Astra стоят, Luna в тот же момент работает."""
+        providers = _providers(progress=1.0, codex=96.0)
+    
+        expensive = _decide(model, providers)
+        luna = _decide("gpt-5.6-luna", providers)
+    
+>       assert expensive.state == "blocked", expensive.reason
+E       AssertionError: utilization 96% is at or below the line limit 99%
+E       assert 'available' == 'blocked'
+E         
+E         - blocked
+E         + available
+
+tests/test_quota_gate.py:385: AssertionError
+_____ test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv ______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9146/test_lane_ceilings_come_from_t0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18162dba40>
+
+    def test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv(tmp_path, monkeypatch):
+        """Потолки настраиваются как остальное правило: env + перечитка `.env` по mtime."""
+        env_file = tmp_path / ".env"
+        env_file.write_text("QUOTA_LANE_HARD_STOP_PCT=luna=90,sol=80\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+        policy = quota_gate.quota_policy()
+>       assert policy.lane_hard_stop_pct == {"luna": 90.0, "sol": 80.0}
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'QuotaPolicy' object has no attribute 'lane_hard_stop_pct'. Did you mean: 'hard_stop_pct'?
+
+tests/test_quota_gate.py:434: AttributeError
+__ test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1816183b00>
+
+    def test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling(monkeypatch):
+        """Общий стоп остаётся общим: он не поднимает полосу с собственным потолком."""
+>       policy = quota_gate.QuotaPolicy(
+            hard_stop_pct=70.0, tolerance_start_pp=10.0, tolerance_end_pp=1.0,
+            curve_exponent=2.5, gated_lanes=frozenset({"sol"}), curved_lanes=frozenset({"sol"}),
+            lane_hard_stop_pct={"sol": 95.0},
+        )
+E       TypeError: QuotaPolicy.__init__() got an unexpected keyword argument 'lane_hard_stop_pct'
+
+tests/test_quota_gate.py:454: TypeError
+___________________ test_malformed_lane_ceilings_raise[sol] ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9146/test_malformed_lane_ceilings_r0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18161837a0>
+value = 'sol'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+_________________ test_malformed_lane_ceilings_raise[sol=abc] __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9146/test_malformed_lane_ceilings_r1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1816182fc0>
+value = 'sol=abc'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+_________________ test_malformed_lane_ceilings_raise[sol=101] __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9146/test_malformed_lane_ceilings_r2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18162dce60>
+value = 'sol=101'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+___________________ test_malformed_lane_ceilings_raise[=95] ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9146/test_malformed_lane_ceilings_r3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18162dc230>
+value = '=95'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+_________________ test_malformed_lane_ceilings_raise[sol=95,] __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-9146/test_malformed_lane_ceilings_r4')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1816298170>
+value = 'sol=95,'
+
+    @pytest.mark.parametrize("value", ["sol", "sol=abc", "sol=101", "=95", "sol=95,"])
+    def test_malformed_lane_ceilings_raise(tmp_path, monkeypatch, value):
+        env_file = tmp_path / ".env"
+        env_file.write_text(f"QUOTA_LANE_HARD_STOP_PCT={value}\n")
+        monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+        for name in quota_gate._QUOTA_ENV_NAMES:
+            monkeypatch.delenv(name, raising=False)
+        monkeypatch.setattr(quota_gate, "_startup_quota_env",
+                            {name: None for name in quota_gate._QUOTA_ENV_NAMES})
+        monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+        monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+        monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+        monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+    
+>       with pytest.raises(ValueError, match="QUOTA_LANE_HARD_STOP_PCT"):
+E       Failed: DID NOT RAISE <class 'ValueError'>
+
+tests/test_quota_gate.py:478: Failed
+____ test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop ____
+
+    def test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop():
+        """Окно пройдено целиком: `progress` зажат в 1.0, и линия равна жёсткому стопу полосы."""
+        window = _window("primary", CODEX_WINDOW_MINUTES, 94.0, None)
+        window["resets_at"] = _iso(NOW - 60)
+        providers = {"codex": {"label": "Codex", "windows": [window]}}
+    
+        decision = _decide("gpt-5.6-sol", providers)
+    
+        assert decision.progress == 1.0
+>       assert decision.limit_pct == SOL_HARD_STOP_PCT
+E       AssertionError: assert 99.0 == 95.0
+E        +  where 99.0 = QuotaDecision(state='available', model='gpt-5.6-sol', provider='codex', provider_label='Codex', lane='sol', gated=True...tilization 94% is at or below the line limit 99%', hard_limit_pct=99.0, release_status='open', release_in_seconds=None).limit_pct
+
+tests/test_quota_gate.py:523: AssertionError
+_____________ test_decision_serializes_every_field_the_panel_draws _____________
+
+    def test_decision_serializes_every_field_the_panel_draws():
+        decision = _decide("gpt-5.6-sol", _providers(progress=0.5, codex=90.0))
+        payload = decision.to_dict()
+    
+        assert payload["state"] == "blocked" and payload["allowed"] is False
+        assert payload["lane"] == "sol" and payload["gated"] is True
+        # Панель рисует потолок ПОЛОСЫ: общий стоп пула у Sol не действует.
+>       assert payload["hard_limit_pct"] == SOL_HARD_STOP_PCT
+E       assert 99.0 == 95.0
+
+tests/test_quota_gate.py:622: AssertionError
+_________________ test_rule_constants_travel_with_the_payload __________________
+
+mapped = <function mapped.<locals>.run at 0x7f1816152020>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_travel_with_the_payload(mapped):
+        """Панель не хардкодит числа правила — иначе она разойдётся с гейтом молча."""
+        payload = await mapped(_observation(
+            anthropic=[_window(10080, 4, window_id="seven_day", label="7d")],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": 99.0,
+            # Потолок Sol ниже общего: без этого поля панель нарисует ему чужие 99%.
+            "lane_hard_stop_pct": {"sol": 95.0},
+            "tolerance_start_pp": 10.0,
+            "tolerance_end_pp": 1.0,
+            # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
+            # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
+            "curve_exponent": 2.5,
+            "curved_lanes": ["sol"],
+        }
+E       AssertionError: assert {'curve_expon...pp': 1.0, ...} == {'curve_expon...': 95.0}, ...}
+E         
+E         Omitting 5 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'lane_hard_stop_pct': {'sol': 95.0}}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:195: AssertionError
+______________ test_rule_constants_reflect_environment_overrides _______________
+
+mapped = <function mapped.<locals>.run at 0x7f1816150b80>
+configured_quota_gate = <function configured_quota_gate.<locals>.configure at 0x7f18161525c0>
+
+    @pytest.mark.asyncio
+    async def test_rule_constants_reflect_environment_overrides(mapped, configured_quota_gate):
+        configured_quota_gate(
+            QUOTA_HARD_STOP_PCT="92",
+            QUOTA_LANE_HARD_STOP_PCT="sol=85",
+            QUOTA_TOLERANCE_START_PP="13",
+            QUOTA_TOLERANCE_END_PP="2",
+            QUOTA_GATED_LANES="",
+        )
+        payload = await mapped(_observation(
+            codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+        ))
+    
+>       assert payload["rule"] == {
+            "hard_stop_pct": 92.0,
+            "lane_hard_stop_pct": {"sol": 85.0},
+            "tolerance_start_pp": 13.0,
+            "tolerance_end_pp": 2.0,
+            "curve_exponent": 2.5,
+            "curved_lanes": ["sol"],
+        }
+E       AssertionError: assert {'curve_expon...pp': 2.0, ...} == {'curve_expon...': 85.0}, ...}
+E         
+E         Omitting 5 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'lane_hard_stop_pct': {'sol': 85.0}}
+E         Use -v to get more diff
+
+tests/test_quota_map_api.py:222: AssertionError
+_________ test_gated_worker_is_refused_above_the_line[sol-gpt-5.6-sol] _________
+
+mgr = <app.manager.SessionManager object at 0x7f18161cb740>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1816294080>
+name = 'sol', model = 'gpt-5.6-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
+    
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-above", model)
+
+tests/test_quota_admission_e2e.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+____ test_gated_worker_is_refused_above_the_line[claude-claude-opus-5[1m]] _____
+
+mgr = <app.manager.SessionManager object at 0x7f18161c9520>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18162972f0>
+name = 'claude', model = 'claude-opus-5[1m]'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
+    
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-above", model)
+
+tests/test_quota_admission_e2e.py:105: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+_________ test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol] _________
+
+mgr = <app.manager.SessionManager object at 0x7f18161dba40>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f181623c350>
+name = 'sol', model = 'gpt-5.6-sol'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_created_below_the_line(mgr, monkeypatch, name, model):
+        """Вторая сторона: гейт, отказывающий всегда, прошёл бы проверку выше."""
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(BELOW[name]))
+    
+>       session = await _spawn(mgr, f"{name}-below", model)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_admission_e2e.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+____ test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]] _____
+
+mgr = <app.manager.SessionManager object at 0x7f18161caa50>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18162da690>
+name = 'claude', model = 'claude-opus-5[1m]'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("sol", "gpt-5.6-sol"),
+        ("claude", "claude-opus-5[1m]"),
+    ])
+    async def test_gated_worker_is_created_below_the_line(mgr, monkeypatch, name, model):
+        """Вторая сторона: гейт, отказывающий всегда, прошёл бы проверку выше."""
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(BELOW[name]))
+    
+>       session = await _spawn(mgr, f"{name}-below", model)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_admission_e2e.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+_ test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna] _
+
+mgr = <app.manager.SessionManager object at 0x7f1817387590>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1817553740>
+name = 'luna', model = 'gpt-5.6-luna'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("luna", "gpt-5.6-luna"),
+        ("spark", "gpt-5.3-codex-spark"),
+    ])
+    async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
+        mgr, monkeypatch, name, model,
+    ):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE_BOTH))
+    
+>       session = await _spawn(mgr, f"{name}-ok", model)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_admission_e2e.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+_ test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark] _
+
+mgr = <app.manager.SessionManager object at 0x7f18170ba7b0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1817553020>
+name = 'spark', model = 'gpt-5.3-codex-spark'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("luna", "gpt-5.6-luna"),
+        ("spark", "gpt-5.3-codex-spark"),
+    ])
+    async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
+        mgr, monkeypatch, name, model,
+    ):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE_BOTH))
+    
+>       session = await _spawn(mgr, f"{name}-ok", model)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_admission_e2e.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+_____ test_luna_and_spark_are_refused_at_the_hard_stop[luna-gpt-5.6-luna] ______
+
+mgr = <app.manager.SessionManager object at 0x7f18161cba10>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18175534d0>
+name = 'luna', model = 'gpt-5.6-luna'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("luna", "gpt-5.6-luna"),
+        ("spark", "gpt-5.3-codex-spark"),
+    ])
+    async def test_luna_and_spark_are_refused_at_the_hard_stop(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(99.0))
+    
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-hard", model)
+
+tests/test_quota_admission_e2e.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+_ test_luna_and_spark_are_refused_at_the_hard_stop[spark-gpt-5.3-codex-spark] __
+
+mgr = <app.manager.SessionManager object at 0x7f181736e450>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f18170bb320>
+name = 'spark', model = 'gpt-5.3-codex-spark'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("name, model", [
+        ("luna", "gpt-5.6-luna"),
+        ("spark", "gpt-5.3-codex-spark"),
+    ])
+    async def test_luna_and_spark_are_refused_at_the_hard_stop(mgr, monkeypatch, name, model):
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(99.0))
+    
+        with pytest.raises(QuotaGateError):
+>           await _spawn(mgr, f"{name}-hard", model)
+
+tests/test_quota_admission_e2e.py:148: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+______________ test_orchestrator_is_created_at_a_hundred_percent _______________
+
+mgr = <app.manager.SessionManager object at 0x7f181753e6f0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f181736abd0>
+
+    @pytest.mark.asyncio
+    async def test_orchestrator_is_created_at_a_hundred_percent(mgr, monkeypatch):
+        """Оркестраторы не блокируются НИКОГДА — ни на 99, ни на 100."""
+        from unittest.mock import AsyncMock
+    
+        gate = AsyncMock(side_effect=AssertionError("orchestrator must not read quota"))
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", gate)
+    
+>       session = await _spawn(
+            mgr, "root-orchestrator", "claude-opus-5[1m]",
+            role="orchestrator", is_orchestrator=True,
+        )
+
+tests/test_quota_admission_e2e.py:161: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+__________ test_unknown_quota_admits_the_spawn_and_the_following_send __________
+
+mgr = <app.manager.SessionManager object at 0x7f18170a2900>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f1819a3bb00>
+
+    @pytest.mark.asyncio
+    async def test_unknown_quota_admits_the_spawn_and_the_following_send(mgr, monkeypatch):
+        """Сквозной fail-open: спавн и обязательный первый `/send` отвечают одинаково.
+    
+        Раньше спавн проходил на `quota=unknown`, а `/send` тем же вопросом отвечал 429 —
+        получалась мёртвая сессия (#227).
+        """
+        from app.quota_gate import require_worker_admission
+    
+        async def blind(model, observation_loader=None):
+            return evaluate_worker_admission(model, {}, {}, now=NOW)
+    
+        monkeypatch.setattr("app.quota_gate.get_worker_admission", blind)
+    
+>       session = await _spawn(mgr, "blind-worker", "gpt-5.6-sol")
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_admission_e2e.py:184: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_quota_admission_e2e.py:90: in _spawn
+    return await mgr.create_session(
+app/manager.py:652: in create_session
+    return await self._create_session_locked(
+app/manager.py:776: in _create_session_locked
+    validate_spawn(pipeline, parent_role, role if explicit_role else "")
+app/pipeline.py:649: in validate_spawn
+    cfg = load_pipeline(pipeline_name)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'default'
+
+    def load_pipeline(name: str) -> PipelineConfig:
+        """Прочитать ``.orchestra/pipelines/<name>/pipeline.yaml``, провалидировать, кэшировать.
+    
+        Кэш инвалидируется по (mtime_ns, размер): правка манифеста при живом сервере видна
+        сразу, без рестарта (#214 — эффорт перечитывается на границе каждого хода).
+        Один ``stat`` на вызов, разбор — только на изменившемся файле.
+    
+        Чтение стабильное: если файл сменился ПОКА мы его читали, разбор отбрасывается и
+        попытка повторяется (до трёх раз). Неатомарная запись извне — редактором, `sed -i`,
+        деплоем — иначе отдала бы недописанный YAML, который бывает синтаксически валидным.
+    
+        :raises FileNotFoundError: если папки/файла нет.
+        :raises pydantic.ValidationError: если схема битая (extra-поле, неверный kind/model).
+        :raises ValueError: если ``name`` в файле не совпадает с именем папки, либо битый
+            граф can_spawn.
+        :raises OSError: если файл менялся в течение всех трёх попыток чтения.
+        """
+        # Empty name = legacy/ad-hoc session with no pipeline → treat as "not found"
+        # so callers' FileNotFoundError branch handles it (role=None), not a crash.
+        if not name:
+            raise FileNotFoundError("pipeline name is empty")
+        if not _is_safe_component(name):
+            raise ValueError(f"unsafe pipeline name '{name}'")
+        path = PIPELINES_DIR / name / "pipeline.yaml"
+        if not path.is_file():
+>           raise FileNotFoundError(f"pipeline '{name}' not found at {path}")
+E           FileNotFoundError: pipeline 'default' not found at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.orchestra/pipelines/default/pipeline.yaml
+
+app/pipeline.py:430: FileNotFoundError
+_________ test_lane_label_prints_the_threshold_that_actually_gates_it __________
+
+    def test_lane_label_prints_the_threshold_that_actually_gates_it():
+        """Подпись у точки обязана называть порог ПОЛОСЫ, а не прямую бакета.
+    
+        Sol идёт по параболе (81.3% при половине окна), а панель печатала бакетные 55.5% —
+        то есть юзер читал бы «Sol на 14.5 п.п. выше порога» у полосы, которая работает, и
+        видел бы на том же SVG розовую кривую, проходящую выше точки.
+        """
+        payload = _quota_map_payload()
+        with sync_playwright() as playwright:
+>           browser = playwright.chromium.launch(headless=True)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_audit0901_sysquota.py:171: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+    self._sync(
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+    await self._channel.send(
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x7f1815eabb60>
+cb = <function Channel.send.<locals>.<lambda> at 0x7f1815cf8a40>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/kesha/.cache/orchestra-bench-V-558/quota-baseline/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+E           ╔════════════════════════════════════════════════════════════╗
+E           ║ Looks like Playwright was just installed or updated.       ║
+E           ║ Please run the following command to download new browsers: ║
+E           ║                                                            ║
+E           ║     playwright install                                     ║
+E           ║                                                            ║
+E           ║ <3 Playwright Team                                         ║
+E           ╚════════════════════════════════════════════════════════════╝
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+=========================== short test summary info ============================
+FAILED tests/test_quota_gate.py::test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-5.6-sol]
+FAILED tests/test_quota_gate.py::test_ninety_six_percent_stops_the_expensive_lane_and_lets_luna_work[gpt-6-astra]
+FAILED tests/test_quota_gate.py::test_lane_ceilings_come_from_the_environment_and_reload_with_dotenv
+FAILED tests/test_quota_gate.py::test_lowering_the_common_hard_stop_lowers_a_lane_that_has_its_own_ceiling
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol] - Fa...
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=abc]
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=101]
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[=95] - Fa...
+FAILED tests/test_quota_gate.py::test_malformed_lane_ceilings_raise[sol=95,]
+FAILED tests/test_quota_gate.py::test_a_reset_already_in_the_past_collapses_the_line_onto_the_hard_stop
+FAILED tests/test_quota_gate.py::test_decision_serializes_every_field_the_panel_draws
+FAILED tests/test_quota_map_api.py::test_rule_constants_travel_with_the_payload
+FAILED tests/test_quota_map_api.py::test_rule_constants_reflect_environment_overrides
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_refused_above_the_line[sol-gpt-5.6-sol]
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_refused_above_the_line[claude-claude-opus-5[1m]]
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[sol-gpt-5.6-sol]
+FAILED tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5[1m]]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-5.6-luna]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_refused_at_the_hard_stop[luna-gpt-5.6-luna]
+FAILED tests/test_quota_admission_e2e.py::test_luna_and_spark_are_refused_at_the_hard_stop[spark-gpt-5.3-codex-spark]
+FAILED tests/test_quota_admission_e2e.py::test_orchestrator_is_created_at_a_hundred_percent
+FAILED tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send
+FAILED tests/test_audit0901_sysquota.py::test_lane_label_prints_the_threshold_that_actually_gates_it
+ERROR tests/test_quota_headroom_447.py::test_usage_bar_renders_worker_headroom_from_quota_map
+24 failed, 109 passed, 1 error in 15.53s

@@ -1,0 +1,92 @@
+[
+  {
+    "probe": "own code read",
+    "outcome": "allowed",
+    "expected": "allowed",
+    "detail": 48526
+  },
+  {
+    "probe": "own write",
+    "outcome": "allowed",
+    "expected": "allowed",
+    "detail": 2
+  },
+  {
+    "probe": "main code",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "main git",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "report",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "KB",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "TODO",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "oracle",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "sibling",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "db",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "parent process environ",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "proc root alias",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "direct external HTTPS",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "dashboard TCP",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  },
+  {
+    "probe": "host unix socket",
+    "outcome": "denied",
+    "expected": "denied",
+    "detail": null
+  }
+]

@@ -121,7 +121,7 @@ def test_cached_input_is_a_tenth_of_fresh_input_for_every_model():
 
 def test_legacy_gpt_models_unchanged():
     assert CODEX_CONTEXT_LIMITS["gpt-5.5"] == 258400
-    assert CODEX_TOKEN_PRICES["gpt-5.4"] == {"input": 2.5, "cached": 0.25, "output": 15.0}
+    assert "gpt-5.4" not in CODEX_TOKEN_PRICES, "снятая с каталога модель не должна иметь цену"
 
 
 def test_sol_price_and_ctx_not_zero_fallback():

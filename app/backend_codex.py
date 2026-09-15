@@ -47,8 +47,6 @@ CODEX_CONTEXT_LIMITS = {
     "gpt-5.6-terra": 258400,
     "gpt-5.6-luna":  258400,
     "gpt-5.5": 258400,
-    "gpt-5.4": 258400,
-    "gpt-5.4-mini": 258400,
 }
 
 # Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
@@ -69,8 +67,6 @@ CODEX_TOKEN_PRICES = {
     "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
     "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
-    "gpt-5.4":      {"input": 2.5, "cached": 0.25, "output": 15.0},
-    "gpt-5.4-mini": {"input": 0.3, "cached": 0.03, "output": 1.25},
     "gpt-5.3-codex-spark": None,
 }
 

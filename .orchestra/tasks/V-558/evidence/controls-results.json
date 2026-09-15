@@ -1,0 +1,58 @@
+[
+  {
+    "label": "baseline",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-c",
+      "import app.bg_jobs; print(app.bg_jobs.__file__)"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/baseline",
+    "exit_code": 0,
+    "seconds": 0.41846361802890897
+  },
+  {
+    "label": "baseline",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "pytest",
+      "tests/test_pidfd_leaks.py",
+      "tests/test_bg_jobs.py",
+      "tests/test_harness_tools.py",
+      "-q",
+      "-p",
+      "no:randomly"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/baseline",
+    "exit_code": 1,
+    "seconds": 34.5926187899895
+  },
+  {
+    "label": "reference",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-c",
+      "import app.bg_jobs; print(app.bg_jobs.__file__)"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/reference",
+    "exit_code": 0,
+    "seconds": 0.36939347768202424
+  },
+  {
+    "label": "reference",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "pytest",
+      "tests/test_pidfd_leaks.py",
+      "tests/test_bg_jobs.py",
+      "tests/test_harness_tools.py",
+      "-q",
+      "-p",
+      "no:randomly"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/reference",
+    "exit_code": 0,
+    "seconds": 35.113785330206156
+  }
+]
