@@ -141,6 +141,29 @@ _QUOTA_ENV_NAMES = (
 )
 _DOTENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 _startup_quota_env = {name: os.environ.get(name) for name in _QUOTA_ENV_NAMES}
+
+
+def _dotenv_owned_names(startup_env: Mapping[str, str | None]) -> frozenset[str]:
+    """Ключи, чьё стартовое значение — копия `.env`, а не чужая настройка.
+
+    Без этого горячая перечитка файла мертва в бою: systemd отдаёт нам весь `.env`
+    через `EnvironmentFile`, поэтому КАЖДЫЙ ключ приходит ещё и в окружении, а
+    окружение старта перебивало файл. 15.09.2026 из-за этого пустой
+    `QUOTA_GATED_LANES=` пережил правку того же файла, и снятый гейт нельзя было
+    вернуть иначе как рестартом. Совпало со снимком файла на старте → владелец
+    файл; отличается → это настоящая внешняя настройка (шелл, юнит), и она держится.
+    """
+    try:
+        parsed = dotenv_values(_DOTENV_PATH)
+    except OSError:
+        return frozenset()
+    return frozenset(
+        name for name, value in startup_env.items()
+        if value is not None and parsed.get(name) == value
+    )
+
+
+_dotenv_owned_at_startup = _dotenv_owned_names(_startup_quota_env)
 _dotenv_mtime_ns: int | None = None
 _dotenv_values: dict[str, str | None] = {}
 _dotenv_quota_keys: frozenset[str] = frozenset()
@@ -192,6 +215,7 @@ def _live_quota_env() -> dict[str, object]:
             name: (
                 _startup_quota_env[name]
                 if _startup_quota_env.get(name) is not None
+                and name not in _dotenv_owned_at_startup
                 else _dotenv_values[name]
                 if name in _dotenv_quota_keys
                 else _UNSET

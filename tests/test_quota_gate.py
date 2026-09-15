@@ -159,6 +159,60 @@ def test_dotenv_quota_changes_are_applied_without_module_reload(tmp_path, monkey
     assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "available"
 
 
+def _live_dotenv(monkeypatch, env_file, startup_value: str):
+    """Живое состояние процесса: файл `.env` плюс значение, пришедшее со старта."""
+    monkeypatch.setattr(quota_gate, "_DOTENV_PATH", env_file)
+    for name in quota_gate._QUOTA_ENV_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    startup = {name: None for name in quota_gate._QUOTA_ENV_NAMES}
+    startup["QUOTA_GATED_LANES"] = startup_value
+    monkeypatch.setattr(quota_gate, "_startup_quota_env", startup)
+    monkeypatch.setattr(
+        quota_gate, "_dotenv_owned_at_startup", quota_gate._dotenv_owned_names(startup),
+    )
+    monkeypatch.setattr(quota_gate, "_dotenv_loaded", False)
+    monkeypatch.setattr(quota_gate, "_dotenv_mtime_ns", None)
+    monkeypatch.setattr(quota_gate, "_dotenv_values", {})
+    monkeypatch.setattr(quota_gate, "_dotenv_quota_keys", frozenset())
+
+
+def _rewrite(env_file, text: str):
+    env_file.write_text(text)
+    stat = env_file.stat()
+    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+
+
+def test_dotenv_edit_wins_over_the_copy_systemd_put_into_the_environment(tmp_path, monkeypatch):
+    """`EnvironmentFile` дублирует весь `.env` в окружение — файл остаётся владельцем.
+
+    Иначе снятый владельцем гейт нельзя вернуть ничем, кроме рестарта (15.09.2026).
+    """
+    env_file = tmp_path / ".env"
+    env_file.write_text("QUOTA_GATED_LANES=\n")
+    _live_dotenv(monkeypatch, env_file, startup_value="")
+
+    assert quota_gate.quota_policy().gated_lanes == frozenset()
+    assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "available"
+
+    _rewrite(env_file, "QUOTA_GATED_LANES=claude,sol\n")
+
+    assert quota_gate.quota_policy().gated_lanes == frozenset({"claude", "sol"})
+    assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "blocked"
+
+
+def test_environment_value_that_differs_from_the_file_keeps_beating_it(tmp_path, monkeypatch):
+    """Настоящая внешняя настройка (шелл, юнит) не теряется от правки файла."""
+    env_file = tmp_path / ".env"
+    env_file.write_text("QUOTA_GATED_LANES=claude,sol\n")
+    _live_dotenv(monkeypatch, env_file, startup_value="spark")
+
+    assert quota_gate.quota_policy().gated_lanes == frozenset({"spark"})
+
+    _rewrite(env_file, "QUOTA_GATED_LANES=luna\n")
+
+    assert quota_gate.quota_policy().gated_lanes == frozenset({"spark"})
+
+
 def test_invalid_live_dotenv_quota_value_raises(tmp_path, monkeypatch):
     env_file = tmp_path / ".env"
     env_file.write_text("QUOTA_HARD_STOP_PCT\n")
