@@ -141,9 +141,7 @@ def test_dotenv_quota_changes_are_applied_without_module_reload(tmp_path, monkey
     assert quota_gate.quota_policy().hard_stop_pct == 91.0
     assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "available"
 
-    env_file.write_text("QUOTA_GATED_LANES=sol\nQUOTA_HARD_STOP_PCT=87\n")
-    stat = env_file.stat()
-    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+    _rewrite(env_file, "QUOTA_GATED_LANES=sol\nQUOTA_HARD_STOP_PCT=87\n")
 
     policy = quota_gate.quota_policy()
     assert policy.gated_lanes == frozenset({"sol"})
@@ -151,9 +149,7 @@ def test_dotenv_quota_changes_are_applied_without_module_reload(tmp_path, monkey
     decision = _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0))
     assert decision.state == "blocked"
 
-    env_file.write_text("QUOTA_GATED_LANES=claude\nQUOTA_HARD_STOP_PCT=91\n")
-    stat = env_file.stat()
-    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+    _rewrite(env_file, "QUOTA_GATED_LANES=claude\nQUOTA_HARD_STOP_PCT=91\n")
     assert quota_gate.quota_policy().gated_lanes == frozenset({"claude"})
     assert quota_gate.quota_policy().hard_stop_pct == 91.0
     assert _decide("gpt-5.6-sol", _providers(progress=0.1, codex=90.0)).state == "available"
@@ -177,9 +173,17 @@ def _live_dotenv(monkeypatch, env_file, startup_value: str):
 
 
 def _rewrite(env_file, text: str):
+    """Переписать `.env` так, чтобы перечитка по mtime гарантированно сработала.
+
+    `+1 ns` к свежему stat недостаточно: две записи внутри одного тика часов дают
+    ОДИН И ТОТ ЖЕ mtime, и вторая правка попадает ровно в уже закешированное
+    значение — перечитки не будет. Отсюда мерцание примерно 1 прогон из 15
+    (воспроизведено 15.09.2026 и на коммите до появления этого хелпера).
+    """
     env_file.write_text(text)
     stat = env_file.stat()
-    os.utime(env_file, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1))
+    cached = quota_gate._dotenv_mtime_ns or 0
+    os.utime(env_file, ns=(stat.st_atime_ns, max(stat.st_mtime_ns, cached) + 1))
 
 
 def test_dotenv_edit_wins_over_the_copy_systemd_put_into_the_environment(tmp_path, monkeypatch):
