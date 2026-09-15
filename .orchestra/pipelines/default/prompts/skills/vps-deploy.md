@@ -31,7 +31,9 @@ ssh root@<VPS_IP> \
 ```bash
 ssh root@<VPS_IP> "systemctl restart orchestra"
 ```
-`uv sync` runs automatically via `ExecStartPre` — dependencies install themselves.
+The unit has no `ExecStartPre`: `ExecStart` is a pinned interpreter set by a runtime-isolation
+drop-in, and nothing syncs dependencies on restart. A new dependency reaches production only
+through that runtime, never through an `uv sync` you run there (see the rule below).
 
 ### 4. Verify it's running
 ```bash

@@ -17,7 +17,6 @@ A research-only assignment ends with findings and a recommendation, not implemen
   requested checkpoint, or approval boundary.
 - Use a short working plan for complex work. Separate plans and tickets are optional:
   use them for independent work, migration risk or a consequential decision, not file counts.
-  An already-green regression test is not a reason to stop investigating a reported defect.
 - Work all files needed for the outcome inside your own worktree, including tests and fixtures.
   Expected file lists guide investigation; explicitly forbidden areas remain boundaries.
   Explain unexpected changes and preserve unrelated work.
@@ -30,7 +29,7 @@ A research-only assignment ends with findings and a recommendation, not implemen
   before retrying; escalate models only when evidence shows a capability problem.
 - Supplied, explicitly frozen acceptance tests must not be weakened or rewritten to pass.
   Other tests, fixtures and test configuration may change as required by the task.
-  Add regression tests; use test-first development when the contract is known.
+  Add regression tests.
   If a frozen criterion is wrong, request its revision with evidence while continuing
   independent safe work. Do not redefine success to fit the implementation.
 - Before completion, consider concrete failures for callers, old data and recovery

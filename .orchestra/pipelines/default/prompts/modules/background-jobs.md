@@ -1,5 +1,4 @@
-<background-jobs>
-## Background jobs — the two things the tool description does not tell you
+## Background jobs — what the tool description does not tell you
 
 Types, parameters and examples live in the `bg_create` tool description; it is the owner, and
 `base.md` already carries the "never sleep or poll" rule. Only these are yours:
@@ -19,4 +18,3 @@ Types, parameters and examples live in the `bg_create` tool description; it is t
   доклады могут не дойти из-за отказа доставки. Проверяй ошибки и фактические результаты.
   Зависший running-воркер не считается idle; этот тип не заменяет диагностику зависаний.
   Будить по таймеру каждые 30 минут по умолчанию больше не требуется.
-</background-jobs>

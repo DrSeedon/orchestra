@@ -1,5 +1,7 @@
 # Orchestra TODO
 
+- [ ] `prompt_template_hash` не видит модули, поэтому правка любого правила в `prompts/modules/*.md` приходит агенту с пометкой «refreshed context», а не «your role instructions were updated». `app/prompting.py:216` хеширует `base.md + role_prompt_file(role)`, а `role_prompt_file` берёт список модулей из frontmatter файла роли — которого у ролей нет вовсе (это же расхождение уже чинили в `get_role_icons`, `app/prompting.py:195-206`). Текст правила при этом доставляется исправно, ломается только уведомление. Найдено при V-577, детали: [.orchestra/tasks/V-577/report.md](.orchestra/tasks/V-577/report.md) §8.
+- [ ] Контракт «замороженные acceptance-тесты не ослаблять» ведётся двумя независимыми копиями — `prompts/roles/worker.md` и `prompts/roles/full-cycle.md`. В один собранный промпт они не попадают никогда, поэтому дублем в смысле V-577 это не является и не снималось, но расходятся копии молча. Решение (общий модуль либо осознанно разные формулировки для разных ролей) принадлежит владельцу правил.
 - [ ] Загрузить Python-правки пакета стабильности в живой сервис после отдельной команды пользователя на рестарт. Мерж в main разрешён 05.09; результаты и ограничения: [.orchestra/tasks/stability-recovery-2026-09-05/report.md](.orchestra/tasks/stability-recovery-2026-09-05/report.md). VPS не выкатывать самостоятельно.
 
 > Только живые задачи. Сделанное — удалять сразу, история живёт в `CHANGELOG.md` и `.orchestra/tasks/<id>/`.

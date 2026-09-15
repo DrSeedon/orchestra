@@ -1,0 +1,58 @@
+
+=== orchestrator: 73530 -> 73371 bytes (-159, -0.22%)
+    categories present: safety, approval gate, git, worker lifecycle, knowledge, communication style, model routing, owner values
+    [COVERED 0.50] removed: silence is not consent in any class except a.
+                 kept as: silence is not consent anywhere except a live incident.
+    [REWORDED 0.29] removed: owneddirs — optional expected work areas for coordination, not permission boundaries.
+                 home now: `owned_dirs` is optional coordination metadata, not an edit allowlist.
+    [COVERED 0.67] removed: leave empty unless useful; overlapping areas are allowed.
+                 kept as: owneddirs — optional expected work areas; leave empty unless useful, overlapping areas are allowed.
+    [REWORDED 0.42] removed: coordinate actual overlapping edits and verify integration before merge.
+                 home now: Check actual diffs and integration tests before merge
+    repeated wrapper tags: none
+
+=== sub-orchestrator: 66290 -> 66033 bytes (-257, -0.39%)
+    categories present: safety, approval gate, git, worker lifecycle, knowledge, communication style, model routing, owner values
+    [COVERED 0.50] removed: stay within the assigned project and outcome. owneddirs describes expected work areas,
+                 kept as: stay within the project and outcome your parent assigned.
+    [REWORDED 0.29] removed: not an edit allowlist; explicit task exclusions remain binding.
+                 home now: Respect explicit task exclusions and explain unexpected changes.
+    [COVERED 0.50] removed: silence is not consent in any class except a.
+                 kept as: silence is not consent anywhere except a live incident.
+    [REWORDED 0.29] removed: owneddirs — optional expected work areas for coordination, not permission boundaries.
+                 home now: `owned_dirs` is optional coordination metadata, not an edit allowlist.
+    [COVERED 0.67] removed: leave empty unless useful; overlapping areas are allowed.
+                 kept as: owneddirs — optional expected work areas; leave empty unless useful, overlapping areas are allowed.
+    [REWORDED 0.42] removed: coordinate actual overlapping edits and verify integration before merge.
+                 home now: Check actual diffs and integration tests before merge
+    repeated wrapper tags: none
+
+=== worker: 33293 -> 32964 bytes (-329, -0.99%)
+    categories present: safety, git, knowledge, communication style, owner values
+    [REWORDED 0.25] removed: reproduce defects when practical; an already-green regression command is
+                 home now: reproduce it and add a meaningful check
+    [COVERED 1.00] removed: check actual requirements, not merely a green status.
+                 kept as: check actual requirements, not merely a green status
+    [COVERED 0.62] removed: always use mcporchestrasendmessage to report, not the built-in sendmessage
+                 kept as: report to your orchestrator via mcporchestrasendmessage (not the built-in sendmessage).
+    [COVERED 1.00] removed: read the code relevant to the task.
+                 kept as: read the code relevant to the task
+    [REWORDED 0.44] removed: resolve discoverable facts yourself; ask only about material
+                 home now: Ask only when
+    [COVERED 0.50] removed: scope, authority, cost or external-contract uncertainty.
+                 kept as: an unresolved choice changes scope, authority, material cost or an external contract.
+    repeated wrapper tags: none
+
+=== full-cycle: 58423 -> 58276 bytes (-147, -0.25%)
+    categories present: safety, approval gate, git, worker lifecycle, knowledge, communication style, model routing, owner values
+    [REWORDED 0.33] removed: an already-green regression test is not a reason to stop investigating a reported defect.
+                 home now: A green regression command does not settle an unreproduced defect.
+    [COVERED 0.62] removed: add regression tests; use test-first development when the contract is known.
+                 kept as: use test-first work when the contract is known;
+    repeated wrapper tags: none
+
+=== reducer: 22512 -> 22512 bytes (+0, +0.00%)
+    categories present: safety, knowledge, communication style, owner values
+    repeated wrapper tags: none
+
+RESULT: OK — every removed sentence has a surviving home
