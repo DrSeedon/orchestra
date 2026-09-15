@@ -2051,13 +2051,6 @@ async def execute_merge_session(
                 worker_head=expected_head,
                 http_status=409,
             )
-        if expected_branch and row_branch != expected_branch:
-            return _merge_not_reached(
-                f"session branch changed before merge: expected {expected_branch}, found {row_branch}",
-                worker_branch=row_branch,
-                worker_head=expected_head,
-                http_status=409,
-            )
 
         live = manager.get(session_id)
         if live is not None and (
@@ -2082,6 +2075,61 @@ async def execute_merge_session(
             return _merge_not_reached(
                 "session has no scope", worker_branch=row_branch, http_status=400,
             )
+
+        if expected_branch and row_branch != expected_branch:
+            # Разошлись ДВЕ ЗАПИСИ ПЛАТФОРМЫ: колонка sessions.branch и ветка, закреплённая
+            # операцией при приёме. Спрашивать git обязательно — только он владеет фактической
+            # веткой worktree, и сверка записи с записью отказывала на полностью исправной
+            # работе, а предписанный «refresh» ничего не писал, так что повтор падал тем же
+            # текстом (V-575). Fail-closed: не опросили worktree — отказ.
+            try:
+                actual_branch, actual_head = await asyncio.to_thread(
+                    inspect_worktree_identity, worktree_path,
+                )
+            except RuntimeError as e:
+                return _merge_not_reached(
+                    f"session branch record disagrees with this operation "
+                    f"(sessions.branch={row_branch or '<empty>'}, operation pinned "
+                    f"{expected_branch}) and the worktree could not be inspected: {e}",
+                    worker_branch=row_branch,
+                    worker_head=expected_head,
+                    http_status=409,
+                )
+            if actual_branch != expected_branch or (
+                expected_head and actual_head != expected_head
+            ):
+                return _merge_not_reached(
+                    f"worker branch changed before merge: sessions.branch holds "
+                    f"{row_branch or '<empty>'}, this operation pinned {expected_branch}@"
+                    f"{expected_head or '<any>'}, git worktree is on "
+                    f"{actual_branch}@{actual_head}. Inspect it with worker_wip and start a "
+                    f"new merge operation without operation_id — admission re-pins branch and "
+                    f"HEAD from the worktree.",
+                    worker_branch=actual_branch,
+                    worker_head=actual_head,
+                    http_status=409,
+                )
+            # Git подтвердил закреплённую ветку — платформа приводит в порядок СВОЮ запись,
+            # git не трогаем. Остальные поля lifecycle остаются как есть: потеря привязки
+            # задачи чинится отдельно, здесь только ветка.
+            try:
+                await manager.persist_lifecycle(
+                    found,
+                    branch=actual_branch,
+                    base_branch=str(row.get("base_branch") or ""),
+                    task_id=str(row.get("task_id") or ""),
+                    needs_switch=bool(row.get("needs_switch")),
+                )
+            except Exception as e:
+                return _merge_not_reached(
+                    f"cannot bring sessions.branch in line with the worktree "
+                    f"({row_branch or '<empty>'} → {actual_branch}): {err_text(e)}",
+                    worker_branch=actual_branch,
+                    worker_head=actual_head,
+                    http_status=409,
+                )
+            row["branch"] = actual_branch
+            row_branch = actual_branch
 
         task_identity = None
         primary_task_identity = None

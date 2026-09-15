@@ -288,3 +288,115 @@ async def test_stale_db_is_repaired_and_merge_proceeds(git_repo, wt_root, db, mo
         expected_branch="task-18/worker", expected_head=head, req={},
     )
     assert res.get("ok") is True, res.get("error")
+
+
+# V-575 — расхождение ДВУХ ЗАПИСЕЙ ПЛАТФОРМЫ: колонки sessions.branch и ветки, закреплённой
+# операцией мержа. Живой дефект (seedon, 15.09): git всё это время был прав, а мерж сверял
+# запись с записью и отбивал 409 на полностью готовой работе.
+_STALE = "adhoc-20260915T101900/worker"
+
+
+async def _merge_pinned(monkeypatch, git_repo, sid, branch, head):
+    import app.routes.sessions as S
+
+    async def idle(session):
+        return True
+
+    monkeypatch.setattr(S, "_wait_for_merge_idle", idle)
+    return await S.execute_merge_session(
+        session_id=sid, expected_name="worker", expected_scope=str(git_repo),
+        expected_branch=branch, expected_head=head, req={},
+    )
+
+
+@pytest.mark.asyncio
+async def test_stale_branch_record_is_repaired_when_git_confirms_the_pin(
+    git_repo, wt_root, db, monkeypatch,
+):
+    """Git на закреплённой ветке и на закреплённом HEAD → мерж идёт, запись чинится."""
+    from app.workspace import create_worktree
+
+    wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+    _commit(wt.path, "#V-575: готовая работа воркера")
+    pinned = _head(wt.path)
+    sid = str(uuid.uuid4())
+    db.save_session(_row(sid, str(git_repo), wt.path, _STALE))
+
+    res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+
+    assert res.get("ok") is True, res.get("error")
+    assert db.get_session(sid)["branch"] == wt.branch
+    merged = subprocess.run(["git", "log", "--format=%s%n%b", "-1", "main"], cwd=git_repo,
+                            capture_output=True, text=True, check=True).stdout
+    assert "готовая работа воркера" in merged
+
+
+@pytest.mark.asyncio
+async def test_third_branch_state_is_refused_and_names_both_records(
+    git_repo, wt_root, db, monkeypatch,
+):
+    """Git показывает ТРЕТЬЮ ветку: отказ, и в тексте обе записи, git и рабочий инструмент."""
+    from app.workspace import create_worktree
+
+    wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+    _commit(wt.path, "#V-575: работа")
+    pinned = _head(wt.path)
+    subprocess.run(["git", "checkout", "-b", "sidetrack"], cwd=wt.path,
+                   capture_output=True, check=True)
+    sid = str(uuid.uuid4())
+    db.save_session(_row(sid, str(git_repo), wt.path, _STALE))
+    target_before = _head(git_repo)
+
+    res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+
+    assert res.get("ok") is False
+    assert res["commit_point"] == "not_reached"
+    for side in (_STALE, wt.branch, "sidetrack", "worker_wip"):
+        assert side in res["error"], res["error"]
+    assert _head(git_repo) == target_before
+    assert db.get_session(sid)["branch"] == _STALE
+
+
+@pytest.mark.asyncio
+async def test_advanced_head_with_stale_record_is_refused(
+    git_repo, wt_root, db, monkeypatch,
+):
+    """Ветка та, а HEAD уехал: запись платформы чинится только под полным подтверждением."""
+    from app.workspace import create_worktree
+
+    wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+    _commit(wt.path, "#V-575: принятая работа")
+    pinned = _head(wt.path)
+    _commit(wt.path, "#V-575: коммит после приёма")
+    sid = str(uuid.uuid4())
+    db.save_session(_row(sid, str(git_repo), wt.path, _STALE))
+    target_before = _head(git_repo)
+
+    res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+
+    assert res.get("ok") is False
+    assert pinned in res["error"] and _head(wt.path) in res["error"]
+    assert _head(git_repo) == target_before
+    assert db.get_session(sid)["branch"] == _STALE
+
+
+@pytest.mark.asyncio
+async def test_unreadable_worktree_with_stale_record_is_refused(
+    git_repo, wt_root, db, tmp_path, monkeypatch,
+):
+    """Fail-closed: «не смог опросить worktree» — это отказ, а не проход."""
+    from app.workspace import create_worktree
+
+    wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+    pinned = _head(wt.path)
+    sid = str(uuid.uuid4())
+    db.save_session(_row(sid, str(git_repo), str(tmp_path / "gone"), _STALE))
+    target_before = _head(git_repo)
+
+    res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+
+    assert res.get("ok") is False
+    assert "could not be inspected" in res["error"]
+    assert _STALE in res["error"] and wt.branch in res["error"]
+    assert _head(git_repo) == target_before
+    assert db.get_session(sid)["branch"] == _STALE
