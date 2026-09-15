@@ -33,6 +33,12 @@
   которым разрешены изменения проекта. Причина: отдельные managed CODEX_HOME не
   наследовали обычный глобальный AGENTS.md, поэтому личный файл не обеспечивал
   одинаковую доставку этих правил разным рантаймам.
+## v2.45.1 — 2026-09-15 — чужой битый репозиторий больше не роняет старт Orchestra
+
+### Fixed
+- 🩹 **`migrate_registered_projects` изолирует ЛЮБУЮ ошибку проекта, а не только `LayoutMigrationError`** (`app/orchestra_layout.py:1104-1128`). `_run_bytes` бросает голый `RuntimeError`, поэтому сбой git внутри `_recover_preserved_dirty` → `_restore_preserved_stash` → `_diff_paths` пролетал мимо `except LayoutMigrationError` и убивал lifespan целиком. Теперь второе плечо `except Exception` пишет тот же контракт `{status: failed, code: ORCHESTRA_LAYOUT_GIT_ERROR, repository, error, repair_command}`, `app/main.py:391` логирует проект как деградировавший, а сервис поднимается. `BaseException` (`KeyboardInterrupt`, `SystemExit`) не перехватывается.
+- **Triggered case:** 15.09.2026 на ноутбуке владельца Orchestra не стартовала, systemd крутил рестарт-петлю — **892 рестарта**. Причина: в `/mnt/data/Projects/Python/TradingCryptoBot` пустой объект `.git/objects/4f/25fc30…` — это preserve-stash, который создала сама Orchestra и который обнулило аварийное выключение машины 13.09. Один чужой checkout, который Orchestra даже не редактирует, останавливал платформу для всех 20 проектов. Тест-якорь: `tests/test_orchestra_layout_fleet_430.py::test_fleet_isolates_a_raw_git_failure_from_a_broken_checkout`.
+- **Known issue:** четыре проекта стартуют деградировавшими и чинить их надо в их собственных репозиториях, не в коде Orchestra: `tradingcryptobot` (пустой объект), `parsing-hub` и `stargate-tactics` (`cannot locate the migration commit while recovering stash=…`), `VPN-Service` (`ORCHESTRA_LAYOUT_PARTIAL`). Подробности и объём потерь — в `TODO.md`.
 
 ## v2.45.0 — 2026-09-11 — жёсткий стоп пула стал свойством полосы: хвост недели остаётся дешёвой модели
 
