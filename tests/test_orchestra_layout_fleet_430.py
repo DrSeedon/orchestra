@@ -79,3 +79,38 @@ def test_fleet_failure_does_not_stop_later_project(monkeypatch, tmp_path: Path):
     assert result["a-broken"]["status"] == "failed"
     assert result["a-broken"]["code"] == "ORCHESTRA_LAYOUT_DIRTY"
     assert result["b-healthy"]["status"] == "migrated"
+
+
+def test_fleet_isolates_a_raw_git_failure_from_a_broken_checkout(monkeypatch, tmp_path: Path):
+    """Boot loop of 15.09.2026: one empty object killed every Orchestra startup.
+
+    `_run_bytes` raises a bare RuntimeError, not LayoutMigrationError, so the
+    preserve-dirty recovery escaped the per-project guard and took the lifespan
+    down with it — 849 restarts over a repository Orchestra does not even own.
+    """
+    calls = []
+
+    def fake_one(repository, live_session_ids=None):
+        calls.append(repository.name)
+        if repository.name == "broken":
+            raise RuntimeError(
+                "git diff --name-only -z --no-renames HEAD stash^2 failed: "
+                "error: object file .git/objects/4f/25fc30 is empty"
+            )
+        return {"status": "migrated", "repository": str(repository)}
+
+    monkeypatch.setattr(layout, "migrate_project_layout_preserving_dirty", fake_one)
+    result = layout.migrate_registered_projects(
+        {
+            "a-broken": tmp_path / "broken",
+            "b-healthy": tmp_path / "healthy",
+        },
+        preserve_dirty=True,
+    )
+
+    assert calls == ["broken", "healthy"]
+    assert result["a-broken"]["status"] == "failed"
+    assert result["a-broken"]["code"] == "ORCHESTRA_LAYOUT_GIT_ERROR"
+    assert "is empty" in result["a-broken"]["error"]
+    assert str(tmp_path / "broken") in result["a-broken"]["repair_command"]
+    assert result["b-healthy"]["status"] == "migrated"
