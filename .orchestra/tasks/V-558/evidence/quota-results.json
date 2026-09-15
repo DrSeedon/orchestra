@@ -1,0 +1,66 @@
+[
+  {
+    "label": "quota-baseline",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-c",
+      "import app.bg_jobs; print(app.bg_jobs.__file__)"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/quota-baseline",
+    "exit_code": 0,
+    "seconds": 0.3677369672805071
+  },
+  {
+    "label": "quota-baseline",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "pytest",
+      "tests/test_quota_gate.py",
+      "tests/test_quota_map_api.py",
+      "tests/test_quota_admission_e2e.py",
+      "tests/test_quota_headroom_447.py",
+      "tests/test_usage_readiness.py",
+      "tests/test_mcp_quota_gate.py",
+      "tests/test_audit0901_sysquota.py",
+      "-q",
+      "-p",
+      "no:randomly"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/quota-baseline",
+    "exit_code": 1,
+    "seconds": 19.562162009067833
+  },
+  {
+    "label": "quota-reference",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-c",
+      "import app.bg_jobs; print(app.bg_jobs.__file__)"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/quota-reference",
+    "exit_code": 0,
+    "seconds": 0.36817046301439404
+  },
+  {
+    "label": "quota-reference",
+    "command": [
+      "/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python",
+      "-m",
+      "pytest",
+      "tests/test_quota_gate.py",
+      "tests/test_quota_map_api.py",
+      "tests/test_quota_admission_e2e.py",
+      "tests/test_quota_headroom_447.py",
+      "tests/test_usage_readiness.py",
+      "tests/test_mcp_quota_gate.py",
+      "tests/test_audit0901_sysquota.py",
+      "-q",
+      "-p",
+      "no:randomly"
+    ],
+    "cwd": "/home/kesha/.cache/orchestra-bench-V-558/quota-reference",
+    "exit_code": 1,
+    "seconds": 18.15836883103475
+  }
+]

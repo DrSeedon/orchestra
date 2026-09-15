@@ -1,0 +1,82 @@
+[
+  {
+    "target": "github.com:443",
+    "allowed": false
+  },
+  {
+    "target": "127.0.0.1:8888",
+    "allowed": false
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "github.com:443",
+    "allowed": false
+  },
+  {
+    "target": "127.0.0.1:8888",
+    "allowed": false
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "github.com:443",
+    "allowed": false
+  },
+  {
+    "target": "127.0.0.1:8888",
+    "allowed": false
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "github.com:443",
+    "allowed": false
+  },
+  {
+    "target": "127.0.0.1:8888",
+    "allowed": false
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  },
+  {
+    "target": "github.com:443",
+    "allowed": false
+  },
+  {
+    "target": "127.0.0.1:8888",
+    "allowed": false
+  },
+  {
+    "target": "api.anthropic.com:443",
+    "allowed": true
+  },
+  {
+    "target": "chatgpt.com:443",
+    "allowed": true
+  }
+]

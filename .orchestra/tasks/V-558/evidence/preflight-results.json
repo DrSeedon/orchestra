@@ -1,0 +1,22 @@
+[
+  {
+    "model": "luna",
+    "boundary_rc": 0
+  },
+  {
+    "model": "sol",
+    "boundary_rc": 0
+  },
+  {
+    "model": "astra",
+    "boundary_rc": 0
+  },
+  {
+    "model": "opus",
+    "boundary_rc": 0
+  },
+  {
+    "model": "fable",
+    "boundary_rc": 0
+  }
+]

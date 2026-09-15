@@ -1,0 +1,44 @@
+[
+  {
+    "publication": "evidence/opus-authenticated/stdout.jsonl",
+    "original": "private/evidence/opus-authenticated/stdout.jsonl",
+    "original_sha256": "ee535526bf87cb6895283fb479dda09cdc4cd08ab0f5120fc1d39d8fad3ebbd1",
+    "published_sha256": "914ff21e83845340e27c939e9343568a1f6f108dee7855cddef55727bbc7e5e4"
+  },
+  {
+    "publication": "evidence/luna/stdout.jsonl",
+    "original": "private/evidence/luna/stdout.jsonl",
+    "original_sha256": "7dfc4aee79b13f976f9fe44c081b55b205666ec26aa86d833a4f3d20eae6a1e9",
+    "published_sha256": "ecc86069741067585a7d2b8553ee924406b900f4a1ff35583a7fc2787d684ea7"
+  },
+  {
+    "publication": "evidence/opus-authenticated/submitted/app/routes/system.py",
+    "original": "private/evidence/opus-authenticated/submitted/app/routes/system.py",
+    "original_sha256": "0a7f5c9a1a636041530c3d02f58e18dd0b30e7d016b399ccd33ec8b9eadb5eb7",
+    "published_sha256": "f7090ef110494f83af93d7d89498512f1115102c068487f0847ed691a49d46df"
+  },
+  {
+    "publication": "evidence/fable-authenticated/submitted/app/routes/system.py",
+    "original": "private/evidence/fable-authenticated/submitted/app/routes/system.py",
+    "original_sha256": "b8130ed46225c08a69f4b9e46316e7bd6d067df7d2365575077a072b2f1dbcf7",
+    "published_sha256": "cd82156c92848115ea020aba33e6d1dcaf01d09b060c063ffe424d2944319f4b"
+  },
+  {
+    "publication": "evidence/luna/submitted/app/routes/system.py",
+    "original": "private/evidence/luna/submitted/app/routes/system.py",
+    "original_sha256": "9198fb40958b6b719fa19ea9ca7f961aecbcb072d6e58b54aa9d3b119318b826",
+    "published_sha256": "3f195755e566473107de8fdd51a6301c5a1803f5ded32d018e5e09de9f912172"
+  },
+  {
+    "publication": "evidence/sol/submitted/app/routes/system.py",
+    "original": "private/evidence/sol/submitted/app/routes/system.py",
+    "original_sha256": "c03cc24da95bfa0d9e9fe4c8b1f3a80edde44378df8174fcc228ae9e4758d4e4",
+    "published_sha256": "4cff85dacc14d64393f52100f006baea1b3ede8f3844388fda06d713556131d5"
+  },
+  {
+    "publication": "evidence/astra/submitted/app/routes/system.py",
+    "original": "private/evidence/astra/submitted/app/routes/system.py",
+    "original_sha256": "3f1ddc0b178aad75abd9defdcbd2461bb0a2766c1b55c309babe5b2ff6150dde",
+    "published_sha256": "7ebaa4346569272194275a8aafcd0a098798d54e8d630a739a4eb0ebfdab30c8"
+  }
+]

@@ -1,0 +1,275 @@
+diff --git a/app/quota_gate.py b/app/quota_gate.py
+index cf00601..57f2b35 100644
+--- a/app/quota_gate.py
++++ b/app/quota_gate.py
+@@ -9,6 +9,11 @@
+ Гейтящиеся полосы (Sol и Claude-воркеры) блокируются, когда расход ушёл выше суммы
+ нормы и допуска; поверх этого на всех воркеров действуют жёсткие ``HARD_STOP_PCT``.
+ Luna и Spark диагональ не проходят вовсе — они дешёвые, их единственный стоп жёсткий.
++
++Жёсткий стоп бывает СВОЙ у полосы (``QUOTA_LANE_HARD_STOP_PCT``, формат
++``sol=95,luna=90``): пул Codex один, но Sol/Astra должны упираться раньше дешёвой
++Luna, иначе дорогая полоса выжигает хвост окна целиком. Полоса без своего потолка
++живёт под общим, а общий всегда ограничивает полосовой сверху.
+ Оркестраторы гейт не проходят никогда: это свойство ВЫЗЫВАЮЩЕГО, и здесь его нет —
+ `is_orchestrator` проверяется в `app/session.py` и `app/manager.py` до вызова гейта.
+ 
+@@ -25,10 +30,11 @@ from __future__ import annotations
+ import math
+ import time
+ import os
+-from dataclasses import dataclass, replace
++from dataclasses import dataclass, field, replace
+ from datetime import datetime, timezone
+ from pathlib import Path
+ from threading import Lock
++from types import MappingProxyType
+ from typing import Awaitable, Callable, Mapping
+ 
+ from dotenv import dotenv_values
+@@ -56,6 +62,47 @@ def _parse_float(raw: object, name: str, minimum: float, maximum: float) -> floa
+     return value
+ 
+ 
++def _parse_lane_hard_stops(raw: object, name: str) -> dict[str, float]:
++    """Разобрать ``sol=95,luna=90`` в потолки полос.
++
++    Пустая строка — «специальных потолков нет». Любой кривой элемент (без ``=``,
++    с пустым именем полосы, с нечисловым или выходящим за 1..100 процентом,
++    пустой из-за лишней запятой) — ValueError с именем переменной: молча
++    проглоченный потолок означал бы неожиданно работающий гейт.
++    """
++    if raw is None:
++        raise ValueError(f"{name}: value must be a comma-separated list of lane=percent pairs")
++    raw = str(raw).strip()
++    if raw == "":
++        return {}
++    result: dict[str, float] = {}
++    for part in raw.split(","):
++        item = part.strip()
++        if item == "":
++            raise ValueError(f"{name}: empty lane=percent item in {raw!r}")
++        if "=" not in item:
++            raise ValueError(
++                f"{name}: item must be 'lane=percent', got {item!r}"
++            )
++        lane_raw, _, value_raw = item.partition("=")
++        lane = lane_raw.strip().lower()
++        if lane == "":
++            raise ValueError(f"{name}: empty lane name in {item!r}")
++        if "=" in value_raw:
++            raise ValueError(f"{name}: item must be 'lane=percent', got {item!r}")
++        percent = _parse_float(value_raw, f"{name} [{lane}]", 1.0, 100.0)
++        if lane in result:
++            raise ValueError(f"{name}: duplicate lane {lane!r} in {raw!r}")
++        result[lane] = percent
++    return result
++
++
++def _env_lane_hard_stops(name: str, default: Mapping[str, float]) -> dict[str, float]:
++    if name not in os.environ:
++        return {lane: float(value) for lane, value in default.items()}
++    return _parse_lane_hard_stops(os.environ[name], name)
++
++
+ def _env_gated_lanes(name: str, default: tuple[str, ...]) -> frozenset[str]:
+     if name not in os.environ:
+         return frozenset(default)
+@@ -77,11 +124,18 @@ _ENV_TOLERANCE_START_DEFAULT = 10.0
+ _ENV_TOLERANCE_END_DEFAULT = 1.0
+ _ENV_HARD_STOP_DEFAULT = 99.0
+ _ENV_GATED_LANES_DEFAULT = ("claude", "sol")
++# Полосовые потолки: пул Codex общий, а полосы в нём разные. Sol упирается раньше,
++# чтобы остаток недельного окна доставался дешёвой Luna, а не выжигался Sol/Astra.
++_ENV_LANE_HARD_STOP_DEFAULT: Mapping[str, float] = {"sol": 95.0}
+ 
+ # Жёсткий стоп для ВСЕХ воркеров в обоих пулах, поверх диагонали.
+ HARD_STOP_PCT = _env_float_var(
+     "QUOTA_HARD_STOP_PCT", _ENV_HARD_STOP_DEFAULT, minimum=1.0, maximum=100.0,
+ )
++# Потолки отдельных полос: общий стоп всегда ограничивает их сверху.
++LANE_HARD_STOP_PCT = _env_lane_hard_stops(
++    "QUOTA_LANE_HARD_STOP_PCT", _ENV_LANE_HARD_STOP_DEFAULT,
++)
+ # Допуск: линейная интерполяция от начала окна к моменту сброса.
+ TOLERANCE_START_PP = _env_float_var(
+     "QUOTA_TOLERANCE_START_PP", _ENV_TOLERANCE_START_DEFAULT, minimum=0.0, maximum=100.0,
+@@ -106,6 +160,7 @@ QUOTA_OBSERVATION_MAX_AGE = 300.0
+ 
+ _QUOTA_ENV_NAMES = (
+     "QUOTA_HARD_STOP_PCT",
++    "QUOTA_LANE_HARD_STOP_PCT",
+     "QUOTA_TOLERANCE_START_PP",
+     "QUOTA_TOLERANCE_END_PP",
+     "QUOTA_CURVE_EXPONENT",
+@@ -130,6 +185,30 @@ class QuotaPolicy:
+     curve_exponent: float
+     gated_lanes: frozenset[str]
+     curved_lanes: frozenset[str]
++    # Потолки отдельных полос. Поле последнее и с умолчанием: старые позиционные
++    # вызовы конструктора продолжают работать, а полоса без своего потолка
++    # ограничена общим.
++    lane_hard_stop_pct: Mapping[str, float] = field(default_factory=dict)
++
++    def __post_init__(self) -> None:
++        normalized = {
++            str(lane).strip().lower(): float(value)
++            for lane, value in dict(self.lane_hard_stop_pct or {}).items()
++        }
++        object.__setattr__(self, "lane_hard_stop_pct", MappingProxyType(normalized))
++
++    def hard_stop_for(self, lane: str | None) -> float:
++        """Действующий потолок полосы: свой, но не выше общего.
++
++        `lane=None` (модель без полосы) и полоса без своего потолка получают общий
++        стоп — это тот же контракт, что был до появления полосовых потолков.
++        """
++        if lane is None:
++            return self.hard_stop_pct
++        value = self.lane_hard_stop_pct.get(str(lane).strip().lower())
++        if value is None:
++            return self.hard_stop_pct
++        return min(self.hard_stop_pct, float(value))
+ 
+ 
+ def _live_quota_env() -> dict[str, object]:
+@@ -178,6 +257,14 @@ def quota_policy() -> QuotaPolicy:
+             return frozenset(default)
+         return _parse_lanes(raw, name, default)
+ 
++    def lane_hard_stops(name: str, default: Mapping[str, float]) -> dict[str, float]:
++        raw = values[name]
++        if raw is _UNSET:
++            return {lane: float(value) for lane, value in default.items()}
++        # Указанный набор ЗАМЕНЯЕТ предыдущий целиком: исчезнувшая полоса
++        # возвращается к общему потолку, а не остаётся с прошлым значением.
++        return _parse_lane_hard_stops(raw, name)
++
+     return QuotaPolicy(
+         hard_stop_pct=float_value("QUOTA_HARD_STOP_PCT", _ENV_HARD_STOP_DEFAULT, 1.0, 100.0),
+         tolerance_start_pp=float_value("QUOTA_TOLERANCE_START_PP", _ENV_TOLERANCE_START_DEFAULT, 0.0, 100.0),
+@@ -185,6 +272,9 @@ def quota_policy() -> QuotaPolicy:
+         curve_exponent=float_value("QUOTA_CURVE_EXPONENT", _ENV_CURVE_EXPONENT_DEFAULT, 1.0, 10.0),
+         gated_lanes=lanes_value("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT),
+         curved_lanes=lanes_value("QUOTA_CURVED_LANES", _ENV_CURVED_LANES_DEFAULT),
++        lane_hard_stop_pct=lane_hard_stops(
++            "QUOTA_LANE_HARD_STOP_PCT", _ENV_LANE_HARD_STOP_DEFAULT,
++        ),
+     )
+ 
+ WEEKLY_WINDOW_MINUTES = 10080
+@@ -220,12 +310,17 @@ def line_limit(
+     Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
+     в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
+     Полоса без кривизны (Claude) получает прежнюю прямую, как и вызов без `lane`.
++
++    Потолок берётся полосовой (`hard_stop_for`): у Sol он ниже общего, поэтому его
++    линия упирается раньше — и порог, и блокировка говорят одно и то же число.
+     """
+     policy = policy or quota_policy()
+     norm = progress
+     if lane is not None and lane in policy.curved_lanes and progress > 0.0:
+         norm = progress ** (1.0 / policy.curve_exponent)
+-    return min(policy.hard_stop_pct, norm * 100.0 + tolerance_pp(progress, policy))
++    return min(
++        policy.hard_stop_for(lane), norm * 100.0 + tolerance_pp(progress, policy)
++    )
+ 
+ 
+ def line_release_progress(
+@@ -545,7 +640,8 @@ def evaluate_worker_admission(
+             utilization=utilization, progress=None, tolerance_pp=None, limit_pct=None,
+             release_status="no_data", release_in_seconds=None,
+             observed_at=observed_at, valid_until=None, reset_at=None,
+-            window_starts_at=None, reason=reason, hard_limit_pct=policy.hard_stop_pct,
++            window_starts_at=None, reason=reason,
++            hard_limit_pct=policy.hard_stop_for(lane),
+         )
+ 
+     try:
+@@ -566,6 +662,7 @@ def evaluate_worker_admission(
+ 
+     lane = lane_for_model(resolved, bucket)
+     gated = lane in policy.gated_lanes
++    hard_stop_pct = policy.hard_stop_for(lane)
+     provider = providers.get(bucket)
+     label = provider.get("label") if isinstance(provider, Mapping) else None
+     label = str(label or bucket)
+@@ -606,7 +703,7 @@ def evaluate_worker_admission(
+         utilization=utilization,
+         progress=progress,
+         gated=gated,
+-        hard_stop_pct=policy.hard_stop_pct,
++        hard_stop_pct=hard_stop_pct,
+         window_minutes=window_minutes,
+         reset_at=reset_at,
+         now=checked_at,
+@@ -614,11 +711,11 @@ def evaluate_worker_admission(
+         policy=policy,
+     )
+ 
+-    if utilization >= policy.hard_stop_pct:
++    if utilization >= hard_stop_pct:
+         state = "blocked"
+         reason = (
+             f"utilization {utilization:g}% is at or above the hard stop "
+-            f"{policy.hard_stop_pct:g}%"
++            f"{hard_stop_pct:g}%"
+         )
+     elif limit is not None and utilization > limit:
+         state = "blocked"
+@@ -629,7 +726,7 @@ def evaluate_worker_admission(
+     elif gated and limit is None:
+         state = "available"
+         reason = (
+-            f"utilization {utilization:g}% is below the hard stop {policy.hard_stop_pct:g}%; "
++            f"utilization {utilization:g}% is below the hard stop {hard_stop_pct:g}%; "
+             "the window has no parseable reset, so the line is not applied"
+         )
+     elif gated:
+@@ -639,7 +736,7 @@ def evaluate_worker_admission(
+         state = "available"
+         reason = (
+             f"lane '{lane}' is not gated by the line; utilization {utilization:g}% "
+-            f"is below the hard stop {policy.hard_stop_pct:g}%"
++            f"is below the hard stop {hard_stop_pct:g}%"
+         )
+ 
+     return QuotaDecision(
+@@ -649,7 +746,7 @@ def evaluate_worker_admission(
+         valid_until=observed_at + QUOTA_OBSERVATION_MAX_AGE,
+         reset_at=reset_at_str, window_starts_at=started_at, reason=reason,
+         release_status=release_status, release_in_seconds=release_in_seconds,
+-        hard_limit_pct=policy.hard_stop_pct,
++        hard_limit_pct=hard_stop_pct,
+     )
+ 
+ 
+diff --git a/app/routes/system.py b/app/routes/system.py
+index 80c1bbc..ac3bd0c 100644
+--- a/app/routes/system.py
++++ b/app/routes/system.py
+@@ -1585,6 +1585,9 @@ async def build_quota_map() -> dict:
+                 # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
+                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
+                 "curved": decision.lane in policy.curved_lanes,
++                # Жёсткий потолок тоже свойство ПОЛОСЫ: Sol упирается раньше Luna
++                # в том же пуле Codex.
++                "hard_limit_pct": decision.hard_limit_pct,
+                 "limit_pct": decision.limit_pct,
+                 "headroom_pp": (
+                     None
+@@ -1819,6 +1822,13 @@ async def build_quota_map() -> dict:
+         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
+         "rule": {
+             "hard_stop_pct": policy.hard_stop_pct,
++            # Действующие потолки полос: уже прижатые общим стопом, то есть ровно
++            # те числа, по которым блокирует гейт. Полоса без своего потолка сюда
++            # не попадает — она живёт под общим `hard_stop_pct`.
++            "lane_hard_stop_pct": {
++                lane: policy.hard_stop_for(lane)
++                for lane in sorted(policy.lane_hard_stop_pct)
++            },
+             "tolerance_start_pp": policy.tolerance_start_pp,
+             "tolerance_end_pp": policy.tolerance_end_pp,
+             "curve_exponent": policy.curve_exponent,

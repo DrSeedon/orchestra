@@ -613,7 +613,7 @@ class TestEffortByModel:
     def test_runtime_key_covers_whole_runtime(self, pipelines_root):
         eff = self._role(pipelines_root, "{codex: max, default: low}")
         assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "max"
-        assert P.resolve_effort(eff, "gpt-5.4-mini", "codex") == "max"
+        assert P.resolve_effort(eff, "gpt-5.6-terra", "codex") == "max"
         assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
 
     def test_exact_model_beats_runtime_and_default(self, pipelines_root):

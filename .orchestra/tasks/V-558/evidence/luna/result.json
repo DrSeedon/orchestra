@@ -1,0 +1,31 @@
+{
+  "text": "Реализовано.\n\n- Добавлен `QUOTA_LANE_HARD_STOP_PCT` с hot-reload через `.env`.\n- По умолчанию: `sol=95`, остальные — общий потолок `99`.\n- Реализованы замена набора, пустое значение, валидация и верхнее ограничение общим потолком.\n- `QuotaPolicy.hard_stop_for()` и API-карта согласованы с потолками полос.\n\nПроверки: граничные сценарии 94.9/96/99.5%, парсинг ошибок, `compileall`, `git diff --check` — пройдены. Старые тесты с ожиданием общего потолка 99% ожидаемо требуют обновления согласно новым требованиям.",
+  "runtime": "codex",
+  "model": "gpt-5.6-luna",
+  "ok": true,
+  "stop_reason": "end_turn",
+  "cost_usd": 0.07631816000000001,
+  "usage": {
+    "input_tokens": 1654576,
+    "output_tokens": 19311,
+    "cache_read_tokens": 1543168,
+    "cache_create_tokens": 0
+  },
+  "cost_unaccounted": false,
+  "error": "",
+  "name": "luna",
+  "wall_seconds": 439.04572210181504,
+  "process_rc": 0,
+  "out_of_scope_production": [
+    "app/__pycache__/backend_protocol.cpython-312.pyc",
+    "app/__pycache__/events.cpython-312.pyc",
+    "app/__pycache__/quota_gate.cpython-312.pyc",
+    "app/__pycache__/runtime_registry.cpython-312.pyc",
+    "app/__pycache__/usage_contract.cpython-312.pyc",
+    "app/__pycache__/__init__.cpython-312.pyc",
+    "app/__pycache__/models.cpython-312.pyc"
+  ],
+  "oracle_rc": 0,
+  "pass": false,
+  "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-luna/app/quota_gate.py"
+}

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "opus",
+    "error": "Claude returned no result: {'duration_api_ms': 0, 'stop_reason': 'stop_sequence', 'session_id': '6e01b7e0-5235-448f-988b-bf9ec9b98397', 'total_cost_usd': 0, 'usage': {'output_tokens_details': {'thinking_tokens': 0}, 'input_tokens': 0, 'cache_creation_input_tokens': 0, 'cache_read_input_tokens': 0, 'output_tokens': 0, 'server_"
+  },
+  {
+    "name": "fable",
+    "error": "Claude returned no result: {'duration_api_ms': 0, 'stop_reason': 'stop_sequence', 'session_id': '5c1a3e8b-8151-4e62-ac18-74c91f5cb0c7', 'total_cost_usd': 0, 'usage': {'output_tokens_details': {'thinking_tokens': 0}, 'input_tokens': 0, 'cache_creation_input_tokens': 0, 'cache_read_input_tokens': 0, 'output_tokens': 0, 'server_"
+  }
+]

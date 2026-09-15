@@ -1,0 +1,7 @@
+{
+  "app/quota_gate.py": "15e84d890ac1f499ccf2aca1ab17e320373c19824bacfe4d70e1fbf0bd00e168",
+  "app/routes/system.py": "b8130ed46225c08a69f4b9e46316e7bd6d067df7d2365575077a072b2f1dbcf7",
+  "tests/test_quota_gate.py": "9468165d84569b8462bc87b2eed7da2f753302af9ebf81c6568612b7935b9805",
+  "tests/test_quota_lane_hard_stop.py": "3fcdcfa7df12a9315236d0f0270ab5bb29aa3bdc714614ed073a0ae48405314a",
+  "tests/test_quota_map_api.py": "7fde0429ba7c901fa02a306784e2c807894f4d7d8e6410d8bc0bcd7ecb05ea22"
+}

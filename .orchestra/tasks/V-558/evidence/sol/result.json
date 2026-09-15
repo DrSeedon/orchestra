@@ -1,0 +1,23 @@
+{
+  "text": "Реализованы отдельные жёсткие потолки полос квот.\n\n- По умолчанию: Sol/Astra — 95%, Luna/Claude/Spark — общий потолок 99%.\n- Добавлен `QUOTA_LANE_HARD_STOP_PCT`, горячая перечитка `.env`, полная замена mapping и строгая валидация.\n- `QuotaPolicy` предоставляет `lane_hard_stop_pct` и `hard_stop_for(lane)`.\n- Решения, линии, прогноз освобождения и quota-map используют эффективный потолок полосы.\n- UI не изменялся.\n\nИзменены [quota_gate.py](/home/kesha/.cache/orchestra-bench-V-558/arm-sol/work/app/quota_gate.py), [system.py](/home/kesha/.cache/orchestra-bench-V-558/arm-sol/work/app/routes/system.py), добавлены [тесты](/home/kesha/.cache/orchestra-bench-V-558/arm-sol/work/tests/test_quota_lane_hard_stops.py).\n\nПроверки:\n\n- Новые тесты: `9 passed`.\n- Новые и регрессионные Claude/Spark-сценарии: `17 passed`.\n- `py_compile` и `git diff --check` — успешно.\n- В старом quota-наборе: `72 passed`, 6 ожидаемых отказов из-за заменённых требований о 99% для Sol и нового поля API. Расширенный прогон также ограничен отсутствующими Chromium и локальным pipeline `default`.",
+  "runtime": "codex",
+  "model": "gpt-5.6-sol",
+  "ok": true,
+  "stop_reason": "end_turn",
+  "cost_usd": 1.3893352,
+  "usage": {
+    "input_tokens": 1650090,
+    "output_tokens": 19523,
+    "cache_read_tokens": 1555968,
+    "cache_create_tokens": 0
+  },
+  "cost_unaccounted": false,
+  "error": "",
+  "name": "sol",
+  "wall_seconds": 551.9700289699249,
+  "process_rc": 0,
+  "out_of_scope_production": [],
+  "oracle_rc": 0,
+  "pass": true,
+  "evaluated_app_path": "/home/kesha/.cache/orchestra-bench-V-558/evaluation-sol/app/quota_gate.py"
+}

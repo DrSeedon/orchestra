@@ -1,0 +1,33 @@
+{
+  "model": "claude-fable-5-1[1m]",
+  "effort": "high",
+  "argv": [
+    "/usr/bin/claude",
+    "-p",
+    "--model",
+    "claude-fable-5-1[1m]",
+    "--bare",
+    "--no-session-persistence",
+    "--dangerously-skip-permissions",
+    "--effort",
+    "high",
+    "--output-format",
+    "stream-json",
+    "--verbose",
+    "--max-budget-usd",
+    "5.0",
+    "--setting-sources",
+    "",
+    "--strict-mcp-config",
+    "--mcp-config",
+    "{\"mcpServers\":{}}",
+    "--tools",
+    "Bash,Read,Write,Edit,Glob,Grep",
+    "--system-prompt",
+    "Ты выполняешь задачу программирования в изолированном репозитории. Реализуй требования пользователя, оставь результат на диске."
+  ],
+  "cwd": "/home/kesha/.cache/orchestra-bench-V-558/arm-fable/work",
+  "timeout_seconds": 600,
+  "prompt_sha256": "7e3b29377b4b6b76f6d52837933438a37ee80972d6e87074125de0e68d1d21b5",
+  "started_at": 1789227537.9870846
+}

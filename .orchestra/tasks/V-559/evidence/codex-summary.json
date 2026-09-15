@@ -1,0 +1,80 @@
+{
+  "database": "/home/kesha/orchestra/data/storage-final-vps-20260908/orchestra.db",
+  "captured_utc": "2026-09-12T16:25:22.038679+00:00",
+  "rows": [
+    {
+      "model": "gpt-5.3-codex-spark",
+      "turns": 32,
+      "input_tokens": 127285601,
+      "cache_read_tokens_inside_input": 122297344,
+      "cache_create_tokens": 0,
+      "output_tokens": 837898,
+      "cache_share_of_input": 0.9608105161871373,
+      "recorded_cost_usd_sum": null,
+      "recomputed_current_api_usd": null,
+      "recomputed_current_rate_card_credits_at_25_per_usd": null,
+      "unaccounted_rows": 32
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "turns": 657,
+      "input_tokens": 2283515335,
+      "cache_read_tokens_inside_input": 2224325504,
+      "cache_create_tokens": 0,
+      "output_tokens": 5091795,
+      "cache_share_of_input": 0.9740795123672774,
+      "recorded_cost_usd_sum": 62.63350004,
+      "recomputed_current_api_usd": 62.43463028,
+      "recomputed_current_rate_card_credits_at_25_per_usd": 1560.865757,
+      "unaccounted_rows": 0
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "turns": 2682,
+      "input_tokens": 9724836511,
+      "cache_read_tokens_inside_input": 9486325248,
+      "cache_create_tokens": 0,
+      "output_tokens": 26338300,
+      "cache_share_of_input": 0.97547400794551,
+      "recorded_cost_usd_sum": 6114.0908674,
+      "recomputed_current_api_usd": 5275.341151200001,
+      "recomputed_current_rate_card_credits_at_25_per_usd": 131883.52878000002,
+      "unaccounted_rows": 0
+    },
+    {
+      "model": "gpt-5.6-terra",
+      "turns": 1,
+      "input_tokens": 1012208,
+      "cache_read_tokens_inside_input": 951552,
+      "cache_create_tokens": 0,
+      "output_tokens": 5311,
+      "cache_share_of_input": 0.9400755575929058,
+      "recorded_cost_usd_sum": 0.37535440000000003,
+      "recomputed_current_api_usd": 0.37535440000000003,
+      "recomputed_current_rate_card_credits_at_25_per_usd": 9.38386,
+      "unaccounted_rows": 0
+    },
+    {
+      "model": "gpt-6-astra",
+      "turns": 483,
+      "input_tokens": 1319028078,
+      "cache_read_tokens_inside_input": 1294567296,
+      "cache_create_tokens": 0,
+      "output_tokens": 3795217,
+      "cache_share_of_input": 0.9814554501090764,
+      "recorded_cost_usd_sum": 1729.294274,
+      "recomputed_current_api_usd": 1728.935966,
+      "recomputed_current_rate_card_credits_at_25_per_usd": 43223.39915,
+      "unaccounted_rows": 0
+    }
+  ],
+  "all_models": {
+    "turns": 3855,
+    "input_tokens": 13455677733,
+    "cache_read_tokens_inside_input": 13128466944,
+    "cache_create_tokens": 0,
+    "output_tokens": 36068521,
+    "recorded_cost_usd_sum": 7906.39399584,
+    "unaccounted_rows": 32
+  }
+}
