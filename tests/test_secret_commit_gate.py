@@ -251,3 +251,28 @@ def test_installer_refuses_when_git_uses_another_hooks_dir(scratch_repo, tmp_pat
     )
     assert res.returncode != 0
     assert "core.hooksPath" in res.stderr
+
+
+def test_repo_gitignore_covers_every_env_derivative():
+    """Второй рубеж: производная от `.env` не должна доходить до гейта форм вообще.
+
+    Гейт ловит секрет по ФОРМЕ провайдера, и токен Telegram (`<digits>:<base64url>`)
+    в его списке форм не значится — то есть `.env`, попавший под `git add -A`, гейт
+    пропустил бы. Правило игнора закрывает весь класс раньше.
+
+    Triggered case: 15.09.2026 на VPS в рабочем дереве публичного репозитория лежал
+    untracked `.env.V-545-20260914-050429.bak`; `.gitignore` знал только точное `.env`.
+    """
+    probes = {
+        ".env": True,
+        ".env.V-545-20260914-050429.bak": True,
+        ".env.local": True,
+        ".env.prod": True,
+        ".env.example": False,  # публичный шаблон, он обязан оставаться версионируемым
+    }
+    for name, must_be_ignored in probes.items():
+        res = _git(REPO, "check-ignore", "-q", name)
+        assert (res.returncode == 0) is must_be_ignored, (
+            f"{name}: ignored={res.returncode == 0}, ожидалось {must_be_ignored}"
+        )
+    assert _git(REPO, "ls-files", "--error-unmatch", ".env.example").returncode == 0
