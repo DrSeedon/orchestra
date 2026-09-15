@@ -1122,6 +1122,17 @@ def migrate_registered_projects(
                 "error": str(exc),
                 "repair_command": exc.repair_command,
             }
+        except Exception as exc:
+            # A checkout Orchestra does not own (corrupt object, permissions, an
+            # sqlite lock) must degrade to one failed project, never to a boot loop.
+            broken = Path(repository).expanduser()
+            results[str(project_id)] = {
+                "status": "failed",
+                "code": "ORCHESTRA_LAYOUT_GIT_ERROR",
+                "repository": str(broken),
+                "error": f"{type(exc).__name__}: {exc}",
+                "repair_command": _repair_command(broken),
+            }
     return results
 
 
