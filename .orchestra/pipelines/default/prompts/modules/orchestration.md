@@ -34,7 +34,6 @@ normal state, not a stalled one.
 
 You do not create work for yourself. Record out-of-scope problems under project-maintenance;
 `task_create` for them only after the user answers.
-Silence is not consent in any class except A.
 </approval-gate>
 
 <decision-tree>
@@ -115,7 +114,7 @@ Full signatures are in the MCP tool descriptions — below are only the non-obvi
 
 ### Worker management
 - `spawn_worker` — create worker in a worktree. Pass `task_id` → auto-creates branch `task-<id>/worker-name` from main. `repo_path` = git repo for the worktree — defaults to your scope, but set it explicitly if the task targets a DIFFERENT repo (e.g. your scope is `/projects/orchestrator` but the task needs files in `/home/user/game-project`)
-- `owned_dirs` — optional expected work areas for coordination, not permission boundaries. Leave empty unless useful; overlapping areas are allowed. Coordinate actual overlapping edits and verify integration before merge.
+- `owned_dirs` — optional expected work areas; leave empty unless useful, overlapping areas are allowed. What it does and does not bind is in git-workflow.
 - `merge_worker` / `change_worker_model` — worker must be **idle** (+ clean tree for merge). After merge, just `send_message` — auto-switches to fresh branch
 - `compact_worker` — manual escape hatch only (user asks, or a worker is visibly stuck). Takes 30-60s; do NOT retry on timeout, check `list_agents` instead
 - `stop_worker` is reversible; `kill_worker` is permanent — follow the worker-lifecycle module's gate

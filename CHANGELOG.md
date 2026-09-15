@@ -6,7 +6,37 @@
 
 ## Unreleased
 
+### Changed
+- 🧹 **У каждого повторявшегося правила в каталоге промптов остался один владелец**
+  (`.orchestra/pipelines/default/prompts/`: `modules/background-jobs.md`,
+  `modules/orchestration.md`, `roles/worker.md`, `roles/full-cycle.md`,
+  `roles/sub-orchestrator.md`). Дублем считалось только то, что попадает в ОДИН собранный
+  промпт дважды, поэтому совпадения между `roles/worker.md` и `roles/full-cycle.md` не
+  трогались — эти файлы никогда не встречаются вместе. Сведены к владельцу: `owned_dirs`
+  как не-allowlist (три места → `modules/git-workflow.md`), «silence is not consent»
+  (два → `modules/user-values.md`), commit-before-DONE и запрет built-in `SendMessage`
+  (`modules/git-workflow.md` и `base.md`), «зелёный прогон не закрывает невоспроизведённый
+  дефект» и test-first (`modules/code-quality.md`). Тег `<background-jobs>` больше не
+  открывается в промпте оркестратора дважды: обёртка снята с модуля, владелец тега —
+  `base.md`, как у `modules/dynamic-workflows.md`, где тега нет вовсе. *Проверка:* промпт
+  каждой роли пересобран из `HEAD` и из дерева, состав восьми категорий-якорей не
+  изменился ни у одной роли, и каждое исчезнувшее предложение имеет названный дом в
+  промпте той же роли (`.orchestra/tasks/V-577/verify.log`). Каталог 147 130 → 146 585 Б,
+  промпт оркестратора 73 530 → 73 371 Б, воркера 33 293 → 32 964 Б, редьюсера без
+  изменений. *Известный компромисс:* `modules/model-routing.md` не тронут — Sol, Terra и
+  Fable живы в реестре (`app/models.py:56,95,103`) и алиас `codex` до сих пор указывает на
+  Sol, поэтому «do not use» там — действующий запрет, а не мёртвая ветка.
+
 ### Fixed
+- 📛 **Скилл деплоя больше не обещает автоматический `uv sync`, которого в юните нет**
+  (`.orchestra/pipelines/default/prompts/skills/vps-deploy.md`). Строка 34 утверждала, что
+  «`uv sync` runs automatically via `ExecStartPre`», и противоречила правилу в строке 54
+  того же файла («do not run an unpinned `uv sync` in production»). Фактически
+  `ExecStartPre` у `orchestra.service` отсутствует, а эффективный `ExecStart` задан
+  drop-in'ом `60-runtime-isolation.conf` и равен
+  `/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m uvicorn app.main:app --fd 3`
+  (сверено с `/proc/<MainPID>/cmdline` живого процесса). *Триггер:* разбор V-577 —
+  единственное расхождение каталога промптов с реальностью машины.
 - 🔀 **Мерж больше не запирается на расхождении ДВУХ ЗАПИСЕЙ ПЛАТФОРМЫ — про ветку
   спрашивают git** (`app/routes/sessions.py`, `execute_merge_session`). Раньше
   `expected_branch` операции сверялся с колонкой `sessions.branch`, а git в этой точке не
