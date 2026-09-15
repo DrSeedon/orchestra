@@ -936,8 +936,11 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
         "task_id": record["accepted_task_id"],
         "needs_switch": bool(record["accepted_needs_switch"]),
     }
+    # Обе стороны называются явно: один голый список полей не говорит, что именно
+    # разъехалось, и читатель отказа не знает, что чинить (V-575).
     mismatches = [
-        key for key, value in expected.items() if current.get(key) != value
+        f"{key} (accepted {value!r}, now {current.get(key)!r})"
+        for key, value in expected.items() if current.get(key) != value
     ]
     decision = (record.get("accepted_admission") or {}).get("acceptance_decision")
     if decision:
@@ -1123,8 +1126,10 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
         )
     if "identity changed" in lower or "head changed" in lower or "branch changed" in lower:
         return "SESSION_IDENTITY_CHANGED", details, _action(
-            "REFRESH_WORKER_THEN_NEW_OPERATION",
-            "Refresh the worker snapshot, then start a new operation.",
+            "INSPECT_WORKER_THEN_NEW_OPERATION",
+            "Check the worker's actual branch and HEAD (worker_wip), then start a new "
+            "operation WITHOUT operation_id: admission re-pins identity from the worktree. "
+            "worker_wip only reads Git, so repeating this same operation_id cannot help.",
         )
     return "LEGACY_UPSTREAM_ERROR", details, _action(
         "FIX_AND_START_NEW_OPERATION",
@@ -1688,8 +1693,10 @@ async def _run_operation(operation_id: str) -> None:
                 worker_head=record["accepted_worker_head"],
                 error=error,
                 next_action=_action(
-                    "REFRESH_WORKER_THEN_NEW_OPERATION",
-                    "Refresh the worker identity, then start a new operation.",
+                    "INSPECT_WORKER_THEN_NEW_OPERATION",
+                    "Check the worker's actual branch and HEAD (worker_wip), then start a "
+                    "new operation WITHOUT operation_id: admission re-pins identity from "
+                    "the worktree. Repeating this same operation_id cannot help.",
                 ),
             )
         else:
