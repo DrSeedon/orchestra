@@ -1,0 +1,56 @@
+[
+  {
+    "model": "poolside/laguna-s-2.1:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 429",
+    "seconds": 0.2,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortl"
+  },
+  {
+    "model": "poolside/laguna-xs-2.1:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": false,
+    "status": "round2 HTTP 429",
+    "seconds": 0.6,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-xs-2.1:free is temporarily rate-limited upstream. Please retry short"
+  },
+  {
+    "model": "google/gemma-4-26b-a4b-it:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 4.5,
+    "note": "4242"
+  },
+  {
+    "model": "google/gemma-4-31b-it:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 429",
+    "seconds": 0.2,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortl"
+  },
+  {
+    "model": "nex-agi/nex-n2.5-mini:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 0",
+    "seconds": 90.1,
+    "note": "TimeoutError: The read operation timed out"
+  },
+  {
+    "model": "nex-agi/nex-n2.5-pro:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 6.3,
+    "note": "4242"
+  }
+]
