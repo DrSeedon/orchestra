@@ -707,3 +707,66 @@ def test_deciding_window_follows_length_not_field_name():
     assert deciding_window(five_hour_only, "codex")["utilization"] == 42
     claude_without_weekly = {"windows": [{"id": "five_hour", "window_minutes": 300, "utilization": 26}]}
     assert deciding_window(claude_without_weekly, "anthropic") is None
+
+
+# ── #V-578: временное снятие гейта рукой владельца ────────────────────────────
+# Кнопка снимает НАШУ осторожность (диагональ и потолок полосы) и не трогает общий
+# жёсткий стоп: за ним стоит предел провайдера, и пропуск туда обменял бы отказ
+# гейта на 429 у провайдера.
+
+
+@pytest.fixture(autouse=True)
+def _no_gate_override():
+    quota_gate.clear_gate_override()
+    yield
+    quota_gate.clear_gate_override()
+
+
+def test_gate_override_admits_a_worker_the_line_refused():
+    providers = _providers(claude=23.0, progress=0.1385)
+    assert _decide("claude-opus-5", providers).state == "blocked"
+
+    quota_gate.set_gate_override(1800.0, now=NOW)
+
+    decision = _decide("claude-opus-5", providers)
+    assert decision.state == "available"
+    assert decision.gated is False
+    assert "override" in decision.reason
+    assert decision.override_seconds_left == pytest.approx(1800.0, abs=1.0)
+
+
+def test_gate_override_expires_on_its_own_without_being_cleared():
+    providers = _providers(claude=23.0, progress=0.1385)
+    quota_gate.set_gate_override(60.0, now=NOW)
+    assert _decide("claude-opus-5", providers, now=NOW + 59).state == "available"
+
+    late = _decide("claude-opus-5", providers, observed_at=NOW + 61, now=NOW + 61)
+
+    assert late.state == "blocked"
+    assert late.override_seconds_left == 0.0
+
+
+def test_gate_override_does_not_lift_the_hard_stop():
+    quota_gate.set_gate_override(1800.0, now=NOW)
+    decision = _decide("claude-opus-5", _providers(claude=99.5, progress=0.5))
+    assert decision.state == "blocked"
+    assert "hard stop" in decision.reason
+
+
+def test_gate_override_lifts_the_lane_ceiling_but_keeps_the_general_one():
+    providers = _providers(codex=96.0, progress=0.9)
+    assert _decide("gpt-5.6-sol", providers).state == "blocked"
+
+    quota_gate.set_gate_override(1800.0, now=NOW)
+
+    lifted = _decide("gpt-5.6-sol", providers)
+    assert lifted.state == "available"
+    assert lifted.hard_limit_pct == HARD_STOP_PCT
+    assert _decide("gpt-5.6-sol", _providers(codex=99.4, progress=0.9)).state == "blocked"
+
+
+@pytest.mark.parametrize("seconds", [0.0, -1.0, 6 * 3600.0 + 1.0, float("inf")])
+def test_gate_override_refuses_a_nonsense_duration(seconds):
+    with pytest.raises(ValueError, match="override seconds"):
+        quota_gate.set_gate_override(seconds)
+    assert quota_gate.gate_override_remaining() == 0.0

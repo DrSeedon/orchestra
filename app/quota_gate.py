@@ -276,6 +276,44 @@ LANE_LABELS = {
     "spark": "Spark",
 }
 
+# Временное снятие гейта владельцем (#V-578). Снимается ТОЛЬКО наша дополнительная
+# осторожность — диагональ и потолок отдельной полосы; общий жёсткий стоп остаётся,
+# потому что за ним стоит предел провайдера, а не наше правило: пропустив туда, мы
+# обменяли бы отказ гейта на 429 у провайдера и сожгли ход.
+# Состояние живёт в памяти процесса и НЕ переживает рестарт. Это выбрано намеренно:
+# забытое бессрочное снятие мы уже проходили (`QUOTA_GATED_LANES=` простояло пустым
+# с 12.09 по 15.09.2026), а потеря снятия при рестарте отказывает в безопасную сторону.
+MAX_GATE_OVERRIDE_SECONDS = 6 * 3600.0
+_gate_override_lock = Lock()
+_gate_override_until = 0.0
+
+
+def set_gate_override(seconds: float, *, now: float | None = None) -> float:
+    """Снять диагональ и потолки полос на `seconds`; вернуть момент истечения."""
+    global _gate_override_until
+    seconds = float(seconds)
+    if not math.isfinite(seconds) or not (0.0 < seconds <= MAX_GATE_OVERRIDE_SECONDS):
+        raise ValueError(
+            f"override seconds must be in (0, {MAX_GATE_OVERRIDE_SECONDS:g}], got {seconds!r}"
+        )
+    moment = time.time() if now is None else float(now)
+    with _gate_override_lock:
+        _gate_override_until = moment + seconds
+        return _gate_override_until
+
+
+def clear_gate_override() -> None:
+    global _gate_override_until
+    with _gate_override_lock:
+        _gate_override_until = 0.0
+
+
+def gate_override_remaining(now: float | None = None) -> float:
+    """Сколько секунд снятие ещё действует; 0.0 — гейт работает обычным порядком."""
+    moment = time.time() if now is None else float(now)
+    with _gate_override_lock:
+        return max(0.0, _gate_override_until - moment)
+
 
 def tolerance_pp(progress: float, policy: QuotaPolicy | None = None) -> float:
     """Допуск в п.п. в точке окна."""
@@ -404,6 +442,7 @@ class QuotaDecision:
     hard_limit_pct: float = HARD_STOP_PCT
     release_status: str = "open"
     release_in_seconds: float | None = None
+    override_seconds_left: float = 0.0
 
     @property
     def allowed(self) -> bool:
@@ -430,6 +469,7 @@ class QuotaDecision:
             "reason": self.reason,
             "release_status": self.release_status,
             "release_in_seconds": self.release_in_seconds,
+            "override_seconds_left": self.override_seconds_left,
         }
 
 
@@ -600,6 +640,14 @@ def evaluate_worker_admission(
 ) -> QuotaDecision:
     checked_at = time.time() if now is None else float(now)
     policy = policy or quota_policy()
+    override_left = gate_override_remaining(checked_at)
+
+    def lane_gated(lane: str | None) -> bool:
+        return lane in policy.gated_lanes and not override_left
+
+    def lane_hard_stop(lane: str | None) -> float:
+        # Снятие убирает потолок ПОЛОСЫ (sol 95%), общий жёсткий стоп остаётся.
+        return policy.hard_stop_pct if override_left else policy.hard_stop_for(lane)
 
     def unknown(
         reason: str,
@@ -614,12 +662,13 @@ def evaluate_worker_admission(
         return QuotaDecision(
             state="unknown", model=resolved or str(model), provider=bucket,
             provider_label=label or bucket or "Unknown provider",
-            lane=lane, gated=lane in policy.gated_lanes,
+            lane=lane, gated=lane_gated(lane),
             utilization=utilization, progress=None, tolerance_pp=None, limit_pct=None,
             release_status="no_data", release_in_seconds=None,
             observed_at=observed_at, valid_until=None, reset_at=None,
             window_starts_at=None, reason=reason,
-            hard_limit_pct=policy.hard_stop_for(lane),
+            hard_limit_pct=lane_hard_stop(lane),
+            override_seconds_left=override_left,
         )
 
     try:
@@ -639,8 +688,8 @@ def evaluate_worker_admission(
         )
 
     lane = lane_for_model(resolved, bucket)
-    gated = lane in policy.gated_lanes
-    hard_stop = policy.hard_stop_for(lane)
+    gated = lane_gated(lane)
+    hard_stop = lane_hard_stop(lane)
     provider = providers.get(bucket)
     label = provider.get("label") if isinstance(provider, Mapping) else None
     label = str(label or bucket)
@@ -710,6 +759,13 @@ def evaluate_worker_admission(
     elif gated:
         state = "available"
         reason = f"utilization {utilization:g}% is at or below the line limit {limit:.4g}%"
+    elif override_left:
+        # Отказ снят рукой владельца — говорим это прямо, а не выдаём за обычный допуск.
+        state = "available"
+        reason = (
+            f"gate override active for {override_left:.0f} more seconds; utilization "
+            f"{utilization:g}% is below the hard stop {hard_stop:g}%"
+        )
     else:
         state = "available"
         reason = (
@@ -725,6 +781,7 @@ def evaluate_worker_admission(
         reset_at=reset_at_str, window_starts_at=started_at, reason=reason,
         release_status=release_status, release_in_seconds=release_in_seconds,
         hard_limit_pct=hard_stop,
+        override_seconds_left=override_left,
     )
 
 
