@@ -4656,6 +4656,14 @@ class TestTurnFold:
         assert 'rg -n "def change_model"' in line
         assert "\\" not in line            # экранирование оболочки снято
 
+    def test_skill_line_names_the_skill(self, tb):
+        """Голое «Skill» не говорит, что агент делает: видео он разбирает или сессию закрывает."""
+        line = tb._tool_line("Skill", '{"skill": "teach-me", "args": "модуль research-method"}')
+        assert "teach-me" in line, line
+        assert len(line) <= tb._ACTION_LINE_MAX
+        bare = tb._tool_line("Skill", '{"args": "без имени"}')
+        assert "Skill" in bare, bare
+
     def test_file_change_and_edit_render_the_same_way(self, tb):
         name, body = LIVE_FILE_CHANGE.split(":", 1)
         codex = tb._tool_line(name.strip(), body.strip())

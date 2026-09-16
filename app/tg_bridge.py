@@ -788,6 +788,12 @@ def _tool_target(tool_name: str, body: str) -> str:
     if "spawn_worker" in tool_name:
         model = _MODEL_SHORT.get(params.get("model", ""), params.get("model", ""))
         return f"{params.get('name', '?')} ({model})"
+    if tool_name == "Skill":
+        # Имя скилла — единственное, ради чего эту строку читают: голое «Skill»
+        # не отличает разбор видео от закрытия сессии.
+        skill = str(params.get("skill", "")).strip()
+        args = str(params.get("args", "")).strip()
+        return f"/{skill}{' ' + args if args else ''}" if skill else short
     named = params.get("name") or params.get("par") or params.get("query") or ""
     return f"{short} {named}".strip()
 
@@ -2615,7 +2621,7 @@ async def _reserve_file_snapshot_slot(chat_id: int) -> bool:
 _TG_TOOL_ICONS = {
     'Bash': '🖥', 'Read': '📖', 'Write': '✏️', 'Edit': '✏️',
     'Glob': '🔎', 'Grep': '🔎', 'WebSearch': '🌐', 'WebFetch': '🌐',
-    'Agent': '🤖', 'ToolSearch': '🔍', 'AskUserQuestion': '❓',
+    'Agent': '🤖', 'ToolSearch': '🔍', 'AskUserQuestion': '❓', 'Skill': '🎓',
     # Одна правка файла — один значок, каким бы рантаймом она ни была сделана:
     # Codex пишет её как FileChange, Claude как Edit/Write (767 против 82 за трое суток).
     'FileChange': '✏️',
