@@ -1527,6 +1527,38 @@ async def quota_map():
     return await build_quota_map()
 
 
+@router.post("/api/usage/quota-override")
+async def quota_override(req: dict):
+    """Снять гейт на `minutes` минут или вернуть его немедленно (`minutes` = 0).
+
+    Действие ВЛАДЕЛЬЦА с панели: агентам оно не выдаётся ни тулом, ни параметром
+    спавна — иначе решение о расходе пула уезжает к тем, кто его тратит.
+    """
+    from app.quota_gate import (
+        MAX_GATE_OVERRIDE_SECONDS,
+        clear_gate_override,
+        gate_override_remaining,
+        set_gate_override,
+    )
+
+    raw = req.get("minutes", 0)
+    try:
+        minutes = float(raw)
+    except (TypeError, ValueError):
+        return JSONResponse({"error": f"minutes must be a number, got {raw!r}"}, status_code=400)
+    if minutes <= 0:
+        clear_gate_override()
+        return {"override_seconds_left": 0.0}
+    try:
+        set_gate_override(minutes * 60.0)
+    except ValueError as error:
+        return JSONResponse(
+            {"error": str(error), "max_minutes": MAX_GATE_OVERRIDE_SECONDS / 60.0},
+            status_code=400,
+        )
+    return {"override_seconds_left": gate_override_remaining()}
+
+
 async def build_quota_map() -> dict:
     """Одна живая картина: кто допущен прямо сейчас и по какой линии.
 
@@ -1542,6 +1574,7 @@ async def build_quota_map() -> dict:
         LANE_LABELS,
         deciding_window,
         evaluate_worker_admission,
+        gate_override_remaining,
         line_limit,
         parse_quota_timestamp,
         quota_policy,
@@ -1581,7 +1614,9 @@ async def build_quota_map() -> dict:
             {
                 "lane": decision.lane,
                 "label": LANE_LABELS.get(decision.lane, decision.lane),
-                "gated": decision.lane in policy.gated_lanes,
+                # Вердикт гейта, а не состав полос из политики: при временном снятии
+                # (#V-578) полоса остаётся в `gated_lanes`, но прямо сейчас не держит.
+                "gated": decision.gated,
                 # Порог теперь свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude
                 # по прямой, и обе живут в одном пуле Codex/Anthropic соответственно.
                 "curved": decision.lane in policy.curved_lanes,
@@ -1829,6 +1864,9 @@ async def build_quota_map() -> dict:
             # Состав гейтящихся полос: без него панель не может сказать, действует
             # правило вообще или снято со всех, — снятый гейт выглядел как обычный.
             "gated_lanes": sorted(policy.gated_lanes),
+            # Остаток временного снятия (#V-578): панель обязана отличать «правила
+            # такие» от «владелец снял на 20 минут», иначе снятие снова забудется.
+            "override_seconds_left": gate_override_remaining(),
         },
         "buckets": buckets,
         "outside_policy": outside_policy,

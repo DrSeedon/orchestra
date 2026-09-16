@@ -135,6 +135,15 @@ function _qlGateState() {
         return {state: 'nodata', text: 'гейт: нет данных'};
     }
     const ceilings = _qlCeilingText(rule);
+    // Снятие рукой владельца (#V-578) показывается ОТДЕЛЬНО от «правила такие»:
+    // иначе временное снятие снова растянется на трое суток незамеченным.
+    const left = Number(rule.override_seconds_left) || 0;
+    if (left > 0) {
+        return {
+            state: 'override',
+            text: `гейт СНЯТ ВРУЧНУЮ — вернётся через ${Math.ceil(left / 60)} мин · потолок: ${ceilings}`,
+        };
+    }
     if (!rule.gated_lanes.length) {
         return {
             state: 'off',
@@ -439,10 +448,16 @@ function renderQuotaLines() {
     if (!root) return;
     const body = _QL_PANELS.map(_qlPanelHtml).join('');
     const gate = _qlGateState();
+    const overrideOn = gate.state === 'override';
+    // Кнопка есть всегда, кроме потери связи: нажимать её вслепую, не зная состояния
+    // гейта, значит снимать правило наугад.
+    const button = gate.state === 'nodata' ? '' :
+        `<button type="button" id="quota-gate-override" class="ql-gate-btn">${overrideOn ? 'вернуть гейт' : 'снять на 30 мин'}</button>`;
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} правило допуска</button>
             <span class="ql-gate ql-gate-${gate.state}" data-ql-gate="${gate.state}">${_escHtml(gate.text)}</span>
+            ${button}
             <div class="ql-sum">${_qlSummary()}</div>
         </div>
         <div class="ql-body" ${_quotaLinesOpen ? '' : 'hidden'}>${body}</div>`;
@@ -450,6 +465,23 @@ function renderQuotaLines() {
         _quotaLinesOpen = !_quotaLinesOpen;
         renderQuotaLines();
     };
+    const overrideButton = root.querySelector('#quota-gate-override');
+    if (overrideButton) {
+        overrideButton.onclick = async () => {
+            overrideButton.disabled = true;
+            try {
+                await api('/api/usage/quota-override', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({minutes: overrideOn ? 0 : 30}),
+                });
+            } finally {
+                // Состояние перерисовывается из ответа сервера, а не из нашего намерения.
+                _quotaMapData = null;
+                await fetchQuotaLines();
+            }
+        };
+    }
 }
 
 async function fetchQuotaLines() {

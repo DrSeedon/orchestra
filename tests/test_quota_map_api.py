@@ -205,6 +205,8 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         # Состав гейтящихся полос: по нему панель отличает работающее правило от
         # снятого со всех полос — без него оба состояния выглядят одинаково.
         "gated_lanes": ["claude", "sol"],
+        # Остаток временного снятия (#V-578): 0 — снятия нет.
+        "override_seconds_left": 0.0,
     }
     assert payload["observation_max_age_seconds"] == 300.0
 
@@ -232,6 +234,8 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
         # Гейт снят оператором — панель обязана узнать об этом из правила, а не
         # догадываться по тому, что ни одна полоса сейчас не блокируется.
         "gated_lanes": [],
+        # Снятие настройкой и снятие кнопкой — разные состояния: здесь кнопку не жали.
+        "override_seconds_left": 0.0,
     }
     codex = _pool(payload, "codex")
     assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))
@@ -632,3 +636,29 @@ async def test_non_owner_dashboard_gets_no_subscription_percentages(mapped, monk
     ))
 
     assert payload == {"data_available": False, "error": "owner_mode_only"}
+
+
+@pytest.mark.asyncio
+async def test_panel_sees_the_manual_override_and_its_expiry(mapped):
+    """Кнопка снятия (#V-578) обязана быть видна панели как ОТДЕЛЬНОЕ состояние.
+
+    Иначе временное снятие неотличимо от «правила такие», и его снова забудут:
+    пустой `QUOTA_GATED_LANES` простоял так трое суток.
+    """
+    try:
+        quota_gate.set_gate_override(1800.0)
+        payload = await mapped(_observation(
+            codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+        ))
+        assert payload["rule"]["override_seconds_left"] > 0
+        assert payload["rule"]["gated_lanes"] == ["claude", "sol"]
+        codex = _pool(payload, "codex")
+        assert all(not lane["gated"] for lane in codex["lanes"])
+    finally:
+        quota_gate.clear_gate_override()
+
+    after = await mapped(_observation(
+        codex=[_window(300, 98.0, window_id="primary", label="5h", progress=0.3)],
+    ))
+    assert after["rule"]["override_seconds_left"] == 0.0
+    assert any(lane["gated"] for lane in _pool(after, "codex")["lanes"])

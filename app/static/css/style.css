@@ -1008,6 +1008,13 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-gate-on { border-color: var(--ok); color: #86efac; }
 .ql-gate-off { border-color: #f59e0b; background: rgba(245,158,11,.14); color: #fcd34d; font-weight: 600; }
 .ql-gate-nodata { border-color: #475569; color: #cbd5e1; }
+.ql-gate-override { border-color: #f43f5e; background: rgba(244,63,94,.16); color: #fda4af; font-weight: 600; }
+.ql-gate-btn {
+  flex-shrink: 0; padding: 2px 8px; border: 1px solid var(--border); border-radius: var(--r-sm);
+  background: transparent; color: var(--ink-soft); font: 11px/1.4 var(--font-mono); cursor: pointer;
+}
+.ql-gate-btn:hover { border-color: var(--accent); color: var(--ink); }
+.ql-gate-btn:disabled { opacity: .5; cursor: default; }
 .ql-sum { display: flex; flex-wrap: wrap; gap: 4px 18px; min-width: 0; color: var(--ink-faint); }
 .ql-sum-item b { color: var(--ink-soft); font-weight: 600; }
 .ql-body { max-height: 62vh; overflow: auto; padding: 4px 12px 12px; }

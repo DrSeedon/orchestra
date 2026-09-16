@@ -709,6 +709,12 @@
   ]
  ],
  [
+  "/api/usage/quota-override",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/usage/readiness",
   [
    "GET"
