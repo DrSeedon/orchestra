@@ -1,0 +1,182 @@
+[
+  {
+    "model": "thinkingmachines/inkling-small:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 403",
+    "seconds": 0.2,
+    "note": "thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter",
+    "context": 1048576
+  },
+  {
+    "model": "thinkingmachines/inkling:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 403",
+    "seconds": 0.4,
+    "note": "thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/ap",
+    "context": 1048576
+  },
+  {
+    "model": "nvidia/nemotron-3.5-lightning:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 32.5,
+    "note": "4242",
+    "context": 1000000
+  },
+  {
+    "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": false,
+    "status": "incomplete",
+    "seconds": 26.0,
+    "note": "",
+    "context": 1000000
+  },
+  {
+    "model": "dots-studio/dots-3-note-preview:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 4.5,
+    "note": "4242",
+    "context": 512000
+  },
+  {
+    "model": "inclusionai/ling-3.0-flash-vl:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": false,
+    "status": "incomplete",
+    "seconds": 2.2,
+    "note": "",
+    "context": 262144
+  },
+  {
+    "model": "nex-agi/nex-n2.5-mini:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 0",
+    "seconds": 90.0,
+    "note": "TimeoutError: The read operation timed out",
+    "context": 262144
+  },
+  {
+    "model": "nex-agi/nex-n2.5-pro:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 0",
+    "seconds": 92.0,
+    "note": "TimeoutError: The read operation timed out",
+    "context": 262144
+  },
+  {
+    "model": "inclusionai/ling-3.0-flash-sante:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 2.4,
+    "note": "4242",
+    "context": 262144
+  },
+  {
+    "model": "inclusionai/ling-3.0-flash-fin:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 1.7,
+    "note": "4242",
+    "context": 262144
+  },
+  {
+    "model": "poolside/laguna-s-2.1:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": false,
+    "status": "round2 HTTP 429",
+    "seconds": 1.6,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortl",
+    "context": 262144
+  },
+  {
+    "model": "poolside/laguna-xs-2.1:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 429",
+    "seconds": 0.2,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-xs-2.1:free is temporarily rate-limited upstream. Please retry short",
+    "context": 262144
+  },
+  {
+    "model": "google/gemma-4-26b-a4b-it:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 429",
+    "seconds": 0.2,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. Please retry sh",
+    "context": 262144
+  },
+  {
+    "model": "google/gemma-4-31b-it:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "HTTP 429",
+    "seconds": 0.2,
+    "note": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortl",
+    "context": 262144
+  },
+  {
+    "model": "nvidia/nemotron-3-super-120b-a12b:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 10.2,
+    "note": "4242",
+    "context": 262144
+  },
+  {
+    "model": "cohere/north-mini-code:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 1.2,
+    "note": "4242",
+    "context": 256000
+  },
+  {
+    "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+    "tool_call": false,
+    "arg_ok": false,
+    "used_result": false,
+    "status": "no tool call",
+    "seconds": 0.5,
+    "note": "",
+    "context": 256000
+  },
+  {
+    "model": "liquid/lfm-2.5-2.6b:free",
+    "tool_call": true,
+    "arg_ok": true,
+    "used_result": true,
+    "status": "OK",
+    "seconds": 1.5,
+    "note": "4242",
+    "context": 65536
+  }
+]

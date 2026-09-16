@@ -1,0 +1,8 @@
+HTTP 429         poolside/laguna-s-2.1:free                       0.2s call=False used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"poolside/lagun
+round2 HTTP 429  poolside/laguna-xs-2.1:free                      0.6s call=True used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"poolside/lagun
+OK               google/gemma-4-26b-a4b-it:free                   4.5s call=True used=True | 4242
+HTTP 429         google/gemma-4-31b-it:free                       0.2s call=False used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"google/gemma-4
+HTTP 0           nex-agi/nex-n2.5-mini:free                      90.1s call=False used=False | TimeoutError: The read operation timed out
+OK               nex-agi/nex-n2.5-pro:free                        6.3s call=True used=True | 4242
+
+прошли со второй попытки: ['google/gemma-4-26b-a4b-it:free', 'nex-agi/nex-n2.5-pro:free']

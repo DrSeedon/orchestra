@@ -1,0 +1,29 @@
+кандидатов :free с tools: 18
+
+HTTP 403       thinkingmachines/inkling-small:free                   0.2s call=False arg=False used=False | thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter
+HTTP 403       thinkingmachines/inkling:free                         0.4s call=False arg=False used=False | thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/ap
+OK             nvidia/nemotron-3.5-lightning:free                   32.5s call=True arg=True used=True | 4242
+incomplete     nvidia/nemotron-3-ultra-550b-a55b:free               26.0s call=True arg=True used=False | 
+OK             dots-studio/dots-3-note-preview:free                  4.5s call=True arg=True used=True | 4242
+incomplete     inclusionai/ling-3.0-flash-vl:free                    2.2s call=True arg=True used=False | 
+HTTP 0         nex-agi/nex-n2.5-mini:free                           90.0s call=False arg=False used=False | TimeoutError: The read operation timed out
+HTTP 0         nex-agi/nex-n2.5-pro:free                            92.0s call=False arg=False used=False | TimeoutError: The read operation timed out
+OK             inclusionai/ling-3.0-flash-sante:free                 2.4s call=True arg=True used=True | 4242
+OK             inclusionai/ling-3.0-flash-fin:free                   1.7s call=True arg=True used=True | 4242
+round2 HTTP 429 poolside/laguna-s-2.1:free                            1.6s call=True arg=True used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortl
+HTTP 429       poolside/laguna-xs-2.1:free                           0.2s call=False arg=False used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"poolside/laguna-xs-2.1:free is temporarily rate-limited upstream. Please retry short
+HTTP 429       google/gemma-4-26b-a4b-it:free                        0.2s call=False arg=False used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. Please retry sh
+HTTP 429       google/gemma-4-31b-it:free                            0.2s call=False arg=False used=False | {"error":{"message":"Provider returned error","code":429,"metadata":{"raw":"google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortl
+OK             nvidia/nemotron-3-super-120b-a12b:free               10.2s call=True arg=True used=True | 4242
+OK             cohere/north-mini-code:free                           1.2s call=True arg=True used=True | 4242
+no tool call   nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free    0.5s call=False arg=False used=False | 
+OK             liquid/lfm-2.5-2.6b:free                              1.5s call=True arg=True used=True | 4242
+
+ПРОШЛИ ПОЛНЫЙ ПРОТОКОЛ: 7 из 18
+  nvidia/nemotron-3.5-lightning:free                 ctx=1000000   32.5s
+  dots-studio/dots-3-note-preview:free               ctx=512000    4.5s
+  inclusionai/ling-3.0-flash-sante:free              ctx=262144    2.4s
+  inclusionai/ling-3.0-flash-fin:free                ctx=262144    1.7s
+  nvidia/nemotron-3-super-120b-a12b:free             ctx=262144    10.2s
+  cohere/north-mini-code:free                        ctx=256000    1.2s
+  liquid/lfm-2.5-2.6b:free                           ctx=65536     1.5s
