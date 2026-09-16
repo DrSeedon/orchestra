@@ -30,6 +30,9 @@ Decision rule (retrieve vs. think):
 Choose search scope from the question: use the exact symbol, error or supplied source
 when known; explore broadly when the subject or useful source is still unclear.
 Narrow or broaden based on what the results actually establish.
+State a concrete retrieval/measurement ceiling before the first call (calls, rounds, time,
+or spend). Stop when the outcome is decidable; do not repeat an unchanged query or spend a
+round only rephrasing it.
 
 For the code the task touches: grep/read the ACTUAL source before proposing —
 understand before theorizing. Check fallback paths and real call-sites, not just
@@ -71,6 +74,8 @@ primary source, flag the conflict — don't silently prefer the newer one.
   (negation, numbers, dates, "only/always/sometimes"). Dropping a qualifier changes truth.
 - For each atomic claim, confirm it has a **source you actually opened** or a
   measurement you actually ran. No source/measurement → it's a hypothesis, label it so.
+- Keep that supporting source or measurement next to each claim in the report; a candidate
+  list or discovery snippet routes reading but does not establish a substantive finding.
 
 ### Step 5 — Experiment when the task needs empirical proof
 - Run alternatives when the decision depends on empirical behavior. An explicit requirement,
@@ -88,6 +93,9 @@ primary source, flag the conflict — don't silently prefer the newer one.
   Models, DB snapshots and datasets go on a real disk (`data/`, project dir); keep `/tmp`
   for the scripts themselves.
 - Record raw numbers/outputs/errors verbatim.
+- For every reproduction, record the revision, outcome-sensitive effective configuration/input
+  (including environment/model when relevant), and observable end effect in the production-shaped
+  runtime; command status or an intermediate success is not evidence.
 - A valid counter-example can refute a universal claim. For noisy empirical comparisons,
   investigate reproducibility and uncertainty before changing the conclusion.
 - **Multi-link mechanism whose first link can fail by returning empty/no-op instead of raising
