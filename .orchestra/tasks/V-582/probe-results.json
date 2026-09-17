@@ -1,0 +1,217 @@
+{
+  "started_at": "2026-09-17T09:04:01+0200",
+  "seconds": 127.2,
+  "requests_per_route": 2,
+  "candidates": 18,
+  "passed": [
+    "nvidia/nemotron-3-ultra-550b-a55b:free",
+    "dots-studio/dots-3-note-preview:free",
+    "nex-agi/nex-n2.5-mini:free",
+    "nex-agi/nex-n2.5-pro:free",
+    "inclusionai/ling-3.0-flash-sante:free",
+    "inclusionai/ling-3.0-flash-fin:free",
+    "nvidia/nemotron-3-super-120b-a12b:free",
+    "cohere/north-mini-code:free",
+    "liquid/lfm-2.5-2.6b:free"
+  ],
+  "results": [
+    {
+      "model": "thinkingmachines/inkling-small:free",
+      "status": "http_403",
+      "seconds": 0.2,
+      "requests": 1,
+      "tool_call": false,
+      "argument_ok": false,
+      "used_result": false,
+      "detail": "thinkingmachines/inkling-small:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps",
+      "context_length": 1048576
+    },
+    {
+      "model": "thinkingmachines/inkling:free",
+      "status": "http_403",
+      "seconds": 0.1,
+      "requests": 1,
+      "tool_call": false,
+      "argument_ok": false,
+      "used_result": false,
+      "detail": "thinkingmachines/inkling:free is only available on agentic harnesses. Try plugging it into a coding agent or productivity app listed on https://openrouter.ai/apps",
+      "context_length": 1048576
+    },
+    {
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "status": "timeout",
+      "seconds": 90.1,
+      "requests": 1,
+      "tool_call": false,
+      "argument_ok": false,
+      "used_result": false,
+      "detail": "TimeoutError: The read operation timed out",
+      "context_length": 1000000
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "status": "ok",
+      "seconds": 4.5,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 1000000
+    },
+    {
+      "model": "dots-studio/dots-3-note-preview:free",
+      "status": "ok",
+      "seconds": 5.9,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 512000
+    },
+    {
+      "model": "inclusionai/ling-3.0-flash-vl:free",
+      "status": "result_ignored",
+      "seconds": 2.5,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": false,
+      "detail": "",
+      "context_length": 262144
+    },
+    {
+      "model": "nex-agi/nex-n2.5-mini:free",
+      "status": "ok",
+      "seconds": 2.5,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 262144
+    },
+    {
+      "model": "nex-agi/nex-n2.5-pro:free",
+      "status": "ok",
+      "seconds": 2.3,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 262144
+    },
+    {
+      "model": "inclusionai/ling-3.0-flash-sante:free",
+      "status": "ok",
+      "seconds": 2.4,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 262144
+    },
+    {
+      "model": "inclusionai/ling-3.0-flash-fin:free",
+      "status": "ok",
+      "seconds": 1.8,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 262144
+    },
+    {
+      "model": "poolside/laguna-s-2.1:free",
+      "status": "rate_limited",
+      "seconds": 1.7,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": false,
+      "detail": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-s-2.1:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate you",
+      "context_length": 262144
+    },
+    {
+      "model": "poolside/laguna-xs-2.1:free",
+      "status": "rate_limited",
+      "seconds": 1.0,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": false,
+      "detail": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"poolside/laguna-xs-2.1:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate yo",
+      "context_length": 262144
+    },
+    {
+      "model": "google/gemma-4-26b-a4b-it:free",
+      "status": "rate_limited",
+      "seconds": 0.2,
+      "requests": 1,
+      "tool_call": false,
+      "argument_ok": false,
+      "used_result": false,
+      "detail": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"google/gemma-4-26b-a4b-it:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate",
+      "context_length": 262144
+    },
+    {
+      "model": "google/gemma-4-31b-it:free",
+      "status": "rate_limited",
+      "seconds": 0.5,
+      "requests": 1,
+      "tool_call": false,
+      "argument_ok": false,
+      "used_result": false,
+      "detail": "{\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate you",
+      "context_length": 262144
+    },
+    {
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "status": "ok",
+      "seconds": 3.5,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 262144
+    },
+    {
+      "model": "cohere/north-mini-code:free",
+      "status": "ok",
+      "seconds": 3.7,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 256000
+    },
+    {
+      "model": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+      "status": "no_tool_call",
+      "seconds": 0.4,
+      "requests": 1,
+      "tool_call": false,
+      "argument_ok": false,
+      "used_result": false,
+      "detail": "",
+      "context_length": 256000
+    },
+    {
+      "model": "liquid/lfm-2.5-2.6b:free",
+      "status": "ok",
+      "seconds": 2.7,
+      "requests": 2,
+      "tool_call": true,
+      "argument_ok": true,
+      "used_result": true,
+      "detail": "4242",
+      "context_length": 65536
+    }
+  ]
+}

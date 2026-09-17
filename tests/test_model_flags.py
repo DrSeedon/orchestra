@@ -49,13 +49,6 @@ def test_t1_manifest_models_default_to_visible_and_allowed():
     }
 
 
-def test_t1_manifest_harness_models_start_fail_closed():
-    assert registry.get_model_flags("z-ai/glm-5.2:free") == {
-        "dashboard": False,
-        "agents": False,
-    }
-
-
 def test_t1_registered_catalog_model_defaults_to_hidden_and_forbidden():
     from app.models import ModelSpec
 

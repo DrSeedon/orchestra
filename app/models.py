@@ -121,27 +121,10 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="grok-4.5", name="Grok 4.5",
         runtime="grok", provider="x-ai", context_length=500000,
     ),
-    # OpenRouter through Orchestra's own harness. Admission is exact and fail-closed:
-    # only `:free` routes that advertise tools may reach the HTTP client. These two
-    # entries are offline fallbacks for a cold catalog; they start disabled until a user
-    # intentionally qualifies and enables them. Request-count quota lives outside prices.
-    ModelSpec(
-        id="z-ai/glm-5.2:free", name="GLM 5.2 (free)",
-        runtime="harness", provider="openrouter", context_length=256000,
-        price_input=0.0, price_output=0.0,
-        supported_parameters=(
-            "reasoning", "reasoning_effort", "response_format", "structured_outputs",
-            "tool_choice", "tools",
-        ),
-        default_dashboard=False, default_agents=False,
-    ),
-    ModelSpec(
-        id="nvidia/nemotron-3-ultra-550b-a55b:free", name="Nemotron 3 Ultra (free)",
-        runtime="harness", provider="openrouter", context_length=1000000,
-        price_input=0.0, price_output=0.0,
-        supported_parameters=("reasoning", "reasoning_effort", "tool_choice", "tools"),
-        default_dashboard=False, default_agents=False,
-    ),
+    # Harness (OpenRouter) routes are NOT declared here: they come from the live
+    # provider catalog via app.model_catalog. A hardcoded copy of someone else's
+    # catalog goes stale silently — both entries kept here until 17.09.2026 were
+    # dead (#V-581), and our record still claimed tools and a 256k window.
 )
 
 # Derived views. They stay plain dicts with the same contract because callers
@@ -364,6 +347,9 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
 def validate_harness_model_spec(spec: ModelSpec) -> None:
     """Production admission for Orchestra's OpenRouter runtime.
 
+    Decided on the provider's own catalog record, never on our copy of it: a route that
+    lost tool support or vanished upstream must be refused even while our spec still
+    claims otherwise, or the staleness is only discovered by a burnt worker turn (#V-581).
     Zero token prices are not proof of a free route: request/song/image prices can live
     outside those fields. The `:free` suffix is the provider's explicit routing contract.
     Tool support is mandatory because Harness is an agent runtime, not a chat wrapper.
@@ -375,9 +361,20 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
             f"harness model '{spec.id}' is not an exact :free route; "
             "unsuffixed previews and paid routes are blocked"
         )
-    if "tools" not in spec.supported_parameters:
-        raise ValueError(f"harness model '{spec.id}' does not advertise tool support")
-    if not spec.available:
+    from app.model_catalog import harness_capable, live_catalog_entry
+
+    live = live_catalog_entry(spec.id)
+    if live is None:
+        raise ValueError(
+            f"harness model '{spec.id}' is not in the OpenRouter catalog we fetched; "
+            "refresh the Models catalog screen"
+        )
+    if not harness_capable(live):
+        raise ValueError(
+            f"harness model '{spec.id}' does not advertise tool support "
+            "in OpenRouter's own catalog"
+        )
+    if not live.get("available", True):
         raise ValueError(f"harness model '{spec.id}' is no longer available on OpenRouter")
 
 

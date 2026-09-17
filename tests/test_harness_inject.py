@@ -38,25 +38,29 @@ def test_drain_hands_over_once_and_forgets():
     assert b._drain_injected() == []      # a second round must not replay them
 
 
-def test_retarget_model_keeps_history_and_session_store():
+def test_retarget_model_keeps_history_and_session_store(live_harness_route):
+    live_harness_route("vendor/from:free")
+    live_harness_route(
+        "vendor/to:free", parameters=["structured_outputs", "tool_choice", "tools"],
+    )
     b = HarnessBackend(
-        model="nvidia/nemotron-3-ultra-550b-a55b:free",
+        model="vendor/from:free",
         cwd="/tmp",
         resume_session_id="native-harness-session",
     )
     b._llm = OpenRouterClient(
         api_key="test",
-        model="nvidia/nemotron-3-ultra-550b-a55b:free",
+        model="vendor/from:free",
         supported_parameters=("tools", "tool_choice", "reasoning", "reasoning_effort"),
     )
     b._history = [{"role": "user", "content": "keep me"}]
     store = object()
     b._store = store
 
-    b.retarget_model("z-ai/glm-5.2:free")
+    b.retarget_model("vendor/to:free")
 
-    assert b.model == "z-ai/glm-5.2:free"
-    assert b._llm.model == "z-ai/glm-5.2:free"
+    assert b.model == "vendor/to:free"
+    assert b._llm.model == "vendor/to:free"
     assert "structured_outputs" in b._llm.supported_parameters
     assert b._history == [{"role": "user", "content": "keep me"}]
     assert b._store is store

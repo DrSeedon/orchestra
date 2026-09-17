@@ -100,7 +100,15 @@ def cached_catalog() -> list[dict]:
     return catalog_cache_payload()["models"]
 
 
-def _cached_harness_eligible(model: dict) -> bool:
+def live_catalog_entry(model_id: str) -> dict | None:
+    """The provider's own record for a route — the source admission decides on."""
+    for entry in cached_catalog():
+        if entry.get("id") == model_id:
+            return entry
+    return None
+
+
+def harness_capable(model: dict) -> bool:
     """Read both the current cache schema and the pre-hardening schema safely.
 
     Old rows did not persist output modalities or the eligibility bit. They came from
@@ -128,7 +136,7 @@ def apply_model_catalog() -> int:
     manifest = {spec.id: spec for spec in SELECTABLE_MODEL_SPECS}
     eligible = {
         norm["id"]: norm for norm in cached_catalog()
-        if _cached_harness_eligible(norm)
+        if harness_capable(norm)
     }
     registered = dropped = 0
     for norm in eligible.values():
@@ -196,7 +204,7 @@ async def refresh_catalog() -> dict:
     active_ids = {entry["id"] for entry in normalized}
     retained_stale: list[dict] = []
     for old in cached_catalog():
-        if old.get("id") in active_ids or not _cached_harness_eligible(old):
+        if old.get("id") in active_ids or not harness_capable(old):
             continue
         stale = dict(old)
         stale["available"] = False
