@@ -14,6 +14,7 @@ import pytest
 from playwright.sync_api import Browser, sync_playwright
 
 ROOT = Path(__file__).parent.parent
+I18N_JS = ROOT / "app/static/js/i18n.js"
 UTILS_JS = ROOT / "app/static/js/utils.js"
 QUOTA_JS = ROOT / "app/static/js/quota-lines.js"
 CONNECTION_JS = ROOT / "app/static/js/connection.js"
@@ -144,10 +145,14 @@ def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     page.route("http://harness.local/**", lambda route: route.fulfill(
         status=200, content_type="text/html", body="<body><div id='usage-bar'></div></body>"))
+    # Набор писался под английские подписи; с V-584 локаль по умолчанию русская,
+    # а английская локаль — это те же исходные строки в коде.
+    page.add_init_script("window.__ORCH_LANG__ = 'en';")
     page.goto("http://harness.local/")
     page.add_style_tag(path=str(STYLE_CSS))
     for vendor in VENDOR_JS:
         page.add_script_tag(path=str(vendor))
+    page.add_script_tag(path=str(I18N_JS))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(QUOTA_JS))
     page.add_script_tag(path=str(CONNECTION_JS))

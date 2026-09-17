@@ -658,7 +658,7 @@ function showImagePreview(url, filePath) {
         img.className = 'paste-preview-image rounded border border-slate-700';
         img.width = 64;
         img.height = 64;
-        img.alt = (filePath || url).split('/').pop() || 'Image preview';
+        img.alt = (filePath || url).split('/').pop() || T('Image preview');
         img.loading = 'lazy';
         img.style.cursor = 'pointer';
         img.addEventListener('click', () => openFilePreview(filePath || url));
@@ -977,7 +977,7 @@ function _renderJsonGrid(obj, container, maxDepth) {
             valEl.style.color = '#cbd5e1';
             if (val.length > MAX_STR) {
                 valEl.style.cursor = 'pointer';
-                valEl.title = 'Click to expand';
+                valEl.title = T('Click to expand');
                 let _strExp = false;
                 valEl.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -1073,7 +1073,7 @@ function buildCompactToolLine(type, content, ts, payload) {
             if (rawName === NOTIFY_USER_TOOL) preview = `🔔 ${parsed.reason || 'зовёт'}`;
             else if (rawName === 'mcp__orchestra__spawn_worker') {
                 icon = '👶';
-                const role = parsed.role ? ` · ${parsed.role}` : '';
+                const role = parsed.role ? ` · ${T(parsed.role)}` : '';
                 const task = parsed.task_id ? ` · #${taskNum(parsed.task_id)}` : '';
                 preview = `→ ${parsed.name || '?'} · ${_modelLabel(parsed.model || 'claude-sonnet-4-6')}${role}${task}`;
             }
@@ -1098,44 +1098,44 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'mcp__orchestra__send_file') preview = `📎 ${(parsed.path || '').split('/').pop() || '?'}`;
             else if (rawName === 'mcp__orchestra__send_files') {
                 const paths = Array.isArray(parsed.paths) ? parsed.paths : [];
-                preview = `📎 ${paths.length} files`;
+                preview = T('📎 {n} files', {n: paths.length});
             }
-            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 Kill: ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__stop_worker') preview = `⏸️ Stop: ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 Logs: ${parsed.name || '?'} (${parsed.limit || 20})`;
-            else if (rawName === 'mcp__orchestra__get_worker_info') preview = `🤖 Info: ${parsed.name || '?'}`;
-            else if (rawName === 'mcp__orchestra__list_agents') preview = '🎼 Agents';
-            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = '🎯 Orchestrators';
-            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 Compact: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__kill_worker') preview = `💀 ${T('Kill')}: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__stop_worker') preview = `⏸️ ${T('Stop')}: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__get_worker_logs') preview = `📋 ${T('Logs')}: ${parsed.name || '?'} (${parsed.limit || 20})`;
+            else if (rawName === 'mcp__orchestra__get_worker_info') preview = `🤖 ${T('Info')}: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__list_agents') preview = `🎼 ${T('Agents')}`;
+            else if (rawName === 'mcp__orchestra__list_orchestrators') preview = `🎯 ${T('Orchestrators')}`;
+            else if (rawName === 'mcp__orchestra__compact_worker') preview = `🗜 ${T('Compact')}: ${parsed.name || '?'}`;
             else if (rawName === 'mcp__orchestra__rename_worker') preview = `✏️ ${parsed.old_name || '?'} → ${parsed.new_name || '?'}`;
             else if (rawName === 'mcp__orchestra__change_worker_model') preview = `🔄 ${parsed.name || '?'} → ${parsed.model || '?'}`;
-            else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — description`;
-            else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 Merge: ${parsed.name || '?'}`;
+            else if (rawName === 'mcp__orchestra__update_worker_description') preview = `✏️ ${parsed.name || '?'} — ${T('description')}`;
+            else if (rawName === 'mcp__orchestra__merge_worker') preview = `🔀 ${T('Merge')}: ${parsed.name || '?'}`;
             else if (rawName === 'Glob') preview = `🔎 ${parsed.pattern || '?'}`;
             else if (rawName === 'TodoWrite') {
                 const _tds = Array.isArray(parsed.todos) ? parsed.todos : [];
                 const _dn = _tds.filter(t => t.status === 'completed').length;
                 const _cur = _tds.find(t => t.status === 'in_progress');
-                preview = `📝 ${_dn}/${_tds.length} todos${_cur ? ' · ' + String(_cur.content || '').slice(0, 40) : ''}`;
+                preview = `📝 ${_dn}/${_tds.length} ${T('todos')}${_cur ? ' · ' + String(_cur.content || '').slice(0, 40) : ''}`;
             }
             else if (rawName === 'Review') preview = `🧠 ${(parsed.focus || 'review').slice(0, 60)}`;
             else if (rawName === 'Skill') preview = `⚡ ${parsed.skill || '?'}`;
             else if (rawName === 'FileChange') {
                 const changes = parsed.changes || [];
-                preview = `📝 ${changes.length} file${changes.length === 1 ? '' : 's'}`;
+                preview = T('📝 {n} files', {n: changes.length});
             }
-            else if (rawName === 'ViewImage') preview = `🖼 ${(parsed.file_path || '').split('/').pop() || 'image'}`;
-            else if (rawName === 'ImageGeneration') preview = '🎨 generating image';
+            else if (rawName === 'ViewImage') preview = `🖼 ${(parsed.file_path || '').split('/').pop() || T('image')}`;
+            else if (rawName === 'ImageGeneration') preview = T('🎨 generating image');
             else if (rawName === 'Sleep') preview = `⏱ ${Math.round((parsed.duration_ms || 0) / 1000)}s`;
             else if (rawName === 'mcp__orchestra__task_list') {
                 const _fl = _taskListFilter(parsed);
                 preview = `читает список задач${_fl ? ` (${_fl})` : ''}`;
             } else if (rawName === 'mcp__orchestra__task_get') preview = `читает задачу #${taskNum(parsed.par) || '?'}`;
-            else if (rawName === 'mcp__orchestra__bg_create') { const _bi = _JOB_ICONS[parsed.type]||'⚙️'; preview = `${_bi} BG: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
-            else if (rawName === 'mcp__orchestra__bg_list') preview = '📊 BG Jobs';
-            else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ Cancel job ${(parsed.job_id||'').slice(0,8)}`;
+            else if (rawName === 'mcp__orchestra__bg_create') { const _bi = _JOB_ICONS[parsed.type]||'⚙️'; preview = `${_bi} ${T('BG')}: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
+            else if (rawName === 'mcp__orchestra__bg_list') preview = `📊 ${T('BG Jobs')}`;
+            else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ ${T('Cancel job')} ${(parsed.job_id||'').slice(0,8)}`;
             else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') { let _d = '?'; try { _d = new URL(parsed.url).hostname; } catch {} preview = `🌐 ${_d}`; }
-            else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? ` (${parsed.limit} lines)` : '');
+            else if (parsed.file_path) preview = parsed.file_path.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') + (parsed.offset ? ` :${parsed.offset}` : '') + (parsed.limit ? T(' ({n} lines)', {n: parsed.limit}) : '');
             else if (parsed.command) preview = parsed.command;
             else if (parsed.pattern) preview = parsed.pattern;
             else if (parsed.path) preview = parsed.path;
@@ -1165,6 +1165,7 @@ function buildCompactToolLine(type, content, ts, payload) {
 
         const descSpan = document.createElement('span');
         descSpan.className = 'shrink-0';
+        descSpan.dataset.i18nSkip = '1';  // описание вызова пишет модель
         descSpan.style.color = '#64748b';
         descSpan.textContent = desc ? `— ${desc}` : '';
 
@@ -1461,7 +1462,7 @@ function _completeImageGenerationTool(host, data) {
     const header = host.querySelector('.flex.items-center');
     const failed = projected.status === 'failed';
     if (header) {
-        header.textContent = failed ? '❌ Image generation failed' : '✅ Image generated';
+        header.textContent = failed ? T('❌ Image generation failed') : T('✅ Image generated');
         header.style.color = failed ? '#f87171' : '#f472b6';
     }
     host.querySelectorAll('.codex-tool-image, .codex-image-prompt').forEach(el => el.remove());
@@ -1487,7 +1488,7 @@ async function _restoreImageGenerationResult(host, payload) {
     if (!host || !Number.isFinite(logId) || host.dataset.imageRestore === 'loading') return;
     host.dataset.imageRestore = 'loading';
     const header = host.querySelector('.flex.items-center');
-    if (header) header.textContent = '↻ Restoring generated image';
+    if (header) header.textContent = T('↻ Restoring generated image');
     try {
         const row = await api(`/api/logs/${logId}`);
         const data = JSON.parse(row.content || '{}');
@@ -1529,7 +1530,7 @@ function _renderCodexPlan(content) {
     card.className = 'codex-activity-card codex-plan-card';
     const title = document.createElement('div');
     title.className = 'codex-plan-title';
-    title.textContent = '▦ Plan';
+    title.textContent = T('▦ Plan');
     card.appendChild(title);
     if (data.explanation) {
         const explanation = document.createElement('div');
@@ -1576,7 +1577,7 @@ function _taskDescriptionHtml(description) {
         ? '<button type="button" data-task-description-toggle onclick="event.stopPropagation();_toggleTaskDescription(this)" style="margin-top:3px;padding:0;border:0;background:none;color:#818cf8;font-size:10px;cursor:pointer">▼ Развернуть</button>'
         : '';
     return `<div data-task-description style="margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:5px">
-        <div style="font-size:9px;color:#64748b;margin-bottom:2px">DESCRIPTION</div>
+        <div style="font-size:9px;color:#64748b;margin-bottom:2px">${T('DESCRIPTION')}</div>
         <div data-task-description-body class="markdown-body text-xs" style="${bodyStyle};overflow-wrap:anywhere;line-height:1.4;color:#94a3b8">${DOMPurify.sanitize(marked.parse(text))}</div>
         ${button}
     </div>`;
@@ -1596,21 +1597,21 @@ function _taskCardBodyHtml(task) {
     const rows = [];
     const safe = (value) => DOMPurify.sanitize(String(value));
     const statusColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[task.status] || '#e2e8f0';
-    if (task.status) rows.push(`<div><span style="color:#64748b">Status:</span> <b style="color:${statusColor}">${safe(task.status)}</b></div>`);
-    if (task.project) rows.push(`<div><span style="color:#64748b">Project:</span> <span style="color:#94a3b8">${safe(task.project)}</span></div>`);
+    if (task.status) rows.push(`<div><span style="color:#64748b">${T('Status:')}</span> <b style="color:${statusColor}">${T(safe(task.status))}</b></div>`);
+    if (task.project) rows.push(`<div><span style="color:#64748b">${T('Project:')}</span> <span style="color:#94a3b8">${safe(task.project)}</span></div>`);
     const price = task.price_rub ?? task.price;
-    if (Number(price) > 0) rows.push(`<div><span style="color:#64748b">Price:</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
-    if (task.assignee) rows.push(`<div><span style="color:#64748b">Assignee:</span> ${safe(task.assignee)}</div>`);
+    if (Number(price) > 0) rows.push(`<div><span style="color:#64748b">${T('Price:')}</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
+    if (task.assignee) rows.push(`<div><span style="color:#64748b">${T('Assignee:')}</span> ${safe(task.assignee)}</div>`);
     if (task.priority != null && _TASK_PRIORITY_META[task.priority]) {
         const [icon, label] = _TASK_PRIORITY_META[task.priority];
-        rows.push(`<div><span style="color:#64748b">Priority:</span> ${icon} ${label}</div>`);
+        rows.push(`<div><span style="color:#64748b">${T('Priority:')}</span> ${icon} ${T(label)}</div>`);
     }
     const taskId = task.task_id ?? task.id;
-    if (taskId != null && taskId !== '') rows.push(`<div><span style="color:#64748b">Task ID:</span> <span style="font-family:monospace">${safe(taskId)}</span></div>`);
-    if (task.created_at) rows.push(`<div><span style="color:#64748b">Created:</span> ${safe(String(task.created_at).slice(0, 10))}</div>`);
-    if (task.updated_at) rows.push(`<div><span style="color:#64748b">Updated:</span> ${safe(String(task.updated_at).slice(0, 10))}</div>`);
-    if (task.completed_at) rows.push(`<div><span style="color:#64748b">Done:</span> ${safe(String(task.completed_at).slice(0, 10))}</div>`);
-    if (task.paid_at) rows.push(`<div><span style="color:#64748b">Paid at:</span> ${safe(String(task.paid_at).slice(0, 10))}</div>`);
+    if (taskId != null && taskId !== '') rows.push(`<div><span style="color:#64748b">${T('Task ID:')}</span> <span style="font-family:monospace">${safe(taskId)}</span></div>`);
+    if (task.created_at) rows.push(`<div><span style="color:#64748b">${T('Created:')}</span> ${safe(String(task.created_at).slice(0, 10))}</div>`);
+    if (task.updated_at) rows.push(`<div><span style="color:#64748b">${T('Updated:')}</span> ${safe(String(task.updated_at).slice(0, 10))}</div>`);
+    if (task.completed_at) rows.push(`<div><span style="color:#64748b">${T('Done:')}</span> ${safe(String(task.completed_at).slice(0, 10))}</div>`);
+    if (task.paid_at) rows.push(`<div><span style="color:#64748b">${T('Paid at:')}</span> ${safe(String(task.paid_at).slice(0, 10))}</div>`);
     const fields = rows.length
         ? `<div data-task-fields style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#94a3b8">${rows.join('')}</div>`
         : '';
@@ -1628,7 +1629,7 @@ function _attachTaskRows(host, container, total, preview, expandedDisplay) {
         container.querySelectorAll('[data-task-row]').forEach((row, index) => {
             if (index >= preview) row.style.display = expanded ? expandedDisplay : 'none';
         });
-        hint.textContent = expanded ? '▲ collapse' : `▼ ${total - preview} more`;
+        hint.textContent = expanded ? T('▲ collapse') : T('▼ {n} more', {n: total - preview});
     };
     host.style.cursor = 'pointer';
     host.addEventListener('click', event => {
@@ -1825,7 +1826,7 @@ function _renderSendChartResult(card, content, ts) {
 function _updateCompactToolResult(card, content, isBase64Image) {
     const resultSpan = card.querySelector('.compact-result');
     if (isBase64Image) {
-        if (resultSpan) resultSpan.textContent = '🖼 image';
+        if (resultSpan) resultSpan.textContent = T('🖼 image');
         card.dataset.resultContent = '[image]';
         return;
     }
@@ -1871,10 +1872,10 @@ function _updateCompactToolResult(card, content, isBase64Image) {
             resultSpan.textContent = '❌ нет списка';
         }
     } else if (rawName === 'mcp__orchestra__send_file') {
-        resultSpan.textContent = clean.includes('error') ? '❌' : '✅ sent';
+        resultSpan.textContent = clean.includes('error') ? '❌' : T('✅ sent');
     } else if (rawName === 'mcp__orchestra__send_files') {
         const info = _sendFilesResultInfo(content);
-        resultSpan.textContent = info.hasError ? '❌' : `✅ ${info.count} sent`;
+        resultSpan.textContent = info.hasError ? '❌' : T('✅ {n} sent', {n: info.count});
     } else if (COMPACT_ORCHESTRA_SIMPLE_TOOLS.has(rawName)) {
         const hasError = /error|fail/i.test(clean);
         if (COMPACT_ORCHESTRA_ACK_TOOLS.has(rawName)) resultSpan.textContent = hasError ? '❌' : '✅';
@@ -1895,31 +1896,31 @@ function _updateCompactToolResult(card, content, isBase64Image) {
                 resultSpan.textContent = '✅';
             }
         } else {
-            resultSpan.textContent = `📎 ${clean.split('\n').filter(line => line.trim()).length} items`;
+            resultSpan.textContent = T('📎 {n} items', {n: clean.split('\n').filter(line => line.trim()).length});
         }
     } else if (rawName === 'Glob') {
-        resultSpan.textContent = `📎 ${clean.split('\n').filter(line => line.trim()).length} files`;
+        resultSpan.textContent = T('📎 {n} files', {n: clean.split('\n').filter(line => line.trim()).length});
     } else if (rawName === 'Skill') {
         resultSpan.textContent = clean.includes('error') ? '❌' : '✅';
     } else if (rawName === 'WebFetch' || rawName === 'mcp__websearch__web_fetch') {
         const singleLine = clean.replace(/\n/g, ' ');
         resultSpan.textContent = '📎 ' + (singleLine.length > 40 ? singleLine.slice(0, 40) + '…' : singleLine);
     } else if (rawName === 'mcp__orchestra__report_bug') {
-        resultSpan.textContent = '✅ reported';
+        resultSpan.textContent = T('✅ reported');
     } else if (rawName === 'ToolSearch') {
         let toolName = '';
         try { toolName = JSON.parse(content).tool_name || ''; } catch {}
         if (!toolName) toolName = clean.match(/tool_name['":\s]+(\w+)/)?.[1] || '';
-        resultSpan.textContent = toolName ? `✅ ${toolName}` : '✅ loaded';
+        resultSpan.textContent = toolName ? `✅ ${toolName}` : T('✅ loaded');
     } else if (['mcp__websearch__search', 'mcp__websearch__search_web', 'WebSearch'].includes(rawName)) {
         const spec = codexWebSearchSpec(content);
         const preview = card.querySelector('.compact-preview');
         if (preview && spec) preview.textContent = codexWebSearchCompactLabel(spec);
-        resultSpan.textContent = spec?.queries.length ? `✅ ${spec.queries.length} queries` : '✅';
+        resultSpan.textContent = spec?.queries.length ? T('✅ {n} queries', {n: spec.queries.length}) : '✅';
     } else if (rawName === 'mcp__orchestra__spawn_worker') {
-        resultSpan.textContent = clean.toLowerCase().includes('error') ? '❌' : '✅ spawned';
+        resultSpan.textContent = clean.toLowerCase().includes('error') ? '❌' : T('✅ spawned');
     } else if (COMPACT_EDIT_TOOLS.has(rawName)) {
-        resultSpan.textContent = '📎 updated';
+        resultSpan.textContent = T('📎 updated');
     } else if (rawName === 'Read') {
         let readShort = 'OK';
         try {
@@ -1967,6 +1968,7 @@ function _renderStatusEntry(type, content, ts, anchor, insertAndFollow, payload)
     if (/^grok mcp ready\b/i.test(content || '')) {
         const badge = document.createElement('div');
         badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
+        badge.dataset.i18nSkip = '1';  // строка приходит готовой с сервера
         badge.textContent = `🔌 ${content}`;
         addTimestamp(badge, ts);
         insertAndFollow(badge);
@@ -1992,27 +1994,30 @@ function _renderStatusEntry(type, content, ts, anchor, insertAndFollow, payload)
         badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rateLimit.retry}/${rateLimit.max} через ${rateLimit.delay}с (это НЕ твой лимит подписки)`;
     } else if (codexReconnect) {
         badge.className = 'text-center text-xs py-1 text-amber-400 italic';
-        badge.textContent = `🔌 Codex reconnecting — ${content.slice('codex reconnecting:'.length).trim()}`;
+        badge.textContent = `🔌 ${T('Codex reconnecting')} — ${content.slice('codex reconnecting:'.length).trim()}`;
     } else if (codexSteer) {
         badge.className = 'text-center text-xs py-1 text-cyan-400 italic';
-        badge.textContent = '↪ Message steered into the current Codex turn';
+        badge.textContent = T('↪ Message steered into the current Codex turn');
     } else if (codexReroute) {
         badge.className = 'text-center text-xs py-1 text-fuchsia-400 italic';
-        badge.textContent = `⇄ Codex model rerouted — ${content.slice('model rerouted:'.length).trim()}`;
+        badge.textContent = `⇄ ${T('Codex model rerouted')} — ${content.slice('model rerouted:'.length).trim()}`;
     } else if (codexHook) {
         badge.className = 'text-center text-xs py-1 text-sky-400 italic';
+        badge.dataset.i18nSkip = '1';  // строка приходит готовой с сервера
         badge.textContent = `⌁ ${content}`;
     } else if (codexMcp) {
         badge.className = 'text-center text-xs py-1 text-emerald-400 italic';
+        badge.dataset.i18nSkip = '1';  // строка приходит готовой с сервера
         badge.textContent = `🔌 ${content}`;
     } else if (nativeCodexCompact) {
         badge.className = 'text-center text-xs py-1 text-amber-300 italic';
-        badge.textContent = `🗜 Codex context compacted natively · ${nativeCodexCompact[1]}% → ${nativeCodexCompact[2]}% · same thread`;
+        badge.textContent = `🗜 ${T('Codex context compacted natively')} · ${nativeCodexCompact[1]}% → ${nativeCodexCompact[2]}% · ${T('same thread')}`;
     } else if (codexCompaction) {
         badge.className = 'text-center text-xs py-1 text-amber-300 italic';
-        badge.textContent = '🗜 Codex context compacted';
+        badge.textContent = T('🗜 Codex context compacted');
     } else {
         badge.className = 'text-center text-xs py-1 text-slate-500 italic';
+        badge.dataset.i18nSkip = '1';  // строка приходит готовой с сервера
         badge.textContent = `⚡ ${content}`;
     }
     addTimestamp(badge, ts);
@@ -2085,7 +2090,7 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
         element.dataset.subagentKind = isBackground ? 'background' : 'agent';
         const header = document.createElement('div');
         header.style.cssText = 'cursor:pointer;user-select:none';
-        const noun = isBackground ? 'Background task' : 'Sub-agent';
+        const noun = isBackground ? T('Background task') : T('Sub-agent');
         header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:#e2e8f0">${noun}: "${DOMPurify.sanitize(description)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
         // Между `subagent_start` и `subagent_end` НЕТ ни одного события (замер 28.08:
         // 239 задач, только два события на задачу). Поэтому единственный честный признак
@@ -2105,7 +2110,8 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
     } else if (type === 'subagent_progress') {
         const tokenCount = parseInt(meta.tokens || '0');
         const tokens = meta.tokens ? (tokenCount >= 1000 ? (tokenCount / 1000).toFixed(1) + 'k' : meta.tokens) : '';
-        const line = `⏳ ${meta.tool ? 'using ' + meta.tool : 'working'}${tokens ? ' | ' + tokens + ' tokens' : ''}`;
+        const line = `⏳ ${meta.tool ? T('using {tool}', {tool: meta.tool}) : T('working')}`
+            + (tokens ? ` | ${T('{n} tokens', {n: tokens})}` : '');
         const host = subagentId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subagentId)}"]`) : null;
         if (host) {
             let progress = host.querySelector('.sa-progress');
@@ -2119,15 +2125,15 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
             return true;
         }
         element.style.cssText += ';color:#64748b';
-        element.textContent = `⏳ ${isBackground ? 'Background task' : 'Sub-agent'} "${description}" — ${line}`;
+        element.textContent = `⏳ ${isBackground ? T('Background task') : T('Sub-agent')} "${description}" — ${line}`;
     } else {
         const succeeded = !meta.status || ['completed', 'shutdown'].includes(meta.status);
         const host = subagentId ? chat.querySelector(`[data-subagent-id="${CSS.escape(subagentId)}"]`) : null;
         const summary = textParts.slice(1).join(' | ').trim();
         if (host) {
             const header = host.querySelector('div');
-            const noun = host.dataset.subagentKind === 'background' ? 'Background task' : 'Sub-agent';
-            if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? 'done' : 'failed'}: "${DOMPurify.sanitize(description)}"</span>`;
+            const noun = host.dataset.subagentKind === 'background' ? T('Background task') : T('Sub-agent');
+            if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? T('done') : T('failed')}: "${DOMPurify.sanitize(description)}"</span>`;
             host.querySelector('.sa-progress')?.remove();
             _stopSubagentClock(host);
             if (summary) {
@@ -2248,7 +2254,7 @@ function _renderFullToolCall(content, payload, div) {
             const sysPrompt = d.system_prompt || '';
             const repoPath = d.repo_path || '';
 
-            setCodexToolTitle(header, `Spawning ${workerName}`, '🚀');
+            setCodexToolTitle(header, T('Spawning {name}', {name: workerName}), '🚀');
             header.style.color = '#a78bfa';
             div.dataset.isSpawnWorker = '1';
             div.dataset.workerName = workerName;
@@ -2296,7 +2302,7 @@ function _renderFullToolCall(content, payload, div) {
                 const promptLabel = document.createElement('div');
                 promptLabel.className = 'text-xs mt-2';
                 promptLabel.style.cssText = 'color:#64748b;font-weight:500';
-                promptLabel.textContent = '📋 System prompt';
+                promptLabel.textContent = T('📋 System prompt');
                 promptLabel.style.display = 'none';
                 div.appendChild(promptLabel);
                 expandables.push(promptLabel);
@@ -2319,7 +2325,7 @@ function _renderFullToolCall(content, payload, div) {
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
                 hint.style.cssText = 'color:#a78bfa;cursor:pointer';
-                hint.textContent = `▼ expand`;
+                hint.textContent = T('▼ expand');
                 div.appendChild(hint);
                 div.style.cursor = 'pointer';
                 let spawnExpanded = false;
@@ -2327,7 +2333,7 @@ function _renderFullToolCall(content, payload, div) {
                     if (e.target.tagName === 'A') return;
                     spawnExpanded = !spawnExpanded;
                     expandables.forEach(el => el.style.display = spawnExpanded ? 'block' : 'none');
-                    hint.textContent = spawnExpanded ? '▲ collapse' : '▼ expand';
+                    hint.textContent = spawnExpanded ? T('▲ collapse') : T('▼ expand');
                 });
             }
 
@@ -2340,7 +2346,7 @@ function _renderFullToolCall(content, payload, div) {
     if (isWebSearchCall) {
         try {
             const d = JSON.parse(body);
-            setCodexToolTitle(header, 'Web search', '🌐');
+            setCodexToolTitle(header, T('Web search'), '🌐');
             header.style.color = '#38bdf8';
             div.dataset.isCodexWebSearch = '1';
             updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
@@ -2444,7 +2450,7 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const filePath = d.path || '';
             const fileName = filePath.split('/').pop() || '?';
-            header.textContent = `📎 Sending: ${fileName}`;
+            header.textContent = `📎 ${T('Sending')}: ${fileName}`;
             header.style.color = '#22c55e';
             if (filePath) div.dataset.filePath = filePath;
             _appendCaption(div, d.caption);
@@ -2461,7 +2467,7 @@ function _renderFullToolCall(content, payload, div) {
     if (isSendChart) {
         try {
             const d = JSON.parse(body);
-            header.textContent = `📊 Drawing: ${d.title || 'chart'}`;
+            header.textContent = `📊 ${T('Drawing')}: ${d.title || T('chart')}`;
             header.style.color = '#38bdf8';
             div.dataset.isSendChart = '1';
         } catch {}
@@ -2472,24 +2478,24 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const paths = Array.isArray(d.paths) ? d.paths.filter(path => typeof path === 'string' && path) : [];
             div.dataset.filePaths = JSON.stringify(paths);
-            header.textContent = `📎 Sending ${paths.length} files`;
+            header.textContent = T('📎 Sending {n} files', {n: paths.length});
             header.style.color = '#22c55e';
             _appendCaption(div, d.caption);
             renderSendFilesToolCard(div, paths);
         } catch {}
     }
     const _orchSimple = {
-        'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `Kill: ${d.name||'?'}`, color: '#ef4444' }),
-        'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `Stop: ${d.name||'?'}`, color: '#eab308' }),
-        'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `Compact: ${d.name||'?'}`, color: '#eab308' }),
-        'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `Rename: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
-        'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `Model: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
-        'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — description updated`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
-        'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `Merge: ${d.name||'?'}`, color: '#a78bfa' }),
-        'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: 'Agents', color: '#a78bfa' }),
-        'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: 'Orchestrators', color: '#a78bfa' }),
-        'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `Logs: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? `${d.limit} entries` : '' }),
-        'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `Info: ${d.name||'?'}`, color: '#a78bfa' }),
+        'mcp__orchestra__kill_worker': (d) => ({ icon: '💀', label: `${T('Kill')}: ${d.name||'?'}`, color: '#ef4444' }),
+        'mcp__orchestra__stop_worker': (d) => ({ icon: '⏸️', label: `${T('Stop')}: ${d.name||'?'}`, color: '#eab308' }),
+        'mcp__orchestra__compact_worker': (d) => ({ icon: '🗜', label: `${T('Compact')}: ${d.name||'?'}`, color: '#eab308' }),
+        'mcp__orchestra__rename_worker': (d) => ({ icon: '✏️', label: `${T('Rename')}: ${d.old_name||'?'} → ${d.new_name||'?'}`, color: '#38bdf8' }),
+        'mcp__orchestra__change_worker_model': (d) => ({ icon: '🔄', label: `${T('Model')}: ${d.name||'?'} → ${d.model||'?'}`, color: '#38bdf8' }),
+        'mcp__orchestra__update_worker_description': (d) => ({ icon: '✏️', label: `${d.name||'?'} — ${T('description updated')}`, color: '#38bdf8', sub: d.description ? `"${d.description}"` : '' }),
+        'mcp__orchestra__merge_worker': (d) => ({ icon: '🔀', label: `${T('Merge')}: ${d.name||'?'}`, color: '#a78bfa' }),
+        'mcp__orchestra__list_agents': () => ({ icon: '🎼', label: T('Agents'), color: '#a78bfa' }),
+        'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: T('Orchestrators'), color: '#a78bfa' }),
+        'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `${T('Logs')}: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? T('{n} entries', {n: d.limit}) : '' }),
+        'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `${T('Info')}: ${d.name||'?'}`, color: '#a78bfa' }),
         'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `создаёт задачу «${typeof d.title === 'string' ? d.title : '?'}»`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
         'mcp__orchestra__task_update': (d) => {
             const status = typeof d.status === 'string' && d.status.length > 0 ? ` • статус ${d.status}` : '';
@@ -2504,9 +2510,9 @@ function _renderFullToolCall(content, payload, div) {
             return { icon: '📋', label: `читает список задач${f ? ` (${f})` : ''}`, color: '#a78bfa' };
         },
         'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `читает задачу #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
-        'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: `BG ${d.type||'job'}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
-        'mcp__orchestra__bg_list': () => ({ icon: '📊', label: 'BG Jobs', color: '#a78bfa' }),
-        'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `Cancel ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
+        'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: T('BG'), raw: `${d.type||''}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
+        'mcp__orchestra__bg_list': () => ({ icon: '📊', label: T('BG Jobs'), color: '#a78bfa' }),
+        'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `${T('Cancel')} ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
     };
     const isOrchSimple = _orchSimple[rawName];
     if (isOrchSimple) {
@@ -2514,6 +2520,12 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const cfg = isOrchSimple(d);
             header.textContent = `${cfg.icon} ${cfg.label}`;
+            if (cfg.raw) {
+                const rawEl = document.createElement('span');
+                rawEl.dataset.i18nSkip = '1';  // дословное значение параметра инструмента
+                rawEl.textContent = ` ${cfg.raw}`;
+                header.appendChild(rawEl);
+            }
             header.style.color = cfg.color;
             if (cfg.sub) {
                 const subEl = document.createElement('div');
@@ -2608,18 +2620,18 @@ function _renderFullToolCall(content, payload, div) {
                 const restPre = cmdWrap.querySelector('[data-role="bash-rest"]');
                 const hint = cmdWrap.querySelector('[data-role="bash-hint"]');
                 if (restPre) restPre.style.display = bashExpanded ? 'block' : 'none';
-                if (hint) hint.textContent = bashExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
+                if (hint) hint.textContent = bashExpanded ? T('▲ collapse') : T('▼ {n} more lines', {n: hint.dataset.count});
                 const resWrap = div.querySelector('[data-role="bash-result"]');
                 const resHint = div.querySelector('[data-role="bash-result-hint"]');
                 if (resWrap) resWrap.style.display = bashExpanded ? 'block' : 'none';
-                if (resHint) resHint.textContent = bashExpanded ? '▲ collapse result' : `▼ ${resHint.dataset.count} more lines`;
+                if (resHint) resHint.textContent = bashExpanded ? T('▲ collapse result') : T('▼ {n} more lines', {n: resHint.dataset.count});
             });
         } catch {}
     }
     const isFileChangeTool = rawName === 'FileChange';
     if (isFileChangeTool) {
         const patch = renderCodexFileChange(body);
-        header.textContent = '📝 Applying file changes';
+        header.textContent = T('📝 Applying file changes');
         header.style.color = '#f59e0b';
         if (patch) div.appendChild(patch);
         div.dataset.isFileChange = '1';
@@ -2629,15 +2641,15 @@ function _renderFullToolCall(content, payload, div) {
         try {
             const data = JSON.parse(body);
             const path = data.file_path || '';
-            header.textContent = `🖼 Viewing ${(path.split('/').pop() || 'image')}`;
+            header.textContent = `🖼 ${T('Viewing')} ${(path.split('/').pop() || T('image'))}`;
             const img = document.createElement('img');
             img.src = `/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}`;
             img.loading = 'eager';
             img.className = 'codex-tool-image';
-            img.alt = path.split('/').pop() || 'Viewed image';
+            img.alt = path.split('/').pop() || T('Viewed image');
             img.addEventListener('error', () => {
                 img.classList.add('codex-tool-image-error');
-                img.alt = 'Image unavailable';
+                img.alt = T('Image unavailable');
             });
             img.addEventListener('load', () => {
                 img.classList.remove('codex-tool-image-error');
@@ -2648,14 +2660,14 @@ function _renderFullToolCall(content, payload, div) {
     }
     const isImageGenerationTool = rawName === 'ImageGeneration';
     if (isImageGenerationTool) {
-        header.textContent = '🎨 Generating image';
+        header.textContent = T('🎨 Generating image');
         header.style.color = '#f472b6';
     }
     const isSleepTool = rawName === 'Sleep';
     if (isSleepTool) {
         try {
             const data = JSON.parse(body);
-            header.textContent = `⏱ Waiting ${((data.duration_ms || 0) / 1000).toFixed(1)}s`;
+            header.textContent = T('⏱ Waiting {n}s', {n: ((data.duration_ms || 0) / 1000).toFixed(1)});
             header.style.color = '#94a3b8';
         } catch {}
     }
@@ -2665,7 +2677,7 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const todos = Array.isArray(d.todos) ? d.todos : [];
             const done = todos.filter(t => t.status === 'completed').length;
-            header.textContent = `📝 Todos ${done}/${todos.length}`;
+            header.textContent = `📝 ${T('Todos')} ${done}/${todos.length}`;
             header.style.color = '#38bdf8';
             const listEl = document.createElement('div');
             listEl.className = 'text-xs mt-1';
@@ -2705,7 +2717,7 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const desc = d.description || '';
             const prompt = d.prompt || '';
-            header.textContent = '🤖 Agent';
+            header.textContent = T('🤖 Agent');
             header.style.color = '#a78bfa';
             if (desc) {
                 const descEl = document.createElement('div');
@@ -2887,7 +2899,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             const header = lastTool.querySelector('.flex.items-center');
             const ok = !data.status || data.status === 'completed';
             if (header) {
-                header.textContent = `${ok ? '✅' : '❌'} File changes ${ok ? 'applied' : 'failed'}${data.files != null ? ` · ${data.files} file${data.files === 1 ? '' : 's'}` : ''}`;
+                header.textContent = `${ok ? '✅' : '❌'} ${ok ? T('File changes applied') : T('File changes failed')}`
+                    + (data.files != null ? ` · ${T('{n} files', {n: data.files})}` : '');
                 header.style.color = ok ? '#4ade80' : '#f87171';
             }
             delete lastTool.dataset.lastTool;
@@ -2920,7 +2933,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         if (lastTool.dataset.toolRawName === 'Sleep') {
             const header = lastTool.querySelector('.flex.items-center');
             if (header) {
-                header.textContent = '✓ Wait completed';
+                header.textContent = T('✓ Wait completed');
                 header.style.color = '#64748b';
             }
             delete lastTool.dataset.lastTool;
@@ -2946,13 +2959,13 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             // Use original file via API if Read tool has file_path — SDK compresses base64
             _loadToolResultImage(img, origPath, inlineSrc, payload).then(ok => {
                 if (ok) img.style.display = '';
-                else img.replaceWith(Object.assign(document.createElement('div'), {textContent: '🖼 Image unavailable'}));
+                else img.replaceWith(Object.assign(document.createElement('div'), {textContent: T('🖼 Image unavailable')}));
             });
         } else {
             const placeholder = document.createElement('div');
             placeholder.className = 'text-xs';
             placeholder.style.cssText = 'color:#64748b;margin-top:4px';
-            placeholder.textContent = '🖼 [Image result]';
+            placeholder.textContent = T('🖼 [Image result]');
             target.appendChild(placeholder);
         }
         addTimestamp(target, ts);
@@ -2971,13 +2984,13 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_files') {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 if (hdr) {
-                    hdr.textContent = `❌ Send failed · 0 files accepted`;
+                    hdr.textContent = T('❌ Send failed · 0 files accepted');
                     hdr.style.color = '#ef4444';
                 }
             } else if (lastTool.dataset.toolRawName === 'mcp__orchestra__send_file') {
                 const hdr = lastTool.querySelector('.flex.items-center');
                 if (hdr) {
-                    hdr.textContent = '❌ Send failed';
+                    hdr.textContent = T('❌ Send failed');
                     hdr.style.color = '#ef4444';
                 }
             }
@@ -3045,14 +3058,14 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             try { const d = JSON.parse(content); toolName = d.tool_name || ''; } catch {}
             if (!toolName) { const m = content.match(/tool_name['":\s]+(\w+)/); toolName = m ? m[1] : ''; }
             const hdr = lastTool.querySelector('.flex.items-center');
-            if (hdr && toolName) hdr.textContent = `✅ Loaded: ${toolName}`;
-            else if (hdr) hdr.textContent = '✅ Tool loaded';
+            if (hdr && toolName) hdr.textContent = `✅ ${T('Loaded')}: ${toolName}`;
+            else if (hdr) hdr.textContent = T('✅ Tool loaded');
             addTimestamp(lastTool, ts);
             return;
         }
         if (lastTool.dataset.toolRawName === 'mcp__orchestra__report_bug') {
             const hdr = lastTool.querySelector('.flex.items-center');
-            if (hdr) { hdr.textContent = '✅ Bug reported'; hdr.style.color = '#22c55e'; }
+            if (hdr) { hdr.textContent = T('✅ Bug reported'); hdr.style.color = '#22c55e'; }
             addTimestamp(lastTool, ts);
             return;
         }
@@ -3060,7 +3073,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             const hdr = lastTool.querySelector('.flex.items-center');
             const hasError = content.includes('error') || content.includes('Error') || content.includes('failed');
             if (hdr) {
-                hdr.textContent = hasError ? '❌ Send failed' : '✅ Sent to TG';
+                hdr.textContent = hasError ? T('❌ Send failed') : T('✅ Sent to TG');
                 hdr.style.color = hasError ? '#ef4444' : '#22c55e';
             }
             const fp = lastTool.dataset.filePath;
@@ -3090,11 +3103,11 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     b.onclick = onClick;
                     return b;
                 };
-                btnRow.appendChild(_fileBtn('📥 Download', () => {
+                btnRow.appendChild(_fileBtn(T('📥 Download'), () => {
                     window.open(`/api/files/raw?path=${encodeURIComponent(fp)}&download=1`, '_blank');
                 }));
                 if (/\.html?$/i.test(fp)) {
-                    btnRow.appendChild(_fileBtn('👁 Preview', () => {
+                    btnRow.appendChild(_fileBtn(T('👁 Preview'), () => {
                         window.open(`/api/files/raw?path=${encodeURIComponent(fp)}`, '_blank');
                     }));
                 }
@@ -3109,8 +3122,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             const hdr = lastTool.querySelector('.flex.items-center');
             if (hdr) {
                 hdr.textContent = info.hasError
-                    ? `❌ Send failed · ${info.count} files accepted`
-                    : `✅ Sent to TG · ${info.count} files accepted`;
+                    ? T('❌ Send failed · {n} files accepted', {n: info.count})
+                    : T('✅ Sent to TG · {n} files accepted', {n: info.count});
                 hdr.style.color = info.hasError ? '#ef4444' : '#22c55e';
             }
             if (!info.hasError && paths.length) {
@@ -3267,21 +3280,21 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const stColor = _STATUS_COLOR[parsed.status] || '#94a3b8';
                 const modelShort = _modelLabel(parsed.model);
                 if (hdr) {
-                    hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${parsed.status || '?'}</span>`;
+                    hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${T(parsed.status) || '?'}</span>`;
                 }
                 const grid = document.createElement('div');
                 grid.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px';
                 const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:#64748b">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
-                _row('Role', parsed.is_orchestrator ? '🎯 orchestrator' : '⚙️ worker');
-                _row('Branch', parsed.branch, '#818cf8');
+                _row(T('Role'), parsed.is_orchestrator ? `🎯 ${T('orchestrator')}` : `⚙️ ${T('worker')}`);
+                _row(T('Branch'), parsed.branch, '#818cf8');
                 const ctxPct = parsed.context_pct || 0;
                 const ctxColor = ctxPct >= 80 ? '#ef4444' : ctxPct >= 50 ? '#eab308' : '#22c55e';
-                _row('Context', `${ctxPct}%`, ctxColor);
-                _row('Cost', `${MODEL_COST_CURRENCY}${parsed.cost_usd ?? 0}`, '#22c55e');
-                if (parsed.task_id) _row('Task', `#${parsed.task_id}`, '#a78bfa');
-                if (parsed.total_turns) _row('Turns', parsed.total_turns);
-                if (parsed.total_tool_calls) _row('Tool calls', parsed.total_tool_calls);
-                if (parsed.total_input_tokens || parsed.total_output_tokens) _row('Tokens', `${(parsed.total_input_tokens||0).toLocaleString()} in / ${(parsed.total_output_tokens||0).toLocaleString()} out`);
+                _row(T('Context'), `${ctxPct}%`, ctxColor);
+                _row(T('Cost'), `${MODEL_COST_CURRENCY}${parsed.cost_usd ?? 0}`, '#22c55e');
+                if (parsed.task_id) _row(T('Task'), `#${parsed.task_id}`, '#a78bfa');
+                if (parsed.total_turns) _row(T('Turns'), parsed.total_turns);
+                if (parsed.total_tool_calls) _row(T('Tool calls'), parsed.total_tool_calls);
+                if (parsed.total_input_tokens || parsed.total_output_tokens) _row(T('Tokens'), `${(parsed.total_input_tokens||0).toLocaleString()} ${T('in')} / ${(parsed.total_output_tokens||0).toLocaleString()} ${T('out')}`);
                 lastTool.appendChild(grid);
                 if (parsed.description) {
                     const descEl = document.createElement('div');
@@ -3312,19 +3325,19 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             return;
         }
         const _orchSimpleResults = {
-            'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} killed`, color: '#22c55e' } : null; },
-            'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} stopped`, color: '#22c55e' } : null; },
+            'mcp__orchestra__kill_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped/); return m ? { text: `💀 ${m[1]} — ${T('killed')}`, color: '#22c55e' } : null; },
+            'mcp__orchestra__stop_worker': (c) => { const m = c.match(/Worker '(.+?)' stopped|stopped.*'(.+?)'/i); const n = m?.[1]||m?.[2]; return n ? { text: `⏸️ ${n} — ${T('stopped')}`, color: '#22c55e' } : null; },
             'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
-            'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: '✅ Model changed', color: '#22c55e' }; },
-            'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — description updated`, color: '#22c55e' } : { text: '✅ description updated', color: '#22c55e' }; },
-            'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 Merged${m[1] ? ' ('+m[1]+' commits)' : ''}`, color: '#22c55e' } : null; },
-            'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('fail') || c.includes('error') || c.includes('Error') ? { text: `❌ ${c.substring(0, 60)}`, color: '#ef4444' } : { text: '✅ Sent', color: '#22c55e' }; },
+            'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: T('✅ Model changed'), color: '#22c55e' }; },
+            'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — ${T('description updated')}`, color: '#22c55e' } : { text: `✅ ${T('description updated')}`, color: '#22c55e' }; },
+            'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 ${T('Merged')}${m[1] ? ' ('+T('{n} commits', {n: m[1]})+')' : ''}`, color: '#22c55e' } : null; },
+            'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('fail') || c.includes('error') || c.includes('Error') ? { text: `❌ ${c.substring(0, 60)}`, color: '#ef4444' } : { text: T('✅ Sent'), color: '#22c55e' }; },
             'mcp__orchestra__compact_worker': null,
             'mcp__orchestra__list_agents': null,
             'mcp__orchestra__list_orchestrators': null,
             'mcp__orchestra__get_worker_logs': null,
-            'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ Job ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: '✅ Job created', color: '#22c55e' }; },
-            'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} cancelled`, color: '#94a3b8' } : c.includes('rror') ? null : { text: '⏹ Cancelled', color: '#94a3b8' }; },
+            'mcp__orchestra__bg_create': (c) => { const m = c.match(/Background job created: (\S+)/); return m ? { text: `✅ ${T('Job')} ${m[1].slice(0,12)}`, color: '#22c55e' } : c.includes('rror') ? null : { text: T('✅ Job created'), color: '#22c55e' }; },
+            'mcp__orchestra__bg_cancel': (c) => { const m = c.match(/Job (\S+) cancelled/); return m ? { text: `⏹ ${m[1].slice(0,12)} — ${T('cancelled')}`, color: '#94a3b8' } : c.includes('rror') ? null : { text: T('⏹ Cancelled'), color: '#94a3b8' }; },
         };
         const _orchResultCfg = _orchSimpleResults[lastTool.dataset.toolRawName];
         if (_orchResultCfg !== undefined) {
@@ -3332,10 +3345,18 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             if (typeof _orchResultCfg === 'function') {
                 const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
                 if (hasErr) {
-                    const toolAction = lastTool.dataset.toolRawName.split('__').pop().replace(/_/g, ' ');
-                    if (hdr) { hdr.textContent = `❌ ${toolAction} failed`; hdr.style.color = '#ef4444'; }
+                    const toolAction = lastTool.dataset.toolRawName.split('__').pop();
+                    if (hdr) {
+                        hdr.textContent = `❌ ${T('Tool failed')}: `;
+                        const nameEl = document.createElement('span');
+                        nameEl.dataset.i18nSkip = '1';  // имя инструмента — идентификатор
+                        nameEl.textContent = toolAction;
+                        hdr.appendChild(nameEl);
+                        hdr.style.color = '#ef4444';
+                    }
                     const errEl = document.createElement('div');
                     errEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
+                    errEl.dataset.i18nSkip = '1';  // текст ошибки отдаёт инструмент, не интерфейс
                     errEl.textContent = clean;
                     lastTool.appendChild(errEl);
                     if (clean.split('\n').length > 3 || clean.length > 200) {
@@ -3350,7 +3371,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     }
                 } else {
                     const result = _orchResultCfg(clean);
-                    if (hdr) { hdr.textContent = result?.text || '✅ Done'; hdr.style.color = result?.color || '#22c55e'; }
+                    if (hdr) { hdr.textContent = result?.text || T('✅ Done'); hdr.style.color = result?.color || '#22c55e'; }
                 }
                 addTimestamp(lastTool, ts);
                 return;
@@ -3554,14 +3575,14 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         const exp = rest.style.display !== 'none';
                         rest.style.display = exp ? 'none' : 'block';
                         const cnt = more.dataset.count;
-                        more.textContent = exp ? `▼ ${cnt} more files` : '▲ collapse';
+                        more.textContent = exp ? T('▼ {n} more files', {n: cnt}) : T('▲ collapse');
                     }
                 });
             } else {
                 const noMatch = document.createElement('div');
                 noMatch.className = 'text-xs';
                 noMatch.style.cssText = 'margin-top:4px;color:#64748b;font-style:italic';
-                noMatch.textContent = 'No files found';
+                noMatch.textContent = T('No files found');
                 lastTool.appendChild(noMatch);
             }
             addTimestamp(lastTool, ts);
@@ -3702,7 +3723,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     moreEl.dataset.role = 'read-more';
                     moreEl.dataset.count = '0';
                     moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                    moreEl.textContent = '▼ more';
+                    moreEl.textContent = T('▼ more');
                     readContainer.appendChild(moreEl);
                     requestAnimationFrame(() => {
                         if (mdEl.scrollHeight <= MD_PREVIEW_H + 4) {
@@ -3716,7 +3737,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         mdExpanded = !mdExpanded;
                         mdEl.style.maxHeight = mdExpanded ? 'none' : MD_PREVIEW_H + 'px';
                         mdEl.style.overflowY = mdExpanded ? 'visible' : 'hidden';
-                        moreEl.textContent = mdExpanded ? '▲ collapse' : '▼ more';
+                        moreEl.textContent = mdExpanded ? T('▲ collapse') : T('▼ more');
                     };
                     lastTool.style.cursor = 'pointer';
                     lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleMd(); });
@@ -3778,7 +3799,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     hdr.textContent = `❌ ${DOMPurify.sanitize(String(data.error || data.Error)).slice(0, 80)}`;
                     hdr.style.color = '#ef4444';
                 } else if (hdr && !hdr.textContent.includes('✅') && !hdr.textContent.includes('❌')) {
-                    hdr.textContent = hdr.textContent.replace(/⏳.*$/, '✅ Done');
+                    hdr.textContent = hdr.textContent.replace(/⏳.*$/, T('✅ Done'));
                 }
                 lastTool.dataset.toolContent += '\n\n' + content;
                 const gridWrap = document.createElement('div');
@@ -3803,7 +3824,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             const rHint = document.createElement('div');
             rHint.className = 'text-xs mt-1 result-hint';
             rHint.style.cssText = 'color:#38bdf8;cursor:pointer';
-            rHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+            rHint.textContent = T('▼ {n} more lines', {n: _resultLines.length - _RESULT_PREVIEW});
             lastTool.appendChild(rHint);
             let rExpanded = false;
             const toggleResult = () => {
@@ -3922,10 +3943,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
             const label = document.createElement('div');
             label.className = 'codex-live-label';
             label.textContent = activity === 'plan'
-                ? '▦ Planning live'
+                ? T('▦ Planning live')
                 : activity === 'waiting'
-                    ? '⌁ Codex still working'
-                    : '◇ Reasoning live';
+                    ? T('⌁ Codex still working')
+                    : T('◇ Reasoning live');
             const body = document.createElement('div');
             body.className = 'codex-live-thinking-body';
             _codexThinkingLive.append(label, body);
@@ -3946,14 +3967,14 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     if (type === 'turn_diff') {
         const patch = renderCodexFileChange({
-            changes: [{path: 'Current turn', kind: 'update', diff: content}],
+            changes: [{path: T('Current turn'), kind: 'update', diff: content}],
         });
         if (!_codexTurnDiffBubble) {
             _codexTurnDiffBubble = document.createElement('div');
             _codexTurnDiffBubble.className = 'codex-activity-card codex-turn-diff';
             const title = document.createElement('div');
             title.className = 'codex-live-label';
-            title.textContent = '± Live turn diff';
+            title.textContent = T('± Live turn diff');
             _codexTurnDiffBubble.appendChild(title);
             _insert(_codexTurnDiffBubble);
         }
@@ -3974,7 +3995,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             img.addEventListener('click', () => _showImageOverlay(img.src));
             div.appendChild(img);
         } else {
-            div.textContent = '🖼 [Image]';
+            div.textContent = T('🖼 [Image]');
             div.style.color = '#64748b';
         }
         addTimestamp(div, ts);
@@ -4027,7 +4048,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     if (type === 'thinking') {
         _removeCodexThinkingLive('reasoning');
-        const card = _renderCodexThinking(content, '◇ Reasoning');
+        const card = _renderCodexThinking(content, T('◇ Reasoning'));
         addTimestamp(card, ts);
         _insert(card);
         return;
@@ -4052,7 +4073,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
         try { reviewData = JSON.parse(content); } catch {}
         const review = document.createElement('div');
         review.className = 'codex-review';
-        const phase = reviewData.phase === 'exited' ? 'Review completed' : 'Review mode';
+        const phase = reviewData.phase === 'exited' ? T('Review completed') : T('Review mode');
         review.innerHTML = `<div class="codex-review-title">◎ ${phase}</div><div class="codex-review-body"></div>`;
         review.querySelector('.codex-review-body').textContent = reviewData.review || '';
         addTimestamp(review, ts);
@@ -4109,11 +4130,11 @@ function addChatEntry(type, content, ts, anchor, payload) {
             renderImages(div, displayContent);
         } else {
             const originLabels = {
-                agent: 'Agent',
-                background_task: 'Background task',
-                platform: 'Platform',
-                system: 'System',
-                unknown: 'Unknown',
+                agent: T('Agent'),
+                background_task: T('Background task'),
+                platform: T('Platform'),
+                system: T('System'),
+                unknown: T('Unknown'),
             };
             const senderColor = _senderColor(senders[0]);
             div.dataset.from = senders.join(', ');

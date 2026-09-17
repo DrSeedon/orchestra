@@ -1,0 +1,466 @@
+...................F...FFF.............................................. [ 52%]
+............F....................s...........................F...        [100%]
+=================================== FAILURES ===================================
+__________ test_chat_drop_handles_files_tree_paths_and_upload_errors ___________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_chat_drop_handles_files_tree_paths_and_upload_errors(
+        dashboard_browser: Browser,
+    ):
+        source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+        chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+        assert "function initChatDrop()" in source
+        assert source.index("initChatDrop();") < source.index("loadOrchestrators();")
+        assert "fileDropReady" not in source
+        drop_code = "let _dropDragCounter = 0;" + source.split(
+            "let _dropDragCounter = 0;", 1,
+        )[1].split("function initTabContextMenu", 1)[0]
+        # Срез содержит ВЫЗОВЫ _trackUpload/_uploadToChat, а их определения лежат
+        # ниже по файлу — страница падала на "_trackUpload is not defined".
+        # Берём настоящий блок загрузки, а не заглушки: заглушка спрятала бы
+        # регрессию внутри него.
+        upload_helpers = "const _pendingUploads = new Set();" + chat_source.split(
+            "const _pendingUploads = new Set();", 1,
+        )[1].split("const _COMPRESS_MIN_BYTES", 1)[0]
+        drop_code = upload_helpers + drop_code
+    
+        page = dashboard_browser.new_page()
+        page.set_content("""
+            <base href="http://orchestra.test/">
+            <div id="input-shell">
+                <div id="input-row">
+                    <textarea id="chat-input" placeholder="Message..."></textarea>
+                </div>
+            </div>
+        """)
+    
+        def upload(route):
+            body = route.request.post_data or ""
+            match = re.search(r'filename="([^"]+)"', body)
+            name = match.group(1) if match else "unknown"
+            if name == "blocked.py":
+                route.fulfill(
+                    status=400,
+                    content_type="application/json",
+                    body='{"error":"file type .py not allowed"}',
+                )
+                return
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=f'{{"path":"/tmp/{name}","url":"/uploads/{name}"}}',
+            )
+    
+        page.route("**/api/upload", upload)
+        page.add_script_tag(content=f"""
+            const $ = selector => document.querySelector(selector);
+            let pastedImages = [];
+            const previewPaths = [];
+            function showImagePreview(url, path) {{ previewPaths.push({{url, path}}); }}
+            {drop_code}
+            initChatDrop();
+            window.testDrop = async (names, path = '') => {{
+                const input = $('#chat-input');
+                input.value = '';
+                const dt = new DataTransfer();
+                for (const name of names) {{
+                    dt.items.add(new File([`body:${{name}}`], name, {{type: 'text/plain'}}));
+                }}
+                if (path) dt.setData('text/plain', path);
+                input.dispatchEvent(new DragEvent(
+                    'dragenter',
+                    {{bubbles: true, cancelable: true, dataTransfer: dt}},
+                ));
+                const hinted = input.placeholder;
+                const over = new DragEvent(
+                    'dragover',
+                    {{bubbles: true, cancelable: true, dataTransfer: dt}},
+                );
+                input.dispatchEvent(over);
+                const drop = new DragEvent(
+                    'drop',
+                    {{bubbles: true, cancelable: true, dataTransfer: dt}},
+                );
+                input.dispatchEvent(drop);
+                // Аплоады идут ПОСЛЕДОВАТЕЛЬНО, и фиксированные 100 мс под нагрузкой
+                // не покрывали поздний — тест терял его путь (#105: 3 красных из 9 ещё
+                // до #94). Ждём УСЛОВИЕ: каждый файл либо дал путь, либо назван в ошибке.
+                // Дедлайн — только страховка от зависания, не мерка скорости.
+                const settled = () => names.every(name =>
+                    input.value.includes(`/tmp/${{name}}`)
+                    || ($('#chat-drop-error')?.textContent || '').includes(name));
+                const deadline = Date.now() + 10000;
+                while (!settled() && Date.now() < deadline) {{
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }}
+                return {{
+                    value: input.value,
+                    hinted,
+                    overPrevented: over.defaultPrevented,
+                    dropPrevented: drop.defaultPrevented,
+                    error: document.querySelector('#chat-drop-error')?.textContent || '',
+                }};
+            }};
+        """)
+    
+        outside = page.evaluate("""() => {
+            const dt = new DataTransfer();
+            dt.items.add(new File(['body'], 'outside.txt', {type: 'text/plain'}));
+            document.body.dispatchEvent(new DragEvent(
+                'dragenter',
+                {bubbles: true, cancelable: true, dataTransfer: dt},
+            ));
+            const over = new DragEvent(
+                'dragover',
+                {bubbles: true, cancelable: true, dataTransfer: dt},
+            );
+            document.body.dispatchEvent(over);
+            const drop = new DragEvent(
+                'drop',
+                {bubbles: true, cancelable: true, dataTransfer: dt},
+            );
+            document.body.dispatchEvent(drop);
+            return {
+                placeholder: document.querySelector('#chat-input').placeholder,
+                overPrevented: over.defaultPrevented,
+                dropPrevented: drop.defaultPrevented,
+            };
+        }""")
+        single = page.evaluate("() => testDrop(['one.txt'])")
+        multi = page.evaluate("() => testDrop(['first.txt', 'second.txt'])")
+        tree = page.evaluate("() => testDrop([], '/project/from-tree.md')")
+        partial_failure = page.evaluate(
+            "() => testDrop(['ok.txt', 'blocked.py', 'tail.txt'])",
+        )
+        page.close()
+    
+        assert outside == {
+            "placeholder": "Message...",
+            "overPrevented": True,
+            "dropPrevented": True,
+        }
+>       assert single == {
+            "value": "/tmp/one.txt",
+            "hinted": "📎 Drop files here",
+            "overPrevented": True,
+            "dropPrevented": True,
+            "error": "",
+        }
+E       AssertionError: assert {'dropPrevent...d': True, ...} == {'dropPrevent...d': True, ...}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Differing items:
+E         {'hinted': 'Message...'} != {'hinted': '📎 Drop files here'}
+E         Use -v to get more diff
+
+tests/test_frontend.py:903: AssertionError
+_________ test_codex_cache_pill_is_approximate_and_expires_to_unknown __________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_codex_cache_pill_is_approximate_and_expires_to_unknown(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        _load_cache_pill_code(page)
+        states = page.evaluate("""() => {
+            const snapshot = (pill) => pill && ({
+                text: pill.textContent,
+                tier: pill.dataset.tier,
+                title: pill.title,
+                approximate: pill.dataset.cacheApproximate,
+            });
+            const recent = new Date(Date.now() - 5 * 60000).toISOString();
+            const expired = new Date(Date.now() - 37 * 60000).toISOString();
+            return {
+                running: snapshot(_cachePill({
+                    status: 'running',
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                })),
+                recent: snapshot(_cachePill({
+                    status: 'idle',
+                    last_turn_ts: recent,
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                })),
+                expired: snapshot(_cachePill({
+                    status: 'idle',
+                    last_turn_ts: expired,
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                })),
+                invalidTtl: _cachePill({
+                    status: 'idle',
+                    last_turn_ts: recent,
+                    cache_ttl_seconds: 0,
+                    cache_ttl_approximate: true,
+                }),
+                missingTurn: _cachePill({
+                    status: 'idle',
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                }),
+                malformedTurn: _cachePill({
+                    status: 'idle',
+                    last_turn_ts: 'not-a-date',
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                }),
+            };
+        }""")
+        page.close()
+    
+        assert states["running"]["text"] == "🔥≈"
+        assert states["recent"]["text"].startswith("🔥≈")
+        assert states["recent"]["approximate"] == "1"
+        assert states["expired"]["text"] == "🧊? +7m"
+        assert states["expired"]["tier"] == "unknown"
+>       assert "7m past" in states["expired"]["title"]
+E       AssertionError: assert '7m past' in 'Состояние кеша Codex неизвестно · 7m сверх справочного окна ≈30 мин; фактический TTL ChatGPT не гарантирован'
+
+tests/test_frontend.py:1014: AssertionError
+________________ test_claude_cache_pill_keeps_exact_thresholds _________________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_claude_cache_pill_keeps_exact_thresholds(dashboard_browser: Browser):
+        page = dashboard_browser.new_page()
+        _load_cache_pill_code(page)
+        states = page.evaluate("""() => {
+            const stateAt = (minutesAgo) => {
+                const pill = _cachePill({
+                    status: 'idle',
+                    last_turn_ts: new Date(Date.now() - minutesAgo * 60000).toISOString(),
+                    cache_ttl_seconds: 3600,
+                    cache_ttl_approximate: false,
+                });
+                return {text: pill.textContent, tier: pill.dataset.tier, title: pill.title};
+            };
+            return {
+                hot: stateAt(20),
+                warm: stateAt(45),
+                cooling: stateAt(49),
+                cold: stateAt(61),
+            };
+        }""")
+        page.close()
+    
+        assert states["hot"]["tier"] == "hot"
+        assert states["warm"]["tier"] == "warm"
+        assert states["cooling"]["tier"] == "cooling"
+>       assert states["cold"] == {
+            "text": "🧊",
+            "tier": "cold",
+            "title": "Cache cold — next turn ~20× дороже",
+        }
+E       AssertionError: assert {'text': '🧊',... ~20× дороже'} == {'text': '🧊',... ~20× дороже'}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Differing items:
+E         {'title': 'Кеш остыл — следующий ход ~20× дороже'} != {'title': 'Cache cold — next turn ~20× дороже'}
+E         Use -v to get more diff
+
+tests/test_frontend.py:1046: AssertionError
+____________ test_photo_batch_renders_as_compact_expandable_gallery ____________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_photo_batch_renders_as_compact_expandable_gallery(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        page.route(
+            "**/api/files/raw?**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="image/svg+xml",
+                body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>',
+            ),
+        )
+        paths = [f"/tmp/telegram-photo-{i:02}.jpg" for i in range(85)]
+        content = "\n".join(f"[photo: {path}]" for path in paths)
+>       page.evaluate(
+            "([content]) => addChatEntry('user_message', content, null)",
+            [content],
+        )
+
+tests/test_frontend.py:1086: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x71bea2737da0>
+cb = <function Channel.send.<locals>.<lambda> at 0x71bea04cab60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.evaluate: ReferenceError: addChatEntry is not defined
+E               at eval (eval at evaluate (:302:30), <anonymous>:1:16)
+E               at UtilityScript.evaluate (<anonymous>:309:18)
+E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+_____ test_task_card_uses_real_long_description_and_shared_expandable_body _____
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_task_card_uses_real_long_description_and_shared_expandable_body(
+        dashboard_browser: Browser,
+    ):
+        root = Path(__file__).parent.parent
+        source = (root / "app/static/js/chat.js").read_text()
+        app_source = (root / "app/static/js/app.js").read_text()
+        helper_code = (
+            "const _TASK_PRIORITY_META"
+            + source.split("const _TASK_PRIORITY_META", 1)[1].split(
+                "// Central renderer", 1,
+            )[0]
+        )
+        # Isolated fixture DB has no TM rows. A real paragraph (not "x"*200) still
+        # exercises wrap/expand; pulling live tasks was a silent skip on empty scope.
+        description = (
+            "Need a description long enough to wrap in the task card: the renderer "
+            "collapses after two lines and the expand control must stay attached to "
+            "this body, not to a sibling. Extra sentences keep the length above the "
+            "180-character floor that used to come from a live ticket."
+        )
+        assert len(description) > 180
+        task = {
+            "description": description,
+            "assignee": "frontend",
+            "task_id": 987,
+            "priority": 1,
+            "title": "fixture task",
+            "par": 987,
+        }
+    
+        page = dashboard_browser.new_page(viewport={"width": 1440, "height": 900})
+        _pin_english(page)
+        page.set_content(
+            '<body style="background:#0a0e17;color:#e2e8f0">'
+            '<style>#chat-card,#panel-card,#xss-card{width:420px}</style>'
+            '<div id="chat-card"></div><div id="panel-card"></div><div id="xss-card"></div>'
+            '</body>'
+        )
+        page.add_style_tag(path=str(root / "app/static/css/style.css"))
+        _load_i18n(page)
+        page.add_script_tag(path=str(root / "app/static/css/vendor/marked.min.js"))
+        page.add_script_tag(path=str(root / "app/static/css/vendor/purify.min.js"))
+        page.add_script_tag(content="const CUR = '₽';\n" + helper_code)
+        page.evaluate(
+            """task => {
+                document.querySelector('#chat-card').innerHTML = _taskCardBodyHtml(task);
+                document.querySelector('#panel-card').innerHTML = _taskCardBodyHtml(task);
+                document.querySelector('#xss-card').innerHTML = _taskCardBodyHtml({
+                    description: '<img src=x onerror="window.taskXss=1"><script>window.taskXss=1</script>',
+                });
+            }""",
+            task,
+        )
+    
+        chat = page.locator("#chat-card")
+        panel = page.locator("#panel-card")
+>       expect(chat).to_contain_text("🟠 High")
+E       AssertionError: Locator expected to contain text '🟠 High'
+E       Actual value: Исполнитель: frontendПриоритет: 🟠 ВысокийНомер задачи: 987
+E               ОПИСАНИЕ
+E               Need a description long enough to wrap in the task card: the renderer collapses after two lines and the expand control must stay attached to this body, not to a sibling. Extra sentences keep the length above the 180-character floor that used to come from a live ticket.
+E       
+E               ▼ Развернуть
+E            
+E       Call log:
+E         - Expect "to_contain_text" with timeout 5000ms
+E         - waiting for locator("#chat-card")
+E           12 × locator resolved to <div id="chat-card">…</div>
+E              - unexpected value "Исполнитель: frontendПриоритет: 🟠 ВысокийНомер задачи: 987
+E               ОПИСАНИЕ
+E               Need a description long enough to wrap in the task card: the renderer collapses after two lines and the expand control must stay attached to this body, not to a sibling. Extra sentences keep the length above the 180-character floor that used to come from a live ticket.
+E       
+E               ▼ Развернуть
+E           "
+
+tests/test_frontend.py:3750: AssertionError
+_____________________ test_language_choice_survives_reload _____________________
+
+dashboard_browser = (<Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>, 'http://127.0.0.1:55673')
+
+    def test_language_choice_survives_reload(dashboard_browser):
+        """Выбор языка хранится у клиента и переживает перезагрузку страницы."""
+        context, page = _open_dashboard(dashboard_browser, "ru")
+        try:
+            assert page.evaluate("() => orchLang()") == "ru"
+            before = page.evaluate(_FIRST_MARKED_TEXT)
+    
+            page.click('#lang-switch button[data-lang="en"]')
+>           page.wait_for_function("() => orchLang() === 'en'")
+
+tests/test_i18n_dashboard.py:175: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:12436: in wait_for_function
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:1136: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:910: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x71bea00a0f50>
+cb = <function Channel.send.<locals>.<lambda> at 0x71be9adeb9c0>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms exceeded.
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: TimeoutError
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_chat_drop_handles_files_tree_paths_and_upload_errors
+FAILED tests/test_frontend.py::test_codex_cache_pill_is_approximate_and_expires_to_unknown
+FAILED tests/test_frontend.py::test_claude_cache_pill_keeps_exact_thresholds
+FAILED tests/test_frontend.py::test_photo_batch_renders_as_compact_expandable_gallery
+FAILED tests/test_frontend.py::test_task_card_uses_real_long_description_and_shared_expandable_body
+FAILED tests/test_i18n_dashboard.py::test_language_choice_survives_reload - p...
+6 failed, 130 passed, 1 skipped in 350.12s (0:05:50)
+RC=1

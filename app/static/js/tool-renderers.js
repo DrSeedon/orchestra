@@ -80,14 +80,15 @@ function codexWebSearchSpec(raw) {
 }
 
 function codexWebSearchCompactLabel(spec) {
-    if (!spec) return '🌐 Web search';
+    if (!spec) return T('🌐 Web search');
     if (spec.queries.length === 1) return `🌐 ${spec.queries[0]}`;
     if (spec.queries.length > 1) return `🌐 ${spec.queries[0]} +${spec.queries.length - 1}`;
     if (spec.type === 'openPage') {
-        try { return `🌐 Open ${new URL(spec.url).hostname}`; } catch { return '🌐 Open page'; }
+        try { return T('🌐 Open {host}', {host: new URL(spec.url).hostname}); }
+        catch { return T('🌐 Open page'); }
     }
-    if (spec.type === 'findInPage') return `🌐 Find ${spec.pattern || 'in page'}`;
-    return '🌐 Web search';
+    if (spec.type === 'findInPage') return T('🌐 Find {what}', {what: spec.pattern || T('in page')});
+    return T('🌐 Web search');
 }
 
 function renderCodexWebSearchActivity(spec) {
@@ -115,13 +116,13 @@ function renderCodexWebSearchActivity(spec) {
     const detail = document.createElement('div');
     detail.className = 'codex-search-detail';
     if (spec?.type === 'openPage') {
-        detail.textContent = spec.url ? `Open page · ${spec.url}` : 'Open page';
+        detail.textContent = spec.url ? `${T('Open page')} · ${spec.url}` : T('Open page');
     } else if (spec?.type === 'findInPage') {
-        detail.textContent = spec.pattern ? `Find in page · ${spec.pattern}` : 'Find in page';
+        detail.textContent = spec.pattern ? `${T('Find in page')} · ${spec.pattern}` : T('Find in page');
     } else if (spec?.type) {
-        detail.textContent = 'Browser action';
+        detail.textContent = T('Browser action');
     } else {
-        detail.textContent = 'Waiting for query details…';
+        detail.textContent = T('Waiting for query details…');
     }
     wrapper.appendChild(detail);
     return wrapper;
@@ -166,7 +167,7 @@ function decorateCodexToolCard(card, header, family = '') {
     if (!card.querySelector('.codex-tool-state')) {
         const state = document.createElement('span');
         state.className = 'codex-tool-state';
-        state.textContent = 'running';
+        state.textContent = T('running');
         card.appendChild(state);
     }
     card.dataset.toolState = 'running';
@@ -176,7 +177,7 @@ function completeCodexToolCard(card, ok = true) {
     if (!card?.classList.contains('codex-tool-card')) return;
     card.dataset.toolState = ok ? 'done' : 'failed';
     const state = card.querySelector('.codex-tool-state');
-    if (state) state.textContent = ok ? 'done' : 'failed';
+    if (state) state.textContent = ok ? T('done') : T('failed');
 }
 
 // Returns null when lines are too different (< 40% common chars) — fall back to plain del/add
@@ -292,7 +293,7 @@ function renderEditDiff(body) {
         const moreEl = document.createElement('div');
         moreEl.className = 'diff-file';
         moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-        moreEl.textContent = `▼ ${restLines.length} more lines`;
+        moreEl.textContent = T('▼ {n} more lines', {n: restLines.length});
         moreEl.dataset.count = restLines.length;
         container.appendChild(moreEl);
     }
@@ -331,7 +332,7 @@ function renderCodexFileChange(body) {
         fileEl.className = 'diff-file codex-diff-file';
 
         const path = document.createElement('span');
-        path.textContent = shortPath || 'file';
+        path.textContent = shortPath || T('file');
         path.title = fp;
         const rawKind = typeof change.kind === 'object' && change.kind
             ? change.kind.type
@@ -339,7 +340,7 @@ function renderCodexFileChange(body) {
         const changeKind = String(rawKind || 'update');
         const kind = document.createElement('span');
         kind.className = `codex-change-kind codex-change-${changeKind.toLowerCase().replace(/[^a-z0-9_-]/g, '-')}`;
-        kind.textContent = changeKind;
+        kind.textContent = T(changeKind);
         fileEl.append(path, kind);
         block.appendChild(fileEl);
 
@@ -354,12 +355,14 @@ function renderCodexFileChange(body) {
             block.appendChild(restEl);
             const more = document.createElement('div');
             more.className = 'diff-file codex-diff-more';
-            more.textContent = `▼ ${rest.length} more lines`;
+            more.textContent = T('▼ {n} more lines', {n: rest.length});
             more.addEventListener('click', (event) => {
                 event.stopPropagation();
                 const expanded = restEl.style.display !== 'none';
                 restEl.style.display = expanded ? 'none' : 'block';
-                more.textContent = expanded ? `▼ ${rest.length} more lines` : '▲ collapse';
+                more.textContent = expanded
+                    ? T('▼ {n} more lines', {n: rest.length})
+                    : T('▲ collapse');
             });
             block.appendChild(more);
         }
@@ -388,7 +391,8 @@ function renderReadView(body) {
 
     const fileEl = document.createElement('div');
     fileEl.className = 'diff-file';
-    fileEl.textContent = `${shortPath}${offset ? ` :${offset}` : ''}${limit ? ` (${limit} lines)` : ''}`;
+    fileEl.textContent = `${shortPath}${offset ? ` :${offset}` : ''}`
+        + (limit ? T(' ({n} lines)', {n: limit}) : '');
     fileEl.title = fp;
     container.appendChild(fileEl);
 
@@ -425,7 +429,7 @@ function renderGlobView(pattern, resultText) {
     const headerEl = document.createElement('div');
     headerEl.className = 'grep-result-row';
     headerEl.style.cssText = 'color:#38bdf8;font-size:11px;font-weight:600;padding:4px 8px;border-bottom:1px solid #1e293b';
-    headerEl.textContent = `📂 ${files.length} files`;
+    headerEl.textContent = T('📂 {n} files', {n: files.length});
     container.appendChild(headerEl);
 
     function buildRow(path) {
@@ -463,7 +467,7 @@ function renderGlobView(pattern, resultText) {
         moreEl.dataset.role = 'read-more';
         moreEl.dataset.count = restFiles.length;
         moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
-        moreEl.textContent = `▼ ${restFiles.length} more files`;
+        moreEl.textContent = T('▼ {n} more files', {n: restFiles.length});
         container.appendChild(moreEl);
     }
 
@@ -546,7 +550,7 @@ function renderGrepResults(raw, pattern) {
         moreEl.dataset.role = 'read-more';
         moreEl.dataset.count = restLines.length;
         moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
-        moreEl.textContent = `▼ ${restLines.length} more lines`;
+        moreEl.textContent = T('▼ {n} more lines', {n: restLines.length});
         container.appendChild(moreEl);
     }
 
@@ -590,7 +594,7 @@ function _wsCollapsible(el) {
 
     const hint = document.createElement('div');
     hint.style.cssText = 'color:#38bdf8;font-size:10px;cursor:pointer;margin-top:4px';
-    hint.textContent = '▼ expand';
+    hint.textContent = T('▼ expand');
     let expanded = false;
 
     const linksEl = wrapper.querySelector('[style*="border-top"]');
@@ -602,7 +606,7 @@ function _wsCollapsible(el) {
         expanded = !expanded;
         body.style.maxHeight = expanded ? 'none' : PREVIEW_HEIGHT + 'px';
         body.style.overflowY = expanded ? 'visible' : 'hidden';
-        hint.textContent = expanded ? '▲ collapse' : '▼ expand';
+        hint.textContent = expanded ? T('▲ collapse') : T('▼ expand');
         if (linksEl) linksEl.style.display = expanded ? 'block' : 'none';
     };
 

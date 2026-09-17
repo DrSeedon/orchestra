@@ -5,6 +5,8 @@
     <meta charset="UTF-8">
     <link rel="icon" href="{{ g.asset('favicon.svg') }}" type="image/svg+xml">
     <title>🎼 Orchestra</title>
+    <!-- Первым: остальные сценарии зовут T() уже на разборе файла (подписи статусов). -->
+    <script src="{{ g.asset('js/i18n.js') }}"></script>
     <script src="{{ g.asset('css/vendor/marked.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/purify.min.js') }}"></script>
     <script src="{{ g.asset('css/vendor/diff_match_patch.js') }}"></script>
@@ -31,35 +33,36 @@
             <h1 class="text-lg font-bold tracking-tight shrink-0">🎼</h1>
             <div id="orch-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar"></div>
             <select id="orch-picker" class="hidden"></select>
-            <button id="new-orch-btn" class="px-2.5 py-1.5 bg-slate-800/50 hover:bg-slate-700 border border-dashed border-slate-700 rounded-full text-xs transition-colors shrink-0" title="New orchestrator">+</button>
-            <button id="hidden-tabs-btn" class="px-2 py-1.5 hover:bg-slate-700 rounded-full text-xs transition-colors text-slate-500 hover:text-slate-300 shrink-0 hidden" title="Show hidden tabs">👁</button>
+            <button id="new-orch-btn" class="px-2.5 py-1.5 bg-slate-800/50 hover:bg-slate-700 border border-dashed border-slate-700 rounded-full text-xs transition-colors shrink-0" title="New orchestrator" data-i18n-title>+</button>
+            <button id="hidden-tabs-btn" class="px-2 py-1.5 hover:bg-slate-700 rounded-full text-xs transition-colors text-slate-500 hover:text-slate-300 shrink-0 hidden" title="Show hidden tabs" data-i18n-title>👁</button>
         </div>
         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
+            <span id="lang-switch"></span>
             <button id="models-catalog-btn" onclick="openCatalogModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Каталог моделей — доступность для дашборда и для агентов">🧠</button>
-            {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status">⏳</span>{% endif %}
+            {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status" data-i18n-title>⏳</span>{% endif %}
             {% if is_owner_mode %}
             <div class="relative">
-                <button id="profiles-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Profiles">🗂</button>
+                <button id="profiles-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Profiles" data-i18n-title>🗂</button>
                 <div id="profiles-dropdown" class="absolute right-0 top-full mt-1 w-[320px] glass glow rounded-xl p-3 z-50 hidden">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-white">🗂 Claude Profiles</span>
+                        <span class="text-xs font-bold text-white" data-i18n>🗂 Claude Profiles</span>
                     </div>
                     <div id="profiles-list" class="space-y-1.5 mb-2"></div>
                     <div class="space-y-1.5 border-t border-slate-700/50 pt-2">
-                        <input id="profile-new-name" type="text" placeholder="name" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
-                        <input id="profile-new-dir" type="text" placeholder="config dir (пусто = ~/.claude)" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
-                        <button id="profile-add-btn" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium transition-colors">Add</button>
+                        <input id="profile-new-name" type="text" placeholder="name" data-i18n-placeholder class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
+                        <input id="profile-new-dir" type="text" placeholder="каталог настроек (пусто = ~/.claude)" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
+                        <button id="profile-add-btn" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium transition-colors" data-i18n>Add</button>
                         <div id="profile-error" class="text-[10px] text-red-400 hidden"></div>
                     </div>
                 </div>
             </div>
             {% endif %}
-            <button id="analytics-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Usage analytics" onclick="openAnalyticsModal()">📊</button>
-            <button id="compact-toggle-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Tool view: normal. Switch to compact view" aria-pressed="false" style="white-space:nowrap">📄 Normal</button>
-            <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server">⟳</button>
-            {% if is_auth_enabled %}<button id="client-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Client info">👤</button>{% endif %}
-            <button id="logout-btn" class="px-2 py-1 bg-slate-800 hover:bg-red-900/60 border border-slate-700 rounded-lg transition-colors text-slate-500 hover:text-red-400" title="Logout" onclick="fetch('/logout',{method:'POST'}).then(()=>location.href='/login')">🚪</button>
+            <button id="analytics-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Usage analytics" data-i18n-title onclick="openAnalyticsModal()">📊</button>
+            <button id="compact-toggle-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Tool view: normal. Switch to compact view" data-i18n-title aria-pressed="false" style="white-space:nowrap" data-i18n>📄 Normal</button>
+            <button id="restart-btn" class="px-2 py-1 bg-slate-800 hover:bg-amber-900/60 border border-slate-700 rounded-lg transition-colors text-amber-400" title="Restart Orchestra server" data-i18n-title>⟳</button>
+            {% if is_auth_enabled %}<button id="client-btn" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Client info" data-i18n-title>👤</button>{% endif %}
+            <button id="logout-btn" class="px-2 py-1 bg-slate-800 hover:bg-red-900/60 border border-slate-700 rounded-lg transition-colors text-slate-500 hover:text-red-400" title="Logout" data-i18n-title onclick="fetch('/logout',{method:'POST'}).then(()=>location.href='/login')">🚪</button>
         </div>
     </header>
 
@@ -67,24 +70,24 @@
     <div id="new-orch-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
         <div class="glass glow rounded-xl p-6 w-[420px]">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-bold">New Orchestrator</h2>
+                <h2 class="text-sm font-bold" data-i18n>New Orchestrator</h2>
                 <button id="modal-close" class="text-slate-500 hover:text-white text-lg">✕</button>
             </div>
             <div class="space-y-3">
                 <div>
-                    <label class="text-xs text-slate-500 block mb-1">Name</label>
+                    <label class="text-xs text-slate-500 block mb-1" data-i18n>Name</label>
                     <input id="orch-name" type="text" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
                 </div>
                 <div>
-                    <label class="text-xs text-slate-500 block mb-1">Project path</label>
+                    <label class="text-xs text-slate-500 block mb-1" data-i18n>Project path</label>
                     <div class="flex gap-2">
-                        <input id="orch-cwd" type="text" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" placeholder="Select or type path...">
-                        <button id="browse-btn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors" title="Browse projects">📂</button>
+                        <input id="orch-cwd" type="text" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" placeholder="Select or type path..." data-i18n-placeholder>
+                        <button id="browse-btn" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors" title="Browse projects" data-i18n-title>📂</button>
                     </div>
                     <div id="project-picker" class="hidden mt-2 max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg"></div>
                 </div>
                 <div>
-                    <label class="text-xs text-slate-500 block mb-1">Model</label>
+                    <label class="text-xs text-slate-500 block mb-1" data-i18n>Model</label>
                     <select id="orch-model" class="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none">
                     </select>
                 </div>
@@ -93,7 +96,7 @@
                 <select id="orch-pipeline" class="hidden"></select>
                 <select id="orch-role" class="hidden"></select>
                 <div id="orch-error" class="text-xs text-red-400 hidden"></div>
-                <button id="create-orch-btn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Create Orchestrator</button>
+                <button id="create-orch-btn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors" data-i18n>Create Orchestrator</button>
             </div>
         </div>
     </div>
@@ -105,7 +108,7 @@
                 <h2 class="text-sm font-bold">Удалить оркестратор</h2>
                 <button id="delete-orch-modal-close" class="text-slate-500 hover:text-white text-lg">✕</button>
             </div>
-            <p class="text-xs text-slate-300 mb-4">Удалить <span id="delete-orch-name" class="font-semibold text-white"></span> и всех его воркеров?</p>
+            <p class="text-xs text-slate-300 mb-4">Удалить <span id="delete-orch-name" class="font-semibold text-white" data-i18n-skip></span> и всех его воркеров?</p>
             <label class="flex items-center gap-2 mb-4 cursor-pointer">
                 <input id="delete-tg-topics" type="checkbox" class="accent-indigo-500">
                 <span class="text-xs text-slate-400">Также удалить связанные TG-топики</span>
@@ -124,13 +127,13 @@
                 <h2 class="text-sm font-bold">📁 Сменить папку</h2>
                 <button id="change-scope-close" class="text-slate-500 hover:text-white text-lg">✕</button>
             </div>
-            <p class="text-xs text-slate-400 mb-3">Оркестратор: <span id="change-scope-name" class="font-semibold text-white"></span></p>
+            <p class="text-xs text-slate-400 mb-3">Оркестратор: <span id="change-scope-name" class="font-semibold text-white" data-i18n-skip></span></p>
             <div class="space-y-3">
                 <div>
                     <label class="text-xs text-slate-500 block mb-1">Новый путь</label>
                     <div class="flex gap-2">
                         <input id="change-scope-path" type="text" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" placeholder="/mnt/data/Projects/...">
-                        <button id="change-scope-browse" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors" title="Browse projects">📂</button>
+                        <button id="change-scope-browse" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors" title="Browse projects" data-i18n-title>📂</button>
                     </div>
                     <div id="change-scope-picker" class="hidden mt-2 max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg"></div>
                 </div>
@@ -147,7 +150,7 @@
     <div id="prompt-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
       <div class="glass glow rounded-xl p-6 w-[90vw] max-w-4xl max-h-[85vh] flex flex-col">
         <div class="flex justify-between items-center mb-3">
-          <span id="prompt-modal-name" class="text-indigo-300 font-bold text-sm"></span>
+          <span id="prompt-modal-name" class="text-indigo-300 font-bold text-sm" data-i18n-skip></span>
           <button id="prompt-modal-close" class="text-slate-400 hover:text-white text-lg">✕</button>
         </div>
         <div id="prompt-modal-body" class="flex-1 overflow-auto text-xs text-slate-300 markdown-body bg-[#0f172a] rounded-lg p-4 border border-slate-800"></div>
@@ -175,12 +178,12 @@
           <div class="analytics-title">
             <span class="analytics-title-mark">UA</span>
             <div>
-              <h2>Usage Analytics</h2>
-              <p>Orchestra control room · virtual API-equivalent cost</p>
+              <h2 data-i18n>Usage Analytics</h2>
+              <p data-i18n>Orchestra control room · virtual API-equivalent cost</p>
             </div>
           </div>
-          <div id="analytics-periods" class="analytics-periods" aria-label="Analytics period"></div>
-          <button id="analytics-close" class="analytics-close" type="button" aria-label="Close analytics">✕</button>
+          <div id="analytics-periods" class="analytics-periods" aria-label="Analytics period" data-i18n-aria-label></div>
+          <button id="analytics-close" class="analytics-close" type="button" aria-label="Close analytics" data-i18n-aria-label>✕</button>
         </div>
         <div class="analytics-navrow">
           <div id="analytics-view-tabs" class="analytics-view-tabs" role="tablist"></div>
@@ -194,7 +197,7 @@
     <div id="subagents-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeSubagentsModal()">
       <div class="glass glow rounded-xl p-6 w-[90vw] max-w-3xl max-h-[85vh] flex flex-col">
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-sm font-bold text-white">🤖 Agent activity · <span id="subagents-modal-agent" class="text-purple-300"></span></h2>
+          <h2 class="text-sm font-bold text-white" data-i18n>🤖 Agent activity · <span id="subagents-modal-agent" class="text-purple-300" data-i18n-skip></span></h2>
           <button class="text-slate-400 hover:text-white text-lg" onclick="closeSubagentsModal()">✕</button>
         </div>
         <div id="subagents-body" class="flex-1 overflow-auto text-xs text-slate-300"></div>
@@ -206,7 +209,7 @@
     <div id="client-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
       <div class="glass glow rounded-2xl p-6 w-[480px] max-h-[80vh] flex flex-col">
         <div class="flex justify-between items-center mb-4">
-          <span class="text-sm font-bold text-white">👤 <span id="client-modal-name">{{ client_name }}</span></span>
+          <span class="text-sm font-bold text-white">👤 <span id="client-modal-name" data-i18n-skip>{{ client_name }}</span></span>
           <button id="client-modal-close" class="text-slate-400 hover:text-white text-lg">✕</button>
         </div>
         <div id="client-modal-body" class="flex-1 overflow-y-auto text-xs text-slate-300 space-y-3"></div>
@@ -219,10 +222,10 @@
         <!-- Left Panel (Files / Tasks tabs) -->
         <div id="file-panel" class="w-[250px] border-r border-slate-800/50 flex flex-col overflow-hidden">
             <div class="flex border-b border-slate-800/50">
-                <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('files')">FILES</button>
-                <button data-left-tab="tasks" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('tasks')">TASKS</button>
-                <button data-left-tab="jobs" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('jobs')">JOBS</button>
-                <button id="open-folder-btn" title="Open in file manager" style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;transition:opacity 0.15s" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='0.5'">📂</button>
+                <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('files')" data-i18n>FILES</button>
+                <button data-left-tab="tasks" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('tasks')" data-i18n>TASKS</button>
+                <button data-left-tab="jobs" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('jobs')" data-i18n>JOBS</button>
+                <button id="open-folder-btn" title="Open in file manager" data-i18n-title style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;transition:opacity 0.15s" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='0.5'">📂</button>
             </div>
             <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
             <div id="tasks-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
@@ -246,14 +249,14 @@
             <div class="p-3 border-t border-slate-800/50">
                 <div id="input-resize-handle" style="height:6px;cursor:row-resize;margin:0 auto 4px;width:40px;border-radius:3px;background:rgba(51,65,85,0.3)"></div>
                 <div class="flex gap-2">
-                    <textarea id="chat-input" rows="2" placeholder="Message..."
+                    <textarea id="chat-input" rows="2" placeholder="Message..." data-i18n-placeholder
                         class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm resize-none focus:border-indigo-500 focus:outline-none transition-colors"
                         style="min-height:40px;max-height:300px"></textarea>
                     <div class="flex flex-col gap-1 self-end">
-                        <button id="stop-btn" class="px-4 py-2 bg-red-900 hover:bg-red-800 rounded-lg text-sm font-medium transition-colors hidden">Stop</button>
+                        <button id="stop-btn" class="px-4 py-2 bg-red-900 hover:bg-red-800 rounded-lg text-sm font-medium transition-colors hidden" data-i18n>Stop</button>
                         <div class="flex gap-1">
-                            <button id="send-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Send</button>
-                            <button id="send-after-turn-btn" title="Отправить после окончания текущего хода" aria-label="Отправить после окончания текущего хода" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors">After turn</button>
+                            <button id="send-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors" data-i18n>Send</button>
+                            <button id="send-after-turn-btn" title="Отправить после окончания текущего хода" aria-label="Отправить после окончания текущего хода" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors" data-i18n>After turn</button>
                         </div>
                     </div>
                 </div>
@@ -266,23 +269,23 @@
             <!-- Agent Info -->
             <div id="agent-info" class="px-4 py-3 border-b border-slate-800/50 space-y-2">
                 <div class="flex items-center justify-between gap-2">
-                    <span id="ai-name" class="font-semibold text-sm truncate min-w-0"></span>
+                    <span id="ai-name" class="font-semibold text-sm truncate min-w-0" data-i18n-skip></span>
                     <div class="flex items-center gap-2 shrink-0">
-                        <button id="compact-btn" class="text-slate-500 hover:text-amber-300 text-xs hidden" title="Compact context">🗜</button>
-                        <button id="restart-cli-btn" class="text-slate-500 hover:text-green-300 text-xs hidden" title="Restart CLI">♻️</button>
+                        <button id="compact-btn" class="text-slate-500 hover:text-amber-300 text-xs hidden" title="Compact context" data-i18n-title>🗜</button>
+                        <button id="restart-cli-btn" class="text-slate-500 hover:text-green-300 text-xs hidden" title="Restart CLI" data-i18n-title>♻️</button>
                         <button id="clear-session-btn" class="text-slate-500 hover:text-red-300 text-xs hidden" title="Очистить сессию — начать разговор с нуля (история забывается, worktree и ветка не трогаются)">🧹</button>
-                        <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt">📜</button>
-                        <button id="subagents-btn" class="text-slate-500 hover:text-purple-300 text-xs hidden" title="Agent and background-task activity" onclick="openSubagentsModal()">🤖</button>
+                        <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt" data-i18n-title>📜</button>
+                        <button id="subagents-btn" class="text-slate-500 hover:text-purple-300 text-xs hidden" title="Agent and background-task activity" data-i18n-title onclick="openSubagentsModal()">🤖</button>
                         <span id="ai-status" class="text-xs font-mono"></span>
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                    <span class="text-slate-500">Model</span><span id="ai-model" class="text-slate-300 break-all"></span>
-                    <span class="text-slate-500">Role</span><span id="ai-role" class="text-purple-400 break-all"></span>
-                    <span class="text-slate-500">Cost</span><span id="ai-cost" class="text-green-400"></span>
-                    <span class="text-slate-500">Branch</span><span id="ai-branch" class="text-indigo-400 break-all font-mono"></span>
-                    <span class="text-slate-500">Scope</span><span id="ai-scope" class="text-slate-400 text-xs break-all"></span>
-                    <span id="ai-desc-label" class="text-slate-500 hidden">Desc</span><span id="ai-desc" class="text-slate-400 text-xs truncate hidden" style="max-width:180px"></span>
+                    <span class="text-slate-500" data-i18n>Model</span><span id="ai-model" class="text-slate-300 break-all"></span>
+                    <span class="text-slate-500" data-i18n>Role</span><span id="ai-role" class="text-purple-400 break-all"></span>
+                    <span class="text-slate-500" data-i18n>Cost</span><span id="ai-cost" class="text-green-400"></span>
+                    <span class="text-slate-500" data-i18n>Branch</span><span id="ai-branch" class="text-indigo-400 break-all font-mono"></span>
+                    <span class="text-slate-500" data-i18n>Scope</span><span id="ai-scope" class="text-slate-400 text-xs break-all"></span>
+                    <span id="ai-desc-label" class="text-slate-500 hidden" data-i18n>Desc</span><span id="ai-desc" class="text-slate-400 text-xs truncate hidden" style="max-width:180px"></span>
                 </div>
             </div>
 
@@ -299,8 +302,8 @@
             <div class="flex items-center justify-between px-4 py-3 border-b border-slate-800/50 shrink-0">
                 <span id="file-preview-path" class="text-xs font-mono text-slate-400 truncate max-w-[70%]"></span>
                 <div class="flex items-center gap-2">
-                    <a id="file-preview-download" href="#" download class="hidden text-xs px-2 py-1 rounded bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50 transition-colors" title="Download file">⬇ Download</a>
-                    <a id="file-preview-open" href="#" target="_blank" class="hidden text-xs px-2 py-1 rounded bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 transition-colors" title="Open in browser">🌐 Open</a>
+                    <a id="file-preview-download" href="#" download class="hidden text-xs px-2 py-1 rounded bg-emerald-600/30 text-emerald-300 hover:bg-emerald-600/50 transition-colors" title="Download file" data-i18n-title data-i18n>⬇ Download</a>
+                    <a id="file-preview-open" href="#" target="_blank" class="hidden text-xs px-2 py-1 rounded bg-indigo-600/30 text-indigo-300 hover:bg-indigo-600/50 transition-colors" title="Open in browser" data-i18n-title data-i18n>🌐 Open</a>
                     <button id="file-preview-close" class="text-slate-500 hover:text-white text-lg">✕</button>
                 </div>
             </div>
