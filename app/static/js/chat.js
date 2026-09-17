@@ -81,17 +81,17 @@ async function refreshQueuedMessages() {
             row.className = 'flex items-center gap-2 rounded bg-slate-800/70 px-2 py-1 text-xs text-slate-300';
             const body = document.createElement('span');
             body.className = 'min-w-0 flex-1 truncate';
-            body.textContent = `⏳ ${item.body}`;
+            body.textContent = `${T('⏳')} ${item.body}`;
             row.appendChild(body);
             if (item.claimed) {
                 const state = document.createElement('span');
-                state.textContent = 'доставляется';
+                state.textContent = T('delivering');
                 state.className = 'text-slate-500';
                 row.appendChild(state);
             } else {
                 const cancel = document.createElement('button');
                 cancel.type = 'button';
-                cancel.textContent = 'Отменить';
+                cancel.textContent = T('Cancel');
                 cancel.className = 'text-red-300 hover:text-red-200';
                 cancel.addEventListener('click', async () => {
                     cancel.disabled = true;
@@ -186,7 +186,7 @@ function _voiceSetState(state) {
     controls.dataset.state = state;
     $('#voice-btn').disabled = state === 'processing' || state === 'requesting' || state === 'stopping';
     $('#voice-state-label').textContent = state === 'requesting'
-        ? 'Микрофон…' : (state === 'stopping' ? 'Завершаю…' : 'Запись');
+        ? T('Microphone…') : (state === 'stopping' ? T('Finishing…') : T('Recording'));
     $('#voice-cancel-btn').disabled = state !== 'recording';
 }
 
@@ -198,11 +198,11 @@ function _showVoiceError(message) {
 }
 
 function _voiceCaptureError(error) {
-    if (!window.isSecureContext) return 'Микрофон доступен только через HTTPS.';
-    if (error?.name === 'NotAllowedError') return 'Доступ к микрофону запрещён. Разрешите его в настройках браузера.';
-    if (error?.name === 'NotFoundError') return 'Микрофон не найден.';
-    if (error?.name === 'NotReadableError') return 'Микрофон занят другим приложением.';
-    return `Не удалось включить микрофон: ${error?.name || 'Error'}: ${error?.message || error}`;
+    if (!window.isSecureContext) return T('Microphone only available via HTTPS.');
+    if (error?.name === 'NotAllowedError') return T('Microphone access denied. Allow it in browser settings.');
+    if (error?.name === 'NotFoundError') return T('Microphone not found.');
+    if (error?.name === 'NotReadableError') return T('Microphone busy with another application.');
+    return T('Failed to start microphone: {name}: {message}', {name: error?.name || 'Error', message: error?.message || error});
 }
 
 function _stopVoiceCapture() {
@@ -266,9 +266,9 @@ async function _sendVoiceBlob(blob, mimeType) {
         _showVoiceError('');
     } catch (error) {
         const detail = error.name === 'TimeoutError'
-            ? 'Отправка голосового сообщения не ответила за 60 секунд.'
+            ? T('Voice message send did not respond within 60 seconds.')
             : error.message;
-        _showVoiceError(`Голосовой ввод: ${detail}`);
+        _showVoiceError(`${T('Voice input')}: ${detail}`);
     } finally {
         _voiceSetState('idle');
     }
@@ -283,8 +283,8 @@ async function startVoiceInput() {
     _showVoiceError('');
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
         _showVoiceError(window.isSecureContext
-            ? 'Этот браузер не поддерживает запись с микрофона.'
-            : 'Микрофон доступен только через HTTPS.');
+            ? T('This browser does not support microphone recording.')
+            : T('Microphone only available via HTTPS.'));
         return;
     }
     _voiceStarting = true;
@@ -319,7 +319,7 @@ async function startVoiceInput() {
                 return;
             }
             if (!blob.size) {
-                _showVoiceError('Голосовой ввод: браузер вернул пустую запись.');
+                _showVoiceError(T('Voice input: browser returned empty recording.'));
                 _voiceSetState('idle');
                 return;
             }
@@ -374,13 +374,13 @@ function initVoiceInput() {
     controls.className = 'voice-controls';
     controls.dataset.state = 'idle';
     controls.innerHTML = `
-        <button id="voice-btn" type="button" class="voice-button" title="Голосовой ввод" aria-label="Начать или остановить голосовой ввод">
+        <button id="voice-btn" type="button" class="voice-button" title="${T('Voice input')}" aria-label="${T('Start or stop voice input')}">
             <span id="voice-level" class="voice-level"></span><span class="voice-icon">🎤</span>
         </button>
         <div class="voice-recording" aria-live="polite">
             <span id="voice-timer" class="voice-timer">0:00</span>
-            <span id="voice-state-label">Запись</span>
-            <button id="voice-cancel-btn" type="button" class="voice-cancel" title="Отменить запись" aria-label="Отменить запись">×</button>
+            <span id="voice-state-label">${T('Recording')}</span>
+            <button id="voice-cancel-btn" type="button" class="voice-cancel" title="${T('Cancel recording')}" aria-label="${T('Cancel recording')}">×</button>
         </div>`;
     input.parentElement.insertBefore(controls, actions);
     const error = document.createElement('div');
@@ -564,7 +564,7 @@ function _showUploadingChip(file, filename = file.name || 'file') {
     const download = document.createElement('a');
     download.href = objectUrl;
     download.download = cardFilename;
-    download.textContent = '📥 скачать';
+    download.textContent = T('📥 download');
     download.style.cssText = 'color:#a5b4fc;text-decoration:none;width:max-content';
     const progress = document.createElement('progress');
     progress.className = 'upload-progress';
@@ -573,14 +573,14 @@ function _showUploadingChip(file, filename = file.name || 'file') {
     progress.style.cssText = 'width:100%;height:5px';
     const progressText = document.createElement('span');
     progressText.className = 'upload-progress-text';
-    progressText.textContent = 'Загрузка… 0%';
+    progressText.textContent = T('Uploading… 0%');
     progressText.style.cssText = 'font-size:10px;color:#818cf8';
     body.append(name, size, download, progress, progressText);
     wrap.appendChild(body);
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.textContent = '×';
-    remove.title = 'Удалить файл';
+    remove.title = T('Delete file');
     remove.style.cssText = 'align-self:flex-start;border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1';
     wrap.appendChild(remove);
     container.appendChild(wrap);
@@ -606,7 +606,7 @@ function _showUploadingChip(file, filename = file.name || 'file') {
     cleanup.updateProgress = percent => {
         const value = Math.max(0, Math.min(100, Number(percent) || 0));
         progress.value = value;
-        progressText.textContent = `Загрузка… ${Math.round(value)}%`;
+        progressText.textContent = T('Uploading… {percent}%', {percent: Math.round(value)});
     };
     cleanup.setFilename = nextFilename => {
         cardFilename = String(nextFilename || cardFilename);
@@ -622,12 +622,12 @@ function _showUploadingChip(file, filename = file.name || 'file') {
         download.download = cardFilename;
         if (preview) preview.src = url;
         progress.value = 100;
-        progressText.textContent = 'Загружено';
+        progressText.textContent = T('Uploaded');
         progressText.style.color = '#4ade80';
         URL.revokeObjectURL(objectUrl);
     };
     cleanup.fail = error => {
-        progressText.textContent = `Ошибка: ${error.message || error}`;
+        progressText.textContent = T('Error: {message}', {message: error.message || error});
         progressText.style.color = '#f87171';
     };
     return cleanup;
@@ -725,13 +725,13 @@ function renderImages(el, content) {
     const gallery = document.createElement('section');
     gallery.className = 'chat-image-gallery';
     gallery.dataset.imageCount = String(matches.length);
-    gallery.setAttribute('aria-label', `Галерея: ${matches.length} фото`);
+    gallery.setAttribute('aria-label', T('Gallery: {n} photos', {n: matches.length}));
 
     const header = document.createElement('div');
     header.className = 'chat-image-gallery-header';
     const count = document.createElement('span');
     count.className = 'chat-image-gallery-count';
-    count.textContent = `📷 ${matches.length} фото`;
+    count.textContent = T('📷 {n} photos', {n: matches.length});
     const toggle = document.createElement('button');
     toggle.type = 'button';
     toggle.className = 'chat-image-gallery-toggle';
@@ -744,16 +744,16 @@ function renderImages(el, content) {
     const renderGallery = (expanded) => {
         gallery.classList.toggle('is-expanded', expanded);
         toggle.setAttribute('aria-expanded', String(expanded));
-        toggle.textContent = expanded ? 'Свернуть' : `Показать все ${matches.length}`;
+        toggle.textContent = expanded ? T('Collapse') : T('Show all {n}', {n: matches.length});
         grid.replaceChildren();
         const shown = expanded ? matches : matches.slice(0, previewCount);
         shown.forEach((path, index) => {
             const thumb = document.createElement('button');
             thumb.type = 'button';
             thumb.className = 'chat-image-gallery-thumb';
-            thumb.setAttribute('aria-label', `Открыть фото ${index + 1} из ${matches.length}`);
+            thumb.setAttribute('aria-label', T('Open photo {current} of {total}', {current: index + 1, total: matches.length}));
             const img = makeImage(path, '', false);
-            img.alt = `Фото ${index + 1} из ${matches.length}`;
+            img.alt = T('Photo {current} of {total}', {current: index + 1, total: matches.length});
             img.onerror = () => thumb.remove();
             thumb.appendChild(img);
 
@@ -764,7 +764,7 @@ function renderImages(el, content) {
                 more.className = 'chat-image-gallery-more';
                 more.textContent = `+${hiddenCount}`;
                 thumb.appendChild(more);
-                thumb.setAttribute('aria-label', `Показать остальные ${hiddenCount} фото`);
+                thumb.setAttribute('aria-label', T('Show remaining {n} photos', {n: hiddenCount}));
             }
             thumb.addEventListener('click', () => {
                 if (expandsGallery) renderGallery(true);
@@ -1070,7 +1070,7 @@ function buildCompactToolLine(type, content, ts, payload) {
         };
         try {
             const parsed = JSON.parse(body);
-            if (rawName === NOTIFY_USER_TOOL) preview = `🔔 ${parsed.reason || 'зовёт'}`;
+            if (rawName === NOTIFY_USER_TOOL) preview = `🔔 ${parsed.reason || T('calling')}`;
             else if (rawName === 'mcp__orchestra__spawn_worker') {
                 icon = '👶';
                 const role = parsed.role ? ` · ${T(parsed.role)}` : '';
@@ -1080,17 +1080,17 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'mcp__orchestra__send_message') {
                 icon = '✉️';
                 const message = typeof parsed.message === 'string' ? parsed.message : '';
-                preview = `→ ${parsed.to || '?'} · ${message.length} симв.`;
+                preview = `→ ${parsed.to || '?'} · ${message.length} ${T('chars')}`;
             }
             else if (rawName === 'mcp__orchestra__task_create') {
                 icon = '📋';
-                const priority = parsed.priority != null ? ` · приоритет ${parsed.priority}` : '';
-                preview = `создаёт задачу «${typeof parsed.title === 'string' ? parsed.title : '?'}»${priority}`;
+                const priority = parsed.priority != null ? ` · ${T('priority')} ${parsed.priority}` : '';
+                preview = `${T('creates task')} «${typeof parsed.title === 'string' ? parsed.title : '?'}»${priority}`;
             }
             else if (rawName === 'mcp__orchestra__task_update') {
                 icon = '✏️';
-                const status = typeof parsed.status === 'string' && parsed.status ? ` • статус ${parsed.status}` : '';
-                preview = `обновляет задачу #${taskNum(parsed.par) || '?'}${status}`;
+                const status = typeof parsed.status === 'string' && parsed.status ? ` · ${T('status')} ${parsed.status}` : '';
+                preview = `${T('updates task')} #${taskNum(parsed.par) || '?'}${status}`;
             }
             else if (rawName === 'mcp__websearch__search' || rawName === 'mcp__websearch__search_web' || rawName === 'WebSearch') preview = codexWebSearchCompactLabel(codexWebSearchSpec(parsed));
             else if (rawName === 'ToolSearch') preview = `🔍 ${parsed.query || ''}`;
@@ -1129,8 +1129,8 @@ function buildCompactToolLine(type, content, ts, payload) {
             else if (rawName === 'Sleep') preview = `⏱ ${Math.round((parsed.duration_ms || 0) / 1000)}s`;
             else if (rawName === 'mcp__orchestra__task_list') {
                 const _fl = _taskListFilter(parsed);
-                preview = `читает список задач${_fl ? ` (${_fl})` : ''}`;
-            } else if (rawName === 'mcp__orchestra__task_get') preview = `читает задачу #${taskNum(parsed.par) || '?'}`;
+                preview = `${T('reads task list')}${_fl ? ` (${_fl})` : ''}`;
+            } else if (rawName === 'mcp__orchestra__task_get') preview = `${T('reads task')} #${taskNum(parsed.par) || '?'}`;
             else if (rawName === 'mcp__orchestra__bg_create') { const _bi = _JOB_ICONS[parsed.type]||'⚙️'; preview = `${_bi} ${T('BG')}: ${parsed.type||'?'} ${parsed.message ? '"'+parsed.message.slice(0,30)+'"' : ''}`; }
             else if (rawName === 'mcp__orchestra__bg_list') preview = `📊 ${T('BG Jobs')}`;
             else if (rawName === 'mcp__orchestra__bg_cancel') preview = `⏹ ${T('Cancel job')} ${(parsed.job_id||'').slice(0,8)}`;
@@ -1245,7 +1245,7 @@ function buildCompactToolLine(type, content, ts, payload) {
             line.dataset.orphanResultFor = toolUseId;
             line._orphanResult = {content, ts, payload};
         }
-        line.textContent = `⚠️ Результат без вызова${toolUseId ? ` · ${toolUseId}` : ''} — ${content.slice(0, 100)}`;
+        line.textContent = T('⚠️ Result without call{toolUseId} — {content}', {toolUseId: toolUseId ? ` · ${toolUseId}` : '', content: content.slice(0, 100)});
     }
 
     return line;
@@ -1496,7 +1496,7 @@ async function _restoreImageGenerationResult(host, payload) {
         if (host.isConnected) _completeImageGenerationTool(host, projected);
     } catch (error) {
         if (host.isConnected && header) {
-            header.textContent = `❌ Image unavailable · ${error.name}`;
+            header.textContent = T('❌ Image unavailable · {error}', {error: error.name});
             header.style.color = '#f87171';
         }
     } finally {
@@ -1509,7 +1509,7 @@ function _renderCodexThinking(content, label) {
     card.className = 'codex-activity-card codex-thinking-card';
     const header = document.createElement('button');
     header.className = 'codex-activity-header';
-    header.innerHTML = `<span class="codex-activity-caret">▶</span><span>${label || 'Reasoning'}</span>`;
+    header.innerHTML = `<span class="codex-activity-caret">▶</span><span>${label || T('Reasoning')}</span>`;
     const body = document.createElement('div');
     body.className = 'codex-activity-body markdown-body';
     body.innerHTML = DOMPurify.sanitize(marked.parse(content || ''));
@@ -1574,7 +1574,7 @@ function _taskDescriptionHtml(description) {
     const collapsible = text.length > 180 || text.split('\n').length > 3;
     const bodyStyle = collapsible ? 'max-height:64px;overflow:hidden' : '';
     const button = collapsible
-        ? '<button type="button" data-task-description-toggle onclick="event.stopPropagation();_toggleTaskDescription(this)" style="margin-top:3px;padding:0;border:0;background:none;color:#818cf8;font-size:10px;cursor:pointer">▼ Развернуть</button>'
+        ? '<button type="button" data-task-description-toggle onclick="event.stopPropagation();_toggleTaskDescription(this)" style="margin-top:3px;padding:0;border:0;background:none;color:#818cf8;font-size:10px;cursor:pointer">' + T('▼ Expand') + '</button>'
         : '';
     return `<div data-task-description style="margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:5px">
         <div style="font-size:9px;color:#64748b;margin-bottom:2px">${T('DESCRIPTION')}</div>
@@ -1590,7 +1590,7 @@ function _toggleTaskDescription(button) {
     button.dataset.expanded = expanded ? '0' : '1';
     body.style.maxHeight = expanded ? '64px' : 'none';
     body.style.overflow = expanded ? 'hidden' : 'visible';
-    button.textContent = expanded ? '▼ Развернуть' : '▲ Свернуть';
+    button.textContent = expanded ? T('▼ Expand') : T('▲ Collapse');
 }
 
 function _taskCardBodyHtml(task) {
@@ -1669,7 +1669,7 @@ function _appendToolTechnicalDetails(card, content) {
     details.style.cssText = 'margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:4px';
     const summary = document.createElement('summary');
     summary.style.cssText = 'font-size:10px;color:#64748b;cursor:pointer;user-select:none';
-    summary.textContent = 'Технические детали';
+    summary.textContent = T('Technical details');
     details.addEventListener('click', event => event.stopPropagation());
     const raw = document.createElement('pre');
     raw.style.cssText = 'margin:5px 0 0;padding:6px 8px;border-radius:6px;background:#0d1117;color:#64748b;font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto';
@@ -1697,7 +1697,7 @@ function _appendFullToolArguments(card, rawName, data) {
     details.dataset.toolFullArguments = '1';
     details.className = 'tool-full-details';
     const summary = document.createElement('summary');
-    summary.textContent = 'Полные аргументы';
+    summary.textContent = T('Full arguments');
     details.appendChild(summary);
     details.addEventListener('click', event => event.stopPropagation());
 
@@ -1731,9 +1731,9 @@ function _agentResultSummary(content) {
 function _agentCountText(counts) {
     const word = (count, one, many) => `${count} ${count === 1 ? one : many}`;
     return [
-        word(counts.running, 'работает', 'работают'),
-        word(counts.waiting, 'ждёт', 'ждут'),
-        word(counts.broken, 'сломан', 'сломаны'),
+        word(counts.running, T('running (one)'), T('running (many)')),
+        word(counts.waiting, T('waiting (one)'), T('waiting (many)')),
+        word(counts.broken, T('broken (one)'), T('broken (many)')),
     ];
 }
 
@@ -1801,7 +1801,7 @@ function _renderSendChartResult(card, content, ts) {
     chartStatus.dataset.role = 'chart-status';
     chartStatus.style.cssText = 'margin-top:4px;color:#64748b';
     if (!/^\S+\.png$/i.test(filename)) {
-        chartStatus.textContent = `⚠️ График недоступен: некорректный файл — ${chartPath}`;
+        chartStatus.textContent = T('⚠️ Chart unavailable: invalid file — {path}', {path: chartPath});
         card.appendChild(chartStatus);
     } else {
         const image = document.createElement('img');
@@ -1813,7 +1813,7 @@ function _renderSendChartResult(card, content, ts) {
         image.addEventListener('click', () => openImageLightbox(image.src));
         image.addEventListener('error', () => {
             image.remove();
-            chartStatus.textContent = `⚠️ График недоступен: файл не найден — ${chartPath}`;
+            chartStatus.textContent = T('⚠️ Chart unavailable: file not found — {path}', {path: chartPath});
             chartStatus.style.color = '#fbbf24';
             card.appendChild(chartStatus);
         }, {once: true});
@@ -1852,24 +1852,24 @@ function _updateCompactToolResult(card, content, isBase64Image) {
             resultSpan.textContent = '❌';
         } else if (rawName === 'mcp__orchestra__task_create') {
             const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-            resultSpan.textContent = `✅ задача #${number} создана`;
+            resultSpan.textContent = T('✅ task #{number} created', {number});
         } else if (rawName === 'mcp__orchestra__task_get') {
             const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
-            resultSpan.textContent = `📋 читает задачу #${number}`;
+            resultSpan.textContent = T('📋 reads task #{number}', {number});
         } else if (rawName === 'mcp__orchestra__task_list') {
-            resultSpan.textContent = `📋 читает список задач (${(parsed.tasks || []).length})`;
+            resultSpan.textContent = T('📋 reads task list ({count})', {count: (parsed.tasks || []).length});
         } else {
             const number = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
             const status = parsed.new_status || parsed.status;
-            resultSpan.textContent = `✏️ обновляет задачу #${number}${typeof status === 'string' && status ? ` • ${status}` : ''}`;
+            resultSpan.textContent = T('✏️ updates task #{number}{status}', {number, status: typeof status === 'string' && status ? ` · ${status}` : ''});
         }
     } else if (isAgentList) {
         const summary = _agentResultSummary(clean);
         if (summary) {
-            resultSpan.textContent = `${summary.agents.length} всего · ${_agentCountText(summary.counts).join(' · ')}`;
+            resultSpan.textContent = T('{total} total · {counts}', {total: summary.agents.length, counts: _agentCountText(summary.counts).join(' · ')});
             resultSpan.style.color = summary.counts.broken ? '#ef4444' : summary.counts.waiting ? '#f59e0b' : '#64748b';
         } else {
-            resultSpan.textContent = '❌ нет списка';
+            resultSpan.textContent = T('❌ no list');
         }
     } else if (rawName === 'mcp__orchestra__send_file') {
         resultSpan.textContent = clean.includes('error') ? '❌' : T('✅ sent');
@@ -1991,7 +1991,7 @@ function _renderStatusEntry(type, content, ts, anchor, insertAndFollow, payload)
             _showRateLimitBanner(selectedAgent, rateLimit.retry, rateLimit.max, rateLimit.delay);
         }
         badge.className = 'text-center text-xs py-1 text-amber-400 italic';
-        badge.textContent = `⏳ Rate limit — Anthropic временно ограничил запросы, повтор ${rateLimit.retry}/${rateLimit.max} через ${rateLimit.delay}с (это НЕ твой лимит подписки)`;
+        badge.textContent = T('⏳ Rate limit — Anthropic temporarily limited requests, retry {retry}/{max} in {delay}s (this is NOT your subscription limit)', {retry: rateLimit.retry, max: rateLimit.max, delay: rateLimit.delay});
     } else if (codexReconnect) {
         badge.className = 'text-center text-xs py-1 text-amber-400 italic';
         badge.textContent = `🔌 ${T('Codex reconnecting')} — ${content.slice('codex reconnecting:'.length).trim()}`;
@@ -2051,7 +2051,7 @@ function _startSubagentClock(element, ts) {
     element.appendChild(clock);
     const tick = () => {
         if (!element.isConnected) return _stopSubagentClock(element);
-        clock.textContent = `⏳ идёт ${_formatSubagentElapsed((Date.now() - base) / 1000)}`;
+        clock.textContent = T('⏳ running {elapsed}', {elapsed: _formatSubagentElapsed((Date.now() - base) / 1000)});
     };
     tick();
     element._saClockId = setInterval(tick, _SA_CLOCK_TICK_MS);
@@ -2202,7 +2202,7 @@ function _renderFullToolCall(content, payload, div) {
         let reason = '';
         try { reason = JSON.parse(body).reason || ''; } catch {}
         div.classList.add('chat-notify-user');
-        header.textContent = '🔔 Оркестратор зовёт';
+        header.textContent = T('🔔 Orchestrator is calling');
         header.style.color = '#fca5a5';
         const reasonEl = document.createElement('div');
         reasonEl.className = 'chat-notify-user-reason';
@@ -2215,7 +2215,7 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const to = d.to || d.message?.substring(0, 30) || '?';
             const msg = d.message || '';
-            header.textContent = `📨 → ${to}`;
+            header.textContent = T('📨 → {to}', {to});
             header.style.color = '#a78bfa';
             const SEND_PREVIEW_H = 90;
             const bodyEl = document.createElement('div');
@@ -2226,7 +2226,7 @@ function _renderFullToolCall(content, payload, div) {
             const hint = document.createElement('div');
             hint.className = 'text-xs mt-1';
             hint.style.cssText = 'color:#a78bfa;cursor:pointer';
-            hint.textContent = '▼ expand';
+            hint.textContent = T('▼ expand');
             div.appendChild(hint);
             div.style.cursor = 'pointer';
             let sendExpanded = false;
@@ -2235,7 +2235,7 @@ function _renderFullToolCall(content, payload, div) {
                 sendExpanded = !sendExpanded;
                 bodyEl.style.maxHeight = sendExpanded ? 'none' : SEND_PREVIEW_H + 'px';
                 bodyEl.style.overflowY = sendExpanded ? 'visible' : 'hidden';
-                hint.textContent = sendExpanded ? '▲ collapse' : '▼ expand';
+                hint.textContent = sendExpanded ? T('▲ collapse') : T('▼ expand');
             });
             requestAnimationFrame(() => {
                 if (bodyEl.scrollHeight <= SEND_PREVIEW_H + 4) { hint.style.display = 'none'; bodyEl.style.maxHeight = 'none'; bodyEl.style.overflowY = 'visible'; }
@@ -2363,7 +2363,7 @@ function _renderFullToolCall(content, payload, div) {
         try {
             const d = JSON.parse(body);
             const q = d.query || '';
-            header.textContent = `🔍 Loading: ${q}`;
+            header.textContent = T('🔍 Loading: {q}', {q});
             header.style.color = '#38bdf8';
         } catch {}
     }
@@ -2371,7 +2371,7 @@ function _renderFullToolCall(content, payload, div) {
     if (isBugReport) {
         try {
             const d = JSON.parse(body);
-            header.textContent = `🐛 Bug: ${d.title || '?'}`;
+            header.textContent = T('🐛 Bug: {title}', {title: d.title || '?'});
             header.style.color = '#f97316';
             if (d.description) {
                 const descLines = d.description.split('\n');
@@ -2385,7 +2385,7 @@ function _renderFullToolCall(content, payload, div) {
                     const hint = document.createElement('div');
                     hint.className = 'text-xs mt-1';
                     hint.style.cssText = 'color:#f97316;cursor:pointer';
-                    hint.textContent = '▼ expand';
+                    hint.textContent = T('▼ expand');
                     div.appendChild(hint);
                     let bugExpanded = false;
                     div.style.cursor = 'pointer';
@@ -2394,7 +2394,7 @@ function _renderFullToolCall(content, payload, div) {
                         bugExpanded = !bugExpanded;
                         descEl.style.maxHeight = bugExpanded ? 'none' : '90px';
                         descEl.style.overflowY = bugExpanded ? 'visible' : 'hidden';
-                        hint.textContent = bugExpanded ? '▲ collapse' : '▼ expand';
+                        hint.textContent = bugExpanded ? T('▲ collapse') : T('▼ expand');
                     });
                 }
             }
@@ -2407,7 +2407,7 @@ function _renderFullToolCall(content, payload, div) {
             const url = d.url || '';
             let domain = '?';
             try { domain = new URL(url).hostname; } catch {}
-            header.textContent = `🌐 Fetching: ${domain}`;
+            header.textContent = T('🌐 Fetching: {domain}', {domain});
             header.style.color = '#38bdf8';
             if (url) {
                 const linkEl = document.createElement('a');
@@ -2429,7 +2429,7 @@ function _renderFullToolCall(content, payload, div) {
                     const hint = document.createElement('div');
                     hint.className = 'text-xs mt-1';
                     hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                    hint.textContent = '▼ expand';
+                    hint.textContent = T('▼ expand');
                     div.appendChild(hint);
                     let fetchExpanded = false;
                     div.style.cursor = 'pointer';
@@ -2438,7 +2438,7 @@ function _renderFullToolCall(content, payload, div) {
                         fetchExpanded = !fetchExpanded;
                         promptEl.style.maxHeight = fetchExpanded ? 'none' : '90px';
                         promptEl.style.overflowY = fetchExpanded ? 'visible' : 'hidden';
-                        hint.textContent = fetchExpanded ? '▲ collapse' : '▼ expand';
+                        hint.textContent = fetchExpanded ? T('▲ collapse') : T('▼ expand');
                     });
                 }
             }
@@ -2496,10 +2496,10 @@ function _renderFullToolCall(content, payload, div) {
         'mcp__orchestra__list_orchestrators': () => ({ icon: '🎯', label: T('Orchestrators'), color: '#a78bfa' }),
         'mcp__orchestra__get_worker_logs': (d) => ({ icon: '📋', label: `${T('Logs')}: ${d.name||'?'}`, color: '#a78bfa', sub: d.limit ? T('{n} entries', {n: d.limit}) : '' }),
         'mcp__orchestra__get_worker_info': (d) => ({ icon: '🤖', label: `${T('Info')}: ${d.name||'?'}`, color: '#a78bfa' }),
-        'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: `создаёт задачу «${typeof d.title === 'string' ? d.title : '?'}»`, color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
+        'mcp__orchestra__task_create': (d) => ({ icon: '📋', label: T('creates task "{title}"', {title: typeof d.title === 'string' ? d.title : '?'}), color: '#22c55e', sub: d.price ? `${d.price} ${CUR}` : '' }),
         'mcp__orchestra__task_update': (d) => {
-            const status = typeof d.status === 'string' && d.status.length > 0 ? ` • статус ${d.status}` : '';
-            return { icon: '✏️', label: `обновляет задачу #${taskNum(d.par)||'?'}${status}`, color: '#38bdf8' };
+            const status = typeof d.status === 'string' && d.status.length > 0 ? ` · ${T('status')} ${d.status}` : '';
+            return { icon: '✏️', label: T('updates task #{number}{status}', {number: taskNum(d.par)||'?', status}), color: '#38bdf8' };
         },
         'mcp__orchestra__task_list': (d) => {
             const _safeTaskFilter = (value) => typeof value === 'string' && value.length <= 32 && !/[<>\"'`]/.test(value);
@@ -2507,9 +2507,9 @@ function _renderFullToolCall(content, payload, div) {
                 .map((value) => (typeof value === 'string' ? value.trim() : ''))
                 .filter((value) => value && _safeTaskFilter(value))
                 .join(', ');
-            return { icon: '📋', label: `читает список задач${f ? ` (${f})` : ''}`, color: '#a78bfa' };
+            return { icon: '📋', label: T('reads task list{filter}', {filter: f ? ` (${f})` : ''}), color: '#a78bfa' };
         },
-        'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: `читает задачу #${taskNum(d.par)||'?'}`, color: '#a78bfa' }),
+        'mcp__orchestra__task_get': (d) => ({ icon: '📋', label: T('reads task #{number}', {number: taskNum(d.par)||'?'}), color: '#a78bfa' }),
         'mcp__orchestra__bg_create': (d) => { const i = _JOB_ICONS[d.type]||'⚙️'; return { icon: i, label: T('BG'), raw: `${d.type||''}${d.delay_seconds ? ' '+Math.round(d.delay_seconds/60)+'m' : ''}`, color: '#38bdf8', sub: d.message || d.target || '' }; },
         'mcp__orchestra__bg_list': () => ({ icon: '📊', label: T('BG Jobs'), color: '#a78bfa' }),
         'mcp__orchestra__bg_cancel': (d) => ({ icon: '⏹', label: `${T('Cancel')} ${(d.job_id||'').slice(0,8)}`, color: '#94a3b8' }),
@@ -2539,7 +2539,7 @@ function _renderFullToolCall(content, payload, div) {
     if (isGlob) {
         try {
             const d = JSON.parse(body);
-            header.textContent = `🔎 Glob: ${d.pattern || '?'}`;
+            header.textContent = T('🔎 Glob: {pattern}', {pattern: d.pattern || '?'});
             header.style.color = '#38bdf8';
             if (d.path) {
                 const pathEl = document.createElement('div');
@@ -2553,7 +2553,7 @@ function _renderFullToolCall(content, payload, div) {
     if (isSkill) {
         try {
             const d = JSON.parse(body);
-            header.textContent = `⚡ Skill: ${d.skill || '?'}`;
+            header.textContent = T('⚡ Skill: {skill}', {skill: d.skill || '?'});
             header.style.color = '#eab308';
         } catch {}
     }
@@ -2590,7 +2590,7 @@ function _renderFullToolCall(content, payload, div) {
                 hint.dataset.role = 'bash-hint';
                 hint.dataset.count = cmdLines.length - PREVIEW_LINES;
                 hint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                hint.textContent = `▼ ${cmdLines.length - PREVIEW_LINES} more lines`;
+                hint.textContent = T('▼ {n} more lines', {n: cmdLines.length - PREVIEW_LINES});
                 cmdWrap.appendChild(hint);
             }
             div.appendChild(cmdWrap);
@@ -2706,7 +2706,7 @@ function _renderFullToolCall(content, payload, div) {
         try {
             const d = JSON.parse(body);
             const focus = String(d.focus || '').trim();
-            header.textContent = `🧠 Review${focus ? ': ' + focus.slice(0, 100) : ''}`;
+            header.textContent = T('🧠 Review{focus}', {focus: focus ? `: ${focus.slice(0, 100)}` : ''});
             header.title = focus;
             header.style.color = '#a78bfa';
         } catch {}
@@ -2750,7 +2750,7 @@ function _renderFullToolCall(content, payload, div) {
                     hint.dataset.role = 'agent-hint';
                     hint.dataset.count = promptLines.length - PREVIEW_LINES;
                     hint.style.cssText = 'cursor:pointer;text-align:center;color:#a78bfa;font-size:10px';
-                    hint.textContent = `▼ ${promptLines.length - PREVIEW_LINES} more lines`;
+                    hint.textContent = T('▼ {n} more lines', {n: promptLines.length - PREVIEW_LINES});
                     promptWrap.appendChild(hint);
                 }
                 div.appendChild(promptWrap);
@@ -2762,7 +2762,7 @@ function _renderFullToolCall(content, payload, div) {
                     const restPre = promptWrap.querySelector('[data-role="agent-rest"]');
                     const hint = promptWrap.querySelector('[data-role="agent-hint"]');
                     if (restPre) restPre.style.display = agentExpanded ? 'block' : 'none';
-                    if (hint) hint.textContent = agentExpanded ? '▲ collapse' : `▼ ${hint.dataset.count} more lines`;
+                    if (hint) hint.textContent = agentExpanded ? T('▲ collapse') : T('▼ {n} more lines', {n: hint.dataset.count});
                 });
             }
             div.dataset.isEdit = '1';
@@ -2774,7 +2774,7 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const grepPath = d.path || d.glob || '';
             const shortGrepPath = grepPath.replace(/^.*\/worktrees\/[^/]+\/[^/]+\//, '') || grepPath;
-            header.textContent = `🔎 Grep: ${d.pattern || ''}${shortGrepPath ? ' in ' + shortGrepPath : ''}`;
+            header.textContent = T('🔎 Grep: {pattern}{path}', {pattern: d.pattern || '', path: shortGrepPath ? ' in ' + shortGrepPath : ''});
             header.style.color = '#38bdf8';
             div.dataset.isGrep = '1';
             div.dataset.grepPattern = d.pattern || '';
@@ -2799,7 +2799,7 @@ function _renderFullToolCall(content, payload, div) {
             if (restEl && moreEl) {
                 const showing = restEl.style.display !== 'none';
                 restEl.style.display = showing ? 'none' : 'block';
-                moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
+                moreEl.textContent = showing ? T('▼ {n} more lines', {n: moreEl.dataset.count}) : T('▲ collapse');
             }
         });
     } else if (diffEl) {
@@ -2813,7 +2813,7 @@ function _renderFullToolCall(content, payload, div) {
                 const showing = restEl.style.display !== 'none';
                 restEl.style.display = showing ? 'none' : 'block';
                 const restCount = moreEl.dataset.count || '0';
-                moreEl.textContent = showing ? `▼ ${restCount} more lines` : `▲ collapse`;
+                moreEl.textContent = showing ? T('▼ {n} more lines', {n: restCount}) : T('▲ collapse');
             }
         });
     } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
@@ -2851,7 +2851,7 @@ function _renderFullToolCall(content, payload, div) {
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
                 hint.style.color = '#38bdf8';
-                hint.textContent = `▼ ${remaining} more lines`;
+                hint.textContent = T('▼ {n} more lines', {n: remaining});
                 hint.dataset.role = 'expand-hint';
                 div.appendChild(hint);
             }
@@ -2886,7 +2886,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         }
         const warning = document.createElement('div');
         warning.className = 'text-amber-400 text-xs font-medium mb-1';
-        warning.textContent = `⚠️ Результат без вызова${resultToolId ? ` · ${resultToolId}` : ''}`;
+        warning.textContent = T('⚠️ Result without call{toolId}', {toolId: resultToolId ? ` · ${resultToolId}` : ''});
         div.appendChild(warning);
     }
     if (lastTool) {
@@ -3148,9 +3148,9 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const taskNumber = taskNum(parsed.par ?? parsed.task_id ?? parsed.id) || '?';
                 if (hdr) {
                     if (tn.includes('create')) {
-                        hdr.textContent = `✅ создаёт задачу «${parsed.title || '?'}»`;
+                        hdr.textContent = T('✅ creates task "{title}"', {title: parsed.title || '?'});
                     } else {
-                        hdr.textContent = `📋 читает задачу #${taskNumber}`;
+                        hdr.textContent = T('📋 reads task #{number}', {number: taskNumber});
                     }
                     hdr.style.color = tn.includes('create') ? '#22c55e' : '#a78bfa';
                 }
@@ -3184,9 +3184,9 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const parNum = (parsed.par || '?').replace(/^[A-Z]+-/, '');
                 const titleStr = parsed.title ? ` "${parsed.title.slice(0,40)}"` : '';
                 const status = parsed.new_status || parsed.status;
-                const statusLabel = typeof status === 'string' && status ? ` • статус ${status}` : '';
+                const statusLabel = typeof status === 'string' && status ? ` · ${T('status')} ${status}` : '';
                 if (hdr) {
-                    hdr.textContent = `✏️ обновляет задачу #${parNum}${titleStr}${statusLabel}`;
+                    hdr.textContent = T('✏️ updates task #{number}{title}{status}', {number: parNum, title: titleStr, status: statusLabel});
                     hdr.style.color = '#22c55e';
                 }
                 if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
@@ -3230,7 +3230,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const resultMeta = document.createElement('div');
                 resultMeta.className = 'text-xs mt-1';
                 resultMeta.style.color = '#64748b';
-                resultMeta.textContent = `Результат: ${tasks.length}`;
+                resultMeta.textContent = T('Result: {count}', {count: tasks.length});
                 lastTool.appendChild(resultMeta);
                 if (tasks.length > 0 && parsed.detailed) {
                     const container = document.createElement('div');
@@ -3262,7 +3262,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 }
             } else if (tn === 'mcp__orchestra__bg_list') {
                 const jobs = Array.isArray(parsed) ? parsed : (parsed.jobs || []);
-                if (hdr) hdr.textContent = `📊 ${jobs.length} jobs`;
+                if (hdr) hdr.textContent = T('📊 {n} jobs', {n: jobs.length});
                 if (jobs.length > 0) {
                     const container = document.createElement('div');
                     container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:2px';
@@ -3449,7 +3449,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     lastTool.appendChild(container);
                     if (hdr) {
                         const counts = agentSummary.counts;
-                        hdr.textContent = `🎼 Агенты · ${agentLines.length} всего`;
+                        hdr.textContent = T('🎼 Agents · {count} total', {count: agentLines.length});
                         hdr.style.color = counts.broken ? '#ef4444' : counts.waiting ? '#f59e0b' : '#a78bfa';
                     }
                     const counts = agentSummary.counts;
@@ -3464,14 +3464,14 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         const attentionEl = document.createElement('div');
                         attentionEl.dataset.agentAttention = '1';
                         attentionEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fbbf24';
-                        attentionEl.textContent = `Требуют внимания: ${attention.map(agent => `${agent.name} — ${agent.status}`).join(', ')}`;
+                        attentionEl.textContent = T('Require attention: {list}', {list: attention.map(agent => `${agent.name} — ${agent.status}`).join(', ')});
                         lastTool.insertBefore(attentionEl, container);
                     }
                     if (agentLines.length > PREVIEW_COUNT) {
                         const hint = document.createElement('div');
                         hint.className = 'text-xs mt-1';
                         hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
-                        hint.textContent = `▼ ${agentLines.length - PREVIEW_COUNT} more`;
+                        hint.textContent = T('▼ {n} more', {n: agentLines.length - PREVIEW_COUNT});
                         lastTool.appendChild(hint);
                         let _alExp = false;
                         lastTool.style.cursor = 'pointer';
@@ -3481,7 +3481,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                             container.querySelectorAll('[data-agent-row]').forEach((r, i) => {
                                 if (i >= PREVIEW_COUNT) r.style.display = _alExp ? 'block' : 'none';
                             });
-                            hint.textContent = _alExp ? '▲ collapse' : `▼ ${agentLines.length - PREVIEW_COUNT} more`;
+                            hint.textContent = _alExp ? T('▲ collapse') : T('▼ {n} more', {n: agentLines.length - PREVIEW_COUNT});
                         });
                     }
                     _appendToolTechnicalDetails(lastTool, content);
@@ -3493,7 +3493,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const lines = clean.split('\n').filter(l => l.trim());
                 let workerName = '';
                 try { const ci = lastTool.dataset.toolContent.indexOf(':'); const cd = JSON.parse(lastTool.dataset.toolContent.slice(ci+1)); workerName = cd.name || ''; } catch {}
-                if (hdr) { hdr.textContent = `📋 ${workerName ? workerName+': ' : ''}${lines.length} log entries`; hdr.style.color = '#a78bfa'; }
+                if (hdr) { hdr.textContent = T('📋 {name}{count} log entries', {name: workerName ? workerName + ': ' : '', count: lines.length}); hdr.style.color = '#a78bfa'; }
                 if (lines.length > 0) {
                     const PREVIEW_LOG = 6;
                     const container = document.createElement('div');
@@ -3515,7 +3515,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         const hint = document.createElement('div');
                         hint.className = 'text-xs mt-1';
                         hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
-                        hint.textContent = `▼ ${lines.length - PREVIEW_LOG} more`;
+                        hint.textContent = T('▼ {n} more', {n: lines.length - PREVIEW_LOG});
                         lastTool.appendChild(hint);
                         let _logExp = false;
                         lastTool.style.cursor = 'pointer';
@@ -3523,7 +3523,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                             if (e.target.tagName === 'A') return;
                             _logExp = !_logExp;
                             container.querySelectorAll('[data-log-row]').forEach((r, i) => { if (i >= PREVIEW_LOG) r.style.display = _logExp ? 'block' : 'none'; });
-                            hint.textContent = _logExp ? '▲ collapse' : `▼ ${lines.length - PREVIEW_LOG} more`;
+                            hint.textContent = _logExp ? T('▲ collapse') : T('▼ {n} more', {n: lines.length - PREVIEW_LOG});
                         });
                     }
                 }
@@ -3540,7 +3540,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
                 hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                hint.textContent = `▼ ${resLines.length - 5} more lines`;
+                hint.textContent = T('▼ {n} more lines', {n: resLines.length - 5});
                 lastTool.appendChild(hint);
                 let _orchExp = false;
                 lastTool.style.cursor = 'pointer';
@@ -3549,7 +3549,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     _orchExp = !_orchExp;
                     resultEl.style.maxHeight = _orchExp ? 'none' : '90px';
                     resultEl.style.overflowY = _orchExp ? 'visible' : 'hidden';
-                    hint.textContent = _orchExp ? '▲ collapse' : `▼ ${resLines.length - 5} more lines`;
+                    hint.textContent = _orchExp ? T('▲ collapse') : T('▼ {n} more lines', {n: resLines.length - 5});
                 });
             }
             addTimestamp(lastTool, ts);
@@ -3564,7 +3564,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const hdr = lastTool.querySelector('.flex.items-center');
                 if (hdr) {
                     const count = clean.split('\n').filter(l => l.trim()).length;
-                    hdr.textContent = `📂 Glob: ${_globPattern || '?'} (${count})`;
+                    hdr.textContent = T('📂 Glob: {pattern} ({count})', {pattern: _globPattern || '?', count});
                 }
                 lastTool.style.cursor = 'pointer';
                 lastTool.addEventListener('click', (e) => {
@@ -3609,7 +3609,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
                 hint.style.cssText = 'color:#38bdf8;cursor:pointer';
-                hint.textContent = `▼ ${fetchLines.length - 5} more lines`;
+                hint.textContent = T('▼ {n} more lines', {n: fetchLines.length - 5});
                 lastTool.appendChild(hint);
                 let wfExpanded = false;
                 lastTool.style.cursor = 'pointer';
@@ -3618,7 +3618,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     wfExpanded = !wfExpanded;
                     bodyEl.style.maxHeight = wfExpanded ? 'none' : '90px';
                     bodyEl.style.overflowY = wfExpanded ? 'visible' : 'hidden';
-                    hint.textContent = wfExpanded ? '▲ collapse' : `▼ ${fetchLines.length - 5} more lines`;
+                    hint.textContent = wfExpanded ? T('▲ collapse') : T('▼ {n} more lines', {n: fetchLines.length - 5});
                 });
             }
             addTimestamp(lastTool, ts);
@@ -3675,7 +3675,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 resHint.dataset.role = 'bash-result-hint';
                 resHint.dataset.count = resLines.length - BASH_PREVIEW;
                 resHint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                resHint.textContent = `▼ ${resLines.length - BASH_PREVIEW} more lines`;
+                resHint.textContent = T('▼ {n} more lines', {n: resLines.length - BASH_PREVIEW});
                 resWrap.appendChild(resHint);
             }
             sep.appendChild(resWrap);
@@ -3694,7 +3694,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     if (restEl && moreEl) {
                         const showing = restEl.style.display !== 'none';
                         restEl.style.display = showing ? 'none' : 'block';
-                        moreEl.textContent = showing ? `▼ ${moreEl.dataset.count} more lines` : `▲ collapse`;
+                        moreEl.textContent = showing ? T('▼ {n} more lines', {n: moreEl.dataset.count}) : T('▲ collapse');
                     }
                 });
             }
@@ -3774,7 +3774,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     moreEl.dataset.role = 'read-more';
                     moreEl.dataset.count = restL.length;
                     moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
-                    moreEl.textContent = `▼ ${restL.length} more lines`;
+                    moreEl.textContent = T('▼ {n} more lines', {n: restL.length});
                     readContainer.appendChild(moreEl);
                 }
             }
@@ -3830,7 +3830,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             const toggleResult = () => {
                 rExpanded = !rExpanded;
                 resultEl.innerHTML = '📎 ' + DOMPurify.sanitize(rExpanded ? full : preview, {ADD_ATTR: ['target']});
-                rHint.textContent = rExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+                rHint.textContent = rExpanded ? T('▲ collapse') : T('▼ {n} more lines', {n: _resultLines.length - _RESULT_PREVIEW});
             };
             lastTool.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleResult(); });
         }
@@ -3876,13 +3876,13 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         const sHint = document.createElement('div');
         sHint.className = 'text-xs mt-1';
         sHint.style.cssText = 'color:#38bdf8;cursor:pointer';
-        sHint.textContent = `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+        sHint.textContent = T('▼ {n} more lines', {n: _resultLines.length - _RESULT_PREVIEW});
         div.appendChild(sHint);
         let sExpanded = false;
         const toggleStandalone = () => {
             sExpanded = !sExpanded;
             resultBody.innerHTML = '📎 ' + DOMPurify.sanitize(sExpanded ? full : preview, {ADD_ATTR: ['target']});
-            sHint.textContent = sExpanded ? '▲ collapse' : `▼ ${_resultLines.length - _RESULT_PREVIEW} more lines`;
+            sHint.textContent = sExpanded ? T('▲ collapse') : T('▼ {n} more lines', {n: _resultLines.length - _RESULT_PREVIEW});
         };
         div.style.cursor = 'pointer';
         div.addEventListener('click', (e) => { if (e.target.tagName !== 'A') toggleStandalone(); });
@@ -4124,7 +4124,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
             : content;
         const dashboardMessage = origin === 'unknown' && validDetail && suppliedDetail.subtype === 'dashboard';
         if (origin === 'user' || dashboardMessage) {
-            if (dashboardMessage) div.setAttribute('aria-label', 'Сообщение из дашборда');
+            if (dashboardMessage) div.setAttribute('aria-label', T('Message from dashboard'));
             div.className += ' markdown-body';
             div.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
             renderImages(div, displayContent);
@@ -4161,7 +4161,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     }
     else if (type === 'error') {
         if (/rate.?limit/i.test(content)) {
-            div.textContent = '⏳ Rate limit — Anthropic временно ограничил запросы (это НЕ лимит твоей подписки). Orchestra автоматически повторит.';
+            div.textContent = T('⏳ Rate limit — Anthropic temporarily limited requests (this is NOT your subscription limit). Orchestra will retry automatically.');
             div.className = div.className.replace('text-red-400', 'text-amber-400');
         } else {
             div.textContent = content;
