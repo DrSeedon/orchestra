@@ -39,7 +39,7 @@
         <div class="flex items-center gap-3 text-xs text-slate-600 shrink-0">
             <span id="stats-line"></span>
             <span id="lang-switch"></span>
-            <button id="models-catalog-btn" onclick="openCatalogModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Каталог моделей — доступность для дашборда и для агентов">🧠</button>
+            <button id="models-catalog-btn" onclick="openCatalogModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400" title="Model catalog — availability for dashboard and agents" data-i18n-title>🧠</button>
             {% if is_auth_enabled %}<span id="proxy-status" class="text-xs cursor-default" title="Proxy status" data-i18n-title>⏳</span>{% endif %}
             {% if is_owner_mode %}
             <div class="relative">
@@ -51,7 +51,7 @@
                     <div id="profiles-list" class="space-y-1.5 mb-2"></div>
                     <div class="space-y-1.5 border-t border-slate-700/50 pt-2">
                         <input id="profile-new-name" type="text" placeholder="name" data-i18n-placeholder class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
-                        <input id="profile-new-dir" type="text" placeholder="каталог настроек (пусто = ~/.claude)" class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
+                        <input id="profile-new-dir" type="text" placeholder="settings directory (empty = ~/.claude)" data-i18n-placeholder class="w-full px-2 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs focus:border-indigo-500 focus:outline-none">
                         <button id="profile-add-btn" class="w-full py-1.5 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium transition-colors" data-i18n>Add</button>
                         <div id="profile-error" class="text-[10px] text-red-400 hidden"></div>
                     </div>
@@ -105,17 +105,17 @@
     <div id="delete-orch-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
         <div class="glass glow rounded-xl p-6 w-[380px]">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-bold">Удалить оркестратор</h2>
+                <h2 class="text-sm font-bold" data-i18n>Delete Orchestrator</h2>
                 <button id="delete-orch-modal-close" class="text-slate-500 hover:text-white text-lg">✕</button>
             </div>
-            <p class="text-xs text-slate-300 mb-4">Удалить <span id="delete-orch-name" class="font-semibold text-white" data-i18n-skip></span> и всех его воркеров?</p>
+            <p class="text-xs text-slate-300 mb-4" data-i18n>Delete <span id="delete-orch-name" class="font-semibold text-white" data-i18n-skip></span> and all its workers?</p>
             <label class="flex items-center gap-2 mb-4 cursor-pointer">
                 <input id="delete-tg-topics" type="checkbox" class="accent-indigo-500">
-                <span class="text-xs text-slate-400">Также удалить связанные TG-топики</span>
+                <span class="text-xs text-slate-400" data-i18n>Also delete associated TG topics</span>
             </label>
             <div class="flex gap-2">
-                <button id="delete-orch-cancel" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-colors">Отмена</button>
-                <button id="delete-orch-confirm" class="flex-1 px-3 py-2 bg-red-900 hover:bg-red-800 rounded-lg text-xs font-medium transition-colors">Удалить</button>
+                <button id="delete-orch-cancel" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-colors" data-i18n>Cancel</button>
+                <button id="delete-orch-confirm" class="flex-1 px-3 py-2 bg-red-900 hover:bg-red-800 rounded-lg text-xs font-medium transition-colors" data-i18n>Delete</button>
             </div>
         </div>
     </div>
@@ -124,13 +124,13 @@
     <div id="change-scope-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
         <div class="glass glow rounded-xl p-6 w-[420px]">
             <div class="flex items-center justify-between mb-4">
-                <h2 class="text-sm font-bold">📁 Сменить папку</h2>
+                <h2 class="text-sm font-bold" data-i18n>📁 Change Folder</h2>
                 <button id="change-scope-close" class="text-slate-500 hover:text-white text-lg">✕</button>
             </div>
-            <p class="text-xs text-slate-400 mb-3">Оркестратор: <span id="change-scope-name" class="font-semibold text-white" data-i18n-skip></span></p>
+            <p class="text-xs text-slate-400 mb-3" data-i18n>Orchestrator: <span id="change-scope-name" class="font-semibold text-white" data-i18n-skip></span></p>
             <div class="space-y-3">
                 <div>
-                    <label class="text-xs text-slate-500 block mb-1">Новый путь</label>
+                    <label class="text-xs text-slate-500 block mb-1" data-i18n>New path</label>
                     <div class="flex gap-2">
                         <input id="change-scope-path" type="text" class="flex-1 px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-sm focus:border-indigo-500 focus:outline-none" placeholder="/mnt/data/Projects/...">
                         <button id="change-scope-browse" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-xs transition-colors" title="Browse projects" data-i18n-title>📂</button>
@@ -139,8 +139,8 @@
                 </div>
                 <div id="change-scope-error" class="text-xs text-red-400 hidden"></div>
                 <div class="flex gap-2">
-                    <button id="change-scope-cancel" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-colors">Отмена</button>
-                    <button id="change-scope-confirm" class="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium transition-colors">Переместить</button>
+                    <button id="change-scope-cancel" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-colors" data-i18n>Cancel</button>
+                    <button id="change-scope-confirm" class="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-xs font-medium transition-colors" data-i18n>Move</button>
                 </div>
             </div>
         </div>
@@ -161,12 +161,12 @@
     <div id="catalog-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden" onclick="if(event.target===this)closeCatalogModal()">
         <div class="glass glow rounded-2xl p-4 w-[900px] max-w-[92vw] max-h-[85vh] flex flex-col gap-3">
             <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-sm font-semibold text-slate-200 mr-auto">Каталог моделей</h2>
-                <input id="catalog-search" type="text" placeholder="Поиск по имени…" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300 w-44">
-                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-free"> бесплатные</label>
-                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-tools"> тулы</label>
-                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-image"> картинки</label>
-                <button id="catalog-refresh-btn" onclick="refreshCatalog()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400">↻ обновить</button>
+                <h2 class="text-sm font-semibold text-slate-200 mr-auto" data-i18n>Model Catalog</h2>
+                <input id="catalog-search" type="text" placeholder="Search by name..." class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-300 w-44" data-i18n-placeholder>
+                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-free"> <span data-i18n>Free</span></label>
+                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-tools"> <span data-i18n>Tools</span></label>
+                <label class="text-[11px] text-slate-400 flex items-center gap-1"><input type="checkbox" id="catalog-image"> <span data-i18n>Images</span></label>
+                <button id="catalog-refresh-btn" onclick="refreshCatalog()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400" data-i18n>↻ Refresh</button>
                 <button onclick="closeCatalogModal()" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg text-slate-400">✕</button>
             </div>
             <div id="catalog-list" class="flex-1 overflow-y-auto text-xs space-y-1 pr-1"></div>
@@ -236,15 +236,15 @@
         <div class="flex-1 flex flex-col min-w-0">
             <div class="relative flex-1 min-h-0 overflow-hidden">
                 <div id="chat" class="h-full overflow-y-auto overflow-x-hidden p-4 space-y-2"></div>
-                <aside id="chat-timeline" class="chat-timeline" aria-label="Навигация по событиям чата">
+                <aside id="chat-timeline" class="chat-timeline" aria-label="Chat event navigation" data-i18n-aria-label>
                     <div class="chat-timeline-user-nav">
-                        <button id="chat-user-prev" type="button" title="Предыдущее моё сообщение" aria-label="Предыдущее моё сообщение">↑</button>
-                        <span id="chat-user-count">Я 0</span>
-                        <button id="chat-user-next" type="button" title="Следующее моё сообщение" aria-label="Следующее моё сообщение">↓</button>
+                        <button id="chat-user-prev" type="button" title="Previous my message" aria-label="Previous my message" data-i18n-title data-i18n-aria-label>↑</button>
+                        <span id="chat-user-count">Me 0</span>
+                        <button id="chat-user-next" type="button" title="Next my message" aria-label="Next my message" data-i18n-title data-i18n-aria-label>↓</button>
                     </div>
                     <div id="chat-timeline-track" class="chat-timeline-track"></div>
                 </aside>
-                <button id="chat-jump-latest" type="button" class="chat-jump-latest hidden">↓ Новые ниже</button>
+                <button id="chat-jump-latest" type="button" class="chat-jump-latest hidden" data-i18n>↓ New messages below</button>
             </div>
             <div class="p-3 border-t border-slate-800/50">
                 <div id="input-resize-handle" style="height:6px;cursor:row-resize;margin:0 auto 4px;width:40px;border-radius:3px;background:rgba(51,65,85,0.3)"></div>
@@ -256,7 +256,7 @@
                         <button id="stop-btn" class="px-4 py-2 bg-red-900 hover:bg-red-800 rounded-lg text-sm font-medium transition-colors hidden" data-i18n>Stop</button>
                         <div class="flex gap-1">
                             <button id="send-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors" data-i18n>Send</button>
-                            <button id="send-after-turn-btn" title="Отправить после окончания текущего хода" aria-label="Отправить после окончания текущего хода" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors" data-i18n>After turn</button>
+                            <button id="send-after-turn-btn" title="Send after current turn ends" aria-label="Send after current turn ends" class="px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm font-medium transition-colors" data-i18n-title data-i18n-aria-label data-i18n>After turn</button>
                         </div>
                     </div>
                 </div>
@@ -273,7 +273,7 @@
                     <div class="flex items-center gap-2 shrink-0">
                         <button id="compact-btn" class="text-slate-500 hover:text-amber-300 text-xs hidden" title="Compact context" data-i18n-title>🗜</button>
                         <button id="restart-cli-btn" class="text-slate-500 hover:text-green-300 text-xs hidden" title="Restart CLI" data-i18n-title>♻️</button>
-                        <button id="clear-session-btn" class="text-slate-500 hover:text-red-300 text-xs hidden" title="Очистить сессию — начать разговор с нуля (история забывается, worktree и ветка не трогаются)">🧹</button>
+                        <button id="clear-session-btn" class="text-slate-500 hover:text-red-300 text-xs hidden" title="Clear session — start conversation from scratch (history forgotten, worktree and branch untouched)" data-i18n-title>🧹</button>
                         <button id="view-prompt-btn" class="text-slate-500 hover:text-indigo-300 text-xs hidden" title="View system prompt" data-i18n-title>📜</button>
                         <button id="subagents-btn" class="text-slate-500 hover:text-purple-300 text-xs hidden" title="Agent and background-task activity" data-i18n-title onclick="openSubagentsModal()">🤖</button>
                         <span id="ai-status" class="text-xs font-mono"></span>

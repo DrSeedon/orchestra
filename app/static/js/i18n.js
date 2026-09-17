@@ -437,6 +437,30 @@
         'Restart did not happen: {reason}': 'Рестарт не состоялся: {reason}',
         'Failed to update: {errors}': 'Не удалось обновить: {errors}',
         'Shown saved:': 'Показано сохранённое:',
+
+        // --- шаблоны: dashboard.html ---
+        'Model catalog — availability for dashboard and agents': 'Каталог моделей — доступность для дашборда и для агентов',
+        'settings directory (empty = ~/.claude)': 'каталог настроек (пусто = ~/.claude)',
+        'Delete Orchestrator': 'Удалить оркестратор',
+        'and all its workers?': ' и всех его воркеров?',
+        'Also delete associated TG topics': 'Также удалить связанные TG-топики',
+        '📁 Change Folder': '📁 Сменить папку',
+        'Orchestrator:': 'Оркестратор:',
+        'New path': 'Новый путь',
+        'Move': 'Переместить',
+        'Model Catalog': 'Каталог моделей',
+        'Search by name...': 'Поиск по имени…',
+        'Free': 'бесплатные',
+        'Tools': 'тулы',
+        'Images': 'картинки',
+        '↻ Refresh': '↻ обновить',
+        'Chat event navigation': 'Навигация по событиям чата',
+        'Previous my message': 'Предыдущее моё сообщение',
+        'Next my message': 'Следующее моё сообщение',
+        'Me 0': 'Я 0',
+        '↓ New messages below': '↓ Новые ниже',
+        'Send after current turn ends': 'Отправить после окончания текущего хода',
+        'Clear session — start conversation from scratch (history forgotten, worktree and branch untouched)': 'Очистить сессию — начать разговор с нуля (история забывается, worktree и ветка не трогаются)',
     };
 
     var ATTRS = [
