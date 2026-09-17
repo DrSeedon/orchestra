@@ -108,7 +108,7 @@ function _stampChatLogNode(node, payload) {
 // единственной воронке, через которую узлы попадают в чат, поэтому он один на все ветки
 // отрисовки (текст, инструмент, картинка).
 function _fmtKb(bytes) {
-    return bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} МБ` : `${Math.round(bytes / 1024)} КБ`;
+    return bytes >= 1048576 ? T('{value} MB', {value: (bytes / 1048576).toFixed(1)}) : T('{value} KB', {value: Math.round(bytes / 1024)});
 }
 
 function _toolResultImageSrc(content) {
@@ -243,7 +243,7 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         details.append(name, pathEl);
         row.appendChild(details);
         if (downloads && _SEND_FILE_OPENABLE.test(path)) {
-            row.appendChild(_sendFileButton('🔗 Открыть', () => _openSendFile(path)));
+            row.appendChild(_sendFileButton(T('🔗 Open'), () => _openSendFile(path)));
         }
         if (downloads) row.appendChild(_sendFileButton(T('📥 Download'), () => _downloadSendFile(path)));
         list.appendChild(row);
@@ -304,21 +304,21 @@ function _attachTruncNotice(node, row, type, ts) {
     const notice = document.createElement('div');
     notice.className = 'trunc-notice';
     const text = document.createElement('span');
-    text.textContent = `✂️ показано ${_fmtKb(shown)} из ${_fmtKb(row.trunc)}`;
+    text.textContent = T('✂️ shown {shown} of {total}', {shown: _fmtKb(shown), total: _fmtKb(row.trunc)});
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'trunc-load';
-    btn.textContent = 'загрузить целиком';
+    btn.textContent = T('load full');
     btn.addEventListener('click', async () => {
         btn.disabled = true;
-        btn.textContent = 'гружу…';
+        btn.textContent = T('loading…');
         let full;
         try {
             full = await api(`/api/logs/${row.id}`);
         } catch (e) {
             // Молчать нельзя: юзер нажал и должен увидеть, что именно не вышло.
             btn.disabled = false;
-            btn.textContent = `не вышло (${e.name}) — ещё раз`;
+            btn.textContent = T('failed ({name}) — try again', {name: e.name});
             return;
         }
         // Рисуем заново той же функцией, что и всё остальное: одна отрисовка на все случаи.
@@ -362,8 +362,10 @@ function _syncChatJumpButton() {
         button.classList.add('hidden');
         return;
     }
-    button.textContent = _chatHasNewBelow ? '↓ Новые ниже' : '↓ В конец';
-    button.title = _chatHasNewBelow ? 'Ниже есть сообщения — перейти в конец' : 'Перейти в конец чата';
+    button.textContent = _chatHasNewBelow ? T('↓ New below') : T('↓ Jump to bottom');
+    button.title = _chatHasNewBelow
+        ? T('New messages below — jump to bottom')
+        : T('Jump to chat bottom');
     button.classList.remove('hidden');
 }
 
@@ -487,8 +489,8 @@ function _maybeNotifyCall(row, agent) {
     if (!Number.isFinite(id) || _notifiedCallIds.has(id)) return null;
     _notifiedCallIds.add(id);
     if (!('Notification' in window) || Notification.permission !== 'granted') return null;
-    const notification = new Notification(`🔔 ${agent || 'Оркестратор'} зовёт`, {
-        body: reason || 'без пояснения',
+    const notification = new Notification(T('🔔 {agent} is calling', {agent: agent || 'Orchestrator'}), {
+        body: reason || T('no details'),
         tag: `orchestra-call-${id}`,   // вторая защита от дубля, уже на стороне ОС
         requireInteraction: true,      // юзера нет у экрана — зов не должен успеть исчезнуть
     });
@@ -512,7 +514,7 @@ function _addNotifyPermissionBtn() {
     btn.type = 'button';
     btn.className = 'chat-notify-permission';
     btn.textContent = '🔔';
-    btn.title = 'Включить уведомления браузера о зовах оркестратора';
+    btn.title = T('Enable browser notifications for orchestrator calls');
     btn.setAttribute('aria-label', btn.title);
     btn.addEventListener('click', async () => {
         try { await Notification.requestPermission(); } catch (e) { console.warn('Notification permission:', e.name, e.message); }
@@ -543,9 +545,9 @@ function _isChatTimelineAgentText(node) {
 }
 
 function _chatTimelineLabel(node, kind) {
-    const labels = {user: 'Моё сообщение', worker: 'Сообщение воркера', tool: 'Инструмент',
-                    error: 'Ошибка', status: 'Статус', agent: 'Ответ агента',
-                    final: 'Итоговый ответ', notify: 'Оркестратор зовёт'};
+    const labels = {user: T('My message'), worker: T('Worker message'), tool: T('Tool'),
+                    error: T('Error'), status: T('Status'), agent: T('Agent response'),
+                    final: T('Final response'), notify: T('Orchestrator calls')};
     const reason = kind === 'notify' ? _notifyUserReason(node) : '';
     return reason
         ? `${labels[kind]}: ${reason}${node.dataset.chatNavTime || ''}`
@@ -676,7 +678,7 @@ function _scheduleChatTimelineHeights() {
 function _syncChatTimelineControls() {
     const track = $('#chat-timeline-track');
     for (const [cls, countId, prevId, nextId, label] of [
-        ['is-user', '#chat-user-count', '#chat-user-prev', '#chat-user-next', 'Я'],
+        ['is-user', '#chat-user-count', '#chat-user-prev', '#chat-user-next', T('Me')],
         ['is-notify', '#chat-notify-count', '#chat-notify-prev', '#chat-notify-next', '🔔'],
         ['is-final', '#chat-final-count', '#chat-final-prev', '#chat-final-next', '🏁'],
     ]) {
@@ -728,9 +730,9 @@ function _addNotifyNav() {
     nav.id = 'chat-notify-nav';
     nav.className = 'chat-timeline-user-nav is-notify-nav hidden';
     nav.innerHTML = `
-        <button id="chat-notify-prev" type="button" title="Предыдущий зов оркестратора" aria-label="Предыдущий зов оркестратора">↑</button>
+        <button id="chat-notify-prev" type="button" title="${T('Previous orchestrator call')}" aria-label="${T('Previous orchestrator call')}">↑</button>
         <span id="chat-notify-count">🔔 0</span>
-        <button id="chat-notify-next" type="button" title="Следующий зов оркестратора" aria-label="Следующий зов оркестратора">↓</button>`;
+        <button id="chat-notify-next" type="button" title="${T('Next orchestrator call')}" aria-label="${T('Next orchestrator call')}">↓</button>`;
     timeline.prepend(nav);
 }
 
@@ -741,9 +743,9 @@ function _addFinalNav() {
     nav.id = 'chat-final-nav';
     nav.className = 'chat-timeline-user-nav is-final-nav hidden';
     nav.innerHTML = `
-        <button id="chat-final-prev" type="button" title="Предыдущий итоговый ответ" aria-label="Предыдущий итоговый ответ">↑</button>
+        <button id="chat-final-prev" type="button" title="${T('Previous final response')}" aria-label="${T('Previous final response')}">↑</button>
         <span id="chat-final-count">🏁 0</span>
-        <button id="chat-final-next" type="button" title="Следующий итоговый ответ" aria-label="Следующий итоговый ответ">↓</button>`;
+        <button id="chat-final-next" type="button" title="${T('Next final response')}" aria-label="${T('Next final response')}">↓</button>`;
     timeline.prepend(nav);
 }
 
@@ -801,7 +803,7 @@ function _restoreChatAnchor(key) {
     }
     const divider = document.createElement('div');
     divider.className = 'chat-unread-divider';
-    divider.textContent = 'Непрочитанные';
+    divider.textContent = T('Unread');
     chat.insertBefore(divider, firstUnread);
     // Разделитель — МЕТКА для того, кто листает вверх, а не цель прыжка. Прыжок к нему
     // открывал чат на сообщениях многодневной давности, и свежие «дорисовывались ниже»
@@ -1239,7 +1241,7 @@ function _addLoadMoreBtn() {
     btn.type = 'button';
     btn.id = 'load-more-btn';
     btn.className = 'w-full text-xs text-slate-500 hover:text-indigo-300 py-2 text-center cursor-pointer select-none';
-    btn.textContent = '▲ Дозагрузить предыдущие 500';
+    btn.textContent = T('▲ Load previous 500');
     btn.addEventListener('click', loadMoreLogs);
     $('#chat').prepend(btn);
 }
@@ -1262,7 +1264,7 @@ async function loadMoreLogs() {
     const firstId = chatLogs[targetAgent]?.firstId;
     if (!firstId) return;
     const btn = $('#load-more-btn');
-    if (btn) { btn.textContent = '⏳ Загружаю предыдущие сообщения…'; btn.disabled = true; }
+    if (btn) { btn.textContent = T('⏳ Loading previous messages…'); btn.disabled = true; }
     try {
         const q = new URLSearchParams({
             scope: targetScope,
@@ -1314,7 +1316,7 @@ async function loadMoreLogs() {
         chat.scrollTop = chat.scrollHeight - oldHeight;
     } catch (e) {
         if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
-        if (btn) { btn.textContent = '▲ Дозагрузить предыдущие 500'; btn.disabled = false; }
+        if (btn) { btn.textContent = T('▲ Load previous 500'); btn.disabled = false; }
         console.warn('loadMoreLogs error:', e);
     }
 }
@@ -1368,7 +1370,7 @@ async function loadProfilesDropdown() {
         for (const p of profiles) {
             const opt = document.createElement('option');
             opt.value = p.name;
-            opt.textContent = `${p.name} (${p.config_dir || 'env процесса'})`;
+            opt.textContent = `${p.name} (${p.config_dir || T('process env')})`;
             select.appendChild(opt);
         }
         // API sorts by name (ORDER BY name), so first entry ≠ 'personal'.
@@ -1455,20 +1457,20 @@ async function restartCli() {
             body: JSON.stringify({scope: targetScope}),
         });
         if (result.unreconciled_deliveries) {
-            alert(`${targetName}: очередь освобождена. Доставок с неизвестным исходом: ${result.unreconciled_deliveries}. Они НЕ отправлены повторно; проверь историю перед повторной отправкой.`);
+            alert(T('{name}: queue cleared. Deliveries with unknown outcome: {count}. They were NOT resent; check history before resending.', {name: targetName, count: result.unreconciled_deliveries}));
         }
         btn.textContent = '✅';
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 1500);
     } catch (e) {
         btn.textContent = '❌';
-        alert(`${targetName}: CLI не перезапущен — ${e.message || String(e)}`);
+        alert(T('{name}: CLI restart failed — {error}', {name: targetName, error: e.message || String(e)}));
         setTimeout(() => { btn.textContent = '♻️'; btn.disabled = false; }, 2000);
     }
 }
 
 async function clearSession() {
     if (!selectedAgent || !currentScope) return;
-    if (!confirm(`Очистить сессию «${selectedAgent}»?\n\nАгент забудет весь разговор и начнёт с чистого листа.\nWorktree, ветка и промпт не пострадают.`)) return;
+    if (!confirm(T('Clear session "{name}"?\n\nAgent will forget the entire conversation and start fresh.\nWorktree, branch, and prompt remain intact.', {name: selectedAgent}))) return;
     const btn = $('#clear-session-btn');
     btn.disabled = true;
     btn.textContent = '⏳';
@@ -1764,15 +1766,15 @@ async function restartServer() {
         const result = await api('/api/restart', { method: 'POST', timeoutMs: 200000 });
         if (result.journal_loss) {
             Connection.restartAttempt(
-                `Рестарт состоится, но журнал потерян: ${result.journal_loss.reason || 'причина не указана'}`,
+                T('Restart will proceed but journal lost: {reason}', {reason: result.journal_loss.reason || T('reason not specified')}),
                 true,
             );
         } else {
             const waited = Number(result.waited_s || 0).toFixed(1);
-            Connection.restartAttempt(`Рестарт подготовлен за ${waited} с`, false);
+            Connection.restartAttempt(T('Restart prepared in {waited}s', {waited}), false);
         }
     } catch (error) {
-        Connection.restartAttempt(`Рестарт не состоялся: ${error.message || error}`, true);
+        Connection.restartAttempt(T('Restart failed: {error}', {error: error.message || error}), true);
         btn.disabled = false;
         btn.textContent = '⟳';
     }
@@ -1893,10 +1895,10 @@ const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b', 
 const _STATUS_BG = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)',
                     broken: 'rgba(239,68,68,0.15)'};
 const _STATUS_TITLE = {
-    running: 'выполняет — агент работает над задачей',
-    waiting: 'ждёт — агент ждёт фоновую задачу или подтверждение',
-    idle: 'простаивает — агент свободен',
-    broken: 'сломан — worktree агента не существует: задачу слать бесполезно, нужен спавн заново',
+    running: T('running — agent is working on a task'),
+    waiting: T('waiting — agent is waiting for a background task or confirmation'),
+    idle: T('idle — agent is free'),
+    broken: T('broken — agent worktree does not exist: sending tasks is useless, needs respawn'),
 };
 
 function _orchState(o) {
@@ -2136,14 +2138,14 @@ function initTabContextMenu() {
             item.addEventListener('click', (ev) => { ev.stopPropagation(); close(); fn(); });
             return item;
         };
-        menu.appendChild(mkItem('👁 Скрыть', '#94a3b8', () => {
+        menu.appendChild(mkItem(T('👁 Hide'), '#94a3b8', () => {
             const h = _getHiddenTabs(); h.add(name); _setHiddenTabs(h);
             renderOrchTabs(orchData);
         }));
-        menu.appendChild(mkItem('📁 Сменить папку', '#60a5fa', () => {
+        menu.appendChild(mkItem(T('📁 Change folder'), '#60a5fa', () => {
             changeOrchScope(name, scope);
         }));
-        menu.appendChild(mkItem('🗑 Удалить', '#ef4444', () => {
+        menu.appendChild(mkItem(T('🗑 Delete'), '#ef4444', () => {
             openDeleteOrchModal(name, scope);
         }));
         document.body.appendChild(menu);
@@ -2423,19 +2425,19 @@ function _renderChatLoadState(name, error = null) {
     const copy = document.createElement('div');
     const title = document.createElement('strong');
     title.textContent = localError
-        ? 'Актуальные сообщения не загрузились'
-        : connectionOwns ? 'Ожидаю восстановления Orchestra' : 'Загружаю актуальные сообщения';
+        ? T('Actual messages failed to load')
+        : connectionOwns ? T('Waiting for Orchestra recovery') : T('Loading actual messages');
     const detail = document.createElement('span');
     detail.textContent = localError
-        ? `${error.name || 'Error'}: ${error.message || 'без текста'}`
-        : connectionOwns ? 'Причина и восстановление показаны в единой полосе сверху'
-        : `${name} · покажу историю одним кадром`;
+        ? `${error.name || 'Error'}: ${error.message || T('no message')}`
+        : connectionOwns ? T('Cause and recovery shown in the top banner')
+        : T('{name} — showing history in one frame', {name});
     copy.append(title, detail);
     state.append(marker, copy);
     if (localError) {
         const retry = document.createElement('button');
         retry.type = 'button';
-        retry.textContent = 'Повторить';
+        retry.textContent = T('Retry');
         retry.addEventListener('click', () => _showChatFor(name, currentScope));
         state.appendChild(retry);
     }
@@ -2748,8 +2750,8 @@ function updateAgentInfo(session) {
     if (clearBtn) {
         clearBtn.disabled = isRunning;
         clearBtn.title = isRunning
-            ? 'Дождись idle'
-            : 'Очистить сессию — начать разговор с нуля (история забывается, worktree и ветка не трогаются)';
+            ? T('Wait for idle')
+            : T('Clear session — start conversation from scratch (history forgotten, worktree and branch untouched)');
     }
     $('#compact-btn').disabled = isRunning;
     $('#compact-btn').title = isRunning ? T('Wait for idle') : T('Compact context');
@@ -2835,7 +2837,7 @@ async function _fetchAgentContextNow(name, scope) {
         // цифра минутной давности осмысленна, а «-» неотличим от «агент только что создан».
         const known = contextCache[`${scope}:${name}`];
         if (known && scope === currentScope && name === selectedAgent) {
-            setContextDisplay(`${known} (не обновлено)`);
+            setContextDisplay(`${known} ${T('(not updated)')}`);
         }
     }
 }
@@ -2948,7 +2950,7 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
             }
             : {
                 tier: 'cold', label: '🧊', color: '#64748b',
-                title: T('Cache cold — next turn ~20× дороже'),
+                title: T('Cache cold — next turn ~20× costlier'),
             };
     }
 
@@ -2963,7 +2965,7 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
     }
     const title = approximate
         ? T('Codex cache ≈{rem}m within a {ttl}m reference window; actual ChatGPT TTL is not guaranteed', {rem: remMin, ttl: ttlMin})
-        : T('Cache {rem}m — после истечения ~20× дороже', {rem: remMin});
+        : T('Cache {rem}m — after expiry ~20× costlier', {rem: remMin});
     return {tier, label, color, title};
 }
 
@@ -3589,7 +3591,7 @@ async function api(url, opts = {}) {
                     // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
                     if (Connection.restartFromBody(resp.status, text)) {
                         Connection.setRestarting(true);
-                        const refused = new Error('Orchestra перезапускается — вызов отклонён до изменений. Повтори через несколько секунд.');
+                        const refused = new Error(T('Orchestra is restarting — call rejected before changes. Retry in a few seconds.'));
                         refused.name = 'RestartPendingError';
                         throw refused;
                     }
@@ -3637,7 +3639,7 @@ function _showRateLimitBanner(agentName, retryNum, maxRetries, delaySec) {
     banner.classList.remove('hidden');
     banner.classList.add('flex');
     const render = () => {
-        banner.innerHTML = `⏳ <b>Rate limit (сервер Anthropic)</b> — ${escHtml(agentName)}: повтор ${retryNum}/${maxRetries} через <b class="text-amber-100">${remaining}с</b> <span class="text-amber-400/70">· это НЕ лимит твоей подписки</span>`;
+        banner.innerHTML = `⏳ <b>${T('Rate limit (Anthropic server)')}</b> — ${escHtml(agentName)}: ${T('retry {current}/{max} in {remaining}s', {current: retryNum, max: maxRetries, remaining: remaining})} <span class="text-amber-400/70">${T('· this is NOT your subscription limit')}</span>`;
     };
     render();
     if (_rateLimitTimer) clearInterval(_rateLimitTimer);
@@ -3689,7 +3691,7 @@ const PortfolioPanel = (() => {
         button.className = 'left-tab portfolio-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors';
         button.textContent = T('PROJECTS');
         button.title = T('Portfolio projects');
-        button.setAttribute('aria-label', 'Открыть доску проектов');
+        button.setAttribute('aria-label', T('Open project board'));
         button.addEventListener('click', () => switchLeftTab('portfolio'));
         tabs.insertBefore(button, folderButton);
     }
@@ -3699,7 +3701,7 @@ const PortfolioPanel = (() => {
         const contributors = (project.contributors || []).map(member => member.name).filter(Boolean);
         const contributorText = contributors.length
             ? contributors.map(name => `<span class="portfolio-person">+ ${escHtml(name)}</span>`).join('')
-            : '<span class="portfolio-person portfolio-person-muted">без саба</span>';
+            : `<span class="portfolio-person portfolio-person-muted">${T('no sub')}</span>`;
         return `<div class="portfolio-project-meta">
             <span class="portfolio-owner">◆ ${escHtml(owner)}</span>${contributorText}
         </div>`;
@@ -3732,9 +3734,9 @@ const PortfolioPanel = (() => {
             data-task-status="${escHtml(task.status || '')}"
             data-task-stable-id="${escHtml(stableId)}"${waitAttrs}>
             <span class="portfolio-road-task-ref">#${escHtml(par)}</span>
-            <strong>${escHtml(task.title || 'Без названия')}</strong>
+            <strong>${escHtml(task.title || T('Untitled'))}</strong>
             <small>${escHtml(task.status || 'unknown')}</small>
-            ${waits.map(wait => `<em>НУЖЕН ОТВЕТ · ${escHtml(wait.question)}</em>`).join('')}
+            ${waits.map(wait => `<em>${T('NEED REPLY · {question}', {question: escHtml(wait.question)})}</em>`).join('')}
         </button>`;
     }
 
@@ -3757,7 +3759,7 @@ const PortfolioPanel = (() => {
 
     function markerHtml(active) {
         return active ? `<div class="portfolio-road-marker" data-road-marker="true">
-            <i></i><span>мы здесь</span>
+            <i></i><span>${T('we are here')}</span>
         </div>` : '';
     }
 
@@ -3767,7 +3769,7 @@ const PortfolioPanel = (() => {
             data-road-stage-label="${escHtml(label)}" data-stage-active="${active}">
             <header><span>${escHtml(label)}</span><b>${tasks.length}</b></header>
             <div class="portfolio-road-stage-tasks">
-                ${tasks.map(task => taskCard(project, task, 'stage')).join('') || '<span class="portfolio-road-empty">пока пусто</span>'}
+                ${tasks.map(task => taskCard(project, task, 'stage')).join('') || `<span class="portfolio-road-empty">${T('empty for now')}</span>`}
             </div>
             ${markerHtml(marker)}
         </section>`;
@@ -3778,8 +3780,8 @@ const PortfolioPanel = (() => {
         const key = `${project.id}:${kind}`;
         const expanded = openDisclosures.has(key);
         const label = kind === 'queue'
-            ? `${expanded ? '−' : '+'}${tasks.length} в очереди`
-            : `${expanded ? '−' : '+'}${tasks.length} в истории`;
+            ? T('{sign}{count} in queue', {sign: expanded ? '−' : '+', count: tasks.length})
+            : T('{sign}{count} in history', {sign: expanded ? '−' : '+', count: tasks.length});
         return `<div class="portfolio-road-disclosure-block">
             <button type="button" class="portfolio-road-disclosure"
                 data-road-disclosure="${kind}" data-disclosure-key="${escHtml(key)}"
@@ -3795,8 +3797,8 @@ const PortfolioPanel = (() => {
         const queue = tasks.filter(task => _queueStatuses.has(task.status));
         const history = tasks.filter(task => _terminalStatuses.has(task.status));
         const expanded = openDisclosures.has(`${project.id}:queue`) || openDisclosures.has(`${project.id}:history`);
-        const title = noStages ? 'БЕЗ ЭТАПОВ' : 'БЕЗ ЯРЛЫКА';
-        const empty = !tasks.length ? '<span class="portfolio-road-empty">Этапы не заданы · задач пока нет</span>' : '';
+        const title = noStages ? T('NO STAGES') : T('NO LABEL');
+        const empty = !tasks.length ? `<span class="portfolio-road-empty">${T('Stages not set · no tasks yet')}</span>` : '';
         return `<section class="portfolio-road-unassigned ${expanded ? 'is-expanded' : ''}"
             data-road-unassigned="true">
             <header><span>${title}</span><b>${tasks.length}</b></header>
@@ -3828,7 +3830,7 @@ const PortfolioPanel = (() => {
             )
         );
         const goal = project.goal && ['active', 'paused'].includes(project.goal.status)
-            ? `<div class="portfolio-road-goal"><span>ЦЕЛЬ</span><strong>${escHtml(project.goal.objective)}</strong></div>`
+            ? `<div class="portfolio-road-goal"><span>${T('GOAL')}</span><strong>${escHtml(project.goal.objective)}</strong></div>`
             : '';
         const road = stageOrder.map(label => stageHtml(
             project, label, staged.get(label), marker === `stage:${label}`
@@ -3840,7 +3842,7 @@ const PortfolioPanel = (() => {
             </header>
             ${goal}
             ${projectWaits.map(wait => `<button type="button" class="portfolio-project-wait"
-                data-project-wait-id="${escHtml(wait.id)}">НУЖНО РЕШЕНИЕ · ${escHtml(wait.question)} · ОТВЕТИТЬ</button>`).join('')}
+                data-project-wait-id="${escHtml(wait.id)}">${T('DECISION NEEDED · {question} · REPLY', {question: escHtml(wait.question)})}</button>`).join('')}
             <div class="portfolio-road-scroll" data-road-scroll="true">
                 <div class="portfolio-road-track">
                     ${road}
@@ -3900,14 +3902,14 @@ const PortfolioPanel = (() => {
         const projects = Array.isArray(currentPayload.projects) ? currentPayload.projects : [];
         panel.innerHTML = `<div class="portfolio-shell" data-portfolio-board="true">
             <header class="portfolio-board-head">
-                <div><span>${T('PORTFOLIO / ROAD')}</span><h2>Дорога к цели</h2></div>
+                <div><span>${T('PORTFOLIO / ROAD')}</span><h2>${T('Road to goal')}</h2></div>
                 <div class="portfolio-board-actions">
-                    <span>${projects.length} ${projects.length === 1 ? 'проект' : 'проектов'}</span>
-                    <button type="button" data-portfolio-refresh aria-label="Обновить доску">↻</button>
+                    <span>${projects.length} ${projects.length === 1 ? T('project') : T('projects')}</span>
+                    <button type="button" data-portfolio-refresh aria-label="${T('Refresh board')}">↻</button>
                 </div>
             </header>
             <div class="portfolio-road-board" data-portfolio-road="true">
-                ${projects.map(projectRoad).join('') || '<div class="portfolio-empty">ПРОЕКТОВ ПОКА НЕТ</div>'}
+                ${projects.map(projectRoad).join('') || `<div class="portfolio-empty">${T('NO PROJECTS YET')}</div>`}
             </div>
         </div>`;
         bindInteractions(panel);
@@ -3924,7 +3926,7 @@ const PortfolioPanel = (() => {
         const panel = document.getElementById('tasks-panel');
         if (!panel || !_portfolioTabActive) return;
         const generation = ++requestGeneration;
-        panel.innerHTML = '<div class="portfolio-loading"><span></span>Собираю точное состояние проектов…</div>';
+        panel.innerHTML = `<div class="portfolio-loading"><span></span>${T('Gathering exact project state…')}</div>`;
         try {
             const sessionId = selectedOrchestratorSessionId();
             const query = sessionId ? `?agent_session_id=${encodeURIComponent(sessionId)}` : '';
@@ -3933,7 +3935,7 @@ const PortfolioPanel = (() => {
             render(payload);
         } catch (error) {
             if (generation !== requestGeneration || !_portfolioTabActive) return;
-            panel.innerHTML = `<div class="portfolio-error"><strong>Доска недоступна</strong><span>${escHtml(error.message || String(error))}</span></div>`;
+            panel.innerHTML = `<div class="portfolio-error"><strong>${T('Board unavailable')}</strong><span>${escHtml(error.message || String(error))}</span></div>`;
         }
     }
 
@@ -4121,7 +4123,7 @@ async function _loadSubagents() {
         const data = await api(`/api/subagents/${encodeURIComponent(sid)}`);
         const subs = (data && data.subagents) || [];
         if (!subs.length) {
-            body.innerHTML = '<div class="text-center text-slate-500 py-8 italic">Здесь пока нет ни SDK-агентов, ни фоновых задач.</div>';
+            body.innerHTML = `<div class="text-center text-slate-500 py-8 italic">${T('No SDK agents or background jobs yet.')}</div>`;
             return;
         }
         const byNewest = (a, b) => String(b.started_at || '').localeCompare(String(a.started_at || ''));
@@ -4131,14 +4133,14 @@ async function _loadSubagents() {
 
         const sections = [
             `<div class="mb-4 flex flex-wrap items-center gap-2 text-[10px] text-slate-400">
-                <span class="rounded-full bg-purple-500/10 px-2 py-1 text-purple-300">🤖 SDK-агенты: ${agents.length}</span>
-                <span class="rounded-full bg-sky-500/10 px-2 py-1 text-sky-300">⚙️ Фоновые задачи: ${jobs.length}</span>
-                ${activeCount ? `<span class="rounded-full bg-amber-500/10 px-2 py-1 text-amber-300">⏳ Активны: ${activeCount}</span>` : ''}
+                <span class="rounded-full bg-purple-500/10 px-2 py-1 text-purple-300">${T('🤖 SDK agents: {count}', {count: agents.length})}</span>
+                <span class="rounded-full bg-sky-500/10 px-2 py-1 text-sky-300">${T('⚙️ Background jobs: {count}', {count: jobs.length})}</span>
+                ${activeCount ? `<span class="rounded-full bg-amber-500/10 px-2 py-1 text-amber-300">${T('⏳ Active: {count}', {count: activeCount})}</span>` : ''}
             </div>`,
         ];
         if (agents.length) {
             sections.push(`<section class="mb-5">
-                <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-purple-300">SDK-агенты</h3>
+                <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-purple-300">${T('SDK agents')}</h3>
                 ${agents.map((s, i) => _renderSubagentCard(s, i)).join('')}
             </section>`);
         }
@@ -4153,11 +4155,11 @@ async function _loadSubagents() {
             btn.addEventListener('click', () => {
                 const full = btn.nextElementSibling;
                 if (full) full.classList.toggle('hidden');
-                btn.textContent = full && !full.classList.contains('hidden') ? '▼ Свернуть summary' : '▶ Показать summary';
+                btn.textContent = full && !full.classList.contains('hidden') ? T('▼ Collapse summary') : T('▶ Show summary');
             });
         });
     } catch (e) {
-        body.innerHTML = `<div class="text-center text-red-400 py-8">Ошибка: ${_escHtml(e.message)}</div>`;
+        body.innerHTML = `<div class="text-center text-red-400 py-8">${T('Error: {message}', {message: _escHtml(e.message)})}</div>`;
     }
 }
 
@@ -4222,7 +4224,7 @@ function _renderSubagentCard(s, idx) {
     const summary = _meaningfulSummary(s);
     if (summary) {
         summaryBlock = `<div class="mt-2">
-            <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">▶ Показать итог</button>
+            <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">${T('▶ Show summary')}</button>
             <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(summary)}</div>
         </div>`;
     }
@@ -4232,9 +4234,9 @@ function _renderSubagentCard(s, idx) {
     }
     const agentId = s.transcript_id || '';
     const transcriptBtn = agentId
-        ? `<button class="sa-transcript-btn text-[10px] px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-purple-200 transition-colors" data-agent-id="${_escHtml(agentId)}" data-idx="${idx}">📜 Транскрипт</button>
+        ? `<button class="sa-transcript-btn text-[10px] px-2 py-1 bg-purple-600/30 hover:bg-purple-600/50 rounded-lg text-purple-200 transition-colors" data-agent-id="${_escHtml(agentId)}" data-idx="${idx}">${T('📜 Transcript')}</button>
            <div class="sa-transcript-panel hidden mt-2"></div>`
-        : `<span class="text-[10px] text-slate-600 italic">транскрипт ещё не записан</span>`;
+        : `<span class="text-[10px] text-slate-600 italic">${T('transcript not recorded yet')}</span>`;
 
     return `<div class="bg-slate-900/50 rounded-xl border border-slate-800 p-3 mb-3" style="border-left:3px solid ${color}">
         <div class="flex items-start justify-between gap-2 mb-2">
@@ -4286,10 +4288,10 @@ function _renderBackgroundJobs(jobs) {
     const visible = jobs.filter(s => visibleIds.has(s.task_id));
     const older = completed.slice(12);
     return `<section>
-        <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300">Фоновые задачи</h3>
+        <h3 class="mb-2 text-[10px] font-bold uppercase tracking-[0.16em] text-sky-300">${T('Background jobs')}</h3>
         <div class="space-y-2">${visible.map(_renderBackgroundJob).join('')}</div>
         ${older.length ? `<details class="mt-3 rounded-lg border border-slate-800/70 bg-slate-950/20 p-2">
-            <summary class="cursor-pointer select-none text-[10px] text-slate-400 hover:text-slate-200">Показать старые задачи (${older.length})</summary>
+            <summary class="cursor-pointer select-none text-[10px] text-slate-400 hover:text-slate-200">${T('Show older tasks ({count})', {count: older.length})}</summary>
             <div class="mt-2 space-y-2">${older.map(_renderBackgroundJob).join('')}</div>
         </details>` : ''}
     </section>`;
@@ -4300,26 +4302,26 @@ async function _toggleTranscript(btn, sid) {
     if (!panel) return;
     if (!panel.classList.contains('hidden')) {
         panel.classList.add('hidden');
-        btn.textContent = '📜 Транскрипт';
+        btn.textContent = T('📜 Transcript');
         return;
     }
     const agentId = btn.dataset.agentId;
-    if (!agentId) { panel.innerHTML = '<div class="text-slate-500 italic text-[10px] p-2">Нет transcript id</div>'; panel.classList.remove('hidden'); return; }
+    if (!agentId) { panel.innerHTML = `<div class="text-slate-500 italic text-[10px] p-2">${T('No transcript id')}</div>`; panel.classList.remove('hidden'); return; }
     panel.classList.remove('hidden');
-    btn.textContent = '📜 Скрыть транскрипт';
+    btn.textContent = T('📜 Hide transcript');
     if (panel.dataset.loaded === '1') return;  // cache — don't refetch
-    panel.innerHTML = '<div class="text-slate-500 text-[10px] p-2">Загрузка транскрипта...</div>';
+    panel.innerHTML = `<div class="text-slate-500 text-[10px] p-2">${T('Loading transcript...')}</div>`;
     try {
         const data = await api(`/api/subagent-transcript/${encodeURIComponent(sid)}/${encodeURIComponent(agentId)}?limit=200`);
         const msgs = (data && data.messages) || [];
         if (!msgs.length) {
-            panel.innerHTML = '<div class="text-slate-500 italic text-[10px] p-2">Транскрипт пуст или недоступен.</div>';
+            panel.innerHTML = `<div class="text-slate-500 italic text-[10px] p-2">${T('Transcript empty or unavailable.')}</div>`;
             return;
         }
         panel.innerHTML = `<div class="bg-slate-950/60 rounded-lg border border-slate-800 p-2 max-h-[300px] overflow-y-auto space-y-1.5">${msgs.map(_renderTranscriptMsg).join('')}</div>`;
         panel.dataset.loaded = '1';
     } catch (e) {
-        panel.innerHTML = `<div class="text-red-400 text-[10px] p-2">Ошибка: ${_escHtml(e.message)}</div>`;
+        panel.innerHTML = `<div class="text-red-400 text-[10px] p-2">${T('Error: {message}', {message: _escHtml(e.message)})}</div>`;
     }
 }
 
@@ -4333,7 +4335,7 @@ function _saCollapsible(text, threshold) {
     }
     const preview = _escHtml(text.slice(0, threshold));
     return `<details class="sa-details">
-        <summary class="cursor-pointer text-slate-500 hover:text-slate-300 select-none">${preview}<span class="text-purple-400"> … показать всё (${text.length} симв.)</span></summary>
+        <summary class="cursor-pointer text-slate-500 hover:text-slate-300 select-none">${preview}<span class="text-purple-400"> ${T('… show all ({count} chars)', {count: text.length})}</span></summary>
         <div class="text-slate-300 whitespace-pre-wrap break-words mt-1">${clean}</div>
     </details>`;
 }
@@ -4352,7 +4354,7 @@ function _renderTranscriptMsg(m) {
 
     if (typeof c === 'string') {
         if (!c.trim()) return '';
-        push(role === 'user' ? '🔧 tool result' : '🤖 субагент',
+        push(role === 'user' ? T('🔧 tool result') : T('🤖 sub-agent'),
              role === 'user' ? '#38bdf8' : '#a78bfa', _saCollapsible(c));
     } else if (Array.isArray(c)) {
         for (const block of c) {
@@ -4362,7 +4364,7 @@ function _renderTranscriptMsg(m) {
             }
             if (block.type === 'text') {
                 if ((block.text || '').trim()) {
-                    push('🤖 субагент', '#a78bfa', _saCollapsible(block.text));
+                    push(T('🤖 sub-agent'), '#a78bfa', _saCollapsible(block.text));
                 }
             } else if (block.type === 'tool_use') {
                 const name = block.name || 'tool';
@@ -4373,7 +4375,7 @@ function _renderTranscriptMsg(m) {
             } else if (block.type === 'tool_result') {
                 const rc = block.content;
                 const txt = typeof rc === 'string' ? rc : JSON.stringify(rc);
-                push('📎 результат', '#64748b', _saCollapsible(txt, 200));
+                push(T('📎 result'), '#64748b', _saCollapsible(txt, 200));
             } else {
                 push('•', '#64748b', _saCollapsible(JSON.stringify(block), 200));
             }
@@ -4455,12 +4457,12 @@ function _waitResponseSectionHtml(waitContext) {
     return `<section class="portfolio-wait-response"
         data-wait-response-section="true" data-wait-id="${escHtml(waitContext.id)}"
         data-wait-project="${escHtml(waitContext.project_id)}">
-        <span>НУЖЕН ОТВЕТ</span>
+        <span>${T('REPLY NEEDED')}</span>
         <strong>${escHtml(waitContext.question || '')}</strong>
-        <textarea data-wait-response rows="4" maxlength="4000" placeholder="Напиши решение для оркестратора"></textarea>
+        <textarea data-wait-response rows="4" maxlength="4000" placeholder="${T('Write solution for orchestrator')}"></textarea>
         <div class="portfolio-wait-response-actions">
             <small data-wait-feedback></small>
-            <button type="button" data-wait-submit>Отправить ответ</button>
+            <button type="button" data-wait-submit>${T('Send reply')}</button>
         </div>
     </section>`;
 }
@@ -4473,11 +4475,11 @@ function _bindWaitResponseSections(bodyEl) {
             const feedback = section.querySelector('[data-wait-feedback]');
             const response = textarea?.value.trim() || '';
             if (!response) {
-                feedback.textContent = 'Ответ не может быть пустым';
+                feedback.textContent = T('Reply cannot be empty');
                 return;
             }
             submit.disabled = true;
-            feedback.textContent = 'Отправляю…';
+            feedback.textContent = T('Sending…');
             try {
                 const result = await api(
                     `/api/portfolio/projects/${encodeURIComponent(section.dataset.waitProject)}/waits/${encodeURIComponent(section.dataset.waitId)}/resolve`,
@@ -4491,10 +4493,10 @@ function _bindWaitResponseSections(bodyEl) {
                     },
                 );
                 const state = result?.delivery?.delivery_state || result?.wait?.response_delivery_state || '';
-                if (state === 'SUBMITTED') feedback.textContent = 'Ответ доставлен';
-                else if (state === 'FAILED_BEFORE_SUBMIT') feedback.textContent = 'Не отправлено — можно повторить';
-                else if (state === 'DELIVERY_UNKNOWN') feedback.textContent = 'Статус доставки неизвестен — повтор не отправлен';
-                else feedback.textContent = 'Ответ принят и отправляется';
+                if (state === 'SUBMITTED') feedback.textContent = T('Reply delivered');
+                else if (state === 'FAILED_BEFORE_SUBMIT') feedback.textContent = T('Not sent — can retry');
+                else if (state === 'DELIVERY_UNKNOWN') feedback.textContent = T('Delivery status unknown — not resent');
+                else feedback.textContent = T('Reply accepted and sending');
                 textarea.disabled = true;
             } catch (error) {
                 feedback.textContent = error.message || String(error);
@@ -4509,7 +4511,7 @@ function showProjectWaitResponse(project, waitContext) {
     const nameEl = document.getElementById('prompt-modal-name');
     const bodyEl = document.getElementById('prompt-modal-body');
     if (!modal || !nameEl || !bodyEl) return;
-    nameEl.textContent = `${project.name} · ответ`;
+    nameEl.textContent = `${project.name} · ${T('reply')}`;
     bodyEl.innerHTML = `<div class="space-y-3">${_waitResponseSectionHtml(waitContext)}</div>`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -4767,7 +4769,7 @@ async function loadProfilesList() {
             el.innerHTML = `
                 <div class="flex-1 min-w-0">
                     <div class="text-xs font-medium text-white truncate" data-i18n-skip>${escHtml(p.name)}</div>
-                    <div class="text-[10px] text-slate-500 truncate">${escHtml(p.config_dir || 'env процесса')}</div>
+                    <div class="text-[10px] text-slate-500 truncate">${escHtml(p.config_dir || T('process env'))}</div>
                 </div>
                 ${isPersonal ? '' : `<button class="profile-del-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-red-900/60 rounded text-slate-400 hover:text-red-400 shrink-0" data-name="${escHtml(p.name)}" title="${T('Delete')}">✕</button>`}
             `;
@@ -4820,7 +4822,7 @@ async function refreshCatalog() {
   const btn = $('#catalog-refresh-btn');
   btn.disabled = true; btn.textContent = '…';
   try { await api('/api/models/catalog/refresh', { method: 'POST' }); } catch {}
-  btn.disabled = false; btn.textContent = '↻ обновить';
+  btn.disabled = false; btn.textContent = T('↻ refresh');
   await loadCatalog();
 }
 
@@ -4855,10 +4857,12 @@ function _catalogToggle(flag, m) {
   if (m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m))) {
     box.disabled = true;
     label.classList.add('opacity-40', 'cursor-not-allowed');
-    label.title = _catalogAvailable(m) ? 'Harness допускает только точные :free маршруты с tool calling' : 'Маршрут больше не доступен на OpenRouter';
+    label.title = _catalogAvailable(m)
+      ? T('Harness allows only exact :free routes with tool calling')
+      : T('Route no longer available on OpenRouter');
   }
   label.appendChild(box);
-  label.appendChild(document.createTextNode(flag === 'dashboard' ? 'дашборд' : 'агентам'));
+  label.appendChild(document.createTextNode(flag === 'dashboard' ? T('dashboard') : T('agents')));
   return label;
 }
 
@@ -4894,7 +4898,7 @@ function renderCatalogList() {
   if (!matches.length) {
     const empty = document.createElement('div');
     empty.className = 'text-slate-500 text-center py-6';
-    empty.textContent = 'Ничего не найдено';
+    empty.textContent = T('Nothing found');
     list.appendChild(empty);
   }
 }
