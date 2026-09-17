@@ -35,11 +35,11 @@ window.Connection = (() => {
             + 'display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;'
             + 'background:#1e293b;border:1px solid #f59e0b66;color:#fde68a;font-size:12px;'
             + 'box-shadow:0 8px 24px rgba(0,0,0,.4)';
-        banner.innerHTML = '<span>Сервер обновился — обнови страницу, чтобы взять новую версию</span>';
+        banner.innerHTML = '<span>' + T('Server updated — refresh page to get new version') + '</span>';
         const close = document.createElement('button');
         close.style.cssText = 'padding:3px 10px;border:1px solid #475569;border-radius:6px;'
             + 'background:transparent;color:#cbd5e1;cursor:pointer;font-size:12px';
-        close.textContent = 'Скрыть';
+        close.textContent = T('Hide');
         close.onclick = () => banner.remove();
         banner.appendChild(close);
         document.body.appendChild(banner);
@@ -53,24 +53,24 @@ window.Connection = (() => {
     function savedDetail() {
         const items = [...state.stale.entries()]
             .map(([key, ts]) => `${T(key)}: ${snapshotAgeLabel(ts)}`);
-        return items.length ? ` Показано сохранённое: ${items.join(' · ')}.` : '';
+        return items.length ? ` ${T('Shown saved:')} ${items.join(' · ')}.` : '';
     }
 
     function detail() {
         if (state.message) return state.message;
         if (state.phase === 'restarting') {
-            return 'Данные на экране сохранены; чат, файлы, сессии и расход обновятся автоматически.'
+            return T('On-screen data saved; chat, files, sessions, and usage will update automatically.')
                 + savedDetail();
         }
         if (state.phase === 'recovering') {
-            return 'Обновляю чат, файлы, сессии, расход, квоты и модели.' + savedDetail();
+            return T('Updating chat, files, sessions, usage, quotas, and models.') + savedDetail();
         }
         if (state.phase === 'offline') {
-            return 'Причина проверяется автоматически; сохранённые данные не выдаются за свежие.'
+            return T('Cause is checked automatically; saved data is not presented as fresh.')
                 + savedDetail();
         }
         if (state.phase === 'degraded') {
-            const source = state.path ? `${state.path} не ответил вовремя.` : 'Часть данных не обновилась.';
+            const source = state.path ? `${state.path} ${T('did not respond in time.')}` : T('Some data did not update.');
             return source + savedDetail();
         }
         return state.flash;
@@ -86,11 +86,11 @@ window.Connection = (() => {
             return;
         }
         const labels = {
-            restarting: ['🔄', 'Orchestra перезапускается'],
-            recovering: ['↻', state.reason === 'restart' ? 'Orchestra перезапустилась' : 'Связь восстановлена'],
-            degraded: ['⚠', 'Связь нестабильна'],
-            offline: ['●', 'Orchestra недоступна'],
-            online: ['✓', state.flash || 'Связь восстановлена'],
+            restarting: ['🔄', T('Orchestra is restarting')],
+            recovering: ['↻', state.reason === 'restart' ? T('Orchestra restarted') : T('Connection restored')],
+            degraded: ['⚠', T('Connection unstable')],
+            offline: ['●', T('Orchestra unavailable')],
+            online: ['✓', state.flash || T('Connection restored')],
         };
         const [icon, defaultTitle] = labels[state.phase] || labels.offline;
         banner.dataset.phase = state.phase;
@@ -203,13 +203,13 @@ window.Connection = (() => {
 
     function restartAttempt(message, failed) {
         if (failed) {
-            set('degraded', {reason: 'restart_failed', title: 'Рестарт не выполнен', message});
+            set('degraded', {reason: 'restart_failed', title: T('Restart failed'), message});
             return;
         }
         restartPending = true;
         restartPendingSince = Date.now();
         wasDown = true;
-        set('restarting', {reason: 'restart', title: 'Orchestra перезапускается', message});
+        set('restarting', {reason: 'restart', title: T('Orchestra is restarting'), message});
         startReconnect();
     }
 
@@ -268,13 +268,13 @@ window.Connection = (() => {
                 set('degraded', {
                     reason: 'partial_recovery',
                     path: state.failures.keys().next().value || '',
-                    message: errors.length ? `Не удалось обновить: ${errors.join('; ')}` : '',
+                    message: errors.length ? T('Failed to update: {errors}', {errors: errors.join('; ')}) : '',
                 });
                 return;
             }
             const flash = reason === 'restart'
-                ? 'Orchestra перезапустилась · данные обновлены'
-                : 'Связь восстановлена · данные обновлены';
+                ? T('Orchestra restarted · data updated')
+                : T('Connection restored · data updated');
             set('online', {reason: '', path: '', flash});
             state.flashTimer = setTimeout(() => {
                 state.flash = '';
@@ -299,7 +299,7 @@ window.Connection = (() => {
             if (restartError) {
                 let reason = restartError;
                 try { reason = decodeURIComponent(restartError); } catch {}
-                restartAttempt(`Рестарт не состоялся: ${reason}`, true);
+                restartAttempt(T('Restart did not happen: {reason}', {reason}), true);
                 const restartBtn = document.getElementById('restart-btn');
                 if (restartBtn) { restartBtn.disabled = false; restartBtn.textContent = '⟳'; }
             }
