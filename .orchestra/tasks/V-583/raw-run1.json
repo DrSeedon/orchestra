@@ -1,0 +1,2059 @@
+{
+ "mode": "switch",
+ "tag": "run1",
+ "seconds": 0.0,
+ "park_agent": "",
+ "captured_at": "2026-09-17T06:47:06",
+ "events": [
+  {
+   "phase": "login",
+   "wall": 1789620378.7812102,
+   "note": "phase-start"
+  },
+  {
+   "note": "agent-list",
+   "names": [
+    "Orchestra-orchestrator",
+    "bench-master",
+    "prompt-engineer",
+    "research-projects-model",
+    "research-openresearch",
+    "measure-chat-switch"
+   ],
+   "wall": 1789620387.548417
+  },
+  {
+   "note": "orch-picker",
+   "options": [
+    "/home/kesha/orchestra|Orchestra-orchestrator",
+    "/home/kesha/projects/seedon|seedon-orchestrator",
+    "/home/kesha/projects/kesha-tg-bot|kesha-tg-bot-orchestrator",
+    "/home/kesha/projects/dnd-game-master|Claude-Code-Game-Master-orchestrator",
+    "/home/kesha/projects/University|University-orchestrator",
+    "/home/kesha/projects/VPN-Service|VPN-orchestrator",
+    "/home/kesha/katya-work|katya-work-orchestrator",
+    "/home/kesha/projects/comfy-image-pipeline|comfy-image-orchestrator-vps",
+    "/opt/cog-second-brain|cog-second-brain-orchestrator"
+   ],
+   "wall": 1789620387.5875351
+  },
+  {
+   "phase": "switch1:bench-master",
+   "wall": 1789620387.5875485,
+   "note": "phase-start"
+  },
+  {
+   "phase": "switch2:prompt-engineer",
+   "wall": 1789620395.9802773,
+   "note": "phase-start"
+  },
+  {
+   "phase": "switch3:bench-master",
+   "wall": 1789620404.3301225,
+   "note": "phase-start"
+  },
+  {
+   "phase": "switch4:Orchestra-orchestrator",
+   "wall": 1789620412.8427827,
+   "note": "phase-start"
+  },
+  {
+   "phase": "post-switch-quiet",
+   "wall": 1789620421.3634655,
+   "note": "phase-start"
+  }
+ ],
+ "requests": [
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/login",
+   "start": 3871394.265989,
+   "phase": "login",
+   "type": "Document",
+   "status": 200,
+   "mime": "text/html",
+   "from_disk_cache": false,
+   "response_at": 3871394.339209,
+   "headers_bytes": 378,
+   "chunks": [
+    [
+     3871394.367155,
+     0,
+     2851
+    ]
+   ],
+   "finish": 3871394.343698,
+   "encoded_total": 1431,
+   "request_id": "C86AC6B39060F12307285C32C8D52B16"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/",
+   "start": 3871395.936238,
+   "phase": "login",
+   "type": "Document",
+   "status": 200,
+   "mime": "text/html",
+   "from_disk_cache": false,
+   "response_at": 3871396.004634,
+   "headers_bytes": 378,
+   "chunks": [
+    [
+     3871396.087001,
+     0,
+     26205
+    ]
+   ],
+   "finish": 3871395.994296,
+   "encoded_total": 6244,
+   "request_id": "4243B598AA0A4B36A65DC7AC111DC767"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+   "start": 3871396.087761,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.199046,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.199066,
+     0,
+     39903
+    ],
+    [
+     3871396.199141,
+     12434,
+     0
+    ]
+   ],
+   "finish": 3871396.158317,
+   "encoded_total": 12955,
+   "request_id": "1953697.3"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+   "start": 3871396.090042,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.196838,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.196908,
+     0,
+     24825
+    ],
+    [
+     3871396.196981,
+     9117,
+     0
+    ]
+   ],
+   "finish": 3871396.158822,
+   "encoded_total": 9638,
+   "request_id": "1953697.4"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/diff_match_patch.js?v=18bf4b0206791569",
+   "start": 3871396.090161,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.198469,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.198501,
+     0,
+     19192
+    ],
+    [
+     3871396.198551,
+     6109,
+     0
+    ]
+   ],
+   "finish": 3871396.171835,
+   "encoded_total": 6630,
+   "request_id": "1953697.5"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/highlight.min.js?v=18bf4b0206885799",
+   "start": 3871396.090359,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.350598,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.350621,
+     0,
+     96566
+    ],
+    [
+     3871396.350624,
+     0,
+     30930
+    ],
+    [
+     3871396.350658,
+     42887,
+     0
+    ]
+   ],
+   "finish": 3871396.323197,
+   "encoded_total": 43408,
+   "request_id": "1953697.6"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/highlight-github-dark.min.css?v=18bf4b0206791569",
+   "start": 3871396.090519,
+   "phase": "login",
+   "type": "Stylesheet",
+   "status": 200,
+   "mime": "text/css",
+   "from_disk_cache": false,
+   "response_at": 3871396.175821,
+   "headers_bytes": 514,
+   "chunks": [
+    [
+     3871396.181845,
+     0,
+     1315
+    ],
+    [
+     3871396.182762,
+     635,
+     0
+    ]
+   ],
+   "finish": 3871396.153077,
+   "encoded_total": 1149,
+   "request_id": "1953697.7"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/style.css?v=18d5b90dbc8e5ba8",
+   "start": 3871396.090616,
+   "phase": "login",
+   "type": "Stylesheet",
+   "status": 200,
+   "mime": "text/css",
+   "from_disk_cache": false,
+   "response_at": 3871396.185842,
+   "headers_bytes": 514,
+   "chunks": [
+    [
+     3871396.185873,
+     0,
+     79975
+    ],
+    [
+     3871396.188232,
+     17845,
+     0
+    ]
+   ],
+   "finish": 3871396.17352,
+   "encoded_total": 18359,
+   "request_id": "1953697.8"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/tailwind.css?v=18d30d5482f726ec",
+   "start": 3871396.090686,
+   "phase": "login",
+   "type": "Stylesheet",
+   "status": 200,
+   "mime": "text/css",
+   "from_disk_cache": false,
+   "response_at": 3871396.184408,
+   "headers_bytes": 514,
+   "chunks": [
+    [
+     3871396.184463,
+     0,
+     20189
+    ],
+    [
+     3871396.184929,
+     4555,
+     0
+    ]
+   ],
+   "finish": 3871396.165837,
+   "encoded_total": 5069,
+   "request_id": "1953697.9"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/utils.js?v=18d33df2466c803e",
+   "start": 3871396.090751,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.350136,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.350175,
+     0,
+     7966
+    ],
+    [
+     3871396.350178,
+     0,
+     4139
+    ],
+    [
+     3871396.350251,
+     5091,
+     0
+    ]
+   ],
+   "finish": 3871396.322869,
+   "encoded_total": 5612,
+   "request_id": "1953697.10"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/tool-renderers.js?v=18d34824ab575774",
+   "start": 3871396.090822,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.39551,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.395549,
+     0,
+     11065
+    ],
+    [
+     3871396.395551,
+     0,
+     18936
+    ],
+    [
+     3871396.395622,
+     7769,
+     0
+    ]
+   ],
+   "finish": 3871396.322371,
+   "encoded_total": 8290,
+   "request_id": "1953697.11"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/usage.js?v=18d2253a2d5d2c7a",
+   "start": 3871396.090878,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.395927,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.395948,
+     0,
+     54608
+    ],
+    [
+     3871396.395991,
+     15201,
+     0
+    ]
+   ],
+   "finish": 3871396.323702,
+   "encoded_total": 15722,
+   "request_id": "1953697.12"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/analytics.js?v=18cd23875d3f5547",
+   "start": 3871396.090943,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.396855,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.396874,
+     0,
+     11535
+    ],
+    [
+     3871396.396877,
+     0,
+     25885
+    ],
+    [
+     3871396.396922,
+     9659,
+     0
+    ]
+   ],
+   "finish": 3871396.323482,
+   "encoded_total": 10180,
+   "request_id": "1953697.13"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/quota-lines.js?v=18d5b90dbc9d9de4",
+   "start": 3871396.091107,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.396543,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.396604,
+     0,
+     29863
+    ],
+    [
+     3871396.396649,
+     9134,
+     0
+    ]
+   ],
+   "finish": 3871396.323984,
+   "encoded_total": 9655,
+   "request_id": "1953697.14"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/connection.js?v=18d263de98f23e37",
+   "start": 3871396.091233,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.735222,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.735242,
+     0,
+     14847
+    ],
+    [
+     3871396.735298,
+     4303,
+     0
+    ]
+   ],
+   "finish": 3871396.463963,
+   "encoded_total": 4824,
+   "request_id": "1953697.15"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/chat.js?v=18d4c81f072c58ee",
+   "start": 3871396.09131,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.734695,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.734734,
+     0,
+     110662
+    ],
+    [
+     3871396.734737,
+     0,
+     65536
+    ],
+    [
+     3871396.73474,
+     0,
+     39528
+    ],
+    [
+     3871396.734821,
+     48260,
+     0
+    ]
+   ],
+   "finish": 3871396.467125,
+   "encoded_total": 48781,
+   "request_id": "1953697.16"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/app.js?v=18d49fd6cdecaf89",
+   "start": 3871396.091369,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871396.746039,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871396.746101,
+     0,
+     99129
+    ],
+    [
+     3871396.746103,
+     0,
+     65536
+    ],
+    [
+     3871396.746107,
+     0,
+     72937
+    ],
+    [
+     3871396.746301,
+     64865,
+     0
+    ]
+   ],
+   "finish": 3871396.493787,
+   "encoded_total": 65386,
+   "request_id": "1953697.17"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/role-icons",
+   "start": 3871396.751813,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871396.821395,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871396.823125,
+     114,
+     104
+    ]
+   ],
+   "finish": 3871396.764558,
+   "encoded_total": 459,
+   "request_id": "1953697.33"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/usage",
+   "start": 3871396.781181,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871397.267393,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871397.272186,
+     10831,
+     56327
+    ]
+   ],
+   "finish": 3871397.264869,
+   "encoded_total": 11176,
+   "request_id": "1953697.34"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871396.781576,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871397.279171,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871397.281699,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871397.268627,
+   "encoded_total": 1261,
+   "request_id": "1953697.35"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/orchestrators",
+   "start": 3871396.781732,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871397.278639,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871397.28095,
+     2446,
+     11590
+    ]
+   ],
+   "finish": 3871397.268451,
+   "encoded_total": 2791,
+   "request_id": "1953697.36"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/usage/quota-map",
+   "start": 3871397.280481,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871397.428264,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871397.432981,
+     8028,
+     47330
+    ]
+   ],
+   "finish": 3871397.357269,
+   "encoded_total": 8373,
+   "request_id": "1953697.37"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871397.299066,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871397.429092,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871397.436588,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871397.369578,
+   "encoded_total": 406,
+   "request_id": "1953697.38"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871397.299363,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871397.429546,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871397.437453,
+     27392,
+     115618
+    ]
+   ],
+   "finish": 3871397.37094,
+   "encoded_total": 27762,
+   "request_id": "1953697.39"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871397.459161,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871398.935933,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871398.939984,
+     1712,
+     7433
+    ]
+   ],
+   "finish": 3871397.735913,
+   "encoded_total": 2124,
+   "request_id": "1953697.40"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871397.807145,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871398.936953,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871398.942681,
+     164,
+     202
+    ]
+   ],
+   "finish": 3871398.127214,
+   "encoded_total": 509,
+   "request_id": "1953697.41"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871397.80781,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871398.936642,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871398.940857,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871397.829296,
+   "encoded_total": 895,
+   "request_id": "1953697.42"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=374247",
+   "start": 3871398.938757,
+   "phase": "login",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871399.127312,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871399.12742,
+     0,
+     110
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871403.32663,
+   "request_id": "1953697.43"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871398.944806,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871399.128859,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871399.132931,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871398.95661,
+   "encoded_total": 895,
+   "request_id": "1953697.44"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871398.950797,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871399.12932,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871399.135823,
+     153,
+     163
+    ]
+   ],
+   "finish": 3871398.964628,
+   "encoded_total": 498,
+   "request_id": "1953697.45"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871400.434365,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871401.466388,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871401.484149,
+     1713,
+     7433
+    ]
+   ],
+   "finish": 3871401.465262,
+   "encoded_total": 2125,
+   "request_id": "1953697.46"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871400.495991,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871401.241052,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871401.243602,
+     0,
+     202
+    ],
+    [
+     3871401.244679,
+     165,
+     0
+    ]
+   ],
+   "finish": 3871401.242302,
+   "encoded_total": 510,
+   "request_id": "1953697.47"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871401.7596,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871401.778131,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871401.778746,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871401.774548,
+   "encoded_total": 406,
+   "request_id": "1953697.48"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871403.30072,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871403.503702,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871403.513677,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871403.457522,
+   "encoded_total": 406,
+   "request_id": "1953697.49"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871403.301715,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871403.501718,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871403.506661,
+     48039,
+     240441
+    ]
+   ],
+   "finish": 3871403.459607,
+   "encoded_total": 48409,
+   "request_id": "1953697.50"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871403.301849,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871403.504124,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871403.514263,
+     88,
+     59
+    ]
+   ],
+   "finish": 3871403.457717,
+   "encoded_total": 433,
+   "request_id": "1953697.51"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=371851",
+   "start": 3871404.083836,
+   "phase": "switch1:bench-master",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871404.112394,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871404.112486,
+     0,
+     107
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871411.660126,
+   "request_id": "1953697.52"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871405.097092,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871405.664471,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871405.665057,
+     0,
+     7433
+    ],
+    [
+     3871405.67209,
+     1714,
+     0
+    ]
+   ],
+   "finish": 3871405.664455,
+   "encoded_total": 2126,
+   "request_id": "1953697.53"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871405.097417,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871405.18362,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871405.185652,
+     165,
+     202
+    ]
+   ],
+   "finish": 3871405.184355,
+   "encoded_total": 510,
+   "request_id": "1953697.54"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871405.343365,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871405.654253,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871405.675774,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871405.664129,
+   "encoded_total": 1261,
+   "request_id": "1953697.55"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871406.765056,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871406.87962,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871406.898472,
+     0,
+     25
+    ],
+    [
+     3871406.901821,
+     61,
+     0
+    ]
+   ],
+   "finish": 3871406.892874,
+   "encoded_total": 406,
+   "request_id": "1953697.56"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871409.288188,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871409.830819,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871409.833571,
+     1714,
+     7433
+    ]
+   ],
+   "finish": 3871409.821302,
+   "encoded_total": 2126,
+   "request_id": "1953697.57"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871409.301835,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871409.506478,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871409.532234,
+     0,
+     202
+    ],
+    [
+     3871409.534255,
+     165,
+     0
+    ]
+   ],
+   "finish": 3871409.532264,
+   "encoded_total": 510,
+   "request_id": "1953697.58"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871409.373143,
+   "phase": "switch1:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871409.435538,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871409.459964,
+     0,
+     2850
+    ],
+    [
+     3871409.46122,
+     550,
+     0
+    ]
+   ],
+   "finish": 3871409.45538,
+   "encoded_total": 895,
+   "request_id": "1953697.59"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/prompt-engineer/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871411.589407,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871412.023151,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871412.024726,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871412.015446,
+   "encoded_total": 406,
+   "request_id": "1953697.60"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/prompt-engineer/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871411.593861,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871412.035133,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871412.03643,
+     80638,
+     309369
+    ]
+   ],
+   "finish": 3871412.035462,
+   "encoded_total": 81008,
+   "request_id": "1953697.61"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/prompt-engineer/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871411.597474,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871412.198153,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871413.572759,
+     85,
+     59
+    ]
+   ],
+   "finish": 3871412.034198,
+   "encoded_total": 430,
+   "request_id": "1953697.62"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/prompt-engineer/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871412.02809,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871412.210484,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871413.573529,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871412.045,
+   "encoded_total": 406,
+   "request_id": "1953697.63"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/prompt-engineer/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=373287",
+   "start": 3871413.583701,
+   "phase": "switch2:prompt-engineer",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871413.929117,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871413.931166,
+     0,
+     107
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871420.076189,
+   "request_id": "1953697.64"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871413.624596,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871414.040893,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871414.047667,
+     0,
+     7433
+    ],
+    [
+     3871414.048305,
+     1714,
+     0
+    ]
+   ],
+   "finish": 3871414.04681,
+   "encoded_total": 2126,
+   "request_id": "1953697.65"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871413.62671,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871413.932116,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871413.940217,
+     165,
+     202
+    ]
+   ],
+   "finish": 3871413.746432,
+   "encoded_total": 510,
+   "request_id": "1953697.66"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871414.226496,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871414.36116,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871414.372284,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871414.36514,
+   "encoded_total": 1261,
+   "request_id": "1953697.67"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/prompt-engineer/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871416.757624,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871416.773781,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871416.777285,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871416.773206,
+   "encoded_total": 406,
+   "request_id": "1953697.68"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871417.67484,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871418.274601,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871418.329849,
+     0,
+     7433
+    ]
+   ],
+   "finish": 3871418.334025,
+   "encoded_total": 315,
+   "request_id": "1953697.69"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871417.675136,
+   "phase": "switch2:prompt-engineer",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871417.979576,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871418.00645,
+     0,
+     202
+    ],
+    [
+     3871418.006975,
+     165,
+     0
+    ]
+   ],
+   "finish": 3871418.005119,
+   "encoded_total": 510,
+   "request_id": "1953697.70"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871419.782294,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871420.335823,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871420.398623,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871420.323081,
+   "encoded_total": 895,
+   "request_id": "1953697.71"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871420.01651,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871420.335212,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871420.339879,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871420.322811,
+   "encoded_total": 406,
+   "request_id": "1953697.72"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871420.01688,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871420.400753,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871420.448994,
+     48039,
+     240441
+    ]
+   ],
+   "finish": 3871420.394708,
+   "encoded_total": 48409,
+   "request_id": "1953697.73"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871420.401856,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871420.759628,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871421.425317,
+     88,
+     59
+    ]
+   ],
+   "finish": 3871420.418258,
+   "encoded_total": 433,
+   "request_id": "1953697.74"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=371851",
+   "start": 3871421.426326,
+   "phase": "switch3:bench-master",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871421.718276,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871421.71837,
+     0,
+     107
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871428.745504,
+   "request_id": "1953697.75"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871421.757429,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871421.816039,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871421.816686,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871421.810289,
+   "encoded_total": 406,
+   "request_id": "1953697.76"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871421.950685,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871423.874378,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871423.875108,
+     1716,
+     7433
+    ]
+   ],
+   "finish": 3871423.868465,
+   "encoded_total": 2128,
+   "request_id": "1953697.77"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871421.950985,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871422.159646,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871422.16013,
+     165,
+     202
+    ]
+   ],
+   "finish": 3871422.158571,
+   "encoded_total": 510,
+   "request_id": "1953697.78"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871422.926361,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871423.864913,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871423.874865,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871423.867463,
+   "encoded_total": 1261,
+   "request_id": "1953697.79"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/bench-master/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871426.768516,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871426.830937,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871426.843781,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871426.843424,
+   "encoded_total": 406,
+   "request_id": "1953697.80"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871427.506979,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871427.827861,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871427.828649,
+     1713,
+     7433
+    ]
+   ],
+   "finish": 3871427.824317,
+   "encoded_total": 2125,
+   "request_id": "1953697.81"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871427.507345,
+   "phase": "switch3:bench-master",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871427.716657,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871427.717295,
+     164,
+     202
+    ]
+   ],
+   "finish": 3871427.715603,
+   "encoded_total": 509,
+   "request_id": "1953697.82"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871428.693919,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871428.788061,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871428.78991,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871428.778156,
+   "encoded_total": 406,
+   "request_id": "1953697.83"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871428.694304,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871428.788553,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871428.79748,
+     27392,
+     115618
+    ]
+   ],
+   "finish": 3871428.779034,
+   "encoded_total": 27762,
+   "request_id": "1953697.84"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871428.694477,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871428.78949,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871428.813392,
+     153,
+     163
+    ]
+   ],
+   "finish": 3871428.778697,
+   "encoded_total": 498,
+   "request_id": "1953697.85"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=374247",
+   "start": 3871429.053413,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871429.087352,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871429.088358,
+     0,
+     110
+    ]
+   ],
+   "request_id": "1953697.86"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871430.911462,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871431.063817,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871431.065279,
+     0,
+     2850
+    ],
+    [
+     3871431.065907,
+     550,
+     0
+    ]
+   ],
+   "finish": 3871431.063367,
+   "encoded_total": 895,
+   "request_id": "1953697.87"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871431.440749,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871431.652818,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871431.653518,
+     1715,
+     7433
+    ]
+   ],
+   "finish": 3871431.64795,
+   "encoded_total": 2127,
+   "request_id": "1953697.88"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871431.44112,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871431.504598,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871431.509128,
+     165,
+     202
+    ]
+   ],
+   "finish": 3871431.502849,
+   "encoded_total": 510,
+   "request_id": "1953697.89"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871431.757785,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871431.768592,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871431.76904,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871431.767687,
+   "encoded_total": 406,
+   "request_id": "1953697.90"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871432.430261,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871432.527828,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871432.528414,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871432.526724,
+   "encoded_total": 1261,
+   "request_id": "1953697.91"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871435.298592,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871435.570469,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871435.571772,
+     1735,
+     7485
+    ]
+   ],
+   "finish": 3871435.568721,
+   "encoded_total": 2147,
+   "request_id": "1953697.92"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871435.299095,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871435.387426,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871435.388179,
+     165,
+     203
+    ]
+   ],
+   "finish": 3871435.384871,
+   "encoded_total": 510,
+   "request_id": "1953697.93"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871436.770827,
+   "phase": "switch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871436.891208,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871436.893428,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871436.805096,
+   "encoded_total": 406,
+   "request_id": "1953697.94"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871439.252832,
+   "phase": "post-switch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871440.427802,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871440.428378,
+     1736,
+     7485
+    ]
+   ],
+   "finish": 3871440.425759,
+   "encoded_total": 2148,
+   "request_id": "1953697.95"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871439.253312,
+   "phase": "post-switch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871440.22232,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871440.223435,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871440.221708,
+   "encoded_total": 511,
+   "request_id": "1953697.96"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871441.092993,
+   "phase": "post-switch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871441.16902,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871441.169671,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871441.166156,
+   "encoded_total": 1261,
+   "request_id": "1953697.97"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871441.298268,
+   "phase": "post-switch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871441.346752,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871441.348918,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871441.345279,
+   "encoded_total": 895,
+   "request_id": "1953697.98"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871441.758173,
+   "phase": "post-switch-quiet",
+   "type": "Fetch",
+   "request_id": "1953697.99"
+  }
+ ]
+}

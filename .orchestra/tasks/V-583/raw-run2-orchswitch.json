@@ -1,0 +1,2302 @@
+{
+ "mode": "orchswitch",
+ "tag": "run2-orchswitch",
+ "seconds": 0.0,
+ "park_agent": "",
+ "captured_at": "2026-09-17T06:51:19",
+ "events": [
+  {
+   "phase": "login",
+   "wall": 1789620628.003864,
+   "note": "phase-start"
+  },
+  {
+   "note": "orch-tabs",
+   "tabs": [
+    "Orchestra-orchestrator",
+    "seedon-orchestrator",
+    "kesha-tg-bot-orchestrator",
+    "Claude-Code-Game-Master-orchestrator",
+    "University-orchestrator",
+    "VPN-orchestrator",
+    "katya-work-orchestrator",
+    "comfy-image-orchestrator-vps",
+    "cog-second-brain-orchestrator"
+   ],
+   "wall": 1789620635.6349745
+  },
+  {
+   "phase": "orch1:seedon-orchestrator",
+   "wall": 1789620635.6349843,
+   "note": "phase-start"
+  },
+  {
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "wall": 1789620644.8977036,
+   "note": "phase-start"
+  },
+  {
+   "phase": "orch3:seedon-orchestrator",
+   "wall": 1789620654.827109,
+   "note": "phase-start"
+  },
+  {
+   "phase": "orch4:Orchestra-orchestrator",
+   "wall": 1789620663.9618294,
+   "note": "phase-start"
+  },
+  {
+   "phase": "post-orch-quiet",
+   "wall": 1789620673.7430189,
+   "note": "phase-start"
+  }
+ ],
+ "requests": [
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/login",
+   "start": 3871643.450641,
+   "phase": "login",
+   "type": "Document",
+   "status": 200,
+   "mime": "text/html",
+   "from_disk_cache": false,
+   "response_at": 3871643.468332,
+   "headers_bytes": 378,
+   "chunks": [
+    [
+     3871643.484608,
+     0,
+     2851
+    ]
+   ],
+   "finish": 3871643.473699,
+   "encoded_total": 1431,
+   "request_id": "0367748F15D643AD0B67C9763C6E09E0"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/",
+   "start": 3871644.168291,
+   "phase": "login",
+   "type": "Document",
+   "status": 200,
+   "mime": "text/html",
+   "from_disk_cache": false,
+   "response_at": 3871644.184224,
+   "headers_bytes": 378,
+   "chunks": [
+    [
+     3871644.196392,
+     0,
+     26205
+    ]
+   ],
+   "finish": 3871644.183082,
+   "encoded_total": 6244,
+   "request_id": "0F74177ACDB66B8D63CC8123F82DD348"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/marked.min.js?v=18bf4b0206885799",
+   "start": 3871644.198425,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.454181,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.454222,
+     0,
+     39903
+    ],
+    [
+     3871644.45485,
+     12434,
+     0
+    ]
+   ],
+   "finish": 3871644.368808,
+   "encoded_total": 12955,
+   "request_id": "1956043.3"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/purify.min.js?v=18bf4b0206885799",
+   "start": 3871644.199359,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.428657,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.428697,
+     0,
+     24825
+    ],
+    [
+     3871644.428748,
+     9117,
+     0
+    ]
+   ],
+   "finish": 3871644.368276,
+   "encoded_total": 9638,
+   "request_id": "1956043.4"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/diff_match_patch.js?v=18bf4b0206791569",
+   "start": 3871644.199711,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.440243,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.440284,
+     0,
+     19192
+    ],
+    [
+     3871644.440344,
+     6109,
+     0
+    ]
+   ],
+   "finish": 3871644.425153,
+   "encoded_total": 6630,
+   "request_id": "1956043.5"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/highlight.min.js?v=18bf4b0206885799",
+   "start": 3871644.203218,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.545182,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.545229,
+     0,
+     127496
+    ],
+    [
+     3871644.545335,
+     42887,
+     0
+    ]
+   ],
+   "finish": 3871644.533288,
+   "encoded_total": 43408,
+   "request_id": "1956043.6"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/highlight-github-dark.min.css?v=18bf4b0206791569",
+   "start": 3871644.203417,
+   "phase": "login",
+   "type": "Stylesheet",
+   "status": 200,
+   "mime": "text/css",
+   "from_disk_cache": false,
+   "response_at": 3871644.427245,
+   "headers_bytes": 514,
+   "chunks": [
+    [
+     3871644.427276,
+     0,
+     1315
+    ],
+    [
+     3871644.427885,
+     635,
+     0
+    ]
+   ],
+   "finish": 3871644.409678,
+   "encoded_total": 1149,
+   "request_id": "1956043.7"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/style.css?v=18d5b90dbc8e5ba8",
+   "start": 3871644.203578,
+   "phase": "login",
+   "type": "Stylesheet",
+   "status": 200,
+   "mime": "text/css",
+   "from_disk_cache": false,
+   "response_at": 3871644.421299,
+   "headers_bytes": 514,
+   "chunks": [
+    [
+     3871644.421371,
+     0,
+     79975
+    ],
+    [
+     3871644.423392,
+     17845,
+     0
+    ]
+   ],
+   "finish": 3871644.410263,
+   "encoded_total": 18359,
+   "request_id": "1956043.8"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/css/vendor/tailwind.css?v=18d30d5482f726ec",
+   "start": 3871644.20369,
+   "phase": "login",
+   "type": "Stylesheet",
+   "status": 200,
+   "mime": "text/css",
+   "from_disk_cache": false,
+   "response_at": 3871644.423825,
+   "headers_bytes": 514,
+   "chunks": [
+    [
+     3871644.42386,
+     0,
+     20189
+    ],
+    [
+     3871644.426478,
+     4555,
+     0
+    ]
+   ],
+   "finish": 3871644.41042,
+   "encoded_total": 5069,
+   "request_id": "1956043.9"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/utils.js?v=18d33df2466c803e",
+   "start": 3871644.203843,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.514818,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.514859,
+     0,
+     12105
+    ],
+    [
+     3871644.515224,
+     5091,
+     0
+    ]
+   ],
+   "finish": 3871644.508214,
+   "encoded_total": 5612,
+   "request_id": "1956043.10"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/tool-renderers.js?v=18d34824ab575774",
+   "start": 3871644.203951,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.63867,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.638691,
+     0,
+     30001
+    ],
+    [
+     3871644.63871,
+     7769,
+     0
+    ]
+   ],
+   "finish": 3871644.578121,
+   "encoded_total": 8290,
+   "request_id": "1956043.11"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/usage.js?v=18d2253a2d5d2c7a",
+   "start": 3871644.20411,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.638451,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.638472,
+     0,
+     54608
+    ],
+    [
+     3871644.638498,
+     15201,
+     0
+    ]
+   ],
+   "finish": 3871644.578476,
+   "encoded_total": 15722,
+   "request_id": "1956043.12"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/analytics.js?v=18cd23875d3f5547",
+   "start": 3871644.204223,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.636776,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.636872,
+     0,
+     11535
+    ],
+    [
+     3871644.636874,
+     0,
+     25885
+    ],
+    [
+     3871644.637341,
+     9659,
+     0
+    ]
+   ],
+   "finish": 3871644.57765,
+   "encoded_total": 10180,
+   "request_id": "1956043.13"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/quota-lines.js?v=18d5b90dbc9d9de4",
+   "start": 3871644.204355,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.639051,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.63907,
+     0,
+     8799
+    ],
+    [
+     3871644.639072,
+     0,
+     21064
+    ],
+    [
+     3871644.639089,
+     9134,
+     0
+    ]
+   ],
+   "finish": 3871644.571944,
+   "encoded_total": 9655,
+   "request_id": "1956043.14"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/connection.js?v=18d263de98f23e37",
+   "start": 3871644.20448,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.639457,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.639523,
+     0,
+     14847
+    ],
+    [
+     3871644.639568,
+     4303,
+     0
+    ]
+   ],
+   "finish": 3871644.578947,
+   "encoded_total": 4824,
+   "request_id": "1956043.15"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/chat.js?v=18d4c81f072c58ee",
+   "start": 3871644.204604,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.826249,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.826294,
+     0,
+     215726
+    ],
+    [
+     3871644.826361,
+     48260,
+     0
+    ]
+   ],
+   "finish": 3871644.629916,
+   "encoded_total": 48781,
+   "request_id": "1956043.16"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/static/js/app.js?v=18d49fd6cdecaf89",
+   "start": 3871644.204759,
+   "phase": "login",
+   "type": "Script",
+   "status": 200,
+   "mime": "text/javascript",
+   "from_disk_cache": false,
+   "response_at": 3871644.833344,
+   "headers_bytes": 521,
+   "chunks": [
+    [
+     3871644.833376,
+     0,
+     99129
+    ],
+    [
+     3871644.833379,
+     0,
+     138473
+    ],
+    [
+     3871644.836687,
+     64865,
+     0
+    ]
+   ],
+   "finish": 3871644.691147,
+   "encoded_total": 65386,
+   "request_id": "1956043.17"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/role-icons",
+   "start": 3871644.853134,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871644.970926,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871644.976578,
+     114,
+     104
+    ]
+   ],
+   "finish": 3871644.914346,
+   "encoded_total": 459,
+   "request_id": "1956043.33"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/usage",
+   "start": 3871644.889973,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871645.953955,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871645.955167,
+     10841,
+     56431
+    ]
+   ],
+   "finish": 3871645.953727,
+   "encoded_total": 11186,
+   "request_id": "1956043.34"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871644.890332,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871645.96533,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871645.966259,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871645.963328,
+   "encoded_total": 1261,
+   "request_id": "1956043.35"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/orchestrators",
+   "start": 3871644.89051,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871645.965952,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871645.971642,
+     2442,
+     11588
+    ]
+   ],
+   "finish": 3871645.963532,
+   "encoded_total": 2787,
+   "request_id": "1956043.36"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/usage/quota-map",
+   "start": 3871645.959714,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871646.04588,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871646.050226,
+     8156,
+     46974
+    ]
+   ],
+   "finish": 3871646.037117,
+   "encoded_total": 8501,
+   "request_id": "1956043.37"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871645.988164,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871646.060659,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871647.050502,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871646.050657,
+   "encoded_total": 406,
+   "request_id": "1956043.38"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871645.988572,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871646.04967,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871646.054347,
+     27392,
+     115618
+    ]
+   ],
+   "finish": 3871646.052182,
+   "encoded_total": 27762,
+   "request_id": "1956043.39"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871646.063218,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871647.057254,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871647.065775,
+     1741,
+     7485
+    ]
+   ],
+   "finish": 3871646.269351,
+   "encoded_total": 2153,
+   "request_id": "1956043.40"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871646.07513,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871647.056774,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871647.065118,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871646.141058,
+   "encoded_total": 511,
+   "request_id": "1956043.41"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=374247",
+   "start": 3871647.060857,
+   "phase": "login",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871647.932456,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871647.932792,
+     0,
+     110
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871651.226991,
+   "request_id": "1956043.42"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871647.063838,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871647.931589,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871648.002718,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871647.09303,
+   "encoded_total": 895,
+   "request_id": "1956043.43"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871647.066908,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871647.93587,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871648.004863,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871647.192671,
+   "encoded_total": 895,
+   "request_id": "1956043.44"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/context?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871647.071112,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871647.934782,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871648.0039,
+     153,
+     163
+    ]
+   ],
+   "finish": 3871647.192436,
+   "encoded_total": 498,
+   "request_id": "1956043.45"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871648.595623,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871648.816804,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871648.818078,
+     0,
+     7485
+    ]
+   ],
+   "finish": 3871648.815922,
+   "encoded_total": 315,
+   "request_id": "1956043.46"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871648.59607,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871648.75478,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871648.75571,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871648.751452,
+   "encoded_total": 511,
+   "request_id": "1956043.47"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871649.867398,
+   "phase": "login",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871649.881261,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871649.88182,
+     0,
+     25
+    ],
+    [
+     3871649.882217,
+     61,
+     0
+    ]
+   ],
+   "finish": 3871649.881475,
+   "encoded_total": 406,
+   "request_id": "1956043.48"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871651.21617,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871651.268443,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871651.270254,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871651.263104,
+   "encoded_total": 406,
+   "request_id": "1956043.49"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/logs?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871651.216511,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871651.306974,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871651.31215,
+     63345,
+     280777
+    ]
+   ],
+   "finish": 3871651.27947,
+   "encoded_total": 63715,
+   "request_id": "1956043.50"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871651.216721,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.239916,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871652.269542,
+     4701,
+     25472
+    ]
+   ],
+   "finish": 3871651.710182,
+   "encoded_total": 5113,
+   "request_id": "1956043.51"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871651.310875,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.239499,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871652.259708,
+     164,
+     200
+    ]
+   ],
+   "finish": 3871651.596658,
+   "encoded_total": 509,
+   "request_id": "1956043.52"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871651.357223,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.238591,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871652.248978,
+     600,
+     3427
+    ]
+   ],
+   "finish": 3871651.512859,
+   "encoded_total": 945,
+   "request_id": "1956043.53"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/stream?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon&after_id=374380",
+   "start": 3871652.240448,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871652.303051,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871652.30314,
+     0,
+     110
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871660.680323,
+   "request_id": "1956043.54"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871652.278287,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.304138,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871652.310247,
+     600,
+     3427
+    ]
+   ],
+   "finish": 3871652.292992,
+   "encoded_total": 945,
+   "request_id": "1956043.55"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/context?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871652.285272,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.304604,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871652.311246,
+     154,
+     161
+    ]
+   ],
+   "finish": 3871652.293811,
+   "encoded_total": 499,
+   "request_id": "1956043.56"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871652.431795,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.710793,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871652.711596,
+     0,
+     25472
+    ]
+   ],
+   "finish": 3871652.709728,
+   "encoded_total": 315,
+   "request_id": "1956043.57"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871652.432145,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871652.527812,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871652.528337,
+     164,
+     200
+    ]
+   ],
+   "finish": 3871652.523696,
+   "encoded_total": 509,
+   "request_id": "1956043.58"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871653.482331,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871653.654678,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871653.657254,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871653.650449,
+   "encoded_total": 1261,
+   "request_id": "1956043.59"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871654.866832,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871654.883345,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871654.885659,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871654.880464,
+   "encoded_total": 406,
+   "request_id": "1956043.60"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871656.32787,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871656.752851,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871656.757634,
+     0,
+     25472
+    ]
+   ],
+   "finish": 3871656.748892,
+   "encoded_total": 315,
+   "request_id": "1956043.61"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871656.328267,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871656.387796,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871656.390189,
+     0,
+     200
+    ],
+    [
+     3871656.391928,
+     164,
+     0
+    ]
+   ],
+   "finish": 3871656.388958,
+   "encoded_total": 509,
+   "request_id": "1956043.62"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871659.884311,
+   "phase": "orch1:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871659.987643,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871659.990452,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871659.98448,
+   "encoded_total": 406,
+   "request_id": "1956043.63"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871660.415741,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871660.723906,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871660.779238,
+     0,
+     25472
+    ]
+   ],
+   "finish": 3871660.710109,
+   "encoded_total": 315,
+   "request_id": "1956043.64"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871660.4182,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871660.519387,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871660.519914,
+     164,
+     200
+    ]
+   ],
+   "finish": 3871660.49638,
+   "encoded_total": 509,
+   "request_id": "1956043.65"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871660.646722,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871660.721408,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871660.729924,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871660.691214,
+   "encoded_total": 406,
+   "request_id": "1956043.66"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot-orchestrator/logs?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871660.647469,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871660.723613,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871660.756186,
+     23135,
+     111251
+    ]
+   ],
+   "finish": 3871660.697171,
+   "encoded_total": 23505,
+   "request_id": "1956043.67"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871660.790174,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871661.217426,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871661.218631,
+     865,
+     5255
+    ]
+   ],
+   "finish": 3871660.916529,
+   "encoded_total": 1210,
+   "request_id": "1956043.68"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871660.791876,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871661.217893,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871661.223412,
+     865,
+     5255
+    ]
+   ],
+   "finish": 3871660.971285,
+   "encoded_total": 1210,
+   "request_id": "1956043.69"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot-orchestrator/stream?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot&after_id=371846",
+   "start": 3871661.218222,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871661.284681,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871661.284757,
+     0,
+     107
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871670.339541,
+   "request_id": "1956043.70"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871662.220257,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871662.302023,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871662.303064,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871662.298211,
+   "encoded_total": 1261,
+   "request_id": "1956043.71"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871664.827376,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871665.12158,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871665.126519,
+     844,
+     2316
+    ]
+   ],
+   "finish": 3871665.125186,
+   "encoded_total": 1256,
+   "request_id": "1956043.72"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871664.827831,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871664.906208,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871664.908142,
+     158,
+     194
+    ]
+   ],
+   "finish": 3871664.904323,
+   "encoded_total": 503,
+   "request_id": "1956043.73"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871664.866718,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871664.905554,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871664.907111,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871664.904093,
+   "encoded_total": 406,
+   "request_id": "1956043.74"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot-orchestrator/context?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871665.153632,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871665.229894,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871665.231973,
+     82,
+     60
+    ]
+   ],
+   "finish": 3871665.206531,
+   "encoded_total": 427,
+   "request_id": "1956043.75"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871668.766582,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871669.073105,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871669.074823,
+     0,
+     2316
+    ]
+   ],
+   "finish": 3871669.070054,
+   "encoded_total": 315,
+   "request_id": "1956043.76"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871668.767303,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871668.81077,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871668.811653,
+     158,
+     194
+    ]
+   ],
+   "finish": 3871668.809498,
+   "encoded_total": 503,
+   "request_id": "1956043.77"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/kesha-tg-bot-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fkesha-tg-bot",
+   "start": 3871669.869797,
+   "phase": "orch2:kesha-tg-bot-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871669.923777,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871669.930697,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871669.911111,
+   "encoded_total": 406,
+   "request_id": "1956043.78"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871670.331255,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.406325,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871670.410272,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871670.405921,
+   "encoded_total": 406,
+   "request_id": "1956043.79"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/logs?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871670.331607,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.405699,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871670.407265,
+     36494,
+     139921
+    ],
+    [
+     3871670.408579,
+     0,
+     140856
+    ],
+    [
+     3871670.414637,
+     26851,
+     0
+    ]
+   ],
+   "finish": 3871670.406922,
+   "encoded_total": 63715,
+   "request_id": "1956043.80"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871670.331883,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.735481,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871670.75035,
+     0,
+     25472
+    ]
+   ],
+   "finish": 3871670.628402,
+   "encoded_total": 315,
+   "request_id": "1956043.81"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871670.418517,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.731455,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871670.749544,
+     164,
+     200
+    ]
+   ],
+   "finish": 3871670.467543,
+   "encoded_total": 509,
+   "request_id": "1956043.82"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871670.419052,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.727957,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871670.748811,
+     600,
+     3427
+    ]
+   ],
+   "finish": 3871670.434826,
+   "encoded_total": 945,
+   "request_id": "1956043.83"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/stream?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon&after_id=374380",
+   "start": 3871670.736185,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871670.793994,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871670.794096,
+     0,
+     110
+    ]
+   ],
+   "failed": "net::ERR_ABORTED",
+   "canceled": true,
+   "finish": 3871680.13689,
+   "request_id": "1956043.84"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871670.759134,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.794857,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871670.825703,
+     600,
+     3427
+    ]
+   ],
+   "finish": 3871670.770242,
+   "encoded_total": 945,
+   "request_id": "1956043.85"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871670.868606,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871670.950599,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871670.961844,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871670.949119,
+   "encoded_total": 1261,
+   "request_id": "1956043.86"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871672.689811,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871672.938164,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871672.939689,
+     0,
+     25472
+    ]
+   ],
+   "finish": 3871672.937279,
+   "encoded_total": 315,
+   "request_id": "1956043.87"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871672.69435,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871672.772175,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871672.775967,
+     164,
+     200
+    ]
+   ],
+   "finish": 3871672.768828,
+   "encoded_total": 509,
+   "request_id": "1956043.88"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871674.866963,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871674.880639,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871674.882402,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871674.880042,
+   "encoded_total": 406,
+   "request_id": "1956043.89"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871676.55555,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871677.475951,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871677.495738,
+     0,
+     25472
+    ]
+   ],
+   "finish": 3871677.395572,
+   "encoded_total": 315,
+   "request_id": "1956043.90"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871676.555932,
+   "phase": "orch3:seedon-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871677.070454,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871677.07204,
+     164,
+     200
+    ]
+   ],
+   "finish": 3871677.04061,
+   "encoded_total": 509,
+   "request_id": "1956043.91"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871679.558078,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871679.83175,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871679.832884,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871679.812483,
+   "encoded_total": 1261,
+   "request_id": "1956043.92"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/seedon-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Fprojects%2Fseedon",
+   "start": 3871679.975521,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.010175,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871680.010674,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871680.009084,
+   "encoded_total": 406,
+   "request_id": "1956043.93"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871680.120834,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.168233,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871680.445336,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871680.164437,
+   "encoded_total": 406,
+   "request_id": "1956043.94"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/logs?scope=%2Fhome%2Fkesha%2Forchestra&before_id=2147483647&limit=100&cap=16384",
+   "start": 3871680.121212,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.160303,
+   "headers_bytes": 370,
+   "chunks": [
+    [
+     3871680.161985,
+     27392,
+     115618
+    ]
+   ],
+   "finish": 3871680.158349,
+   "encoded_total": 27762,
+   "request_id": "1956043.95"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871680.12139,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.499803,
+   "headers_bytes": 412,
+   "chunks": [
+    [
+     3871680.509797,
+     1741,
+     7485
+    ]
+   ],
+   "finish": 3871680.411539,
+   "encoded_total": 2153,
+   "request_id": "1956043.96"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871680.176421,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.465268,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871680.509342,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871680.26305,
+   "encoded_total": 511,
+   "request_id": "1956043.97"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/stream?scope=%2Fhome%2Fkesha%2Forchestra&after_id=374247",
+   "start": 3871680.498788,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "EventSource",
+   "status": 200,
+   "mime": "text/event-stream",
+   "from_disk_cache": false,
+   "response_at": 3871680.579949,
+   "headers_bytes": 362,
+   "chunks": [
+    [
+     3871680.580087,
+     0,
+     110
+    ]
+   ],
+   "request_id": "1956043.98"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871680.508841,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.62484,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871680.625678,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871680.564041,
+   "encoded_total": 895,
+   "request_id": "1956043.99"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871680.51055,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871680.625382,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871680.62619,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871680.570366,
+   "encoded_total": 895,
+   "request_id": "1956043.100"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871681.114787,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871681.361852,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871681.362453,
+     0,
+     7485
+    ]
+   ],
+   "finish": 3871681.361125,
+   "encoded_total": 315,
+   "request_id": "1956043.101"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871681.115163,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871681.235555,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871681.260804,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871681.20671,
+   "encoded_total": 511,
+   "request_id": "1956043.102"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871684.87862,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871684.959655,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871684.962202,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871684.922964,
+   "encoded_total": 406,
+   "request_id": "1956043.103"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871684.97715,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871685.46649,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871685.475758,
+     0,
+     7485
+    ]
+   ],
+   "finish": 3871685.443591,
+   "encoded_total": 315,
+   "request_id": "1956043.104"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871684.978636,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871685.226478,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871685.227873,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871685.225294,
+   "encoded_total": 511,
+   "request_id": "1956043.105"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/models",
+   "start": 3871688.406448,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871688.50873,
+   "headers_bytes": 382,
+   "chunks": [
+    [
+     3871688.510477,
+     879,
+     6524
+    ]
+   ],
+   "finish": 3871688.503899,
+   "encoded_total": 1261,
+   "request_id": "1956043.106"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871689.14483,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871689.420041,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871689.422772,
+     0,
+     7485
+    ]
+   ],
+   "finish": 3871689.41896,
+   "encoded_total": 315,
+   "request_id": "1956043.107"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871689.145276,
+   "phase": "orch4:Orchestra-orchestrator",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871689.235412,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871689.236065,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871689.234963,
+   "encoded_total": 511,
+   "request_id": "1956043.108"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions/Orchestra-orchestrator/queued-messages?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871689.922449,
+   "phase": "post-orch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871689.987373,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871689.988506,
+     61,
+     25
+    ]
+   ],
+   "finish": 3871689.973248,
+   "encoded_total": 406,
+   "request_id": "1956043.109"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/files?path=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871690.872903,
+   "phase": "post-orch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871690.92424,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871690.924907,
+     550,
+     2850
+    ]
+   ],
+   "finish": 3871690.912845,
+   "encoded_total": 895,
+   "request_id": "1956043.110"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/sessions?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871693.03946,
+   "phase": "post-orch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871693.274435,
+   "headers_bytes": 315,
+   "chunks": [
+    [
+     3871693.275955,
+     0,
+     7485
+    ]
+   ],
+   "finish": 3871693.273738,
+   "encoded_total": 315,
+   "request_id": "1956043.111"
+  },
+  {
+   "method": "GET",
+   "url": "http://127.0.0.1:8888/api/stats?scope=%2Fhome%2Fkesha%2Forchestra",
+   "start": 3871693.040668,
+   "phase": "post-orch-quiet",
+   "type": "Fetch",
+   "status": 200,
+   "mime": "application/json",
+   "from_disk_cache": false,
+   "response_at": 3871693.156103,
+   "headers_bytes": 345,
+   "chunks": [
+    [
+     3871693.156803,
+     166,
+     203
+    ]
+   ],
+   "finish": 3871693.155199,
+   "encoded_total": 511,
+   "request_id": "1956043.112"
+  }
+ ]
+}
