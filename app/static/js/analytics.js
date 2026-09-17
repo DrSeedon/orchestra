@@ -315,7 +315,7 @@ function _analyticsProviderCard(provider, stats) {
             const sparkWindows = [capacity.spark.primary, capacity.spark.secondary]
                 .filter(value => value && value.utilization != null);
             if (sparkWindows.length) {
-                windows += `<div class="analytics-spark"><span>Spark — отдельный bucket</span>${sparkWindows.map((value, index) => _analyticsWindow(index ? 'Вторичный' : 'Основной', value)).join('')}</div>`;
+                windows += `<div class="analytics-spark"><span>Spark — отдельный bucket</span>${sparkWindows.map(value => _analyticsWindow(windowLabel(value.window_minutes), value)).join('')}</div>`;
             }
         }
     }

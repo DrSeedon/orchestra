@@ -213,14 +213,6 @@ function _miniBar(pct, color) {
     return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
 }
 
-function _codexWindowLabel(windowMinutes) {
-    if (windowMinutes === 300) return '5h';
-    if (windowMinutes === 10080) return '7d';
-    if (windowMinutes % 1440 === 0) return `${windowMinutes / 1440}d`;
-    if (windowMinutes % 60 === 0) return `${windowMinutes / 60}h`;
-    return `${windowMinutes}m`;
-}
-
 function _usageProviderAccent(providerId) {
     const meta = _PROVIDER_META[providerId] || {};
     return meta.usageAccent || _PROVIDER_COLORS[meta.provider] || _PROVIDER_COLORS.unknown;
@@ -378,7 +370,7 @@ function renderUsageBar() {
                 const cd = _resetCountdown(window.resets_at);
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
                 const headroom = _quotaMapLaneHeadroomText(window, provider.bucketId);
-                const label = _codexWindowLabel(window.window_minutes);
+                const label = windowLabel(window.window_minutes);
                 providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
             }
             groups.push(
@@ -454,7 +446,7 @@ function renderUsageBar() {
                     codexHtml += '<div style="border-bottom:1px solid rgba(51,65,85,0.45);padding-bottom:4px;margin-bottom:7px">';
                     codexHtml += `<div style="color:${provider.accent};font-weight:700;margin-bottom:5px">${provider.title}</div>`;
                     for (const window of provider.windows) {
-                        codexHtml += _windowBlock(window, _codexWindowLabel(window.window_minutes), provider.windowAccent);
+                        codexHtml += _windowBlock(window, windowLabel(window.window_minutes), provider.windowAccent);
                     }
                     codexHtml += '</div>';
                 }
@@ -466,7 +458,7 @@ function renderUsageBar() {
                 grokHtml += `<div style="color:${_usageProviderAccent('grok')};font-weight:700;margin-bottom:7px">${grokMeta.usageTitle}</div>`;
                 if (grokWindows.length) {
                     for (const item of grokWindows) {
-                        grokHtml += _windowBlock(item.window, _codexWindowLabel(item.window.window_minutes), grokMeta.windowAccent);
+                        grokHtml += _windowBlock(item.window, windowLabel(item.window.window_minutes), grokMeta.windowAccent);
                     }
                     grokHtml += `<div data-usage-history="${grokMeta.historyProviders.join(',')}"></div>`;
                 } else {
@@ -637,7 +629,7 @@ function _usageHistorySeries(data) {
                 if (!series.has(key)) {
                     series.set(key, {
                         key, providerId, providerLabel: provider.label || providerId,
-                        windowId: window.id, windowLabel: window.label || _codexWindowLabel(window.window_minutes),
+                        windowId: window.id, windowLabel: window.label || windowLabel(window.window_minutes),
                         points: [],
                     });
                 }
