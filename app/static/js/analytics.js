@@ -8,17 +8,17 @@ let _analyticsSelectedAgent = null;
 let _analyticsRequestVersion = 0;
 
 const _analyticsPeriods = {
-    today: { label: 'Сегодня', days: 1 },
-    week: { label: '7 дней', days: 7 },
-    month: { label: '30 дней', days: 30 },
-    all: { label: 'Всё время', days: 9999 },
+    today: { label: T('Today'), days: 1 },
+    week: { label: T('7 days'), days: 7 },
+    month: { label: T('30 days'), days: 30 },
+    all: { label: T('All time'), days: 9999 },
 };
 
 const _analyticsViews = {
-    overview: 'Пулы и расходы',
-    agents: 'Агенты',
-    efficiency: 'Эффективность',
-    reliability: 'Надёжность',
+    overview: T('Pools & costs'),
+    agents: T('Agents'),
+    efficiency: T('Efficiency'),
+    reliability: T('Reliability'),
 };
 
 // Chart.js — 204 КБ ради одной диаграммы в этой модалке. Он качался на КАЖДОЙ загрузке
@@ -35,10 +35,10 @@ function _ensureChartJs() {
             const el = document.createElement('script');
             el.src = src;
             el.onload = resolve;
-            el.onerror = () => reject(new Error(`не загрузился ${src}`));
+            el.onerror = () => reject(new Error(T('failed to load {src}', {src})));
             document.head.appendChild(el);
         })
-        : Promise.reject(new Error('в разметке модалки нет data-chart-src'));
+        : Promise.reject(new Error(T('analytics modal markup missing data-chart-src')));
     return _chartJsPromise;
 }
 
@@ -113,7 +113,7 @@ async function _analyticsLoad() {
     const body = document.getElementById('analytics-body');
     if (!body) return;
     _analyticsDestroyChart();
-    body.innerHTML = '<div class="analytics-state"><span class="analytics-loader"></span>Собираю единый снимок…</div>';
+    body.innerHTML = '<div class="analytics-state"><span class="analytics-loader"></span>' + T('Collecting unified snapshot…') + '</div>';
     const days = _analyticsPeriods[_analyticsPeriod].days;
     const requestVersion = ++_analyticsRequestVersion;
     try {
@@ -126,7 +126,7 @@ async function _analyticsLoad() {
         if (requestVersion !== _analyticsRequestVersion) return;
         _analyticsPayload = null;
         _analyticsRenderQuality();
-        body.innerHTML = `<div class="analytics-state analytics-state-error"><strong>Снимок недоступен</strong><span>${_analyticsEsc(error && error.message ? error.message : 'Неизвестная ошибка')}</span></div>`;
+        body.innerHTML = `<div class="analytics-state analytics-state-error"><strong>${T('Snapshot unavailable')}</strong><span>${_analyticsEsc(error && error.message ? error.message : T('Unknown error'))}</span></div>`;
     }
 }
 
@@ -134,14 +134,14 @@ function _analyticsRenderQuality() {
     const quality = document.getElementById('analytics-quality');
     if (!quality) return;
     if (!_analyticsPayload) {
-        quality.innerHTML = '<span class="analytics-badge analytics-badge-danger">нет данных</span>';
+        quality.innerHTML = '<span class="analytics-badge analytics-badge-danger">' + T('no data') + '</span>';
         return;
     }
     const period = _analyticsPayload.period || {};
     const generated = _analyticsDateTime(_analyticsPayload.generated_at);
     quality.innerHTML = `${period.complete
-        ? '<span class="analytics-badge analytics-badge-ok">полное окно</span>'
-        : '<span class="analytics-badge analytics-badge-warn">частичная история</span>'}
+        ? '<span class="analytics-badge analytics-badge-ok">' + T('full window') + '</span>'
+        : '<span class="analytics-badge analytics-badge-warn">' + T('partial history') + '</span>'}
         <span class="analytics-generated">${generated}</span>`;
 }
 
@@ -178,14 +178,18 @@ function _analyticsRenderOverview(body) {
     );
     const taskCostPartial = summary.task_cost_coverage_complete === false;
     const taskCost = taskCostPartial
-        ? 'частичные данные'
+        ? T('partial data')
         : summary.cost_per_linked_task == null
-        ? 'нет связки'
+        ? T('no linkage')
         : _analyticsMoney(summary.cost_per_linked_task);
     const linkageCoverage = `${_analyticsNumber(linkedTasks)} / ${_analyticsNumber(summary.completed_tasks)}`;
     const taskCostDetail = taskCostPartial
-        ? `точно оценено ${_analyticsNumber(observedTasks)} / ${_analyticsNumber(linkedTasks)} · связка ${linkageCoverage}`
-        : `покрытие связки ${linkageCoverage}`;
+        ? T('precisely estimated {observed} / {linked} · linkage {coverage}', {
+            observed: _analyticsNumber(observedTasks),
+            linked: _analyticsNumber(linkedTasks),
+            coverage: linkageCoverage
+        })
+        : T('linkage coverage {coverage}', {coverage: linkageCoverage});
     const pricedTurns = Number(summary.priced_turns ?? summary.agent_turns ?? 0);
     const unaccountedTurns = Number(summary.unaccounted_turns || 0);
     const observedCostDetail = T('{priced} priced turns', {priced: _analyticsNumber(pricedTurns)})
@@ -194,26 +198,26 @@ function _analyticsRenderOverview(body) {
     body.innerHTML = `
         ${_analyticsWakePanel()}
         <section class="analytics-route analytics-route-${routing.tone}">
-            <div><span class="analytics-eyebrow">Куда роутить сейчас</span><strong>${routing.title}</strong></div>
+            <div><span class="analytics-eyebrow">${T('Where to route now')}</span><strong>${routing.title}</strong></div>
             <p>${routing.detail}</p>
         </section>
         <section>
-            <div class="analytics-section-head"><div><span class="analytics-kicker">Два независимых пула</span><h3>Пулы и расходы</h3></div><span>Расходы виртуальные, лимиты подписочные</span></div>
-            <div class="analytics-provider-grid">${providerCards || '<div class="analytics-empty">Данные провайдеров пока не накоплены.</div>'}</div>
+            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Two independent pools')}</span><h3>${T('Pools and costs')}</h3></div><span>${T('Costs are virtual, limits are subscription-based')}</span></div>
+            <div class="analytics-provider-grid">${providerCards || '<div class="analytics-empty">' + T('Provider data not yet accumulated.') + '</div>'}</div>
         </section>
         <section class="analytics-kpi-grid">
-            ${_analyticsKpi('За период', _analyticsMoney(summary.observed_cost_usd), observedCostDetail)}
-            ${_analyticsKpi('Цена задачи', taskCost, taskCostDetail)}
-            ${_analyticsKpi('Активно сейчас', _analyticsNumber(lifetime.active_agents), `${_analyticsNumber(lifetime.agents)} агентов всего`)}
-            ${_analyticsKpi('За всё время', _analyticsMoney(lifetime.cost_usd), T('{n} turns', {n: _analyticsNumber(lifetime.turns)}))}
+            ${_analyticsKpi(T('For period'), _analyticsMoney(summary.observed_cost_usd), observedCostDetail)}
+            ${_analyticsKpi(T('Task cost'), taskCost, taskCostDetail)}
+            ${_analyticsKpi(T('Active now'), _analyticsNumber(lifetime.active_agents), T('{n} agents total', {n: _analyticsNumber(lifetime.agents)}))}
+            ${_analyticsKpi(T('All time'), _analyticsMoney(lifetime.cost_usd), T('{n} turns', {n: _analyticsNumber(lifetime.turns)}))}
         </section>
         <section class="analytics-overview-grid">
             <article class="analytics-panel analytics-chart-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Burn rate')}</span><h3>Расход по дням</h3></div><span>${T('Claude + Codex, stacked')}</span></div>
-                <div class="analytics-chart-wrap">${(data.daily || []).length ? '<canvas id="analytics-chart"></canvas>' : '<div class="analytics-empty">Нет данных о стоимости ходов за период.</div>'}</div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Burn rate')}</span><h3>${T('Daily spend')}</h3></div><span>${T('Claude + Codex, stacked')}</span></div>
+                <div class="analytics-chart-wrap">${(data.daily || []).length ? '<canvas id="analytics-chart"></canvas>' : '<div class="analytics-empty">' + T('No turn cost data for period.') + '</div>'}</div>
             </article>
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Dispatcher')}</span><h3>Сигналы</h3></div></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Dispatcher')}</span><h3>${T('Signals')}</h3></div></div>
                 <div class="analytics-signal-list">
                     ${_analyticsSignalRows()}
                 </div>
@@ -236,26 +240,46 @@ function _analyticsWakePanel() {
         const names = (item.agents || []).map(_analyticsEsc).join(', ');
         const provider = _analyticsEsc(item.provider || 'provider');
         if (item.preserved) {
-            const covered = names || 'текущие ходы не покрыты';
-            lines.push(`Сохранён прежний таймер ${provider} на ${_analyticsDateTime(item.reset_at)}: ${covered}.`);
+            const covered = names || T('current turns not covered');
+            lines.push(T('Previous timer {provider} at {time}: {covered}.', {
+                provider,
+                time: _analyticsDateTime(item.reset_at),
+                covered
+            }));
         } else if (item.reason === 'available_now') {
-            lines.push(`Сейчас разбудим ${provider}: ${names || '—'}.`);
+            lines.push(T('Waking {provider} now: {names}.', {
+                provider,
+                names: names || '—'
+            }));
         } else {
-            lines.push(`Запланировано ${provider} на ${_analyticsDateTime(item.reset_at)}: ${names || '—'}.`);
+            lines.push(T('Scheduled {provider} at {time}: {names}.', {
+                provider,
+                time: _analyticsDateTime(item.reset_at),
+                names: names || '—'
+            }));
         }
     }
     for (const item of manual) {
         const names = (item.agents || []).map(_analyticsEsc).join(', ');
         const url = _analyticsEsc(item.manual_action_url || 'https://claude.ai/settings/usage');
-        lines.push(`Не проснутся сами: ${names || '—'}. Базовая квота не сбрасывается по таймеру; проверь лимит в <a href="${url}" target="_blank" rel="noopener">Claude Usage</a> и нажми кнопку снова.`);
+        lines.push(T('Will not wake automatically: {names}. Base quota not reset by timer; check limit in <a href="{url}" target="_blank" rel="noopener">Claude Usage</a> and press the button again.', {
+            names: names || '—',
+            url
+        }));
     }
     for (const item of unavailable) {
         const names = (item.agents || []).map(_analyticsEsc).join(', ');
-        lines.push(`Не запланированы: ${names || '—'}. ${_analyticsEsc(item.reason || 'Нет свежих данных о квоте')}.`);
+        lines.push(T('Not scheduled: {names}. {reason}.', {
+            names: names || '—',
+            reason: _analyticsEsc(item.reason || T('No fresh quota data'))
+        }));
     }
     for (const item of warnings) {
         const names = (item.agents || []).map(_analyticsEsc).join(', ');
-        lines.push(`Предупреждение для ${names || '—'}: ${_analyticsEsc(item.reason || 'план не обновлён')}.`);
+        lines.push(T('Warning for {names}: {reason}.', {
+            names: names || '—',
+            reason: _analyticsEsc(item.reason || T('plan not updated'))
+        }));
     }
     if (manual.length || unavailable.length) {
         tone = 'danger';
@@ -267,33 +291,33 @@ function _analyticsWakePanel() {
     if (!lines.length) {
         lines.push(
             wake.candidate_count
-                ? 'Ничего не запланировано.'
-                : 'Ничего не запланировано: сейчас нет агентов, чей последний ход завершился по лимиту подписки.'
+                ? T('Nothing scheduled.')
+                : T('Nothing scheduled: no agents whose last turn ended by subscription limit.')
         );
     }
     const detail = lines.join('<br>');
     return `<section class="analytics-wake analytics-wake-${tone}">
         <div>
             <span class="analytics-kicker">${T('Recovery')}</span>
-            <strong>Разбудить после сброса</strong>
+            <strong>${T('Wake after reset')}</strong>
             <p data-analytics-wake-status>${detail}</p>
         </div>
-        <button type="button" data-analytics-wake>Разбудить после сброса</button>
+        <button type="button" data-analytics-wake>${T('Wake after reset')}</button>
     </section>`;
 }
 
 async function _analyticsScheduleWake(button) {
     const status = button.closest('.analytics-wake').querySelector('[data-analytics-wake-status]');
     button.disabled = true;
-    button.textContent = 'Планирую…';
+    button.textContent = T('Scheduling…');
     try {
         const result = await api('/api/usage/wake-after-reset', { method: 'POST' });
         _analyticsPayload.wake_after_reset = result;
         _analyticsRender();
     } catch (error) {
-        status.textContent = error && error.message ? error.message : 'Не удалось поставить таймер.';
+        status.textContent = error && error.message ? error.message : T('Failed to set timer.');
         button.disabled = false;
-        button.textContent = 'Повторить';
+        button.textContent = T('Retry');
     }
 }
 
@@ -304,7 +328,7 @@ function _analyticsProviderCard(provider, stats) {
     const capacity = _analyticsCapacity(provider);
     const { title, runtime, tone } = meta;
     const ttl = stats.cache_ttl_seconds
-        ? `${Math.round(stats.cache_ttl_seconds / 60)} мин${stats.cache_ttl_approximate ? ' ≈' : ''}`
+        ? `${Math.round(stats.cache_ttl_seconds / 60)} min${stats.cache_ttl_approximate ? ' ≈' : ''}`
         : '—';
     let windows = '';
     if (capacity) {
@@ -316,7 +340,7 @@ function _analyticsProviderCard(provider, stats) {
             const sparkWindows = [capacity.spark.primary, capacity.spark.secondary]
                 .filter(value => value && value.utilization != null);
             if (sparkWindows.length) {
-                windows += `<div class="analytics-spark"><span>Spark — отдельный пул</span>${sparkWindows.map(value => _analyticsWindow(windowLabel(value.window_minutes), value)).join('')}</div>`;
+                windows += `<div class="analytics-spark"><span>${T('Spark — separate pool')}</span>${sparkWindows.map(value => _analyticsWindow(windowLabel(value.window_minutes), value)).join('')}</div>`;
             }
         }
     }
@@ -331,7 +355,7 @@ function _analyticsProviderCard(provider, stats) {
             <div><span>${T('Cold starts')}</span><strong>${_analyticsNumber(stats.cold_starts)}</strong></div>
             <div><span>${T('TTL')}</span><strong>${ttl}</strong></div>
         </div>
-        <div class="analytics-window-list">${windows || '<span class="analytics-muted">Лимиты провайдера недоступны — значения не подменены нулями.</span>'}</div>
+        <div class="analytics-window-list">${windows || '<span class="analytics-muted">' + T('Provider limits unavailable — values not substituted with zeros.') + '</span>'}</div>
     </article>`;
 }
 
@@ -341,7 +365,7 @@ function _analyticsWindow(label, value) {
     return `<div class="analytics-window">
         <div><span>${T(label)}</span><strong class="analytics-text-${tone}">${pct}%</strong></div>
         <div class="analytics-meter"><i class="analytics-meter-${tone}" style="width:${pct}%"></i></div>
-        <small>${value.resets_at ? `сброс ${_analyticsDateTime(value.resets_at)}` : 'сброс неизвестен'}</small>
+        <small>${value.resets_at ? T('reset {time}', {time: _analyticsDateTime(value.resets_at)}) : T('reset unknown')}</small>
     </div>`;
 }
 
@@ -351,15 +375,22 @@ function _analyticsRoutingSignal() {
     const claudeValues = claude ? [claude.five_hour, claude.seven_day].filter(Boolean).map(item => Number(item.utilization)) : [];
     const codexValues = codex ? [codex.primary, codex.secondary].filter(Boolean).map(item => Number(item.utilization)) : [];
     if (!claudeValues.length || !codexValues.length) {
-        return { tone: 'neutral', title: 'Недостаточно данных о лимитах', detail: 'Роутинг не угадывается: минимум один provider snapshot отсутствует.' };
+        return {
+            tone: 'neutral',
+            title: T('Insufficient limit data'),
+            detail: T('Routing not guessed: at least one provider snapshot missing.')
+        };
     }
     const claudePressure = Math.max(...claudeValues);
     const codexPressure = Math.max(...codexValues);
     const provider = codexPressure <= claudePressure ? 'Codex' : 'Claude';
     return {
         tone: Math.min(claudePressure, codexPressure) >= 80 ? 'danger' : 'ok',
-        title: `${provider} — свободнее`,
-        detail: `Пиковая загрузка Claude ${claudePressure}%, Codex ${codexPressure}%. Это сигнал о загрузке пулов, а не автоматическое переключение.`,
+        title: T('{provider} — freer', {provider}),
+        detail: T('Claude peak load {claude}%, Codex {codex}%. This is a pool load signal, not automatic switching.', {
+            claude: claudePressure,
+            codex: codexPressure
+        }),
     };
 }
 
@@ -371,9 +402,9 @@ function _analyticsSignalRows() {
         .sort((a, b) => (b[1].cold_starts || 0) - (a[1].cold_starts || 0))[0];
     const period = _analyticsPayload.period || {};
     return `
-        <div class="analytics-signal"><span class="${anomalies.length ? 'analytics-text-warn' : 'analytics-text-ok'}">${anomalies.length ? T('CHECK') : T('OK')}</span><div><strong>${anomalies.length} аномальных агентов</strong><p>Сигнал: стоимость платного хода ≥ 4× медианы при двух и более платных ходах.</p></div></div>
-        <div class="analytics-signal"><span>${cold ? _analyticsEsc(cold[0].toUpperCase()) : '—'}</span><div><strong>${cold ? T('{n} cold starts', {n: _analyticsNumber(cold[1].cold_starts)}) : 'Кеш пока пуст'}</strong><p>Время жизни кеша считается отдельно для каждого клиента.</p></div></div>
-        <div class="analytics-signal"><span class="${period.complete ? 'analytics-text-ok' : 'analytics-text-warn'}">${period.complete ? T('FULL') : T('PART')}</span><div><strong>${period.complete ? 'Полное окно' : 'Частичное хранение'}</strong><p>${period.observed_from ? `Наблюдаем с ${_analyticsDateTime(period.observed_from)}.` : 'За период нет наблюдений.'}</p></div></div>`;
+        <div class="analytics-signal"><span class="${anomalies.length ? 'analytics-text-warn' : 'analytics-text-ok'}">${anomalies.length ? T('CHECK') : T('OK')}</span><div><strong>${T('{n} anomalous agents', {n: anomalies.length})}</strong><p>${T('Signal: priced turn cost ≥ 4× median with two or more priced turns.')}</p></div></div>
+        <div class="analytics-signal"><span>${cold ? _analyticsEsc(cold[0].toUpperCase()) : '—'}</span><div><strong>${cold ? T('{n} cold starts', {n: _analyticsNumber(cold[1].cold_starts)}) : T('Cache still empty')}</strong><p>${T('Cache lifetime computed separately per client.')}</p></div></div>
+        <div class="analytics-signal"><span class="${period.complete ? 'analytics-text-ok' : 'analytics-text-warn'}">${period.complete ? T('FULL') : T('PART')}</span><div><strong>${period.complete ? T('Full window') : T('Partial retention')}</strong><p>${period.observed_from ? T('Observing since {time}.', {time: _analyticsDateTime(period.observed_from)}) : T('No observations for period.')}</p></div></div>`;
 }
 
 function _analyticsRenderAgents(body) {
@@ -389,16 +420,16 @@ function _analyticsRenderAgents(body) {
     body.innerHTML = `
         <section class="analytics-panel analytics-agents-panel">
             <div class="analytics-section-head analytics-filter-head">
-                <div><span class="analytics-kicker">${T('Fleet')}</span><h3>Агенты и стоимость</h3></div>
+                <div><span class="analytics-kicker">${T('Fleet')}</span><h3>${T('Agents and costs')}</h3></div>
                 <div class="analytics-filters">
-                    ${[['all', 'Все'], ...Object.entries(_PROVIDER_META).map(([key, meta]) => [key, T(meta.title)]), ['anomaly', 'Аномалии']].map(([key, label]) =>
+                    ${[['all', T('All')], ...Object.entries(_PROVIDER_META).map(([key, meta]) => [key, T(meta.title)]), ['anomaly', T('Anomalies')]].map(([key, label]) =>
                         `<button type="button" data-analytics-agent-filter="${key}" class="${key === _analyticsAgentFilter ? 'active' : ''}">${label}</button>`
                     ).join('')}
                 </div>
             </div>
             <div class="analytics-table-wrap">
                 <table class="analytics-table">
-                    <thead><tr><th>Агент</th><th>Модель</th><th>Провайдер</th><th>${T('Turns')}</th><th>${T('Observed cost')}</th><th>${T('Cost / priced turn')}</th><th>Последний ход</th></tr></thead>
+                    <thead><tr><th>${T('Agent')}</th><th>${T('Model')}</th><th>${T('Provider')}</th><th>${T('Turns')}</th><th>${T('Observed cost')}</th><th>${T('Cost / priced turn')}</th><th>${T('Last turn')}</th></tr></thead>
                     <tbody id="analytics-agent-table">${agents.map(agent => `
                         <tr data-analytics-agent="${_analyticsEsc(agent.id)}" class="${agent.anomaly ? 'analytics-row-anomaly' : ''}">
                             <td><strong>${_analyticsEsc(agent.name || T('unknown'))}</strong>${agent.anomaly ? `<span class="analytics-badge analytics-badge-warn">${T('4× signal')}</span>` : ''}<small>${_analyticsEsc(agent.scope || '')}</small></td>
@@ -410,10 +441,10 @@ function _analyticsRenderAgents(body) {
                             <td>${_analyticsDateTime(agent.last_turn)}</td>
                         </tr>`).join('')}</tbody>
                 </table>
-                ${agents.length ? '' : '<div class="analytics-empty">Нет агентов для этого фильтра.</div>'}
+                ${agents.length ? '' : '<div class="analytics-empty">' + T('No agents for this filter.') + '</div>'}
             </div>
         </section>
-        <section id="analytics-agent-detail" class="analytics-agent-detail">${selected ? _analyticsAgentDetail(selected) : '<span>Нажмите на агента — здесь появится проверяемая разбивка.</span>'}</section>`;
+        <section id="analytics-agent-detail" class="analytics-agent-detail">${selected ? _analyticsAgentDetail(selected) : '<span>' + T('Click an agent — a verifiable breakdown will appear here.') + '</span>'}</section>`;
     body.querySelectorAll('[data-analytics-agent-filter]').forEach(button => {
         button.addEventListener('click', () => {
             _analyticsAgentFilter = button.dataset.analyticsAgentFilter;
@@ -430,17 +461,17 @@ function _analyticsRenderAgents(body) {
 }
 
 function _analyticsAgentDetail(agent) {
-    return `<div><span class="analytics-kicker">${T('Agent drill-down')}</span><h3>${_analyticsEsc(agent.name)}</h3><p>${_analyticsEsc(agent.scope || 'папка неизвестна')}</p></div>
+    return `<div><span class="analytics-kicker">${T('Agent drill-down')}</span><h3>${_analyticsEsc(agent.name)}</h3><p>${_analyticsEsc(agent.scope || T('folder unknown'))}</p></div>
         <dl>
-            <div><dt>Модель</dt><dd>${_analyticsEsc(agent.model || T('unknown'))}</dd></div>
-            <div><dt>Провайдер</dt><dd>${_analyticsEsc(agent.provider || T('unknown'))}</dd></div>
+            <div><dt>${T('Model')}</dt><dd>${_analyticsEsc(agent.model || T('unknown'))}</dd></div>
+            <div><dt>${T('Provider')}</dt><dd>${_analyticsEsc(agent.provider || T('unknown'))}</dd></div>
             <div><dt>${T('Turns')}</dt><dd>${_analyticsNumber(agent.turns)}</dd></div>
             <div><dt>${T('Observed cost')}</dt><dd>${_analyticsMoney(agent.cost_usd)}</dd></div>
             <div><dt>${T('Priced / unaccounted')}</dt><dd>${_analyticsNumber(agent.priced_turns ?? agent.turns)} / ${_analyticsNumber(agent.unaccounted_turns)}</dd></div>
             <div><dt>${T('Cost / priced turn')}</dt><dd>${_analyticsMoney(agent.cost_per_priced_turn ?? agent.cost_per_turn)}</dd></div>
-            <div><dt>Последний ход</dt><dd>${_analyticsDateTime(agent.last_turn)}</dd></div>
+            <div><dt>${T('Last turn')}</dt><dd>${_analyticsDateTime(agent.last_turn)}</dd></div>
         </dl>
-        ${agent.anomaly ? '<p class="analytics-detail-note">Сигнал, не вердикт: стоимость платного хода ≥ 4× медианы по парку при минимум двух платных ходах.</p>' : ''}`;
+        ${agent.anomaly ? '<p class="analytics-detail-note">' + T('Signal, not verdict: priced turn cost ≥ 4× fleet median with minimum two priced turns.') + '</p>' : ''}`;
 }
 
 function _analyticsRenderEfficiency(body) {
@@ -449,25 +480,32 @@ function _analyticsRenderEfficiency(body) {
     body.innerHTML = `
         <section class="analytics-efficiency-grid">
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Cache')}</span><h3>Эффективность по клиентам</h3></div><span>только сравнимые ходы</span></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Cache')}</span><h3>${T('Efficiency by clients')}</h3></div><span>${T('only comparable turns')}</span></div>
                 <div class="analytics-cache-grid">${Object.keys(_PROVIDER_META).filter(p => providers[p]).map(provider => {
                     const item = providers[provider] || {};
                     const ttl = item.cache_ttl_seconds ? Math.round(item.cache_ttl_seconds / 60) : null;
                     return `<div class="analytics-cache-card">
-                        <div><strong>${T(_PROVIDER_META[provider].title)}</strong><span>${T('TTL')} ${ttl == null ? '—' : `${ttl} мин${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
+                        <div><strong>${T(_PROVIDER_META[provider].title)}</strong><span>${T('TTL')} ${ttl == null ? '—' : `${ttl} min${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
                         <b>${item.cache_hit_pct == null ? '—' : `${item.cache_hit_pct}%`}</b>
-                        <p>сравнимых ходов: ${_analyticsNumber(item.comparable_turns)} · холодных стартов: ${_analyticsNumber(item.cold_starts)}</p>
+                        <p>${T('comparable turns: {n}', {n: _analyticsNumber(item.comparable_turns)})} · ${T('cold starts: {n}', {n: _analyticsNumber(item.cold_starts)})}</p>
                     </div>`;
                 }).join('')}</div>
             </article>
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Model mix')}</span><h3>Куда ушла работа</h3></div><span>доли наблюдаемой стоимости</span></div>
-                <div class="analytics-model-list">${models.map(model => `
-                    <div class="analytics-model-row">
-                        <div><strong>${_analyticsEsc(model.model || T('unknown'))}</strong><span>${_analyticsEsc(model.provider)} · платных: ${_analyticsNumber(model.priced_turns ?? model.turns)}${model.unaccounted_turns ? ` · ${T('{n} unaccounted', {n: _analyticsNumber(model.unaccounted_turns)})}` : ''}</span></div>
-                        <div class="analytics-model-value"><b>${model.cost_share_pct == null ? '—' : `${Number(model.cost_share_pct).toFixed(1)}%`}</b><span>${_analyticsMoney(model.cost_usd)}</span></div>
-                        <div class="analytics-model-track"><i class="analytics-model-${_analyticsEsc(model.provider)}" style="width:${Math.max(0, Math.min(Number(model.cost_share_pct) || 0, 100))}%"></i></div>
-                    </div>`).join('') || '<div class="analytics-empty">Нет данных о составе моделей.</div>'}</div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Model mix')}</span><h3>${T('Where work went')}</h3></div><span>${T('shares of observed cost')}</span></div>
+                <div class="analytics-model-list">${(function() {
+                    const rows = models.map(model => {
+                        const priced = _analyticsNumber(model.priced_turns || model.turns);
+                        const unaccounted = model.unaccounted_turns ? ' · ' + T('{n} unaccounted', {n: _analyticsNumber(model.unaccounted_turns)}) : '';
+                        const pct = model.cost_share_pct == null ? '—' : Number(model.cost_share_pct).toFixed(1) + '%';
+                        return `<div class="analytics-model-row">
+                            <div><strong>${_analyticsEsc(model.model || T('unknown'))}</strong><span>${_analyticsEsc(model.provider)} · ${T('priced: {n}', {n: priced})}${unaccounted}</span></div>
+                            <div class="analytics-model-value"><b>${pct}</b><span>${_analyticsMoney(model.cost_usd)}</span></div>
+                            <div class="analytics-model-track"><i class="analytics-model-${_analyticsEsc(model.provider)}" style="width:${Math.max(0, Math.min(Number(model.cost_share_pct) || 0, 100))}%"></i></div>
+                        </div>`;
+                    }).join('');
+                    return rows || '<div class="analytics-empty">' + T('No model composition data.') + '</div>';
+                }())}</div>
             </article>
         </section>`;
 }
@@ -483,21 +521,26 @@ function _analyticsRenderReliability(body) {
     const errorItems = errors.items || [];
     let errorBlock;
     if (!errors.collector_ready) {
-        errorBlock = '<div class="analytics-collector-gap"><strong>нет сборщика</strong><span>Прошлые сбои инструментов не наблюдались структурно; ноль показывать было бы ложью.</span></div>';
+        errorBlock = '<div class="analytics-collector-gap"><strong>' + T('no collector') + '</strong><span>' + T('Past tool failures not observed structurally; showing zero would be a lie.') + '</span></div>';
     } else if (errorItems.length) {
-        errorBlock = `<div class="analytics-error-list">${errorItems.map(item => `<div><strong>${_analyticsEsc(item.tool_name || item.tool || T('unknown'))}</strong><span>сбоев: ${_analyticsNumber(item.count)}</span><p>${_analyticsEsc(item.last_error || item.error || '')}</p></div>`).join('')}${errors.coverage_complete ? '' : '<div class="analytics-collector-gap"><strong>частичное покрытие</strong><span>Рейтинг включает только события после запуска сборщика.</span></div>'}</div>`;
+        errorBlock = `<div class="analytics-error-list">${errorItems.map(item => `<div><strong>${_analyticsEsc(item.tool_name || item.tool || T('unknown'))}</strong><span>${T('failures: {n}', {n: _analyticsNumber(item.count)})}</span><p>${_analyticsEsc(item.last_error || item.error || '')}</p></div>`).join('')}${errors.coverage_complete ? '' : '<div class="analytics-collector-gap"><strong>' + T('partial coverage') + '</strong><span>' + T('Rating includes only events after collector start.') + '</span></div>'}</div>`;
     } else if (errors.coverage_complete) {
-        errorBlock = '<div class="analytics-error-list"><span class="analytics-text-ok">Ошибок в полностью собранном окне нет.</span></div>';
+        errorBlock = '<div class="analytics-error-list"><span class="analytics-text-ok">' + T('No errors in fully collected window.') + '</span></div>';
     } else {
-        errorBlock = `<div class="analytics-collector-gap"><strong>частичное покрытие</strong><span>Сборщик работает с ${_analyticsDateTime(errors.collector_started_at)}; более ранние сбои неизвестны.</span></div>`;
+        errorBlock = `<div class="analytics-collector-gap"><strong>` + T('partial coverage') + `</strong><span>` + T('Collector running since {time}; earlier failures unknown.', {time: _analyticsDateTime(errors.collector_started_at)}) + `</span></div>`;
     }
     const turnBlock = turns.collector_ready
-        ? `<strong>структурных ходов: ${_analyticsNumber(turns.recorded_rows)}</strong><span>платных: ${_analyticsNumber(turns.priced_rows ?? turns.recorded_rows)} · неучтённых: ${_analyticsNumber(turns.unaccounted_rows)} · ${turns.coverage_complete ? 'полное окно' : 'частичное покрытие'} · с ${_analyticsDateTime(turns.collector_started_at || turns.observed_from)}</span>`
-        : '<strong>нет сборщика</strong><span>Токены, модель и кеш по каждому ходу пока не собирались структурно.</span>';
+        ? `<strong>` + T('structural turns: {n}', {n: _analyticsNumber(turns.recorded_rows)}) + `</strong><span>` + T('priced: {priced} · unaccounted: {unaccounted} · {coverage} · since {time}', {
+            priced: _analyticsNumber(turns.priced_rows ?? turns.recorded_rows),
+            unaccounted: _analyticsNumber(turns.unaccounted_rows),
+            coverage: turns.coverage_complete ? T('full window') : T('partial coverage'),
+            time: _analyticsDateTime(turns.collector_started_at || turns.observed_from)
+        }) + `</span>`
+        : '<strong>' + T('no collector') + '</strong><span>' + T('Tokens, model and cache per turn not yet collected structurally.') + '</span>';
     body.innerHTML = `
         <section class="analytics-reliability-grid">
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Delegation')}</span><h3>${T('Native subagents')}</h3></div><span>без фоновых Bash</span></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Delegation')}</span><h3>${T('Native subagents')}</h3></div><span>${T('no background Bash')}</span></div>
                 <div class="analytics-status-grid">
                     ${_analyticsStatus(T('Completed'), subagents.completed, 'ok')}
                     ${_analyticsStatus(T('Failed'), subagents.failed, 'danger')}
@@ -505,24 +548,24 @@ function _analyticsRenderReliability(body) {
                     ${_analyticsStatus(T('Stopped'), subagents.stopped, 'muted')}
                 </div>
                 <div class="analytics-reliability-stats">
-                    <div><span>Фоновые Bash</span><strong>${_analyticsNumber(background.total)}</strong><small>сбоев: ${_analyticsNumber(background.failed)} · тот же событийный поток, но это не делегирование</small></div>
-                    ${subagents.unclassified ? `<div><span>Неизвестный тип</span><strong>${_analyticsNumber(subagents.unclassified)}</strong><small>task_type не распознан — в делегирование не засчитаны</small></div>` : ''}
+                    <div><span>${T('Background Bash')}</span><strong>${_analyticsNumber(background.total)}</strong><small>${T('failures: {n} · same event stream, but not delegation', {n: _analyticsNumber(background.failed)})}</small></div>
+                    ${subagents.unclassified ? `<div><span>${T('Unknown type')}</span><strong>${_analyticsNumber(subagents.unclassified)}</strong><small>${T('task_type not recognized — not counted in delegation')}</small></div>` : ''}
                 </div>
-                <p class="analytics-footnote">Считаются local_agent (Claude) и codex. Фоновые Bash-задачи приходят тем же событием <code>subagent_start</code> и раньше попадали сюда же — на живой базе это завышало цифру примерно в 390 раз.</p>
+                <p class="analytics-footnote">${T('Counted are local_agent (Claude) and codex. Background Bash tasks arrive via the same subagent_start event and previously ended up here too — on live data this inflated the number by ~390×.')}</p>
             </article>
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Coverage')}</span><h3>Задачи и голос</h3></div></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Coverage')}</span><h3>${T('Tasks and voice')}</h3></div></div>
                 <div class="analytics-reliability-stats">
-                    <div><span>${T('Task linkage')}</span><strong>${_analyticsNumber(linkage.linked)} / ${_analyticsNumber(linkage.total)}</strong><small>стоимость задачи считается только по связанным сессиям</small></div>
-                    <div><span>${T('Voice')}</span><strong>${_analyticsNumber(voice.entries)} записей</strong><small>${_analyticsDuration(voice.duration_sec)} · ${_analyticsMoney(voice.cost_usd)}</small></div>
+                    <div><span>${T('Task linkage')}</span><strong>${_analyticsNumber(linkage.linked)} / ${_analyticsNumber(linkage.total)}</strong><small>${T('task cost counted only for linked sessions')}</small></div>
+                    <div><span>${T('Voice')}</span><strong>${_analyticsNumber(voice.entries)} ${T('entries')}</strong><small>${_analyticsDuration(voice.duration_sec)} · ${_analyticsMoney(voice.cost_usd)}</small></div>
                 </div>
             </article>
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Tool health')}</span><h3>Ошибки инструментов</h3></div></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Tool health')}</span><h3>${T('Tool errors')}</h3></div></div>
                 ${errorBlock}
             </article>
             <article class="analytics-panel">
-                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Structured telemetry')}</span><h3>События по ходам</h3></div></div>
+                <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Structured telemetry')}</span><h3>${T('Events per turn')}</h3></div></div>
                 <div class="analytics-collector-gap">${turnBlock}</div>
             </article>
         </section>`;
@@ -541,7 +584,7 @@ async function _analyticsRenderChart(daily) {
     } catch (e) {
         // Молчать нельзя: пустое место на графике выглядит как «данных нет»
         canvas.replaceWith(Object.assign(document.createElement('div'), {
-            className: 'analytics-text-warn', textContent: `График не отрисован: ${e.message}`,
+            className: 'analytics-text-warn', textContent: T('Chart not rendered: {error}', {error: e.message}),
         }));
         return;
     }
@@ -622,8 +665,8 @@ function _analyticsDateTime(value) {
 
 function _analyticsDuration(seconds) {
     const total = Number(seconds || 0);
-    if (total < 60) return `${Math.round(total)} сек`;
-    return `${Math.floor(total / 60)} мин ${Math.round(total % 60)} сек`;
+    if (total < 60) return `${Math.round(total)} sec`;
+    return `${Math.floor(total / 60)} min ${Math.round(total % 60)} sec`;
 }
 
 function _analyticsEsc(value) {

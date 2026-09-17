@@ -2,17 +2,17 @@
 
 function _runtimeStatusDetail(session) {
     const labels = {
-        not_loaded: 'runtime не загружен',
-        hibernated: 'runtime в гибернации',
-        detached: 'runtime отключён',
-        attached: 'runtime подключён; читатель событий не активен',
-        listening: 'читатель событий активен',
-        failed: 'ошибка подключения runtime',
-        writer_conflict: 'тред занят другим процессом',
+        not_loaded: T('runtime not loaded'),
+        hibernated: T('runtime hibernated'),
+        detached: T('runtime detached'),
+        attached: T('runtime connected; event reader not active'),
+        listening: T('event reader active'),
+        failed: T('runtime connection error'),
+        writer_conflict: T('thread busy with another process'),
     };
     return [labels[session.runtime_connection], (typeof session.runtime_error === 'object' ? session.runtime_error?.message : session.runtime_error), session.lifecycle_status?.message,
         session.delivery_uncertain
-            ? 'доставка не подтверждена; для освобождения очереди перезапусти CLI этого агента (без повторной отправки)' : '']
+            ? T('delivery not confirmed; restart this agent\'s CLI to free the queue (without resending)') : '']
         .filter(Boolean).join(' · ');
 }
 
@@ -72,13 +72,13 @@ function snapshotLoad(key) {
     return {data: parsed.data, ts, ageMs};
 }
 
-// «данные от 14:32» — метка времени, а не относительный возраст: юзер и так знает,
-// который час, а «5 минут назад» надо держать в голове и пересчитывать.
+// "data from 14:32" — a timestamp, not relative age: user knows the hour,
+// "5 minutes ago" must be kept in mind and recalculated.
 function snapshotAgeLabel(ts) {
     const when = new Date(ts);
     const hh = String(when.getHours()).padStart(2, '0');
     const mm = String(when.getMinutes()).padStart(2, '0');
-    return `данные от ${hh}:${mm}`;
+    return T('data from {hh}:{mm}', {hh, mm});
 }
 
 // One table owns provider labels, capacity routing and window shapes for every usage view.
