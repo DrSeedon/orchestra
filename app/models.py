@@ -344,6 +344,21 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
     _apply_derived_views(spec)
 
 
+# Маршруты, отказавшие в НАШЕЙ пробе (#V-581, повторный прогон 17.09.2026): каталог
+# провайдера продолжает обещать инструменты, но воркер на них не работает. Каждая строка —
+# наблюдение, а не мнение; появится противоположный замер — снимать по одной, не списком.
+BLOCKED_HARNESS_ROUTES: dict[str, str] = {
+    "thinkingmachines/inkling:free": "HTTP 403: маршрут открыт только в харнесах провайдера",
+    "thinkingmachines/inkling-small:free": "HTTP 403: маршрут открыт только в харнесах провайдера",
+    "poolside/laguna-s-2.1:free": "HTTP 429 в обоих прогонах пробы",
+    "poolside/laguna-xs-2.1:free": "HTTP 429 в обоих прогонах пробы",
+    "google/gemma-4-31b-it:free": "HTTP 429 в обоих прогонах пробы",
+    "nex-agi/nex-n2.5-mini:free": "таймаут чтения 90 с в обоих прогонах",
+    "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free": "инструмент не вызывается вовсе",
+    "inclusionai/ling-3.0-flash-vl:free": "вызывает инструмент и игнорирует его результат",
+}
+
+
 def validate_harness_model_spec(spec: ModelSpec) -> None:
     """Production admission for Orchestra's OpenRouter runtime.
 
@@ -356,6 +371,11 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
     """
     if spec.runtime != "harness":
         raise ValueError(f"model '{spec.id}' is not a harness model")
+    if spec.id in BLOCKED_HARNESS_ROUTES:
+        raise ValueError(
+            f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
+            f"{BLOCKED_HARNESS_ROUTES[spec.id]}"
+        )
     if not spec.id.endswith(":free"):
         raise ValueError(
             f"harness model '{spec.id}' is not an exact :free route; "

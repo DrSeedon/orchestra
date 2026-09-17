@@ -133,10 +133,14 @@ def apply_model_catalog() -> int:
     """
     from app.models import MODEL_SPECS, ModelSpec, SELECTABLE_MODEL_SPECS, register_model
 
+    from app.models import BLOCKED_HARNESS_ROUTES
+
     manifest = {spec.id: spec for spec in SELECTABLE_MODEL_SPECS}
+    # Отказавший в пробе маршрут не доходит и до выбора: иначе его видно в списке моделей,
+    # и отказ наступает только на спавне, уже потратив ход.
     eligible = {
         norm["id"]: norm for norm in cached_catalog()
-        if harness_capable(norm)
+        if harness_capable(norm) and norm.get("id") not in BLOCKED_HARNESS_ROUTES
     }
     registered = dropped = 0
     for norm in eligible.values():
