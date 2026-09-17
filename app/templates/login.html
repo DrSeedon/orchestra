@@ -5,7 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="{{ g.asset('favicon.svg') }}" type="image/svg+xml">
-    <title>🎼 Orchestra — Login</title>
+    <title data-i18n>🎼 Orchestra — Login</title>
+    <script src="{{ g.asset('js/i18n.js') }}"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -25,6 +26,12 @@
             padding: 40px;
             width: 360px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .lang-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 8px;
+            min-height: 20px;
         }
         .login-card h1 {
             text-align: center;
@@ -75,16 +82,17 @@
 </head>
 <body>
     <div class="login-card">
+        <div class="lang-row"><span id="lang-switch"></span></div>
         <h1>🎼 Orchestra</h1>
-        <div class="subtitle">AI Agent Orchestrator</div>
+        <div class="subtitle" data-i18n>AI Agent Orchestrator</div>
         <form method="POST" action="/login">
             <div class="field">
-                <input type="text" name="username" placeholder="Username" autocomplete="username" required autofocus>
+                <input type="text" name="username" placeholder="Username" data-i18n-placeholder autocomplete="username" required autofocus>
             </div>
             <div class="field">
-                <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+                <input type="password" name="password" placeholder="Password" data-i18n-placeholder autocomplete="current-password" required>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit" data-i18n>Login</button>
         </form>
         {% if error %}
         <div class="error">{{ error }}</div>

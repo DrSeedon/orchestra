@@ -248,7 +248,7 @@ function _usageFreshnessHtml() {
 function _renderUsageBarShell(bar, groups) {
     bar.innerHTML = `<div class="usage-limits">${groups.join('')}</div>`
         + `<div class="usage-actions">${_usageFreshnessHtml()}`
-        + '<span id="usage-info-btn" title="Usage details and history">ⓘ</span></div>';
+        + `<span id="usage-info-btn" title="${T('Usage details and history')}">ⓘ</span></div>`;
 }
 
 function renderUsageBar() {
@@ -262,7 +262,7 @@ function renderUsageBar() {
                 return;
             }
             bar.style.cssText = 'display:flex;align-items:center;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#eab308;flex-shrink:0';
-            bar.textContent = '⚠ Usage unavailable';
+            bar.textContent = T('⚠ Usage unavailable');
         } else {
             bar.innerHTML = '';
             bar.style.display = 'none';
@@ -270,7 +270,7 @@ function renderUsageBar() {
         return;
     }
     bar.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:4px 12px;min-height:28px;height:auto;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:visible;white-space:nowrap;cursor:pointer';
-    bar.title = 'Нажмите, чтобы обновить usage';
+    bar.title = 'Нажмите, чтобы обновить данные о расходе';
 
     const a = _usageData.anthropic || {};
     const cx = _usageData.codex || {};
@@ -279,7 +279,7 @@ function renderUsageBar() {
     const claudeParts = [];
 
     if (_usageError && !Connection.ownsErrors()) {
-        claudeParts.push('<span style="color:#eab308" title="Using cached data">⚠️</span>');
+        claudeParts.push(`<span style="color:#eab308" title="${T('Using cached data')}">⚠️</span>`);
     }
 
     const fh = a.five_hour;
@@ -289,7 +289,7 @@ function renderUsageBar() {
         const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
         const release = '';
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">5h: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('5h')}: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
@@ -299,7 +299,7 @@ function renderUsageBar() {
         const cd = _resetCountdown(sd.resets_at);
         const release = _quotaMapLaneStatusText(sd, 'anthropic');
         const headroom = _quotaMapLaneHeadroomText(sd, 'anthropic');
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">7d: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('7d')}: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     if (claudeParts.length) {
         groups.push(
@@ -355,7 +355,7 @@ function renderUsageBar() {
             if (!provider.windows.length) {
                 groups.push(
                     `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
-                    + `<span class="usage-provider-title" style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`
+                    + `<span class="usage-provider-title" style="color:${color};font-weight:600">${T(provider.compactTitle || meta.compactTitle || meta.title)}</span>`
                     + `<span class="usage-provider-values"><span style="color:#64748b">${_usageNoDataLabel()}</span></span>`
                     + '</span>'
                 );
@@ -375,7 +375,7 @@ function renderUsageBar() {
             }
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
-                + `<span class="usage-provider-title" style="color:${color};font-weight:600">${provider.compactTitle || meta.compactTitle || meta.title}</span>`
+                + `<span class="usage-provider-title" style="color:${color};font-weight:600">${T(provider.compactTitle || meta.compactTitle || meta.title)}</span>`
                 + `<span class="usage-provider-values">${providerParts.join('')}</span>`
                 + '</span>',
             );
@@ -430,9 +430,9 @@ function renderUsageBar() {
                 let h = '';
                 const claudeMeta = _PROVIDER_META.claude;
                 let claudeHtml = '<section data-usage-provider="claude" style="min-width:0;padding-right:2px">';
-                claudeHtml += `<div style="color:${_usageProviderAccent('claude')};font-weight:700;margin-bottom:7px">${claudeMeta.usageTitle}</div>`;
+                claudeHtml += `<div style="color:${_usageProviderAccent('claude')};font-weight:700;margin-bottom:7px">${T(claudeMeta.usageTitle)}</div>`;
                 for (const item of _usageProviderWindows('claude', _a)) {
-                    claudeHtml += _windowBlock(item.window, item.label, claudeMeta.windowAccent);
+                    claudeHtml += _windowBlock(item.window, T(item.label), claudeMeta.windowAccent);
                 }
                 claudeHtml += `<div data-usage-history="${claudeMeta.historyProviders.join(',')}"></div></section>`;
 
@@ -444,9 +444,9 @@ function renderUsageBar() {
                 let codexHtml = '<section data-usage-provider="codex" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
                 for (const provider of codexProviders) {
                     codexHtml += '<div style="border-bottom:1px solid rgba(51,65,85,0.45);padding-bottom:4px;margin-bottom:7px">';
-                    codexHtml += `<div style="color:${provider.accent};font-weight:700;margin-bottom:5px">${provider.title}</div>`;
+                    codexHtml += `<div style="color:${provider.accent};font-weight:700;margin-bottom:5px">${T(provider.title)}</div>`;
                     for (const window of provider.windows) {
-                        codexHtml += _windowBlock(window, windowLabel(window.window_minutes), provider.windowAccent);
+                        codexHtml += _windowBlock(window, T(windowLabel(window.window_minutes)), provider.windowAccent);
                     }
                     codexHtml += '</div>';
                 }
@@ -455,10 +455,10 @@ function renderUsageBar() {
                 const grokMeta = _PROVIDER_META.grok;
                 const grokWindows = _usageProviderWindows('grok', _g);
                 let grokHtml = '<section data-usage-provider="grok" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
-                grokHtml += `<div style="color:${_usageProviderAccent('grok')};font-weight:700;margin-bottom:7px">${grokMeta.usageTitle}</div>`;
+                grokHtml += `<div style="color:${_usageProviderAccent('grok')};font-weight:700;margin-bottom:7px">${T(grokMeta.usageTitle)}</div>`;
                 if (grokWindows.length) {
                     for (const item of grokWindows) {
-                        grokHtml += _windowBlock(item.window, windowLabel(item.window.window_minutes), grokMeta.windowAccent);
+                        grokHtml += _windowBlock(item.window, T(windowLabel(item.window.window_minutes)), grokMeta.windowAccent);
                     }
                     grokHtml += `<div data-usage-history="${grokMeta.historyProviders.join(',')}"></div>`;
                 } else {
@@ -470,7 +470,7 @@ function renderUsageBar() {
                 let orHtml = '';
                 if (orMeta) {
                     orHtml = '<section data-usage-provider="openrouter" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
-                    orHtml += '<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">OpenRouter (free)</div>';
+                    orHtml += '<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">OpenRouter (бесплатный)</div>';
                     if (!orMeta.available) {
                         orHtml += `<div style="color:#64748b;font-style:italic">${escHtml(orMeta.reason || 'Данные недоступны')}</div>`;
                     } else {
@@ -495,7 +495,7 @@ function renderUsageBar() {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
                     h += _row('💰 Стоимость', `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
                     if (typeof _usageData.voice_cost_usd === 'number') {
-                        h += `<div style="font-size:10px">${_row('🎤 Voice', `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
+                        h += `<div style="font-size:10px">${_row('🎤 Голос', `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
                     }
                     // Цена подписки приходит из SUBSCRIPTION_COST (.env). Не задана — строки
                     // нет: захардкоженная константа уже провисела неверной, а рядом стоят
@@ -682,7 +682,7 @@ function _renderSparklines(slot, providerFilter = null) {
     const data = _sparkData;
     if (!data || data.length < 1) return;
     const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
-    const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    const DAYS = ['вс','пн','вт','ср','чт','пт','сб'];
     const providerColors = {
         anthropic: ['#38bdf8', '#f97316'],
         codex: ['#22c55e', '#a3e635'],
@@ -818,8 +818,8 @@ function _renderSparklines(slot, providerFilter = null) {
             const newer = isAnchor && hasNewer
                 ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">▶</span>`
                 : isAnchor ? '<span style="color:#1e293b">▶</span>' : '';
-            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${series.windowLabel}</span><span style="color:#64748b">${current}% · ${periodLabel}</span>${newer}</div>`;
-            html += `<div style="font-size:8px;color:#475569;margin-bottom:2px">━ usage &nbsp;┈ ideal pace</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
+            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${T(series.windowLabel)}</span><span style="color:#64748b">${current}% · ${periodLabel}</span>${newer}</div>`;
+            html += `<div style="font-size:8px;color:#475569;margin-bottom:2px">${T('━ usage ┈ ideal pace')}</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
         });
         html += '</div>';
     }

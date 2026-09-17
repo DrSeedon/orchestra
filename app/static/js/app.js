@@ -245,7 +245,7 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         if (downloads && _SEND_FILE_OPENABLE.test(path)) {
             row.appendChild(_sendFileButton('🔗 Открыть', () => _openSendFile(path)));
         }
-        if (downloads) row.appendChild(_sendFileButton('📥 Download', () => _downloadSendFile(path)));
+        if (downloads) row.appendChild(_sendFileButton(T('📥 Download'), () => _downloadSendFile(path)));
         list.appendChild(row);
         rows.push(row);
     });
@@ -254,13 +254,15 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         const toggle = document.createElement('button');
         toggle.type = 'button';
         toggle.className = 'sf-list-toggle';
-        toggle.textContent = `▼ Show all ${paths.length} files`;
+        toggle.textContent = T('▼ Show all {n} files', {n: paths.length});
         toggle.style.cssText = 'align-self:flex-start;padding:2px 8px;font-size:11px;border:0;background:transparent;color:#a5b4fc;cursor:pointer';
         let expanded = false;
         toggle.onclick = () => {
             expanded = !expanded;
             rows.slice(SEND_FILES_VISIBLE_LIMIT).forEach(row => { row.style.display = expanded ? 'flex' : 'none'; });
-            toggle.textContent = expanded ? '▲ Show fewer files' : `▼ Show all ${paths.length} files`;
+            toggle.textContent = expanded
+                ? T('▲ Show fewer files')
+                : T('▼ Show all {n} files', {n: paths.length});
         };
         list.appendChild(toggle);
     }
@@ -269,7 +271,7 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         const actions = document.createElement('div');
         actions.className = 'sf-actions';
         actions.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
-        actions.appendChild(_sendFileButton('📥 Download all / Скачать все', () => paths.forEach(_downloadSendFile)));
+        actions.appendChild(_sendFileButton(T('📥 Download all'), () => paths.forEach(_downloadSendFile)));
         node.appendChild(actions);
     }
 }
@@ -985,10 +987,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const compactBtn = $('#compact-toggle-btn');
     if (compactBtn) {
         const syncCompactButton = () => {
-            compactBtn.textContent = window.compactMode ? '📋 Compact' : '📄 Normal';
+            compactBtn.textContent = window.compactMode ? T('📋 Compact') : T('📄 Normal');
             compactBtn.title = window.compactMode
-                ? 'Tool view: compact. Switch to normal view'
-                : 'Tool view: normal. Switch to compact view';
+                ? T('Tool view: compact. Switch to normal view')
+                : T('Tool view: normal. Switch to compact view');
             compactBtn.setAttribute('aria-pressed', String(window.compactMode));
         };
         syncCompactButton();
@@ -1489,13 +1491,13 @@ async function openPromptModal() {
     const modal = $('#prompt-modal');
     const body = $('#prompt-modal-body');
     $('#prompt-modal-name').textContent = selectedAgent;
-    body.innerHTML = '<span class="text-slate-500 text-xs">Loading...</span>';
+    body.innerHTML = `<span class="text-slate-500 text-xs">${T('Loading...')}</span>`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     try {
         const blocks = await api(`/api/sessions/${selectedAgent}/prompt-blocks?scope=${encodeURIComponent(currentScope)}`);
         if (!Array.isArray(blocks) || blocks.length === 0) {
-            body.innerHTML = '<span class="text-slate-500 italic text-xs">No system prompt</span>';
+            body.innerHTML = `<span class="text-slate-500 italic text-xs">${T('No system prompt')}</span>`;
             return;
         }
         _renderPromptBlocks(body, blocks, true);
@@ -1512,12 +1514,12 @@ function _renderPromptBlocks(container, blocks) {
     const totalTokens = Math.round(totalChars / 4);
 
     let html = `<div class="pb-summary">
-        <span class="pb-stat"><b>${blocks.length}</b> blocks</span>
-        ${counts.file ? `<span class="pb-stat" style="color:#3b82f6"><b>${counts.file}</b> files</span>` : ''}
-        ${counts.module ? `<span class="pb-stat" style="color:#a78bfa"><b>${counts.module}</b> modules</span>` : ''}
-        ${counts.dynamic ? `<span class="pb-stat" style="color:#f59e0b"><b>${counts.dynamic}</b> dynamic</span>` : ''}
-        ${counts.skill ? `<span class="pb-stat" style="color:#22c55e"><b>${counts.skill}</b> skills</span>` : ''}
-        <span class="pb-stat"><b>~${totalTokens >= 1000 ? (totalTokens/1000).toFixed(1)+'k' : totalTokens}</b> tokens</span>
+        <span class="pb-stat"><b>${blocks.length}</b> ${T('blocks')}</span>
+        ${counts.file ? `<span class="pb-stat" style="color:#3b82f6"><b>${counts.file}</b> ${T('files')}</span>` : ''}
+        ${counts.module ? `<span class="pb-stat" style="color:#a78bfa"><b>${counts.module}</b> ${T('modules')}</span>` : ''}
+        ${counts.dynamic ? `<span class="pb-stat" style="color:#f59e0b"><b>${counts.dynamic}</b> ${T('dynamic')}</span>` : ''}
+        ${counts.skill ? `<span class="pb-stat" style="color:#22c55e"><b>${counts.skill}</b> ${T('skills')}</span>` : ''}
+        <span class="pb-stat"><b>~${totalTokens >= 1000 ? (totalTokens/1000).toFixed(1)+'k' : totalTokens}</b> ${T('tokens')}</span>
     </div>`;
 
     blocks.forEach((b, i) => {
@@ -1574,7 +1576,7 @@ async function openFilePreview(path) {
     const openBtn = $('#file-preview-open');
     const dlBtn = $('#file-preview-download');
     pathEl.textContent = path;
-    contentEl.textContent = 'Loading…';
+    contentEl.textContent = T('Loading…');
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     const rawUrl = `/api/files/raw?path=${encodeURIComponent(path)}`;
@@ -1703,7 +1705,7 @@ function initFilePreviewModal() {
 
 async function showProjectPicker() {
     const picker = $('#project-picker');
-    picker.innerHTML = '<div class="p-2 text-xs text-slate-500">Loading...</div>';
+    picker.innerHTML = `<div class="p-2 text-xs text-slate-500">${T('Loading...')}</div>`;
     picker.classList.remove('hidden');
     try {
         const projects = await api('/api/projects');
@@ -1725,7 +1727,7 @@ async function showProjectPicker() {
             });
             picker.appendChild(item);
         }
-    } catch { picker.innerHTML = '<div class="p-2 text-xs text-red-400">Failed to load</div>'; }
+    } catch { picker.innerHTML = `<div class="p-2 text-xs text-red-400">${T('Failed to load')}</div>`; }
 }
 
 function autoNameFromPath(path) {
@@ -1742,9 +1744,9 @@ async function createOrchestrator() {
     const pipeline = 'default';
     const role = 'orchestrator';
     const errEl = $('#orch-error');
-    if (!name || !cwd) { errEl.textContent = 'Name and project path required'; errEl.classList.remove('hidden'); return; }
+    if (!name || !cwd) { errEl.textContent = T('Name and project path required'); errEl.classList.remove('hidden'); return; }
     const btn = $('#create-orch-btn');
-    btn.disabled = true; btn.textContent = 'Creating...'; errEl.classList.add('hidden');
+    btn.disabled = true; btn.textContent = T('Creating...'); errEl.classList.add('hidden');
     try {
         await api('/api/sessions', { method: 'POST', body: JSON.stringify({ name, cwd, model, profile, pipeline, role, is_orchestrator: true }) });
         closeModal(); $('#orch-name').value = ''; $('#orch-cwd').value = '';
@@ -1752,7 +1754,7 @@ async function createOrchestrator() {
         await loadOrchestrators();
         selectOrchestrator(name, cwd.replace(/\/+$/, ''));
     } catch (e) { errEl.textContent = e.message; errEl.classList.remove('hidden'); }
-    finally { btn.disabled = false; btn.textContent = 'Create Orchestrator'; }
+    finally { btn.disabled = false; btn.textContent = T('Create Orchestrator'); }
 }
 
 async function restartServer() {
@@ -1891,10 +1893,10 @@ const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b', 
 const _STATUS_BG = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)',
                     broken: 'rgba(239,68,68,0.15)'};
 const _STATUS_TITLE = {
-    running: 'running — агент выполняет задачу',
-    waiting: 'waiting — агент ждёт фоновую задачу или подтверждение',
-    idle: 'idle — агент простаивает',
-    broken: 'broken — worktree агента не существует: задачу слать бесполезно, нужен спавн заново',
+    running: 'выполняет — агент работает над задачей',
+    waiting: 'ждёт — агент ждёт фоновую задачу или подтверждение',
+    idle: 'простаивает — агент свободен',
+    broken: 'сломан — worktree агента не существует: задачу слать бесполезно, нужен спавн заново',
 };
 
 function _orchState(o) {
@@ -1948,6 +1950,7 @@ function renderOrchTabs(sorted) {
         const label = document.createElement('span');
         const shortName = o.name.replace(/-orchestrator$/, '');
         label.textContent = shortName;
+        label.dataset.i18nSkip = '1';  // имя оркестратора — данные, не надпись
         tab.append(dot, label);
         // Cache indicator on orch tab — reuse _cachePill / _renderCachePill so countdown ticks them
         const orchPill = _cachePill(o);
@@ -2018,7 +2021,7 @@ function _hideDropHint() {
 
 function _showDropHint(input) {
     if (!('origPlaceholder' in input.dataset)) input.dataset.origPlaceholder = input.placeholder;
-    input.placeholder = '📎 Drop files here';
+    input.placeholder = T('📎 Drop files here');
     input.classList.add('border-indigo-400');
 }
 
@@ -2153,7 +2156,7 @@ function initTabContextMenu() {
 function openDeleteOrchModal(name, scope) {
     const modal = $('#delete-orch-modal');
     if (!modal) {
-        if (!confirm(`Delete "${name}" and all its workers?`)) return;
+        if (!confirm(T('Delete "{name}" and all its workers?', {name}))) return;
         api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
             .then(() => loadOrchestrators())
             .catch(e => alert(`Delete failed: ${e.message}`));
@@ -2223,7 +2226,7 @@ function changeOrchScope(name, oldScope) {
 
     const browseBtn = $('#change-scope-browse');
     const onBrowse = async () => {
-        picker.innerHTML = '<div class="p-2 text-xs text-slate-500">Loading...</div>';
+        picker.innerHTML = `<div class="p-2 text-xs text-slate-500">${T('Loading...')}</div>`;
         picker.classList.remove('hidden');
         try {
             const projects = await api('/api/projects');
@@ -2235,7 +2238,7 @@ function changeOrchScope(name, oldScope) {
                 item.addEventListener('click', () => { pathInput.value = p.path; picker.classList.add('hidden'); });
                 picker.appendChild(item);
             }
-        } catch { picker.innerHTML = '<div class="p-2 text-xs text-red-400">Failed to load</div>'; }
+        } catch { picker.innerHTML = `<div class="p-2 text-xs text-red-400">${T('Failed to load')}</div>`; }
     };
 
     const cleanup = () => {
@@ -2561,7 +2564,7 @@ function updateInputState() {
         btn.disabled = true;
         if (afterTurnBtn) afterTurnBtn.disabled = true;
     } else {
-        input.placeholder = `Message ${selectedAgent}...`;
+        input.placeholder = T('Message {agent}...', {agent: selectedAgent});
         input.disabled = false;
         btn.disabled = false;
         if (afterTurnBtn) afterTurnBtn.disabled = false;
@@ -2603,10 +2606,10 @@ function _updateProxyStatus(connected) {
     if (!el) return;
     if (connected) {
         el.textContent = '🟢';
-        el.title = 'Proxy connected';
+        el.title = T('Proxy connected');
     } else {
         el.textContent = '🔴';
-        el.title = 'Proxy offline — no models available';
+        el.title = T('Proxy offline — no models available');
     }
 }
 
@@ -2749,7 +2752,7 @@ function updateAgentInfo(session) {
             : 'Очистить сессию — начать разговор с нуля (история забывается, worktree и ветка не трогаются)';
     }
     $('#compact-btn').disabled = isRunning;
-    $('#compact-btn').title = isRunning ? 'Wait for idle' : 'Compact context';
+    $('#compact-btn').title = isRunning ? T('Wait for idle') : T('Compact context');
     $('#ai-name').textContent = session.name;
     const st = $('#ai-status');
     const runtimeDetail = _runtimeStatusDetail(session);
@@ -2772,10 +2775,11 @@ function updateAgentInfo(session) {
     const isIdle = session.status === 'idle' || session.status === 'stopped' || session.status === 'waiting';
     changeBtn.style.display = isIdle ? 'inline' : 'none';
     changeBtn.onclick = () => _showModelPicker(session.name, session.model, changeBtn);
-    $('#ai-role').textContent = session.role || 'worker';
+    $('#ai-role').textContent = T(session.role || 'worker');
     // Cost is virtual (API-equivalent), not real spend — subscription model
     $('#ai-cost').textContent = fmtCost(session.cost_usd);
-    $('#ai-cost').title = `${MODEL_COST_CURRENCY}${(session.cost_usd || 0).toFixed(4)} (CLI cost, includes cache)`;
+    $('#ai-cost').title = `${MODEL_COST_CURRENCY}${(session.cost_usd || 0).toFixed(4)}`
+        + T(' (CLI cost, includes cache)');
     $('#ai-branch').textContent = session.branch || '-';
     $('#ai-scope').textContent = session.scope || '-';
     const descEl = $('#ai-desc'); const descLabel = $('#ai-desc-label');
@@ -2798,7 +2802,7 @@ function setContextDisplay(text) {
         const grid = $('#agent-info .grid');
         const label = document.createElement('span');
         label.className = 'text-slate-500';
-        label.textContent = 'Context';
+        label.textContent = T('Context');
         ctxEl = document.createElement('span');
         ctxEl.id = 'ai-context';
         ctxEl.className = 'text-amber-400';
@@ -2925,11 +2929,11 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
         return approximate
             ? {
                 tier: 'hot', label: '🔥≈', color: '#22c55e',
-                title: `Running — Codex cache reference window ≈${ttlMin}m; actual ChatGPT TTL is not guaranteed`,
+                title: T('Running — Codex cache reference window ≈{ttl}m; actual ChatGPT TTL is not guaranteed', {ttl: ttlMin}),
             }
             : {
                 tier: 'hot', label: '🔥', color: '#22c55e',
-                title: 'Running — cache refreshes every turn',
+                title: T('Running — cache refreshes every turn'),
             };
     }
 
@@ -2940,11 +2944,11 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
         return approximate
             ? {
                 tier: 'unknown', label: `🧊? +${pastReference}`, color: '#64748b',
-                title: `Codex cache state unknown · ${pastReference} past the ≈${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`,
+                title: T('Codex cache state unknown · {past} past the ≈{ttl}m reference window; actual ChatGPT TTL is not guaranteed', {past: pastReference, ttl: ttlMin}),
             }
             : {
                 tier: 'cold', label: '🧊', color: '#64748b',
-                title: 'Cache cold — next turn ~20× дороже',
+                title: T('Cache cold — next turn ~20× дороже'),
             };
     }
 
@@ -2958,8 +2962,8 @@ function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.n
         tier = 'cooling'; label = `🔴${marker}${remMin}m`; color = '#ef4444';
     }
     const title = approximate
-        ? `Codex cache ≈${remMin}m within a ${ttlMin}m reference window; actual ChatGPT TTL is not guaranteed`
-        : `Cache ${remMin}m — после истечения ~20× дороже`;
+        ? T('Codex cache ≈{rem}m within a {ttl}m reference window; actual ChatGPT TTL is not guaranteed', {rem: remMin, ttl: ttlMin})
+        : T('Cache {rem}m — после истечения ~20× дороже', {rem: remMin});
     return {tier, label, color, title};
 }
 
@@ -3055,13 +3059,14 @@ function createAgentItem(s) {
     const nameEl = document.createElement('span');
     nameEl.className = 'text-xs font-medium truncate';
     nameEl.textContent = s.name;
+    nameEl.dataset.i18nSkip = '1';  // имя агента — данные, не надпись
     const statusEl = document.createElement('span');
     statusEl.className = 'agent-status text-xs font-mono font-bold shrink-0';
     statusEl.style.color = _STATUS_COLOR[s.status] || '#6b7280';
     statusEl.style.backgroundColor = _STATUS_BG[s.status] || 'rgba(107,114,128,0.1)';
     statusEl.style.padding = '1px 6px';
     statusEl.style.borderRadius = '4px';
-    statusEl.textContent = `${_STATUS_ICON[s.status] || '●'} ${s.status}`;
+    statusEl.textContent = `${_STATUS_ICON[s.status] || '●'} ${T(s.status)}`;
     statusEl.title = [_STATUS_TITLE[s.status], _runtimeStatusDetail(s)].filter(Boolean).join(' · ');
     nameRow.append(nameEl, statusEl);
 
@@ -3094,7 +3099,7 @@ function createAgentItem(s) {
         fill.className = 'h-1 rounded-full transition-all';
         fill.style.width = `${Math.min(pct, 100)}%`;
         fill.style.backgroundColor = pct > 80 ? '#ef4444' : pct > 50 ? '#f59e0b' : '#22c55e';
-        fill.title = `${pct}% context`;
+        fill.title = T('{pct}% context', {pct});
         bar.appendChild(fill);
         info.appendChild(bar);
     }
@@ -3209,13 +3214,13 @@ function _saveExpandedFolder(path, expanded) {
 }
 
 async function loadFileTree(path, container) {
-    container.innerHTML = '<div class="text-slate-600 px-2">Loading...</div>';
+    container.innerHTML = `<div class="text-slate-600 px-2">${T('Loading...')}</div>`;
     try {
         const files = await api(`/api/files?path=${encodeURIComponent(path)}`);
         container.innerHTML = '';
         for (const f of files) container.appendChild(_createFileItem(f, container));
         if (files.length === 0) {
-            container.innerHTML = '<div class="text-slate-600 px-2 italic">empty</div>';
+            container.innerHTML = `<div class="text-slate-600 px-2 italic">${T('empty')}</div>`;
         }
     } catch (e) {
         const errDiv = document.createElement('div');
@@ -3264,7 +3269,7 @@ function _createFileItem(f, container) {
         item.style.position = 'relative';
         const sendBtn = document.createElement('span');
         sendBtn.textContent = '➜';
-        sendBtn.title = 'Send path to chat';
+        sendBtn.title = T('Send path to chat');
         sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
         sendBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -3412,7 +3417,8 @@ async function refreshSessions() {
 }
 
 function _renderSessionsAndStats(sessions, stats) {
-    $('#stats-line').innerHTML = `${stats.active} active · ${stats.total_sessions} total<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd} (w/o cache)</span>`;
+    $('#stats-line').innerHTML = T('{active} active · {total} total', {active: stats.active, total: stats.total_sessions})
+        + `<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd}${T(' (w/o cache)')}</span>`;
     renderAgentList(sessions);
 }
 
@@ -3681,8 +3687,8 @@ const PortfolioPanel = (() => {
         button.type = 'button';
         button.dataset.leftTab = 'portfolio';
         button.className = 'left-tab portfolio-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors';
-        button.textContent = 'PROJECTS';
-        button.title = 'Portfolio projects';
+        button.textContent = T('PROJECTS');
+        button.title = T('Portfolio projects');
         button.setAttribute('aria-label', 'Открыть доску проектов');
         button.addEventListener('click', () => switchLeftTab('portfolio'));
         tabs.insertBefore(button, folderButton);
@@ -3894,7 +3900,7 @@ const PortfolioPanel = (() => {
         const projects = Array.isArray(currentPayload.projects) ? currentPayload.projects : [];
         panel.innerHTML = `<div class="portfolio-shell" data-portfolio-board="true">
             <header class="portfolio-board-head">
-                <div><span>PORTFOLIO / ROAD</span><h2>Дорога к цели</h2></div>
+                <div><span>${T('PORTFOLIO / ROAD')}</span><h2>Дорога к цели</h2></div>
                 <div class="portfolio-board-actions">
                     <span>${projects.length} ${projects.length === 1 ? 'проект' : 'проектов'}</span>
                     <button type="button" data-portfolio-refresh aria-label="Обновить доску">↻</button>
@@ -3986,21 +3992,21 @@ function closeClientModal() {
 async function _renderClientModal() {
     const body = document.getElementById('client-modal-body');
     if (!body) return;
-    body.innerHTML = '<span class="text-slate-500">Loading...</span>';
+    body.innerHTML = `<span class="text-slate-500">${T('Loading...')}</span>`;
     try {
         const data = await api('/api/models');
         const models = data.models || [];
         const connected = data.proxy_connected;
         let html = `<div class="flex items-center justify-between p-2.5 bg-slate-800/60 rounded-xl border border-slate-700/40 mb-3">
             <div class="flex items-center gap-2">
-                <span class="text-xs font-medium ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? '🟢 Connected' : '🔴 Offline'}</span>
+                <span class="text-xs font-medium ${connected ? 'text-emerald-400' : 'text-red-400'}">${connected ? T('🟢 Connected') : T('🔴 Offline')}</span>
             </div>
-            <button id="client-refresh-btn" onclick="_refreshModels(this)" class="text-[10px] px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600/60 rounded-lg text-indigo-300 transition-colors">🔄 Refresh</button>
+            <button id="client-refresh-btn" onclick="_refreshModels(this)" class="text-[10px] px-2.5 py-1 bg-indigo-600/40 hover:bg-indigo-600/60 rounded-lg text-indigo-300 transition-colors">${T('🔄 Refresh')}</button>
         </div>`;
         if (!models.length) {
-            html += `<div class="text-slate-500 italic py-6 text-center">No models available.<br>Models will appear after proxy connects.<br><span class="text-[10px] text-slate-600 mt-1 block">Auto-retry every 60s</span></div>`;
+            html += `<div class="text-slate-500 italic py-6 text-center">${T('No models available.')}<br>${T('Models will appear after proxy connects.')}<br><span class="text-[10px] text-slate-600 mt-1 block">${T('Auto-retry every 60s')}</span></div>`;
         } else {
-            html += `<div class="text-[10px] text-slate-500 mb-2 uppercase tracking-wider font-bold">Models (${models.length})</div>`;
+            html += `<div class="text-[10px] text-slate-500 mb-2 uppercase tracking-wider font-bold">${T('Models ({n})', {n: models.length})}</div>`;
             for (const m of models) {
                 const ctx = m.context_length ? `${Math.round(m.context_length / 1000)}k` : '';
                 const priceIn = m.price_input != null ? `${MODEL_COST_CURRENCY}${m.price_input}/M` : '';
@@ -4016,8 +4022,8 @@ async function _renderClientModal() {
             }
         }
         html += `<div class="mt-3 p-2.5 bg-slate-800/40 rounded-xl border border-slate-700/30">
-            <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">Usage & Limits</div>
-            <div class="text-[10px] text-slate-500 italic">Available in proxy admin panel</div>
+            <div class="text-[10px] text-slate-500 uppercase tracking-wider font-bold mb-1">${T('Usage & Limits')}</div>
+            <div class="text-[10px] text-slate-500 italic">${T('Available in proxy admin panel')}</div>
         </div>`;
         body.innerHTML = html;
     } catch (e) {
@@ -4026,7 +4032,7 @@ async function _renderClientModal() {
 }
 async function _refreshModels(btn) {
     const origText = btn.textContent;
-    btn.textContent = '⏳ Loading...';
+    btn.textContent = T('⏳ Loading...');
     btn.disabled = true;
     try {
         const result = await api('/api/models/refresh', { method: 'POST' });
@@ -4034,7 +4040,7 @@ async function _refreshModels(btn) {
         await _renderClientModal();
         await loadModels();
     } catch {
-        btn.textContent = '❌ Failed';
+        btn.textContent = T('❌ Failed');
         setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
     }
 }
@@ -4060,7 +4066,7 @@ async function _loadTasksNow() {
         const data = await api(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`, {pollKey: 'tasks'});
         renderTasksPanel(panel, data);
     } catch (e) {
-        panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load tasks</div>';
+        panel.innerHTML = `<div class="p-2 text-slate-500">${T('Failed to load tasks')}</div>`;
     }
 }
 
@@ -4109,7 +4115,7 @@ function _subagentsEscHandler(e) { if (e.key === 'Escape') closeSubagentsModal()
 async function _loadSubagents() {
     const body = document.getElementById('subagents-body');
     if (!body) return;
-    body.innerHTML = '<div class="text-center text-slate-500 py-8">Loading...</div>';
+    body.innerHTML = `<div class="text-center text-slate-500 py-8">${T('Loading...')}</div>`;
     try {
         const sid = manager_session_id_for(selectedAgent);
         const data = await api(`/api/subagents/${encodeURIComponent(sid)}`);
@@ -4178,12 +4184,12 @@ function _subagentTitle(s) {
 
 function _subagentStatus(s) {
     const statusMap = {
-        completed: ['🟢', '#22c55e', 'completed'],
-        failed: ['🔴', '#ef4444', 'failed'],
-        running: ['⏳', '#eab308', 'running'],
-        stopped: ['⏹️', '#94a3b8', 'stopped'],
+        completed: ['🟢', '#22c55e', T('completed')],
+        failed: ['🔴', '#ef4444', T('failed')],
+        running: ['⏳', '#eab308', T('running')],
+        stopped: ['⏹️', '#94a3b8', T('stopped')],
     };
-    return statusMap[s.status] || ['⚪', '#64748b', s.status || '?'];
+    return statusMap[s.status] || ['⚪', '#64748b', T(s.status) || '?'];
 }
 
 function _subagentDuration(s) {
@@ -4216,7 +4222,7 @@ function _renderSubagentCard(s, idx) {
     const summary = _meaningfulSummary(s);
     if (summary) {
         summaryBlock = `<div class="mt-2">
-            <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">▶ Показать summary</button>
+            <button class="sa-summary-toggle text-[10px] text-indigo-300 hover:text-indigo-200">▶ Показать итог</button>
             <div class="hidden mt-1 p-2 bg-slate-900/60 rounded-lg text-[11px] text-slate-300 whitespace-pre-wrap break-words">${_escHtml(summary)}</div>
         </div>`;
     }
@@ -4236,7 +4242,7 @@ function _renderSubagentCard(s, idx) {
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-sm">🤖</span>
                     <span class="text-xs font-semibold text-white break-words">${desc}</span>
-                    <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">agent</span>
+                    <span class="px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase" style="background:rgba(167,139,250,0.15);color:#c4b5fd">${T('agent')}</span>
                 </div>
             </div>
             <span class="text-[10px] font-mono shrink-0" style="color:${color}">${icon} ${label}</span>
@@ -4385,7 +4391,7 @@ function renderTasksPanel(panel, data) {
 
     let html = '';
     if (tasks.length === 0) {
-        html += '<div class="p-4 text-center text-slate-600 italic">No tasks yet</div>';
+        html += `<div class="p-4 text-center text-slate-600 italic">${T('No tasks yet')}</div>`;
         panel.innerHTML = html;
         return;
     }
@@ -4396,7 +4402,7 @@ function renderTasksPanel(panel, data) {
         if (!group || group.length === 0) continue;
         const isCollapsed = _taskCollapsed[status] ?? COLLAPSED_DEFAULT.has(status);
         const dot = STATUS_COLORS[status] || 'bg-slate-400';
-        const label = STATUS_LABELS[status] || status.toUpperCase();
+        const label = T(STATUS_LABELS[status] || status.toUpperCase());
         const arrow = isCollapsed ? '▸' : '▾';
         let suffix = '';
         if (status === 'done') {
@@ -4420,7 +4426,7 @@ function renderTasksPanel(panel, data) {
                 html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
-                html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="Insert #${par} into chat">📩</span>`;
+                html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="${T('Insert #{par} into chat', {par})}">📩</span>`;
                 html += '</div>';
             }
         }
@@ -4526,7 +4532,7 @@ async function showTaskDetail(par, projectSelector = '', waitContext = null) {
         html += _taskCardBodyHtml(t);
         const commits = t.commits || t.git_commits || [];
         if (commits.length > 0) {
-            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">COMMITS</div>';
+            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">${T('COMMITS')}</div>`;
             for (const c of commits) {
                 if (typeof c === 'string') { html += `<div class="text-xs font-mono">${escHtml(c.slice(0,60))}</div>`; continue; }
                 const hash = (c.hash || '').slice(0, 7);
@@ -4541,7 +4547,7 @@ async function showTaskDetail(par, projectSelector = '', waitContext = null) {
         if (t.sync_revision) sys.push(`sync rev: ${t.sync_revision}`);
         if (t.worker_session_id) sys.push(`worker: ${t.worker_session_id}`);
         if (sys.length > 0) {
-            html += '<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">SYSTEM</div>';
+            html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">${T('SYSTEM')}</div>`;
             html += `<div class="text-[10px] text-slate-600 font-mono">${sys.join(' · ')}</div></div>`;
         }
         const waits = Array.isArray(waitContext)
@@ -4568,7 +4574,7 @@ async function _loadJobsNow() {
         const jobs = await api(`/api/bg/jobs?scope=${encodeURIComponent(scope)}`, {pollKey: 'jobs'});
         renderJobsPanel(panel, Array.isArray(jobs) ? jobs : (jobs.jobs || []));
     } catch (e) {
-        panel.innerHTML = '<div class="p-2 text-slate-500">Failed to load jobs</div>';
+        panel.innerHTML = `<div class="p-2 text-slate-500">${T('Failed to load jobs')}</div>`;
     }
 }
 
@@ -4593,7 +4599,7 @@ const _expandedJobs = new Set();
 function renderJobsPanel(panel, jobs) {
     if (_jobsTimerInterval) { clearInterval(_jobsTimerInterval); _jobsTimerInterval = null; }
     if (jobs.length === 0) {
-        panel.innerHTML = '<div class="p-4 text-center text-slate-600 italic">No background jobs</div>';
+        panel.innerHTML = `<div class="p-4 text-center text-slate-600 italic">${T('No background jobs')}</div>`;
         return;
     }
     const active = jobs.filter(j => j.status === 'active');
@@ -4609,7 +4615,7 @@ function renderJobsPanel(panel, jobs) {
     if (done.length > 0) {
         const hdr = document.createElement('div');
         hdr.className = 'px-2 py-1 mt-1 text-slate-500 font-bold text-[10px]';
-        hdr.textContent = 'COMPLETED';
+        hdr.textContent = T('COMPLETED');
         panel.appendChild(hdr);
         for (const j of done.slice(0, 10)) panel.appendChild(_createJobItem(j));
     }
@@ -4656,7 +4662,7 @@ function _createJobItem(j) {
     if (j.status === 'active' && j.expires_at) {
         timerHtml += `<span data-job-expires="${j.expires_at}" style="color:#64748b;font-size:10px;font-family:monospace">${_timeLeft(j.expires_at)}</span>`;
     }
-    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" title="Cancel job">✕</span>` : '';
+    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" title="${T('Cancel job')}">✕</span>` : '';
 
     row.innerHTML = `<span>${icon}</span><span class="flex-1 truncate"><span style="color:#e2e8f0">${escHtml(target)}</span>${msg ? ' <span style="color:#64748b">'+escHtml(msg)+'</span>' : ''}</span>${timerHtml}<span>${statusIcon}</span>${cancelBtn}`;
 
@@ -4666,17 +4672,17 @@ function _createJobItem(j) {
     const detail = document.createElement('div');
     detail.style.cssText = 'display:none;padding:4px 8px 6px 24px;font-size:10px;color:#64748b;line-height:1.6';
     const _dr = (k, v) => v ? `<div><span style="color:#475569">${k}:</span> <span style="color:#94a3b8">${escHtml(String(v))}</span></div>` : '';
-    let dh = _dr('Type', j.type);
-    dh += _dr('Target', target);
-    dh += _dr('Status', j.status);
+    let dh = _dr(T('Type'), j.type);
+    dh += _dr(T('Target'), target);
+    dh += _dr(T('Status'), T(j.status));
     if (cfg.command) dh += `<div><span style="color:#475569">Command:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:60px;overflow-y:auto">${escHtml(cfg.command)}</pre></div>`;
-    if (cfg.pattern) dh += _dr('Pattern', cfg.pattern);
-    if (cfg.path) dh += _dr('Path', cfg.path);
-    if (cfg.host) dh += _dr('Host', cfg.host);
-    if (cfg.interval_seconds) dh += _dr('Interval', `${cfg.interval_seconds}s`);
-    dh += _dr('Message', j.message);
-    if (j.created_at) dh += _dr('Created', new Date(j.created_at).toLocaleString());
-    if (j.expires_at) dh += _dr('Expires', new Date(j.expires_at).toLocaleString());
+    if (cfg.pattern) dh += _dr(T('Pattern'), cfg.pattern);
+    if (cfg.path) dh += _dr(T('Path'), cfg.path);
+    if (cfg.host) dh += _dr(T('Host'), cfg.host);
+    if (cfg.interval_seconds) dh += _dr(T('Interval'), `${cfg.interval_seconds} ${T('s')}`);
+    dh += _dr(T('Message'), j.message);
+    if (j.created_at) dh += _dr(T('Created'), new Date(j.created_at).toLocaleString());
+    if (j.expires_at) dh += _dr(T('Expires'), new Date(j.expires_at).toLocaleString());
     if (j.output) dh += `<div><span style="color:#475569">Output:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:80px;overflow-y:auto">${escHtml(String(j.output).slice(0, 500))}</pre></div>`;
     detail.innerHTML = dh;
 
@@ -4726,7 +4732,7 @@ function initProfilesManager() {
         const config_dir = $('#profile-new-dir').value.trim();
         const errEl = $('#profile-error');
         errEl.classList.add('hidden');
-        if (!name) { errEl.textContent = 'name required'; errEl.classList.remove('hidden'); return; }
+        if (!name) { errEl.textContent = T('name required'); errEl.classList.remove('hidden'); return; }
         try {
             const res = await api('/api/profiles', { method: 'POST', body: JSON.stringify({ name, config_dir }) });
             $('#profile-new-name').value = '';
@@ -4751,7 +4757,7 @@ async function loadProfilesList() {
         if (!list) return;
         list.innerHTML = '';
         if (!profiles.length) {
-            list.innerHTML = '<div class="text-[10px] text-slate-500 text-center py-2">No profiles.</div>';
+            list.innerHTML = `<div class="text-[10px] text-slate-500 text-center py-2">${T('No profiles.')}</div>`;
             return;
         }
         for (const p of profiles) {
@@ -4760,10 +4766,10 @@ async function loadProfilesList() {
             const isPersonal = p.name === 'personal';
             el.innerHTML = `
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-medium text-white truncate">${escHtml(p.name)}</div>
+                    <div class="text-xs font-medium text-white truncate" data-i18n-skip>${escHtml(p.name)}</div>
                     <div class="text-[10px] text-slate-500 truncate">${escHtml(p.config_dir || 'env процесса')}</div>
                 </div>
-                ${isPersonal ? '' : `<button class="profile-del-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-red-900/60 rounded text-slate-400 hover:text-red-400 shrink-0" data-name="${escHtml(p.name)}" title="Delete">✕</button>`}
+                ${isPersonal ? '' : `<button class="profile-del-btn text-[10px] px-1.5 py-0.5 bg-slate-700 hover:bg-red-900/60 rounded text-slate-400 hover:text-red-400 shrink-0" data-name="${escHtml(p.name)}" title="${T('Delete')}">✕</button>`}
             `;
             list.appendChild(el);
         }
@@ -4827,7 +4833,7 @@ function _catalogMatches(m) {
   return true;
 }
 
-function _fmtPrice(p) { return p == null ? '—' : (p === 0 ? 'free' : `$${p}/M`); }
+function _fmtPrice(p) { return p == null ? '—' : (p === 0 ? T('free') : `$${p}/M`); }
 function _catalogIsFree(m) {
   return typeof m.is_free === 'boolean' ? m.is_free : String(m.id || '').endsWith(':free');
 }
@@ -4864,10 +4870,17 @@ function _catalogRow(m) {
   const nameEl = document.createElement('div');
   nameEl.className = 'text-slate-300 truncate';
   nameEl.textContent = m.name;
+  nameEl.dataset.i18nSkip = '1';  // название модели приходит от провайдера
   const metaEl = document.createElement('div');
   metaEl.className = 'text-[10px] text-slate-500 truncate';
-  const admission = m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m)) ? ' · blocked' : '';
-  metaEl.textContent = `${m.id} · ${Math.round(m.context_length / 1000)}k · ${_fmtPrice(m.price_prompt)} in / ${_fmtPrice(m.price_completion)} out · ${m.runtime}${admission}`;
+  const admission = m.runtime === 'harness' && (!_catalogHarnessEligible(m) || !_catalogAvailable(m)) ? ` · ${T('blocked')}` : '';
+  const idEl = document.createElement('span');
+  idEl.dataset.i18nSkip = '1';  // идентификатор модели у провайдера — не надпись
+  idEl.textContent = m.id;
+  metaEl.append(idEl, document.createTextNode(
+    ` · ${Math.round(m.context_length / 1000)}k · `
+    + `${_fmtPrice(m.price_prompt)} ${T('in')} / ${_fmtPrice(m.price_completion)} ${T('out')} · ${m.runtime}${admission}`,
+  ));
   info.append(nameEl, metaEl);
   row.append(info, _catalogToggle('dashboard', m), _catalogToggle('agents', m));
   return row;

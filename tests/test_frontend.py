@@ -25,6 +25,27 @@ from playwright.sync_api import Browser, Page, expect, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
 
 _DASHBOARD_ORIGIN = ""
+_I18N_JS = Path(__file__).resolve().parent.parent / "app/static/js/i18n.js"
+
+
+def _pin_english(page: Page) -> None:
+    """Этот набор проверяет АНГЛИЙСКИЕ подписи, а с V-584 локаль по умолчанию русская.
+
+    Английская локаль — это исходные строки в коде, поэтому ожидания тестов остаются
+    дословно теми же, что и были. Русскую локаль проверяют tests/test_i18n_dashboard.py
+    и прогон по экранам .orchestra/tasks/V-584/audit_screens.py.
+    """
+    page.add_init_script("window.__ORCH_LANG__ = 'en';")
+
+
+def _load_i18n(page: Page) -> None:
+    """Страницам-стендам нужен тот же T(), что и дашборду: код зовёт его напрямую.
+
+    Язык ставится ЗДЕСЬ скриптом, а не через add_init_script: документ стенда уже
+    создан к этому моменту, и init-скрипт на него не попадёт.
+    """
+    page.add_script_tag(content="window.__ORCH_LANG__ = 'en';")
+    page.add_script_tag(path=str(_I18N_JS))
 # Cold starts measured 34.574s and >60s under host contention; keep a finite 2x bound.
 _DASHBOARD_START_TIMEOUT_S = 120.0
 HTML_ARTIFACT_CSP = (
@@ -265,6 +286,7 @@ def _stop_dashboard_server(proc: subprocess.Popen) -> None:
 def _goto_dashboard(page: Page):
     """Open the fixture dashboard. Missing HTML is a failure, not a skip (#242)."""
     origin = _dashboard_base()
+    _pin_english(page)
     try:
         resp = page.goto(origin, wait_until="domcontentloaded")
     except Exception as exc:
@@ -285,6 +307,7 @@ def _goto_dashboard_or_skip(page: Page):
         return _goto_dashboard(page)
 
     base = os.environ.get("ORCHESTRA_TEST_BASE", "http://127.0.0.1:8888")
+    _pin_english(page)
     try:
         resp = page.goto(base, wait_until="domcontentloaded")
     except Exception as exc:
@@ -776,6 +799,7 @@ def test_chat_drop_handles_files_tree_paths_and_upload_errors(
             </div>
         </div>
     """)
+    _load_i18n(page)
 
     def upload(route):
         body = route.request.post_data or ""
@@ -930,6 +954,7 @@ def _load_cache_pill_code(page: Page):
         "function _cachePillState", 1,
     )[1].split("// Client-side countdown", 1)[0]
     page.set_content("<body></body>")
+    _load_i18n(page)
     page.add_script_tag(content=block)
 
 
@@ -3709,6 +3734,7 @@ def test_task_card_uses_real_long_description_and_shared_expandable_body(
         '</body>'
     )
     page.add_style_tag(path=str(root / "app/static/css/style.css"))
+    _load_i18n(page)
     page.add_script_tag(path=str(root / "app/static/css/vendor/marked.min.js"))
     page.add_script_tag(path=str(root / "app/static/css/vendor/purify.min.js"))
     page.add_script_tag(content="const CUR = '₽';\n" + helper_code)

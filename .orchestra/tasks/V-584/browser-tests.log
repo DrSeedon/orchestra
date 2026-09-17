@@ -1,0 +1,1414 @@
+...........F.......F...FFF.......F.FF.............F...........F......... [ 54%]
+...F........F.....FFFFF.FF......FsF........................              [100%]
+=================================== FAILURES ===================================
+___________________________ test_send_button_exists ____________________________
+
+dashboard_page = <Page url='http://127.0.0.1:33395/'>
+
+    def test_send_button_exists(dashboard_page: Page):
+        send_btn = dashboard_page.locator("#send-btn")
+        expect(send_btn).to_be_visible()
+>       expect(send_btn).to_have_text("Send")
+E       AssertionError: Locator expected to have text 'Send'
+E       Actual value: Отправить 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("#send-btn")
+E           12 × locator resolved to <button data-i18n="" id="send-btn" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 rounded-lg text-sm font-medium transition-colors">Отправить</button>
+E              - unexpected value "Отправить"
+
+tests/test_frontend.py:442: AssertionError
+__________ test_chat_drop_handles_files_tree_paths_and_upload_errors ___________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_chat_drop_handles_files_tree_paths_and_upload_errors(
+        dashboard_browser: Browser,
+    ):
+        source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+        chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
+        assert "function initChatDrop()" in source
+        assert source.index("initChatDrop();") < source.index("loadOrchestrators();")
+        assert "fileDropReady" not in source
+        drop_code = "let _dropDragCounter = 0;" + source.split(
+            "let _dropDragCounter = 0;", 1,
+        )[1].split("function initTabContextMenu", 1)[0]
+        # Срез содержит ВЫЗОВЫ _trackUpload/_uploadToChat, а их определения лежат
+        # ниже по файлу — страница падала на "_trackUpload is not defined".
+        # Берём настоящий блок загрузки, а не заглушки: заглушка спрятала бы
+        # регрессию внутри него.
+        upload_helpers = "const _pendingUploads = new Set();" + chat_source.split(
+            "const _pendingUploads = new Set();", 1,
+        )[1].split("const _COMPRESS_MIN_BYTES", 1)[0]
+        drop_code = upload_helpers + drop_code
+    
+        page = dashboard_browser.new_page()
+        page.set_content("""
+            <base href="http://orchestra.test/">
+            <div id="input-shell">
+                <div id="input-row">
+                    <textarea id="chat-input" placeholder="Message..."></textarea>
+                </div>
+            </div>
+        """)
+    
+        def upload(route):
+            body = route.request.post_data or ""
+            match = re.search(r'filename="([^"]+)"', body)
+            name = match.group(1) if match else "unknown"
+            if name == "blocked.py":
+                route.fulfill(
+                    status=400,
+                    content_type="application/json",
+                    body='{"error":"file type .py not allowed"}',
+                )
+                return
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=f'{{"path":"/tmp/{name}","url":"/uploads/{name}"}}',
+            )
+    
+        page.route("**/api/upload", upload)
+        page.add_script_tag(content=f"""
+            const $ = selector => document.querySelector(selector);
+            let pastedImages = [];
+            const previewPaths = [];
+            function showImagePreview(url, path) {{ previewPaths.push({{url, path}}); }}
+            {drop_code}
+            initChatDrop();
+            window.testDrop = async (names, path = '') => {{
+                const input = $('#chat-input');
+                input.value = '';
+                const dt = new DataTransfer();
+                for (const name of names) {{
+                    dt.items.add(new File([`body:${{name}}`], name, {{type: 'text/plain'}}));
+                }}
+                if (path) dt.setData('text/plain', path);
+                input.dispatchEvent(new DragEvent(
+                    'dragenter',
+                    {{bubbles: true, cancelable: true, dataTransfer: dt}},
+                ));
+                const hinted = input.placeholder;
+                const over = new DragEvent(
+                    'dragover',
+                    {{bubbles: true, cancelable: true, dataTransfer: dt}},
+                );
+                input.dispatchEvent(over);
+                const drop = new DragEvent(
+                    'drop',
+                    {{bubbles: true, cancelable: true, dataTransfer: dt}},
+                );
+                input.dispatchEvent(drop);
+                // Аплоады идут ПОСЛЕДОВАТЕЛЬНО, и фиксированные 100 мс под нагрузкой
+                // не покрывали поздний — тест терял его путь (#105: 3 красных из 9 ещё
+                // до #94). Ждём УСЛОВИЕ: каждый файл либо дал путь, либо назван в ошибке.
+                // Дедлайн — только страховка от зависания, не мерка скорости.
+                const settled = () => names.every(name =>
+                    input.value.includes(`/tmp/${{name}}`)
+                    || ($('#chat-drop-error')?.textContent || '').includes(name));
+                const deadline = Date.now() + 10000;
+                while (!settled() && Date.now() < deadline) {{
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                }}
+                return {{
+                    value: input.value,
+                    hinted,
+                    overPrevented: over.defaultPrevented,
+                    dropPrevented: drop.defaultPrevented,
+                    error: document.querySelector('#chat-drop-error')?.textContent || '',
+                }};
+            }};
+        """)
+    
+        outside = page.evaluate("""() => {
+            const dt = new DataTransfer();
+            dt.items.add(new File(['body'], 'outside.txt', {type: 'text/plain'}));
+            document.body.dispatchEvent(new DragEvent(
+                'dragenter',
+                {bubbles: true, cancelable: true, dataTransfer: dt},
+            ));
+            const over = new DragEvent(
+                'dragover',
+                {bubbles: true, cancelable: true, dataTransfer: dt},
+            );
+            document.body.dispatchEvent(over);
+            const drop = new DragEvent(
+                'drop',
+                {bubbles: true, cancelable: true, dataTransfer: dt},
+            );
+            document.body.dispatchEvent(drop);
+            return {
+                placeholder: document.querySelector('#chat-input').placeholder,
+                overPrevented: over.defaultPrevented,
+                dropPrevented: drop.defaultPrevented,
+            };
+        }""")
+        single = page.evaluate("() => testDrop(['one.txt'])")
+        multi = page.evaluate("() => testDrop(['first.txt', 'second.txt'])")
+        tree = page.evaluate("() => testDrop([], '/project/from-tree.md')")
+        partial_failure = page.evaluate(
+            "() => testDrop(['ok.txt', 'blocked.py', 'tail.txt'])",
+        )
+        page.close()
+    
+        assert outside == {
+            "placeholder": "Message...",
+            "overPrevented": True,
+            "dropPrevented": True,
+        }
+>       assert single == {
+            "value": "/tmp/one.txt",
+            "hinted": "📎 Drop files here",
+            "overPrevented": True,
+            "dropPrevented": True,
+            "error": "",
+        }
+E       AssertionError: assert {'dropPrevent...d': True, ...} == {'dropPrevent...d': True, ...}
+E         
+E         Omitting 4 identical items, use -vv to show
+E         Differing items:
+E         {'hinted': 'Message...'} != {'hinted': '📎 Drop files here'}
+E         Use -v to get more diff
+
+tests/test_frontend.py:885: AssertionError
+_________ test_codex_cache_pill_is_approximate_and_expires_to_unknown __________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_codex_cache_pill_is_approximate_and_expires_to_unknown(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        _load_cache_pill_code(page)
+>       states = page.evaluate("""() => {
+            const snapshot = (pill) => pill && ({
+                text: pill.textContent,
+                tier: pill.dataset.tier,
+                title: pill.title,
+                approximate: pill.dataset.cacheApproximate,
+            });
+            const recent = new Date(Date.now() - 5 * 60000).toISOString();
+            const expired = new Date(Date.now() - 37 * 60000).toISOString();
+            return {
+                running: snapshot(_cachePill({
+                    status: 'running',
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                })),
+                recent: snapshot(_cachePill({
+                    status: 'idle',
+                    last_turn_ts: recent,
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                })),
+                expired: snapshot(_cachePill({
+                    status: 'idle',
+                    last_turn_ts: expired,
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                })),
+                invalidTtl: _cachePill({
+                    status: 'idle',
+                    last_turn_ts: recent,
+                    cache_ttl_seconds: 0,
+                    cache_ttl_approximate: true,
+                }),
+                missingTurn: _cachePill({
+                    status: 'idle',
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                }),
+                malformedTurn: _cachePill({
+                    status: 'idle',
+                    last_turn_ts: 'not-a-date',
+                    cache_ttl_seconds: 1800,
+                    cache_ttl_approximate: true,
+                }),
+            };
+        }""")
+
+tests/test_frontend.py:941: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x77468d6cc900>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E               at _cachePillState (<anonymous>:7:24)
+E               at _renderCachePill (<anonymous>:87:19)
+E               at _cachePill (<anonymous>:79:5)
+E               at eval (eval at evaluate (:302:30), <anonymous>:11:31)
+E               at UtilityScript.evaluate (<anonymous>:309:18)
+E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+________________ test_claude_cache_pill_keeps_exact_thresholds _________________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_claude_cache_pill_keeps_exact_thresholds(dashboard_browser: Browser):
+        page = dashboard_browser.new_page()
+        _load_cache_pill_code(page)
+>       states = page.evaluate("""() => {
+            const stateAt = (minutesAgo) => {
+                const pill = _cachePill({
+                    status: 'idle',
+                    last_turn_ts: new Date(Date.now() - minutesAgo * 60000).toISOString(),
+                    cache_ttl_seconds: 3600,
+                    cache_ttl_approximate: false,
+                });
+                return {text: pill.textContent, tier: pill.dataset.tier, title: pill.title};
+            };
+            return {
+                hot: stateAt(20),
+                warm: stateAt(45),
+                cooling: stateAt(49),
+                cold: stateAt(61),
+            };
+        }""")
+
+tests/test_frontend.py:1004: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x77468d771e40>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E               at _cachePillState (<anonymous>:40:11)
+E               at _renderCachePill (<anonymous>:87:19)
+E               at _cachePill (<anonymous>:79:5)
+E               at stateAt (eval at evaluate (:302:30), <anonymous>:3:26)
+E               at eval (eval at evaluate (:302:30), <anonymous>:12:18)
+E               at UtilityScript.evaluate (<anonymous>:309:18)
+E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+____________ test_photo_batch_renders_as_compact_expandable_gallery ____________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_photo_batch_renders_as_compact_expandable_gallery(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        page.route(
+            "**/api/files/raw?**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="image/svg+xml",
+                body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>',
+            ),
+        )
+        paths = [f"/tmp/telegram-photo-{i:02}.jpg" for i in range(85)]
+        content = "\n".join(f"[photo: {path}]" for path in paths)
+>       page.evaluate(
+            "([content]) => addChatEntry('user_message', content, null)",
+            [content],
+        )
+
+tests/test_frontend.py:1066: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x77468d7e7c40>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.evaluate: ReferenceError: addChatEntry is not defined
+E               at eval (eval at evaluate (:302:30), <anonymous>:1:16)
+E               at UtilityScript.evaluate (<anonymous>:309:18)
+E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+___________ test_send_files_batch_renders_paths_and_download_actions ___________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_send_files_batch_renders_paths_and_download_actions(
+        dashboard_browser: Browser,
+    ):
+        page = _open_send_files_fixture_page(dashboard_browser)
+        paths = ["/tmp/first.pdf", "/tmp/second.pdf", "/tmp/third.pdf"]
+        _emit_send_files_result(
+            page,
+            paths,
+            "Files accepted; event_id=e; state=QUEUED; 3 files.",
+        )
+    
+        card = page.locator('[data-tool-raw-name="mcp__orchestra__send_files"]')
+        expect(card.locator(".sf-file-item")).to_have_count(3)
+        # У просматриваемого файла (PDF) кнопок ДВЕ: «Открыть» и «Download». Считаем их
+        # раздельно — общее число молча поменяется от любого нового действия в строке.
+>       expect(card.locator(".sf-file-item button", has_text="Download")).to_have_count(3)
+E       AssertionError: Locator expected to have count '3'
+E       Actual value: 0 
+E       Call log:
+E         - Expect "to_have_count" with timeout 5000ms
+E         - waiting for locator("[data-tool-raw-name=\"mcp__orchestra__send_files\"]").locator(".sf-file-item button").filter(has_text="Download")
+E           13 × locator resolved to 0 elements
+E              - unexpected value "0"
+
+tests/test_frontend.py:1483: AssertionError
+______________ test_send_files_batch_collapses_after_eight_files _______________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_send_files_batch_collapses_after_eight_files(
+        dashboard_browser: Browser,
+    ):
+        page = _open_send_files_fixture_page(dashboard_browser)
+        paths = [f"/tmp/file-{index}.pdf" for index in range(10)]
+        _emit_send_files_result(
+            page,
+            paths,
+            "Files accepted; event_id=e; state=QUEUED; 10 files.",
+        )
+    
+        card = page.locator('[data-tool-raw-name="mcp__orchestra__send_files"]')
+        expect(card.locator(".sf-file-item")).to_have_count(10)
+        expect(card.locator(".sf-file-item").nth(8)).to_be_hidden()
+>       expect(card.locator(".sf-list-toggle")).to_contain_text("Show all 10 files")
+E       AssertionError: Locator expected to contain text 'Show all 10 files'
+E       Actual value: ▼ Показать все файлы: 10 
+E       Call log:
+E         - Expect "to_contain_text" with timeout 5000ms
+E         - waiting for locator("[data-tool-raw-name=\"mcp__orchestra__send_files\"]").locator(".sf-list-toggle")
+E           12 × locator resolved to <button type="button" class="sf-list-toggle">▼ Показать все файлы: 10</button>
+E              - unexpected value "▼ Показать все файлы: 10"
+
+tests/test_frontend.py:1544: AssertionError
+________________ test_send_file_single_keeps_existing_rendering ________________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_send_file_single_keeps_existing_rendering(
+        dashboard_browser: Browser,
+    ):
+        page = _open_send_files_fixture_page(dashboard_browser)
+        page.evaluate("""() => {
+            addChatEntry(
+                'tool',
+                'mcp__orchestra__send_file: ' + JSON.stringify({path: '/tmp/solo.pdf'}),
+                null,
+                null,
+                {tool_use_id: 'send-file-test'},
+            );
+            addChatEntry(
+                'tool_result',
+                'File accepted; event_id=e; state=QUEUED.',
+                null,
+                null,
+                {tool_use_id: 'send-file-test'},
+            );
+        }""")
+    
+        card = page.locator('[data-tool-raw-name="mcp__orchestra__send_file"]')
+>       expect(card.locator(".flex.items-center")).to_have_text("✅ Sent to TG")
+E       AssertionError: Locator expected to have text '✅ Sent to TG'
+E       Actual value: ✅ Отправлено в Telegram 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("[data-tool-raw-name=\"mcp__orchestra__send_file\"]").locator(".flex.items-center")
+E           13 × locator resolved to <div class="flex items-center gap-1.5 text-xs font-medium mb-1">✅ Отправлено в Telegram</div>
+E              - unexpected value "✅ Отправлено в Telegram"
+
+tests/test_frontend.py:1572: AssertionError
+_____________ test_restart_button_shows_journal_loss_before_reboot _____________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Browser):
+        """Успешный рестарт не прячет потерянный журнал за общим `scheduled`."""
+        page = dashboard_browser.new_page()
+        _route_frontend_sources(page)
+        reason = "OperationalError: database is locked"
+        page.route(
+            re.compile(r"/api/restart$"),
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/json",
+                body=json.dumps({
+                    "ok": True,
+                    "scheduled": True,
+                    "journal_loss": {
+                        "ok": False,
+                        "phase": "session_db",
+                        "reason": reason,
+                    },
+                }),
+            ),
+        )
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof restartServer === 'function'")
+    
+        page.click("#restart-btn")
+>       page.wait_for_function(
+            "() => (document.querySelector('#connection-banner')?.textContent || '').includes('журнал потерян')"
+        )
+
+tests/test_frontend.py:2010: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:12436: in wait_for_function
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:1136: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:910: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x77468d6d3f60>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 30000ms exceeded.
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: TimeoutError
+_________ test_dashboard_polling_resume_refreshes_status_after_hidden __________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_dashboard_polling_resume_refreshes_status_after_hidden(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        page.add_init_script("""() => {
+            window.EventSource = class StableEventSource {
+                constructor(url) { this.url = url; this.readyState = 1; }
+                close() { this.readyState = 2; }
+            };
+        }""")
+        _route_frontend_sources(page)
+        status = {"value": "idle"}
+    
+        def api_route(route):
+            path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+            path = "/api" + path
+            if path == "/api/orchestrators":
+                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+            elif path == "/api/sessions":
+                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": status["value"], "model": "claude-opus-5[1m]"}]
+            elif path == "/api/stats":
+                payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+            elif path == "/api/models":
+                payload = {"models": [], "proxy_connected": False}
+            elif path.endswith("/stream"):
+                route.fulfill(status=200, content_type="text/event-stream", body="")
+                return
+            elif path.endswith("/logs"):
+                payload = []
+            elif path.endswith("/context"):
+                payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
+            elif path == "/api/logs/sync":
+                payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
+            else:
+                payload = {}
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+    
+        page.route(re.compile(r"/api/"), api_route)
+        _goto_dashboard(page)
+        try:
+            page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
+>           page.wait_for_function(
+                "() => document.querySelector('[data-session-id=\"fe-orch-id\"]')?.innerText.includes('idle')",
+                timeout=8000,
+            )
+
+tests/test_frontend.py:2617: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:12436: in wait_for_function
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:1136: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:910: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x77468d1f2520>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 8000ms exceeded.
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: TimeoutError
+________ test_tool_view_mode_is_visible_without_desktop_header_overflow ________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_tool_view_mode_is_visible_without_desktop_header_overflow(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page(viewport={"width": 1280, "height": 800})
+        source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+        page.route(
+            "**/static/js/app.js*",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="application/javascript",
+                body=source,
+            ),
+        )
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof _toolForResult === 'function'")
+        button = page.locator("#compact-toggle-btn")
+>       expect(button).to_have_text("📄 Normal")
+E       AssertionError: Locator expected to have text '📄 Normal'
+E       Actual value: 📄 Обычный 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("#compact-toggle-btn")
+E           12 × locator resolved to <button data-i18n="" data-i18n-title="" aria-pressed="false" id="compact-toggle-btn" title="Вид инструментов: обычный. Переключить на компактный" class="px-2 py-1 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg transition-colors text-slate-400">📄 Обычный</button>
+E              - unexpected value "📄 Обычный"
+
+tests/test_frontend.py:3207: AssertionError
+_____ test_task_card_uses_real_long_description_and_shared_expandable_body _____
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_task_card_uses_real_long_description_and_shared_expandable_body(
+        dashboard_browser: Browser,
+    ):
+        root = Path(__file__).parent.parent
+        source = (root / "app/static/js/chat.js").read_text()
+        app_source = (root / "app/static/js/app.js").read_text()
+        helper_code = (
+            "const _TASK_PRIORITY_META"
+            + source.split("const _TASK_PRIORITY_META", 1)[1].split(
+                "// Central renderer", 1,
+            )[0]
+        )
+        # Isolated fixture DB has no TM rows. A real paragraph (not "x"*200) still
+        # exercises wrap/expand; pulling live tasks was a silent skip on empty scope.
+        description = (
+            "Need a description long enough to wrap in the task card: the renderer "
+            "collapses after two lines and the expand control must stay attached to "
+            "this body, not to a sibling. Extra sentences keep the length above the "
+            "180-character floor that used to come from a live ticket."
+        )
+        assert len(description) > 180
+        task = {
+            "description": description,
+            "assignee": "frontend",
+            "task_id": 987,
+            "priority": 1,
+            "title": "fixture task",
+            "par": 987,
+        }
+    
+        page = dashboard_browser.new_page(viewport={"width": 1440, "height": 900})
+        page.set_content(
+            '<body style="background:#0a0e17;color:#e2e8f0">'
+            '<style>#chat-card,#panel-card,#xss-card{width:420px}</style>'
+            '<div id="chat-card"></div><div id="panel-card"></div><div id="xss-card"></div>'
+            '</body>'
+        )
+        page.add_style_tag(path=str(root / "app/static/css/style.css"))
+        page.add_script_tag(path=str(root / "app/static/css/vendor/marked.min.js"))
+        page.add_script_tag(path=str(root / "app/static/css/vendor/purify.min.js"))
+        page.add_script_tag(content="const CUR = '₽';\n" + helper_code)
+>       page.evaluate(
+            """task => {
+                document.querySelector('#chat-card').innerHTML = _taskCardBodyHtml(task);
+                document.querySelector('#panel-card').innerHTML = _taskCardBodyHtml(task);
+                document.querySelector('#xss-card').innerHTML = _taskCardBodyHtml({
+                    description: '<img src=x onerror="window.taskXss=1"><script>window.taskXss=1</script>',
+                });
+            }""",
+            task,
+        )
+
+tests/test_frontend.py:3715: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:9122: in evaluate
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:469: in evaluate
+    return await self._main_frame.evaluate(expression, arg)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:323: in evaluate
+    await self._channel.send(
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x77468d077240>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E               at _taskCardBodyHtml (<anonymous>:50:34)
+E               at eval (eval at evaluate (:302:30), <anonymous>:2:62)
+E               at UtilityScript.evaluate (<anonymous>:309:18)
+E               at UtilityScript.<anonymous> (<anonymous>:1:44)
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+______________ test_native_codex_compact_renders_one_result_badge ______________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_native_codex_compact_renders_one_result_badge(
+        dashboard_browser: Browser,
+    ):
+        page = _open_tool_fixture_page(dashboard_browser)
+        page.evaluate("""() => {
+            addChatEntry(
+                'status',
+                'compact started (native Codex, context 70%, thread=thread-secret)'
+            );
+            addChatEntry(
+                'status',
+                'compact done (native Codex): 70% → 29%, thread=thread-secret'
+            );
+        }""")
+    
+        badges = page.locator("#chat").locator("text=Codex context compacted natively")
+>       expect(badges).to_have_count(1)
+E       AssertionError: Locator expected to have count '1'
+E       Actual value: 0 
+E       Call log:
+E         - Expect "to_have_count" with timeout 5000ms
+E         - waiting for locator("#chat").locator("text=Codex context compacted natively")
+E           14 × locator resolved to 0 elements
+E              - unexpected value "0"
+
+tests/test_frontend.py:4276: AssertionError
+______________ test_subagent_lifecycle_updates_one_existing_card _______________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_subagent_lifecycle_updates_one_existing_card(
+        dashboard_browser: Browser,
+    ):
+        page = _open_tool_fixture_page(dashboard_browser)
+        page.evaluate("""() => {
+            const payload = {subagent_id: 'sub-1'};
+            addChatEntry('subagent_start', 'Research | id=sub-1 | type=agent', null, null, payload);
+            addChatEntry(
+                'subagent_progress',
+                'Research | id=sub-1 | tool=Bash | tokens=1200',
+                null, null, payload,
+            );
+        }""")
+    
+        card = page.locator('#chat [data-subagent-id="sub-1"]')
+        expect(card).to_have_count(1)
+>       expect(card.locator('.sa-progress')).to_have_text('⏳ using Bash | 1.2k tokens')
+E       AssertionError: Locator expected to have text '⏳ using Bash | 1.2k tokens'
+E       Actual value: ⏳ работает инструментом Bash | токенов: 1.2k 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("#chat [data-subagent-id=\"sub-1\"]").locator(".sa-progress")
+E           13 × locator resolved to <div class="sa-progress">⏳ работает инструментом Bash | токенов: 1.2k</div>
+E              - unexpected value "⏳ работает инструментом Bash | токенов: 1.2k"
+
+tests/test_frontend.py:4298: AssertionError
+_________ test_codex_web_search_renders_queries_without_transport_json _________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_codex_web_search_renders_queries_without_transport_json(
+        dashboard_browser: Browser,
+    ):
+        page = _open_tool_fixture_page(dashboard_browser)
+        page.evaluate("""() => {
+            addChatEntry(
+                'tool',
+                'WebSearch: {"query":"","action":null,"_codex_item_id":"web-1"}',
+                null,
+                null,
+                {tool_use_id: 'web-1'}
+            );
+            addChatEntry(
+                'tool_result',
+                JSON.stringify({
+                    query: 'AOSP official documentation',
+                    action: {
+                        type: 'search',
+                        query: null,
+                        queries: [
+                            'site:source.android.com AOSP CDD official',
+                            'site:source.android.com CTS compatibility official',
+                            'site:developer.android.com Play Integrity official',
+                        ],
+                    },
+                    status: 'completed',
+                }),
+                null,
+                null,
+                {tool_use_id: 'web-1'}
+            );
+        }""")
+    
+        card = page.locator("#chat .codex-tool-card")
+        expect(card).to_have_count(1)
+>       expect(card.locator(".codex-tool-title")).to_have_text("Web search")
+E       AssertionError: Locator expected to have text 'Web search'
+E       Actual value: Веб-поиск 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("#chat .codex-tool-card").locator(".codex-tool-title")
+E           13 × locator resolved to <span class="codex-tool-title">Веб-поиск</span>
+E              - unexpected value "Веб-поиск"
+
+tests/test_frontend.py:4347: AssertionError
+__________ test_codex_spawn_worker_renders_task_model_and_completion ___________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_codex_spawn_worker_renders_task_model_and_completion(
+        dashboard_browser: Browser,
+    ):
+        page = _open_tool_fixture_page(dashboard_browser)
+        payload = {
+            "name": "mobile-os-strategy",
+            "role": "full-cycle",
+            "model": "gpt-5.6-sol",
+            "task": "Research an AOSP-first product strategy.",
+            "description": "Mobile OS strategy",
+            "system_prompt": "Detailed instructions. " * 200,
+            "_codex_item_id": "spawn-1",
+        }
+        page.evaluate(
+            """([payload]) => {
+                addChatEntry(
+                    'tool',
+                    `mcp__orchestra__spawn_worker: ${JSON.stringify(payload)}`,
+                    null,
+                    null,
+                    {tool_use_id: 'spawn-1'}
+                );
+                addChatEntry(
+                    'tool_result',
+                    "Worker 'mobile-os-strategy' spawned. Model: gpt-5.6-sol. Task sent.",
+                    null,
+                    null,
+                    {tool_use_id: 'spawn-1'}
+                );
+            }""",
+            [payload],
+        )
+    
+        card = page.locator("#chat .codex-tool-card")
+        expect(card).to_have_count(1)
+        expect(card.locator(".codex-tool-title")).to_have_text(
+            "mobile-os-strategy spawned"
+        )
+>       expect(card.locator(".codex-tool-state")).to_have_text("done")
+E       AssertionError: Locator expected to have text 'done'
+E       Actual value: готово 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("#chat .codex-tool-card").locator(".codex-tool-state")
+E           14 × locator resolved to <span class="codex-tool-state">готово</span>
+E              - unexpected value "готово"
+
+tests/test_frontend.py:4394: AssertionError
+________________ test_codex_file_change_renders_structured_kind ________________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_codex_file_change_renders_structured_kind(
+        dashboard_browser: Browser,
+    ):
+        page = _open_tool_fixture_page(dashboard_browser)
+        page.evaluate("""() => {
+            addChatEntry(
+                'tool',
+                JSON.stringify({
+                    changes: [{
+                        path: '/tmp/project/example.js',
+                        kind: {type: 'update', move_path: null},
+                        diff: '@@ -1 +1 @@\\n-old\\n+new\\n',
+                    }],
+                    _codex_item_id: 'change-1',
+                }).replace(/^/, 'FileChange: '),
+                null,
+                null,
+                {tool_use_id: 'change-1'}
+            );
+        }""")
+    
+        card = page.locator("#chat .codex-tool-card")
+>       expect(card.locator(".codex-change-kind")).to_have_text("update")
+E       AssertionError: Locator expected to have text 'update'
+E       Actual value: изменён 
+E       Call log:
+E         - Expect "to_have_text" with timeout 5000ms
+E         - waiting for locator("#chat .codex-tool-card").locator(".codex-change-kind")
+E           13 × locator resolved to <span class="codex-change-kind codex-change-update">изменён</span>
+E              - unexpected value "изменён"
+
+tests/test_frontend.py:4423: AssertionError
+_____ test_truncated_read_image_restores_full_log_when_source_file_is_gone _____
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
+        dashboard_browser: Browser,
+    ):
+        root = Path(__file__).parent.parent
+        source = (root / "app/static/js/app.js").read_text()
+        page = dashboard_browser.new_page()
+        png = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
+            "+A8AAQUBAScY42YAAAAASUVORK5CYII="
+        )
+        requests = {"file": 0, "log": []}
+    
+        def missing_source(route):
+            requests["file"] += 1
+            route.fulfill(status=404)
+    
+        def full_log(route):
+            log_id = int(route.request.url.rsplit("/", 1)[-1])
+            requests["log"].append(log_id)
+            image_data = png + " " * 20 if log_id == 42 else "A" * 120
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                json={
+                    "id": log_id,
+                    "type": "tool_result",
+                    "content": (
+                        "{'type': 'image', 'source': {'type': 'base64', 'data': '"
+                        + image_data
+                        + "', 'media_type': 'image/png'}}"
+                    ),
+                },
+            )
+    
+        page.route("**/api/files/raw?**", missing_source)
+        page.route(re.compile(r".*/api/logs/\d+$"), full_log)
+        page.route(
+            "**/static/js/app.js*",
+            lambda route: route.fulfill(
+                status=200, content_type="text/javascript", body=source,
+            ),
+        )
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof _restoreToolResultImage === 'function'")
+        page.wait_for_function(
+            "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
+        )
+        page.evaluate(
+            """() => {
+                selectedAgent = null;
+                if (eventSource) {
+                    eventSource.close();
+                    eventSource = null;
+                }
+                window.compactMode = false;
+                document.querySelector('#chat').innerHTML = '';
+                addChatEntry(
+                    'tool',
+                    'Read: {"file_path":"/tmp/already-gone.png"}',
+                    null, null, {tool_use_id: 'read-1'}
+                );
+                addChatEntry(
+                    'tool_result',
+                    "{'type': 'image', 'source': {'type': 'base64', 'data': 'cut",
+                    null, null,
+                    {id: 42, trunc: 50000, tool_use_id: 'read-1'}
+                );
+            }"""
+        )
+    
+        page.wait_for_timeout(1000)
+        state = page.evaluate(
+            """() => ({
+                html: $('#chat').innerHTML,
+                src: $('#chat img')?.src,
+                width: $('#chat img')?.naturalWidth,
+            })"""
+        )
+        image = page.locator("#chat img")
+        assert state["width"] == 1, (state, requests)
+        assert image.evaluate("img => [img.naturalWidth, img.naturalHeight]") == [1, 1]
+        expect(page.locator("#chat")).not_to_contain_text("[Image result]")
+        assert requests == {"file": 1, "log": [42]}
+    
+        page.evaluate(
+            """() => {
+                document.querySelector('#chat').innerHTML = '';
+                addChatEntry(
+                    'tool',
+                    'Read: {"file_path":"/tmp/already-gone.png"}',
+                    null, null, {tool_use_id: 'read-2'}
+                );
+                addChatEntry(
+                    'tool_result',
+                    "{'type': 'image', 'source': {'type': 'base64', 'data': '"
+                        + 'A'.repeat(120) + "', 'media_type': 'image/png'}}",
+                    null, null, {id: 42, tool_use_id: 'read-2'}
+                );
+            }"""
+        )
+        page.wait_for_function("() => $('#chat img')?.naturalWidth === 1")
+        assert requests == {"file": 2, "log": [42, 42]}
+    
+        page.evaluate(
+            """() => {
+                document.querySelector('#chat').innerHTML = '';
+                addChatEntry(
+                    'tool',
+                    'Read: {"file_path":"/tmp/already-gone.png"}',
+                    null, null, {tool_use_id: 'read-3'}
+                );
+                addChatEntry(
+                    'tool_result',
+                    "{'type': 'image', 'source': {'type': 'base64', 'data': 'cut",
+                    null, null, {id: 43, trunc: 50000, tool_use_id: 'read-3'}
+                );
+            }"""
+        )
+>       expect(page.locator("#chat")).to_contain_text("Image unavailable")
+E       AssertionError: Locator expected to contain text 'Image unavailable'
+E       Actual value: 📖 Read/tmp/already-gone.png📋🖼 Изображение недоступно 
+E       Call log:
+E         - Expect "to_contain_text" with timeout 5000ms
+E         - waiting for locator("#chat")
+E           2 × locator resolved to <div id="chat" aria-busy="false" data-agent="fe-orch" data-position-ready="1" class="h-full overflow-y-auto overflow-x-hidden p-4 space-y-2">…</div>
+E             - unexpected value "📖 Read/tmp/already-gone.png📋"
+E           11 × locator resolved to <div id="chat" aria-busy="false" data-agent="fe-orch" data-position-ready="1" class="h-full overflow-y-auto overflow-x-hidden p-4 space-y-2">…</div>
+E              - unexpected value "📖 Read/tmp/already-gone.png📋🖼 Изображение недоступно"
+
+tests/test_frontend.py:4604: AssertionError
+_ test_image_generation_history_restores_full_result_and_survives_chat_reentry _
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_image_generation_history_restores_full_result_and_survives_chat_reentry(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        _route_frontend_sources(page)
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof _showChatFor === 'function'")
+    
+        filler = [
+            {"id": i, "session_id": "sid-a", "type": "text", "content": f"row-{i}",
+             "ts": "2026-08-24T08:00:00+00:00"}
+            for i in range(1, 39)
+        ]
+        call = {
+            "id": 39,
+            "session_id": "sid-a",
+            "type": "tool",
+            "tool_name": "ImageGeneration",
+            "tool_use_id": "image-1",
+            "content": 'ImageGeneration: {"status":"in_progress","_codex_item_id":"image-1"}',
+            "ts": "2026-08-24T08:02:36+00:00",
+        }
+        stale = {
+            "id": 40,
+            "session_id": "sid-a",
+            "type": "tool_result",
+            "tool_name": "ImageGeneration",
+            "tool_use_id": "image-1",
+            "content": '{"result":"AAAA',
+            "trunc": 2_200_000,
+            "ts": "2026-08-24T08:03:04+00:00",
+        }
+        full_row = {
+            **stale,
+            "content": json.dumps({
+                "result": "AAAA",
+                "status": "completed",
+                "saved_path": "/tmp/generated-product.png",
+                "revised_prompt": "Exact product on a warm neutral marketplace background",
+            }),
+        }
+        full_row.pop("trunc")
+    
+        state = page.evaluate(
+            """async ({historyRows, fullRow}) => {
+                if (eventSource) { eventSource.close(); eventSource = null; }
+                selectedAgent = 'agent-a';
+                currentScope = '/scope-a';
+                window.compactMode = false;
+                window.__imageHistoryFetches = 0;
+                window.__imageLogFetches = 0;
+                _fetchHistory = async () => {
+                    window.__imageHistoryFetches += 1;
+                    return historyRows;
+                };
+                api = async (path) => {
+                    if (path === '/api/logs/40') {
+                        window.__imageLogFetches += 1;
+                        return fullRow;
+                    }
+                    throw new Error(`unexpected API ${path}`);
+                };
+                connectSSE = () => {};
+    
+                await _showChatFor('agent-a', '/scope-a');
+                await new Promise(resolve => setTimeout(resolve, 0));
+                const first = {
+                    prompt: document.querySelector('.codex-image-prompt')?.textContent || '',
+                    src: document.querySelector('.codex-tool-image')?.getAttribute('src') || '',
+                    title: document.querySelector('[data-tool-raw-name="ImageGeneration"] .flex.items-center')?.textContent || '',
+                };
+    
+                document.querySelector('#chat').replaceChildren();
+                selectedAgent = 'agent-b';
+                _renderHistory('agent-b', [{id: 41, session_id: 'sid-b', type: 'text', content: 'other chat'}]);
+                document.querySelector('#chat').replaceChildren();
+                selectedAgent = 'agent-a';
+                await _showChatFor('agent-a', '/scope-a');
+                await new Promise(resolve => setTimeout(resolve, 0));
+                return {
+                    historyFetches: window.__imageHistoryFetches,
+                    logFetches: window.__imageLogFetches,
+                    first,
+                    prompt: document.querySelector('.codex-image-prompt')?.textContent || '',
+                    src: document.querySelector('.codex-tool-image')?.getAttribute('src') || '',
+                    title: document.querySelector('[data-tool-raw-name="ImageGeneration"] .flex.items-center')?.textContent || '',
+                };
+            }""",
+            {
+                "historyRows": filler + [call, stale],
+                "fullRow": full_row,
+            },
+        )
+        page.close()
+    
+        assert state["historyFetches"] == 2
+        assert state["logFetches"] == 2
+        for rendered in (state["first"], state):
+            assert rendered["prompt"] == (
+                "Exact product on a warm neutral marketplace background"
+            )
+            assert "generated-product.png" in rendered["src"]
+>           assert "Image generated" in rendered["title"]
+E           AssertionError: assert 'Image generated' in '✅ Изображение создано'
+
+tests/test_frontend.py:4712: AssertionError
+___ test_truncated_image_generation_history_recovers_without_server_restart ____
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_truncated_image_generation_history_recovers_without_server_restart(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        _route_frontend_sources(page)
+        requests: list[int] = []
+        page_errors: list[str] = []
+        page.on("pageerror", lambda error: page_errors.append(str(error)))
+    
+        def full_log(route):
+            requests.append(42)
+            route.fulfill(
+                status=200,
+                content_type="application/json",
+                json={
+                    "id": 42,
+                    "session_id": "sid-a",
+                    "type": "tool_result",
+                    "tool_name": "ImageGeneration",
+                    "tool_use_id": "image-42",
+                    "content": json.dumps({
+                        "result": "AAAA",
+                        "status": "completed",
+                        "saved_path": "/tmp/generated-hot.png",
+                        "revised_prompt": "Exact item, clear use case, matching prior marketplace style",
+                    }),
+                },
+            )
+    
+        page.route(re.compile(r".*/api/logs/42$"), full_log)
+        page.route(
+            "**/api/files/raw?**",
+            lambda route: route.fulfill(
+                status=200,
+                content_type="image/svg+xml",
+                body='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12"/>',
+            ),
+        )
+        _goto_dashboard(page)
+        page.wait_for_function(
+            "() => typeof selectedAgent !== 'undefined' && selectedAgent !== null"
+        )
+        page.evaluate(
+            """() => {
+                if (eventSource) { eventSource.close(); eventSource = null; }
+                selectedAgent = null;
+                window.compactMode = false;
+                document.querySelector('#chat').replaceChildren();
+                addChatEntry(
+                    'tool',
+                    'ImageGeneration: {"status":"in_progress","_codex_item_id":"image-42"}',
+                    null, null, {id: 41, tool_use_id: 'image-42'}
+                );
+                addChatEntry(
+                    'tool_result', '{"result":"AAAA', null, null,
+                    {id: 42, trunc: 2200000, tool_use_id: 'image-42', tool_name: 'ImageGeneration'}
+                );
+            }"""
+        )
+    
+        page.wait_for_timeout(1000)
+        state = page.evaluate(
+            """() => ({
+                prompt: document.querySelector('.codex-image-prompt')?.textContent || '',
+                src: document.querySelector('.codex-tool-image')?.getAttribute('src') || '',
+                header: document.querySelector('[data-tool-raw-name] .flex.items-center')?.textContent || '',
+                html: document.querySelector('#chat').innerHTML,
+            })"""
+        )
+        assert "clear use case" in state["prompt"], (state, requests, page_errors)
+>       expect(page.locator("#chat")).to_contain_text("✅ Image generated")
+E       AssertionError: Locator expected to contain text '✅ Image generated'
+E       Actual value: ✅ Изображение созданоготово📋Exact item, clear use case, matching prior marketplace style 
+E       Call log:
+E         - Expect "to_contain_text" with timeout 5000ms
+E         - waiting for locator("#chat")
+E           13 × locator resolved to <div id="chat" aria-busy="true" data-agent="fe-orch" data-position-ready="1" class="h-full overflow-y-auto overflow-x-hidden p-4 space-y-2">…</div>
+E              - unexpected value "✅ Изображение созданоготово📋Exact item, clear use case, matching prior marketplace style"
+
+tests/test_frontend.py:5073: AssertionError
+_____________ test_dashboard_survives_lossy_channel_from_snapshot ______________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Browser):
+        """Пункт 2 #197: недошедший запрос показывает прошлые данные, а не пустоту.
+    
+        Два захода в ОДНОМ browser context — иначе localStorage не переживает перезагрузку
+        и снимок проверять было бы негде. Первый заход всё получает и сохраняет снимок,
+        второй теряет ровно те запросы, из которых строится интерфейс.
+        """
+        context = dashboard_browser.new_context()
+        try:
+            warm = context.new_page()
+            drop = {"on": set()}
+            _install_lossy_api(warm, drop)
+            _route_frontend_sources(warm)
+            _goto_dashboard(warm)
+            warm.wait_for_function("() => typeof snapshotSave === 'function'")
+            # Положительный контроль: без него «снимок пуст» и «снимок не читается»
+            # выглядели бы одинаково зелёными на сломанном кеше.
+            warm.wait_for_function(
+                "() => document.querySelectorAll('#agent-list .agent-item').length >= 2",
+                timeout=8000,
+            )
+            warm.wait_for_function("() => !!snapshotLoad('usage')", timeout=8000)
+            warm.wait_for_function(
+                f"() => !!snapshotLoad('sessions:{_LOSSY_SCOPE}')", timeout=8000
+            )
+            saved = warm.evaluate(
+                """() => Object.keys(localStorage)
+                    .filter(k => k.startsWith('orchestra_snapshot:'))"""
+            )
+            warm.close()
+    
+            assert saved, "первый заход обязан сохранить хоть один снимок"
+    
+            cold = context.new_page()
+            lossy = {"on": {"/api/sessions", "/api/stats", "/api/usage", "/api/orchestrators"}}
+            _install_lossy_api(cold, lossy)
+            _route_frontend_sources(cold)
+            _goto_dashboard(cold)
+            cold.wait_for_function("() => typeof snapshotLoad === 'function'")
+    
+            cold.wait_for_function(
+                "() => document.querySelectorAll('#agent-list .agent-item').length >= 2",
+                timeout=15000,
+            )
+>           cold.wait_for_function(
+                "() => (document.querySelector('#usage-bar')?.innerText || '').includes('5h')",
+                timeout=15000,
+            )
+
+tests/test_frontend.py:5347: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+.venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:12436: in wait_for_function
+    self._sync(
+.venv/lib/python3.12/site-packages/playwright/_impl/_page.py:1136: in wait_for_function
+    return await self._main_frame.wait_for_function(**locals_to_params(locals()))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv/lib/python3.12/site-packages/playwright/_impl/_frame.py:910: in wait_for_function
+    await self._channel.send("waitForFunction", self._timeout, params)
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+    return await self._connection.wrap_api_call(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <playwright._impl._connection.Connection object at 0x77468faaf110>
+cb = <function Channel.send.<locals>.<lambda> at 0x774687c39f80>
+is_internal = False, title = None
+
+    async def wrap_api_call(
+        self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+    ) -> Any:
+        if self._api_zone.get():
+            return await cb()
+        task = asyncio.current_task(self._loop)
+        st: List[inspect.FrameInfo] = getattr(
+            task, "__pw_stack__", None
+        ) or inspect.stack(0)
+    
+        parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+        self._api_zone.set(parsed_st)
+        try:
+            return await cb()
+        except Exception as error:
+>           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+E           playwright._impl._errors.TimeoutError: Page.wait_for_function: Timeout 15000ms exceeded.
+
+.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: TimeoutError
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_send_button_exists - AssertionError: Loca...
+FAILED tests/test_frontend.py::test_chat_drop_handles_files_tree_paths_and_upload_errors
+FAILED tests/test_frontend.py::test_codex_cache_pill_is_approximate_and_expires_to_unknown
+FAILED tests/test_frontend.py::test_claude_cache_pill_keeps_exact_thresholds
+FAILED tests/test_frontend.py::test_photo_batch_renders_as_compact_expandable_gallery
+FAILED tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions
+FAILED tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files
+FAILED tests/test_frontend.py::test_send_file_single_keeps_existing_rendering
+FAILED tests/test_frontend.py::test_restart_button_shows_journal_loss_before_reboot
+FAILED tests/test_frontend.py::test_dashboard_polling_resume_refreshes_status_after_hidden
+FAILED tests/test_frontend.py::test_tool_view_mode_is_visible_without_desktop_header_overflow
+FAILED tests/test_frontend.py::test_task_card_uses_real_long_description_and_shared_expandable_body
+FAILED tests/test_frontend.py::test_native_codex_compact_renders_one_result_badge
+FAILED tests/test_frontend.py::test_subagent_lifecycle_updates_one_existing_card
+FAILED tests/test_frontend.py::test_codex_web_search_renders_queries_without_transport_json
+FAILED tests/test_frontend.py::test_codex_spawn_worker_renders_task_model_and_completion
+FAILED tests/test_frontend.py::test_codex_file_change_renders_structured_kind
+FAILED tests/test_frontend.py::test_truncated_read_image_restores_full_log_when_source_file_is_gone
+FAILED tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+FAILED tests/test_frontend.py::test_truncated_image_generation_history_recovers_without_server_restart
+FAILED tests/test_frontend.py::test_dashboard_survives_lossy_channel_from_snapshot
+21 failed, 109 passed, 1 skipped in 404.17s (0:06:44)
+RC=1

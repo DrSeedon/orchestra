@@ -52,18 +52,18 @@ window.Connection = (() => {
 
     function savedDetail() {
         const items = [...state.stale.entries()]
-            .map(([key, ts]) => `${key}: ${snapshotAgeLabel(ts)}`);
+            .map(([key, ts]) => `${T(key)}: ${snapshotAgeLabel(ts)}`);
         return items.length ? ` Показано сохранённое: ${items.join(' · ')}.` : '';
     }
 
     function detail() {
         if (state.message) return state.message;
         if (state.phase === 'restarting') {
-            return 'Данные на экране сохранены; chat, files, sessions и usage обновятся автоматически.'
+            return 'Данные на экране сохранены; чат, файлы, сессии и расход обновятся автоматически.'
                 + savedDetail();
         }
         if (state.phase === 'recovering') {
-            return 'Обновляю chat, files, sessions, usage, quota и models.' + savedDetail();
+            return 'Обновляю чат, файлы, сессии, расход, квоты и модели.' + savedDetail();
         }
         if (state.phase === 'offline') {
             return 'Причина проверяется автоматически; сохранённые данные не выдаются за свежие.'
