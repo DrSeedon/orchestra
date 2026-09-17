@@ -250,3 +250,41 @@ async def test_t2_refresh_retains_vanished_route_for_resume_but_marks_it_unavail
     cached = catalog.cached_catalog()
     assert result["retained_stale"] == 1
     assert cached == [{**NORMALIZED, "available": False}]
+
+
+def test_t2_admission_refuses_route_the_live_catalog_no_longer_backs():
+    """#V-582: our own record is not evidence — the provider's catalog decides.
+
+    Both hardcoded harness routes were dead while our spec still claimed tools, and
+    nothing noticed until a worker burned a turn on them.
+    """
+    import app.models as registry
+
+    stale_spec = registry.ModelSpec(
+        id="vendor/model-x:free", name="Vendor: Model X", runtime="harness",
+        provider="openrouter", context_length=128000,
+        price_input=0.0, price_output=0.0,
+        supported_parameters=("tool_choice", "tools"),
+    )
+
+    db.kv_set(CATALOG_KV_KEY, json.dumps({"fetched_at": 1726500000.0, "models": [{
+        **NORMALIZED,
+        "supports_tools": False,
+        "supported_parameters": ["temperature"],
+        "harness_eligible": False,
+    }]}))
+    with pytest.raises(ValueError, match="tool support"):
+        registry.validate_harness_model_spec(stale_spec)
+
+    db.kv_set(CATALOG_KV_KEY, json.dumps({"fetched_at": 1726500000.0, "models": []}))
+    with pytest.raises(ValueError, match="not in the OpenRouter catalog"):
+        registry.validate_harness_model_spec(stale_spec)
+
+
+def test_t2_admission_passes_route_the_live_catalog_still_backs():
+    import app.models as registry
+
+    _seed_cache()
+    assert _catalog_module().apply_model_catalog() == 1
+
+    registry.validate_harness_model_spec(registry.MODEL_SPECS["vendor/model-x:free"])

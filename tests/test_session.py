@@ -4718,12 +4718,15 @@ class TestRuntimeCapabilities:
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
         ("claude", "claude-sonnet-5[1m]", "claude-opus-5[1m]"),
         ("grok", "grok-4.5", "grok-4.6"),
-        ("harness", "nvidia/nemotron-3-ultra-550b-a55b:free", "z-ai/glm-5.2:free"),
+        ("harness", "vendor/from:free", "vendor/to:free"),
     ])
     async def test_other_builtin_model_switches_retarget_in_place(
-            self, session, monkeypatch, runtime, old_model, new_model):
+            self, session, monkeypatch, live_harness_route, runtime, old_model, new_model):
         from app.session import AgentStatus
 
+        if runtime == "harness":
+            live_harness_route(old_model, context_length=1_000_000)
+            live_harness_route(new_model, context_length=1_000_000)
         session.model = old_model
         session.backend_type = runtime
         session.session_id = f"native-{runtime}-session"
@@ -4765,12 +4768,15 @@ class TestRuntimeCapabilities:
     @pytest.mark.asyncio
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
         ("claude", "claude-opus-5[1m]", "claude-haiku-4-5"),
-        ("harness", "nvidia/nemotron-3-ultra-550b-a55b:free", "z-ai/glm-5.2:free"),
+        ("harness", "vendor/wide:free", "vendor/narrow:free"),
     ])
     async def test_in_place_switch_refuses_context_that_target_cannot_fit(
-            self, session, monkeypatch, runtime, old_model, new_model):
+            self, session, monkeypatch, live_harness_route, runtime, old_model, new_model):
         from app.session import AgentStatus
 
+        if runtime == "harness":
+            live_harness_route(old_model, context_length=1_000_000)
+            live_harness_route(new_model, context_length=256_000)
         session.model = old_model
         session.backend_type = runtime
         session.session_id = f"native-{runtime}-session"

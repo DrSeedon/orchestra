@@ -16,7 +16,6 @@ def _init_db():
     init_db()
 
 import app.models as registry
-from app.models import ModelSpec
 
 
 @pytest.fixture(autouse=True)
@@ -39,14 +38,9 @@ def _registry_snapshot():
 
 
 @pytest.fixture()
-def vendor_model():
-    spec = ModelSpec(
-        id="test/vendor-x:free", name="Vendor X", runtime="harness",
-        provider="openrouter", context_length=128000,
-        price_input=0.0, price_output=0.0, supported_parameters=("tools",),
-    )
-    registry.register_model(spec)
-    yield spec
+def vendor_model(live_harness_route):
+    live_harness_route("test/vendor-x:free")
+    yield registry.get_model_spec("test/vendor-x:free")
     registry.unregister_model("test/vendor-x:free")
 
 

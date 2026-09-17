@@ -537,11 +537,14 @@ async def test_restricted_capabilities_require_an_inline_reason(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_harness_read_capability_rejects_a_hallucinated_write(tmp_path, monkeypatch):
+async def test_harness_read_capability_rejects_a_hallucinated_write(
+    tmp_path, monkeypatch, live_harness_route,
+):
     from app.harness.llm import LLMEvent
     from app.harness.oneshot import run_oneshot
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    live_harness_route("vendor/free-x:free")
 
     class FakeLLM:
         def __init__(self):
@@ -572,7 +575,7 @@ async def test_harness_read_capability_rejects_a_hallucinated_write(tmp_path, mo
     llm = FakeLLM()
     row = await run_oneshot(
         prompt="try to write",
-        model="z-ai/glm-5.2:free",
+        model="vendor/free-x:free",
         cwd=tmp_path,
         tools_level="read",
         network=True,
@@ -586,11 +589,14 @@ async def test_harness_read_capability_rejects_a_hallucinated_write(tmp_path, mo
 
 
 @pytest.mark.asyncio
-async def test_standalone_harness_default_is_not_writable(tmp_path, monkeypatch):
+async def test_standalone_harness_default_is_not_writable(
+    tmp_path, monkeypatch, live_harness_route,
+):
     from app.harness.llm import LLMEvent
     from app.harness.oneshot import run_oneshot
 
     monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+    live_harness_route("vendor/free-x:free")
 
     class FakeLLM:
         def __init__(self):
@@ -612,7 +618,7 @@ async def test_standalone_harness_default_is_not_writable(tmp_path, monkeypatch)
             return None
 
     row = await run_oneshot(
-        prompt="write", model="z-ai/glm-5.2:free", cwd=tmp_path,
+        prompt="write", model="vendor/free-x:free", cwd=tmp_path,
         network=True, mcp=False, system_prompt="", llm=FakeLLM(),
     )
     assert row["ok"] is True
@@ -620,7 +626,8 @@ async def test_standalone_harness_default_is_not_writable(tmp_path, monkeypatch)
 
 
 @pytest.mark.asyncio
-async def test_free_output_requires_a_verify_step_before_synthesis(tmp_path):
+async def test_free_output_requires_a_verify_step_before_synthesis(tmp_path, live_harness_route):
+    live_harness_route("vendor/free-x:free")
     calls = []
 
     async def adapter(prompt, model, **_kwargs):
@@ -630,16 +637,16 @@ async def test_free_output_requires_a_verify_step_before_synthesis(tmp_path):
 
     engine = _engine("free-gate", tmp_path, budget_usd=2, adapter=adapter)
     with pytest.raises(ValueError, match="loss_tolerant"):
-        await engine.agent("unsafe draft", model="z-ai/glm-5.2:free")
+        await engine.agent("unsafe draft", model="vendor/free-x:free")
     free = await engine.agent(
-        "draft", model="z-ai/glm-5.2:free", loss_tolerant=True,
+        "draft", model="vendor/free-x:free", loss_tolerant=True,
     )
     with pytest.raises(ValueError, match="non-free"):
         await engine.agent(
             "self check",
             purpose="verify",
             inputs=[free],
-            model="z-ai/glm-5.2:free",
+            model="vendor/free-x:free",
             loss_tolerant=True,
         )
     with pytest.raises(ValueError, match="verify"):

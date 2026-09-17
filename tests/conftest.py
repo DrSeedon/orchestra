@@ -402,3 +402,57 @@ def _isolated_git_task_owner(tmp_path, monkeypatch):
 
     monkeypatch.setattr(tm, 'active_runtime', runtime)
     monkeypatch.setattr(task_runtime, 'active_runtime', runtime)
+
+
+@pytest.fixture
+def live_harness_route():
+    """Substitute OpenRouter's live catalog for one route and register it.
+
+    Harness admission decides on the provider's record, so a test that needs a usable
+    (or deliberately stale) harness model seeds that record instead of a ModelSpec.
+    """
+    import json as _json
+
+    seeded: list[str] = []
+
+    def seed(model_id, *, tools=True, available=True, context_length=128000,
+             parameters=None):
+        from app.db import init_db, kv_set
+        from app.model_catalog import (
+            CATALOG_KV_KEY, apply_model_catalog, cached_catalog,
+        )
+
+        init_db()
+
+        params = sorted(parameters) if parameters is not None else (
+            ["tool_choice", "tools"] if tools else ["temperature"]
+        )
+        supports_tools = "tools" in params
+        entry = {
+            "id": model_id,
+            "name": model_id,
+            "context_length": context_length,
+            "price_prompt": 0.0,
+            "price_completion": 0.0,
+            "input_modalities": ["text"],
+            "output_modalities": ["text"],
+            "supports_tools": supports_tools,
+            "supported_parameters": params,
+            "is_free": model_id.endswith(":free"),
+            "harness_eligible": supports_tools and model_id.endswith(":free"),
+            "available": available,
+        }
+        models = [row for row in cached_catalog() if row.get("id") != model_id]
+        kv_set(CATALOG_KV_KEY, _json.dumps({
+            "fetched_at": 1726500000.0, "models": models + [entry],
+        }))
+        apply_model_catalog()
+        seeded.append(model_id)
+        return entry
+
+    yield seed
+
+    from app.models import unregister_model
+
+    for model_id in seeded:
+        unregister_model(model_id)
