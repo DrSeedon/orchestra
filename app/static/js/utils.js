@@ -82,6 +82,17 @@ function snapshotAgeLabel(ts) {
 }
 
 // One table owns provider labels, capacity routing and window shapes for every usage view.
+// Ярлык окна берётся из его ДЛИТЕЛЬНОСТИ, а не из позиции в ответе провайдера:
+// на free у Codex было одно окно в 30 дней, на Plus их два — 5 часов и неделя,
+// и подпись «Основной» в обоих случаях не говорит читателю ничего (17.09.2026).
+function windowLabel(windowMinutes) {
+    if (windowMinutes === 300) return '5h';
+    if (windowMinutes === 10080) return '7d';
+    if (windowMinutes % 1440 === 0) return `${windowMinutes / 1440}d`;
+    if (windowMinutes % 60 === 0) return `${windowMinutes / 60}h`;
+    return `${windowMinutes}m`;
+}
+
 const _PROVIDER_META = {
     claude: {
         title: 'Claude Max', usageTitle: '☕ Claude Max', runtime: 'Opus · orchestrators',
@@ -95,7 +106,7 @@ const _PROVIDER_META = {
         runtime: 'Sol · workers', provider: 'openai', capacityKey: 'codex',
         tone: 'cyan', windowAccent: '#86efac',
         historyProviders: ['codex', 'codex_spark'],
-        windows: c => [['Основной', c.primary], ['Вторичный', c.secondary]],
+        windows: c => [c.primary, c.secondary].filter(Boolean).map(w => [windowLabel(w.window_minutes), w]),
     },
     grok: {
         title: 'Grok', usageTitle: '𝕏 Grok', compactTitle: 'Grok',

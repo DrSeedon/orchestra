@@ -6,6 +6,18 @@
 
 ## Unreleased
 
+### Fixed
+- 🏷 **Окна квоты Codex подписаны своей длительностью, а не позицией в ответе**
+  (`app/static/js/utils.js` — новый общий `windowLabel`, `_PROVIDER_META.codex.windows`;
+  `app/static/js/analytics.js` — подписи окон Spark). Панель аналитики печатала
+  «Основной» и «Вторичный», что ничего не сообщало о том, какой лимит упёрся.
+  Заодно снята вторая копия этой логики: ярлык считался ещё и в `app/static/js/usage.js`
+  (`_codexWindowLabel`), теперь владелец один. *Triggered case:* 17.09.2026 аккаунт
+  перешёл с free на Plus, и у Codex вместо одного 30-дневного окна стало два — 5 часов
+  и неделя; на панели они назывались «Основной/Вторичный», хотя у Claude рядом
+  честно стоят 5h и 7d.
+
+
 ### Added
 - 🔓 **Кнопка «снять гейт на время» на панели квот** (`app/quota_gate.py`:
   `set_gate_override`/`clear_gate_override`/`gate_override_remaining`, `POST
