@@ -288,3 +288,26 @@ def test_t2_admission_passes_route_the_live_catalog_still_backs():
     assert _catalog_module().apply_model_catalog() == 1
 
     registry.validate_harness_model_spec(registry.MODEL_SPECS["vendor/model-x:free"])
+
+
+def test_blocked_route_is_refused_and_never_registered():
+    """#V-593: маршрут, отказавший в нашей пробе, каталог провайдера по-прежнему
+    рекламирует как рабочий. Он не должен ни попадать в выбор, ни проходить спавн."""
+    import app.models as registry
+    from app.model_catalog import apply_model_catalog
+
+    blocked_id = next(iter(registry.BLOCKED_HARNESS_ROUTES))
+    blocked_row = {**NORMALIZED, "id": blocked_id, "name": "Blocked Route"}
+    db.kv_set(CATALOG_KV_KEY, json.dumps(
+        {"fetched_at": 1726500000.0, "models": [blocked_row, NORMALIZED]}))
+
+    apply_model_catalog()
+    assert blocked_id not in registry.MODEL_SPECS, "заблокированный маршрут попал в выбор"
+    assert NORMALIZED["id"] in registry.MODEL_SPECS, "здоровый маршрут потерян вместе с ним"
+
+    spec = registry.ModelSpec(
+        id=blocked_id, name="Blocked Route", runtime="harness", provider="openrouter",
+        context_length=128000, price_input=0.0, price_output=0.0,
+        supported_parameters=("tool_choice", "tools"))
+    with pytest.raises(ValueError, match="заблокирован"):
+        registry.validate_harness_model_spec(spec)
