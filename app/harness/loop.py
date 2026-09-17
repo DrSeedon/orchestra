@@ -198,6 +198,13 @@ class AgentLoop:
                 for tc in tool_calls:
                     async for ev in self._dispatch_tool(tc):
                         yield ev
+                # Дальше этот же assistant-месседж уезжает в КАЖДЫЙ следующий запрос.
+                # Строгий провайдер (Cohere) отвергает весь запрос, если аргументы хоть
+                # одного вызова — не объект JSON: «invalid tool call provided in
+                # messages[42].tool_calls[0]». Один кривой вызов модели убивал остаток
+                # сессии. Дефект уже отработан выше и лежит в tool_result, поэтому в
+                # истории аргументы обезвреживаем.
+                _sanitize_tool_args(tool_calls)
 
             # ran out of rounds
             self._terminal("max_turns", ok=False,
@@ -459,6 +466,31 @@ class AgentLoop:
         self.stop_reason = stop_reason
         self.ok = ok
         self.error_detail = detail
+
+
+def _sanitize_tool_args(tool_calls: list[dict]) -> None:
+    """Сделать аргументы каждого вызова строкой-объектом JSON, на месте.
+
+    Провайдеры расходятся в строгости: одни принимают в истории любой мусор в
+    `arguments`, Cohere отвергает весь запрос. Разбор и сообщение об ошибке уже
+    произошли при вызове инструмента — здесь остаётся только не тащить негодное
+    значение в следующие запросы.
+    """
+    for tc in tool_calls:
+        fn = tc.get("function")
+        if not isinstance(fn, dict):
+            continue
+        raw = fn.get("arguments")
+        if not isinstance(raw, str) or not raw.strip():
+            fn["arguments"] = "{}"
+            continue
+        try:
+            parsed = json.loads(raw)
+        except (ValueError, TypeError):
+            fn["arguments"] = "{}"
+            continue
+        if not isinstance(parsed, dict):
+            fn["arguments"] = "{}"
 
 
 def _short(name: str) -> str:
