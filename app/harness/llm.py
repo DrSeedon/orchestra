@@ -16,6 +16,7 @@ import asyncio
 import json
 import logging
 import random
+import re
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Iterable
 
@@ -242,6 +243,18 @@ class OpenRouterClient:
                 logger.warning(
                     f"OpenRouter {e.kind} rate limit (attempt {attempt + 1}/{MAX_RETRIES}), retry in {delay:.1f}s")
                 await asyncio.sleep(delay)
+            except _StreamError as e:
+                last_err = e
+                # Отдав хоть одно событие, повторять нельзя: текст и вызовы инструментов
+                # уехали в ход и продублируются. Нетранзиентную ошибку не повторяем вовсе.
+                if started or not e.transient:
+                    raise
+                if attempt == MAX_RETRIES - 1:
+                    break
+                delay = self._retry_delay(attempt, None, RETRY_CEILING_UPSTREAM)
+                logger.warning(
+                    f"OpenRouter stream error (attempt {attempt + 1}/{MAX_RETRIES}): {e}, retry in {delay:.1f}s")
+                await asyncio.sleep(delay)
             except (httpx.TransportError, httpx.StreamError) as e:
                 last_err = e
                 if started:
@@ -300,9 +313,10 @@ class OpenRouterClient:
                     error = chunk["error"]
                     if isinstance(error, dict):
                         message = error.get("message") or error.get("code") or error
+                        code = error.get("code")
                     else:
-                        message = error
-                    raise RuntimeError(f"OpenRouter stream error: {message}")
+                        message, code = error, None
+                    raise _StreamError(f"OpenRouter stream error: {message}", code)
                 # usage-only chunk (OpenRouter sends a trailing chunk with empty choices)
                 if chunk.get("usage"):
                     usage = chunk["usage"]
@@ -350,6 +364,34 @@ class OpenRouterClient:
             raise RuntimeError("OpenRouter returned an empty completion")
         yield LLMEvent("final", finish_reason=finish_reason or "stop", usage=usage,
                        reasoning_details=racc.finished())
+
+
+# Перегрузка провайдера приходит НЕ статусом, а обычным SSE-чанком с полем error уже
+# внутри открытого потока: 200 OK, а затем «Upstream error from Nvidia: Service temporarily
+# overloaded». До #V-592 такой чанк убивал ход целиком, хотя повторить запрос было безопасно —
+# ни одного события ещё не отдано, ни один инструмент не выполнен.
+_TRANSIENT_STREAM_RE = re.compile(
+    r"overload|temporarily|timeout|timed out|unavailable|try again|capacity|"
+    r"internal server error|bad gateway|503|502|504",
+    re.IGNORECASE)
+
+
+class _StreamError(RuntimeError):
+    def __init__(self, message: str, code=None):
+        self.code = code
+        super().__init__(message)
+
+    @property
+    def transient(self) -> bool:
+        """Повторять только заведомо временное. Нет кредитов, нет модели, битый запрос и
+        отказ авторизации повтором не лечатся — это трата попытки и суточного лимита."""
+        try:
+            code = int(self.code)
+        except (TypeError, ValueError):
+            code = None
+        if code is not None:
+            return code >= 500 or code in (408, 409, 429)
+        return bool(_TRANSIENT_STREAM_RE.search(str(self)))
 
 
 class _RetryableStatus(Exception):
