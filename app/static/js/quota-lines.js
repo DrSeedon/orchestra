@@ -15,11 +15,11 @@ const _QL_LABEL_STEP = 12;
 const _QL_LABEL_TOP_PAD = 8;
 
 const _QL_PANELS = [
-    {key: 'all', title: 'Квоты пула', sub: 'одна шкала: доля пройденного окна, 0–100%',
+    {key: 'all', title: T('Pool quotas'), sub: T('single scale: window progress share, 0–100%'),
      buckets: ['codex', 'codex_spark', 'anthropic']},
 ];
 
-const _QL_NO_RULE = 'нет данных — сервер не прислал константы правила';
+const _QL_NO_RULE = T('no data — server did not send rule constants');
 
 let _quotaLinesData = null;
 let _quotaLinesError = '';
@@ -82,17 +82,17 @@ function _qlReleaseText(lane) {
     const hasSeconds = Number.isFinite(seconds);
 
     if (status === 'opens_in') {
-        return hasSeconds ? `откроется через ${_qlDurationFromSeconds(seconds)}` : 'откроется скоро';
+        return hasSeconds ? T('opens in {duration}', {duration: _qlDurationFromSeconds(seconds)}) : T('opens soon');
     }
     if (status === 'at_reset') {
         return hasSeconds
-            ? `откроется при сбросе, через ${_qlDurationFromSeconds(seconds)}`
-            : 'откроется при сбросе';
+            ? T('opens at reset, in {duration}', {duration: _qlDurationFromSeconds(seconds)})
+            : T('opens at reset');
     }
     if (status === 'no_data') {
-        return 'нет данных';
+        return T('no data');
     }
-    return 'работает';
+    return T('running');
 }
 
 function _qlLaneSummary(lane) {
@@ -112,50 +112,59 @@ function _qlLaneLabel(laneId) {
     return found ? (found.label || laneId) : laneId;
 }
 
-// Потолки жёсткого стопа словами: у Sol свой (95%), у остальных общий. Подпись
-// обязана совпадать с линиями `ql-hard` на графике — обе берут одни и те же числа.
+// Hard-stop ceilings in words: Sol has its own (95%), others share one. Label
+// must match the `ql-hard` lines on the chart — both use the same numbers.
 function _qlCeilingText(rule) {
     const own = Object.entries(rule.lane_hard_stop_pct || {})
         .filter(([, pct]) => Number.isFinite(Number(pct)))
         .sort(([a], [b]) => a.localeCompare(b))
         .map(([lane, pct]) => `${_qlLaneLabel(lane)} ${_qlNum(pct)}%`);
     const common = `${_qlNum(rule.hard_stop_pct)}%`;
-    return own.length ? `${own.join(', ')}, прочие ${common}` : common;
+    return own.length ? `${own.join(', ')}, ${T('others')} ${common}` : common;
 }
 
-// Состояние гейта — первое, что должно читаться с панели (#V-547). Раньше снятая со
-// ВСЕХ полос диагональ отличалась от работающего правила только курсивной припиской
-// у бейджа, и по панели два разных режима выглядели одинаково.
-// Источник — `rule.gated_lanes` сервера: панель не решает, кого гейтить.
+// Gate state — first thing readable from the panel (#V-547). Previously the
+// diagonal lifted from ALL lanes differed from a working rule only by an italic
+// badge note, so two different modes looked identical on the panel.
+// Source is server's `rule.gated_lanes`: panel doesn't decide who gets gated.
 function _qlGateState() {
     const rule = _quotaLinesData?.rule;
-    // Пока связь потеряна, вердикт панели уже «—»: печатать рядом уверенное
-    // «гейт включён» по прошлому ответу значит выдать устаревшее за текущее.
+    // While connection is lost, panel verdict is already "—": printing a confident
+    // "gate enabled" from a stale response would show outdated as current.
     if (Connection.ownsErrors() || !rule || !Array.isArray(rule.gated_lanes)) {
-        return {state: 'nodata', text: 'гейт: нет данных'};
+        return {state: 'nodata', text: T('gate: no data')};
     }
     const ceilings = _qlCeilingText(rule);
-    // Снятие рукой владельца (#V-578) показывается ОТДЕЛЬНО от «правила такие»:
-    // иначе временное снятие снова растянется на трое суток незамеченным.
+    // Manual lift by owner (#V-578) shown SEPARATELY from "rules are such":
+    // otherwise temporary lift would silently stretch for three days unnoticed.
     const left = Number(rule.override_seconds_left) || 0;
     if (left > 0) {
         return {
             state: 'override',
-            text: `гейт СНЯТ ВРУЧНУЮ — вернётся через ${Math.ceil(left / 60)} мин · потолок: ${ceilings}`,
+            text: T('gate MANUALLY LIFTED — returns in {min} min · ceiling: {ceiling}', {
+                min: Math.ceil(left / 60),
+                ceiling: ceilings,
+            }),
         };
     }
     if (!rule.gated_lanes.length) {
         return {
             state: 'off',
-            text: `гейт СНЯТ — диагональ не держит ни одну полосу, остаётся только потолок: ${ceilings}`,
+            text: T('gate LIFTED — diagonal holds no lanes, only ceiling remains: {ceiling}', {
+                ceiling: ceilings,
+            }),
         };
     }
     const held = rule.gated_lanes.map(_qlLaneLabel);
     const free = _qlAllLanes()
         .filter(lane => !rule.gated_lanes.includes(lane.lane))
         .map(lane => lane.label || lane.lane);
-    const tail = free.length ? ` · вне гейта: ${free.join(', ')}` : '';
-    return {state: 'on', text: `гейт ВКЛЮЧЁН: ${held.join(', ')}${tail} · потолок: ${ceilings}`};
+    const tail = free.length ? ` · ${T('outside gate')}: ${free.join(', ')}` : '';
+    return {state: 'on', text: T('gate ON: {held}{tail} · ceiling: {ceiling}', {
+        held: held.join(', '),
+        tail,
+        ceiling: ceilings,
+    })};
 }
 
 function _qlTrace(bucket) {
@@ -232,11 +241,11 @@ function _qlChartSvg(panel, rule) {
         p.push(`<line class="ql-grid" x1="${_qlX(t)}" y1="${_QL_MT}" x2="${_qlX(t)}" y2="${_QL_MT + _QL_PH}"/>`);
         p.push(`<text class="ql-axis" x="${_qlX(t)}" y="${_QL_MT + _QL_PH + 19}" text-anchor="middle">${d * 10}%</text>`);
     }
-    p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">доля пройденного окна</text>`);
+    p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">${T('window progress share')}</text>`);
 
-    // Порогов теперь ДВА, потому что Sol идёт по кривой, а Claude по прямой: одна общая
-    // ломаная показывала бы половине воркеров чужой предел. Полосу заливки строим по
-    // прямой — она нижняя из двух и означает «здесь не блокируют никого».
+    // Two thresholds now: Sol follows a curve, Claude a straight line. One shared
+    // polyline would show half the workers a foreign limit. Fill band uses the
+    // straight line — it's the lower one and means "no blocking here".
     const band = [], lineClaude = [], lineSol = [];
     for (let i = 0; i <= 100; i++) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(t * 100)}`); }
     for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'claude'))}`); }
@@ -244,31 +253,32 @@ function _qlChartSvg(panel, rule) {
     for (let i = 0; i <= 100; i++) { const t = i / 100; lineSol.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'sol'))}`); }
     p.push(`<polygon class="ql-band" points="${band.join(' ')}"/>`);
     p.push(`<line class="ql-diag" x1="${_qlX(0)}" y1="${_qlY(0)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    // Снятая с полосы диагональ рисуется призраком: сплошная линия означала бы порог,
-    // по которому кого-то останавливают, а её на этой полосе сейчас не применяют.
+    // Lifted diagonal drawn as ghost: solid line would imply a threshold that
+    // blocks someone, but on this lane it's not applied right now.
     const gatedLanes = Array.isArray(rule.gated_lanes) ? rule.gated_lanes : [];
     const _ghost = lane => gatedLanes.includes(lane) ? '' : ' ql-gated-off';
-    const _lifted = lane => gatedLanes.includes(lane) ? '' : ' — снят';
     p.push(`<polyline class="ql-gated${_ghost('claude')}" data-ql-threshold="claude" points="${lineClaude.join(' ')}"/>`);
     if ((rule.curved_lanes || []).includes('sol')) {
         p.push(`<polyline class="ql-gated ql-gated-sol${_ghost('sol')}" data-ql-threshold="sol" points="${lineSol.join(' ')}"/>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(_qlLimitAt(0.30, rule, 'sol')) - 9}" fill="#f472b6">порог Sol${gatedLanes.includes('sol') ? ' — жжём пул рано' : _lifted('sol')}</text>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(_qlLimitAt(0.62, rule, 'claude')) + 17}" fill="#fb923c">порог Claude${_lifted('claude')}</text>`);
+        const solSuffix = gatedLanes.includes('sol') ? T(' — burning pool early') : T(' — lifted');
+        const claudeSuffix = gatedLanes.includes('claude') ? '' : T(' — lifted');
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(_qlLimitAt(0.30, rule, 'sol')) - 9}" fill="#f472b6">${T('Sol threshold')}${solSuffix}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(_qlLimitAt(0.62, rule, 'claude')) + 17}" fill="#fb923c">${T('Claude threshold')}${claudeSuffix}</text>`);
     }
 
     const hard = Number(rule.hard_stop_pct);
     p.push(`<line class="ql-hard" x1="${_qlX(0)}" y1="${_qlY(hard)}" x2="${_qlX(1)}" y2="${_qlY(hard)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">жёсткие ${_qlNum(hard)}% — стоп полос без своего потолка</text>`);
-    // Своя линия у полосы с более низким потолком: одна общая соврала бы, что дорогая
-    // полоса работает до последнего процента пула.
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">${T('hard {pct}% — stop for lanes without own ceiling', {pct: _qlNum(hard)})}</text>`);
+    // Lane-specific line for lane with lower ceiling: one common line would lie
+    // that the expensive lane runs to the last pool percent.
     for (const lane of _qlLanes(panel)) {
         const stop = _qlHardStop(rule, lane.lane);
         if (!(stop < hard)) continue;
         p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${_escHtml(lane.label || lane.lane)} — жёсткие ${_qlNum(stop)}%</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${T('{label} — hard {pct}%', {label: _escHtml(lane.label || lane.lane), pct: _qlNum(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">оркестратор работает всегда — предела нет</text>`);
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">${T('orchestrator always runs — no limit')}</text>`);
 
     const byBucket = [];
     for (const id of panel.buckets) {
@@ -311,7 +321,7 @@ function _qlChartSvg(panel, rule) {
         if (!point) continue;
         if (point.progress === null) {
             if (i === 0) {
-                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${_escHtml(bucket.label || bucket.bucket)}: срок сброса неизвестен — только жёсткие ${_qlNum(_qlHardStop(rule, lane.lane))}%</text>`);
+                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${T('{label}: reset time unknown — only hard {pct}%', {label: _escHtml(bucket.label || bucket.bucket), pct: _qlNum(_qlHardStop(rule, lane.lane))})}</text>`);
             }
             continue;
         }
@@ -332,17 +342,17 @@ function _qlChartSvg(panel, rule) {
         const stackedLabelY = _qlPlaceY(avoidHardY ? hardY + 22 : rawLabelY, usedLabelBands);
         const stackedDetailY = _qlPlaceY(stackedLabelY + 15, usedLabelBands);
         p.push(`<circle data-ql-point="${_escHtml(lane.lane)}" class="${markerClass}" cx="${x}" cy="${y}" r="5.5" fill="none" stroke="${color}" stroke-width="2.5"/>`);
-        // Порог — свойство ПОЛОСЫ, а не бакета: Sol идёт по кривой, Claude по прямой, а
-        // Luna и Spark не гейтятся вовсе. Печатать бакетную прямую рядом с кривой полосой
-        // значит показать юзеру не тот предел, по которому его воркеров блокируют.
+        // Threshold is a LANE property, not bucket: Sol follows curve, Claude straight,
+        // Luna and Spark not gated at all. Printing bucket straight next to lane curve
+        // would show user the wrong limit their workers get blocked by.
         const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
-        const head = `факт ${_qlNum(point.util)}% · норма ${_qlNum(point.progress * 100)}%`;
+        const head = T('actual {util}% · expected {expected}%', {util: _qlNum(point.util), expected: _qlNum(point.progress * 100)});
         const detail = !lane.gated
-            ? `${head} · диагональ не применяется — только жёсткие ${_qlNum(_qlHardStop(rule, lane.lane))}%`
+            ? T('{head} · diagonal not applied — only hard {pct}%', {head, pct: _qlNum(_qlHardStop(rule, lane.lane))})
             : laneLimit === null
-            ? `${head} · порога нет`
-            : `${head} · допуск ${_qlNum(point.tolerance, 1)} п.п. · порог ${_qlNum(laneLimit, 1)}%`;
-        p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}">${label}${point.fresh ? '' : ' (телеметрия устарела)'}</text>`);
+            ? T('{head} · no threshold', {head})
+            : T('{head} · tolerance {tol} pp · threshold {thr}%', {head, tol: _qlNum(point.tolerance, 1), thr: _qlNum(laneLimit, 1)});
+        p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}">${label}${point.fresh ? '' : T(' (telemetry stale)')}</text>`);
         p.push(`<text class="ql-axis ql-halo" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedDetailY}" text-anchor="${anchor}">${detail}</text>`);
     }
 
@@ -352,37 +362,37 @@ function _qlChartSvg(panel, rule) {
     };
 }
 
-// ЕДИНСТВЕННЫЙ владелец вердикта: и сводка в свёрнутой строке, и тело панели
-// печатают текст ОТСЮДА. Разойтись по смыслу они не могут по построению — раньше
-// у сводки была своя ветка, и на ответе без блока `rule` она рисовала «работают»,
-// пока тело честно говорило «нет данных».
-// Подпись обязана прямо говорить, кто работает, а кто стоит, — и не выдумывать
-// «работает», когда сервер сказал data_available=false.
+// SINGLE verdict owner: both collapsed summary and panel body print text
+// FROM HERE. They cannot diverge by construction — previously summary had
+// its own branch and on response without `rule` block it drew "running"
+// while body honestly said "no data".
+// Label must directly state who runs and who stands — and not invent
+// "running" when server said data_available=false.
 function _qlVerdict(panel) {
     if (Connection.ownsErrors()) return {text: '—', nodata: true};
     if (_quotaLinesError) return {text: _quotaLinesError, nodata: true};
-    if (!_quotaLinesData) return {text: 'правило допуска — загрузка…', nodata: true};
-    // Без констант правила неизвестно само правило: вердикт не считается ни для
-    // кого, включая полосы, у которых сервер прислал готовый `blocked`.
+    if (!_quotaLinesData) return {text: T('allowance rule — loading…'), nodata: true};
+    // Without rule constants the rule itself is unknown: verdict not computed
+    // for anyone, including lanes where server sent ready `blocked`.
     if (!_quotaLinesData.rule) return {text: _QL_NO_RULE, nodata: true};
     if (!panel.buckets.map(_qlBucket).filter(Boolean).length) {
-        return {text: 'нет данных — пул отсутствует в ответе сервера', nodata: true};
+        return {text: T('no data — pool missing from server response'), nodata: true};
     }
     const lanes = _qlLanes(panel);
     const known = lanes.filter(l => l.bucket?.data_available
         && l.bucket.fresh !== false
         && l.release_status !== 'no_data');
-    if (!lanes.length) return {text: 'нет данных — сервер не прислал полосы допуска', nodata: true};
-    if (!known.length) return {text: 'нет данных — телеметрии пула нет, гейт отвечает unknown', nodata: true};
+    if (!lanes.length) return {text: T('no data — server did not send allowance lanes'), nodata: true};
+    if (!known.length) return {text: T('no data — no pool telemetry, gate returns unknown'), nodata: true};
     const partial = known.length < lanes.length;
     if (partial) {
-        return {text: 'нет данных — часть полос без телеметрии', nodata: true, blocked: false};
+        return {text: T('no data — some lanes missing telemetry'), nodata: true, blocked: false};
     }
     const blocked = known.filter(l => l.blocked).map(l => l.label || l.lane);
     const open = known.filter(l => !l.blocked).map(l => l.label || l.lane);
     const parts = [];
-    if (blocked.length) parts.push(`${blocked.join(', ')} — стоят`);
-    if (open.length) parts.push(`${open.join(', ')} — работают`);
+    if (blocked.length) parts.push(T('{lanes} — blocked', {lanes: blocked.join(', ')}));
+    if (open.length) parts.push(T('{lanes} — running', {lanes: open.join(', ')}));
     return {
         text: parts.join(' · '),
         nodata: false,
@@ -406,32 +416,32 @@ function _qlPanelHtml(panel) {
             || lane.release_status === 'no_data';
         const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
         const word = _qlLaneSummary(lane);
-        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(lane.label || lane.lane)}: <b>${word}</b>${lane.gated ? '' : ' <i>без диагонали</i>'}</span>`;
+        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(lane.label || lane.lane)}: <b>${word}</b>${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
     }).join('');
     const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)
         .map(l => `<li><b>${_escHtml(l.label || l.lane)}</b> — ${_escHtml(l.reason)}</li>`).join('');
     const chart = _qlChartSvg(panel, rule);
     const traceNotices = (chart.traceNotices || [])
-        .map(item => `<div class="ql-trace-msg" data-ql-trace-msg="${_escHtml(item.bucket)}">${_escHtml(item.label)}: истории за это окно нет</div>`)
+        .map(item => `<div class="ql-trace-msg" data-ql-trace-msg="${_escHtml(item.bucket)}">${T('{label}: no history for this window', {label: _escHtml(item.label)})}</div>`)
         .join('');
     return `<section class="ql-panel" data-ql-panel="${_escHtml(panel.key)}">
         <div class="ql-head"><h3>${_escHtml(panel.title)}</h3><span>${_escHtml(panel.sub)}</span></div>
         ${chart.svg}
         <div class="ql-legend">
-            <span><i style="background:#8595ab"></i>равномерный расход</span>
-            <span><i style="background:#f472b6"></i>порог гейтящихся полос</span>
-            <span><i style="background:#fb923c"></i>жёсткие ${_qlNum(rule.hard_stop_pct)}%</span>
-            <span><i style="background:#818cf8"></i>оркестратор — без предела</span>
+            <span><i style="background:#8595ab"></i>${T('steady burn')}</span>
+            <span><i style="background:#f472b6"></i>${T('threshold for gated lanes')}</span>
+            <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _qlNum(rule.hard_stop_pct)})}</span>
+            <span><i style="background:#818cf8"></i>${T('orchestrator — no limit')}</span>
         </div>
         ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
         <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>
-        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">Оркестратор: <b>всегда работает</b></span></div>
+        <div class="ql-badges">${lanes}<span class="ql-badge ql-badge-always" data-ql-lane="orchestrator">${T('Orchestrator: <b>always runs</b>')}</span></div>
         ${reasons ? `<ul class="ql-reasons">${reasons}</ul>` : ''}
     </section>`;
 }
 
-// Сводка — те же вердикты, только короче. Общий отказ (ошибка, загрузка, нет
-// правила) даёт обоим пулам ОДИН текст: печатать его дважды нечего.
+// Summary — same verdicts, only shorter. Common failure (error, loading, no
+// rule) gives both pools ONE text: no point printing it twice.
 function _qlSummary() {
     const items = _QL_PANELS.map(panel => ({panel, verdict: _qlVerdict(panel)}));
     if (items.every(i => i.verdict.text === items[0].verdict.text)) {
@@ -449,13 +459,13 @@ function renderQuotaLines() {
     const body = _QL_PANELS.map(_qlPanelHtml).join('');
     const gate = _qlGateState();
     const overrideOn = gate.state === 'override';
-    // Кнопка есть всегда, кроме потери связи: нажимать её вслепую, не зная состояния
-    // гейта, значит снимать правило наугад.
+    // Button always present except on connection loss: pressing it blindly,
+    // not knowing gate state, means lifting rule at random.
     const button = gate.state === 'nodata' ? '' :
-        `<button type="button" id="quota-gate-override" class="ql-gate-btn">${overrideOn ? 'вернуть гейт' : 'снять на 30 мин'}</button>`;
+        `<button type="button" id="quota-gate-override" class="ql-gate-btn">${overrideOn ? T('restore gate') : T('lift for 30 min')}</button>`;
     root.innerHTML = `
         <div class="ql-bar">
-            <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} правило допуска</button>
+            <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} ${T('allowance rule')}</button>
             <span class="ql-gate ql-gate-${gate.state}" data-ql-gate="${gate.state}">${_escHtml(gate.text)}</span>
             ${button}
             <div class="ql-sum">${_qlSummary()}</div>
@@ -476,7 +486,7 @@ function renderQuotaLines() {
                     body: JSON.stringify({minutes: overrideOn ? 0 : 30}),
                 });
             } finally {
-                // Состояние перерисовывается из ответа сервера, а не из нашего намерения.
+                // State redraws from server response, not from our intent.
                 _quotaMapData = null;
                 await fetchQuotaLines();
             }
@@ -500,14 +510,14 @@ async function fetchQuotaLines() {
         const data = typeof dataRaw === 'string' ? JSON.parse(dataRaw) : dataRaw;
         if (data && data.data_available === false) {
             _quotaLinesData = null;
-            _quotaLinesError = `нет данных — ${data.error || 'сервер не отдал карту квот'}`;
+            _quotaLinesError = T('no data — {error}', {error: data.error || T('server did not send quota map')});
         } else {
             _quotaLinesData = data;
             _quotaLinesError = '';
         }
     } catch (e) {
         _quotaLinesData = null;
-        _quotaLinesError = `нет данных — ${e && e.message ? e.message : 'запрос не выполнен'}`;
+        _quotaLinesError = T('no data — {error}', {error: e && e.message ? e.message : T('request failed')});
     }
     renderQuotaLines();
 }

@@ -6,7 +6,7 @@ let _usageError = false;
 let _usageCountdownInterval = null;
 
 function _usageNoDataLabel() {
-    return Connection.ownsErrors() ? '—' : 'нет данных';
+    return Connection.ownsErrors() ? '—' : T('no data');
 }
 let _usageFetchPromise = null;
 let _usageLastSuccessAt = 0;
@@ -71,14 +71,14 @@ function _paceIndicator(currentPct, isoStr, windowMs) {
     const elapsedMs = windowMs - remainMs;
     const idealPct = (elapsedMs / windowMs) * 100;
     const delta = currentPct - idealPct;
-    if (delta <= 5) return '<span style="color:#22c55e" title="Расход не опережает линейный темп окна">темп ok</span>';
+    if (delta <= 5) return `<span style="color:#22c55e" title="${T('Usage does not outpace linear window pace')}">${T('pace ok')}</span>`;
     const cooldownMin = Math.round(delta * windowMs / 100 / 60000);
     const color = delta <= 20 ? '#eab308' : '#ef4444';
     let label;
     if (cooldownMin < 60) label = `${cooldownMin}m`;
     else if (cooldownMin < 1440) label = `${Math.floor(cooldownMin/60)}h ${cooldownMin%60}m`;
     else label = `${Math.floor(cooldownMin/1440)}d ${Math.floor((cooldownMin%1440)/60)}h ${cooldownMin%60}m`;
-    return `<span style="color:${color}" title="Локальная оценка опережения линейного темпа. Это не отдельное лимитное окно и не официальный таймер провайдера.">темп +${label}</span>`;
+    return `<span style="color:${color}" title="${T('Local estimate of outpacing linear pace. Not a separate limit window and not an official provider timer.')}">${T('pace +{label}', {label})}</span>`;
 }
 
 function _releaseDurationFromSeconds(totalSeconds) {
@@ -153,15 +153,15 @@ function _quotaMapLaneStatusText(windowData, bucketId = null) {
     const seconds = Number(release_in_seconds);
     const hasSeconds = Number.isFinite(seconds);
     if (status === 'opens_in') {
-        return hasSeconds ? `откроется через ${_releaseDurationFromSeconds(seconds)}` : 'откроется скоро';
+        return hasSeconds ? T('opens in {duration}', {duration: _releaseDurationFromSeconds(seconds)}) : T('opens soon');
     }
     if (status === 'at_reset') {
-        return hasSeconds ? `откроется при сбросе, через ${_releaseDurationFromSeconds(seconds)}` : 'откроется при сбросе';
+        return hasSeconds ? T('opens at reset, in {duration}', {duration: _releaseDurationFromSeconds(seconds)}) : T('opens at reset');
     }
     if (status === 'no_data') {
-        return Connection.ownsErrors() ? '' : 'нет данных';
+        return Connection.ownsErrors() ? '' : T('no data');
     }
-    return 'работает';
+    return T('running');
 }
 
 function _quotaMapLaneHeadroomText(windowData, bucketId = null) {
@@ -198,7 +198,7 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
     if (elapsedMs <= 0) return '';
     const rate = currentPct / elapsedMs;
     const pctLeft = 100 - currentPct;
-    if (pctLeft <= 0) return '<span style="color:#ef4444">⚡ лимит!</span>';
+    if (pctLeft <= 0) return `<span style="color:#ef4444">${T('⚡ limit!')}</span>`;
     const etaMs = pctLeft / rate;
     const etaMin = Math.round(etaMs / 60000);
     const color = etaMin < 30 ? '#ef4444' : etaMin < 120 ? '#eab308' : '#22c55e';
@@ -206,7 +206,7 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
     if (etaMin < 60) label = `${etaMin}m`;
     else if (etaMin < 1440) label = `${Math.floor(etaMin/60)}h ${etaMin%60}m`;
     else label = `${Math.floor(etaMin/1440)}d ${Math.floor((etaMin%1440)/60)}h`;
-    return `<span style="color:${color}">⏳${label}</span>`;
+    return `<span style="color:${color}">${T('⏳{label}', {label})}</span>`;
 }
 
 function _miniBar(pct, color) {
@@ -233,16 +233,16 @@ function _usageProviderWindows(providerId, capacity) {
 function _usageFreshnessHtml() {
     if (Connection.ownsErrors()) return '';
     if (_usageFetchPromise) {
-        return '<span id="usage-freshness" style="color:#38bdf8">обновление…</span>';
+        return `<span id="usage-freshness" style="color:#38bdf8">${T('updating…')}</span>`;
     }
     if (!_usageLastSuccessAt) return '';
     const ageMinutes = Math.floor((Date.now() - _usageLastSuccessAt) / 60000);
-    const age = ageMinutes < 1 ? 'сейчас' : `${ageMinutes} мин назад`;
+    const age = ageMinutes < 1 ? T('just now') : T('{min} min ago', {min: ageMinutes});
     if (_usageError) {
-        return `<span id="usage-freshness" style="color:#eab308">ошибка обновления · данные от ${age}</span>`;
+        return `<span id="usage-freshness" style="color:#eab308">${T('update error · data from {age}', {age})}</span>`;
     }
     const stale = Date.now() - _usageLastSuccessAt >= _USAGE_REFRESH_INTERVAL_MS;
-    return `<span id="usage-freshness" style="color:${stale ? '#eab308' : '#64748b'}">${stale ? 'устарело' : 'обновлено'} ${age}</span>`;
+    return `<span id="usage-freshness" style="color:${stale ? '#eab308' : '#64748b'}">${T('{status} {age}', {status: stale ? T('stale') : T('updated'), age})}</span>`;
 }
 
 function _renderUsageBarShell(bar, groups) {
@@ -270,7 +270,7 @@ function renderUsageBar() {
         return;
     }
     bar.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:4px 12px;min-height:28px;height:auto;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:visible;white-space:nowrap;cursor:pointer';
-    bar.title = 'Нажмите, чтобы обновить данные о расходе';
+    bar.title = T('Click to refresh usage data');
 
     const a = _usageData.anthropic || {};
     const cx = _usageData.codex || {};
@@ -334,9 +334,8 @@ function renderUsageBar() {
             const cd = _resetCountdown(resetIso);
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
-                + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
-                + `<span class="usage-provider-values"><span style="display:inline-flex;align-items:center;gap:3px">сутки: ${_miniBar(util, c)} <span style="color:#64748b">${used}/${dailyLimit}</span>${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span>`
-                + ` <span style="display:inline-flex;align-items:center;gap:3px">минута: <span style="color:${(m.count || 0) >= minuteLimit ? '#f87171' : '#94a3b8'}">${m.count || 0}/${minuteLimit}</span></span></span>`
+                + `<span class="usage-provider-title" style="color:${accent};font-weight:600">${T('OpenRouter')}</span>`
+                + `<span class="usage-provider-values"><span style="display:inline-flex;align-items:center;gap:3px">${T('daily')}: ${_miniBar(util, c)} <span style="color:#64748b">${used}/${dailyLimit}</span>${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span> <span style="display:inline-flex;align-items:center;gap:3px">${T('minute')}: <span style="color:${(m.count || 0) >= minuteLimit ? '#f87171' : '#94a3b8'}">${m.count || 0}/${minuteLimit}</span></span></span>`
                 + '</span>',
             );
         }
@@ -414,17 +413,17 @@ function renderUsageBar() {
                     const pace = _paceIndicator(window.utilization, window.resets_at, windowMs);
                     const eta = _etaToLimit(window.utilization, window.resets_at, windowMs);
                     const rpNum = _resetPctNum(window.resets_at, windowMs);
-                    let html = `<div style="margin-bottom:9px"><div style="color:${accent};font-weight:600;margin-bottom:2px">${label} окно</div>`;
-                    html += _row('Использовано', `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
-                    if (cd) html += _row('Сброс через', cd, '#64748b');
-                    // Недельное окно живёт днями — «через 3d 21h» не читается как момент времени.
+                    let html = `<div style="margin-bottom:9px"><div style="color:${accent};font-weight:600;margin-bottom:2px">${T('{label} window', {label})}</div>`;
+                    html += _row(T('Used'), `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
+                    if (cd) html += _row(T('Reset in'), cd, '#64748b');
+                    // Weekly window lives in days — "in 3d 21h" doesn't read as a moment in time.
                     if (window.window_minutes >= 1440) {
                         const krsk = _krskReset(window.resets_at);
-                        if (krsk) html += _row('Сброс (Крск)', krsk, '#64748b');
+                        if (krsk) html += _row(T('Reset (Krasnoyarsk)'), krsk, '#64748b');
                     }
-                    if (rpNum != null) html += _row('Прогресс окна', `${_resetPctText(rpNum)}%`, '#64748b');
-                    html += _row('Отклонение', pace, null);
-                    if (eta) html += _row('Лимит через', eta, null);
+                    if (rpNum != null) html += _row(T('Window progress'), `${_resetPctText(rpNum)}%`, '#64748b');
+                    html += _row(T('Deviation'), pace, null);
+                    if (eta) html += _row(T('Limit in'), eta, null);
                     return html + '</div>';
                 };
                 let h = '';
@@ -462,7 +461,7 @@ function renderUsageBar() {
                     }
                     grokHtml += `<div data-usage-history="${grokMeta.historyProviders.join(',')}"></div>`;
                 } else {
-                    grokHtml += '<div style="color:#64748b;font-style:italic">Данные лимита недоступны</div>';
+                    grokHtml += `<div style="color:#64748b;font-style:italic">${T('Limit data unavailable')}</div>`;
                 }
                 grokHtml += '</section>';
 
@@ -470,20 +469,20 @@ function renderUsageBar() {
                 let orHtml = '';
                 if (orMeta) {
                     orHtml = '<section data-usage-provider="openrouter" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
-                    orHtml += '<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">OpenRouter (бесплатный)</div>';
+                    orHtml += `<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">${T('OpenRouter (free)')}</div>`;
                     if (!orMeta.available) {
-                        orHtml += `<div style="color:#64748b;font-style:italic">${escHtml(orMeta.reason || 'Данные недоступны')}</div>`;
+                        orHtml += `<div style="color:#64748b;font-style:italic">${escHtml(orMeta.reason || T('Data unavailable'))}</div>`;
                     } else {
                         const d = orMeta.daily || {}, m = orMeta.minute || {};
-                        orHtml += _row('Сутки', `${d.count}/${d.limit}`, '#cbd5e1');
-                        orHtml += _row('Минута', `${m.count}/${m.limit}`, '#cbd5e1');
-                        orHtml += _row('Источник счёта', 'локальный', '#64748b');
+                        orHtml += _row(T('Daily'), `${d.count}/${d.limit}`, '#cbd5e1');
+                        orHtml += _row(T('Minute'), `${m.count}/${m.limit}`, '#cbd5e1');
+                        orHtml += _row(T('Count source'), T('local'), '#64748b');
                         const rec = orMeta.reconciliation;
                         if (rec) {
-                            orHtml += `<div style="margin-top:4px;color:#94a3b8">Вчера (${escHtml(rec.day)}): провайдер ${rec.provider_requests}, локально ${rec.local_requests}, Δ ${rec.delta}</div>`;
+                            orHtml += `<div style="margin-top:4px;color:#94a3b8">${T('Yesterday ({day}): provider {provider}, local {local}, Δ {delta}', {day: escHtml(rec.day), provider: rec.provider_requests, local: rec.local_requests, delta: rec.delta})}</div>`;
                             const bs = rec.local_by_status || {};
                             const parts = Object.keys(bs).map(k => `${k}×${bs[k]}`).join(', ');
-                            if (parts) orHtml += `<div style="color:#64748b;font-size:10px">Локальные попытки вчера: ${escHtml(parts)}</div>`;
+                            if (parts) orHtml += `<div style="color:#64748b;font-size:10px">${T('Local attempts yesterday: {parts}', {parts: escHtml(parts)})}</div>`;
                         }
                     }
                     orHtml += '</section>';
@@ -493,20 +492,20 @@ function renderUsageBar() {
                 h += claudeHtml + codexHtml + grokHtml + orHtml + '</div>';
                 if (typeof _o.total_cost_usd === 'number') {
                     h += '<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">';
-                    h += _row('💰 Стоимость', `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
+                    h += _row(T('💰 Cost'), `${MODEL_COST_CURRENCY}${_o.total_cost_usd.toFixed(0)}`, '#22c55e');
                     if (typeof _usageData.voice_cost_usd === 'number') {
-                        h += `<div style="font-size:10px">${_row('🎤 Голос', `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
+                        h += `<div style="font-size:10px">${_row(T('🎤 Voice'), `${MODEL_COST_CURRENCY}${_usageData.voice_cost_usd.toFixed(2)}`, '#94a3b8')}</div>`;
                     }
-                    // Цена подписки приходит из SUBSCRIPTION_COST (.env). Не задана — строки
-                    // нет: захардкоженная константа уже провисела неверной, а рядом стоят
-                    // посчитанные числа, и выдуманное среди них неотличимо от настоящего.
+                    // Subscription price comes from SUBSCRIPTION_COST (.env). Not set — no row:
+                    // hardcoded constant was already wrong, and among calculated numbers a fake
+                    // one is indistinguishable from real.
                     if (_usageData.subscription_cost) {
-                        h += _row('Подписка', escHtml(_usageData.subscription_cost), '#64748b');
+                        h += _row(T('Subscription'), escHtml(_usageData.subscription_cost), '#64748b');
                     }
                     h += '</div>';
                 }
                 if (typeof _o.agents_count === 'number') {
-                    h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 Агенты: <span style="color:#cbd5e1">${_o.agents_count}</span></div>`;
+                    h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 ${T('Agents')}: <span style="color:#cbd5e1">${_o.agents_count}</span></div>`;
                 }
                 tip = document.createElement('div');
                 tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;width:min(940px,calc(100vw - 24px));max-height:calc(100vh - 52px);overflow:auto;overscroll-behavior:contain;backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,0.5);font-size:12px;line-height:1.6;color:#94a3b8';
@@ -552,7 +551,7 @@ async function _sparkFetch(until) {
         : `hours=${_SPARK_VIEW_HOURS}`;
     const history = await api(`/api/usage/history?${query}`, { timeoutMs: 30000 });
     if (!Array.isArray(history?.rows)) {
-        throw new Error(`ответ без rows: ${JSON.stringify(history).slice(0, 80)}`);
+        throw new Error(T('response without rows: {history}', {history: JSON.stringify(history).slice(0, 80)}));
     }
     _sparkStepMin = Number(history.step_minutes) || 5;
     _sparkOldestTs = history.oldest_ts || '';
@@ -579,16 +578,16 @@ async function _loadSparkline(tipEl) {
             _sparkError = '';
         } catch (e) {
             _sparkData = null;
-            _sparkError = `${e?.name || 'Error'}: ${e?.message || 'без текста'}`;
+            _sparkError = T('{name}: {message}', {name: e?.name || T('Error'), message: e?.message || T('no message')});
             console.error(`usage history fetch failed: ${_sparkError}`);
         }
     }
     if (!Array.isArray(_sparkData) || _sparkData.length < 1) {
-        // Раньше здесь во всех случаях висело «Collecting data...» — и когда сбор
-        // действительно не начался, и когда запрос упал. Это разные вещи.
+        // Previously "Collecting data..." hung in all cases — both when collection
+        // hadn't started and when the request failed. These are different things.
         const why = _sparkError
-            ? `История не загрузилась — ${_sparkError}`
-            : 'Снимков ещё нет: график появится после двух замеров в одном окне';
+            ? T('History failed to load — {error}', {error: _sparkError})
+            : T('No snapshots yet: chart appears after two measurements in one window');
         slots.forEach(slot => _sparkMessage(slot, why, Boolean(_sparkError)));
         return;
     }
@@ -682,7 +681,7 @@ function _renderSparklines(slot, providerFilter = null) {
     const data = _sparkData;
     if (!data || data.length < 1) return;
     const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
-    const DAYS = ['вс','пн','вт','ср','чт','пт','сб'];
+    const DAYS = T('Sun Mon Tue Wed Thu Fri Sat').split(' ');
     const providerColors = {
         anthropic: ['#38bdf8', '#f97316'],
         codex: ['#22c55e', '#a3e635'],
@@ -824,21 +823,21 @@ function _renderSparklines(slot, providerFilter = null) {
         html += '</div>';
     }
     if (!html) {
-        // Строки есть, но по ЭТОМУ провайдеру графика не выходит. Раньше тут стояло
-        // то же «Collecting data...», что и при полном отсутствии данных, — из-за чего
-        // «данных нет вообще» и «нет данных по Codex» выглядели одинаково.
+        // Data exists but no chart for THIS provider. Previously the same
+        // "Collecting data..." was shown for both no-data-at-all and no-data-for-Codex,
+        // making them indistinguishable.
         const hasPoints = [...grouped.keys()].some(id => !providerFilter || providerFilter.has(id));
-        // Именно первый снимок ВООБЩЕ, а не первый загруженный: с ленивой подгрузкой
-        // data[0] — это граница текущего куска, и «снимки ведутся с» врало бы.
+        // Exactly the FIRST snapshot OVERALL, not the first loaded: with lazy loading
+        // data[0] is the current chunk boundary, so "tracking since" would be a lie.
         const since0 = _sparkOldestTs || data[0]?.ts;
         const firstTs = since0 ? new Date(since0) : null;
         const since = firstTs && !isNaN(firstTs)
-            ? ` Снимки ведутся с ${firstTs.toLocaleDateString()}.`
+            ? T(' Tracking since {date}.', {date: firstTs.toLocaleDateString()})
             : '';
         slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic"></div>';
         slot.firstChild.textContent = hasPoints
-            ? `Мало точек: на график нужно ≥2 замера в одном окне.${since}`
-            : `Этого провайдера в истории нет.${since}`;
+            ? T('Not enough points: chart needs ≥2 measurements in one window.{since}', {since})
+            : T('This provider has no history.{since}', {since});
         return;
     }
     slot.innerHTML = html;
@@ -851,13 +850,13 @@ function _renderSparklines(slot, providerFilter = null) {
             _sparkPeriodIdx[key] = idx;
             const loaded = Number(button.dataset.sparkPeriods) || 1;
             if (delta > 0 && idx >= loaded - 1 && _sparkHasOlder()) {
-                _sparkMessage(slot, 'Загружаю предыдущий период…', false);
+                _sparkMessage(slot, T('Loading previous period…'), false);
                 try {
                     _sparkData = (await _sparkFetch(_sparkData[0].ts)).concat(_sparkData);
                 } catch (e) {
-                    _sparkError = `${e?.name || 'Error'}: ${e?.message || 'без текста'}`;
+                    _sparkError = T('{name}: {message}', {name: e?.name || T('Error'), message: e?.message || T('no message')});
                     console.error(`usage history chunk failed: ${_sparkError}`);
-                    _sparkMessage(slot, `Предыдущий период не загрузился — ${_sparkError}`, true);
+                    _sparkMessage(slot, T('Previous period failed to load — {error}', {error: _sparkError}), true);
                     return;
                 }
             }
