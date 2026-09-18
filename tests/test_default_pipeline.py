@@ -113,7 +113,7 @@ class TestDefaultRolesResolve:
         assert P.get_role(PIPELINE, "worker").is_orchestrator is False
         assert P.get_role(PIPELINE, "full-cycle").is_orchestrator is False
         assert P.get_role(PIPELINE, "worker").can_spawn == []
-        assert P.get_role(PIPELINE, "full-cycle").can_spawn == ["*"]
+        assert "sub-orchestrator" not in P.get_role(PIPELINE, "full-cycle").can_spawn
 
     def test_full_cycle_model_opus5(self):
         rr = P.get_role(PIPELINE, "full-cycle")
@@ -126,7 +126,7 @@ class TestDefaultRolesResolve:
         assert rr is not None
         assert rr.is_orchestrator is True
         assert rr.model == "claude-opus-5[1m]"
-        assert rr.can_spawn == ["*"]
+        assert "sub-orchestrator" not in rr.can_spawn
         assert rr.allow_unrouted_workers is True
 
     def test_effort_policy_is_consistent_across_roles(self):
@@ -198,7 +198,7 @@ class TestDefaultRolesResolve:
         assert len(bullets) >= 5, "модуль потерял пункты — якоря стали слабее"
         for role in ("orchestrator", "sub-orchestrator", "full-cycle"):
             out = P.build_system_prompt(PIPELINE, role)
-            assert P.get_role(PIPELINE, role).can_spawn == ["*"]
+            assert P.get_role(PIPELINE, role).can_spawn, f"{role}: роль обязана уметь спавнить"
             assert out.count(module) == 1, f"{role}: маршрутизация должна прийти ровно из модуля"
         worker_out = P.build_system_prompt(PIPELINE, "worker")
         assert P.get_role(PIPELINE, "worker").can_spawn == []
@@ -218,7 +218,7 @@ class TestDefaultRolesResolve:
         """Апстрим не ограничивает оркестратора: can_spawn=['*'], дефолтный
         role='worker'/пустая роль допустима."""
         rr = P.get_role(PIPELINE, "orchestrator")
-        assert rr.can_spawn == ["*"]
+        assert "worker" in rr.can_spawn
         assert rr.allow_unrouted_workers is True
 
     def test_orchestrator_layers_substituted_no_pipeline(self):
@@ -511,8 +511,8 @@ class TestDefaultValidateSpawn:
         assert P.validate_spawn(PIPELINE, "orchestrator", "full-cycle") is None
 
     def test_orchestrator_spawns_v216_roles_ok(self):
-        """can_spawn=['*'] → новые роли v2.16 спавнятся оркестратором."""
-        for child in ("sub-orchestrator", "full-cycle"):
+        """Роли-исполнители спавнятся оркестратором; sub-orchestrator заморожен (#V-598)."""
+        for child in ("worker", "full-cycle", "reducer"):
             assert P.validate_spawn(PIPELINE, "orchestrator", child) is None
 
     def test_sub_orchestrator_spawns_worker_ok(self):

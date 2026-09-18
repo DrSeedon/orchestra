@@ -44,7 +44,10 @@ roles:
     effort: &effort_policy {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, default: high}
     skills: [vps-deploy, grill-me, orchestra-agents, laptop-access]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
-    can_spawn: ["*"]
+    # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
+    # заспавнить ни одной роли. Сама роль остаётся в манифесте, потому что живой
+    # агент с этой ролью существует и без неё не соберёт свой промпт.
+    can_spawn: [worker, full-cycle, reducer]
     allow_unrouted_workers: true
     tg: {emoji: "👑"}
     when: Managing a team of workers, decomposing tasks, approving plans
@@ -60,7 +63,10 @@ roles:
     effort: *effort_policy
     skills: [orchestra-agents, laptop-access]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
-    can_spawn: ["*"]
+    # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
+    # заспавнить ни одной роли. Сама роль остаётся в манифесте, потому что живой
+    # агент с этой ролью существует и без неё не соберёт свой промпт.
+    can_spawn: [worker, full-cycle, reducer]
     allow_unrouted_workers: true
     tg: {emoji: "🎯"}
     when: Managing a sub-team within a larger hierarchy (department lead, tech lead, team lead)
@@ -99,7 +105,10 @@ roles:
     effort: *effort_policy
     skills: [codex-debate, laptop-access]
     modules: [safety, project-maintenance, dynamic-workflows, model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
-    can_spawn: ["*"]
+    # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
+    # заспавнить ни одной роли. Сама роль остаётся в манифесте, потому что живой
+    # агент с этой ролью существует и без неё не соберёт свой промпт.
+    can_spawn: [worker, full-cycle, reducer]
     allow_unrouted_workers: false
     tg: {emoji: "🔄"}
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
