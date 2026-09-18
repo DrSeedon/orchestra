@@ -665,8 +665,8 @@ function _analyticsDateTime(value) {
 
 function _analyticsDuration(seconds) {
     const total = Number(seconds || 0);
-    if (total < 60) return `${Math.round(total)} sec`;
-    return `${Math.floor(total / 60)} min ${Math.round(total % 60)} sec`;
+    if (total < 60) return T('{sec} sec', {sec: Math.round(total)});
+    return T('{min} min {sec} sec', {min: Math.floor(total / 60), sec: Math.round(total % 60)});
 }
 
 function _analyticsEsc(value) {
