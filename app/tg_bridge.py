@@ -3695,14 +3695,21 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
 
     anthropic = usage.get("anthropic") or {}
     codex = usage.get("codex") or {}
+    spark = codex.get("spark") or {}
+    # У Codex недельное окно живёт в `secondary` и решает не меньше пятичасового: именно
+    # оно 16.09 встало на 100% и остановило работу на трое суток, пока пятичасовое
+    # показывало ноль. Показываем обе строки, как у Claude.
     lines = [
         "*Лимиты*",
         _window_line("Claude 5h", anthropic.get("five_hour"), "five_hour"),
         _window_line("Claude 7d", anthropic.get("seven_day"), "seven_day"),
-        _window_line("Codex", codex.get("primary")),
-        _window_line("Spark", (codex.get("spark") or {}).get("primary")),
-        _window_line("Grok", (usage.get("grok") or {}).get("primary")),
+        _window_line("Codex 5h", codex.get("primary"), "five_hour"),
+        _window_line("Codex 7d", codex.get("secondary"), "seven_day"),
+        _window_line("Spark 5h", spark.get("primary"), "five_hour"),
     ]
+    if isinstance(spark.get("secondary"), dict):
+        lines.append(_window_line("Spark 7d", spark.get("secondary"), "seven_day"))
+    lines.append(_window_line("Grok", (usage.get("grok") or {}).get("primary")))
     headroom = usage.get("quota_headroom")
     windows_left = headroom.get("windows_left") if isinstance(headroom, dict) else None
     if (isinstance(windows_left, (int, float))

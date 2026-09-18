@@ -218,11 +218,16 @@ def collect(usage: dict, *, now: dt.datetime | None = None) -> dict:
             "reset": _countdown(reset, now) if reset else "сброс не указан",
         }
 
+    spark = codex.get("spark") or {}
+    # Недельное окно Codex лежит в `secondary` и останавливает работу так же, как
+    # пятичасовое, — рисуем обе полосы, иначе картинка показывает ноль расхода у
+    # провайдера, который на самом деле закрыт до конца недели.
     pools = [
         pool("Claude · 5 часов", anthropic.get("five_hour"), "five_hour"),
         pool("Claude · неделя", anthropic.get("seven_day"), "seven_day"),
-        pool("Codex", codex.get("primary")),
-        pool("Spark", (codex.get("spark") or {}).get("primary")),
+        pool("Codex · 5 часов", codex.get("primary"), "five_hour"),
+        pool("Codex · неделя", codex.get("secondary"), "seven_day"),
+        pool("Spark · 5 часов", spark.get("primary"), "five_hour"),
         pool("Grok", (usage.get("grok") or {}).get("primary")),
     ]
 

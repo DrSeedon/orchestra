@@ -129,7 +129,7 @@ def test_colour_encodes_overtaking_the_calendar_not_the_absolute_percent(
 
 def test_pool_without_data_is_honest_and_uncoloured():
     """Grok отдаёт `{}`. Придуманный темп хуже отсутствующего."""
-    grok = collect(_usage(), now=NOW)["pools"][4]
+    grok = next(p for p in collect(_usage(), now=NOW)["pools"] if p["label"] == "Grok")
 
     assert grok["label"] == "Grok" and grok["used"] is None
     assert grok["pace"] is None and grok["color"] is None
@@ -148,8 +148,9 @@ def test_every_pool_shows_burn_against_elapsed_window():
     assert [(p["label"], p["used"], p["elapsed"]) for p in pools] == [
         ("Claude · 5 часов", 4.0, 10),
         ("Claude · неделя", 88.0, 43),
-        ("Codex", 97.0, 18),
-        ("Spark", 9.0, 17),
+        ("Codex · 5 часов", 97.0, 18),
+        ("Codex · неделя", None, None),
+        ("Spark · 5 часов", 9.0, 17),
         ("Grok", None, None),
     ]
     # Grok без данных — строку про окно ему не дорисовываем
@@ -286,3 +287,42 @@ async def test_renderer_shutdown_closes_browser_and_playwright(monkeypatch):
     assert card._renderer_playwright is None
     assert card._renderer_loop is None
     assert card._renderer_lock is None
+
+
+def test_codex_weekly_window_is_shown_next_to_the_five_hour_one():
+    """#V-597: 16.09 недельное окно Codex встало на 100% и остановило работу на трое
+    суток, а `/limits` показывал только пятичасовое — ноль расхода у закрытого
+    провайдера. Обе строки обязаны быть и в сообщении, и на картинке."""
+    from app.tg_bridge import _format_limits_message_for_chat
+
+    usage = _usage(codex={
+        "primary": {"utilization": 0, "window_minutes": 300, "resets_at": _iso(120)},
+        "secondary": {"utilization": 100, "window_minutes": 10080, "resets_at": _iso(4000)},
+    })
+
+    message = _format_limits_message_for_chat(usage, now=NOW)
+    five_hour = next(l for l in message.splitlines() if l.startswith("• Codex 5h"))
+    weekly = next(l for l in message.splitlines() if l.startswith("• Codex 7d"))
+    assert "израсходовано 0%" in five_hour, five_hour
+    assert "израсходовано 100%" in weekly, weekly
+    assert "осталось 0%" in weekly, weekly
+
+    html = build_html(collect(usage, now=NOW))
+    assert "Codex · 5 часов" in html and "Codex · неделя" in html
+
+
+def test_codex_weekly_window_counts_its_own_window_progress():
+    """Прогресс недели считается по недельной длительности, а не по пятичасовой:
+    иначе окно «пройдено на 100%» у только что открывшейся недели."""
+    from app.limits_card import collect
+
+    # Длительность окна провайдер присылает не всегда — без неё её берут по имени окна,
+    # и перепутанное имя даёт «неделя пройдена на 100%» в первый же час.
+    usage = _usage(codex={
+        "primary": {"utilization": 10, "resets_at": _iso(150)},
+        "secondary": {"utilization": 10, "resets_at": _iso(9000)},
+    })
+    pools = {p["label"]: p for p in collect(usage, now=NOW)["pools"]}
+
+    assert pools["Codex · 5 часов"]["elapsed"] == 50
+    assert pools["Codex · неделя"]["elapsed"] == 11
