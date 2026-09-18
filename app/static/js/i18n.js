@@ -709,6 +709,8 @@
         'agent': 'агент',
 
         // --- analytics.js, utils.js (#V-590) ---
+        '{sec} sec': '{sec} сек',
+        '{min} min {sec} sec': '{min} мин {sec} сек',
         '30 days': '30 дней',
         '7 days': '7 дней',
         'Active now': 'Активно сейчас',
