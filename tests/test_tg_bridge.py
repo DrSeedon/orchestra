@@ -1590,7 +1590,8 @@ class TestLimitsCommand:
             " окно (83%); сброс 01.08.2026 07:50 UTC+7, через 50 мин; темп ok"
         ) in lines
         assert "• Claude 7d — нет данных" in lines
-        assert "• Codex — нет данных" in lines
+        assert "• Codex 5h — нет данных" in lines
+        assert "• Codex 7d — нет данных" in lines
 
     @pytest.mark.asyncio
     async def test_limits_uses_important_file_delivery_path(self, tb, monkeypatch):
