@@ -1,80 +1,95 @@
-"""Контракт корневых правил: один файл, под бюджетом, с полным оглавлением KB.
-
-Claude Code 2.1.263 читает CLAUDE.md И AGENTS.md ОБА (проверено экспериментом 19.09.2026:
-два файла с разными правилами — агент назвал оба и указал расхождение). Пока копия
-существовала, она дважды разъезжалась с источником, и Claude-агенты не видели части правил
-владельца. Поэтому тест сторожит ОТСУТСТВИЕ дубля, а не его синхронность.
-"""
-import shutil
+from pathlib import Path
 import subprocess
 import sys
-from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "check_instruction_contract.py"
-REPO = Path(__file__).resolve().parents[1]
+from scripts.check_instruction_contract import MAX_INSTRUCTION_BYTES, check, sync
 
 
 @pytest.fixture
 def root(tmp_path):
-    shutil.copy(REPO / "AGENTS.md", tmp_path / "AGENTS.md")
-    kb = tmp_path / ".orchestra" / "kb"
+    kb = tmp_path / ".orchestra/kb"
     kb.mkdir(parents=True)
-    shutil.copy(REPO / ".orchestra" / "kb" / "README.md", kb / "README.md")
-    for topic in (REPO / ".orchestra" / "kb").glob("*.md"):
-        if topic.name != "README.md":
-            shutil.copy(topic, kb / topic.name)
+    (kb / "README.md").write_text("- [runtime](runtime.md) — Runtime: запуск и ошибки\n")
+    (kb / "runtime.md").write_text("# Runtime\nDetails remain on demand.\n")
+    (tmp_path / "AGENTS.md").write_text("# Rules\nNever restart without authority.\n")
+    (tmp_path / "CLAUDE.md").write_text("old copy")
+    sync(tmp_path)
     return tmp_path
 
 
-def _run(root: Path):
-    return subprocess.run([sys.executable, str(SCRIPT), "--root", str(root)],
-                          capture_output=True, text=True)
+def test_sync_mirrors_the_source_without_inlining_the_topic_index(root):
+    check(root)
+    source = (root / "AGENTS.md").read_bytes()
+    assert (root / "CLAUDE.md").read_bytes() == source
+    assert b"Never restart without authority." in source
+    # The topic list is injected by the platform (app.kb_index), so neither the topic
+    # description nor its body may appear in the committed rules.
+    assert "Runtime: запуск и ошибки" not in source.decode()
+    assert b"Details remain on demand" not in source
+    before = [(root / name).stat().st_mtime_ns for name in ("AGENTS.md", "CLAUDE.md")]
+    sync(root)
+    assert before == [(root / name).stat().st_mtime_ns for name in ("AGENTS.md", "CLAUDE.md")]
 
 
-def test_single_source_passes(root):
-    assert _run(root).returncode == 0
+def test_one_sided_edit_is_rejected_without_repair(root):
+    target = root / "CLAUDE.md"
+    target.write_bytes(target.read_bytes() + b"\nOne-sided rule")
+    before = target.read_bytes()
+    with pytest.raises(ValueError, match="differ"):
+        check(root)
+    assert target.read_bytes() == before
 
 
-def test_claude_md_coming_back_is_rejected(root):
-    """Дубль не «чинится синхронизацией» — он запрещён: агенту доезжают оба файла."""
-    (root / "CLAUDE.md").write_text((root / "AGENTS.md").read_text(), encoding="utf-8")
+def test_unindexed_topic_is_rejected_but_needs_no_root_edit(root):
+    kb = root / ".orchestra/kb"
+    (kb / "network.md").write_text("# Network")
+    with pytest.raises(ValueError, match="missing from README"):
+        check(root)
+    before = (root / "AGENTS.md").read_bytes()
+    index = kb / "README.md"
+    index.write_text(index.read_text() + "- [network](network.md) — Сеть: диагностика\n")
+    check(root)
+    assert (root / "AGENTS.md").read_bytes() == before
 
-    result = _run(root)
 
+def test_equal_utf8_bloat_is_rejected_and_sync_does_not_touch_other_copy(root):
+    source = root / "AGENTS.md"
+    source.write_text(source.read_text() + "я" * (MAX_INSTRUCTION_BYTES // 2))
+    before = (root / "CLAUDE.md").read_bytes()
+    with pytest.raises(ValueError, match="budget"):
+        sync(root)
+    assert (root / "CLAUDE.md").read_bytes() == before
+    (root / "CLAUDE.md").write_bytes(source.read_bytes())
+    with pytest.raises(ValueError, match="budget"):
+        check(root)
+
+
+@pytest.mark.parametrize("mutation", ["empty", "import", "broken_link", "duplicate", "description"])
+def test_invalid_sources_fail_before_writes(root, mutation):
+    source = root / "AGENTS.md"
+    index = root / ".orchestra/kb/README.md"
+    (root / "CLAUDE.md").write_text("stale mirror")
+    if mutation == "empty":
+        source.write_text("")
+    elif mutation == "import":
+        source.write_text(source.read_text() + "\nRead @archive.md now.\n")
+    elif mutation == "broken_link":
+        index.write_text(index.read_text().replace("(runtime.md)", "(missing.md)"))
+    elif mutation == "duplicate":
+        index.write_text(index.read_text() * 2)
+    else:
+        index.write_text("- [runtime](runtime.md) —    \n")
+    before = (source.read_bytes(), (root / "CLAUDE.md").read_bytes())
+    with pytest.raises(ValueError):
+        sync(root)
+    assert before == (source.read_bytes(), (root / "CLAUDE.md").read_bytes())
+
+
+def test_ci_command_fails_on_drift(root):
+    (root / "CLAUDE.md").write_text("different")
+    script = Path(__file__).parents[1] / "scripts/check_instruction_contract.py"
+    result = subprocess.run([sys.executable, str(script), "--root", str(root)], capture_output=True, text=True)
     assert result.returncode == 1
-    assert "CLAUDE.md" in result.stderr
-
-
-def test_duplicate_is_rejected_even_as_a_symlink(root):
-    (root / "CLAUDE.md").symlink_to(root / "AGENTS.md")
-
-    assert _run(root).returncode == 1
-
-
-def test_oversized_rules_are_rejected(root):
-    body = (root / "AGENTS.md").read_text(encoding="utf-8")
-    (root / "AGENTS.md").write_text(body + "x" * 17_000, encoding="utf-8")
-
-    result = _run(root)
-
-    assert result.returncode == 1
-    assert "16 KiB" in result.stderr
-
-
-def test_unindexed_kb_topic_is_rejected(root):
-    (root / ".orchestra" / "kb" / "brand-new-topic.md").write_text("# тема", encoding="utf-8")
-
-    result = _run(root)
-
-    assert result.returncode == 1
-    assert "brand-new-topic" in result.stderr
-
-
-def test_root_import_is_rejected(root):
-    """Импорт в корне вернул бы нас к скрытому второму источнику правил."""
-    body = (root / "AGENTS.md").read_text(encoding="utf-8")
-    (root / "AGENTS.md").write_text(body + "\n@./extra-rules.md\n", encoding="utf-8")
-
-    assert _run(root).returncode == 1
+    assert "differ" in result.stderr
