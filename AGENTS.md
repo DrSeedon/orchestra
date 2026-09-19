@@ -1,8 +1,9 @@
 # Orchestra — правила работы
 
-Общий источник правил проекта — этот версионируемый AGENTS.md.
-CLAUDE.md — побайтно одинаковое зеркало для Claude, а не независимый источник.
-После правки AGENTS.md выполняй python scripts/check_instruction_contract.py --sync.
+Единственный источник правил проекта — этот версионируемый AGENTS.md, его читает Codex.
+CLAUDE.md рядом — СИМЛИНК на него, а не копия: Claude Code читает только CLAUDE.md, а копия
+дважды разъезжалась и один раз оставила Claude-агентов без правил владельца.
+Проверка контракта: python scripts/check_instruction_contract.py.
 Правила поведения агентов всех проектов принадлежат .orchestra/pipelines/default/prompts/,
 а этот файл регулирует работу над самой Orchestra.
 
