@@ -30,43 +30,11 @@ from app.harness.sessions import SessionStore
 
 logger = logging.getLogger(__name__)
 
-# ── adaptive extended thinking (#123) ──
-# The reasoning-vs-quality curve is concave — overthinking HURTS easy tasks and burns tokens
-# (HARNESS-RESEARCH.md §2). So pick OpenRouter reasoning effort per turn from the message + role:
-# trivial/routing → "minimal", complex (debug/refactor/architecture) → "high", else "medium".
-# Pure heuristic, no ML, no extra API call. "minimal" (not "none") for the floor — some models
-# reject "none" when reasoning is mandatory.
-
-# Word-boundary match so "fix:" / "why?" / "debugging" hit, "planet" doesn't. Bilingual: the user
-# often writes Russian. Cyrillic stems use \w (Unicode) boundaries.
-_HIGH_EFFORT_RE = re.compile(
-    r"\b(debug\w*|refactor\w*|architect\w*|root cause|race condition|design\w*|investigat\w*|"
-    r"trace|why|diagnos\w*|fix\w*|bug\w*|почини|исправь|отлад\w*|рефактор\w*|архитектур\w*|"
-    r"почему|разберись|гонк\w*)\b",
-    re.IGNORECASE | re.UNICODE)
-
-_TRIVIAL_MESSAGES = frozenset({
-    "ok", "okay", "yes", "no", "continue", "go", "merge", "merge it", "proceed", "thanks",
-    "done", "approved", "lgtm", "ship it", "да", "нет", "ок", "мерж", "продолжай",
-})
-
-
-def classify_effort(message: str, is_orchestrator: bool) -> str:
-    """Pick OpenRouter reasoning effort from the turn. Pure + testable, no ML, no extra call.
-    Order matters: trivial acks first, then complexity keywords, then the short-message floor."""
-    m = (message or "").strip()
-    low = m.lower()
-    if not m or low in _TRIVIAL_MESSAGES:
-        return "minimal"
-    if _HIGH_EFFORT_RE.search(m):        # complexity keyword wins over the length floor
-        return "high"
-    if len(m) <= 12:                     # very short, non-keyword instruction → cheap
-        return "minimal"
-    if is_orchestrator:                  # planning/decomposition is the complex path
-        return "high"
-    if len(m) >= 400:                    # long multi-part request → complex
-        return "high"
-    return "medium"                      # safe default; medium rarely hurts
+# Ступень рассуждения приходит из манифеста пайплайна (карта модель → effort,
+# `pipeline.resolve_effort`), как у Claude, Codex и Grok. До 19.09.2026 харнес угадывал
+# её регуляркой по тексту сообщения: на 12 реальных сообщениях она выдала `medium`
+# одиннадцать раз, то есть решения не принимала. Модель знает про себя больше, чем
+# поиск подстроки про задачу, и у карты есть один владелец и замеры в комментариях.
 
 DEFAULT_CONTEXT = 200000
 
@@ -75,12 +43,14 @@ class HarnessBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
                  mcp_servers: dict | None = None,
-                 is_orchestrator: bool = False):
+                 is_orchestrator: bool = False,
+                 effort: str | None = None):
         self.model = model
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._mcp_servers = mcp_servers or {}
         self._is_orchestrator = is_orchestrator
+        self._effort = effort
         self._resume_session_id = resume_session_id
 
         self._llm: Optional[OpenRouterClient] = None
@@ -252,7 +222,7 @@ class HarnessBackend:
         # loses the text silently. They predate `user_msg`, so the loop puts them AHEAD of it
         # and labels them: delivered late, but never in the recency slot as the latest word.
         carried_over = self._drain_injected()
-        effort = classify_effort(user_msg, self._is_orchestrator)  # once per turn
+        effort = self._effort   # ступень задана манифестом на весь разговор
         loop = AgentLoop(
             llm=self._llm, mcp=self._mcp, cwd=self.cwd, history=self._history,
             tool_schemas=self._turn_tool_schemas(effort), max_context=self._max_context(),

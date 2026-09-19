@@ -130,15 +130,15 @@ class TestDefaultRolesResolve:
         assert rr.allow_unrouted_workers is True
 
     def test_effort_policy_is_consistent_across_roles(self):
-        expected = {
-            "claude-opus-5[1m]": "high",
-            "gpt-5.6-sol": "high",
-            "gpt-5.6-luna": "high",
-            "gpt-6-astra": "medium",
-            "default": "high",
-        }
+        """Карта модель→ступень одна на все роли. Содержимое НЕ фиксируем: значения
+        меняются по замерам (#208, #373), и тест на их список краснел бы на каждом
+        новом маршруте. Ловится расхождение между ролями и потеря карты."""
         cfg = P.load_pipeline(PIPELINE)
-        assert all(spec.effort == expected for spec in cfg.roles.values())
+        specs = [spec.effort for spec in cfg.roles.values()]
+
+        assert all(isinstance(spec, dict) and spec for spec in specs)
+        assert all(spec == specs[0] for spec in specs), "роли разъехались по ступеням"
+        assert "default" in specs[0], "без default новая модель останется без ступени"
 
     def test_modules_resolve_from_manifest(self):
         import yaml
