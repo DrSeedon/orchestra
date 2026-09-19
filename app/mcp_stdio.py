@@ -988,7 +988,11 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
     owned_dirs — необязательный JSON-массив ожидаемых рабочих директорий, например ["app/api/", "tests/"]. Это ориентир для координации, не запрет менять другие нужные задаче файлы. Пересечения допустимы в отдельных worktree.
     disabled_tools — exact Orchestra tool names to disable for this worker, persisted across restart. Adds to role bans; calls return tool_disabled.
-    tg_topic — если True, агент получит собственный TG топик для логов и сообщений."""
+    tg_topic — если True, агент получит собственный TG топик для логов и сообщений.
+    task_id — номер СУЩЕСТВУЮЩЕЙ задачи, взятый из ответа `task_create`; выдуманный номер
+    и номер, взятый из имени каталога, дают отказ и уносят весь текст задания. Одна задача
+    держится одним воркером: для второго исполнителя на том же задании заводится отдельная
+    задача, иначе спавн будет отбит."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",

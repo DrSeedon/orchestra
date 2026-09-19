@@ -102,6 +102,28 @@ def kv_delete(key: str) -> None:
 
 
 
+
+def _task_binding_refusal(c, task_identity: dict) -> str:
+    """Назвать ПРИЧИНУ и ДЕЙСТВИЕ вместо внутренней механики.
+
+    Условие CAS одно, а причин две: задачу уже занял другой воркер, либо её строка успела
+    измениться между чтением и записью. Прежний текст `binding compare-and-swap failed`
+    не отличал их и не подсказывал выхода, поэтому вызывающий пробовал ещё раз тем же
+    способом — а неудачный спавн уносит весь текст задания и потом едет в каждом ходе
+    сессии (сообщение seedon-orchestrator, 19.09.2026).
+    """
+    par = task_identity["par_number"]
+    row = c.execute(
+        "SELECT s.name FROM tm_tasks t LEFT JOIN sessions s ON s.id = t.worker_session_id "
+        "WHERE t.id = ?", (task_identity["id"],),
+    ).fetchone()
+    holder = (row[0] if row else None) or ""
+    if holder:
+        return (f"task #{par} is already assigned to worker '{holder}'; one task = one worker. "
+                f"For a second executor create a separate task")
+    return (f"task #{par} changed while it was being assigned (its revision moved); "
+            f"re-read the task and spawn again")
+
 def save_session(
     s: dict,
     *,
@@ -255,9 +277,7 @@ def publish_ready_session(s: dict, task_identity: dict | None = None) -> None:
                     ),
                 )
                 if cur.rowcount != 1:
-                    raise ValueError(
-                        f"task #{task_identity['par_number']} binding compare-and-swap failed"
-                    )
+                    raise ValueError(_task_binding_refusal(c, task_identity))
                 published = runtime.publish(c, task_identity['id'])
                 task_identity = {**task_identity, 'stable_id': published['id'],
                                  'task_snapshot_ref': f"git-task:{published['id']}@{runtime.store.head}"}
