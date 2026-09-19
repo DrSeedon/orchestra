@@ -16,12 +16,8 @@ def test_original_rules_are_preserved_byte_for_byte():
 
 
 def test_both_clients_get_the_same_bounded_rules_and_current_topic_index():
-    """Один файл на оба CLI: Claude Code 2.1.263 читает AGENTS.md сам (проверено 19.09.2026),
-    Codex читал его всегда. Отдельная копия CLAUDE.md не синхронизируется, а запрещена —
-    агенту доезжают ОБА файла, и разошедшиеся копии дают два противоречащих набора правил."""
     from scripts.check_instruction_contract import check
-    subprocess.run(["git", "ls-files", "--error-unmatch", "AGENTS.md"], cwd=ROOT, check=True)
-    assert not (ROOT / "CLAUDE.md").exists()
+    subprocess.run(["git", "ls-files", "--error-unmatch", "AGENTS.md", "CLAUDE.md"], cwd=ROOT, check=True)
     check(ROOT)
 
 
