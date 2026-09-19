@@ -1,10 +1,8 @@
-"""Check the shared root rules; --sync explicitly regenerates the Claude copy."""
+"""Check the shared root rules: one file, under budget, with a complete KB index."""
 import argparse
-import os
 from pathlib import Path
 import re
 import sys
-import tempfile
 
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT) not in sys.path:
@@ -13,7 +11,12 @@ if str(_REPO_ROOT) not in sys.path:
 from app.kb_index import kb_topic_files, kb_topic_index
 
 MAX_INSTRUCTION_BYTES = 16 * 1024
-FILES = ("AGENTS.md", "CLAUDE.md")
+SOURCE = "AGENTS.md"
+# Claude Code 2.1.263 читает CLAUDE.md И AGENTS.md ОБА сразу (проверено экспериментом
+# 19.09.2026: два файла с разными правилами — агент назвал оба и указал расхождение).
+# Пока копия существовала, она дважды разъезжалась с источником, и Claude-агенты
+# не видели части правил владельца. Поэтому дубль запрещён, а не синхронизируется.
+FORBIDDEN_DUPLICATE = "CLAUDE.md"
 
 
 def check_kb_index(root: Path) -> None:
@@ -46,51 +49,24 @@ def _validate(body: bytes, name: str) -> None:
 
 
 def check(root: Path) -> None:
-    bodies = [_read(root / name) for name in FILES]
-    for name, body in zip(FILES, bodies):
-        _validate(body, name)
-    if bodies[0] != bodies[1]:
-        raise ValueError("AGENTS.md and CLAUDE.md differ; run --sync after editing AGENTS.md")
+    _validate(_read(root / SOURCE), SOURCE)
+    duplicate = root / FORBIDDEN_DUPLICATE
+    if duplicate.exists() or duplicate.is_symlink():
+        raise ValueError(
+            f"{FORBIDDEN_DUPLICATE} is back: both files reach the agent at once and a drift "
+            f"feeds it contradictory rules. Keep {SOURCE} only")
     check_kb_index(root)
-
-
-def sync(root: Path) -> None:
-    body = _read(root / "AGENTS.md")
-    _validate(body, "AGENTS.md")
-    check_kb_index(root)  # before any write: a bad index must leave both copies untouched
-    for name in FILES:
-        if (root / name).is_symlink():
-            raise ValueError(f"{name}: refusing to overwrite a symlink")
-    _write(root / "CLAUDE.md", body)
-    check(root)
-
-
-def _write(target: Path, body: bytes) -> None:
-    if target.exists() and target.read_bytes() == body:
-        return
-    fd, temporary = tempfile.mkstemp(prefix=f".{target.name}.", dir=target.parent)
-    try:
-        os.fchmod(fd, 0o644)
-        with os.fdopen(fd, "wb") as output:
-            output.write(body)
-        os.replace(temporary, target)
-    finally:
-        Path(temporary).unlink(missing_ok=True)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
-    parser.add_argument("--sync", action="store_true")
     args = parser.parse_args()
     try:
-        if args.sync:
-            sync(args.root)
-        else:
-            check(args.root)
+        check(args.root)
     except (OSError, ValueError) as error:
         parser.exit(1, f"Instruction contract: {error}\n")
-    print("Instruction contract OK: identical, non-empty UTF-8 root rules below 16 KiB each")
+    print(f"Instruction contract OK: {SOURCE} is the only root rules file, below 16 KiB")
     return 0
 
 
