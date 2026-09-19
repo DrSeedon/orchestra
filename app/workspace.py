@@ -26,7 +26,10 @@ logger = logging.getLogger(__name__)
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
 # Files copied into each new worktree so workers get project config without
 # being on the main branch (CLAUDE.md = project rules, .env = secrets, .mcp.json = tools)
-PROJECT_FILES = ("CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
+# AGENTS.md читают оба CLI (Claude Code 2.1.263 и Codex), CLAUDE.md остаётся ради
+# проектов, где он ещё единственный источник правил. Копируем оба: отсутствующий
+# файл просто пропускается, а worktree без правил — это агент без правил.
+PROJECT_FILES = ("AGENTS.md", "CLAUDE.md", ".worktreeinclude", ".mcp.json", ".env")
 
 
 @dataclass
