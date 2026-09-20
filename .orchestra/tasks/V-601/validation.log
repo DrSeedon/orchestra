@@ -1,0 +1,22 @@
+import: /home/kesha/orchestra/worktrees/home-kesha-orchestra/tools-redesign/app/mcp_stdio.py
+45 tools; 34 unchanged + 11 rework; 10 description replacements; saving 1463
+local referenced paths exist; secret-shape scan clean; task scripts parse
+Only task artifacts may differ:
+AM .orchestra/tasks/V-601/append_consumers.py
+A  .orchestra/tasks/V-601/build_report.py
+A  .orchestra/tasks/V-601/collect_evidence.py
+A  .orchestra/tasks/V-601/consumers.json
+A  .orchestra/tasks/V-601/count_modes.py
+A  .orchestra/tasks/V-601/count_tokens.py
+A  .orchestra/tasks/V-601/decisions.json
+A  .orchestra/tasks/V-601/enrich_inventory.py
+A  .orchestra/tasks/V-601/modes.json
+A  .orchestra/tasks/V-601/proposed-descriptions.json
+A  .orchestra/tasks/V-601/references.json
+A  .orchestra/tasks/V-601/schemas.json
+A  .orchestra/tasks/V-601/sections.md
+A  .orchestra/tasks/V-601/token-count.log
+A  .orchestra/tasks/V-601/tokens.json
+AM .orchestra/tasks/V-601/tools-redesign.md
+A  .orchestra/tasks/V-601/validate_artifacts.py
+AM .orchestra/tasks/V-601/validation.log

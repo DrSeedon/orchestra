@@ -1,0 +1,3484 @@
+{
+  "spawn_worker": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          44
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md",
+        "lines": [
+          4
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/model-routing.md",
+        "lines": [
+          2,
+          15
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          32,
+          117,
+          130,
+          141,
+          151
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/worker.md",
+        "lines": [
+          9
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+        "lines": [
+          21,
+          52,
+          79,
+          156
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_audit0901_mcp.py",
+        "lines": [
+          197,
+          331,
+          522
+        ]
+      },
+      {
+        "path": "tests/test_backend_codex.py",
+        "lines": [
+          302,
+          1499
+        ]
+      },
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          4399
+        ]
+      },
+      {
+        "path": "tests/test_mcp_quota_gate.py",
+        "lines": [
+          100
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          917,
+          942,
+          965,
+          1004,
+          1032,
+          1099,
+          1140,
+          1196,
+          1229,
+          1230,
+          1263,
+          1307,
+          1326,
+          1327,
+          1360,
+          1389,
+          1390,
+          1409,
+          1468,
+          1520,
+          2301,
+          2311,
+          2319
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          21
+        ]
+      },
+      {
+        "path": "tests/test_tool_scoping.py",
+        "lines": [
+          101
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/backend_claude.py",
+        "lines": [
+          68,
+          166,
+          454
+        ]
+      },
+      {
+        "path": "app/backend_codex.py",
+        "lines": [
+          2072
+        ]
+      },
+      {
+        "path": "app/harness/loop.py",
+        "lines": [
+          50
+        ]
+      },
+      {
+        "path": "app/harness/mcp.py",
+        "lines": [
+          14
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          972
+        ]
+      },
+      {
+        "path": "app/models.py",
+        "lines": [
+          136
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1074,
+          1920,
+          2247
+        ]
+      },
+      {
+        "path": "app/tg_bridge.py",
+        "lines": [
+          788
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_audit0901_mcp.py::test_spawn_does_not_report_undelivered_task_as_accepted",
+      "tests/test_audit0901_mcp.py::test_spawn_retry_guidance_keeps_cross_repo_warning",
+      "tests/test_audit0901_mcp.py::test_spawn_does_not_report_unknown_delivery_as_accepted",
+      "tests/test_backend_codex.py::test_mcp_config_rendered_into_config_toml_not_argv",
+      "tests/test_backend_codex.py::test_long_mcp_arguments_remain_valid_structured_json",
+      "tests/test_frontend.py::test_codex_spawn_worker_renders_task_model_and_completion",
+      "tests/test_mcp_stdio.py::test_spawn_passes_base_branch",
+      "tests/test_mcp_stdio.py::test_spawn_base_branch_default_empty",
+      "tests/test_mcp_stdio.py::test_t3_spawn_marks_parent_as_initial_task_sender",
+      "tests/test_mcp_stdio.py::test_spawn_reports_exact_repo_mapping_when_scope_differs",
+      "tests/test_mcp_stdio.py::test_spawn_api_error_does_not_send_initial_task",
+      "tests/test_mcp_stdio.py::test_spawn_malformed_success_fails_loud_without_task",
+      "tests/test_mcp_stdio.py::test_t3_spawn_task_delivery_error_reports_created_worker",
+      "tests/test_mcp_stdio.py::test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend",
+      "tests/test_mcp_stdio.py::test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt",
+      "tests/test_mcp_stdio.py::test_t3_spawn_delivery_same_repository_has_no_cross_repo_note",
+      "tests/test_mcp_stdio.py::test_t3_spawn_delivery_timeout_reconciles_without_second_post",
+      "tests/test_mcp_stdio.py::test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend",
+      "tests/test_mcp_stdio.py::test_t3_spawn_committed_then_500_unresolved_never_posts_again",
+      "tests/test_mcp_stdio.py::test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries",
+      "tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools",
+      "tests/test_mcp_stdio.py::test_full_access_mode_preserves_all_tools",
+      "tests/test_mcp_stdio.py::test_unknown_access_mode_is_rejected",
+      "tests/test_tool_scoping.py::test_spawn_forwards_worker_policy"
+    ]
+  },
+  "delivery_status": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_initial_deliveries.py",
+        "lines": [
+          948,
+          949,
+          953,
+          955
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1213,
+          1423,
+          1485,
+          1536,
+          1554,
+          1555,
+          1572,
+          1584
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/initial_deliveries.py",
+        "lines": [
+          31,
+          51
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          103,
+          590,
+          602,
+          701,
+          1124
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_initial_deliveries.py::test_t381_next_action_structurally_permits_only_known_safe_retry",
+      "tests/test_mcp_stdio.py::test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend",
+      "tests/test_mcp_stdio.py::test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend",
+      "tests/test_mcp_stdio.py::test_t3_spawn_committed_then_500_unresolved_never_posts_again",
+      "tests/test_mcp_stdio.py::test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries",
+      "tests/test_mcp_stdio.py::test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key"
+    ]
+  },
+  "retry_initial_delivery": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_audit0901_mcp.py",
+        "lines": [
+          207
+        ]
+      },
+      {
+        "path": "tests/test_initial_deliveries.py",
+        "lines": [
+          951,
+          982
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1163,
+          1557,
+          1558,
+          1579
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/initial_deliveries.py",
+        "lines": [
+          39
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          612,
+          686,
+          1147
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_audit0901_mcp.py::test_spawn_does_not_report_undelivered_task_as_accepted",
+      "tests/test_initial_deliveries.py::test_t381_next_action_structurally_permits_only_known_safe_retry",
+      "tests/test_mcp_stdio.py::test_t3_spawn_task_delivery_error_reports_created_worker",
+      "tests/test_mcp_stdio.py::test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key"
+    ]
+  },
+  "acquire_test_lock": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_db.py",
+        "lines": [
+          511,
+          512,
+          521,
+          522,
+          523,
+          528,
+          529,
+          530,
+          535,
+          536,
+          542,
+          543,
+          550,
+          552,
+          560,
+          562,
+          567,
+          572,
+          579,
+          586,
+          588,
+          590,
+          598,
+          599,
+          600,
+          943,
+          963,
+          1009,
+          1011,
+          1020,
+          1022
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1620,
+          1636
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          23
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/db.py",
+        "lines": [
+          2250
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1160
+        ]
+      },
+      {
+        "path": "app/routes/system.py",
+        "lines": [
+          2296,
+          2297
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_db.py::test_acquire_succeeds_when_free",
+      "tests/test_db.py::test_acquire_fails_when_held",
+      "tests/test_db.py::test_reacquire_by_same_holder_idempotent",
+      "tests/test_db.py::test_release_by_holder",
+      "tests/test_db.py::test_release_by_wrong_holder_denied",
+      "tests/test_db.py::test_renamed_holder_still_releases_its_own_lock",
+      "tests/test_db.py::test_reused_name_cannot_release_someone_elses_lock",
+      "tests/test_db.py::test_row_without_id_still_compares_by_name",
+      "tests/test_db.py::test_holder_name_shown_is_the_current_one_after_rename",
+      "tests/test_db.py::test_lock_isolated_by_scope",
+      "tests/test_db.py::test_tm_project_collision_rejects_task_association_atomically",
+      "tests/test_db.py::test_migrates_test_lock",
+      "tests/test_db.py::test_stale_old_scope_rejected",
+      "tests/test_mcp_stdio.py::test_acquire_test_lock_uses_worker_as_holder",
+      "tests/test_mcp_stdio.py::test_acquire_test_lock_reports_holder_when_busy"
+    ]
+  },
+  "release_test_lock": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_db.py",
+        "lines": [
+          535,
+          537,
+          542,
+          544,
+          550,
+          554,
+          560,
+          564,
+          572,
+          581
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1654
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          24
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/db.py",
+        "lines": [
+          2280
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1164,
+          1178
+        ]
+      },
+      {
+        "path": "app/routes/system.py",
+        "lines": [
+          2305,
+          2306
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_db.py::test_release_by_holder",
+      "tests/test_db.py::test_release_by_wrong_holder_denied",
+      "tests/test_db.py::test_renamed_holder_still_releases_its_own_lock",
+      "tests/test_db.py::test_reused_name_cannot_release_someone_elses_lock",
+      "tests/test_db.py::test_row_without_id_still_compares_by_name",
+      "tests/test_mcp_stdio.py::test_release_and_status"
+    ]
+  },
+  "test_lock_status": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1655
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          92,
+          1191
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_stdio.py::test_release_and_status"
+    ]
+  },
+  "send_message": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          4,
+          6,
+          12,
+          18,
+          23,
+          45,
+          46
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          119,
+          155,
+          161,
+          164,
+          167,
+          170,
+          203,
+          250,
+          252,
+          260,
+          262,
+          297
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/report-format.md",
+        "lines": [
+          4,
+          8,
+          14,
+          24
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/sub-orchestrator.md",
+        "lines": [
+          7
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/worker.md",
+        "lines": [
+          49
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_api.py",
+        "lines": [
+          1975,
+          3171
+        ]
+      },
+      {
+        "path": "tests/test_audit0901_mcp.py",
+        "lines": [
+          67,
+          118,
+          143,
+          400,
+          466
+        ]
+      },
+      {
+        "path": "tests/test_audit0901_tg.py",
+        "lines": [
+          263,
+          280
+        ]
+      },
+      {
+        "path": "tests/test_backend_codex.py",
+        "lines": [
+          301,
+          1384,
+          1403
+        ]
+      },
+      {
+        "path": "tests/test_codex_writer_conflict_536.py",
+        "lines": [
+          195
+        ]
+      },
+      {
+        "path": "tests/test_fan_barrier_gates.py",
+        "lines": [
+          7,
+          8,
+          76,
+          80,
+          83,
+          122,
+          209,
+          213
+        ]
+      },
+      {
+        "path": "tests/test_fan_barrier_intercept.py",
+        "lines": [
+          114
+        ]
+      },
+      {
+        "path": "tests/test_fan_enable.py",
+        "lines": [
+          77,
+          78,
+          165,
+          175,
+          195,
+          226,
+          235,
+          236,
+          248,
+          357,
+          373
+        ]
+      },
+      {
+        "path": "tests/test_fan_report_delivery.py",
+        "lines": [
+          52,
+          66,
+          104,
+          105,
+          154,
+          166
+        ]
+      },
+      {
+        "path": "tests/test_fan_terminal_kind.py",
+        "lines": [
+          1,
+          77,
+          81,
+          140,
+          155
+        ]
+      },
+      {
+        "path": "tests/test_lifecycle_quarantine_499.py",
+        "lines": [
+          98,
+          127,
+          211,
+          236,
+          405
+        ]
+      },
+      {
+        "path": "tests/test_mailbox.py",
+        "lines": [
+          94,
+          106,
+          124,
+          126,
+          136,
+          140,
+          401,
+          409,
+          419,
+          427,
+          466,
+          468,
+          495,
+          503,
+          515,
+          523
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          385,
+          404,
+          418,
+          2088,
+          2109,
+          2130,
+          2159,
+          2174,
+          2193,
+          2207,
+          2301,
+          2311
+        ]
+      },
+      {
+        "path": "tests/test_message_delivery_receipts_380.py",
+        "lines": [
+          274,
+          314,
+          409,
+          426,
+          436,
+          447,
+          557,
+          559,
+          588,
+          614,
+          634,
+          636,
+          676,
+          729,
+          1157,
+          1192,
+          1207,
+          1275,
+          1308
+        ]
+      },
+      {
+        "path": "tests/test_message_provenance_review_433.py",
+        "lines": [
+          204,
+          276
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          27
+        ]
+      },
+      {
+        "path": "tests/test_send_provenance_without_auth.py",
+        "lines": [
+          72,
+          93,
+          108,
+          150,
+          162,
+          174
+        ]
+      },
+      {
+        "path": "tests/test_session.py",
+        "lines": [
+          1094,
+          1283
+        ]
+      },
+      {
+        "path": "tests/test_task_tracker_integration.py",
+        "lines": [
+          133,
+          186,
+          202,
+          242
+        ]
+      },
+      {
+        "path": "tests/test_tg_bridge.py",
+        "lines": [
+          29,
+          41,
+          480,
+          491,
+          549,
+          571,
+          588,
+          598,
+          646,
+          659,
+          703,
+          730,
+          760,
+          788,
+          804,
+          818,
+          839,
+          863,
+          889,
+          903,
+          918,
+          935,
+          972,
+          1067,
+          1830,
+          1861,
+          1866,
+          1885,
+          1890,
+          1907,
+          1915,
+          1930,
+          1940,
+          1941,
+          1949,
+          1972,
+          1982,
+          1990,
+          1997,
+          2010,
+          2016,
+          2022,
+          2023,
+          2030,
+          2037,
+          2056,
+          2070,
+          2097,
+          2108,
+          2133,
+          2140,
+          2152,
+          2160,
+          2220,
+          2238,
+          2245,
+          2419,
+          2423,
+          2437,
+          2519,
+          2534,
+          3052,
+          3060,
+          3084,
+          3097,
+          3105,
+          3111,
+          3216,
+          3224,
+          3258,
+          3266,
+          3288,
+          3295,
+          3334,
+          3342,
+          3361,
+          3368,
+          3898,
+          3903,
+          3926,
+          3931,
+          3951,
+          3956,
+          3983,
+          3988,
+          4021,
+          4026,
+          4043,
+          4047,
+          4482
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/fan_barrier.py",
+        "lines": [
+          24,
+          30,
+          191
+        ]
+      },
+      {
+        "path": "app/manager.py",
+        "lines": [
+          629
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          109,
+          1280,
+          1798
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          721,
+          1240
+        ]
+      },
+      {
+        "path": "app/session.py",
+        "lines": [
+          2385
+        ]
+      },
+      {
+        "path": "app/session_turns.py",
+        "lines": [
+          198,
+          201,
+          220,
+          221,
+          242
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1080,
+          1780,
+          1882,
+          2212,
+          3334
+        ]
+      },
+      {
+        "path": "app/tg_bridge.py",
+        "lines": [
+          786,
+          2116,
+          2138,
+          2142,
+          2165,
+          2197,
+          2342,
+          3552
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_api.py::test_send_delegates_auto_switch_to_manager",
+      "tests/test_api.py::test_send_quota_refusal_is_canonical_429",
+      "tests/test_audit0901_mcp.py::test_failed_before_submit_is_never_reported_as_accepted",
+      "tests/test_audit0901_mcp.py::test_target_task_changed_is_not_sent_into_a_retry_loop",
+      "tests/test_audit0901_mcp.py::test_queue_blocked_acceptance_is_not_printed_as_delivery",
+      "tests/test_audit0901_mcp.py::test_cleared_barrier_is_not_reported_as_delivered",
+      "tests/test_audit0901_tg.py::test_fan_out_subagent_lines_do_not_overwrite_each_other",
+      "tests/test_backend_codex.py::test_mcp_config_rendered_into_config_toml_not_argv",
+      "tests/test_backend_codex.py::test_explicit_codex_tool_failures_keep_identity_and_tool_name",
+      "tests/test_codex_writer_conflict_536.py::test_http_repeated_conflict_never_returns_queued",
+      "tests/test_fan_barrier_gates.py::test_silent_child_turn_does_not_wake_parent_while_barrier_closed",
+      "tests/test_fan_barrier_gates.py::test_authenticated_operator_without_sender_still_delivers",
+      "tests/test_fan_barrier_intercept.py::test_t1_three_durable_reports_create_exactly_one_parent_wake",
+      "tests/test_fan_enable.py::test_t6_parent_payload_survives_a_silent_reducer",
+      "tests/test_fan_enable.py::test_t6_explicit_report_with_pending_mailbox_does_not_release",
+      "tests/test_fan_enable.py::test_t6_manifest_is_glued_exactly_once",
+      "tests/test_fan_enable.py::test_impl6_manifest_survives_a_failed_delivery",
+      "tests/test_fan_report_delivery.py::test_explicit_send_message_keeps_child_text_reachable_via_manifest",
+      "tests/test_fan_terminal_kind.py::test_two_nonterminal_sends_do_not_release_the_fan",
+      "tests/test_fan_terminal_kind.py::test_turn_end_after_a_question_is_still_terminal",
+      "tests/test_lifecycle_quarantine_499.py::test_quarantined_delivery_is_refused_before_accept_and_wip_is_loud",
+      "tests/test_lifecycle_quarantine_499.py::test_one_predicate_drives_list_wip_and_delivery_together",
+      "tests/test_lifecycle_quarantine_499.py::test_delivery_acceptance_holds_target_lock_until_receipt_commits",
+      "tests/test_mailbox.py::test_t2_no_wake_stores_and_does_not_activate",
+      "tests/test_mailbox.py::test_t2_default_still_wakes",
+      "tests/test_mailbox.py::test_t2_agent_sender_without_durable_recipient_is_rejected",
+      "tests/test_mailbox.py::test_t2_idle_recipient_is_woken_not_queued",
+      "tests/test_mailbox.py::test_t2_busy_recipient_is_queued",
+      "tests/test_mailbox.py::test_t2_unknown_recipient_is_woken",
+      "tests/test_mailbox.py::test_v556_dashboard_after_turn_queues_busy_and_returns_id",
+      "tests/test_mailbox.py::test_v556_dashboard_after_turn_idle_uses_immediate_delivery",
+      "tests/test_mcp_stdio.py::test_protocol_failure_is_typed_and_success_uses_same_shape",
+      "tests/test_mcp_stdio.py::test_protocol_unexpected_empty_exception_keeps_class_name",
+      "tests/test_mcp_stdio.py::test_send_message_cross_scope_warning",
+      "tests/test_mcp_stdio.py::test_send_message_file_appends_utf8_text_to_payload",
+      "tests/test_mcp_stdio.py::test_send_message_rejects_oversized_file_before_delivery",
+      "tests/test_mcp_stdio.py::test_send_message_rejects_unreadable_attachment",
+      "tests/test_mcp_stdio.py::test_send_message_rejects_attachment_directory_before_delivery",
+      "tests/test_mcp_stdio.py::test_send_message_without_file_preserves_message_payload",
+      "tests/test_mcp_stdio.py::test_send_message_same_parent_no_warning",
+      "tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools",
+      "tests/test_mcp_stdio.py::test_full_access_mode_preserves_all_tools",
+      "tests/test_message_delivery_receipts_380.py::test_t380_r1_http_202_returns_while_manager_send_is_blocked",
+      "tests/test_message_delivery_receipts_380.py::test_t380_r1_legacy_blank_key_and_unsupported_keyed_ingress_split_cleanly",
+      "tests/test_message_delivery_receipts_380.py::test_t380_r3_mcp_timeout_reconciles_same_key_or_returns_ambiguous_id",
+      "tests/test_message_delivery_receipts_380.py::test_t380_r3_blank_key_generates_once_before_post_and_status_tool_reads_it",
+      "tests/test_message_delivery_receipts_380.py::test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely",
+      "tests/test_message_delivery_receipts_380.py::test_t401_quota_refusal_is_returned_before_receipt_or_user_log",
+      "tests/test_message_delivery_receipts_380.py::test_t380_r6_http_auth_conflict_rollback_and_name_ambiguity_are_known",
+      "tests/test_message_provenance_review_433.py::test_review_live_dashboard_cookie_delivers_user_origin",
+      "tests/test_message_provenance_review_433.py::test_review_live_mcp_receipt_persists_agent_principal",
+      "tests/test_send_provenance_without_auth.py::test_senderless_send_without_auth_is_delivered_but_not_as_user",
+      "tests/test_send_provenance_without_auth.py::test_senderless_send_with_invalid_auth_is_unknown",
+      "tests/test_send_provenance_without_auth.py::test_sender_still_wins_over_the_unknown_fallback",
+      "tests/test_send_provenance_without_auth.py::test_senderless_send_with_valid_auth_is_user",
+      "tests/test_send_provenance_without_auth.py::test_dashboard_channel_labels_source_without_claiming_authenticated_user",
+      "tests/test_send_provenance_without_auth.py::test_dashboard_channel_cannot_override_agent_sender",
+      "tests/test_session.py::test_auto_report_skipped_if_did_report",
+      "tests/test_session.py::test_orchestrator_never_auto_reports",
+      "tests/test_task_tracker_integration.py::test_t1_taskless_assignment_replaces_made_up_number_with_canonical_task",
+      "tests/test_task_tracker_integration.py::test_t1_taskless_assignment_is_parent_authorized_and_failure_atomic",
+      "tests/test_task_tracker_integration.py::test_t1_bound_worker_rejects_conflicting_leading_task_number",
+      "tests/test_tg_bridge.py::test_t2_artifact_text_disables_link_preview_at_the_bot_call",
+      "tests/test_tg_bridge.py::test_slow_photo_edit_keeps_order_without_holding_later_text",
+      "tests/test_tg_bridge.py::test_failed_photo_edit_leaves_marker_and_counts_loss",
+      "tests/test_tg_bridge.py::test_image_capacity_rejects_before_third_marker",
+      "tests/test_tg_bridge.py::test_important_preview_handoff_does_not_wait_for_marker_or_edit",
+      "tests/test_tg_bridge.py::test_important_preview_bypasses_optional_image_capacity",
+      "tests/test_tg_bridge.py::test_important_media_edit_retries_ambiguous_failure",
+      "tests/test_tg_bridge.py::test_important_media_not_modified_is_success",
+      "tests/test_tg_bridge.py::test_important_marker_ambiguous_failure_is_not_retried",
+      "tests/test_tg_bridge.py::test_important_marker_retries_explicit_flood_rejection",
+      "tests/test_tg_bridge.py::test_important_preview_admission_failure_propagates",
+      "tests/test_tg_bridge.py::test_marker_admission_failure_is_unaccepted_and_lost_once",
+      "tests/test_tg_bridge.py::test_ambiguous_marker_is_not_retried",
+      "tests/test_tg_bridge.py::test_read_source_is_snapshotted_before_async_edit",
+      "tests/test_tg_bridge.py::test_old_marker_continuation_cannot_mutate_replacement_state",
+      "tests/test_tg_bridge.py::test_cancelled_consumer_does_not_delete_in_flight_snapshot",
+      "tests/test_tg_bridge.py::test_first_429_defers_retry_until_retry_after_margin",
+      "tests/test_tg_bridge.py::test_topic_ids_share_one_chat_rate_history",
+      "tests/test_tg_bridge.py::test_serializes_concurrent_group_sends",
+      "tests/test_tg_bridge.py::test_different_chats_do_not_share_lock",
+      "tests/test_tg_bridge.py::test_retries_rate_limit_with_same_thread",
+      "tests/test_tg_bridge.py::test_nonimportant_flood_drop_counts_final_loss",
+      "tests/test_tg_bridge.py::test_retries_ambiguous_network_error",
+      "tests/test_tg_bridge.py::test_network_retry_counts_failed_request_against_interval",
+      "tests/test_tg_bridge.py::test_retries_bad_entities_as_plain_text",
+      "tests/test_tg_bridge.py::test_plain_entity_fallback_uses_a_new_rate_slot",
+      "tests/test_tg_bridge.py::test_coalesced_entity_fallback_uses_latest_payload",
+      "tests/test_tg_bridge.py::test_optional_entity_fallback_handles_rejected_admission",
+      "tests/test_tg_bridge.py::test_logs_lost_after_final_network_failure",
+      "tests/test_tg_bridge.py::test_attempt_timeout_retries_then_releases_next_reply",
+      "tests/test_tg_bridge.py::test_rate_wait_does_not_consume_attempt_retry_budget",
+      "tests/test_tg_bridge.py::test_snapshot_exposes_oldest_queue_age_and_delivery_latency",
+      "tests/test_tg_bridge.py::test_two_mirrors_share_one_chat_rate_authority",
+      "tests/test_tg_bridge.py::test_slow_topic_status_does_not_block_message_queue",
+      "tests/test_tg_bridge.py::test_important_call_overtakes_waiting_nonimportant_call",
+      "tests/test_tg_bridge.py::test_nonimportant_call_drops_when_rate_slot_would_wait",
+      "tests/test_tg_bridge.py::test_queued_edit_does_not_block_caller",
+      "tests/test_tg_bridge.py::test_thousand_same_topic_tools_use_one_coalesced_entry",
+      "tests/test_tg_bridge.py::test_tool_timeout_releases_following_reliable_call",
+      "tests/test_tg_bridge.py::test_telemetry_key_capacity_drops_new_keys_without_tasks",
+      "tests/test_tg_bridge.py::test_update_while_digest_is_sending_survives_old_completion",
+      "tests/test_tg_bridge.py::test_reliable_admission_and_reset_are_bounded",
+      "tests/test_tg_bridge.py::test_burst_of_tool_calls_loses_no_content",
+      "tests/test_tg_bridge.py::test_reliable_text_not_blocked_by_tool_burst",
+      "tests/test_tg_bridge.py::test_batched_message_drops_stale_entities",
+      "tests/test_tg_bridge.py::test_large_bodies_split_across_messages_without_loss",
+      "tests/test_tg_bridge.py::test_single_oversized_body_is_split_not_rejected",
+      "tests/test_tg_bridge.py::test_failed_send_returns_batch_to_bucket",
+      "tests/test_tg_bridge.py::test_another_orchestra_tool_does_not_mention"
+    ]
+  },
+  "message_delivery_status": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_audit0901_mcp.py",
+        "lines": [
+          367
+        ]
+      },
+      {
+        "path": "tests/test_message_delivery_receipts_380.py",
+        "lines": [
+          638,
+          712,
+          737,
+          758
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          104,
+          1377,
+          1438,
+          1465
+        ]
+      },
+      {
+        "path": "app/message_deliveries.py",
+        "lines": [
+          83,
+          116
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_message_delivery_receipts_380.py::test_t380_r3_blank_key_generates_once_before_post_and_status_tool_reads_it",
+      "tests/test_message_delivery_receipts_380.py::test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely",
+      "tests/test_message_delivery_receipts_380.py::test_t370_same_id_unknown_receipt_is_never_replayed"
+    ]
+  },
+  "open_fan": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_backend_codex.py",
+        "lines": [
+          303
+        ]
+      },
+      {
+        "path": "tests/test_fan_barrier.py",
+        "lines": [
+          25,
+          90,
+          142
+        ]
+      },
+      {
+        "path": "tests/test_fan_barrier_gates.py",
+        "lines": [
+          27
+        ]
+      },
+      {
+        "path": "tests/test_fan_barrier_intercept.py",
+        "lines": [
+          96
+        ]
+      },
+      {
+        "path": "tests/test_fan_completion_modes_407.py",
+        "lines": [
+          134,
+          174,
+          215,
+          257
+        ]
+      },
+      {
+        "path": "tests/test_fan_deadline.py",
+        "lines": [
+          16
+        ]
+      },
+      {
+        "path": "tests/test_fan_enable.py",
+        "lines": [
+          8,
+          96,
+          99,
+          116,
+          120,
+          139,
+          167,
+          203,
+          228,
+          280,
+          300,
+          330,
+          359
+        ]
+      },
+      {
+        "path": "tests/test_fan_report_delivery.py",
+        "lines": [
+          93
+        ]
+      },
+      {
+        "path": "tests/test_fan_report_final_selection_480.py",
+        "lines": [
+          17,
+          120,
+          137
+        ]
+      },
+      {
+        "path": "tests/test_fan_terminal_kind.py",
+        "lines": [
+          66
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/fan_barrier.py",
+        "lines": [
+          64
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1494,
+          1503,
+          1514
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          668,
+          669,
+          681
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_backend_codex.py::test_mcp_config_rendered_into_config_toml_not_argv",
+      "tests/test_fan_barrier.py::test_deadline_releases_with_explicit_partial_flag",
+      "tests/test_fan_barrier.py::test_single_child_fan_degenerates_to_current_behaviour",
+      "tests/test_fan_barrier_intercept.py::test_t1_three_durable_reports_create_exactly_one_parent_wake",
+      "tests/test_fan_completion_modes_407.py::test_t2_mixed_explicit_silent_and_failed_turns_wake_parent_once",
+      "tests/test_fan_completion_modes_407.py::test_t2_releasing_report_replays_as_manifest_after_preparation_crash",
+      "tests/test_fan_completion_modes_407.py::test_t2_known_pre_submit_failure_rearms_fan_and_same_receipt_retries",
+      "tests/test_fan_completion_modes_407.py::test_t2_buffered_receipt_never_enters_dispatching_state",
+      "tests/test_fan_deadline.py::test_t3_deadline_closes_fan_and_wakes_parent_without_another_tool_call",
+      "tests/test_fan_enable.py::test_t1_open_fan_route_exists_and_buffers_children",
+      "tests/test_fan_enable.py::test_t1_caller_deadline_is_actually_used",
+      "tests/test_fan_enable.py::test_t6_children_release_to_reducer_not_parent",
+      "tests/test_fan_enable.py::test_t6_parent_payload_survives_a_silent_reducer",
+      "tests/test_fan_enable.py::test_t6_explicit_report_with_pending_mailbox_does_not_release",
+      "tests/test_fan_enable.py::test_t6_manifest_is_glued_exactly_once",
+      "tests/test_fan_enable.py::test_impl4_silent_child_with_pending_mailbox_does_not_release",
+      "tests/test_fan_enable.py::test_impl5_silent_completion_wakes_reducer_not_parent",
+      "tests/test_fan_enable.py::test_impl5_exact_silent_marker_completes_fan_without_manifest_noise",
+      "tests/test_fan_enable.py::test_impl6_manifest_survives_a_failed_delivery",
+      "tests/test_fan_report_final_selection_480.py::test_late_explicit_terminal_delivery_cannot_replace_fixed_report",
+      "tests/test_fan_report_final_selection_480.py::test_late_legacy_delivery_cannot_replace_turn_end_report"
+    ]
+  },
+  "list_agents": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          24
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          120,
+          212,
+          267
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+        "lines": [
+          13
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+        "lines": [
+          26
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_antigravity_runtime.py",
+        "lines": [
+          166,
+          172
+        ]
+      },
+      {
+        "path": "tests/test_backend_grok.py",
+        "lines": [
+          372,
+          389
+        ]
+      },
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1654,
+          3042,
+          3651
+        ]
+      },
+      {
+        "path": "tests/test_lifecycle_quarantine_499.py",
+        "lines": [
+          233
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          2213,
+          2230,
+          2251,
+          2301,
+          2305,
+          2311,
+          2319
+        ]
+      },
+      {
+        "path": "tests/test_prompting.py",
+        "lines": [
+          503
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          27
+        ]
+      },
+      {
+        "path": "tests/test_task_tracker_integration.py",
+        "lines": [
+          2069,
+          2108,
+          2110
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          93,
+          111,
+          1071,
+          1590,
+          1634,
+          1652,
+          2898
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1107,
+          1765,
+          2495,
+          3336,
+          3413
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_backend_grok.py::test_nested_content_wrapper_unwraps_to_plain_text",
+      "tests/test_backend_grok.py::test_mcp_tool_result_unwraps_okay_output",
+      "tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers",
+      "tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls",
+      "tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details",
+      "tests/test_lifecycle_quarantine_499.py::test_one_predicate_drives_list_wip_and_delivery_together",
+      "tests/test_mcp_stdio.py::test_list_agents_groups_by_parent",
+      "tests/test_mcp_stdio.py::test_list_agents_optional_icons_failure_is_visible_success",
+      "tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools",
+      "tests/test_mcp_stdio.py::test_full_access_mode_preserves_all_tools",
+      "tests/test_mcp_stdio.py::test_unknown_access_mode_is_rejected",
+      "tests/test_prompting.py::test_real_default_pipeline_covers_every_role",
+      "tests/test_task_tracker_integration.py::test_t4_list_agents_carries_fresh_bounded_project_task_view"
+    ]
+  },
+  "list_orchestrators": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          25
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/skills/orchestra-agents.md",
+        "lines": [
+          26
+        ]
+      }
+    ],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          94,
+          1714
+        ]
+      },
+      {
+        "path": "app/routes/system.py",
+        "lines": [
+          2235
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1108,
+          1766,
+          2496,
+          3337,
+          3413
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "get_worker_logs": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          122,
+          287
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/worker.md",
+        "lines": [
+          9
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          2301,
+          2305
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          95,
+          1759
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1105,
+          1781,
+          2497,
+          3338,
+          3492
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools"
+    ]
+  },
+  "compact_worker": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          120,
+          298
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_mcp_codex_review.py",
+        "lines": [
+          294
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          23
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1775,
+          2403
+        ]
+      },
+      {
+        "path": "app/session.py",
+        "lines": [
+          289,
+          340
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1109,
+          1779,
+          1887,
+          2490,
+          3335,
+          3379
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_codex_review.py::test_compact_worker_description_is_runtime_specific"
+    ]
+  },
+  "kill_worker": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          121,
+          146
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+        "lines": [
+          8,
+          16
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/worker.md",
+        "lines": [
+          9
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          2058,
+          2075,
+          2301
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          21
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1788
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1103,
+          1769,
+          2488,
+          3328
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_stdio.py::test_kill_worker_force_param",
+      "tests/test_mcp_stdio.py::test_kill_worker_force_false_default",
+      "tests/test_mcp_stdio.py::test_read_only_access_mode_hides_mutating_tools"
+    ]
+  },
+  "stop_worker": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          121
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+        "lines": [
+          10,
+          16
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          21
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/manager.py",
+        "lines": [
+          1158
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1797
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          1447,
+          1496
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1104,
+          1770,
+          2489,
+          3329
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "rename_worker": {
+    "prompts": [],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/bg_jobs.py",
+        "lines": [
+          601
+        ]
+      },
+      {
+        "path": "app/db.py",
+        "lines": [
+          2239
+        ]
+      },
+      {
+        "path": "app/manager.py",
+        "lines": [
+          1839
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1806
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1110,
+          1771,
+          2491,
+          3330
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "file_delivery_status": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          102,
+          129,
+          131
+        ]
+      },
+      {
+        "path": "tests/test_tg_file_batch_route.py",
+        "lines": [
+          153
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          105,
+          1848,
+          1858,
+          1891,
+          1900,
+          1990,
+          1999,
+          2075,
+          2084
+        ]
+      },
+      {
+        "path": "app/tg_file_deliveries.py",
+        "lines": [
+          103,
+          115
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_stdio.py::test_send_file_200_without_matching_receipt_exposes_event_and_no_retry",
+      "tests/test_mcp_stdio.py::test_send_file_200_mismatched_receipt_keeps_structured_result",
+      "tests/test_tg_file_batch_route.py::test_media_group_timeout_marks_every_file_unknown_without_retry"
+    ]
+  },
+  "send_file": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          26
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/skills/html-artifacts.md",
+        "lines": [
+          132
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/route_surface_snapshot.json",
+        "lines": [
+          634
+        ]
+      },
+      {
+        "path": "tests/test_artifacts.py",
+        "lines": [
+          665,
+          744
+        ]
+      },
+      {
+        "path": "tests/test_charts.py",
+        "lines": [
+          294,
+          307,
+          309,
+          321
+        ]
+      },
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1476,
+          1504,
+          1530,
+          1543,
+          1547,
+          1566,
+          1582,
+          1596
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          73,
+          76,
+          90,
+          96,
+          113,
+          124,
+          169,
+          173,
+          182
+        ]
+      },
+      {
+        "path": "tests/test_tg_bridge.py",
+        "lines": [
+          73,
+          77,
+          4774,
+          4792
+        ]
+      },
+      {
+        "path": "tests/test_tg_file_batch_route.py",
+        "lines": [
+          59,
+          112
+        ]
+      },
+      {
+        "path": "tests/test_tg_file_deliveries.py",
+        "lines": [
+          240
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1929,
+          1966,
+          2016,
+          2053,
+          2102,
+          2107,
+          2154
+        ]
+      },
+      {
+        "path": "app/routes/artifacts.py",
+        "lines": [
+          136,
+          159,
+          171,
+          186
+        ]
+      },
+      {
+        "path": "app/routes/tg.py",
+        "lines": [
+          305
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1098,
+          1099,
+          1874,
+          1876,
+          2447,
+          2475,
+          2984,
+          2990,
+          3072,
+          3119
+        ]
+      },
+      {
+        "path": "app/tg_bridge.py",
+        "lines": [
+          2832,
+          2925,
+          2937
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file",
+      "tests/test_artifacts.py::test_t2_activation_failure_after_telegram_success_leaves_a_dead_link",
+      "tests/test_charts.py::test_send_chart_draws_and_sends_in_one_call",
+      "tests/test_charts.py::test_validation_error_never_reaches_telegram",
+      "tests/test_charts.py::test_delivery_failure_keeps_the_file_and_reports_its_path",
+      "tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions",
+      "tests/test_frontend.py::test_send_files_batch_renders_image_preview_and_lightbox",
+      "tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files",
+      "tests/test_frontend.py::test_send_file_single_keeps_existing_rendering",
+      "tests/test_mcp_stdio.py::test_send_file_accepts_legacy_synchronous_receipt_without_status_lookup",
+      "tests/test_mcp_stdio.py::test_send_file_200_without_matching_receipt_exposes_event_and_no_retry",
+      "tests/test_mcp_stdio.py::test_send_file_200_mismatched_receipt_keeps_structured_result",
+      "tests/test_mcp_stdio.py::test_t2_publish_failure_never_automatically_uses_document_fallback",
+      "tests/test_tg_bridge.py::test_t2_text_helper_threads_preview_disable_without_changing_document_fallback",
+      "tests/test_tg_bridge.py::test_read_image_uses_important_isolated_preview",
+      "tests/test_tg_file_batch_route.py::test_tg_send_file_route_dispatches_paths_to_batch_with_mirror",
+      "tests/test_tg_file_batch_route.py::test_tg_send_file_route_reports_atomic_batch_validation_failure",
+      "tests/test_tg_file_deliveries.py::test_send_files_mcp_posts_one_batch_event_without_wrapping_send_file"
+    ]
+  },
+  "send_files": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1476,
+          1504,
+          1530,
+          1543,
+          1547,
+          1566
+        ]
+      },
+      {
+        "path": "tests/test_tg_file_deliveries.py",
+        "lines": [
+          231,
+          232,
+          234
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2008
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1099,
+          1876,
+          2475,
+          2984,
+          3119
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions",
+      "tests/test_frontend.py::test_send_files_batch_renders_image_preview_and_lightbox",
+      "tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files",
+      "tests/test_tg_file_deliveries.py::test_send_files_mcp_posts_one_batch_event_without_wrapping_send_file"
+    ]
+  },
+  "publish_artifact": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          146,
+          147,
+          149,
+          175,
+          176,
+          179
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2093
+        ]
+      },
+      {
+        "path": "app/routes/artifacts.py",
+        "lines": [
+          120
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_stdio.py::test_t2_publish_artifact_sends_only_path_caption_and_ttl",
+      "tests/test_mcp_stdio.py::test_t2_publish_failure_never_automatically_uses_document_fallback"
+    ]
+  },
+  "send_chart": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_charts.py",
+        "lines": [
+          277,
+          295,
+          311,
+          323,
+          334,
+          335
+        ]
+      },
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1213
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/backend_codex.py",
+        "lines": [
+          353
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2114
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1836,
+          2466,
+          3011,
+          3012
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_charts.py::test_send_chart_draws_and_sends_in_one_call",
+      "tests/test_charts.py::test_validation_error_never_reaches_telegram",
+      "tests/test_charts.py::test_delivery_failure_keeps_the_file_and_reports_its_path",
+      "tests/test_charts.py::test_tool_is_registered_and_visible",
+      "tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt"
+    ]
+  },
+  "notify_user": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+        "lines": [
+          50
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1782,
+          1797,
+          1867,
+          2285
+        ]
+      },
+      {
+        "path": "tests/test_portfolio_attention_418.py",
+        "lines": [
+          100
+        ]
+      },
+      {
+        "path": "tests/test_tg_bridge.py",
+        "lines": [
+          4107,
+          4108,
+          4398
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2165,
+          2184,
+          2187
+        ]
+      },
+      {
+        "path": "app/static/js/app.js",
+        "lines": [
+          439
+        ]
+      },
+      {
+        "path": "app/tg_bridge.py",
+        "lines": [
+          140,
+          144,
+          155
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline",
+      "tests/test_portfolio_attention_418.py::test_attention_route_commits_before_bridge_marker_is_eligible"
+    ]
+  },
+  "update_progress": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/worker.md",
+        "lines": [
+          52
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          27
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          110,
+          2208
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          3216
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "change_worker_model": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          119
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_mcp_quota_gate.py",
+        "lines": [
+          204
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          23
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2219
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1111,
+          1772,
+          2492,
+          3331
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_quota_gate.py::test_change_model_is_control_action_even_when_target_bucket_blocked"
+    ]
+  },
+  "merge_worker": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/git-workflow.md",
+        "lines": [
+          7,
+          31
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          86,
+          119,
+          144,
+          154,
+          163,
+          166
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+        "lines": [
+          16
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/skills/codex-debate.md",
+        "lines": [
+          47
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_audit0901_mcp.py",
+        "lines": [
+          269,
+          293
+        ]
+      },
+      {
+        "path": "tests/test_cross_repo_warning.py",
+        "lines": [
+          38
+        ]
+      },
+      {
+        "path": "tests/test_default_pipeline.py",
+        "lines": [
+          486
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1682,
+          1717,
+          1752,
+          1781,
+          1806,
+          1835,
+          1854,
+          1870,
+          1905,
+          1929,
+          1934,
+          2360,
+          2397,
+          2416,
+          2446,
+          2474,
+          2497,
+          2522,
+          2562
+        ]
+      },
+      {
+        "path": "tests/test_merge_branch_drift.py",
+        "lines": [
+          246
+        ]
+      },
+      {
+        "path": "tests/test_merge_completion_watch.py",
+        "lines": [
+          40,
+          152
+        ]
+      },
+      {
+        "path": "tests/test_merge_progress_424.py",
+        "lines": [
+          49
+        ]
+      },
+      {
+        "path": "tests/test_merge_test_gate.py",
+        "lines": [
+          1002
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          21
+        ]
+      },
+      {
+        "path": "tests/test_task_tracker_integration.py",
+        "lines": [
+          834,
+          1973,
+          1983
+        ]
+      },
+      {
+        "path": "tests/test_work_review_jobs.py",
+        "lines": [
+          78
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          966,
+          2275,
+          2299,
+          2320,
+          2397,
+          2424,
+          2473,
+          2978,
+          4261
+        ]
+      },
+      {
+        "path": "app/merge_operations.py",
+        "lines": [
+          653
+        ]
+      },
+      {
+        "path": "app/merge_test_gate.py",
+        "lines": [
+          195
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          1769
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1113,
+          1774,
+          2494,
+          3333
+        ]
+      },
+      {
+        "path": "app/workspace.py",
+        "lines": [
+          396,
+          484,
+          1200,
+          1203,
+          2330
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_audit0901_mcp.py::test_recovered_failed_merge_keeps_its_confirmed_cause",
+      "tests/test_cross_repo_warning.py::test_foreign_repository_is_named_with_both_sides",
+      "tests/test_default_pipeline.py::test_canonical_contract_uses_single_work_acceptance",
+      "tests/test_mcp_stdio.py::test_merge_worker_with_next_task_id",
+      "tests/test_mcp_stdio.py::test_merge_worker_no_next_task_id",
+      "tests/test_mcp_stdio.py::test_merge_worker_partial_keeps_domain_result_without_protocol_error",
+      "tests/test_mcp_stdio.py::test_merge_worker_empty_timeout_returns_unknown_with_operation_id",
+      "tests/test_mcp_stdio.py::test_merge_worker_empty_connect_error_is_typed_and_nonempty",
+      "tests/test_mcp_stdio.py::test_merge_worker_invalid_json_outcome_is_typed_and_nonempty",
+      "tests/test_mcp_stdio.py::test_merge_worker_old_server_fails_closed_without_legacy_post",
+      "tests/test_mcp_stdio.py::test_merge_worker_unknown_dto_keeps_nonempty_detail",
+      "tests/test_mcp_stdio.py::test_merge_worker_formatter_exception_is_caught_with_operation_id",
+      "tests/test_mcp_stdio.py::test_merge_worker_empty_http_500_never_returns_empty_error",
+      "tests/test_mcp_stdio.py::test_merge_worker_waits_out_running_and_returns_the_outcome",
+      "tests/test_mcp_stdio.py::test_merge_worker_does_not_poll_when_already_terminal",
+      "tests/test_mcp_stdio.py::test_merge_worker_waits_even_when_a_completion_job_exists",
+      "tests/test_mcp_stdio.py::test_merge_worker_hands_a_slow_merge_to_the_background_job",
+      "tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure",
+      "tests/test_mcp_stdio.py::test_merge_worker_real_failure_still_reads_as_failure",
+      "tests/test_mcp_stdio.py::test_merge_warning_is_visible_in_the_tool_text",
+      "tests/test_merge_branch_drift.py::test_replay_of_same_operation_id_after_worker_moved_is_not_success",
+      "tests/test_merge_completion_watch.py::test_merge_mcp_waits_for_the_outcome_before_leaning_on_the_job",
+      "tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery",
+      "tests/test_merge_progress_424.py::test_running_snapshot_reflects_live_git_and_stage_progress",
+      "tests/test_merge_test_gate.py::test_renamed_file_reports_both_sides_so_the_gate_sees_the_removal",
+      "tests/test_task_tracker_integration.py::test_t2_taskless_adhoc_deadlock_promotes_head_then_merge_succeeds",
+      "tests/test_task_tracker_integration.py::test_t3_new_merge_client_refuses_an_old_server_capability",
+      "tests/test_work_review_jobs.py::test_mcp_refuses_old_server_that_would_ignore_expected_head"
+    ]
+  },
+  "resolve_merge_operation": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_audit0901_delivery.py",
+        "lines": [
+          10
+        ]
+      },
+      {
+        "path": "tests/test_mcp_resolve_operation_423.py",
+        "lines": [
+          28
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          2582,
+          2608
+        ]
+      },
+      {
+        "path": "tests/test_merge_operations.py",
+        "lines": [
+          1126,
+          1145
+        ]
+      },
+      {
+        "path": "tests/test_merge_recovery_wedge.py",
+        "lines": [
+          9,
+          230,
+          243
+        ]
+      },
+      {
+        "path": "tests/test_merge_stuck.py",
+        "lines": [
+          197,
+          204
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          25
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/backend_codex.py",
+        "lines": [
+          353
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2661
+        ]
+      },
+      {
+        "path": "app/merge_operations.py",
+        "lines": [
+          83
+        ]
+      },
+      {
+        "path": "app/routes/merge_operations.py",
+        "lines": [
+          121
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_mcp_resolve_operation_423.py::test_resolved_unknown_with_legacy_error_reaches_tool_as_success",
+      "tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_upgrade_required_on_old_server",
+      "tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_server_refusal",
+      "tests/test_merge_operations.py::test_blocking_next_action_names_the_allowed_action",
+      "tests/test_merge_operations.py::test_resolved_partial_lets_the_next_operation_start",
+      "tests/test_merge_recovery_wedge.py::test_resolving_an_unknown_operation_frees_its_task",
+      "tests/test_merge_stuck.py::test_primary_failure_blocks_until_it_is_explicitly_resolved"
+    ]
+  },
+  "switch_worker_branch": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          171
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_adhoc_switch.py",
+        "lines": [
+          342
+        ]
+      },
+      {
+        "path": "tests/test_lifecycle_quarantine_499.py",
+        "lines": [
+          137,
+          347,
+          357
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1953,
+          1972,
+          1992,
+          1994,
+          2013,
+          2040
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          22
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/manager.py",
+        "lines": [
+          1132,
+          1139
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2736,
+          2911
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          1809,
+          2910
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_adhoc_switch.py::test_gives_up_before_client_timeout_with_actionable_409",
+      "tests/test_lifecycle_quarantine_499.py::test_quarantined_delivery_is_refused_before_accept_and_wip_is_loud",
+      "tests/test_lifecycle_quarantine_499.py::test_switch_tool_reports_repair_and_idempotent_noop",
+      "tests/test_lifecycle_quarantine_499.py::test_legacy_merge_warning_names_the_exact_repair_call",
+      "tests/test_mcp_stdio.py::test_switch_and_wip_defaults_defer_to_persisted_base",
+      "tests/test_mcp_stdio.py::test_switch_worker_branch_forwards_explicit_force",
+      "tests/test_mcp_stdio.py::test_t2_switch_worker_branch_forwards_explicit_promotion",
+      "tests/test_mcp_stdio.py::test_switch_worker_branch_forwards_owned_dirs_json",
+      "tests/test_mcp_stdio.py::test_switch_worker_branch_renders_failure_without_new_contract"
+    ]
+  },
+  "check_conflict": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          178
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          22
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          96,
+          2798
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "worker_wip": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          85,
+          145
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/worker-lifecycle.md",
+        "lines": [
+          9
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/skills/codex-debate.md",
+        "lines": [
+          47,
+          53
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1655,
+          1738,
+          1739
+        ]
+      },
+      {
+        "path": "tests/test_identity_drift.py",
+        "lines": [
+          354
+        ]
+      },
+      {
+        "path": "tests/test_lifecycle_quarantine_499.py",
+        "lines": [
+          132,
+          234
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          1954
+        ]
+      },
+      {
+        "path": "tests/test_merge_branch_drift.py",
+        "lines": [
+          365
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          97,
+          2326,
+          2494,
+          2496,
+          2814
+        ]
+      },
+      {
+        "path": "app/merge_operations.py",
+        "lines": [
+          983,
+          1026,
+          1130,
+          1132,
+          1289,
+          1443,
+          1697,
+          2116,
+          2120
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          2105
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers",
+      "tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later",
+      "tests/test_identity_drift.py::test_third_branch_state_is_refused_and_names_both_records",
+      "tests/test_lifecycle_quarantine_499.py::test_quarantined_delivery_is_refused_before_accept_and_wip_is_loud",
+      "tests/test_lifecycle_quarantine_499.py::test_one_predicate_drives_list_wip_and_delivery_together",
+      "tests/test_mcp_stdio.py::test_switch_and_wip_defaults_defer_to_persisted_base",
+      "tests/test_merge_branch_drift.py::test_finalize_action_no_longer_forbids_verification"
+    ]
+  },
+  "report_bug": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          27
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          289
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/route_surface_snapshot.json",
+        "lines": [
+          358,
+          364
+        ]
+      },
+      {
+        "path": "tests/test_api.py",
+        "lines": [
+          544,
+          550,
+          553,
+          699
+        ]
+      },
+      {
+        "path": "tests/test_bug_report_notify.py",
+        "lines": [
+          64,
+          170,
+          174,
+          201
+        ]
+      },
+      {
+        "path": "tests/test_static_compression.py",
+        "lines": [
+          54,
+          64,
+          192,
+          196
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2876,
+          2892
+        ]
+      },
+      {
+        "path": "app/notify.py",
+        "lines": [
+          93,
+          113,
+          150,
+          154
+        ]
+      },
+      {
+        "path": "app/routes/system.py",
+        "lines": [
+          2184,
+          2197,
+          2211,
+          2214,
+          2219,
+          2225
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1097,
+          1908,
+          2370,
+          3066
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_api.py::test_publish_read_and_private_modes",
+      "tests/test_api.py::test_empty_exception_text_still_returns_class",
+      "tests/test_bug_report_notify.py::test_report_survives_a_failed_notification",
+      "tests/test_bug_report_notify.py::test_cross_project_report_goes_to_the_platform_owner",
+      "tests/test_static_compression.py::test_markdown_stream_survives_compression_whole"
+    ]
+  },
+  "update_worker_description": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          123
+        ]
+      }
+    ],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2897
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1112,
+          1773,
+          2493,
+          3332
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "set_worker_owned_dirs": {
+    "prompts": [],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2906
+        ]
+      },
+      {
+        "path": "app/routes/sessions.py",
+        "lines": [
+          1508
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "update_worker_prompt": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_hot_apply.py",
+        "lines": [
+          123
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          22
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2947
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_hot_apply.py::test_t1_guard_custom_full_prompt_is_not_overwritten_by_rebuild"
+    ]
+  },
+  "get_worker_info": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/fixtures/mcp/tool_scoping_probe.py",
+        "lines": [
+          37,
+          54,
+          57
+        ]
+      },
+      {
+        "path": "tests/test_manager.py",
+        "lines": [
+          3499,
+          3501,
+          3502,
+          3504,
+          3507
+        ]
+      },
+      {
+        "path": "tests/test_tool_scoping.py",
+        "lines": [
+          58,
+          60,
+          61,
+          77,
+          81,
+          82,
+          86
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          98,
+          2956
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1106,
+          1782,
+          1890,
+          2498,
+          3136,
+          3279
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_manager.py::test_worker_disabled_tools_survive_create_and_identity_refresh",
+      "tests/test_tool_scoping.py::test_role_and_worker_union",
+      "tests/test_tool_scoping.py::test_persistence_and_old_rows"
+    ]
+  },
+  "project_goal": {
+    "prompts": [],
+    "tests": [
+      {
+        "path": "tests/test_portfolio_tools_418.py",
+        "lines": [
+          28,
+          31,
+          114,
+          115
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          3000,
+          3069
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_portfolio_tools_418.py::test_project_goal_and_wait_use_durable_portfolio_routes",
+      "tests/test_portfolio_tools_418.py::test_portfolio_tools_are_full_access_only_and_search_memory_stays_registered"
+    ]
+  },
+  "project_wait": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/roles/orchestrator.md",
+        "lines": [
+          45
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_portfolio_tools_418.py",
+        "lines": [
+          33,
+          114,
+          116
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          2179,
+          2187,
+          3077,
+          3113,
+          3119
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_portfolio_tools_418.py::test_project_goal_and_wait_use_durable_portfolio_routes",
+      "tests/test_portfolio_tools_418.py::test_portfolio_tools_are_full_access_only_and_search_memory_stays_registered"
+    ]
+  },
+  "task_create": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          32,
+          36,
+          126
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+        "lines": [
+          7,
+          22,
+          24
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_acceptance.py",
+        "lines": [
+          526
+        ]
+      },
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          1653,
+          2991,
+          3035,
+          3271,
+          3331,
+          3439,
+          3511
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          596,
+          662,
+          728,
+          755,
+          784,
+          785
+        ]
+      },
+      {
+        "path": "tests/test_merge_target_oracle_386.py",
+        "lines": [
+          244,
+          253
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          24
+        ]
+      },
+      {
+        "path": "tests/test_task_tracker_integration.py",
+        "lines": [
+          2062
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          992,
+          1524,
+          3126,
+          3138,
+          3172
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1085,
+          1759,
+          1853,
+          2499,
+          3136,
+          3147,
+          3324
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers",
+      "tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call",
+      "tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls",
+      "tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details",
+      "tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title",
+      "tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback",
+      "tests/test_mcp_stdio.py::test_task_create_returns_fields_needed_by_dashboard_card",
+      "tests/test_mcp_stdio.py::test_task_create_omits_project_to_use_callers_scope",
+      "tests/test_mcp_stdio.py::test_task_create_admits_exact_session_scope_when_tm_project_is_stale",
+      "tests/test_mcp_stdio.py::test_task_create_rejects_scope_absent_from_session_and_projects",
+      "tests/test_mcp_stdio.py::test_task_create_keeps_caller_scope_and_registered_project_authorization",
+      "tests/test_merge_target_oracle_386.py::test_t386_t1_worker_cannot_create_update_clear_or_narrow_oracle_bundle",
+      "tests/test_task_tracker_integration.py::test_t3_agent_task_tools_cannot_override_platform_lifecycle"
+    ]
+  },
+  "task_create_status": {
+    "prompts": [],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          3171
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "task_update": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          126
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+        "lines": [
+          8
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_api.py",
+        "lines": [
+          2281,
+          2299,
+          2313,
+          2395,
+          2409,
+          2422,
+          2446,
+          2466,
+          2481
+        ]
+      },
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          3372,
+          3441,
+          3535
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          623,
+          624,
+          625,
+          637,
+          813,
+          833,
+          852,
+          875,
+          878,
+          895,
+          896
+        ]
+      },
+      {
+        "path": "tests/test_merge_target_oracle_386.py",
+        "lines": [
+          245,
+          247,
+          265
+        ]
+      },
+      {
+        "path": "tests/test_portfolio_tools_418.py",
+        "lines": [
+          77,
+          101
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          24
+        ]
+      },
+      {
+        "path": "tests/test_task_tracker_integration.py",
+        "lines": [
+          710,
+          2058
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          1524,
+          3186,
+          3203
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1090,
+          1761,
+          2500,
+          3136,
+          3170,
+          3324
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_api.py::test_switch_persistence_failure_quarantines_and_does_not_update_task",
+      "tests/test_api.py::test_switch_failure_restores_previous_lifecycle_and_does_not_update_task",
+      "tests/test_api.py::test_switch_rollback_failure_persists_quarantine_for_detached_reload",
+      "tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title",
+      "tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback",
+      "tests/test_mcp_stdio.py::test_task_update_distinguishes_omitted_and_explicitly_cleared_command",
+      "tests/test_mcp_stdio.py::test_task_update_empty_ordinary_fields_do_not_enter_put_body",
+      "tests/test_mcp_stdio.py::test_task_get_and_update_prefer_explicit_project_over_scope",
+      "tests/test_mcp_stdio.py::test_task_get_and_update_fall_back_to_authoritative_scope",
+      "tests/test_mcp_stdio.py::test_task_update_sends_orchestrator_acceptance_command_in_caller_scope",
+      "tests/test_mcp_stdio.py::test_task_update_empty_acceptance_is_omitted_and_clear_is_explicit",
+      "tests/test_mcp_stdio.py::test_worker_task_update_cannot_change_acceptance_command",
+      "tests/test_merge_target_oracle_386.py::test_t386_t1_worker_cannot_create_update_clear_or_narrow_oracle_bundle",
+      "tests/test_portfolio_tools_418.py::test_task_update_can_link_without_changing_task_binding",
+      "tests/test_portfolio_tools_418.py::test_task_update_error_never_falls_through_to_portfolio_link",
+      "tests/test_task_tracker_integration.py::test_t3_complete_merge_atomically_links_and_closes_current_task",
+      "tests/test_task_tracker_integration.py::test_t3_agent_task_tools_cannot_override_platform_lifecycle"
+    ]
+  },
+  "task_list": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          126
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+        "lines": [
+          9
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          3391,
+          3442,
+          3547
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          99,
+          1630,
+          3200,
+          3261,
+          3281
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1130,
+          1762,
+          1859,
+          2504,
+          3136,
+          3228
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title",
+      "tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback"
+    ]
+  },
+  "task_get": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/orchestration.md",
+        "lines": [
+          126
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/task-management.md",
+        "lines": [
+          10
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_frontend.py",
+        "lines": [
+          3352,
+          3440,
+          3523
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          812,
+          832
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          100,
+          3280
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1133,
+          1760,
+          1856,
+          2512,
+          3136,
+          3147
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title",
+      "tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback",
+      "tests/test_mcp_stdio.py::test_task_get_and_update_prefer_explicit_project_over_scope",
+      "tests/test_mcp_stdio.py::test_task_get_and_update_fall_back_to_authoritative_scope"
+    ]
+  },
+  "bg_create": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          33,
+          34,
+          35
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/background-jobs.md",
+        "lines": [
+          3,
+          11,
+          15
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/code-quality.md",
+        "lines": [
+          28
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/dynamic-workflows.md",
+        "lines": [
+          20
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_backend_codex.py",
+        "lines": [
+          1947
+        ]
+      },
+      {
+        "path": "tests/test_bash_completion.py",
+        "lines": [
+          17
+        ]
+      },
+      {
+        "path": "tests/test_mcp_stdio.py",
+        "lines": [
+          2335,
+          2772,
+          2776
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/backend_claude.py",
+        "lines": [
+          394
+        ]
+      },
+      {
+        "path": "app/harness/tools.py",
+        "lines": [
+          176,
+          433
+        ]
+      },
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          3290
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1134,
+          1775,
+          2513,
+          3339
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_bash_completion.py::test_timeout_retains_partial_output_and_names_outer_budget",
+      "tests/test_mcp_stdio.py::test_bg_create_cron_command_sends_fail_closed_type",
+      "tests/test_mcp_stdio.py::test_idle_watch_is_self_only"
+    ]
+  },
+  "bg_list": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          33
+        ]
+      }
+    ],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          101,
+          3345
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1135,
+          2514,
+          3136,
+          3263
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "bg_cancel": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/base.md",
+        "lines": [
+          33
+        ]
+      },
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/background-jobs.md",
+        "lines": [
+          9
+        ]
+      }
+    ],
+    "tests": [],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          3416
+        ]
+      },
+      {
+        "path": "app/static/js/chat.js",
+        "lines": [
+          1136,
+          1783,
+          1885,
+          2515,
+          3340
+        ]
+      }
+    ],
+    "test_functions": []
+  },
+  "search_memory": {
+    "prompts": [
+      {
+        "path": ".orchestra/pipelines/default/prompts/modules/knowledge.md",
+        "lines": [
+          22
+        ]
+      }
+    ],
+    "tests": [
+      {
+        "path": "tests/test_file_memory_search.py",
+        "lines": [
+          65
+        ]
+      },
+      {
+        "path": "tests/test_portfolio_tools_418.py",
+        "lines": [
+          114
+        ]
+      },
+      {
+        "path": "tests/test_reducer_role.py",
+        "lines": [
+          27
+        ]
+      },
+      {
+        "path": "tests/test_search_deadline.py",
+        "lines": [
+          1,
+          44
+        ]
+      },
+      {
+        "path": "tests/test_tool_scoping.py",
+        "lines": [
+          41,
+          47,
+          48,
+          51
+        ]
+      }
+    ],
+    "code": [
+      {
+        "path": "app/mcp_stdio.py",
+        "lines": [
+          45,
+          102,
+          112,
+          3425,
+          3431,
+          3445,
+          3446
+        ]
+      }
+    ],
+    "test_functions": [
+      "tests/test_file_memory_search.py::test_mcp_search_preserves_source_area_and_matching_line",
+      "tests/test_portfolio_tools_418.py::test_portfolio_tools_are_full_access_only_and_search_memory_stays_registered",
+      "tests/test_tool_scoping.py::test_worker_policy_and_stable_catalog"
+    ]
+  }
+}

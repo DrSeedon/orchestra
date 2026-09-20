@@ -1,0 +1,255 @@
+{
+  "modes": [
+    {
+      "mode": "full",
+      "tools": 45,
+      "before_sum": 7323,
+      "after_sum": 5860,
+      "before_array": 7325,
+      "after_array": 5862
+    },
+    {
+      "mode": "read-only",
+      "tools": 14,
+      "before_sum": 894,
+      "after_sum": 894,
+      "before_array": 896,
+      "after_array": 896
+    },
+    {
+      "mode": "reducer",
+      "tools": 4,
+      "before_sum": 315,
+      "after_sum": 370,
+      "before_array": 317,
+      "after_array": 372
+    }
+  ],
+  "harness": [
+    {
+      "name": "spawn_worker",
+      "before": 656,
+      "after": 407
+    },
+    {
+      "name": "delivery_status",
+      "before": 60,
+      "after": 60
+    },
+    {
+      "name": "retry_initial_delivery",
+      "before": 93,
+      "after": 93
+    },
+    {
+      "name": "acquire_test_lock",
+      "before": 169,
+      "after": 169
+    },
+    {
+      "name": "release_test_lock",
+      "before": 59,
+      "after": 59
+    },
+    {
+      "name": "test_lock_status",
+      "before": 50,
+      "after": 50
+    },
+    {
+      "name": "send_message",
+      "before": 103,
+      "after": 158
+    },
+    {
+      "name": "message_delivery_status",
+      "before": 61,
+      "after": 61
+    },
+    {
+      "name": "open_fan",
+      "before": 137,
+      "after": 137
+    },
+    {
+      "name": "list_agents",
+      "before": 45,
+      "after": 45
+    },
+    {
+      "name": "list_orchestrators",
+      "before": 55,
+      "after": 55
+    },
+    {
+      "name": "get_worker_logs",
+      "before": 69,
+      "after": 69
+    },
+    {
+      "name": "compact_worker",
+      "before": 111,
+      "after": 111
+    },
+    {
+      "name": "kill_worker",
+      "before": 86,
+      "after": 86
+    },
+    {
+      "name": "stop_worker",
+      "before": 69,
+      "after": 69
+    },
+    {
+      "name": "rename_worker",
+      "before": 69,
+      "after": 69
+    },
+    {
+      "name": "file_delivery_status",
+      "before": 63,
+      "after": 63
+    },
+    {
+      "name": "send_file",
+      "before": 242,
+      "after": 175
+    },
+    {
+      "name": "send_files",
+      "before": 210,
+      "after": 184
+    },
+    {
+      "name": "publish_artifact",
+      "before": 99,
+      "after": 99
+    },
+    {
+      "name": "send_chart",
+      "before": 584,
+      "after": 261
+    },
+    {
+      "name": "notify_user",
+      "before": 424,
+      "after": 191
+    },
+    {
+      "name": "update_progress",
+      "before": 77,
+      "after": 77
+    },
+    {
+      "name": "change_worker_model",
+      "before": 76,
+      "after": 76
+    },
+    {
+      "name": "merge_worker",
+      "before": 446,
+      "after": 290
+    },
+    {
+      "name": "resolve_merge_operation",
+      "before": 157,
+      "after": 157
+    },
+    {
+      "name": "switch_worker_branch",
+      "before": 227,
+      "after": 227
+    },
+    {
+      "name": "check_conflict",
+      "before": 102,
+      "after": 102
+    },
+    {
+      "name": "worker_wip",
+      "before": 100,
+      "after": 100
+    },
+    {
+      "name": "report_bug",
+      "before": 261,
+      "after": 153
+    },
+    {
+      "name": "update_worker_description",
+      "before": 78,
+      "after": 78
+    },
+    {
+      "name": "set_worker_owned_dirs",
+      "before": 357,
+      "after": 129
+    },
+    {
+      "name": "update_worker_prompt",
+      "before": 71,
+      "after": 71
+    },
+    {
+      "name": "get_worker_info",
+      "before": 66,
+      "after": 66
+    },
+    {
+      "name": "project_goal",
+      "before": 237,
+      "after": 237
+    },
+    {
+      "name": "project_wait",
+      "before": 167,
+      "after": 167
+    },
+    {
+      "name": "task_create",
+      "before": 315,
+      "after": 315
+    },
+    {
+      "name": "task_create_status",
+      "before": 76,
+      "after": 76
+    },
+    {
+      "name": "task_update",
+      "before": 423,
+      "after": 423
+    },
+    {
+      "name": "task_list",
+      "before": 81,
+      "after": 81
+    },
+    {
+      "name": "task_get",
+      "before": 73,
+      "after": 73
+    },
+    {
+      "name": "bg_create",
+      "before": 482,
+      "after": 354
+    },
+    {
+      "name": "bg_list",
+      "before": 39,
+      "after": 39
+    },
+    {
+      "name": "bg_cancel",
+      "before": 54,
+      "after": 54
+    },
+    {
+      "name": "search_memory",
+      "before": 114,
+      "after": 114
+    }
+  ]
+}
