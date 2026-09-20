@@ -1,10 +1,11 @@
-"""Контракт корневых правил: ровно один корневой файл, бюджет и полное оглавление KB.
+"""Контракт корневых правил: один файл, симлинк рядом, бюджет и полное оглавление KB.
 
-Codex читает `AGENTS.md` сам, Claude Code — модом `agents-md`, включённым на машине
-(`~/.claude/mods`, `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1`); проверено прогоном с
-отключёнными файловыми инструментами и положительным контролем. Пока рядом лежал второй
-корневой файл, он дважды разъехался с источником, и один раз Claude-агенты работали на
-устаревших правилах владельца. Тест сторожит отсутствие второго файла, а не равенство байтов.
+Claude Code CLI с модом `agents-md` читает `AGENTS.md` сам, но наши Claude-сессии идут не
+через CLI, а через Agent SDK (воркеры Orchestra и бот Кеши), и SDK грузит только `CLAUDE.md`:
+ни `setting_sources`, ни `plugins` мод туда не приносят (прогон 20.09.2026). Codex читает
+только `AGENTS.md`. Пока рядом лежали две КОПИИ, они дважды разъехались, и один раз
+Claude-агенты не видели правил владельца. Симлинк разойтись не может физически — тест
+сторожит именно его, а не равенство байтов.
 """
 import os
 import shutil
@@ -21,6 +22,7 @@ REPO = Path(__file__).resolve().parents[1]
 @pytest.fixture
 def root(tmp_path):
     shutil.copy(REPO / "AGENTS.md", tmp_path / "AGENTS.md")
+    (tmp_path / "CLAUDE.md").symlink_to("AGENTS.md")
     kb = tmp_path / ".orchestra" / "kb"
     kb.mkdir(parents=True)
     for topic in (REPO / ".orchestra" / "kb").glob("*.md"):
@@ -33,32 +35,38 @@ def _run(root: Path):
                           capture_output=True, text=True)
 
 
-def test_single_root_file_passes(root):
+def test_symlink_beside_the_source_passes(root):
     assert _run(root).returncode == 0
 
 
-def test_copy_beside_the_source_is_rejected(root):
+def test_copy_instead_of_symlink_is_rejected(root):
     """Копия — это второй источник правды: он разъедется, и никто не заметит."""
-    (root / "CLAUDE.md").write_text((root / "AGENTS.md").read_text(encoding="utf-8"),
-                                    encoding="utf-8")
+    link = root / "CLAUDE.md"
+    link.unlink()
+    link.write_text((root / "AGENTS.md").read_text(encoding="utf-8"), encoding="utf-8")
 
     result = _run(root)
 
     assert result.returncode == 1
-    # Не просто «упало»: проверка обязана назвать причину. Ловушка, на которую я попался
-    # в прошлой редакции: pytest кладёт tmp_path в каталог с именем теста, и подстрока
-    # находилась в ПУТИ из сообщения об ошибке — тест зеленел на любом падении.
-    assert "must not exist beside" in result.stderr
+    # Не просто «упало»: проверка обязана назвать причину. Ловушка, на которую я попался:
+    # pytest кладёт tmp_path в каталог с именем теста, и подстрока "symlink" находилась
+    # в ПУТИ из сообщения об ошибке — тест зеленел на любом падении.
+    assert "must be a symlink" in result.stderr
 
 
-def test_symlink_beside_the_source_is_rejected(root):
-    """Симлинк тоже запрещён: правила читаются из AGENTS.md напрямую."""
-    (root / "CLAUDE.md").symlink_to("AGENTS.md")
+def test_missing_link_is_rejected(root):
+    """Без CLAUDE.md Claude-агенты остаются вообще без правил проекта — молча."""
+    (root / "CLAUDE.md").unlink()
 
-    result = _run(root)
+    assert _run(root).returncode == 1
 
-    assert result.returncode == 1
-    assert "must not exist beside" in result.stderr
+
+def test_link_pointing_elsewhere_is_rejected(root):
+    (root / "other.md").write_text("# чужие правила", encoding="utf-8")
+    (root / "CLAUDE.md").unlink()
+    (root / "CLAUDE.md").symlink_to("other.md")
+
+    assert _run(root).returncode == 1
 
 
 def test_oversized_rules_are_rejected(root):
