@@ -436,35 +436,24 @@ class TestUpstreamCharacterization:
         assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
 
 
-class TestRiskBasedReviewRouting:
-    """#296: one policy owner, explicit consumers, no silent old-Sol fallback."""
+class TestFrozenModelReview:
+    """Модельное ревью заморожено владельцем 20.09.2026 вместе с тулом codex_review.
 
-    POINTER = "Apply the review decision gate in the `codex-debate` skill"
-    ACTORS = ("orchestrator", "sub-orchestrator", "worker", "full-cycle")
-    STALE = (
-        "Codex review MANDATORY for complex tasks",
-        "Размер диффа основанием для пропуска ревью не является ни в каком случае",
-        "Codex follows the worker role's review gate",
-    )
+    От прежнего класса осталась одна проверка — механика, а не формулировки: скилл не
+    должен доехать ни до одной роли. Остальные тесты этого класса сверяли дословные
+    фразы политики ревью и покраснели ровно тогда, когда владелец эту политику отменил;
+    такие тесты у нас запрещены, поэтому они удалены, а не подогнаны под новый текст.
+    """
 
-    def test_every_review_decision_maker_receives_skill_and_gate(self):
-        for role in ("worker", "full-cycle"):
-            spec = P.get_role(PIPELINE, role)
-            assert "codex-debate" in spec.skills, f"{role}: cannot load canonical review policy"
-            out = P.build_system_prompt(PIPELINE, role)
-            assert out.count(self.POINTER) == 1, f"{role}: review gate missing or duplicated"
+    ROLES = ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer")
 
-        for role in ("orchestrator", "sub-orchestrator"):
-            assert "codex-debate" not in P.get_role(PIPELINE, role).skills
-            assert "never launch or resume model review" in P.build_system_prompt(PIPELINE, role)
+    def test_no_role_carries_the_frozen_review_skill(self):
+        for role in self.ROLES:
+            assert "codex-debate" not in P.get_role(PIPELINE, role).skills, (
+                f"{role}: заморожённый скилл ревью вернулся в манифест")
 
-        reducer = P.get_role(PIPELINE, "reducer")
-        assert "codex-debate" not in reducer.skills
-        assert self.POINTER not in P.build_system_prompt(PIPELINE, "reducer")
-
-    def test_policy_has_one_tracked_source(self):
-        owner = P.prompt_path(PIPELINE, "skills/codex-debate.md")
-        assert owner.read_text().count("## Review decision gate — canonical policy") == 1
+    def test_native_copy_stays_untracked(self):
+        """Вторая копия политики в git = второй владелец правил, который разъедется."""
         repo = Path(__file__).parents[1]
         tracked_native_copy = subprocess.run(
             ["git", "ls-files", "--", ".codex/skills/codex-debate/SKILL.md"],
@@ -473,32 +462,8 @@ class TestRiskBasedReviewRouting:
             text=True,
             check=True,
         ).stdout.strip()
-        assert tracked_native_copy == "", (
-            "native .codex copy must stay a reconnect-time projection, not a second owner"
-        )
+        assert tracked_native_copy == ""
 
-    def test_canonical_contract_uses_single_work_acceptance(self):
-        policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
-        for anchor in (
-            "**advisory не означает APPROVED.**",
-            "**Отдельная аттестация и skip-квитанция не нужны.**",
-            "**Серверный бюджет — три попытки на задачу, включая неудавшиеся.**",
-            "merge_worker(expected_head=...",
-        ):
-            assert policy.count(anchor) == 1
-
-    def test_canonical_skill_exposes_direct_luna_review_and_luna_default(self):
-        policy = P.prompt_path(PIPELINE, "skills/codex-debate.md").read_text()
-        assert 'codex_review(model="gpt5.6luna", ...)' in policy
-        assert "серверный default — Luna" in policy
-        assert "`codex_review` — Sol-only" not in policy
-        assert "`codex_review` запускает только Sol" not in policy
-
-    def test_assembled_prompts_drop_stale_mandatory_sol_wording(self):
-        for role in self.ACTORS:
-            out = P.build_system_prompt(PIPELINE, role)
-            for stale in self.STALE:
-                assert stale not in out, f"{role}: stale review route survived: {stale!r}"
 
 # ── validate_spawn: fail-open + can_spawn=['*'] + allow_unrouted_workers ────
 
