@@ -297,12 +297,16 @@ def test_compact_worker_description_is_runtime_specific():
     assert ">80%" not in description
 
 
-def test_codex_review_tool_schema_requires_project_context():
+def test_codex_review_is_not_callable_while_frozen():
+    """Заморожено владельцем 20.09.2026: ни один агент не должен ВИДЕТЬ этот тул.
+
+    Ломается ровно тогда, когда кто-то вернёт декоратор `@mcp.tool()`, не сняв заморозку
+    в манифесте ролей и промптах. Тело функции и остальные тесты файла сохранены: разморозка
+    — это возврат декоратора и строк про `codex-debate`, а не написание тула заново.
+    """
     import app.mcp_stdio as mcp
 
-    tool = next(t for t in mcp.mcp._tool_manager.list_tools() if t.name == "codex_review")
-    assert tool.parameters["required"] == ["context"]
-    assert "Project calibration is loaded from the reviewed repo" in tool.description
+    assert [t.name for t in mcp.mcp._tool_manager.list_tools() if t.name == "codex_review"] == []
 
 
 @pytest.mark.asyncio

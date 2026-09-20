@@ -1,6 +1,8 @@
 ---
 name: codex-debate
-description: "Optional executor-owned review: one focused second opinion, a server-enforced task budget, and advisory findings. Work is accepted by commit and tests, without outcome signatures or skip receipts."
+description: "ЗАМОРОЖЕНО владельцем 20.09.2026: модельное ревью выключено, тул codex_review не зарегистрирован. Не вызывать и не искать замену."
+# прежнее описание, вернуть вместе с тулом:
+# description: "Optional executor-owned review: one focused second opinion, a server-enforced task budget, and advisory findings. Work is accepted by commit and tests, without outcome signatures or skip receipts."
 ---
 
 # Review Routing

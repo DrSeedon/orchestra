@@ -114,7 +114,7 @@ async def test_tracked_codex_file_enables_visible_prompt_fallback(tmp_path):
     assert len(fallback_logs) == 1
     backend = session._make_backend()
     assert backend.system_prompt.count("## Available skills (progressive loading)") == 1
-    assert backend.system_prompt.count("- `codex-debate`") == 1
+    assert backend.system_prompt.count("- `laptop-access`") == 1
     assert len(backend.system_prompt) < 16_100
     assert (repo / ".codex").read_bytes() == before
     status = subprocess.run(
