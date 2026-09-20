@@ -1,0 +1,4 @@
+tool_name                     pending  waiting_next_turn  end_turn  n   
+----------------------------  -------  -----------------  --------  ----
+mcp__orchestra__merge_worker  154      0                  0         191 
+mcp__orchestra__send_message  0        0                  0         1073

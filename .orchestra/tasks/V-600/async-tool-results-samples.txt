@@ -1,0 +1,34 @@
+===send_message
+Message accepted to 'cog-second-brain-orchestrator'; delivery_id=b7acdcc7-2352-48b3-ae0e-028995bfc314; state=QUEUED.
+Message accepted to 'cog-second-brain-orchestrator'; delivery_id=91ab918f-df9a-4186-8266-4aaf01b4a70d; state=QUEUED.
+Message accepted to 'balatro-vps'; delivery_id=0fe1028e-6e6e-4731-90bc-1fea81922b96; state=QUEUED.
+===send_file
+File accepted; event_id=11f88d51-ffbf-49ea-a6b3-670af57471c4; state=QUEUED. Check with file_delivery_status('11f88d51-ffbf-49ea-a6b3-670af57471c4'); do not retry with a new id.
+File accepted; event_id=d95eef98-25c1-48a2-8d51-f1fedb4bbb6a; state=QUEUED. Check with file_delivery_status('d95eef98-25c1-48a2-8d51-f1fedb4bbb6a'); do not retry with a new id.
+File accepted; event_id=96ef2dab-f3bc-4c3a-8585-0fc526522572; state=QUEUED. Check with file_delivery_status('96ef2dab-f3bc-4c3a-8585-0fc526522572'); do not retry with a new id.
+===send_files
+Files accepted; event_id=8af33aaf-9613-4be9-888a-921f935ec537; state=QUEUED; 1 files. Check with file_delivery_status('8af33aaf-9613-4be9-888a-921f935ec537'); do not retry with a new id.
+Files accepted; event_id=b584417f-0d72-4354-8080-af1a3e35bae3; state=QUEUED; 3 files. Check with file_delivery_status('b584417f-0d72-4354-8080-af1a3e35bae3'); do not retry with a new id.
+Files accepted; event_id=621d918e-e705-49d9-b487-b450c4e293b7; state=QUEUED; 2 files. Check with file_delivery_status('621d918e-e705-49d9-b487-b450c4e293b7'); do not retry with a new id.
+===spawn_worker
+Worker 'audit-mcp-tools' spawned. Model: luna. Task accepted. delivery_id=1736e7c5-4d65-47c0-8718-28845119e1d9; state=QUEUED. Check delivery status with delivery_status('1736e7c5-4d65-47c0-8718-28845119e1d9') or GET /api/initial-deliveries/1736e7c5-4d65-47c0-8718-28845119e1d9.
+Worktree: /home/kesha/orchestra/worktrees/home-kesha-orchestra/audit-mcp-tools
+Repository: /home/kesha/orchestra
+Git common dir: /home/kesha/orchestra/.git
+Branch: task-V-600/audit-mcp-tools
+Task: #V-600 [in_progress]
+Worker 'balatro-perf' spawned. Model: luna. Task accepted. delivery_id=fae99cf2-8663-41fe-bfa3-d1e2f856951d; state=QUEUED. Check delivery status with delivery_status('fae99cf2-8663-41fe-bfa3-d1e2f856951d') or GET /api/initial-deliveries/fae99cf2-8663-41fe-bfa3-d1e2f856951d.
+Worktree: /home/kesha/orchestra/worktrees/opt-cog-second-brain/balatro-perf
+Repository: /opt/cog-second-brain
+Git common dir: /opt/cog-second-brain/.git
+Branch: task-V-30/balatro-perf
+Task: #V-30 [in_progress]
+Worker 'audit-rules-dupes' spawned. Model: luna. Task accepted. delivery_id=824e5506-2cab-42d2-978b-fbd0fc85cdf5; state=QUEUED. Check delivery status with delivery_status('824e5506-2cab-42d2-978b-fbd0fc85cdf5') or GET /api/initial-deliveries/824e5506-2cab-42d2-978b-fbd0fc85cdf5.
+Worktree: /home/kesha/orchestra/worktrees/home-kesha-orchestra/audit-rules-dupes
+Repository: /home/kesha/orchestra
+Git common dir: /home/kesha/orchestra/.git
+Branch: task-V-598/audit-rules-dupes
+Task: #V-598 [in_progress]
+===notify_user
+ATTENTION_DURABLE:dde82e85-3546-4aef-b2f9-119a36726c93
+{"ok": true, "event_id": "dde82e85-3546-4aef-b2f9-119a36726c93", "kind": "incident", "reason": "Пароль от сайта лежал в открытом виде в публичном репозитории и остаётся в истории git — нужна смена пароля, это твоё решение", "project_id": null, "created_at": "2026-09-19T07:49:58.196990+00:00"}
