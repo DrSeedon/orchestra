@@ -1,0 +1,248 @@
+[
+ {
+  "screen": "Страница входа",
+  "control_detected": true,
+  "collected": 6,
+  "findings": []
+ },
+ {
+  "screen": "Дашборд: основной вид",
+  "control_detected": true,
+  "collected": 126,
+  "findings": []
+ },
+ {
+  "screen": "Левая панель: задачи",
+  "control_detected": true,
+  "collected": 127,
+  "findings": []
+ },
+ {
+  "screen": "Левая панель: фоновые задания",
+  "control_detected": true,
+  "collected": 127,
+  "findings": []
+ },
+ {
+  "screen": "Окно: новый оркестратор",
+  "control_detected": true,
+  "collected": 135,
+  "findings": []
+ },
+ {
+  "screen": "Окно: каталог моделей",
+  "control_detected": true,
+  "collected": 175,
+  "findings": []
+ },
+ {
+  "screen": "Окно: аналитика расхода",
+  "control_detected": true,
+  "collected": 213,
+  "findings": []
+ },
+ {
+  "screen": "Окно: активность агентов",
+  "control_detected": true,
+  "collected": 129,
+  "findings": []
+ },
+ {
+  "screen": "Окно: системная подсказка",
+  "control_detected": true,
+  "collected": 127,
+  "findings": []
+ },
+ {
+  "screen": "Окно: сведения о клиенте",
+  "control_detected": true,
+  "collected": 153,
+  "findings": []
+ },
+ {
+  "screen": "Панель: профили Claude",
+  "control_detected": true,
+  "collected": 131,
+  "findings": []
+ },
+ {
+  "screen": "Окно: удаление оркестратора",
+  "control_detected": true,
+  "collected": 133,
+  "findings": []
+ },
+ {
+  "screen": "Окно: смена папки",
+  "control_detected": true,
+  "collected": 135,
+  "findings": []
+ },
+ {
+  "screen": "Окно: просмотр файла",
+  "control_detected": true,
+  "collected": 131,
+  "findings": []
+ },
+ {
+  "screen": "Чат: карточки инструментов, обычный вид",
+  "control_detected": true,
+  "collected": 304,
+  "findings": []
+ },
+ {
+  "screen": "Чат: карточки инструментов, компактный вид",
+  "control_detected": true,
+  "collected": 258,
+  "findings": []
+ },
+ {
+  "screen": "Чат: субагенты и фоновые задачи",
+  "control_detected": true,
+  "collected": 144,
+  "findings": []
+ },
+ {
+  "screen": "Чат: служебные плашки состояния",
+  "control_detected": true,
+  "collected": 167,
+  "findings": []
+ },
+ {
+  "screen": "Чат: сообщения от агентов и платформы",
+  "control_detected": true,
+  "collected": 136,
+  "findings": []
+ },
+ {
+  "screen": "Чат: карточка задачи",
+  "control_detected": true,
+  "collected": 153,
+  "findings": []
+ },
+ {
+  "screen": "Чат: ошибки инструментов",
+  "control_detected": true,
+  "collected": 151,
+  "findings": []
+ },
+ {
+  "screen": "Чат: живая активность Codex",
+  "control_detected": true,
+  "collected": 126,
+  "findings": []
+ },
+ {
+  "screen": "Баннер связи: перезапуск",
+  "control_detected": true,
+  "collected": 124,
+  "findings": []
+ },
+ {
+  "screen": "Баннер связи: восстановление",
+  "control_detected": true,
+  "collected": 124,
+  "findings": []
+ },
+ {
+  "screen": "Баннер связи: нет связи",
+  "control_detected": true,
+  "collected": 124,
+  "findings": []
+ },
+ {
+  "screen": "Баннер связи: связь нестабильна",
+  "control_detected": true,
+  "collected": 126,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика: агенты",
+  "control_detected": true,
+  "collected": 160,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика: эффективность",
+  "control_detected": true,
+  "collected": 149,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика: надёжность",
+  "control_detected": true,
+  "collected": 173,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика с данными: пулы и расходы",
+  "control_detected": true,
+  "collected": 213,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика с данными: агенты",
+  "control_detected": true,
+  "collected": 160,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика с данными: эффективность",
+  "control_detected": true,
+  "collected": 149,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика с данными: надёжность",
+  "control_detected": true,
+  "collected": 173,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика с данными: разбор по агенту",
+  "control_detected": true,
+  "collected": 160,
+  "findings": []
+ },
+ {
+  "screen": "Аналитика с данными: фильтр без совпадений",
+  "control_detected": true,
+  "collected": 160,
+  "findings": []
+ },
+ {
+  "screen": "Полоса расхода: данные провайдеров",
+  "control_detected": true,
+  "collected": 124,
+  "findings": []
+ },
+ {
+  "screen": "Полоса расхода: данные недоступны",
+  "control_detected": true,
+  "collected": 91,
+  "findings": []
+ },
+ {
+  "screen": "Левая панель: не удалось загрузить задачи",
+  "control_detected": true,
+  "collected": 92,
+  "findings": []
+ },
+ {
+  "screen": "Левая панель: не удалось загрузить задания",
+  "control_detected": true,
+  "collected": 92,
+  "findings": []
+ },
+ {
+  "screen": "Окно нового оркестратора: ошибка ввода",
+  "control_detected": true,
+  "collected": 101,
+  "findings": []
+ },
+ {
+  "screen": "Профили: ошибка ввода",
+  "control_detected": true,
+  "collected": 97,
+  "findings": []
+ }
+]
