@@ -13,7 +13,9 @@ def watch_db(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_merge_mcp_returns_immediately_only_with_durable_completion(monkeypatch):
+async def test_merge_mcp_waits_for_the_outcome_before_leaning_on_the_job(monkeypatch):
+    """Мерж синхронный (решение владельца 20.09.2026): фоновое задание — страховка,
+    а не повод отвечать PENDING. Ждём исход внутри вызова, в фон уходит только долгий."""
     from app import mcp_stdio as m
     from app.routes import merge_operations as route
     from app.bg_jobs import bg_manager
@@ -33,10 +35,12 @@ async def test_merge_mcp_returns_immediately_only_with_durable_completion(monkey
         response = await route.create_merge_operation(kwargs["json"])
         return json.loads(response.body)
     monkeypatch.setattr(m, "_api", api)
-    wait = AsyncMock(side_effect=AssertionError("durable completion must not poll"))
+    wait = AsyncMock(side_effect=lambda op, res, budget=0: res)
     monkeypatch.setattr(m, "_await_merge_terminal", wait)
     result = await m.merge_worker("worker")
     assert result.isError is False
+    assert wait.await_count == 1, "нетерминальный ответ обязан быть дождан внутри вызова"
+    assert wait.await_args.kwargs["budget"] == m._MERGE_SYNC_WAIT_SECONDS
     assert result.structuredContent["result"]["completion"]["job_id"] == "bg-test"
     assert "Do not poll" in result.content[0].text
     assert create.call_args.kwargs["target_session_id"] == "caller-id"

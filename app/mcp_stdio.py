@@ -2403,15 +2403,41 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
 # длинных вызовов (compact_worker=120 с, spawn=180 с).
 _MERGE_WAIT_SECONDS = 90.0
 
+# Сколько ждём, когда сервер УЖЕ завёл фоновое задание на доставку исхода. Тут потолок
+# низкий сознательно: за ним стоит страховка, и вызывающий ничего не теряет, уйдя в фон.
+# Решение владельца 20.09.2026: мерж — синхронный тул, и только долгий уходит в фон.
+# Замер по 398 операциям с 06.09: 326 (82%) укладываются в 10 с, 374 (94%) — в 90 с,
+# хвост уходит за 40 минут, поэтому ждать «до конца» нельзя ни при каком потолке.
+_MERGE_SYNC_WAIT_SECONDS = 10.0
 
-async def _await_merge_terminal(operation_id: str, result: dict[str, Any]) -> dict[str, Any]:
+
+async def _cancel_completion_job(job_id: str) -> bool:
+    """Снять фоновое задание, чей исход уже отдан синхронно. Провал не ломает вызов.
+
+    Не снять его — значит разбудить агента сообщением, которое он уже прочитал в ответе
+    тула: лишний ход, а не потеря данных, поэтому ошибка здесь не поднимается.
+    """
+    try:
+        await _api("DELETE", f"/api/bg/jobs/{job_id}")
+        return True
+    except Exception as exc:  # noqa: BLE001 — исход мержа важнее судьбы страховочного задания
+        logger.info(f"merge_worker: completion job {job_id} not cancelled: {err_text(exc)}")
+        return False
+
+
+async def _await_merge_terminal(
+    operation_id: str, result: dict[str, Any], budget: float | None = None,
+) -> dict[str, Any]:
     """Дождаться терминального состояния, чтобы один вызов давал один ответ.
 
     Прежний бюджет был 2 с (0.0+0.5+1.5), а 9 операций из 31 (29%) шли дольше —
     вызывающий получал RUNNING на РАБОТАЮЩЕМ мерже и рапортовал провал.
     """
+    # Значение по умолчанию берём в момент ВЫЗОВА: константа в сигнатуре связывается при
+    # импорте, и тест, подменяющий потолок, молча получил бы старое число.
+    budget = _MERGE_WAIT_SECONDS if budget is None else budget
     loop = asyncio.get_running_loop()
-    deadline = loop.time() + _MERGE_WAIT_SECONDS
+    deadline = loop.time() + budget
     delay = 0.2
     while True:
         remaining = deadline - loop.time()
@@ -2454,12 +2480,13 @@ async def merge_worker(
     expected_head: str = "",
     acceptance_note: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch. Long merges deliver their outcome via a background job.
+    """Durably squash a worker branch. The call WAITS for the outcome and returns it.
 
-    A reply starting with "STILL RUNNING" is NOT a failure: the merge is still going on the
-    server and nothing was lost. If a completion job is registered, end the turn or do
-    independent work; the outcome wakes you automatically. Otherwise follow the response's
-    same-operation recovery instructions. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
+    Most merges finish inside the call (82% within 10 s, measured on 398 operations). Only a
+    slow one answers "STILL RUNNING" and hands the outcome to a background job that wakes you
+    later — that reply is NOT a failure and nothing was lost: end the turn or do independent
+    work instead of polling. Otherwise follow the response's same-operation recovery
+    instructions. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
 
     Reusing operation_id picks up THAT operation, not the worker's current state: if the
     worker moved to another branch meanwhile, the call is refused and names the actual
@@ -2603,12 +2630,18 @@ async def merge_worker(
                         details={"exception_type": type(api_error).__name__, **api_error.details},
                     )
         completion = result.get("completion") or {}
-        if result.get("operation_state") in {"PENDING", "RUNNING"} and not (
-            completion.get("mode") == "background" and completion.get("job_id")
-        ):
+        job_id = (
+            str(completion.get("job_id") or "")
+            if completion.get("mode") == "background" else ""
+        )
+        if result.get("operation_state") in {"PENDING", "RUNNING"}:
             result = await _await_merge_terminal(
                 str(result.get("operation_id") or operation_id), result,
+                budget=_MERGE_SYNC_WAIT_SECONDS if job_id else _MERGE_WAIT_SECONDS,
             )
+            if job_id and result.get("operation_state") not in {"PENDING", "RUNNING"}:
+                if await _cancel_completion_job(job_id):
+                    result.pop("completion", None)
         return _merge_tool_result(result)
     except Exception as exc:
         result = _merge_local_result(
