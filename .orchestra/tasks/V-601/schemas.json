@@ -1,0 +1,1838 @@
+[
+  {
+    "name": "spawn_worker",
+    "description": "Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).\n    base_branch — от какой локальной ветки ответвить worktree. Пусто (\"\") = авто по\n    стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.\n    При неоднозначности spawn требует явную ветку.\n    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {\"name\": {\"command\": ..., \"args\": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ \"orchestra\" игнорируется. Переживает рестарт.\n    owned_dirs — необязательный JSON-массив ожидаемых рабочих директорий, например [\"app/api/\", \"tests/\"]. Это ориентир для координации, не запрет менять другие нужные задаче файлы. Пересечения допустимы в отдельных worktree.\n    disabled_tools — exact Orchestra tool names to disable for this worker, persisted across restart. Adds to role bans; calls return tool_disabled.\n    tg_topic — если True, агент получит собственный TG топик для логов и сообщений.\n    task_id — номер СУЩЕСТВУЮЩЕЙ задачи, взятый из ответа `task_create`; выдуманный номер\n    и номер, взятый из имени каталога, дают отказ и уносят весь текст задания. Одна задача\n    держится одним воркером: для второго исполнителя на том же задании заводится отдельная\n    задача, иначе спавн будет отбит.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "repo_path": {
+          "title": "Repo Path",
+          "type": "string"
+        },
+        "model": {
+          "default": "",
+          "title": "Model",
+          "type": "string"
+        },
+        "system_prompt": {
+          "default": "",
+          "title": "System Prompt",
+          "type": "string"
+        },
+        "task_id": {
+          "default": "",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "base_branch": {
+          "default": "",
+          "title": "Base Branch",
+          "type": "string"
+        },
+        "role": {
+          "default": "worker",
+          "title": "Role",
+          "type": "string"
+        },
+        "mcp_servers": {
+          "default": "",
+          "title": "Mcp Servers",
+          "type": "string"
+        },
+        "owned_dirs": {
+          "default": "",
+          "title": "Owned Dirs",
+          "type": "string"
+        },
+        "tg_topic": {
+          "default": false,
+          "title": "Tg Topic",
+          "type": "boolean"
+        },
+        "delivery_id": {
+          "default": "",
+          "title": "Delivery Id",
+          "type": "string"
+        },
+        "disabled_tools": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Disabled Tools"
+        }
+      },
+      "required": [
+        "name",
+        "task",
+        "repo_path"
+      ],
+      "title": "spawn_workerArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "spawn_workerOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "delivery_status",
+    "description": "Look up one durable initial-task delivery by its immutable id.",
+    "inputSchema": {
+      "properties": {
+        "delivery_id": {
+          "title": "Delivery Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "delivery_id"
+      ],
+      "title": "delivery_statusArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "delivery_statusDictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "retry_initial_delivery",
+    "description": "Retry one known-not-sent initial task, preserving its delivery id and payload key.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "task": {
+          "title": "Task",
+          "type": "string"
+        },
+        "delivery_id": {
+          "title": "Delivery Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "task",
+        "delivery_id"
+      ],
+      "title": "retry_initial_deliveryArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "retry_initial_deliveryDictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "acquire_test_lock",
+    "description": "Захватить ГЛОБАЛЬНЫЙ эксклюзивный лок на ПОЛНЫЙ прогон тестов (фулл-сьют) для проекта.\n    Бери его ТОЛЬКО перед полным прогоном и ТОЛЬКО с согласия PM. Узкие тесты этапа лока НЕ требуют.\n    Занято другим агентом → вернётся отказ с именем держателя — НЕ запускай фулл-сьют, жди и попробуй позже.\n    Всегда вызывай release_test_lock() после прогона.",
+    "inputSchema": {
+      "properties": {
+        "reason": {
+          "default": "",
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "title": "acquire_test_lockArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "acquire_test_lockOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "release_test_lock",
+    "description": "Освободить глобальный тест-лок (если ты его держишь). Вызывай сразу после полного прогона.",
+    "inputSchema": {
+      "properties": {},
+      "title": "release_test_lockArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "release_test_lockOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "test_lock_status",
+    "description": "Кто сейчас держит глобальный тест-лок проекта (или свободен).",
+    "inputSchema": {
+      "properties": {},
+      "title": "test_lock_statusArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "test_lock_statusOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "send_message",
+    "description": "Send a message to any agent by name. Triggers a new turn.",
+    "inputSchema": {
+      "properties": {
+        "to": {
+          "title": "To",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "delivery_id": {
+          "default": "",
+          "title": "Delivery Id",
+          "type": "string"
+        },
+        "file_path": {
+          "default": "",
+          "title": "File Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "to",
+        "message"
+      ],
+      "title": "send_messageArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "send_messageOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "message_delivery_status",
+    "description": "Look up one direct-message delivery by its immutable id.",
+    "inputSchema": {
+      "properties": {
+        "delivery_id": {
+          "title": "Delivery Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "delivery_id"
+      ],
+      "title": "message_delivery_statusArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "message_delivery_statusDictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "open_fan",
+    "description": "Low-level compatibility entry: open a barrier without launching workers.\n\n    For new one-shot parallel jobs use scripts/wf_run.py via a background run job.\n    This tool remains for old connected clients and specialized reducers.\n    ",
+    "inputSchema": {
+      "properties": {
+        "children": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Children",
+          "type": "array"
+        },
+        "deadline_seconds": {
+          "default": 1800.0,
+          "title": "Deadline Seconds",
+          "type": "number"
+        },
+        "reducer": {
+          "default": "",
+          "title": "Reducer",
+          "type": "string"
+        }
+      },
+      "required": [
+        "children"
+      ],
+      "title": "open_fanArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "open_fanOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_agents",
+    "description": "List all agents in your project (orchestrators and workers).",
+    "inputSchema": {
+      "properties": {},
+      "title": "list_agentsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_agentsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_orchestrators",
+    "description": "List ALL orchestrators across all projects. Use to find agents you can talk to from other projects.",
+    "inputSchema": {
+      "properties": {},
+      "title": "list_orchestratorsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "list_orchestratorsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_worker_logs",
+    "description": "Get recent logs from a worker.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "limit": {
+          "default": 20,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "get_worker_logsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_worker_logsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "compact_worker",
+    "description": "Manually compact an idle worker's context. Codex compacts natively in the same thread;\n    Claude creates a summary, reconnects fresh, and retains that handoff. This is a manual escape\n    hatch, not the auto-compact policy. Returns the runtime result; may take 30-60s.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "compact_workerArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "compact_workerOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "kill_worker",
+    "description": "Stop and archive a worker. Blocked if worker has uncommitted changes or unmerged commits — pass force=True to override.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "kill_workerArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "kill_workerOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "stop_worker",
+    "description": "Interrupt a worker and set it to idle. Worktree and session are preserved — can be resumed later with send_message.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "stop_workerArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "stop_workerOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "rename_worker",
+    "description": "Rename a worker agent.",
+    "inputSchema": {
+      "properties": {
+        "old_name": {
+          "title": "Old Name",
+          "type": "string"
+        },
+        "new_name": {
+          "title": "New Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "old_name",
+        "new_name"
+      ],
+      "title": "rename_workerArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "rename_workerOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "file_delivery_status",
+    "description": "Look up one durable Telegram file delivery by its immutable event id.",
+    "inputSchema": {
+      "properties": {
+        "event_id": {
+          "title": "Event Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "event_id"
+      ],
+      "title": "file_delivery_statusArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "additionalProperties": true,
+      "title": "file_delivery_statusDictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "send_file",
+    "description": "Accept a file for durable Telegram delivery and return its status id.\n\n    Limits are OURS, not the public 50 MB cloud cap: deliveries go through a local\n    Bot API server. A document may be up to 2000 MB, and 200 MB is measured as\n    actually delivered (#V-544, 11.09.2026) — send the file, do not substitute a\n    link because you remember a smaller public limit.\n    An image above 10 MB is sent as a document: Telegram's photo cap is 10 485 760\n    bytes and the local server does NOT raise it. This is automatic; as_document\n    only forces a document for smaller images.\n    ",
+    "inputSchema": {
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "as_document": {
+          "default": false,
+          "title": "As Document",
+          "type": "boolean"
+        },
+        "event_id": {
+          "default": "",
+          "title": "Event Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "send_fileArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "send_fileOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "send_files",
+    "description": "Accept an ordered file batch for durable Telegram album delivery.\n\n    Same limits as send_file: up to 2000 MB per document through our local Bot API\n    (200 MB measured, #V-544), and any image above 10 485 760 bytes travels as a\n    document because Telegram's photo cap is not raised locally. One album holds\n    at most 10 files of one kind; longer batches are split automatically, so a\n    heavy image lands in its own group instead of failing the whole album.\n    ",
+    "inputSchema": {
+      "properties": {
+        "paths": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "as_document": {
+          "default": false,
+          "title": "As Document",
+          "type": "boolean"
+        },
+        "event_id": {
+          "default": "",
+          "title": "Event Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "paths"
+      ],
+      "title": "send_filesArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "send_filesOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "publish_artifact",
+    "description": "Publish a private immutable HTML artifact; document fallback stays explicit.",
+    "inputSchema": {
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        },
+        "ttl_seconds": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ttl Seconds"
+        }
+      },
+      "required": [
+        "path"
+      ],
+      "title": "publish_artifactArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "publish_artifactOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "send_chart",
+    "description": "Draw a chart from data and send it to the user's Telegram as a picture. One call.\n\n    Use it when the point is a SHAPE the reader should see: before/after across several\n    categories, values spanning orders of magnitude, a series over time, or a final state\n    in 2-4 numbers. Do not use it for a single number, a yes/no verdict, a list of files\n    or a status line — those read better as one line of text.\n\n    title — the punchline in words. Do NOT put numbers about the data in it: the tool\n    computes a factual line from what it actually drew and prints it under the title.\n\n    kind and the shape of `data`:\n      \"bars\"     — compare categories. Linear scale.\n      \"bars_log\" — same, when values differ by 100× or more (log scale; zero renders as\n                   an explicit \"0\", negatives are rejected).\n        {\"unit\": \"МБ\", \"categories\": [\"1 сут\", \"год\"],\n         \"series\": [{\"name\": \"до\", \"values\": [0.18, 4.25], \"tone\": \"bad\"},\n                    {\"name\": \"после\", \"values\": [0.17, 0.86], \"tone\": \"good\"}]}\n      \"series\"   — values over time; data gaps are detected and shaded, never bridged.\n        {\"unit\": \"%\", \"series\": [{\"name\": \"5h\", \"points\": [[\"2026-08-01T10:00:00\", 12.3]]}]}\n      \"cards\"    — 2 to 4 big numbers as a final state. Values are strings.\n        {\"metrics\": [{\"label\": \"на диске\", \"value\": \"401\", \"note\": \"5.54 МБ\"},\n                     {\"label\": \"в индексе\", \"value\": \"315\", \"tone\": \"bad\"}]}\n\n    tone is optional: \"good\" | \"bad\" | \"neutral\" (default: palette colour by index).\n    Limits, enforced loudly: 2-8 categories, <=3 bar series, <=3 lines, <=4 cards.\n    ",
+    "inputSchema": {
+      "properties": {
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "data": {
+          "additionalProperties": true,
+          "title": "Data",
+          "type": "object"
+        },
+        "caption": {
+          "default": "",
+          "title": "Caption",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "title",
+        "data"
+      ],
+      "title": "send_chartArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "send_chartOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "notify_user",
+    "description": "Дёрнуть юзера тегом в Telegram на границе ЭТОГО хода. Только для оркестраторов.\n\n    Молчание — нормальный режим: без этого вызова тега не будет, и это не забывчивость.\n    СНАЧАЛА recency gate: НЕ зови, если юзер сам начал текущий ход, написал сообщение\n    во время хода или писал последние 10 минут. Он уже смотрит — обычного ответа достаточно.\n    Зови после долгой/фоновой работы, когда юзер ушёл и должен вернуться: нужно его РЕШЕНИЕ\n    (развилка, которую ты не вправе закрыть сам); ВЫВОД РАЗВЕРНУЛСЯ (сделали не то, о чём\n    договаривались, или отозвано ранее сказанное); ИНЦИДЕНТ на живых системах; РЕЗУЛЬТАТ\n    с числом, меняющий план. НЕ зови на блокеры ревью, мержи, статусы, промежуточные шаги,\n    «воркер начал/закончил» — на это он смотреть не хочет.\n\n    `reason` — одна короткая фраза, ЗАЧЕМ дёрнули; она уедет юзеру вместе с тегом.\n    kind: legacy | incident | reversal | plan_change. Решения пользователя фиксируются\n    только через project_wait — kind=waiting здесь запрещён. `project` опционален.\n    Тег ставится один раз за ход, только после durable result marker.\n    ",
+    "inputSchema": {
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "project": {
+          "default": "",
+          "title": "Project",
+          "type": "string"
+        },
+        "kind": {
+          "default": "legacy",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reason"
+      ],
+      "title": "notify_userArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "notify_userOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_progress",
+    "description": "Update task progress. percent: 0-100, status: short description of current step.",
+    "inputSchema": {
+      "properties": {
+        "percent": {
+          "title": "Percent",
+          "type": "integer"
+        },
+        "status": {
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "percent",
+        "status"
+      ],
+      "title": "update_progressArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_progressOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "change_worker_model",
+    "description": "Change an idle worker's model and start a fresh dialog on the target runtime.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "model": {
+          "title": "Model",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "model"
+      ],
+      "title": "change_worker_modelArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "change_worker_modelOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "merge_worker",
+    "description": "Durably squash a worker branch. The call WAITS for the outcome and returns it.\n\n    Most merges finish inside the call (82% within 10 s, measured on 398 operations). Only a\n    slow one answers \"STILL RUNNING\" and hands the outcome to a background job that wakes you\n    later — that reply is NOT a failure and nothing was lost: end the turn or do independent\n    work instead of polling. Otherwise follow the response's same-operation recovery\n    instructions. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.\n\n    Reusing operation_id picks up THAT operation, not the worker's current state: if the\n    worker moved to another branch meanwhile, the call is refused and names the actual\n    branch — start a new operation without operation_id. Verifying what actually landed\n    (target branch, worker_wip) is always expected and never counts as merging manually.\n\n    New work: inspect worker_wip, then pass its exact expected_head and acceptance_note.\n    The note is your acceptance decision and includes the reason for no model review when absent.\n    No separate review-outcome or attestation is required for new assignments.\n    waive_diff_budget: orchestrator-only. Skip the insertion ceiling for this merge.\n    The result records diff_budget_waived so the bypass is visible after the fact.\n    ",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "target": {
+          "default": "",
+          "title": "Target",
+          "type": "string"
+        },
+        "next_task_id": {
+          "default": "",
+          "title": "Next Task Id",
+          "type": "string"
+        },
+        "operation_id": {
+          "default": "",
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "waive_diff_budget": {
+          "default": false,
+          "title": "Waive Diff Budget",
+          "type": "boolean"
+        },
+        "task_outcome": {
+          "default": "",
+          "title": "Task Outcome",
+          "type": "string"
+        },
+        "expected_head": {
+          "default": "",
+          "title": "Expected Head",
+          "type": "string"
+        },
+        "acceptance_note": {
+          "default": "",
+          "title": "Acceptance Note",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "merge_workerArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "resolve_merge_operation",
+    "description": "Close a PARTIAL/UNKNOWN merge operation you have already reconciled.\n\n    This is the ONLY way to unblock merges for a worker held by such an operation.\n    Reconcile FIRST (check what actually landed in the target branch), then call this\n    with what you found in `reason`. The operation keeps its state as the record; only\n    the block is lifted. SUCCEEDED/FAILED operations are refused — they block nothing.\n    ",
+    "inputSchema": {
+      "properties": {
+        "operation_id": {
+          "title": "Operation Id",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        }
+      },
+      "required": [
+        "operation_id",
+        "reason"
+      ],
+      "title": "resolve_merge_operationArguments",
+      "type": "object"
+    }
+  },
+  {
+    "name": "switch_worker_branch",
+    "description": "After merge, switch worker to a new branch for a new task.\n    from_ref — optional local base override; empty uses the worker's persisted base.\n    force=True explicitly discards committed content not verified in the base.\n    promote_current=True preserves and assigns committed taskless adhoc work.\n    owned_dirs — optional JSON array replacing the worker's ownership on a new task;\n    omitted or [] clears it.\n    Worker must be idle with clean working tree.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "task_id": {
+          "title": "Task Id",
+          "type": "string"
+        },
+        "from_ref": {
+          "default": "",
+          "title": "From Ref",
+          "type": "string"
+        },
+        "force": {
+          "default": false,
+          "title": "Force",
+          "type": "boolean"
+        },
+        "promote_current": {
+          "default": false,
+          "title": "Promote Current",
+          "type": "boolean"
+        },
+        "owned_dirs": {
+          "default": "",
+          "title": "Owned Dirs",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "task_id"
+      ],
+      "title": "switch_worker_branchArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "switch_worker_branchOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "check_conflict",
+    "description": "Dry-run: would merging these two workers' branches conflict? Both must have committed work.\n    Use to decide merge order or whether two parallel workers collided. No changes made.",
+    "inputSchema": {
+      "properties": {
+        "worker_a": {
+          "title": "Worker A",
+          "type": "string"
+        },
+        "worker_b": {
+          "title": "Worker B",
+          "type": "string"
+        }
+      },
+      "required": [
+        "worker_a",
+        "worker_b"
+      ],
+      "title": "check_conflictArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "check_conflictOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "worker_wip",
+    "description": "Show a worker's WIP: uncommitted files + unmerged commits. Call before resuming to see what's left.\n    Empty base_ref uses the worker's persisted base branch.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "base_ref": {
+          "default": "",
+          "title": "Base Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "worker_wipArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "worker_wipOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "report_bug",
+    "description": "Report an Orchestra platform bug immediately; do not ask for approval.\n\n    ``description`` is complete only when it contains every field below:\n    - Location: exact file:line, function, and commit.\n    - Error (verbatim): original text; include stop_reason, HTTP/status code, or tool result.\n    - Exception class: exact class ALWAYS (``N/A`` only when no exception object exists).\n      Some exceptions such as ``httpx.ReadTimeout`` stringify to empty text.\n    - Reproduction: exact steps or command.\n    - Ruled out: checks already run and causes excluded.\n    - Resource impact: turns/tokens/cost/counts, or N/A when none.\n    - Environment: model, runtime, version/commit, and project.\n\n    Missing trace = not reported. Project-code bugs go to ``.orchestra/tasks/<id>/`` and\n    the orchestrator instead of this tool.\n    ",
+    "inputSchema": {
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title",
+        "description"
+      ],
+      "title": "report_bugArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "report_bugOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_worker_description",
+    "description": "Update a worker's description. Use to set/change the role description shown in list_agents.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "description"
+      ],
+      "title": "update_worker_descriptionArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_worker_descriptionOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "set_worker_owned_dirs",
+    "description": "Change which directories a worker owns, WITHOUT moving it to a new branch.\n\n    Use when the worker keeps its current task and branch but the boundary was wrong,\n    too narrow, or points at paths that no longer exist. To hand a worker a NEW task,\n    use `switch_worker_branch` instead — it changes branch, task and ownership in one\n    step; this tool touches ownership only.\n\n    owned_dirs — JSON array, e.g. `[\"app/api/\", \"tests/\"]`. An empty array (`[]`)\n    REMOVES ownership, after which the worker is bounded by its task, not by dirs.\n    Overlap with another live worker in the same scope is a blocking error, same as\n    at spawn: pick different dirs or kill the other worker first.\n\n    Applies to `idle` workers only. A `running` or `waiting` worker is REFUSED with\n    its status — nothing is changed and the call is safe to repeat once it goes idle.\n    That is deliberate: its current turn is already editing files under the present\n    boundary, and rewriting the contract underneath it would be a silent change.\n\n    Both owners are updated together — the stored ownership list and the \"Directory\n    ownership\" block of the worker's system prompt. The worker sees the new block on\n    its next turn.\n    ",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "owned_dirs": {
+          "title": "Owned Dirs",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "owned_dirs"
+      ],
+      "title": "set_worker_owned_dirsArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "set_worker_owned_dirsOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "update_worker_prompt",
+    "description": "Update a worker's custom system prompt.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "system_prompt": {
+          "title": "System Prompt",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "system_prompt"
+      ],
+      "title": "update_worker_promptArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "update_worker_promptOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_worker_info",
+    "description": "Get full worker info including system_prompt, description, model, status, context, task_id.",
+    "inputSchema": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "get_worker_infoArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "get_worker_infoOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "project_goal",
+    "description": "Read or advance a durable project-owned goal.\n\n    Actions: get, set, progress, pause, resume, complete, cancel, watchdog.\n    `set` needs objective. `progress` accepts note. Policy actions are owner-only;\n    contributors may get/progress. The server atomically updates revision, generation\n    and activity lease, which is why this is a tool rather than a file edit.\n    ",
+    "inputSchema": {
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "action": {
+          "default": "get",
+          "title": "Action",
+          "type": "string"
+        },
+        "objective": {
+          "default": "",
+          "title": "Objective",
+          "type": "string"
+        },
+        "goal_id": {
+          "default": "",
+          "title": "Goal Id",
+          "type": "string"
+        },
+        "note": {
+          "default": "",
+          "title": "Note",
+          "type": "string"
+        },
+        "watchdog_enabled": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Watchdog Enabled"
+        },
+        "stall_after_seconds": {
+          "default": 0,
+          "title": "Stall After Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "project"
+      ],
+      "title": "project_goalArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "project_goalOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "project_wait",
+    "description": "Open, resolve or cancel a durable project blocker without tagging the user.\n\n    `open` needs question; `resolve`/`cancel` need wait_id. Owner and explicit\n    sub-orchestrator contributors are allowed. The server owns authenticated membership,\n    goal suppression and duplicate-safe claim CAS.\n    ",
+    "inputSchema": {
+      "properties": {
+        "project": {
+          "title": "Project",
+          "type": "string"
+        },
+        "action": {
+          "title": "Action",
+          "type": "string"
+        },
+        "question": {
+          "default": "",
+          "title": "Question",
+          "type": "string"
+        },
+        "wait_id": {
+          "default": "",
+          "title": "Wait Id",
+          "type": "string"
+        },
+        "task_ref": {
+          "default": "",
+          "title": "Task Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "project",
+        "action"
+      ],
+      "title": "project_waitArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "project_waitOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "task_create",
+    "description": "Create a new task. Returns task number and details.\n    project: registered project scope or id; omitted uses the caller's mapped scope.\n    price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).\n    priority: 0=critical, 1=high, 2=medium (default), 3=low.\n    status: lifecycle statuses (in_progress/done) are platform-owned and rejected.",
+    "inputSchema": {
+      "properties": {
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "project": {
+          "default": "",
+          "title": "Project",
+          "type": "string"
+        },
+        "price": {
+          "default": 0,
+          "title": "Price",
+          "type": "integer"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "assignee": {
+          "default": "",
+          "title": "Assignee",
+          "type": "string"
+        },
+        "status": {
+          "default": "new",
+          "title": "Status",
+          "type": "string"
+        },
+        "priority": {
+          "default": 2,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "acceptance_command": {
+          "default": "",
+          "title": "Acceptance Command",
+          "type": "string"
+        },
+        "acceptance_manifest": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acceptance Manifest"
+        },
+        "acceptance_required": {
+          "default": false,
+          "title": "Acceptance Required",
+          "type": "boolean"
+        },
+        "request_key": {
+          "default": "",
+          "title": "Request Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "title"
+      ],
+      "title": "task_createArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "task_createOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "task_create_status",
+    "description": "Resolve a task_create outcome after a timeout without creating another task.",
+    "inputSchema": {
+      "properties": {
+        "request_key": {
+          "title": "Request Key",
+          "type": "string"
+        },
+        "project": {
+          "default": "",
+          "title": "Project",
+          "type": "string"
+        }
+      },
+      "required": [
+        "request_key"
+      ],
+      "title": "task_create_statusArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "task_create_statusOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "task_update",
+    "description": "Update an existing task. Only provided fields are changed.\n    par: '42' or 'PAR-42' (legacy). price in exact currency units (-1 = don't change, 0 = set to zero).\n    Empty string = don't change for text fields. priority: 0-3 or -1=don't change.\n    acceptance_command is orchestrator-only; empty means don't change.\n    clear_acceptance_command=true explicitly clears it.\n    project: explicit project returned by task_list; omitted uses the caller's mapped scope.\n    portfolio_project: optional authoritative human project to link this task to.\n    status: lifecycle statuses (in_progress/done) are platform-owned and rejected.",
+    "inputSchema": {
+      "properties": {
+        "par": {
+          "title": "Par",
+          "type": "string"
+        },
+        "title": {
+          "default": "",
+          "title": "Title",
+          "type": "string"
+        },
+        "description": {
+          "default": "",
+          "title": "Description",
+          "type": "string"
+        },
+        "price": {
+          "default": -1,
+          "title": "Price",
+          "type": "integer"
+        },
+        "status": {
+          "default": "",
+          "title": "Status",
+          "type": "string"
+        },
+        "assignee": {
+          "default": "",
+          "title": "Assignee",
+          "type": "string"
+        },
+        "priority": {
+          "default": -1,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "project": {
+          "default": "",
+          "title": "Project",
+          "type": "string"
+        },
+        "acceptance_command": {
+          "default": "",
+          "title": "Acceptance Command",
+          "type": "string"
+        },
+        "acceptance_manifest": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acceptance Manifest"
+        },
+        "acceptance_required": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Acceptance Required"
+        },
+        "clear_acceptance_command": {
+          "default": false,
+          "title": "Clear Acceptance Command",
+          "type": "boolean"
+        },
+        "clear_acceptance_oracle": {
+          "default": false,
+          "title": "Clear Acceptance Oracle",
+          "type": "boolean"
+        },
+        "portfolio_project": {
+          "default": "",
+          "title": "Portfolio Project",
+          "type": "string"
+        }
+      },
+      "required": [
+        "par"
+      ],
+      "title": "task_updateArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "task_updateOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "task_list",
+    "description": "List tasks with optional filters. Returns summary per task.",
+    "inputSchema": {
+      "properties": {
+        "project": {
+          "default": "",
+          "title": "Project",
+          "type": "string"
+        },
+        "status": {
+          "default": "",
+          "title": "Status",
+          "type": "string"
+        },
+        "assignee": {
+          "default": "",
+          "title": "Assignee",
+          "type": "string"
+        }
+      },
+      "title": "task_listArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "task_listOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "task_get",
+    "description": "Get task details. project overrides scope and should come from task_list output.",
+    "inputSchema": {
+      "properties": {
+        "par": {
+          "title": "Par",
+          "type": "string"
+        },
+        "project": {
+          "default": "",
+          "title": "Project",
+          "type": "string"
+        }
+      },
+      "required": [
+        "par"
+      ],
+      "title": "task_getArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "task_getOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "bg_create",
+    "description": "Create a background job that wakes an agent when triggered. Survives hibernate.\n    Types:\n    - idle: recurring watch of your own worker tree. Wakes you when idle with no running descendants\n            or other active background jobs. Fires once per new activity, not on every check.\n            Recreating it replaces your previous idle watch. timeout_seconds=0 keeps it until cancelled.\n    - timer: fires after delay_seconds\n    - file: watches file at path for pattern (regex)\n    - command: runs command every interval_seconds, matches pattern in output\n    - ssh: streams ssh command output, matches pattern\n    - run: executes command, wakes agent when done with exit code + output\n    - cron: periodically wakes the target agent on a cron schedule (cron_expr, 5-field, UTC).\n            Recurring — stays active across firings. timeout_seconds=0 = no expiry (forever\n            until cancelled). Missed fires during downtime are skipped (no backfill).\n    - cron_command: runs command on cron_expr and wakes only when completed stdout/stderr\n            matches pattern. Recurring, UTC, no backfill.\n    target: agent name (default: you). timeout_seconds: max lifetime (default 1h,\n            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command/idle.",
+    "inputSchema": {
+      "properties": {
+        "type": {
+          "title": "Type",
+          "type": "string"
+        },
+        "message": {
+          "default": "",
+          "title": "Message",
+          "type": "string"
+        },
+        "target": {
+          "default": "",
+          "title": "Target",
+          "type": "string"
+        },
+        "delay_seconds": {
+          "default": 0,
+          "title": "Delay Seconds",
+          "type": "integer"
+        },
+        "path": {
+          "default": "",
+          "title": "Path",
+          "type": "string"
+        },
+        "pattern": {
+          "default": "",
+          "title": "Pattern",
+          "type": "string"
+        },
+        "command": {
+          "default": "",
+          "title": "Command",
+          "type": "string"
+        },
+        "host": {
+          "default": "",
+          "title": "Host",
+          "type": "string"
+        },
+        "cron_expr": {
+          "default": "",
+          "title": "Cron Expr",
+          "type": "string"
+        },
+        "interval_seconds": {
+          "default": 60,
+          "title": "Interval Seconds",
+          "type": "integer"
+        },
+        "timeout_seconds": {
+          "default": 3600,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "bg_createArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "bg_createOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "bg_list",
+    "description": "List active background jobs in your project.",
+    "inputSchema": {
+      "properties": {},
+      "title": "bg_listArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "bg_listOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "bg_cancel",
+    "description": "Cancel an active background job.",
+    "inputSchema": {
+      "properties": {
+        "job_id": {
+          "title": "Job Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "job_id"
+      ],
+      "title": "bg_cancelArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "bg_cancelOutput",
+      "type": "object"
+    }
+  },
+  {
+    "name": "search_memory",
+    "description": "Optional literal search: current KB, personal notes, task evidence, then source logs.\n    File hits identify their area and matching line. Archives require targeted file search.\n    ",
+    "inputSchema": {
+      "properties": {
+        "query": {
+          "title": "Query",
+          "type": "string"
+        },
+        "limit": {
+          "default": 5,
+          "title": "Limit",
+          "type": "integer"
+        },
+        "cross_project": {
+          "default": false,
+          "title": "Cross Project",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "search_memoryArguments",
+      "type": "object"
+    },
+    "outputSchema": {
+      "properties": {
+        "result": {
+          "title": "Result",
+          "type": "string"
+        }
+      },
+      "required": [
+        "result"
+      ],
+      "title": "search_memoryOutput",
+      "type": "object"
+    }
+  }
+]
