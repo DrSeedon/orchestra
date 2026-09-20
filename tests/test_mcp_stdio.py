@@ -2660,9 +2660,10 @@ async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypa
         mode="exec",
     )
 
-    tool = next(tool for tool in m.mcp._tool_manager.list_tools() if tool.name == "codex_review")
-    assert tool.parameters["properties"]["model"]["default"] == "gpt-5.6-luna"
-    assert "Omitted means the server-owned gpt-5.6-luna Fast tier" in tool.description
+    # Схему тула здесь больше не проверяем: он не зарегистрирован, пока ревью заморожено
+    # (20.09.2026). Проверяется то, что от заморозки не зависит — какой моделью пойдёт
+    # прогон, если тул вернут.
+    assert inspect.signature(m.codex_review).parameters["model"].default == "gpt-5.6-luna"
     assert captured["readiness"] == {"model": "gpt-5.6-luna"}
     assert "-m gpt-5.6-luna" in captured["job"]["config"]["command"]
 

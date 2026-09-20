@@ -85,7 +85,9 @@ roles:
     order: 2
     model: claude-opus-5[1m]
     effort: *effort_policy
-    skills: [codex-debate, laptop-access]
+    # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
+    # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
+    skills: [laptop-access]
     modules: [safety, project-maintenance, code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
     can_spawn: []
     allow_unrouted_workers: false
@@ -108,7 +110,9 @@ roles:
     # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol и Astra
     # ступени свои (#214, #373 и основания в комментарии над `roles:`).
     effort: *effort_policy
-    skills: [codex-debate, laptop-access]
+    # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
+    # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
+    skills: [laptop-access]
     modules: [safety, project-maintenance, dynamic-workflows, model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
     # заспавнить ни одной роли. Сама роль остаётся в манифесте, потому что живой
