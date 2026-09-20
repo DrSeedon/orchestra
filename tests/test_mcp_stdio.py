@@ -1,3 +1,4 @@
+import asyncio
 import json
 import inspect
 import subprocess
@@ -2254,6 +2255,103 @@ async def test_list_agents_optional_icons_failure_is_visible_success(monkeypatch
     assert result.structuredContent["error"] is None
     assert "Role icons unavailable" in result.structuredContent["result"]
     assert "**orch**" in result.structuredContent["result"]
+
+
+@pytest.mark.asyncio
+async def test_list_agents_starts_all_reads_before_sessions_finishes(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+    sessions_started = asyncio.Event()
+    tasks_started = asyncio.Event()
+    icons_started = asyncio.Event()
+    release_sessions = asyncio.Event()
+    started = set()
+
+    async def fake_api(_method, path, **_kwargs):
+        started.add(path)
+        if path == "/api/sessions":
+            sessions_started.set()
+            await release_sessions.wait()
+            return [{"name": "orch", "role": "orchestrator", "status": "idle", "model": "opus"}]
+        if path == "/api/tm/tasks":
+            tasks_started.set()
+            return []
+        icons_started.set()
+        return {}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    call = asyncio.create_task(m.list_agents())
+    await asyncio.wait_for(sessions_started.wait(), timeout=1)
+    await asyncio.wait_for(asyncio.gather(tasks_started.wait(), icons_started.wait()), timeout=1)
+    assert started == {"/api/sessions", "/api/tm/tasks", "/api/role-icons"}
+    assert not call.done()
+    release_sessions.set()
+    assert "**orch**" in await call
+
+
+@pytest.mark.asyncio
+async def test_list_agents_task_read_failure_keeps_sessions(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+
+    async def fake_api(_method, path, **_kwargs):
+        if path == "/api/sessions":
+            return [{"name": "orch", "role": "orchestrator", "status": "idle", "model": "opus"}]
+        if path == "/api/tm/tasks":
+            raise m.ApiToolError(code="tasks_down", message="tasks unavailable")
+        return {}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await m.list_agents()
+
+    assert "**orch**" in result
+    assert "No agents" not in result
+
+
+@pytest.mark.asyncio
+async def test_list_agents_icons_read_failure_keeps_sessions(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+
+    async def fake_api(_method, path, **_kwargs):
+        if path == "/api/sessions":
+            return [{"name": "orch", "role": "orchestrator", "status": "idle", "model": "opus"}]
+        if path == "/api/role-icons":
+            raise m.ApiToolError(code="icons_down", message="icons unavailable")
+        return []
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    result = await m.list_agents()
+
+    assert "**orch**" in result
+    assert "Role icons unavailable" in result
+
+
+@pytest.mark.asyncio
+async def test_list_agents_sessions_failure_raises_after_other_reads_finish(monkeypatch):
+    import app.mcp_stdio as m
+
+    monkeypatch.setattr(m, "ROLE", "orchestrator")
+    optional_started = asyncio.Event()
+    release_optional = asyncio.Event()
+
+    async def fake_api(_method, path, **_kwargs):
+        if path == "/api/sessions":
+            raise m.ApiToolError(code="sessions_down", message="sessions unavailable")
+        optional_started.set()
+        await release_optional.wait()
+        return [] if path == "/api/tm/tasks" else {}
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    call = asyncio.create_task(m.list_agents())
+    await asyncio.wait_for(optional_started.wait(), timeout=1)
+    assert not call.done()
+    release_optional.set()
+    with pytest.raises(m.ApiToolError, match="sessions unavailable"):
+        await call
 
 
 def test_cache_pill_uses_exact_and_approximate_runtime_policies():

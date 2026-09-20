@@ -981,18 +981,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        tg_topic: bool = False,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None) -> str:
-    """Spawn a new worker agent in a git worktree. Model is REQUIRED — choose it by the `<model-routing>` block in your own prompt, which is the single source of truth for routing (model ids are deliberately not repeated here: a duplicated list rots).
-    base_branch — от какой локальной ветки ответвить worktree. Пусто ("") = авто по
-    стратегии пайплайна: parent → ветка родителя, main → проверяемый mainline репозитория.
-    При неоднозначности spawn требует явную ветку.
-    mcp_servers — JSON-объект с доп. MCP-серверами для воркера (формат как в .mcp.json: {"name": {"command": ..., "args": [...]}}). Мерджится с дефолтным Orchestra MCP; ключ "orchestra" игнорируется. Переживает рестарт.
-    owned_dirs — необязательный JSON-массив ожидаемых рабочих директорий, например ["app/api/", "tests/"]. Это ориентир для координации, не запрет менять другие нужные задаче файлы. Пересечения допустимы в отдельных worktree.
-    disabled_tools — exact Orchestra tool names to disable for this worker, persisted across restart. Adds to role bans; calls return tool_disabled.
-    tg_topic — если True, агент получит собственный TG топик для логов и сообщений.
-    task_id — номер СУЩЕСТВУЮЩЕЙ задачи, взятый из ответа `task_create`; выдуманный номер
-    и номер, взятый из имени каталога, дают отказ и уносят весь текст задания. Одна задача
-    держится одним воркером: для второго исполнителя на том же задании заводится отдельная
-    задача, иначе спавн будет отбит."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id preserves initial-delivery identity: after an ambiguous outcome follow the receipt/status recovery instructions; do not spawn or resend blindly."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1280,7 +1269,7 @@ def _read_message_file(file_path: str) -> tuple[str, int]:
 async def send_message(
     to: str, message: str, delivery_id: str = "", file_path: str = "",
 ) -> str:
-    """Send a message to any agent by name. Triggers a new turn."""
+    """Send a message to an agent by name; triggers a turn. file_path optionally appends a local UTF-8 text file (max 64 KiB). delivery_id is an optional UUID for duplicate-safe delivery. QUEUED means accepted, not delivered; resolve an ambiguous outcome with message_delivery_status using the same id, not a fresh send."""
     if file_path:
         attachment, attachment_size = _read_message_file(file_path)
         attachment_header = (
@@ -1589,7 +1578,23 @@ def _cache_pill(s: dict) -> str:
 @mcp.tool()
 async def list_agents() -> str:
     """List all agents in your project (orchestrators and workers)."""
-    sessions = await _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
+    requests: dict[str, asyncio.Task] = {
+        "sessions": asyncio.create_task(
+            _api("GET", "/api/sessions", params={"scope": SCOPE} if SCOPE else None)
+        ),
+        "icons": asyncio.create_task(_api("GET", "/api/role-icons")),
+    }
+    if ROLE in _ORCH_ROLES:
+        requests["tasks"] = asyncio.create_task(
+            _api(
+                "GET", "/api/tm/tasks", params={"project": SCOPE} if SCOPE else None,
+            )
+        )
+    results = await asyncio.gather(*requests.values(), return_exceptions=True)
+    responses = dict(zip(requests, results))
+    sessions = responses["sessions"]
+    if isinstance(sessions, BaseException):
+        raise sessions
     if not isinstance(sessions, list):
         raise ApiToolError(
             code="invalid_response",
@@ -1599,10 +1604,13 @@ async def list_agents() -> str:
         )
     task_lines: list[str] = []
     if ROLE in _ORCH_ROLES:
-        try:
-            task_payload = await _api(
-                "GET", "/api/tm/tasks", params={"project": SCOPE} if SCOPE else None,
+        task_payload = responses["tasks"]
+        if isinstance(task_payload, BaseException):
+            logger.warning(
+                "list_agents optional task view failed: %s: %s",
+                type(task_payload).__name__, task_payload,
             )
+        else:
             tasks = (
                 task_payload.get("tasks", [])
                 if isinstance(task_payload, dict) else task_payload
@@ -1629,27 +1637,25 @@ async def list_agents() -> str:
                         task_lines.append(
                             f"… {omitted} more new tasks; use task_list for the full queue."
                         )
-        except ApiToolError as exc:
-            logger.warning(
-                "list_agents optional task view failed: %s: %s", exc.code, exc.message,
-            )
     if not sessions and not task_lines:
         return "No agents"
     icon_warning = ""
-    try:
-        icons_data = await _api("GET", "/api/role-icons")
-        if isinstance(icons_data, dict):
-            _icons = icons_data
+    icons_data = responses["icons"]
+    if isinstance(icons_data, BaseException):
+        if isinstance(icons_data, ApiToolError):
+            icon_warning = f"⚠️ Role icons unavailable: {icons_data.code}: {icons_data.message}; using defaults."
         else:
-            _icons = {}
-            icon_warning = (
-                "⚠️ Role icons unavailable: invalid response "
-                f"({type(icons_data).__name__}); using defaults."
-            )
-    except ApiToolError as exc:
+            icon_warning = f"⚠️ Role icons unavailable: {type(icons_data).__name__}: {icons_data}; using defaults."
         _icons = {}
-        icon_warning = f"⚠️ Role icons unavailable: {exc.code}: {exc.message}; using defaults."
         logger.warning("list_agents optional role icons failed: %s", icon_warning)
+    elif isinstance(icons_data, dict):
+        _icons = icons_data
+    else:
+        _icons = {}
+        icon_warning = (
+            "⚠️ Role icons unavailable: invalid response "
+            f"({type(icons_data).__name__}); using defaults."
+        )
 
     def _fmt(s, show_owner=False):
         r = s.get("role", "worker")
@@ -1932,16 +1938,7 @@ async def send_file(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept a file for durable Telegram delivery and return its status id.
-
-    Limits are OURS, not the public 50 MB cloud cap: deliveries go through a local
-    Bot API server. A document may be up to 2000 MB, and 200 MB is measured as
-    actually delivered (#V-544, 11.09.2026) — send the file, do not substitute a
-    link because you remember a smaller public limit.
-    An image above 10 MB is sent as a document: Telegram's photo cap is 10 485 760
-    bytes and the local server does NOT raise it. This is automatic; as_document
-    only forces a document for smaller images.
-    """
+    """Accept a local file for durable Telegram delivery; returns a status id, not delivery confirmation. Local Bot API: documents up to 2000 MB (200 MB verified); do not substitute cloud's 50 MB cap. Images above 10 485 760 bytes automatically become documents; as_document forces this for smaller images. event_id is an optional UUID; use file_delivery_status after ambiguous delivery, not a new id."""
     event_id = event_id.strip() if isinstance(event_id, str) else ""
     if event_id:
         try:
@@ -2011,14 +2008,8 @@ async def send_files(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept an ordered file batch for durable Telegram album delivery.
+    """Accept an ordered batch for durable Telegram album delivery; returns receipt, not completion. Local Bot API: documents up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents. Albums hold at most 10 files of one kind; longer/mixed batches split automatically. as_document forces documents. event_id is an optional UUID; resolve ambiguous delivery with file_delivery_status, not a new id."""
 
-    Same limits as send_file: up to 2000 MB per document through our local Bot API
-    (200 MB measured, #V-544), and any image above 10 485 760 bytes travels as a
-    document because Telegram's photo cap is not raised locally. One album holds
-    at most 10 files of one kind; longer batches are split automatically, so a
-    heavy image lands in its own group instead of failing the whole album.
-    """
     if (
         not isinstance(paths, list)
         or not paths
@@ -2112,32 +2103,7 @@ async def publish_artifact(path: str, caption: str = "", ttl_seconds: int | None
 
 @mcp.tool()
 async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> str:
-    """Draw a chart from data and send it to the user's Telegram as a picture. One call.
-
-    Use it when the point is a SHAPE the reader should see: before/after across several
-    categories, values spanning orders of magnitude, a series over time, or a final state
-    in 2-4 numbers. Do not use it for a single number, a yes/no verdict, a list of files
-    or a status line — those read better as one line of text.
-
-    title — the punchline in words. Do NOT put numbers about the data in it: the tool
-    computes a factual line from what it actually drew and prints it under the title.
-
-    kind and the shape of `data`:
-      "bars"     — compare categories. Linear scale.
-      "bars_log" — same, when values differ by 100× or more (log scale; zero renders as
-                   an explicit "0", negatives are rejected).
-        {"unit": "МБ", "categories": ["1 сут", "год"],
-         "series": [{"name": "до", "values": [0.18, 4.25], "tone": "bad"},
-                    {"name": "после", "values": [0.17, 0.86], "tone": "good"}]}
-      "series"   — values over time; data gaps are detected and shaded, never bridged.
-        {"unit": "%", "series": [{"name": "5h", "points": [["2026-08-01T10:00:00", 12.3]]}]}
-      "cards"    — 2 to 4 big numbers as a final state. Values are strings.
-        {"metrics": [{"label": "на диске", "value": "401", "note": "5.54 МБ"},
-                     {"label": "в индексе", "value": "315", "tone": "bad"}]}
-
-    tone is optional: "good" | "bad" | "neutral" (default: palette colour by index).
-    Limits, enforced loudly: 2-8 categories, <=3 bar series, <=3 lines, <=4 cards.
-    """
+    """Draw data and send the chart to Telegram. Use for comparisons, trends or 2-4 final metrics; single facts/statuses belong in text. title states the conclusion without data numbers; a factual line is computed. data shapes: bars/bars_log: {unit,categories,series:[{name,values,tone?}]}; series: {unit,series:[{name,points:[[ISO-time,number]]}]}; cards: {metrics:[{label,value:string,note?,tone?}]}. bars is linear; bars_log is for differences >=100x, shows zero explicitly and rejects negatives. Series gaps are shaded, not bridged. tone: good|bad|neutral, default palette index. Limits: 2-8 categories, <=3 bar series, <=3 lines, <=4 cards. Returns the send_file delivery receipt."""
     from app.charts import ChartError, render_chart
 
     try:
@@ -2163,22 +2129,7 @@ async def send_chart(kind: str, title: str, data: dict, caption: str = "") -> st
 
 @mcp.tool()
 async def notify_user(reason: str, project: str = "", kind: str = "legacy") -> str:
-    """Дёрнуть юзера тегом в Telegram на границе ЭТОГО хода. Только для оркестраторов.
-
-    Молчание — нормальный режим: без этого вызова тега не будет, и это не забывчивость.
-    СНАЧАЛА recency gate: НЕ зови, если юзер сам начал текущий ход, написал сообщение
-    во время хода или писал последние 10 минут. Он уже смотрит — обычного ответа достаточно.
-    Зови после долгой/фоновой работы, когда юзер ушёл и должен вернуться: нужно его РЕШЕНИЕ
-    (развилка, которую ты не вправе закрыть сам); ВЫВОД РАЗВЕРНУЛСЯ (сделали не то, о чём
-    договаривались, или отозвано ранее сказанное); ИНЦИДЕНТ на живых системах; РЕЗУЛЬТАТ
-    с числом, меняющий план. НЕ зови на блокеры ревью, мержи, статусы, промежуточные шаги,
-    «воркер начал/закончил» — на это он смотреть не хочет.
-
-    `reason` — одна короткая фраза, ЗАЧЕМ дёрнули; она уедет юзеру вместе с тегом.
-    kind: legacy | incident | reversal | plan_change. Решения пользователя фиксируются
-    только через project_wait — kind=waiting здесь запрещён. `project` опционален.
-    Тег ставится один раз за ход, только после durable result marker.
-    """
+    """Orchestrators only: tag the user at this turn's end, once and only after a durable result marker. Silence is normal. Do not call if the user started/interrupted this turn or wrote within 10 minutes. After long/background work, call only for a needed decision, reversal, live incident or quantified result changing the plan; never for review blockers, merges, progress or worker start/finish. reason is one short phrase sent with the tag. kind: legacy|incident|reversal|plan_change; waiting is forbidden, record decisions through project_wait. project is optional."""
     reason = reason.strip()
     if not reason:
         return "notify_user needs a non-empty reason — one short phrase saying WHY."
@@ -2480,25 +2431,7 @@ async def merge_worker(
     expected_head: str = "",
     acceptance_note: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch. The call WAITS for the outcome and returns it.
-
-    Most merges finish inside the call (82% within 10 s, measured on 398 operations). Only a
-    slow one answers "STILL RUNNING" and hands the outcome to a background job that wakes you
-    later — that reply is NOT a failure and nothing was lost: end the turn or do independent
-    work instead of polling. Otherwise follow the response's same-operation recovery
-    instructions. Only FAILED / PARTIAL / UNKNOWN mean something went wrong.
-
-    Reusing operation_id picks up THAT operation, not the worker's current state: if the
-    worker moved to another branch meanwhile, the call is refused and names the actual
-    branch — start a new operation without operation_id. Verifying what actually landed
-    (target branch, worker_wip) is always expected and never counts as merging manually.
-
-    New work: inspect worker_wip, then pass its exact expected_head and acceptance_note.
-    The note is your acceptance decision and includes the reason for no model review when absent.
-    No separate review-outcome or attestation is required for new assignments.
-    waive_diff_budget: orchestrator-only. Skip the insertion ceiling for this merge.
-    The result records diff_budget_waived so the bypass is visible after the fact.
-    """
+    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff."""
     if waive_diff_budget and ROLE not in _ORCH_ROLES:
         return mcp_tool_result(
             result={
@@ -2874,21 +2807,7 @@ async def worker_wip(name: str, base_ref: str = "") -> str:
 
 @mcp.tool()
 async def report_bug(title: str, description: str) -> str:
-    """Report an Orchestra platform bug immediately; do not ask for approval.
-
-    ``description`` is complete only when it contains every field below:
-    - Location: exact file:line, function, and commit.
-    - Error (verbatim): original text; include stop_reason, HTTP/status code, or tool result.
-    - Exception class: exact class ALWAYS (``N/A`` only when no exception object exists).
-      Some exceptions such as ``httpx.ReadTimeout`` stringify to empty text.
-    - Reproduction: exact steps or command.
-    - Ruled out: checks already run and causes excluded.
-    - Resource impact: turns/tokens/cost/counts, or N/A when none.
-    - Environment: model, runtime, version/commit, and project.
-
-    Missing trace = not reported. Project-code bugs go to ``.orchestra/tasks/<id>/`` and
-    the orchestrator instead of this tool.
-    """
+    """Report an Orchestra platform bug immediately without approval. description must include: exact file:line/function/commit; verbatim error, stop_reason or HTTP/tool status; exception class (N/A only without an exception); reproduction command/steps; checks and excluded causes; turns/tokens/cost/counts or N/A; model/runtime/version/project. Empty exception strings still require the class. Missing trace means incomplete report. Project-code bugs go to their task evidence and orchestrator instead."""
     r = await _api("POST", "/api/report_bug", json={"title": title, "description": description, "reporter": WORKER_NAME, "scope": SCOPE})
     return r.get("result", f"Bug reported: {title}")
 
@@ -2904,27 +2823,7 @@ async def update_worker_description(name: str, description: str) -> str:
 
 @mcp.tool()
 async def set_worker_owned_dirs(name: str, owned_dirs: str) -> str:
-    """Change which directories a worker owns, WITHOUT moving it to a new branch.
-
-    Use when the worker keeps its current task and branch but the boundary was wrong,
-    too narrow, or points at paths that no longer exist. To hand a worker a NEW task,
-    use `switch_worker_branch` instead — it changes branch, task and ownership in one
-    step; this tool touches ownership only.
-
-    owned_dirs — JSON array, e.g. `["app/api/", "tests/"]`. An empty array (`[]`)
-    REMOVES ownership, after which the worker is bounded by its task, not by dirs.
-    Overlap with another live worker in the same scope is a blocking error, same as
-    at spawn: pick different dirs or kill the other worker first.
-
-    Applies to `idle` workers only. A `running` or `waiting` worker is REFUSED with
-    its status — nothing is changed and the call is safe to repeat once it goes idle.
-    That is deliberate: its current turn is already editing files under the present
-    boundary, and rewriting the contract underneath it would be a silent change.
-
-    Both owners are updated together — the stored ownership list and the "Directory
-    ownership" block of the worker's system prompt. The worker sees the new block on
-    its next turn.
-    """
+    """Update an idle worker's advisory work areas without changing task or branch. owned_dirs is a JSON array; [] clears it. Overlaps are allowed; coordinate edits. Running/waiting workers are refused. Stored dirs and the prompt block update together for the next turn. For a new task use switch_worker_branch."""
     try:
         parsed = json.loads(owned_dirs) if owned_dirs.strip() else []
     except (TypeError, ValueError) as error:
@@ -3292,23 +3191,7 @@ async def bg_create(type: str, message: str = "", target: str = "",
                     command: str = "", host: str = "", cron_expr: str = "",
                     interval_seconds: int = 60,
                     timeout_seconds: int = 3600) -> str:
-    """Create a background job that wakes an agent when triggered. Survives hibernate.
-    Types:
-    - idle: recurring watch of your own worker tree. Wakes you when idle with no running descendants
-            or other active background jobs. Fires once per new activity, not on every check.
-            Recreating it replaces your previous idle watch. timeout_seconds=0 keeps it until cancelled.
-    - timer: fires after delay_seconds
-    - file: watches file at path for pattern (regex)
-    - command: runs command every interval_seconds, matches pattern in output
-    - ssh: streams ssh command output, matches pattern
-    - run: executes command, wakes agent when done with exit code + output
-    - cron: periodically wakes the target agent on a cron schedule (cron_expr, 5-field, UTC).
-            Recurring — stays active across firings. timeout_seconds=0 = no expiry (forever
-            until cancelled). Missed fires during downtime are skipped (no backfill).
-    - cron_command: runs command on cron_expr and wakes only when completed stdout/stderr
-            matches pattern. Recurring, UTC, no backfill.
-    target: agent name (default: you). timeout_seconds: max lifetime (default 1h,
-            max 24h); 0 = no expiry for file/command/ssh/cron/cron_command/idle."""
+    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output. cron types recur, skip missed downtime fires without backfill. idle is a self-only orchestrator watch: wakes when its tree and other jobs are idle, once per activity; recreating replaces the old watch. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command/idle."""
     if type == "idle" and (ROLE not in _ORCH_ROLES or (target and target != WORKER_NAME)):
         raise ApiToolError(code="idle_watch_self_only", message="An orchestrator sets an idle watch on itself")
     config = {}
