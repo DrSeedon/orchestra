@@ -1,0 +1,5 @@
+18:13:43 plus 5h 2 7d 0 credits {"hasCredits": false, "unlimited": false, "balance": "0"}
+run1 rc=0
+18:19:51 plus 5h 2 7d 0 credits {"hasCredits": false, "unlimited": false, "balance": "0"}
+run2 rc=0
+18:28:40 plus 5h 3 7d 1 credits {"hasCredits": false, "unlimited": false, "balance": "0"}
