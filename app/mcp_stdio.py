@@ -2168,7 +2168,10 @@ async def update_progress(percent: int, status: str) -> str:
 
 @mcp.tool()
 async def change_worker_model(name: str, model: str) -> str:
-    """Change an idle worker's model and start a fresh dialog on the target runtime."""
+    """Change an idle worker's model. Inside one runtime the dialog CONTINUES: the session is
+    retargeted in place or resumed natively, history intact. A fresh dialog happens only when
+    the runtime itself changes (codex → claude and back), where history moves by handoff and
+    may be refused. Refused while the worker is running or compacting."""
     result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model, "fresh": True, "via": "mcp"})
     if isinstance(result, dict) and result.get("error"):
         return f"Model change failed: {result['error']}"
