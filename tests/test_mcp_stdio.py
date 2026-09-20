@@ -2420,6 +2420,65 @@ async def test_merge_worker_does_not_poll_when_already_terminal(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_merge_worker_waits_even_when_a_completion_job_exists(monkeypatch):
+    """Решение владельца 20.09.2026: мерж — СИНХРОННЫЙ тул.
+
+    Раньше зарегистрированное фоновое задание отменяло ожидание: тул отвечал PENDING и
+    будил агента отдельным ходом даже на мерже длиной в секунду. Замер по 398 операциям:
+    82% укладываются в 10 с, то есть четыре из пяти пробуждений были лишними.
+    """
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    calls = []
+    states = iter(["PENDING", "RUNNING", "SUCCEEDED"])
+
+    async def fake_api(method, path, **kw):
+        calls.append((method, path))
+        if method == "POST":
+            return _merge_payload(kw["json"]["operation_id"], next(states),
+                                  completion={"job_id": "bg-1", "mode": "background"})
+        if method == "DELETE":
+            return {"cancelled": True}
+        return _merge_payload(path.rsplit("/", 1)[-1], next(states),
+                              completion={"job_id": "bg-1", "mode": "background"})
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="w", target="main")
+
+    result = out.structuredContent["result"]
+    assert result["operation_state"] == "SUCCEEDED", "тул обязан дождаться исхода"
+    assert ("DELETE", "/api/bg/jobs/bg-1") in calls, (
+        "страховочное задание не снято — агента разбудят тем, что он уже прочитал")
+    assert "completion" not in result, "снятое задание не должно висеть в ответе"
+
+
+@pytest.mark.asyncio
+async def test_merge_worker_hands_a_slow_merge_to_the_background_job(monkeypatch):
+    """Долгий мерж по-прежнему уходит в фон: ждать его внутри вызова нельзя.
+
+    Хвост длины операции уходит за 40 минут (замер 20.09), поэтому потолок здесь —
+    ручка частоты, а страховка от потери исхода — само фоновое задание, которое в этом
+    случае НЕ снимается.
+    """
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "_MERGE_SYNC_WAIT_SECONDS", 0.01)
+    calls = []
+
+    async def fake_api(method, path, **kw):
+        calls.append(method)
+        op = kw["json"]["operation_id"] if method == "POST" else path.rsplit("/", 1)[-1]
+        return _merge_payload(op, "RUNNING", completion={"job_id": "bg-2", "mode": "background"})
+
+    with patch.object(m, "_api", side_effect=fake_api):
+        out = await m.merge_worker(name="w", target="main")
+
+    assert out.structuredContent["result"]["operation_state"] == "RUNNING"
+    assert out.content[0].text.startswith("STILL RUNNING")
+    assert "DELETE" not in calls, "задание доставки исхода снимать нельзя — исход ещё не получен"
+
+
+@pytest.mark.asyncio
 async def test_merge_worker_running_past_the_cap_reads_as_progress_not_failure(monkeypatch):
     """Потолок будет превышен — у времени операции длинный хвост.
 
