@@ -1,0 +1,13 @@
+tool_name                     pending  queued  end_turn  n   
+----------------------------  -------  ------  --------  ----
+mcp__orchestra__bg_list       0        1       0         31  
+mcp__orchestra__codex_review  0        0       4         23  
+mcp__orchestra__merge_worker  154      0       0         191 
+mcp__orchestra__send_chart    0        7       0         7   
+mcp__orchestra__send_file     0        53      0         54  
+mcp__orchestra__send_files    0        38      0         38  
+mcp__orchestra__send_message  0        1045    0         1074
+mcp__orchestra__spawn_worker  0        36      0         78  
+mcp__orchestra__task_create   2        1       0         130 
+mcp__orchestra__task_get      1        0       0         15  
+mcp__orchestra__worker_wip    0        1       0         107 

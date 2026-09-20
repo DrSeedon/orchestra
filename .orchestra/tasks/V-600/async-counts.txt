@@ -1,0 +1,6 @@
+tool_name                     pending  still_running  end_turn  waiting_next_turn  n  
+----------------------------  -------  -------------  --------  -----------------  ---
+mcp__orchestra__codex_review  0        0              4         0                  23 
+mcp__orchestra__merge_worker  153      0              0         0                  190
+mcp__orchestra__task_create   2        0              0         0                  129
+mcp__orchestra__task_get      1        0              0         0                  15 

@@ -1,0 +1,11 @@
+tool_name                             failures
+------------------------------------  --------
+mcp__orchestra__bg_cancel             8       
+mcp__orchestra__codex_review          4       
+mcp__orchestra__compact_worker        1       
+mcp__orchestra__merge_worker          19      
+mcp__orchestra__project_goal          1       
+mcp__orchestra__send_file             1       
+mcp__orchestra__send_message          21      
+mcp__orchestra__spawn_worker          41      
+mcp__orchestra__switch_worker_branch  5       
