@@ -1,4 +1,4 @@
-"""Check the shared root rules: one file, a symlink beside it, budget and KB index."""
+"""Check the shared root rules: ONE file, nothing beside it, budget and KB index."""
 import argparse
 import os
 from pathlib import Path
@@ -13,11 +13,11 @@ from app.kb_index import kb_topic_files, kb_topic_index
 
 MAX_INSTRUCTION_BYTES = 16 * 1024
 SOURCE = "AGENTS.md"
-# `CLAUDE.md` — СИМЛИНК на источник, а не копия. Claude Code читает только `CLAUDE.md`
-# (поддержка `AGENTS.md` заявлена с 2.1.277, но на 2.1.278 у нас не включается), Codex
-# читает только `AGENTS.md`. Копия дважды разъезжалась с источником, и один раз
-# Claude-агенты не видели правил владельца; симлинк разойтись не может физически.
-LINK = "CLAUDE.md"
+# Второго корневого файла правил быть не должно ни в каком виде. Codex читает `AGENTS.md`
+# сам; Claude Code — модом `agents-md` (включён глобально на машине). Пока рядом лежала
+# копия, она дважды разъехалась с источником, и один раз Claude-агенты работали на
+# устаревших правилах владельца, ничего об этом не сообщив.
+FORBIDDEN = "CLAUDE.md"
 
 
 def check_kb_index(root: Path) -> None:
@@ -49,14 +49,11 @@ def _validate(body: bytes, name: str) -> None:
 
 def check(root: Path) -> None:
     _validate(_read(root / SOURCE), SOURCE)
-    link = root / LINK
-    if not link.is_symlink():
+    beside = root / FORBIDDEN
+    if beside.is_symlink() or beside.exists():
         raise ValueError(
-            f"{LINK} must be a symlink to {SOURCE}, not a copy: a copy drifts and then one "
-            f"client silently runs on stale rules")
-    target = os.readlink(link)
-    if target != SOURCE:
-        raise ValueError(f"{LINK} points at {target!r}, expected {SOURCE!r}")
+            f"{FORBIDDEN} must not exist beside {SOURCE}: a second root rules file is a second "
+            f"source of truth, and Claude Code reads {SOURCE} through the agents-md mod")
     check_kb_index(root)
 
 
@@ -68,7 +65,7 @@ def main() -> int:
         check(args.root)
     except (OSError, ValueError) as error:
         parser.exit(1, f"Instruction contract: {error}\n")
-    print(f"Instruction contract OK: {SOURCE} below 16 KiB, {LINK} is a symlink to it")
+    print(f"Instruction contract OK: {SOURCE} below 16 KiB, no {FORBIDDEN} beside it")
     return 0
 
 
