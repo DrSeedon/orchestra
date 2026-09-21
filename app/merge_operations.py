@@ -1988,6 +1988,23 @@ def ensure_operation_runner(operation_id: str) -> None:
     task.add_done_callback(_observe_runner)
 
 
+def _head_matches(expected: str, actual: str) -> bool:
+    """Принять сокращённый хеш так же, как его принимает git.
+
+    Агент берёт HEAD из вывода `worker_wip`, где он бывает укорочен, и раньше
+    получал «HEAD воркера отличается» на ТОТ ЖЕ коммит: отказ называл причиной
+    расхождение, которого не было. Семь знаков — граница самого git: короче
+    он и сам отказывается разрешать неоднозначный префикс.
+    """
+    expected = expected.strip().lower()
+    actual = actual.strip().lower()
+    if not expected or not actual:
+        return False
+    if len(expected) < 7:
+        return expected == actual
+    return actual.startswith(expected)
+
+
 async def accept_merge_operation(
     *,
     operation_id: str,
@@ -2114,8 +2131,8 @@ async def accept_merge_operation(
             return _base_result(canonical_id, "FAILED", error=_error("MERGE_ACCEPTOR_REQUIRED", "An authenticated acceptor is required (orchestrator, owner, or full-cycle parent into its own branch)", operation_id=canonical_id, status=403)), 403
         if not request.get("expected_head") or not request.get("acceptance_note"):
             return _base_result(canonical_id, "FAILED", error=_error("WORK_ACCEPTANCE_REQUIRED", "Inspect worker_wip, then provide its exact expected_head and an acceptance_note (including why no review was needed, if absent)", operation_id=canonical_id, status=409)), 409
-        if request["expected_head"] != accepted["worker_head"]:
-            return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", "Worker HEAD differs from the commit you accepted; inspect the new result", operation_id=canonical_id, status=409)), 409
+        if not _head_matches(request["expected_head"], accepted["worker_head"]):
+            return _base_result(canonical_id, "FAILED", error=_error("WORK_HEAD_CHANGED", f"Worker HEAD is {accepted['worker_head']}, you accepted {request['expected_head']}; inspect the new result", operation_id=canonical_id, status=409)), 409
         if task_run["status"] != "requested" or review.get("task_run_id") != task_run["receipt_id"]:
             return _base_result(canonical_id, "FAILED", error=_error("WORK_ASSIGNMENT_CHANGED", "Cannot bind acceptance to the current task and snapshot; inspect worker_wip again", operation_id=canonical_id, status=409)), 409
         accepted["admission"]["acceptance_decision"] = {
