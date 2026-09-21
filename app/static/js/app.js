@@ -2052,9 +2052,11 @@ function _insertPathAtCaret(input, path, url, showPreview = true) {
     const before = input.value.slice(0, start);
     const after = input.value.slice(end);
     const prefix = before && !before.endsWith('\n') ? '\n' : '';
-    const suffix = after && !after.startsWith('\n') ? '\n' : '';
+    // В конце строки за путём ставим пробел: без него следующий символ прилипает
+    // к пути и ломает его. Когда дальше уже есть текст, разделителем служит перевод строки.
+    const suffix = after ? (after.startsWith('\n') ? '' : '\n') : ' ';
     input.value = before + prefix + path + suffix + after;
-    const caret = before.length + prefix.length + path.length;
+    const caret = before.length + prefix.length + path.length + (after ? 0 : suffix.length);
     input.focus();
     input.setSelectionRange(caret, caret);
     pastedImages.push(url);
