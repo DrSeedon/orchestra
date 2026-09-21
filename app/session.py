@@ -533,6 +533,10 @@ class AgentSession:
     PRECOMPACT_CONTEXT_THRESHOLD = 20
     CODEX_PRECOMPACT_DELAY_SECONDS = 25 * 60
     CODEX_PRECOMPACT_CONTEXT_THRESHOLD = 60
+    # Keep the timer above 5%: the 35 measured Claude compacts have a median
+    # 10,552-character summary (~2,638 tokens). At 5% of a 200k window, the
+    # avoided write still beats that output's cost under the subscription formula.
+    PRECOMPACT_MIN_CONTEXT_PCT = 5
     CLAUDE_CACHE_WINDOW_SECONDS = 60 * 60
     # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
     # safety margin before the observed/documented ~30-minute reference window.
@@ -562,7 +566,8 @@ class AgentSession:
                 "delay_seconds": self.PRECOMPACT_DELAY_SECONDS,
                 "cache_window_seconds": self.CLAUDE_CACHE_WINDOW_SECONDS,
                 "context_threshold": self.PRECOMPACT_CONTEXT_THRESHOLD,
-                "arm_threshold": 0,
+                "arm_threshold": self.PRECOMPACT_MIN_CONTEXT_PCT,
+                "min_context_pct": self.PRECOMPACT_MIN_CONTEXT_PCT,
                 "compact_mode": "handoff",
             }
         if self.backend_type == "codex":
@@ -570,7 +575,8 @@ class AgentSession:
                 "delay_seconds": self.CODEX_PRECOMPACT_DELAY_SECONDS,
                 "cache_window_seconds": self.CODEX_CACHE_WINDOW_SECONDS,
                 "context_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
-                "arm_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
+                "arm_threshold": self.PRECOMPACT_MIN_CONTEXT_PCT,
+                "min_context_pct": self.PRECOMPACT_MIN_CONTEXT_PCT,
                 "compact_mode": "native",
             }
         return None
@@ -700,17 +706,11 @@ class AgentSession:
                     "scheduled; manual compact remains available",
                 )
             return
-        window_warning_logged = False
-        if context_pct > 90:
-            window_warning_logged = self._auto_compact_window_blocked(
-                context_pct, deferred=True,
-            )
         self._precompact_timer = {
             "scheduled_at": datetime.now(timezone.utc).isoformat(),
             "role": self.role,
             "backend": self.backend_type,
             "context_pct": context_pct,
-            "window_warning_logged": window_warning_logged,
             **policy,
         }
         self._log(
@@ -760,13 +760,8 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        critical_context = (
-            self._context_is_known()
-            and self._last_context.get("percentage", 0) >= _auto_compact_threshold_pct(self)
-        )
-
         from app.bg_jobs import bg_manager
-        if not critical_context and bg_manager and bg_manager.has_active_jobs(self.id):
+        if bg_manager and bg_manager.has_active_jobs(self.id):
             state["skip_reason"] = "active_bg_jobs"
             self._log(
                 "status",
@@ -776,9 +771,7 @@ class AgentSession:
             return
 
         policy = self._precompact_policy()
-        if not critical_context and (
-            policy is None or state.get("backend") != self.backend_type
-        ):
+        if policy is None or state.get("backend") != self.backend_type:
             state["skip_reason"] = "backend_changed"
             self._log(
                 "status",
@@ -796,29 +789,13 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        threshold = (
-            0 if critical_context
-            else int(state.get("context_threshold", policy["context_threshold"]))
-        )
-        if not critical_context and self._last_context.get("percentage", 0) < threshold:
+        threshold = int(state.get("min_context_pct", policy["min_context_pct"]))
+        if self._last_context.get("percentage", 0) < threshold:
             state["skip_reason"] = "low_context"
             self._log(
                 "status",
                 f"precompact timer skipped: {self._precompact_payload(state)}",
             )
-            self._precompact_timer = None
-            return
-
-        if critical_context:
-            self._log(
-                "status",
-                f"critical auto-compact firing ({self._last_context.get('percentage', 0)}%): "
-                "configured window and AUTO_COMPACT_ENABLED bypassed",
-            )
-        elif self._auto_compact_window_blocked(
-                self._last_context.get("percentage", 0), fired_at,
-                log_status=not state.get("window_warning_logged", False)):
-            state["skip_reason"] = "outside_auto_compact_window"
             self._precompact_timer = None
             return
 

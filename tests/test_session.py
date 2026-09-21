@@ -2269,20 +2269,20 @@ class TestPrecompactTimer:
         assert state["timezone"] == "Europe/Berlin"
 
     @pytest.mark.asyncio
-    async def test_orchestrator_precompact_is_blocked_outside_window(
-        self, session, monkeypatch,
+    @pytest.mark.parametrize("allowed", [False, True])
+    async def test_orchestrator_precompact_ignores_window(
+        self, session, monkeypatch, allowed,
     ):
         from app.session import AgentStatus
 
-        logs = []
         session.is_orchestrator = True
         session.backend_type = "claude"
         session.status = AgentStatus.IDLE
-        session._last_context["percentage"] = 60
-        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
+        session._last_context.update({"percentage": 19, "known": True})
+        session._log = MagicMock()
         session.compact = AsyncMock(return_value={"ok": True})
         session._auto_compact_window_state = MagicMock(return_value={
-            "allowed": False,
+            "allowed": allowed,
             "local_time": "2026-07-28T15:35+07:00",
             "timezone": "Asia/Krasnoyarsk",
             "window": "21:00-06:00",
@@ -2299,15 +2299,8 @@ class TestPrecompactTimer:
 
         await session._fire_precompact_timer()
 
-        session.compact.assert_not_awaited()
-        assert session._precompact_timer is None
-        blocked = [
-            content for log_type, content in logs
-            if log_type == "status" and content.startswith("auto-compact blocked")
-        ]
-        assert blocked
-        assert "21:00-06:00 Asia/Krasnoyarsk" in blocked[0]
-        assert "manual compact remains available" in blocked[0]
+        session.compact.assert_awaited_once_with()
+        session._auto_compact_window_state.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_orchestrator_precompact_runs_inside_window(
@@ -2547,7 +2540,7 @@ class TestPrecompactTimer:
             for call in session._log.call_args_list
         )
 
-    def test_codex_precompact_policy_uses_25m_and_60pct_threshold(self, session):
+    def test_codex_precompact_policy_uses_25m_and_low_context_floor(self, session):
         launched = []
         session.backend_type = "codex"
         session._log = lambda *_: None
@@ -2559,15 +2552,13 @@ class TestPrecompactTimer:
 
         session._spawn_bg = capture
 
-        session._schedule_precompact_timer(59)
-        assert session._precompact_timer is None
-
-        session._schedule_precompact_timer(60)
+        session._schedule_precompact_timer(19)
 
         assert len(launched) == 1
         assert session._precompact_timer["delay_seconds"] == 25 * 60
         assert session._precompact_timer["cache_window_seconds"] == 30 * 60
         assert session._precompact_timer["context_threshold"] == 60
+        assert session._precompact_timer["min_context_pct"] == 5
         assert session._precompact_timer["compact_mode"] == "native"
 
     @pytest.mark.asyncio
