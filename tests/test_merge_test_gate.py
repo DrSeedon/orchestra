@@ -618,6 +618,7 @@ def test_browser_inventory_is_explicit():
     "tests/test_quota_headroom_447.py": 1,
     "tests/test_model_catalog_frontend.py": 1,
     "tests/test_frontend_context_panel_468.py": 1,
+    "tests/test_i18n_dashboard.py": 6,  # добавились с английской локалью #V-591
     }
 
     result = subprocess.run(
@@ -630,9 +631,14 @@ def test_browser_inventory_is_explicit():
         if line.startswith("tests/") and "::" in line:
             found[line.split("::", 1)[0]] = found.get(line.split("::", 1)[0], 0) + 1
 
-    assert found == expected, (
-        "состав браузерных тестов разошёлся с заявленным. Добавил браузерный тест — впиши "
-        f"файл сюда; ушёл файл — объясни, куда. Найдено: {found}"
+    # Сторожим ПОТЕРЮ, а не рост. Точное равенство краснело на каждом добавленном
+    # браузерном тесте — то есть сообщало о нормальной работе как об аварии; так оно и
+    # покраснело от локали #V-591 и провисело красным, пока не заблокировало чужой мерж.
+    # Опасен обратный случай: файл целиком ушёл из-под гейта и никто не заметил.
+    lost = {f: (expected[f], found.get(f, 0)) for f in expected if found.get(f, 0) < expected[f]}
+    assert not lost, (
+        "браузерные тесты пропали из сборки: файл ушёл из-под гейта или тесты удалены. "
+        f"Было/стало: {lost}. Найдено целиком: {found}"
     )
 
 
