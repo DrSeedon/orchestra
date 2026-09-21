@@ -31,6 +31,12 @@
   его ожидания остались дословно прежними.
 
 ### Fixed
+- 🧭 **Отказы операций над воркером различают область и отсутствие имени** (`app/routes/sessions.py` — `compact`, `session-history`, `rollback-session`, `restart-cli`, `clear-session`, `change-model`). Вместо голого `not found` ответ сообщает, что воркер с таким именем живёт в другой области и называет только её, либо что имени нет нигде и нужно проверить `list_agents`; статусы и успешные пути не изменены.
+  *Triggered case:* `change_worker_model("globe-astra", "luna")` из `/home/kesha/orchestra` скрывал существование сессии в `/home/kesha/projects/comfy-image-pipeline`, и вызывающий тратил ход на догадки.
+
+- 🧾 **Квитанция `bg_create` сразу содержит эффективную постановку задания** (`app/bg_jobs.py`, `app/mcp_stdio.py`). В ответ добавлены вычисленный конфиг, адресат, эффективный timeout, срок действия, trigger и текущее состояние; второй вызов `bg_list` для этих полей больше не нужен.
+  *Triggered case:* агенты последовательно создавали джобу и тут же вызывали `bg_list`, чтобы увидеть значения, подставленные сервером.
+
 - 🧭 **Описания MCP-инструментов приведены в соответствие с действующим контрактом**
   (`app/mcp_stdio.py`: `spawn_worker`, `send_message`, `send_file`, `send_files`,
   `send_chart`, `notify_user`, `merge_worker`, `report_bug`, `set_worker_owned_dirs`,

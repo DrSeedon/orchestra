@@ -89,6 +89,23 @@ def test_run_rejects_invalid_success_pattern():
 
 class TestCronCreate:
     @pytest.mark.asyncio
+    async def test_create_receipt_contains_effective_config_and_lifetime(self, db, monkeypatch):
+        from app.bg_jobs import BgJobManager
+
+        mgr = BgJobManager()
+        monkeypatch.setattr(mgr, "_start_task", lambda *a, **k: None)
+        result = await mgr.create(
+            "timer", {"delay_seconds": 5}, "wake",
+            "s-1", "worker", "/scope", "orchestrator", timeout_seconds=0,
+        )
+
+        assert result["status"] == "active"
+        assert result["config"] == {"delay_seconds": 5}
+        assert result["timeout_seconds"] == 3605
+        assert result["trigger_at"]
+        assert result["expires_at"]
+
+    @pytest.mark.asyncio
     async def test_no_timeout_means_forever(self, db, monkeypatch):
         from app.bg_jobs import BgJobManager
         from app.db import bg_get_active_all

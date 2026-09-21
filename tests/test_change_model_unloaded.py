@@ -44,13 +44,59 @@ async def test_change_model_missing_session_is_404(monkeypatch):
 
     monkeypatch.setattr(routes.manager, "get_by_name", lambda *_a, **_k: None)
     monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=None))
+    monkeypatch.setattr(routes.manager, "sessions", {})
+    monkeypatch.setattr(routes, "get_all_sessions", lambda: [])
 
     response = await routes.change_model(
         "ghost", {"scope": "/s", "model": "gpt-5.6-sol"},
     )
     status, body = _status_body(response)
     assert status == 404
-    assert "error" in body
+    assert body["code"] == "worker_not_found"
+    assert body["worker"] == "ghost"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("operation", [
+    "compact", "history", "rollback", "restart", "clear", "change_model",
+])
+async def test_worker_name_refusal_distinguishes_foreign_scope_for_all_loaded_routes(
+    operation, monkeypatch,
+):
+    from app.routes import sessions as routes
+
+    calls = {
+        "compact": lambda: routes.compact_session(
+            "globe-astra", routes.ScopeRequest(scope="/requested"),
+        ),
+        "history": lambda: routes.session_history("globe-astra", "/requested"),
+        "rollback": lambda: routes.rollback_session(
+            "globe-astra", routes.ScopeRequest(scope="/requested"),
+        ),
+        "restart": lambda: routes.restart_cli(
+            "globe-astra", routes.ScopeRequest(scope="/requested"),
+        ),
+        "clear": lambda: routes.clear_session(
+            "globe-astra", routes.ScopeRequest(scope="/requested"),
+        ),
+        "change_model": lambda: routes.change_model(
+            "globe-astra", {"scope": "/requested", "model": "gpt-5.6-sol"},
+        ),
+    }
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=None))
+    monkeypatch.setattr(
+        routes.manager,
+        "sessions",
+        {"foreign-id": SimpleNamespace(name="globe-astra", scope="/foreign")},
+    )
+    monkeypatch.setattr(routes, "get_all_sessions", lambda: [])
+
+    response = await calls[operation]()
+    status, body = _status_body(response)
+    assert status == 404
+    assert body["code"] == "worker_in_other_scope"
+    assert body["worker"] == "globe-astra"
+    assert body["scopes"] == ["/foreign"]
 
 
 @pytest.mark.asyncio

@@ -3224,7 +3224,18 @@ async def bg_create(type: str, message: str = "", target: str = "",
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
-    return f"Background job created: {result.get('id', '?')} (type={type}, target={target_name})"
+    receipt = {
+        "id": result.get("id", "?"),
+        "type": result.get("type", type),
+        "status": result.get("status", "active"),
+        "target_name": result.get("target_name", target_name),
+        "target_scope": result.get("target_scope", SCOPE),
+        "config": result.get("config", config),
+        "timeout_seconds": result.get("timeout_seconds"),
+        "expires_at": result.get("expires_at"),
+        "trigger_at": result.get("trigger_at"),
+    }
+    return f"Background job created: {json.dumps(receipt, ensure_ascii=False, sort_keys=True)}"
 
 
 @mcp.tool()
