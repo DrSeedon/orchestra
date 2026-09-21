@@ -1805,14 +1805,20 @@ async def _run_operation(operation_id: str) -> None:
                     target_sha=str(target.get("sha") or ""),
                 )
                 strict_mapped = bool(oracle.get("required"))
+                mutation_gate = test_gate.get("mutation_gate") or {}
+                mutation_failed = mutation_gate.get("status") == FAILED
                 gate_blocks = test_gate["status"] in {FAILED, INCONCLUSIVE} or (
                     strict_mapped and test_gate["status"] != PASSED
                 )
                 if gate_blocks:
                     code = (
-                        "TEST_GATE_FAILED"
-                        if test_gate["status"] == FAILED
-                        else "TEST_GATE_INCONCLUSIVE"
+                        "TEST_MUTATION_GATE_FAILED"
+                        if mutation_failed and test_gate["status"] == FAILED
+                        else (
+                            "TEST_GATE_FAILED"
+                            if test_gate["status"] == FAILED
+                            else "TEST_GATE_INCONCLUSIVE"
+                        )
                     )
                     # Учёт дописывается ПОСЛЕ хвоста выхода: получатель видит `[-400:]`,
                     # то есть конец строки, — сводка в начале до него не доехала бы.
@@ -1835,7 +1841,12 @@ async def _run_operation(operation_id: str) -> None:
                     next_action = (
                         _action(
                             "FIX_TESTS_THEN_RETRY",
-                            "Fix the failing merge-gate tests, then start a new merge.",
+                            (
+                                "Fix the changed tests so they fail when the worker source "
+                                "change is rolled back, then start a new merge."
+                                if mutation_failed
+                                else "Fix the failing merge-gate tests, then start a new merge."
+                            ),
                         )
                         if test_gate["status"] == FAILED
                         else _action(

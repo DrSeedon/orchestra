@@ -34,6 +34,9 @@ def _repo(tmp_path: Path, *, files: dict[str, str]) -> Path:
     _git(repo, "add", "README")
     _git(repo, "commit", "-m", "base")
     _git(repo, "checkout", "-b", "task-42/worker")
+    if any(rel.startswith("app/") for rel in files):
+        (repo / "app").mkdir(exist_ok=True)
+        (repo / "app" / "__init__.py").write_text("", encoding="utf-8")
     for rel, text in files.items():
         path = repo / rel
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -119,6 +122,186 @@ def test_select_tests_maps_stem_and_routes(tmp_path):
     )
     assert mapped == ["tests/test_routes_surface.py", "tests/test_widget.py"]
     assert select_tests(["docs/a.md"], worktree=str(tmp_path)) == []
+
+
+def _mutation_repo(tmp_path: Path, test_body: str, *, source_changed: bool = True) -> tuple[Path, str]:
+    repo = tmp_path / "mutation-repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "app").mkdir()
+    (repo / "tests").mkdir()
+    (repo / "app" / "__init__.py").write_text("", encoding="utf-8")
+    (repo / "app" / "widget.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repo / "tests" / "test_widget.py").write_text(
+        test_body + "# target-only marker\n", encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    target = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    _git(repo, "checkout", "-b", "worker")
+    (repo / "tests" / "test_widget.py").write_text(test_body, encoding="utf-8")
+    if source_changed:
+        (repo / "app" / "widget.py").write_text("VALUE = 2\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "worker")
+    return repo, target
+
+
+def test_mutation_gate_accepts_regression_test_that_breaks_on_target_sources(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "from app.widget import VALUE\n\n"
+        "def test_widget():\n    assert VALUE == 2\n",
+    )
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.PASSED
+    assert result["mutation_gate"]["status"] == gate.PASSED
+    assert result["mutation_gate"]["reason"] == "guarded_source_change"
+    assert result["mutation_gate"]["changed_tests"] == ["tests/test_widget.py"]
+    assert Path(result["interpreter"]).is_absolute()
+
+
+def test_mutation_gate_rejects_test_that_stays_green_on_target_sources(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "from app.widget import VALUE\n\n"
+        "def test_widget():\n    assert VALUE in {1, 2}\n",
+    )
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.FAILED
+    assert result["reason"] == "tests_not_guarding_source"
+    assert result["mutation_gate"]["status"] == gate.FAILED
+    assert "no regression is guarded" in result["mutation_gate"]["output"]
+
+
+def test_mutation_gate_skips_test_only_change(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "from app.widget import VALUE\n\n"
+        "def test_widget():\n    assert VALUE == 1\n\n# worker-only test edit\n",
+        source_changed=False,
+    )
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.PASSED
+    assert result["mutation_gate"]["status"] == gate.SKIPPED
+    assert result["mutation_gate"]["reason"] == "no_changed_sources"
+
+
+def test_mutation_gate_timeout_is_visible_and_not_a_false_pass(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "from app.widget import VALUE\n\n"
+        "def test_widget():\n    assert VALUE == 2\n",
+    )
+    calls = []
+
+    def fake_run(worktree, tests, *, timeout=None, interpreter=None):
+        calls.append((worktree, list(tests), timeout, interpreter))
+        return {
+            "status": gate.PASSED if len(calls) == 1 else gate.INCONCLUSIVE,
+            "reason": "" if len(calls) == 1 else "timeout",
+            "exit_code": 0 if len(calls) == 1 else None,
+            "output": "first" if len(calls) == 1 else "timed out",
+            "tests": list(tests),
+        }
+
+    monkeypatch.setattr(gate, "run_pytest", fake_run)
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.PASSED
+    assert result["mutation_gate"]["status"] == gate.INCONCLUSIVE
+    assert result["mutation_gate"]["reason"] == "timeout"
+    assert calls[1][2] == gate.MUTATION_MAX_TIMEOUT_SECONDS
+    assert calls[0][3] is None and calls[1][3] == result["interpreter"]
+
+
+def test_mutation_file_classification_excludes_docs_config_and_prompts():
+    from app import merge_test_gate as gate
+
+    changed = [
+        "app/widget.py", "tests/test_widget.py", "docs/guide.md",
+        "prompts/worker.md", "pyproject.toml", "config/settings.yaml",
+    ]
+    assert gate.changed_test_paths(changed) == ["tests/test_widget.py"]
+    assert gate.changed_source_paths(changed) == ["app/widget.py"]
+
+
+def test_changed_test_nodes_selects_only_touched_class_methods(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo = tmp_path / "node-repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "tests").mkdir()
+    (repo / "tests" / "test_nodes.py").write_text(
+        "class TestWidget:\n"
+        "    def test_left(self):\n        assert True\n\n"
+        "    def test_right(self):\n        assert True\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    target = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    _git(repo, "checkout", "-b", "worker")
+    (repo / "tests" / "test_nodes.py").write_text(
+        "class TestWidget:\n"
+        "    def test_left(self):\n        assert False\n\n"
+        "    def test_right(self):\n        assert True\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "touch one node")
+
+    selected, fallback = gate.changed_test_nodes(
+        str(repo), target, ["tests/test_nodes.py"],
+    )
+    assert selected == ["tests/test_nodes.py::TestWidget::test_left"]
+    assert fallback == []
+
+
+def test_run_pytest_isolates_live_state_environment(tmp_path, monkeypatch):
+    from app import merge_test_gate as gate
+
+    seen = {}
+
+    def fake_run(argv, **kwargs):
+        seen.update(kwargs["env"])
+        return subprocess.CompletedProcess(argv, 0, "passed", "")
+
+    monkeypatch.setenv("ORCHESTRA_DB_PATH", "/production/orchestra.db")
+    monkeypatch.setenv("ORCHESTRA_TASK_REPOSITORY", "/production/tasks")
+    monkeypatch.setenv("ORCHESTRA_TASK_PREFIX", "V-")
+    monkeypatch.setenv("QUOTA_GATED_LANES", "claude")
+    monkeypatch.setattr(gate.subprocess, "run", fake_run)
+
+    result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
+
+    assert result["status"] == gate.PASSED
+    assert seen["ORCHESTRA_DB_PATH"].startswith("/tmp/")
+    assert seen["ORCHESTRA_TASK_REPOSITORY"].startswith("/tmp/")
+    assert "ORCHESTRA_TASK_PREFIX" not in seen
+    assert "QUOTA_GATED_LANES" not in seen
 
 
 def test_large_mapped_subset_reaches_a_verdict_at_measured_file_costs(monkeypatch):
@@ -844,7 +1027,12 @@ def test_argv_verbosity_really_prints_per_test_lines(tmp_path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("gate_db", [{
     "app/widget.py": "VALUE = 1\n",
-    "tests/test_widget.py": "def test_widget():\n    assert True\n",
+    "tests/test_widget.py": (
+        "from app.widget import VALUE\n"
+        "\n"
+        "def test_widget():\n"
+        "    assert VALUE == 1\n"
+    ),
 }], indirect=True)
 async def test_green_mapped_test_reaches_executor(gate_db, monkeypatch):
     result, calls = await _run_with_spy(monkeypatch, worktree=str(gate_db))
