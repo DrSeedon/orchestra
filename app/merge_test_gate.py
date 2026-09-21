@@ -31,9 +31,14 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tarfile
+import tempfile
 import time
+import ast
+from contextlib import contextmanager
 from pathlib import Path
 
 from app.acceptance import FAILED, INCONCLUSIVE, PASSED, SKIPPED
@@ -89,6 +94,12 @@ _BATCH_DIAGNOSTIC_LIMIT = 4000
 #   `@pytest.mark.timeout(N)` — маркер сильнее флага (`tests/test_native_history_import.py:199`).
 PER_TEST_TIMEOUT_SECONDS = 120.0
 PER_TEST_TIMEOUT_METHOD = "signal"
+# The rollback probe is deliberately bounded independently of the existing mapped-test
+# budget: it is evidence for the changed tests, not a second full merge suite.  Production
+# measurements on V-606/V-602/V-603 took 16.89/14.03/16.60 s of pytest time, so 25 s leaves
+# headroom for startup and load; an unfinished probe is reported as INCONCLUSIVE and does not
+# masquerade as proof.
+MUTATION_MAX_TIMEOUT_SECONDS = 25.0
 
 
 def budget_for(file_count: int) -> float:
@@ -336,24 +347,46 @@ def describe_progress(result: dict) -> str:
     return "; ".join(parts)
 
 
-def run_pytest(worktree: str, tests: list[str], *, timeout: float | None = None) -> dict:
+def run_pytest(
+    worktree: str,
+    tests: list[str],
+    *,
+    timeout: float | None = None,
+    interpreter: str | None = None,
+) -> dict:
     budget = budget_for(len(tests)) if timeout is None else timeout
-    interpreter = _pytest_interpreter(worktree)
+    interpreter = interpreter or _pytest_interpreter(worktree)
     argv = pytest_argv(tests, interpreter=interpreter)
     env = os.environ.copy()
+    # Merge-gate runs beside the live Orchestra process.  Its state selectors must never
+    # point pytest at the service database/task repository (the latter once consumed a
+    # real task from a test fixture).  Remove them before pytest imports ``app`` and give
+    # every invocation disposable state of its own.  Quota and systemd variables are also
+    # live-process inputs; ordinary tests have their own deterministic fixtures.
+    for name in (
+        "ORCHESTRA_DB_PATH", "ORCHESTRA_TASK_REPOSITORY", "ORCHESTRA_TASK_PREFIX",
+        "NOTIFY_SOCKET", "SYSTEMD_EXEC_PID", "LISTEN_PID", "LISTEN_FDS", "LISTEN_FDNAMES",
+        "QUOTA_GATED_LANES", "QUOTA_CURVED_LANES", "QUOTA_HARD_STOP_PCT",
+        "QUOTA_LANE_HARD_STOP_PCT", "QUOTA_TOLERANCE_START_PP",
+        "QUOTA_TOLERANCE_END_PP", "QUOTA_CURVE_EXPONENT",
+    ):
+        env.pop(name, None)
     root = str(Path(worktree).resolve())
     prior = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = root if not prior else f"{root}{os.pathsep}{prior}"
     try:
-        proc = subprocess.run(
-            argv,
-            cwd=worktree,
-            env=env,
-            capture_output=True,
-            text=True,
-            timeout=budget,
-            check=False,
-        )
+        with tempfile.TemporaryDirectory(prefix="orchestra-merge-gate-") as isolated:
+            env["ORCHESTRA_DB_PATH"] = str(Path(isolated) / "orchestra.db")
+            env["ORCHESTRA_TASK_REPOSITORY"] = str(Path(isolated) / "tasks")
+            proc = subprocess.run(
+                argv,
+                cwd=worktree,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=budget,
+                check=False,
+            )
     except FileNotFoundError:
         return {
             "status": INCONCLUSIVE, "reason": "not_found",
@@ -525,6 +558,270 @@ def _batch_result(worktree: str, batches: list[list[str]]) -> dict:
     }
 
 
+_TEST_PATH_PREFIX = "tests/"
+_SOURCE_PREFIXES = ("app/", "scripts/")
+_NON_SOURCE_PREFIXES = (
+    ".orchestra/", ".github/", "docs/", "prompts/", "prompt/",
+)
+_NON_SOURCE_SUFFIXES = {
+    ".md", ".rst", ".txt", ".toml", ".ini", ".cfg", ".yaml", ".yml", ".json",
+}
+
+
+def changed_test_paths(changed: list[str]) -> list[str]:
+    """Return test modules supplied by the worker, not merely source-mapped tests."""
+    return sorted({
+        path.replace("\\", "/").lstrip("./")
+        for path in changed
+        if path.replace("\\", "/").lstrip("./").startswith(_TEST_PATH_PREFIX)
+        and path.replace("\\", "/").lstrip("./").endswith(".py")
+    })
+
+
+def changed_source_paths(changed: list[str]) -> list[str]:
+    """Classify executable changes while leaving docs, config and prompts out."""
+    sources: set[str] = set()
+    for raw in changed:
+        path = raw.replace("\\", "/").lstrip("./")
+        if not path or path.startswith(_TEST_PATH_PREFIX) or path.startswith(_NON_SOURCE_PREFIXES):
+            continue
+        suffix = Path(path).suffix.lower()
+        if suffix in _NON_SOURCE_SUFFIXES:
+            continue
+        if path.startswith(_SOURCE_PREFIXES) or suffix in {".py", ".js", ".ts", ".tsx", ".jsx", ".css", ".html"}:
+            sources.add(path)
+    return sorted(sources)
+
+
+def _changed_added_lines(worktree: str, target_commit: str, path: str) -> set[int] | None:
+    """Return worker-side lines touched by a committed diff, or None for untracked files."""
+    diff = _git(
+        Path(worktree), "diff", "--no-renames", "--unified=0",
+        f"{target_commit}...HEAD", "--", path,
+    )
+    if diff is None:
+        return None
+    lines: set[int] = set()
+    current = 0
+    for raw in diff.splitlines():
+        if raw.startswith("@@"):
+            match = re.search(r"\+(\d+)(?:,(\d+))?", raw)
+            if not match:
+                continue
+            current = int(match.group(1))
+            count = 1 if match.group(2) is None else int(match.group(2))
+            lines.update(range(current, current + count))
+            continue
+        if raw.startswith("+") and not raw.startswith("+++"):
+            current += 1
+        elif raw.startswith("-") or raw.startswith("\\"):
+            continue
+        elif current:
+            current += 1
+    return lines
+
+
+def _test_nodes_for_file(path: str, source: str, changed_lines: set[int]) -> list[str] | None:
+    """Map changed lines to pytest node IDs; None requests a safe file fallback."""
+    try:
+        tree = ast.parse(source, filename=path)
+    except SyntaxError:
+        return None
+    nodes: list[tuple[str, int, int]] = []
+
+    def visit(body: list[ast.stmt], parents: tuple[str, ...] = ()) -> None:
+        for node in body:
+            if isinstance(node, ast.ClassDef):
+                visit(node.body, parents + (node.name,))
+                continue
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if not node.name.startswith("test_"):
+                visit(getattr(node, "body", []), parents)
+                continue
+            end = getattr(node, "end_lineno", node.lineno)
+            starts = [node.lineno]
+            starts.extend(dec.lineno for dec in node.decorator_list)
+            start = min(starts)
+            identity = "::".join((path, *parents, node.name))
+            nodes.append((identity, start, end))
+
+    visit(tree.body)
+    if not nodes:
+        return None
+    selected = [identity for identity, start, end in nodes
+                if any(start <= line <= end for line in changed_lines)]
+    covered = {
+        line for _identity, start, end in nodes
+        for line in changed_lines if start <= line <= end
+    }
+    # A changed import/helper/fixture/class setup is semantically shared by tests. Running
+    # one guessed node would claim proof for siblings, so keep the whole file in that case.
+    if covered != changed_lines:
+        return None
+    return sorted(set(selected)) or None
+
+
+def changed_test_nodes(
+    worktree: str, target_commit: str, tests: list[str],
+) -> tuple[list[str], list[str]]:
+    """Select changed test functions, with file fallback for ambiguous Python diffs."""
+    selected: list[str] = []
+    fallback: list[str] = []
+    for path in tests:
+        lines = _changed_added_lines(worktree, target_commit, path)
+        source_path = Path(worktree) / path
+        if lines is None or not source_path.is_file():
+            fallback.append(path)
+            continue
+        nodes = _test_nodes_for_file(path, source_path.read_text(encoding="utf-8"), lines)
+        if nodes is None:
+            fallback.append(path)
+        else:
+            selected.extend(nodes)
+    return sorted(set(selected)), sorted(set(fallback))
+
+
+def _target_commit(worktree: str, target_ref: str, target_sha: str) -> str | None:
+    ref = target_sha.strip() or target_ref.strip() or "main"
+    resolved = _git(Path(worktree), "rev-parse", "--verify", f"{ref}^{{commit}}")
+    return resolved.strip() if resolved else None
+
+
+def _copy_test_into_tree(worker: Path, target: Path, relative: str) -> None:
+    source = worker / relative
+    destination = target / relative
+    if not source.exists() and not source.is_symlink():
+        if destination.exists() or destination.is_symlink():
+            if destination.is_dir() and not destination.is_symlink():
+                shutil.rmtree(destination)
+            else:
+                destination.unlink()
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if destination.exists() or destination.is_symlink():
+        if destination.is_dir() and not destination.is_symlink():
+            shutil.rmtree(destination)
+        else:
+            destination.unlink()
+    if source.is_symlink():
+        destination.symlink_to(os.readlink(source))
+    else:
+        shutil.copy2(source, destination)
+
+
+@contextmanager
+def _mutation_tree(worker: str, target_commit: str, tests: list[str]):
+    """Yield a disposable target checkout overlaid with the worker's changed tests."""
+    temporary = tempfile.TemporaryDirectory(prefix="orchestra-merge-mutation-")
+    root = Path(temporary.name)
+    try:
+        archive = root / "target.tar"
+        with archive.open("wb") as stream:
+            proc = subprocess.run(
+                ["git", "archive", "--format=tar", target_commit],
+                cwd=worker, stdout=stream, stderr=subprocess.PIPE,
+                text=False, timeout=30, check=False,
+            )
+        if proc.returncode != 0:
+            detail = (proc.stderr or b"").decode("utf-8", "replace").strip() or f"exit {proc.returncode}"
+            raise RuntimeError(f"git archive target failed: {detail}")
+        tree = root / "tree"
+        tree.mkdir()
+        with tarfile.open(archive, "r:") as tar:
+            tar.extractall(tree, filter="data")
+        for path in tests:
+            _copy_test_into_tree(Path(worker), tree, path)
+        yield tree
+    finally:
+        temporary.cleanup()
+
+
+def evaluate_mutation_gate(
+    worktree: str,
+    changed: list[str],
+    *,
+    target_ref: str = "",
+    target_sha: str = "",
+    interpreter: str | None = None,
+) -> dict:
+    """Run worker tests against target sources in an isolated disposable tree."""
+    tests = changed_test_paths(changed)
+    sources = changed_source_paths(changed)
+    result = {
+        "status": SKIPPED,
+        "reason": "no_changed_tests" if not tests else "no_changed_sources",
+        "exit_code": None,
+        "output": "",
+        "tests": tests,
+        "changed_tests": tests,
+        "changed_sources": sources,
+        "interpreter": interpreter or _pytest_interpreter(worktree),
+        "selected_nodes": [],
+        "fallback_files": [],
+    }
+    if not tests or not sources:
+        return result
+    commit = _target_commit(worktree, target_ref, target_sha)
+    if not commit:
+        return {
+            **result,
+            "status": INCONCLUSIVE,
+            "reason": "target_unavailable",
+            "output": "cannot resolve target commit for mutation tree",
+        }
+    selected_nodes, fallback_files = changed_test_nodes(worktree, commit, tests)
+    selected_tests = selected_nodes + fallback_files
+    if not selected_tests:
+        return {
+            **result,
+            "status": INCONCLUSIVE,
+            "reason": "changed_test_nodes_unavailable",
+            "output": "changed test files contain no selectable test nodes",
+            "selected_nodes": [],
+            "fallback_files": [],
+        }
+    try:
+        with _mutation_tree(worktree, commit, tests) as tree:
+            second = run_pytest(
+                str(tree), selected_tests,
+                timeout=MUTATION_MAX_TIMEOUT_SECONDS,
+                interpreter=result["interpreter"],
+            )
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        return {
+            **result,
+            "status": INCONCLUSIVE,
+            "reason": "tree_failed",
+            "output": str(exc),
+        }
+    mutation = {
+        **second,
+        "changed_tests": tests,
+        "changed_sources": sources,
+        "target_sha": commit,
+        "interpreter": result["interpreter"],
+        "selected_nodes": selected_nodes,
+        "fallback_files": fallback_files,
+    }
+    if second["status"] == FAILED:
+        # The rollback is expected to break a regression test: that is the proof that
+        # the worker test actually watches the source change.
+        return {**mutation, "status": PASSED, "reason": "guarded_source_change"}
+    if second["status"] in {INCONCLUSIVE, SKIPPED}:
+        return mutation
+    # A passing target-source run means the changed tests did not observe the source delta.
+    return {
+        **mutation,
+        "status": FAILED,
+        "reason": "tests_not_guarding_source",
+        "output": (
+            (second.get("output") or "")
+            + "\nworker tests also pass with target sources; no regression is guarded"
+        ),
+    }
+
+
 def evaluate_test_gate(
     worktree: str,
     *,
@@ -545,13 +842,35 @@ def evaluate_test_gate(
         return {
             "status": SKIPPED, "reason": "no_diff",
             "exit_code": None, "output": "", "tests": [], "mapped_files": [],
+            "changed_tests": [], "changed_sources": [],
+            "interpreter": _pytest_interpreter(worktree),
+            "mutation_gate": {
+                "status": SKIPPED, "reason": "no_diff", "tests": [],
+                "changed_tests": [], "changed_sources": [],
+                "interpreter": _pytest_interpreter(worktree),
+            },
             **evidence,
         }
     tests = select_tests(changed, worktree=worktree)
     if not tests:
+        changed_tests = changed_test_paths(changed)
+        changed_sources = changed_source_paths(changed)
+        interpreter = _pytest_interpreter(worktree)
         return {
             "status": SKIPPED, "reason": "no_mapped_tests",
             "exit_code": None, "output": "", "tests": [], "mapped_files": [],
+            "changed_tests": changed_tests, "changed_sources": changed_sources,
+            "interpreter": interpreter,
+            "mutation_gate": {
+                "status": SKIPPED,
+                "reason": "no_mapped_tests",
+                "exit_code": None,
+                "output": "",
+                "tests": changed_tests,
+                "changed_tests": changed_tests,
+                "changed_sources": changed_sources,
+                "interpreter": interpreter,
+            },
             **evidence,
         }
     if len(tests) > MAX_TEST_FILES:
@@ -559,4 +878,35 @@ def evaluate_test_gate(
         result = _batch_result(worktree, batches)
     else:
         result = run_pytest(worktree, tests)
-    return {**result, "mapped_files": tests, **evidence}
+    result = {
+        **result,
+        "mapped_files": tests,
+        "changed_tests": changed_test_paths(changed),
+        "changed_sources": changed_source_paths(changed),
+        "interpreter": _pytest_interpreter(worktree),
+        **evidence,
+    }
+    if result["status"] == PASSED:
+        mutation = evaluate_mutation_gate(
+            worktree,
+            changed,
+            target_ref=target_ref,
+            target_sha=target_sha,
+            interpreter=result["interpreter"],
+        )
+    else:
+        mutation = {
+            "status": SKIPPED,
+            "reason": "first_gate_not_passed",
+            "exit_code": None,
+            "output": "",
+            "tests": result["changed_tests"],
+            "changed_tests": result["changed_tests"],
+            "changed_sources": result["changed_sources"],
+            "interpreter": result["interpreter"],
+        }
+    result["mutation_gate"] = mutation
+    if mutation["status"] == FAILED:
+        result["status"] = FAILED
+        result["reason"] = mutation.get("reason") or "mutation_failed"
+    return result
