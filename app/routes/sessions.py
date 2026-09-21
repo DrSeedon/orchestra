@@ -46,6 +46,45 @@ logger = logging.getLogger("orchestra.sessions")
 
 router = APIRouter()
 
+
+def _worker_not_found(name: str, scope: str) -> JSONResponse:
+    """Explain whether a name is foreign to this scope or absent everywhere."""
+    requested_scope = (scope or "").rstrip("/")
+    foreign_scopes = set()
+    for session in getattr(manager, "sessions", {}).values():
+        if session.name == name and session.scope.rstrip("/") != requested_scope:
+            foreign_scopes.add(session.scope)
+    for row in get_all_sessions():
+        if row["name"] == name and row["scope"].rstrip("/") != requested_scope:
+            foreign_scopes.add(row["scope"])
+
+    if foreign_scopes:
+        areas = ", ".join(sorted(foreign_scopes))
+        return JSONResponse(
+            {
+                "error": (
+                    f"worker '{name}' exists in another scope ({areas}), not in the "
+                    f"requested scope; use that scope or call list_agents"
+                ),
+                "code": "worker_in_other_scope",
+                "worker": name,
+                "scopes": sorted(foreign_scopes),
+            },
+            status_code=404,
+        )
+    return JSONResponse(
+        {
+            "error": (
+                f"worker '{name}' does not exist in any scope; call list_agents "
+                "to check available workers"
+            ),
+            "code": "worker_not_found",
+            "worker": name,
+        },
+        status_code=404,
+    )
+
+
 async def _wait_for_merge_idle(session) -> bool:
     """Wait for the current turn's explicit terminal signal; only IDLE is ready."""
     if session.status.value == "idle":
@@ -1316,7 +1355,7 @@ async def get_message_delivery_status(delivery_id: str, request: Request = None)
 async def compact_session(name: str, req: ScopeRequest):
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return _worker_not_found(name, req.scope)
     if session.status.value == "running":
         return JSONResponse({"error": "agent is running, wait for idle"}, status_code=400)
     try:
@@ -1330,7 +1369,7 @@ async def compact_session(name: str, req: ScopeRequest):
 async def session_history(name: str, scope: str = ""):
     session = await manager.ensure_loaded(name, scope)
     if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return _worker_not_found(name, scope)
     return {
         "current_session_id": session.session_id,
         "history": session.session_id_history,
@@ -1341,7 +1380,7 @@ async def session_history(name: str, scope: str = ""):
 async def rollback_session(name: str, req: ScopeRequest, index: int = -1):
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return _worker_not_found(name, req.scope)
     if session.status.value == "running":
         return JSONResponse({"error": "agent is running"}, status_code=400)
     if not session.session_id_history:
@@ -1375,7 +1414,7 @@ async def restart_cli(name: str, req: ScopeRequest):
 
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return _worker_not_found(name, req.scope)
     delivery_lock = message_deliveries._target_delivery_locks.setdefault(session.id, asyncio.Lock())
     manager_lock = manager.get_session_lock(session.id)
     # Fail before mutation, rather than queue a restart behind a send and then
@@ -1413,7 +1452,7 @@ async def clear_session(name: str, req: ScopeRequest):
     """
     session = await manager.ensure_loaded(name, req.scope)
     if not session:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return _worker_not_found(name, req.scope)
     if session.status.value == "running":
         return JSONResponse({"error": "agent is running"}, status_code=400)
     old_sid = session.session_id
@@ -1547,7 +1586,7 @@ async def change_model(name: str, req: dict):
         return JSONResponse({"error": str(exc)}, status_code=409)
     found = await manager.ensure_loaded(name, scope)
     if not found:
-        return JSONResponse({"error": "not found"}, status_code=404)
+        return _worker_not_found(name, scope)
     fresh = req.get("fresh", False)
     if not isinstance(fresh, bool):
         return JSONResponse({"error": "fresh must be boolean"}, status_code=400)

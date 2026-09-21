@@ -2427,7 +2427,18 @@ async def test_bg_create_cron_command_sends_fail_closed_type(monkeypatch):
 
     async def fake_api(method, path, **kwargs):
         captured.update(kwargs["json"])
-        return {"id": "bg-monitor", "type": "cron_command", "status": "active"}
+        return {
+            "id": "bg-monitor", "type": "cron_command", "status": "active",
+            "config": {
+                "cron_expr": "*/15 * * * *",
+                "command": "python3 monitor.py",
+                "pattern": "^FOUND:",
+            },
+            "target_name": "intent-hunter", "target_scope": "/scope",
+            "timeout_seconds": 86400,
+            "expires_at": "2026-09-22T00:00:00+00:00",
+            "trigger_at": None,
+        }
 
     with patch.object(m, "_api", side_effect=fake_api):
         result = await m.bg_create(
@@ -2452,7 +2463,12 @@ async def test_bg_create_cron_command_sends_fail_closed_type(monkeypatch):
         "timeout_seconds": 0,
         "created_by": "intent-hunter",
     }
-    assert "type=cron_command" in result
+    receipt = json.loads(result.split(": ", 1)[1])
+    assert receipt["type"] == "cron_command"
+    assert receipt["status"] == "active"
+    assert receipt["config"]["cron_expr"] == "*/15 * * * *"
+    assert receipt["timeout_seconds"] == 86400
+    assert receipt["expires_at"] == "2026-09-22T00:00:00+00:00"
 
 
 # ── merge_worker: RUNNING не должен читаться как отказ ──

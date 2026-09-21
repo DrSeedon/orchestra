@@ -420,7 +420,17 @@ class BgJobManager:
                          target_name, target_scope, timeout_seconds,
                          trigger_at)
         logger.info(f"bg_job created: {job_id} type={job_type} target={target_name}")
-        return {"id": job_id, "type": job_type, "status": "active"}
+        return {
+            "id": job_id,
+            "type": job_type,
+            "status": "active",
+            "config": stored_config,
+            "target_name": target_name,
+            "target_scope": target_scope,
+            "timeout_seconds": timeout_seconds,
+            "expires_at": expires_at,
+            "trigger_at": trigger_at,
+        }
 
     def _start_task(self, job_id, job_type, config, message, target_session_id,
                     target_name, target_scope, timeout, trigger_at=None):
