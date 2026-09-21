@@ -1807,24 +1807,18 @@ function _renderOrchestrators(allOrchs) {
     const recentRaw = localStorage.getItem('recentOrchs');
     const recent = recentRaw ? JSON.parse(recentRaw) : [];
 
-    const sorted = [...orchData].sort((a, b) => {
-        const ai = recent.indexOf(a.name);
-        const bi = recent.indexOf(b.name);
-        if (ai >= 0 && bi >= 0) return ai - bi;
-        if (ai >= 0) return -1;
-        if (bi >= 0) return 1;
-        return 0;
-    });
-
-    renderOrchTabs(sorted);
+    // Порядок вкладок принадлежит ТОЛЬКО пользователю (`tabOrder`, перетаскивание внутри
+    // renderOrchTabs). Раньше список сначала сортировался по недавно открытым, и вкладки
+    // переставлялись сами: каждый клик менял `recentOrchs`, а после перезагрузки порядок
+    // оказывался другим. Список сервера берём как есть; `recent` остаётся только памятью
+    // о том, кого открыть по умолчанию.
+    renderOrchTabs(orchData);
 
     if (orchData.length > 0 && !currentScope) {
-        const match = orchData.find(o => o.scope === lastScope && o.name === lastName);
-        if (match) {
-            selectOrchestrator(match.name, match.scope);
-        } else {
-            selectOrchestrator(sorted[0].name, sorted[0].scope);
-        }
+        const match = orchData.find(o => o.scope === lastScope && o.name === lastName)
+            || recent.map(name => orchData.find(o => o.name === name)).find(Boolean)
+            || orchData[0];
+        selectOrchestrator(match.name, match.scope);
     }
 }
 
@@ -2332,7 +2326,8 @@ function selectOrchestrator(name, scope) {
     const opt = [...picker.options].find(o => o.dataset.name === name);
     if (opt) picker.selectedIndex = opt.index;
 
-    // Keep last 10 recently used orchestrators — used to sort tabs on next load
+    // Последние 10 открытых: нужны, только чтобы выбрать, кого открыть при следующем
+    // запуске без сохранённого выбора. Порядок вкладок отсюда НЕ берётся.
     const recent = JSON.parse(localStorage.getItem('recentOrchs') || '[]');
     const filtered = recent.filter(n => n !== name);
     filtered.unshift(name);
