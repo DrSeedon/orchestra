@@ -619,7 +619,7 @@
         'Previous final response': 'Предыдущий итоговый ответ',
         'Next final response': 'Следующий итоговый ответ',
         'Unread': 'Непрочитанные',
-        '▲ Load previous 500': '▲ Дозагрузить предыдущие 500',
+        '▲ Load previous 100': '▲ Дозагрузить предыдущие 100',
         '⏳ Loading previous messages…': '⏳ Загружаю предыдущие сообщения…',
         'process env': 'env процесса',
         '{name}: queue cleared. Deliveries with unknown outcome: {count}. They were NOT resent; check history before resending.': '{name}: очередь освобождена. Доставок с неизвестным исходом: {count}. Они НЕ отправлены повторно; проверь историю перед повторной отправкой.',
