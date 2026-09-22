@@ -971,9 +971,9 @@ def _cross_repo_note(scope: str, mapping: dict) -> str:
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str = "",
+                       description: str = "",
                        system_prompt: str = "",
                        task_id: str = "",
-                       description: str = "",
                        base_branch: str = "",
                        role: str = "worker",
                        mcp_servers: str = "",
@@ -992,8 +992,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     body = {
         "name": name, "scope": scope, "cwd": repo_path,
         "model": model, "system_prompt": system_prompt,
-        "use_worktree": True, "repo_path": repo_path,
-        "base_branch": base_branch,
+        "use_worktree": True, "repo_path": repo_path, "base_branch": base_branch,
         "role": role,
         "parent_name": WORKER_NAME,
         "planned_initial_turn": True,
@@ -1143,49 +1142,6 @@ async def retry_initial_delivery(name: str, task: str, delivery_id: str) -> dict
             details={"field": "delivery_id"},
         )
     return await _post_initial_delivery(name, task, delivery_id, SCOPE)
-
-
-@mcp.tool()
-async def acquire_test_lock(reason: str = "") -> str:
-    """Захватить ГЛОБАЛЬНЫЙ эксклюзивный лок на ПОЛНЫЙ прогон тестов (фулл-сьют) для проекта.
-    Бери его ТОЛЬКО перед полным прогоном и ТОЛЬКО с согласия PM. Узкие тесты этапа лока НЕ требуют.
-    Занято другим агентом → вернётся отказ с именем держателя — НЕ запускай фулл-сьют, жди и попробуй позже.
-    Всегда вызывай release_test_lock() после прогона."""
-    result = await _api("POST", "/api/test-lock/acquire", json={
-        "scope": SCOPE, "holder": WORKER_NAME, "reason": reason,
-        "holder_session_id": SESSION_ID,
-    })
-    if isinstance(result, dict) and result.get("error"):
-        return f"Lock error: {result['error']}"
-    if result.get("acquired"):
-        return f"Test lock ACQUIRED for '{WORKER_NAME}' (reason: {reason or 'n/a'}). Release it when done."
-    return (f"Test lock BUSY — held by '{result.get('holder')}'. "
-            f"Do NOT run the full suite. Wait and retry, or coordinate via PM.")
-
-
-@mcp.tool()
-async def release_test_lock() -> str:
-    """Освободить глобальный тест-лок (если ты его держишь). Вызывай сразу после полного прогона."""
-    result = await _api("POST", "/api/test-lock/release", json={
-        "scope": SCOPE, "holder": WORKER_NAME, "holder_session_id": SESSION_ID,
-    })
-    if isinstance(result, dict) and result.get("error"):
-        return f"Lock error: {result['error']}"
-    if result.get("released"):
-        return "Test lock released."
-    return "Test lock was not held by you (nothing to release)."
-
-
-@mcp.tool()
-async def test_lock_status() -> str:
-    """Кто сейчас держит глобальный тест-лок проекта (или свободен)."""
-    result = await _api("GET", "/api/test-lock", params={"scope": SCOPE})
-    if isinstance(result, dict) and result.get("error"):
-        return f"Lock error: {result['error']}"
-    if not result.get("held"):
-        return "Test lock is FREE."
-    return (f"Test lock HELD by '{result.get('holder')}' "
-            f"(reason: {result.get('reason') or 'n/a'}, since {result.get('acquired_at')}).")
 
 
 def _read_message_file(file_path: str) -> tuple[str, int]:
@@ -2811,6 +2767,44 @@ async def worker_wip(name: str, base_ref: str = "") -> str:
             )
             parts.append(f"    ...и ещё {remaining} {noun}")
     return "\n".join(parts)
+
+
+@mcp.tool()
+async def acquire_test_lock(reason: str = "") -> str:
+    """Занять эксклюзивный лок проекта на полный прогон тестов (весь сьют).
+    Нужен только для полного прогона и только после согласия PM; узкие тесты этапа идут без лока.
+    Если лок у другого агента, ответ назовёт его — тогда полный сьют не запускай, подожди и повтори.
+    После прогона обязательно освободи лок через release_test_lock()."""
+    lock = await _api("POST", "/api/test-lock/acquire", json={
+        "scope": SCOPE, "holder": WORKER_NAME, "holder_session_id": SESSION_ID,
+        "reason": reason,
+    })
+    if not lock.get("acquired"):
+        return (f"Test lock BUSY: '{lock.get('holder')}' holds it. Skip the full suite; "
+                "retry later or agree on the order through PM.")
+    return (f"Test lock ACQUIRED by '{WORKER_NAME}' ({reason or 'no reason given'}). "
+            "Release it right after the run.")
+
+
+@mcp.tool()
+async def release_test_lock() -> str:
+    """Снять твой лок полного прогона тестов. Вызывай сразу, как полный прогон закончился."""
+    outcome = await _api("POST", "/api/test-lock/release", json={
+        "scope": SCOPE, "holder": WORKER_NAME, "holder_session_id": SESSION_ID,
+    })
+    if outcome.get("released"):
+        return "Test lock released; the full suite is open to others now."
+    return "Nothing released: the test lock is not yours or is already free."
+
+
+@mcp.tool()
+async def test_lock_status() -> str:
+    """Показать, свободен ли лок полного прогона тестов проекта и кто его держит."""
+    lock = await _api("GET", "/api/test-lock", params={"scope": SCOPE})
+    if not lock.get("held"):
+        return "Test lock is FREE: nobody runs the full suite now."
+    return (f"Test lock HELD by '{lock.get('holder')}' since {lock.get('acquired_at')}; "
+            f"reason: {lock.get('reason') or 'none given'}.")
 
 
 @mcp.tool()

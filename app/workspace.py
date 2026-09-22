@@ -220,6 +220,42 @@ def _inspect_branch_ref(repo: Path, branch: str) -> str | None:
     return None
 
 
+def _branch_worktree_path(repo: str, branch: str) -> Path | None:
+    """Return the checkout that owns ``branch`` according to Git's worktree registry."""
+    listed = _git_cmd(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=repo, capture_output=True, text=True,
+    )
+    if listed.returncode != 0:
+        detail = listed.stderr.strip() or listed.stdout.strip()
+        raise RuntimeError(f"cannot list repository worktrees: {detail}")
+
+    wanted = f"refs/heads/{branch}"
+    for record in listed.stdout.strip().split("\n\n"):
+        path: Path | None = None
+        branch_ref: str | None = None
+        prunable: str | None = None
+        for line in record.splitlines():
+            if line.startswith("worktree "):
+                path = Path(line.removeprefix("worktree ")).resolve()
+            elif line.startswith("branch "):
+                branch_ref = line.removeprefix("branch ")
+            elif line == "prunable" or line.startswith("prunable "):
+                prunable = line.removeprefix("prunable").strip()
+        if branch_ref != wanted:
+            continue
+        if path is None:
+            raise RuntimeError(f"target branch '{branch}' has no worktree path")
+        if prunable is not None or not path.is_dir():
+            detail = prunable or "checkout path does not exist"
+            raise RuntimeError(
+                f"target branch '{branch}' belongs to prunable worktree "
+                f"'{path}': {detail}"
+            )
+        return path
+    return None
+
+
 def _resolve_commit_oid(repo: Path, ref: str) -> str:
     start = _git_cmd(
         ["git", "rev-parse", "--verify", f"{ref}^{{commit}}"],
@@ -336,11 +372,7 @@ def resolve_base_branch(repo_path: str, requested: str = "") -> str:
         raise ValueError(f"base branch must be a local branch, got '{requested}'")
 
     if branch:
-        valid = _git_cmd(
-            ["git", "check-ref-format", "--branch", branch],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if valid.returncode != 0 or _inspect_branch_ref(repo, branch) is None:
+        if _branch_name_error(repo, branch) or _inspect_branch_ref(repo, branch) is None:
             raise ValueError(f"local base branch '{branch}' does not exist in {repo}")
         return branch
 
@@ -543,12 +575,9 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
         if wt_path.exists():
             raise ValueError(f"worktree already exists: {wt_path}. Remove session first.")
 
-        fmt_check = _git_cmd(
-            ["git", "check-ref-format", "--branch", branch],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if fmt_check.returncode != 0:
-            raise ValueError(f"Invalid branch name '{branch}': {fmt_check.stderr.strip()}")
+        name_error = _branch_name_error(repo, branch)
+        if name_error:
+            raise ValueError(f"Invalid branch name '{branch}': {name_error}")
 
         branch_initial_oid = _inspect_branch_ref(repo, branch)
         branch_created = branch_initial_oid is None
@@ -826,42 +855,6 @@ def _resolve_repo(worktree_path: str, fallback_repo: str) -> Path:
     return Path(fallback_repo).resolve()
 
 
-def _branch_worktree_path(repo: str, branch: str) -> Path | None:
-    """Return the checkout that owns ``branch`` according to Git's worktree registry."""
-    listed = _git_cmd(
-        ["git", "worktree", "list", "--porcelain"],
-        cwd=repo, capture_output=True, text=True,
-    )
-    if listed.returncode != 0:
-        detail = listed.stderr.strip() or listed.stdout.strip()
-        raise RuntimeError(f"cannot list repository worktrees: {detail}")
-
-    wanted = f"refs/heads/{branch}"
-    for record in listed.stdout.strip().split("\n\n"):
-        path: Path | None = None
-        branch_ref: str | None = None
-        prunable: str | None = None
-        for line in record.splitlines():
-            if line.startswith("worktree "):
-                path = Path(line.removeprefix("worktree ")).resolve()
-            elif line.startswith("branch "):
-                branch_ref = line.removeprefix("branch ")
-            elif line == "prunable" or line.startswith("prunable "):
-                prunable = line.removeprefix("prunable").strip()
-        if branch_ref != wanted:
-            continue
-        if path is None:
-            raise RuntimeError(f"target branch '{branch}' has no worktree path")
-        if prunable is not None or not path.is_dir():
-            detail = prunable or "checkout path does not exist"
-            raise RuntimeError(
-                f"target branch '{branch}' belongs to prunable worktree "
-                f"'{path}': {detail}"
-            )
-        return path
-    return None
-
-
 def _clean_worktree_error(path: Path, label: str) -> str | None:
     status = _git_cmd(
         ["git", "status", "--porcelain"],
@@ -880,6 +873,29 @@ def _clean_worktree_error(path: Path, label: str) -> str | None:
         f"({len(dirty_lines)} file(s): "
         f"{', '.join(dirty_files)}{suffix}) — commit or discard first"
     )
+
+
+def _branch_name_error(repo: Path, name: str) -> str:
+    """'' — git примет name как имя локальной ветки; иначе текст его отказа."""
+    verdict = _git_cmd(["git", "check-ref-format", "--branch", name],
+                       cwd=str(repo), capture_output=True, text=True)
+    if verdict.returncode == 0:
+        return ""
+    return verdict.stderr.strip() or f"exit {verdict.returncode}"
+
+
+def _checked_out_branch(repo: Path) -> str | None:
+    """Ветка основного checkout репозитория; None — detached HEAD или отказ git."""
+    head = _git_cmd(["git", "symbolic-ref", "--short", "HEAD"],
+                    cwd=str(repo), capture_output=True, text=True)
+    return (head.stdout.strip() or None) if head.returncode == 0 else None
+
+
+def _checkout(repo: Path, branch: str) -> str | None:
+    """Переключить основной checkout на branch: None — успех, иначе stderr git."""
+    switched = _git_cmd(["git", "checkout", branch],
+                        cwd=str(repo), capture_output=True, text=True)
+    return None if switched.returncode == 0 else switched.stderr.strip()
 
 
 def _get_commit_messages(repo: str, branch: str, base: str) -> list[str]:
@@ -1363,15 +1379,8 @@ def merge_worktree_to_main(
                 ["git", "rev-parse", "--abbrev-ref", "HEAD"],
                 cwd=str(wt), capture_output=True, text=True,
             )
-            if branch_result.returncode != 0:
-                if result is None:
-                    result = {
-                        "ok": False,
-                        "error": f"cannot get branch: {branch_result.stderr.strip()}",
-                    }
-            else:
-                branch = branch_result.stdout.strip()
-                worker_branch = branch
+            if branch_result.returncode == 0:
+                worker_branch = branch = branch_result.stdout.strip()
                 if (
                     result is None
                     and expected_worker_branch
@@ -1384,6 +1393,11 @@ def merge_worktree_to_main(
                             f"expected {expected_worker_branch}, found {branch}"
                         ),
                     }
+            elif result is None:
+                result = {
+                    "ok": False,
+                    "error": f"cannot get branch: {branch_result.stderr.strip()}",
+                }
             if result is None:
                 try:
                     from app.diff_budget import (
@@ -1406,14 +1420,14 @@ def merge_worktree_to_main(
                 child_error = _clean_worktree_error(wt, "worker")
                 if child_error:
                     result = {"ok": False, "error": child_error}
-                else:
+                if result is None:
                     try:
                         target_before_ref = _inspect_branch_ref(repo, target_branch)
                     except RuntimeError as e:
                         # Git refused to read refs at all (ownership, broken repo).
                         # That is not evidence the target branch is missing.
                         result = {"ok": False, "error": str(e)}
-                    else:
+                    if result is None:
                         if target_before_ref is None:
                             result = {"ok": False, "error": f"target branch '{target_branch}' does not exist"}
                         else:
@@ -1505,24 +1519,16 @@ def merge_worktree_to_main(
                                     result = {"ok": False, "error": target_error}
                                 else:
                                     if owner is None:
-                                        original = _git_cmd(
-                                            ["git", "symbolic-ref", "--short", "HEAD"],
-                                            cwd=str(repo), capture_output=True, text=True,
-                                        )
-                                        original_branch = (
-                                            original.stdout.strip()
-                                            if original.returncode == 0 else None
-                                        )
-                                        checkout = _git_cmd(
-                                            ["git", "checkout", target_branch],
-                                            cwd=str(repo), capture_output=True, text=True,
-                                        )
-                                        if checkout.returncode != 0:
+                                        # Цель ни в одном worktree не стоит — мержим в основном
+                                        # checkout, запомнив его ветку для возврата в finally.
+                                        original_branch = _checked_out_branch(repo)
+                                        checkout_error = _checkout(repo, target_branch)
+                                        if checkout_error is not None:
                                             result = {
                                                 "ok": False,
                                                 "error": (
                                                     f"cannot checkout {target_branch} in repo: "
-                                                    f"{checkout.stderr.strip()}"
+                                                    f"{checkout_error}"
                                                 ),
                                             }
 
@@ -1761,15 +1767,18 @@ def merge_worktree_to_main(
                                                 target_commit_succeeded = True
                                                 reset_worker_pending = True
         finally:
-            if original_branch and original_branch != target_branch:
-                restore = _git_cmd(
-                    ["git", "checkout", original_branch],
-                    cwd=str(repo), capture_output=True, text=True,
-                )
-                if restore.returncode != 0:
-                    logger.error(f"restore branch failed: {restore.stderr.strip()}")
-                    result = {"ok": False, "state": "restore_failed",
-                              "error": f"cannot restore branch '{original_branch}': {restore.stderr.strip()}"}
+            # Основной checkout возвращается туда, где его застал merge, при любом исходе.
+            restore_error = (
+                _checkout(repo, original_branch)
+                if original_branch not in (None, target_branch) else None
+            )
+            if restore_error is not None:
+                logger.error("restore branch failed: %s", restore_error)
+                result = {
+                    "ok": False,
+                    "state": "restore_failed",
+                    "error": f"cannot restore branch '{original_branch}': {restore_error}",
+                }
         target_after_result = _git_cmd(
             ["git", "show-ref", "--verify", f"refs/heads/{target_branch}"],
             cwd=str(repo), capture_output=True, text=True,
@@ -2093,15 +2102,12 @@ def promote_worktree_branch(
                 "state": "not_taskless_adhoc",
                 "error": f"branch '{expected_branch}' is not an adhoc branch for {worker_name}",
             }
-        valid = _git_cmd(
-            ["git", "check-ref-format", "--branch", new_branch],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if valid.returncode != 0:
+        name_error = _branch_name_error(repo, new_branch)
+        if name_error:
             return {
                 "ok": False,
                 "state": "invalid_target_branch",
-                "error": f"invalid branch '{new_branch}': {valid.stderr.strip()}",
+                "error": f"invalid branch '{new_branch}': {name_error}",
             }
         status = _git_cmd(
             ["git", "status", "--porcelain"], cwd=str(wt),
@@ -2295,12 +2301,9 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
     repo = _resolve_repo(str(wt), str(wt))
     with repo_mutation_lock(repo):
         from_ref = resolve_base_branch(str(repo), from_ref)
-        valid = _git_cmd(
-            ["git", "check-ref-format", "--branch", new_branch],
-            cwd=str(repo), capture_output=True, text=True,
-        )
-        if valid.returncode != 0:
-            return {"ok": False, "error": f"invalid branch '{new_branch}': {valid.stderr.strip()}"}
+        name_error = _branch_name_error(repo, new_branch)
+        if name_error:
+            return {"ok": False, "error": f"invalid branch '{new_branch}': {name_error}"}
 
         status = _git_cmd(
             ["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True,

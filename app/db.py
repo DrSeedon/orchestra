@@ -5,7 +5,7 @@ from app.task_refs import task_ref as public_task_ref
 import json
 import logging
 import math
-import os
+from os import environ
 import re
 import sqlite3
 from contextlib import nullcontext
@@ -16,24 +16,6 @@ from uuid import uuid4
 logger = logging.getLogger("db")
 
 
-_DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
-
-def _resolve_db_path() -> Path:
-    """Путь к БД: ORCHESTRA_DB_PATH из env (если задан) или дефолт data/orchestra.db.
-
-    Позволяет разным worktree/веткам и тестам держать свою БД, не блокируя
-    друг друга через SQLite-лок при параллельной работе.
-    """
-    override = os.getenv("ORCHESTRA_DB_PATH", "").strip()
-    if not override:
-        return _DEFAULT_DB_PATH
-    p = Path(override)
-    return p if p.is_absolute() else (Path(__file__).parent.parent / p)
-
-
-DB_PATH = _resolve_db_path()
-
-
 class OwnedConnection(sqlite3.Connection):
     """The creating scope commits/rolls back and closes; borrowers use nullcontext."""
 
@@ -42,6 +24,25 @@ class OwnedConnection(sqlite3.Connection):
             return super().__exit__(*args)
         finally:
             self.close()
+
+
+_REPO_ROOT = Path(__file__).parent.parent
+_DEFAULT_DB_PATH = _REPO_ROOT / "data" / "orchestra.db"
+
+
+def _db_path_from_env() -> Path:
+    """Файл SQLite этого процесса.
+
+    ORCHESTRA_DB_PATH подменяет data/orchestra.db: тесты и параллельные worktree
+    получают собственный файл и не ждут чужой блокировки SQLite. Относительное
+    значение считается от корня репозитория, а не от текущего каталога процесса;
+    абсолютное pathlib при соединении оставляет как есть.
+    """
+    configured = environ.get("ORCHESTRA_DB_PATH", "").strip()
+    return _REPO_ROOT / configured if configured else _DEFAULT_DB_PATH
+
+
+DB_PATH = _db_path_from_env()
 
 
 def _conn(path: Path | None = None) -> sqlite3.Connection:
@@ -2251,70 +2252,6 @@ def usage_get_history(hours: int = 24, step_minutes: int = 5, until: str = "") -
     return grid
 
 
-# ── Test Lock ──
-
-def _same_lock_holder(row, holder: str, holder_session_id: str) -> bool:
-    """Тот же держатель?
-
-    По НЕИЗМЕНЯЕМОМУ id, когда он известен обеим сторонам: имя агента меняется
-    `rename_worker` и может быть занято другим агентом — тогда сравнение по строке либо
-    не даёт снять свой лок, либо даёт снять ЧУЖОЙ. Строка от старого сервера id не имеет,
-    и для неё остаётся сравнение по имени — иначе живой лок стал бы неснимаемым в окне
-    между мержем и рестартом.
-    """
-    stored_id = row["holder_session_id"] if "holder_session_id" in row.keys() else ""
-    if stored_id and holder_session_id:
-        return stored_id == holder_session_id
-    return row["holder"] == holder
-
-
-def acquire_test_lock(scope: str, holder: str, reason: str = "",
-                      holder_session_id: str = "") -> tuple[bool, str | None]:
-    """Захватить глобальный тест-лок для scope.
-
-    Возвращает (ok, current_holder):
-    - (True, None)   — лок свободен, захвачен
-    - (True, holder) — лок уже за этим же держателем (идемпотентно), reason обновлён
-    - (False, name)  — занят другим, name = текущий держатель
-    """
-    now = datetime.now(timezone.utc).isoformat()
-    with _conn() as c:
-        row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
-        if row is not None:
-            if _same_lock_holder(row, holder, holder_session_id):
-                # Имя держателя могло смениться с момента захвата — показываем текущее.
-                c.execute(
-                    "UPDATE test_lock SET holder = ?, holder_session_id = ?, reason = ?, "
-                    "acquired_at = ? WHERE scope = ?",
-                    (holder, holder_session_id or row["holder_session_id"], reason, now, scope),
-                )
-                return True, holder
-            return False, row["holder"]
-        c.execute(
-            "INSERT INTO test_lock (scope, holder, holder_session_id, reason, acquired_at) "
-            "VALUES (?, ?, ?, ?, ?)",
-            (scope, holder, holder_session_id, reason, now),
-        )
-        return True, None
-
-
-def release_test_lock(scope: str, holder: str, holder_session_id: str = "") -> bool:
-    """Освободить лок. True — освобождён (был за этим держателем); False — не держатель."""
-    with _conn() as c:
-        row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
-        if row is None or not _same_lock_holder(row, holder, holder_session_id):
-            return False
-        cur = c.execute("DELETE FROM test_lock WHERE scope = ?", (scope,))
-        return cur.rowcount > 0
-
-
-def get_test_lock(scope: str) -> dict | None:
-    """Текущий держатель лока для scope или None."""
-    with _conn() as c:
-        row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
-        return dict(row) if row else None
-
-
 def find_merge_proof(scope: str, branch: str) -> dict | None:
     """Доказательство, что ветка УЖЕ слита в базу (#61).
 
@@ -2403,3 +2340,72 @@ def ack_facts(session_id: str, keys: list[str]) -> int:
             (session_id, *keys),
         )
         return cur.rowcount
+
+
+# ── Глобальный лок полного прогона тестов: не больше одной строки test_lock на scope ──
+
+def _same_lock_holder(row, holder: str, holder_session_id: str) -> bool:
+    """Тот же держатель?
+
+    По НЕИЗМЕНЯЕМОМУ id, когда он известен обеим сторонам: имя агента меняется
+    `rename_worker` и может быть занято другим агентом — тогда сравнение по строке либо
+    не даёт снять свой лок, либо даёт снять ЧУЖОЙ. Строка от старого сервера id не имеет,
+    и для неё остаётся сравнение по имени — иначе живой лок стал бы неснимаемым в окне
+    между мержем и рестартом.
+    """
+    stored_id = row["holder_session_id"] if "holder_session_id" in row.keys() else ""
+    if stored_id and holder_session_id:
+        return stored_id == holder_session_id
+    return row["holder"] == holder
+
+
+def acquire_test_lock(scope: str, holder: str, reason: str = "",
+                      holder_session_id: str = "") -> tuple[bool, str | None]:
+    """Взять лок полного прогона тестов в scope → (взят ли, держатель до вызова).
+
+    (True, None) — лок был свободен; (True, holder) — повторный захват тем же
+    держателем продлил лок и заменил reason; (False, держатель) — лок чужой и не тронут.
+    Вставка идёт первой: при гонке двух захватов PRIMARY KEY scope пропускает одну.
+    """
+    taken_at = datetime.now(timezone.utc).isoformat()
+    with _conn() as connection:
+        inserted = connection.execute(
+            "INSERT INTO test_lock (scope, holder, holder_session_id, reason, acquired_at) "
+            "VALUES (?, ?, ?, ?, ?) ON CONFLICT(scope) DO NOTHING",
+            (scope, holder, holder_session_id, reason, taken_at),
+        ).rowcount
+        if inserted:
+            return True, None
+        current = connection.execute(
+            "SELECT * FROM test_lock WHERE scope = ?", (scope,),
+        ).fetchone()
+        if not _same_lock_holder(current, holder, holder_session_id):
+            return False, current["holder"]
+        # Имя держателя могло смениться с момента захвата — показываем текущее.
+        connection.execute(
+            "UPDATE test_lock SET holder = ?, holder_session_id = ?, reason = ?, "
+            "acquired_at = ? WHERE scope = ?",
+            (holder, holder_session_id or current["holder_session_id"], reason, taken_at, scope),
+        )
+    return True, holder
+
+
+def release_test_lock(scope: str, holder: str, holder_session_id: str = "") -> bool:
+    """Снять лок. Снимает только его держатель; True — лок был его и удалён."""
+    with _conn() as connection:
+        current = connection.execute(
+            "SELECT * FROM test_lock WHERE scope = ?", (scope,),
+        ).fetchone()
+        mine = current is not None and _same_lock_holder(current, holder, holder_session_id)
+        if mine:
+            connection.execute("DELETE FROM test_lock WHERE scope = ?", (scope,))
+    return mine
+
+
+def get_test_lock(scope: str) -> dict[str, str] | None:
+    """Лок scope словарём со всеми колонками; None — лок свободен."""
+    with _conn() as connection:
+        found = connection.execute(
+            "SELECT * FROM test_lock WHERE scope = ?", (scope,),
+        ).fetchone()
+    return dict(found) if found is not None else None

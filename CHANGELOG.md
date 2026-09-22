@@ -128,6 +128,27 @@
   ошибка оплачивается многократно и провоцирует повтор тем же способом.
 
 ### Changed
+- 📝 **Код стороннего автора в `app/` переписан собственной реализацией** (V-610).
+  Тест-лок полного прогона (`app/db.py` `acquire_test_lock`/`release_test_lock`/
+  `get_test_lock`, HTTP-ручки `/api/test-lock*` в `app/routes/system.py`, MCP-тулы в
+  `app/mcp_stdio.py`), выбор и удаление TG-топиков (`app/tg_bridge.py`
+  `_pick_unique_topic_name`, `remove_topics_for_orchs`), `SessionManager.remove_scope`,
+  путь к БД (`_db_path_from_env` вместо `_resolve_db_path`), список `disallowed_tools`
+  Claude (считается один раз на сессию и общий для клиента и сверки handoff), возврат
+  основного checkout после merge (`_checked_out_branch`, `_checkout` в
+  `app/workspace.py`; проверка имени ветки сведена в `_branch_name_error` для всех
+  четырёх мест) и диалог удаления оркестратора (статичная модалка из
+  `dashboard.html` заменена диалогом `confirmOrchestratorDelete`, собираемым в JS).
+  Захват тест-лока теперь начинается со вставки `ON CONFLICT(scope) DO NOTHING`:
+  одновременный захват двумя агентами больше не может упасть на PRIMARY KEY между
+  чтением и вставкой. Мёртвая ветка `result.get("error")` в MCP-тулах лока удалена:
+  `_api` сам поднимает `ApiToolError` на ответ с `error`.
+  *Triggered case:* подача в реестр российского ПО (п. 9 ПП № 1236) требует одного
+  правообладателя, а `git blame` по `app/` и `scripts/` показывал 239 строк
+  Диденко В. (191 из них в `.py`). После правки — 0 строк по обычному `git blame`.
+  *Known tradeoff:* имена API-контрактов (MCP-тулы, env `TG_USER_MENTION`, поля
+  сессии, параметры ручек) сохранены; с `-M -C` blame ещё находит их и перенесённые
+  строки-разделители — подробный разбор в `.orchestra/tasks/V-610/report.md`.
 - ⏱️ **Предсжатие по простою больше не ждёт заполнения контекста или дневного окна**
   (`app/session.py`, `AgentSession._schedule_precompact_timer` и
   `_fire_precompact_timer`). Таймеры Claude (55 минут) и Codex (25 минут) теперь

@@ -4,6 +4,7 @@ Integrated into FastAPI lifespan — no separate process needed.
 """
 
 import asyncio
+import itertools
 import json
 import logging
 import math
@@ -131,12 +132,6 @@ def _media_name(prefix: str, ext: str, msg: types.Message) -> str:
 # диск роняет сервис целиком, а не одну загрузку.
 UPLOADS_MAX_BYTES = int(os.getenv("UPLOADS_MAX_MB", "10240")) * 1024 * 1024
 
-# @mention of the owner, delivered on the ORCHESTRATOR turn boundary (#158) so a TG push
-# arrives exactly when an orchestrator stopped — but only when that turn explicitly asked
-# for it (#241). Accepts "@username" or a numeric user_id; the id renders as a tg://
-# text_mention and notifies even when the username does not resolve for the bot.
-TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
-
 # Повод дёрнуть юзера (#241/#418): явный вызов `notify_user` остаётся fail-loud
 # fallback, а durable result marker подтверждает сохранённое событие. Marker достаточен,
 # но не обязателен: сбой записи не должен молча проглотить явную просьбу. Wait/watchdog
@@ -147,6 +142,12 @@ _ATTENTION_RESULT_RE = re.compile(
     r"(?<![A-Z_])ATTENTION_DURABLE:([a-z0-9][a-z0-9._-]{0,127})(?![a-z0-9._-])",
     re.IGNORECASE,
 )
+
+# @mention of the owner, delivered on the ORCHESTRATOR turn boundary (#158) so a TG push
+# arrives exactly when an orchestrator stopped — but only when that turn explicitly asked
+# for it (#241). Accepts "@username" or a numeric user_id; the id renders as a tg://
+# text_mention and notifies even when the username does not resolve for the bot.
+TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
 
 
 def _mention_markup(mention: str, reason: str = "") -> str:
@@ -2660,28 +2661,6 @@ def _short_name(name: str) -> str:
     return name.replace("-orchestrator", "")
 
 
-def _pick_unique_topic_name(orch_name: str) -> str:
-    """Выбрать свободное имя для TG-топика по orch_name с учётом коллизий.
-
-    Если short(orch_name) уже занят другим оркестратором, возвращаем
-    ``<short>-2``, ``<short>-3`` и т.д. Имя оркестратора, для которого
-    уже выбрано имя в ``config['topic_names']``, возвращается без изменений.
-    """
-    topic_names = config.setdefault("topic_names", {})
-    if orch_name in topic_names:
-        return topic_names[orch_name]
-    base = _short_name(orch_name)
-    used = set(topic_names.values()) | {
-        _short_name(k) for k in config["topics"] if k not in topic_names
-    }
-    if base not in used:
-        return base
-    i = 2
-    while f"{base}-{i}" in used:
-        i += 1
-    return f"{base}-{i}"
-
-
 def _ensure_owned_task(registry: dict, key, coro_factory) -> asyncio.Task:
     current = registry.get(key)
     if current is not None and not current.done():
@@ -2743,49 +2722,6 @@ async def _cancel_orch_lifecycle(orch_name: str) -> None:
     _mirror_outboxes.pop(orch_name, None)
     _mirror_dropped.pop(orch_name, None)
     _mirror_stopping.discard(orch_name)
-
-
-async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
-    """Удалить TG-топики и записи из ``config['topics']`` для указанных оркестраторов.
-
-    Mirrors не трогаем — их пользователь настраивает руками для отдельных групп.
-    Ошибки Bot API (топик уже удалён в TG) логируются как warning, но запись
-    из ``config`` всё равно убирается, чтобы не оставалось зомби.
-
-    Возвращает структуру с разбивкой по статусу:
-        {"deleted": [name, ...], "failed": [{"name": ..., "error": ...}], "skipped": [name, ...]}
-    """
-    if not bot or not config.get("group_id"):
-        return {"deleted": [], "failed": [], "skipped": list(orch_names), "error": "bridge inactive"}
-
-    deleted: list[str] = []
-    failed: list[dict] = []
-    skipped: list[str] = []
-    topic_names = config.setdefault("topic_names", {})
-    uncertain = config.setdefault("topic_create_uncertain", {})
-
-    for name in orch_names:
-        await _cancel_orch_lifecycle(name)
-        uncertain.pop(f"primary:{name}", None)
-        thread_id = config["topics"].get(name)
-        if not thread_id:
-            skipped.append(name)
-            topic_names.pop(name, None)
-            _topic_status.pop(name, None)
-            continue
-        try:
-            await bot.delete_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id)
-            deleted.append(name)
-        except Exception as e:
-            logger.warning(f"Failed to delete TG topic for {name} (thread_id={thread_id}): {e}")
-            failed.append({"name": name, "error": str(e)})
-        # config очищаем независимо от ответа API: если топика уже нет — тем более
-        config["topics"].pop(name, None)
-        topic_names.pop(name, None)
-        _topic_status.pop(name, None)
-
-    save_config()
-    return {"deleted": deleted, "failed": failed, "skipped": skipped}
 
 
 async def rename_orch_topic(old_name: str, new_name: str) -> dict:
@@ -3021,11 +2957,70 @@ _TG_TOPIC_CREATE_TIMEOUT = 5
 _TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS = 5 * 60
 
 
+def _pick_unique_topic_name(orch_name: str) -> str:
+    """Имя TG-топика для orch_name, не совпадающее с топиками других оркестраторов.
+
+    Выбранное однажды имя живёт в config['topic_names'] и возвращается как есть.
+    Новое — короткое имя оркестратора, а если оно занято — первое свободное с
+    суффиксом -2, -3, … Занятыми считаются сохранённые имена и короткие имена
+    старых топиков, созданных до появления topic_names.
+    """
+    assigned = config.setdefault("topic_names", {})
+    if orch_name in assigned:
+        return assigned[orch_name]
+    taken = set(assigned.values())
+    taken.update(_short_name(other) for other in config["topics"] if other not in assigned)
+    stem = _short_name(orch_name)
+    suffixed = (f"{stem}-{n}" for n in itertools.count(2))
+    return next(title for title in itertools.chain([stem], suffixed) if title not in taken)
+
+
+def _topic_title(orch_name: str) -> str:
+    """Текущий заголовок топика: закреплённый при создании, иначе короткое имя."""
+    return (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
+
+
+async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
+    """Снести основные TG-топики оркестраторов и забыть их в config.
+
+    Зеркала (mirrors) остаются: владелец заводит их руками под отдельные группы.
+    Отказ Bot API — обычно топик уже удалён руками — попадает в failed, но запись
+    из config уходит всё равно, иначе она висела бы без топика. Итог:
+    {"deleted": [...], "failed": [{"name", "error"}], "skipped": [...]}. Мост без
+    бота или группы config не трогает и возвращает все имена в skipped с
+    "error": "bridge inactive".
+    """
+    if not (bot and config.get("group_id")):
+        return {"deleted": [], "failed": [], "skipped": list(orch_names), "error": "bridge inactive"}
+    outcome: dict[str, list] = {"deleted": [], "failed": [], "skipped": []}
+    assigned = config.setdefault("topic_names", {})
+    uncertain = config.setdefault("topic_create_uncertain", {})
+    for name in orch_names:
+        await _cancel_orch_lifecycle(name)
+        uncertain.pop(f"primary:{name}", None)
+        thread_id = config["topics"].get(name)
+        if thread_id:
+            try:
+                await bot.delete_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id)
+            except Exception as e:
+                logger.warning("Failed to delete TG topic for %s (thread_id=%s): %s", name, thread_id, e)
+                outcome["failed"].append({"name": name, "error": str(e)})
+            else:
+                outcome["deleted"].append(name)
+            config["topics"].pop(name, None)
+        else:
+            outcome["skipped"].append(name)
+        assigned.pop(name, None)
+        _topic_status.pop(name, None)
+    save_config()
+    return outcome
+
+
 # Topic metadata is best-effort and stays outside the user-message delivery queue.
 async def _update_topic_status(orch_name: str, is_running: bool):
     if _topic_status.get(orch_name) == is_running:
         return
-    short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
+    short = _topic_title(orch_name)
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
 
     async def _do_edit(chat_id, thread_id):
