@@ -31,6 +31,20 @@
   его ожидания остались дословно прежними.
 
 ### Fixed
+- 🩹 **`ORCHESTRA_LAYOUT_MISSING` при auto-switch подсказывает repair на базовом чекауте,
+  а не на брошенной ветке воркера** (`app/orchestra_layout.py` — новый `_base_checkout` через
+  `git rev-parse --git-common-dir`, применяется в `LayoutMigrationError` для кода
+  `ORCHESTRA_LAYOUT_MISSING`). Auto-switch каждый раз заводит worktree-ветку заново от
+  `base_branch`; если у `base_branch` не мигрирован `.orchestra/layout.json`, старый
+  `repair_command` чинил именно эту одноразовую ветку, а не источник, и следующий
+  auto-switch падал с тем же кодом заново.
+  *Triggered case:* seedon, воркер `seo-cro` (`/home/kesha/projects/seedon/site`) —
+  три подряд «почини» на брошенных ветках, коммиты `86e5291`, `ccb0a93`, `0dfaad4`, каждый
+  раз новый круг. Воспроизведено и закрыто в `tests/test_orchestra_layout_repair_base_v611.py`:
+  красный без фикса на пред-фикс коде (репо подтверждает адрес worktree вместо базы),
+  зелёный с фиксом, плюс сквозной прогон «сломанный auto-switch → repair базы →
+  следующий auto-switch проходит».
+
 - 💵 **Стоимость первого хода после рестарта больше не получает накопительный итог CLI**
   (`sessions.provider_cost_baseline_usd`, `app/session_cost.py` через восстановленный
   `_last_cost`, `app/db.py`). База провайдерского `total_cost_usd` хранится рядом с

@@ -75,10 +75,33 @@ def _repair_command(repository: Path) -> str:
     )
 
 
+def _base_checkout(repository: Path) -> Path:
+    """The checkout holding the shared Git objects, not a linked worktree's own directory.
+
+    A worker's worktree branches off `base_branch` on every auto-switch; a branch created
+    there is throwaway. When the branch content is missing .orchestra/layout.json, that fact
+    describes `base_branch` itself, not the worktree — repairing the worktree only fixes the
+    abandoned branch and the very next auto-switch reproduces the same failure (V-611,
+    project seedon: three such throwaway repairs, commits 86e5291/ccb0a93/0dfaad4).
+    """
+    result = _run(repository, "rev-parse", "--path-format=absolute", "--git-common-dir", check=False)
+    if result.returncode != 0:
+        return repository
+    common_dir = Path(result.stdout.strip())
+    if common_dir.name != ".git":
+        return repository
+    base = common_dir.parent
+    if base == repository or not base.is_dir():
+        return repository
+    return base
+
+
 class LayoutMigrationError(RuntimeError):
     def __init__(self, code: str, repository: Path, detail: str) -> None:
         self.code = code
         self.repository = repository.resolve()
+        if code == "ORCHESTRA_LAYOUT_MISSING":
+            self.repository = _base_checkout(self.repository)
         self.repair_command = _repair_command(self.repository)
         super().__init__(
             f"{code}: {detail}; repository={self.repository}; repair: {self.repair_command}"
