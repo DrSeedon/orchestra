@@ -3895,6 +3895,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
 function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
+    if (type === 'done_gate_verdict') return; // V-614 shadow-only bookkeeping, not a chat event.
     if (_isSilentTurnMarker(type, content)) return;
     if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow

@@ -7,6 +7,25 @@
 ## Unreleased
 
 ### Added
+- **V-614: shadow "DONE without a passing check" verdict** (`app/done_gate.py`, hooked
+  from `app/message_deliveries.accept_message_delivery`). For every worker (not
+  orchestrator) `send_message` whose text starts with `DONE`, replays that session's
+  own `logs` to find the last code edit and whether a strict, successful check ran
+  after it (Canny-style strictness: `| tail`, `|| true`, `; echo` don't count — idea
+  from `.orchestra/tasks/V-613/research.md` §2.1, no Jev/external hook involved).
+  Edits confined to `.orchestra/` or `docs/` don't count as code. The verdict is only
+  recorded as a `logs` row (`type='done_gate_verdict'`); it never blocks, delays or
+  changes `send_message` — any error inside the gate is swallowed. Per-scope overrides
+  for what counts as code/a check live in the existing `kv` table
+  (`done_gate.set_config_override`), so no schema migration was needed.
+  `scripts/done_gate_weekly_report.py` counts flags over N days and cross-checks them
+  against `merge_operations` rows that a real merge later turned back with
+  `TEST_GATE_FAILED`/`TEST_GATE_INCONCLUSIVE`. Tests: `tests/test_done_gate_v614.py`.
+  Follow-up: the verdict row is invisible to the worker's own chat — `chat.js`
+  `addChatEntry` drops `type='done_gate_verdict'` the same way it already drops
+  `provider_limit`, and the Telegram mirror (`app/tg_bridge.py::stream_logs`) already
+  falls through its `else: continue` catch-all for unrecognized log types. Test:
+  `tests/test_tg_bridge.py::TestTurnEndMention::test_done_gate_verdict_never_reaches_telegram`.
 - 🇷🇺 **Русский интерфейс дашборда и переключатель RU/EN** (`app/static/js/i18n.js` —
   новый файл: словарь, `T()`, применение к разметке и сам переключатель; отметки
   `data-i18n*` в `app/templates/{login,dashboard}.html`; вызовы `T()` в `app.js`,
