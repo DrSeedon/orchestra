@@ -3317,6 +3317,7 @@ class AgentSession:
             "model": new_model,
             "backend_type": new_runtime,
             "session_id": "",
+            "provider_cost_baseline_usd": 0.0,
             "runtime_handoff": "",
             "history_import_source": None,
             "last_summary": "",
@@ -3340,6 +3341,8 @@ class AgentSession:
         self.model = new_model
         self.backend_type = new_runtime
         self.session_id = ""
+        self._last_cost = 0.0
+        self._last_cost_cached = 0.0
         self.session_id_history = new_history
         self.runtime_handoff = ""
         self.history_import_source = None
@@ -3409,6 +3412,7 @@ class AgentSession:
             "model": new_model,
             "backend_type": new_runtime,
             "session_id": "",
+            "provider_cost_baseline_usd": 0.0,
             "runtime_handoff": tail,
             "history_import_source": None,
             "last_summary": "",
@@ -3431,6 +3435,8 @@ class AgentSession:
         self.model = new_model
         self.backend_type = new_runtime
         self.session_id = ""
+        self._last_cost = 0.0
+        self._last_cost_cached = 0.0
         self.session_id_history = new_history
         self.runtime_handoff = tail
         self.history_import_source = None
@@ -4208,6 +4214,7 @@ class AgentSession:
             "model": self.model, "system_prompt": self.system_prompt,
             "prompt_overlay": self.prompt_overlay,
             "status": self.status.value, "session_id": self.session_id,
+            "provider_cost_baseline_usd": self._last_cost,
             "cost_usd": self.cost_usd, "cost_usd_cached": self.cost_usd_cached,
             "context_cost": self._context_cost,
             "worktree_path": self.worktree_path,

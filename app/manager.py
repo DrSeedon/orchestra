@@ -1468,6 +1468,10 @@ class SessionManager:
         )
         if row.get("is_orchestrator") is not None:
             s.is_orchestrator = bool(row.get("is_orchestrator"))
+        s._last_cost = (
+            float(row.get("provider_cost_baseline_usd") or 0.0)
+            if s.session_id else 0.0
+        )
         raw_hist = row.get("session_id_history") or "[]"
         try:
             s.session_id_history = json.loads(raw_hist) if isinstance(raw_hist, str) else raw_hist
@@ -2038,6 +2042,10 @@ class SessionManager:
         session.total_cache_read_tokens = db_row.get("total_cache_read_tokens") or 0
         session.total_cache_create_tokens = db_row.get("total_cache_create_tokens") or 0
         session.total_tool_calls = db_row.get("total_tool_calls") or 0
+        session._last_cost = (
+            float(db_row.get("provider_cost_baseline_usd") or 0.0)
+            if session.session_id else 0.0
+        )
         session.is_orchestrator = is_orch  # R1: восстановить денормализованное поле
         session.needs_switch = bool(db_row.get("needs_switch") or 0)
         raw_hist = db_row.get("session_id_history") or "[]"

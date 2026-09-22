@@ -97,6 +97,70 @@ def test_delta_cost_is_added_directly_across_resume(session):
     assert session._turn_cost == pytest.approx(0.03)
 
 
+def test_provider_baseline_survives_process_restart(session, tmp_path, monkeypatch):
+    """A resumed native session subtracts its persisted provider total."""
+    from app import db as dbmod
+    from app.manager import SessionManager
+
+    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "restart.db")
+    dbmod.init_db()
+    _apply(session, {
+        "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+        "cost_usd": 0.15, "session_id": "native-sid",
+    })
+    dbmod.save_session(session._to_db_dict())
+
+    resumed = SessionManager._hydrate_row(dbmod.get_session(session.id))
+    _apply(resumed, {
+        "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+        "cost_usd": 0.17, "session_id": "native-sid",
+    })
+    assert resumed._turn_cost == pytest.approx(0.02)
+    assert resumed.cost_usd == pytest.approx(0.17)
+
+
+def test_terminal_usage_keeps_baseline_and_usage_row_atomic(session, tmp_path, monkeypatch):
+    from app import db as dbmod
+
+    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "atomic.db")
+    dbmod.init_db()
+    session.session_id = "native-sid"
+    session._last_cost = 0.15
+    dbmod.save_session(session._to_db_dict())
+
+    assert dbmod.turn_usage_add(
+        event_id="turn-atomic", session_id=session.id, runtime="claude",
+        model=session.model, ok=True, stop_reason="end_turn", cost_usd=0.02,
+        input_tokens=1, output_tokens=1, cache_read_tokens=0,
+        cache_create_tokens=0, native_session_id="native-sid",
+        provider_cost_usd=0.17,
+    )
+    row = dbmod.get_session(session.id)
+    assert row["provider_cost_baseline_usd"] == pytest.approx(0.17)
+
+
+def test_persisted_baseline_after_missing_usage_row_is_bounded(session, tmp_path, monkeypatch):
+    """Losing only the usage projection must not charge the prior cumulative total again."""
+    from app import db as dbmod
+    from app.manager import SessionManager
+
+    monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "missing-row.db")
+    dbmod.init_db()
+    _apply(session, {
+        "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+        "cost_usd": 0.15, "session_id": "native-sid",
+    })
+    dbmod.save_session(session._to_db_dict())
+
+    resumed = SessionManager._hydrate_row(dbmod.get_session(session.id))
+    _apply(resumed, {
+        "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+        "cost_usd": 0.16, "session_id": "native-sid",
+    })
+    assert resumed._turn_cost == pytest.approx(0.01)
+    assert resumed._turn_cost >= 0
+
+
 def test_context_update(session):
     _update_ctx(session, {"context_known": True,
                           "context_pct": 42, "context_tokens": 84000,

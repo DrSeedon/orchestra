@@ -327,6 +327,12 @@ class TurnManager:
             cost_fields = {"cost_usd": s._turn_cost}
             if cost_unaccounted:
                 cost_fields = {"cost_usd": None, "cost_unaccounted": True}
+            baseline_fields = {}
+            if not meta.get("cost_is_delta") and meta.get("session_id"):
+                baseline_fields = {
+                    "native_session_id": str(meta["session_id"]),
+                    "provider_cost_usd": meta.get("cost_usd"),
+                }
             s._submit_db_write(
                 turn_usage_add,
                 event_id=event_id,
@@ -342,6 +348,7 @@ class TurnManager:
                 output_tokens=meta.get("output_tokens", 0),
                 cache_read_tokens=meta.get("cache_read", 0),
                 cache_create_tokens=meta.get("cache_create", 0),
+                **baseline_fields,
                 **quota_snapshot["state"],
             )
         context_known, context_reason = s._cost.update_context_from_turn(

@@ -1,4 +1,4 @@
--- Runtime schema version 1. Historical conversion belongs to task_migration.
+-- Runtime schema version 2. Historical conversion belongs to task_migration.
 
 CREATE TABLE artifacts (
                 id TEXT PRIMARY KEY,
@@ -428,6 +428,7 @@ CREATE TABLE sessions (
                 prompt_overlay TEXT,
                 status TEXT DEFAULT 'starting',
                 session_id TEXT,
+                provider_cost_baseline_usd REAL DEFAULT 0.0,
                 cost_usd REAL DEFAULT 0.0,
                 worktree_path TEXT,
                 branch TEXT,

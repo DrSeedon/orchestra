@@ -60,7 +60,7 @@ def _conn(path: Path | None = None) -> sqlite3.Connection:
     return conn
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 
@@ -144,6 +144,7 @@ def save_session(
     s.setdefault("task_id", "")
     s.setdefault("description", "")
     s.setdefault("cost_usd_cached", 0.0)
+    s.setdefault("provider_cost_baseline_usd", 0.0)
     s.setdefault("context_cost", 0.0)
     s.setdefault("total_turns", 0)
     s.setdefault("total_input_tokens", 0)
@@ -175,7 +176,7 @@ def save_session(
     with connection_scope as c:
         c.execute("""
             INSERT INTO sessions (id, name, scope, cwd, model, system_prompt, prompt_overlay,
-                status, session_id, cost_usd, worktree_path, branch, base_branch,
+                status, session_id, provider_cost_baseline_usd, cost_usd, worktree_path, branch, base_branch,
                 needs_switch, is_orchestrator,
                 color, created_at, finished_at, context_pct, context_tokens,
                 progress_pct, progress_status, backend_type, task_id, description,
@@ -186,7 +187,7 @@ def save_session(
                 profile, owned_dirs, tg_topic, session_id_history, effort, runtime_handoff,
                 history_import_source, last_summary)
             VALUES (:id, :name, :scope, :cwd, :model, :system_prompt, :prompt_overlay,
-                :status, :session_id, :cost_usd, :worktree_path, :branch, :base_branch,
+                :status, :session_id, :provider_cost_baseline_usd, :cost_usd, :worktree_path, :branch, :base_branch,
                 :needs_switch, :is_orchestrator,
                 :color, :created_at, :finished_at, :context_pct, :context_tokens,
                 :progress_pct, :progress_status, :backend_type, :task_id, :description,
@@ -203,6 +204,7 @@ def save_session(
                 prompt_overlay=excluded.prompt_overlay,
                 status=excluded.status,
                 session_id=excluded.session_id,
+                provider_cost_baseline_usd=excluded.provider_cost_baseline_usd,
                 cost_usd=excluded.cost_usd,
                 cost_usd_cached=excluded.cost_usd_cached,
                 context_cost=excluded.context_cost,
@@ -2015,6 +2017,8 @@ def turn_usage_add(
     quota_seven_day_pct: float | None = None,
     quota_primary_pct: float | None = None,
     quota_sampled_at: str | None = None,
+    native_session_id: str | None = None,
+    provider_cost_usd: float | None = None,
     ts: str | None = None,
 ) -> bool:
     """Persist one provider-identified terminal turn; return false on replay."""
@@ -2071,7 +2075,24 @@ def turn_usage_add(
                 quota_sampled_at,
             ),
         )
-        return cursor.rowcount == 1
+        inserted = cursor.rowcount == 1
+        if inserted and native_session_id and provider_cost_usd is not None:
+            # The provider total and its native session id are one baseline.  Commit
+            # them with the terminal usage row so a crash cannot leave a durable
+            # baseline for a turn whose accounting event was not recorded.  The
+            # session-id predicate prevents a delayed old event from overwriting a
+            # newer fresh-session switch.
+            c.execute(
+                "UPDATE sessions SET session_id=?, provider_cost_baseline_usd=? "
+                "WHERE id=? AND (session_id IS NULL OR session_id='' OR session_id=?)",
+                (
+                    native_session_id,
+                    max(0.0, float(provider_cost_usd)),
+                    session_id,
+                    native_session_id,
+                ),
+            )
+        return inserted
 
 
 # ── Usage Snapshots ──
