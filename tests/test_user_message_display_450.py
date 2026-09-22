@@ -49,6 +49,14 @@ def test_timestamped_provenance_strips_after_restart_queue_delay():
     assert user_message_display_content(row) == "вопрос"
 
 
+def test_dashboard_send_strips_generated_prefix():
+    # /send from the dashboard adds the prefix like every other channel (app/routes/sessions.py).
+    row = _log("[16:19] да запускай", "2026-09-22T09:19:13+00:00")
+    row["origin_detail"]["subtype"] = "dashboard"
+
+    assert user_message_display_content(row) == "да запускай"
+
+
 def test_display_prefix_does_not_strip_similar_quoted_timestamp():
     quoted = "[17:38] — это цитата из лога"
     row = _log(quoted, "2026-09-03T10:38:00+00:00")
