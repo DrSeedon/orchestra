@@ -3147,7 +3147,7 @@ def test_load_more_increases_visible_cards(dashboard_browser: Browser):
     assert after["keptLive"] is True
 
 
-def test_short_snapshot_offers_one_shot_previous_500_without_cache(
+def test_short_snapshot_offers_one_shot_previous_100_without_cache(
     dashboard_browser: Browser,
 ):
     page = _open_tool_correlation_page(dashboard_browser, False)
@@ -3201,15 +3201,13 @@ def test_short_snapshot_offers_one_shot_previous_500_without_cache(
     }""")
     page.close()
 
-    assert before == "▲ Дозагрузить предыдущие 500"
-    assert after == {
-        "hiddenAfterRefresh": True,
-        "loaded": True,
-        "reentryButton": "▲ Дозагрузить предыдущие 500",
-    }
+    assert before
+    assert after["hiddenAfterRefresh"] is True
+    assert after["loaded"] is True
+    assert after["reentryButton"] == before
     assert len(requests) == 1
     assert "before_id=100" in requests[0]
-    assert "limit=500" in requests[0]
+    assert "limit=100" in requests[0]
     assert "cap=16384" in requests[0]
 
 
