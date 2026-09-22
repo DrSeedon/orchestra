@@ -1,0 +1,18 @@
+{'done_total': 1283, 'done_with_code_edit': 734, 'no_strict_check_after_last_edit': 402, 'done_no_code_edit': 549, 'no_check_after_last_edit': 262, 'no_check_last_edit_outside_orchestra_docs': 145, 'edit_only_in_.orchestra': 56}
+{('codex', 'done'): 844, ('codex', 'edit'): 527, ('codex', 'nocheck'): 150, ('claude', 'done'): 439, ('claude', 'edit'): 207, ('claude', 'nocheck'): 112}
+scopes of no-check: [('seedon', 81), ('katya-work', 66), ('comfy-image-pipeline', 51), ('orchestra', 41), ('cog-second-brain', 12), ('dnd-game-master', 10), ('kesha-tg-bot', 1)]
+('seedon', 'feat-reestr-infra', '2026-09-16T09:38', 'DONE #V-14: требование подп. «и» мы выполняем уже сегодня — переносить')
+('cog-second-brain', 'balatro-assets', '2026-09-20T05:38', 'DONE #V-27: вытащены 52 спрайта обычной колоды из cards_1/8BitDeck.png')
+('orchestra', 'measure-chat-switch', '2026-09-17T05:04', 'DONE #V-583 (дерево): `git status --porcelain` → 0 строк, готово к мер')
+('seedon', 'feat-reestr-zayavlenie', '2026-09-17T05:36', 'DONE #V-15: комплект для реестра ПО собран; подавать нельзя, и причина')
+('seedon', 'tz-review-2', '2026-09-19T09:57', 'DONE #V-28: независимый разбор двух ТЗ (tz-review-2), коммит f5c454a\\n')
+('katya-work', 'bank-zadaniy', '2026-09-21T07:03', 'DONE #V-2: собран машиночитаемый банк М4 и выгрузка для «Взнания».\\n\\n')
+('katya-work', 'bank-zadaniy', '2026-09-21T08:43', 'DONE #V-2: У4.2 полностью заменён на 9 заданий на дословной фактуре от')
+('katya-work', 'bank-zadaniy', '2026-09-21T08:54', 'DONE #V-2: У4.3–У4.13 пересобраны на frozen-фактуре ФИПИ; коммит 41e48')
+('katya-work', 'bank-zadaniy', '2026-09-21T08:59', 'DONE #V-2: У4.3 переделан вручную, У4.4–У4.13 удалены из bank.json.\\n\\')
+('katya-work', 'bank-zadaniy', '2026-09-21T09:02', 'DONE #V-2: исправлены f02/f04/f07 и добавлен машинный контроль рядов.\\')
+('katya-work', 'bank-zadaniy', '2026-09-21T09:20', 'DONE #V-2: независимая spell-проверка встроена и три ошибки У4.4 испра')
+('seedon', 'reestr-pack', '2026-09-22T09:29', 'DONE #V-44: собран комплект заявления Orchestra в реестре ПО.\\n\\nКомми')
+('seedon', 'reestr-pack', '2026-09-22T09:37', 'DONE #V-44 continuation: права/бумаги подготовлены, commit a850bbb.\\n\\')
+('seedon', 'vu-pack', '2026-09-22T10:18', 'DONE #V-48: комплект воинского учёта ООО «СИДОН» готов, все 6 документ')
+('orchestra', 'measure-tools-after', '2026-09-22T10:21', 'DONE #V-612: до/после по переделке MCP-тулов, отчёт .orchestra/tasks/V')
