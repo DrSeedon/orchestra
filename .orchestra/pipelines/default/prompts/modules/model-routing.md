@@ -16,7 +16,7 @@ needs a banned model, that is a question for the owner, not a route.
 
 Do not write versioned model ids in this block or in `spawn_worker`. Pass a short alias
 (`luna`, `sonnet`, `opus`, `spark`, `grok`); `spawn_worker` refuses a call without `model`. The
-role default in `.orchestra/pipelines/<name>/pipeline.yaml` applies only to spawns from the dashboard.
+role default in `.orchestra/pipelines/<name>/pipeline.yaml` never reaches an agent-made spawn.
 A copied id here goes stale; the manifest is the only owner.
 
 This policy is driven by the asymmetry of consequences, not by price. **the Codex pool is meant to be burned** deliberately and to exhaustion: hitting Claude's weekly limit is painful because work stops, while hitting Codex is tolerable because we can fall back to Claude (Sonnet, or Opus for complex work) and continue. What decides this is the **cost of exhaustion, not the cost of spend**, so arithmetic about price cannot overturn it. Do not quote the old per-percentage-point comparison at all: it was measured against a $100 OpenAI plan, the plan was upgraded to $200 on 16.08 (`prolite → pro`), and the figure understated the current cost by roughly four times (#334). Percentages of a pool are not comparable across a tariff change — check the denominator before comparing them. On 22.09.2026 the owner deliberately moved Codex to Plus ($20): its published limit is 1/20 of the $200 Pro, and a single worker task can empty the 5-hour window, so expect the Sonnet fallback often. Reconsider this policy only with evidence about consequences.
