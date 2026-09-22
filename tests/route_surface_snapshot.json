@@ -37,6 +37,12 @@
   ]
  ],
  [
+  "/api/attention",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/bg/jobs",
   [
    "GET"
@@ -202,132 +208,6 @@
   "/api/pipelines",
   [
    "GET"
-  ]
- ],
- [
-  "/api/portfolio/attention",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/portfolio/projects",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/attention",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/goal",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/goals",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/goals/{goal_id}",
-  [
-   "PATCH"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/goals/{goal_id}",
-  [
-   "PUT"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/goals/{goal_id}/progress",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/members",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/source",
-  [
-   "PUT"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/stages",
-  [
-   "PUT"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/tasks",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/tasks",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/tasks/{task_ref}",
-  [
-   "DELETE"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/tasks/{task_ref}/stage",
-  [
-   "PUT"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/waits",
-  [
-   "GET"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/waits",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/waits/{wait_id}/cancel",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/portfolio/projects/{project_id}/waits/{wait_id}/resolve",
-  [
-   "POST"
   ]
  ],
  [
@@ -634,6 +514,12 @@
   "/api/tg/send_file",
   [
    "POST"
+  ]
+ ],
+ [
+  "/api/tm/projects",
+  [
+   "GET"
   ]
  ],
  [

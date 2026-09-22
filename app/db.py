@@ -61,7 +61,7 @@ def _conn(path: Path | None = None) -> sqlite3.Connection:
     return conn
 
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 

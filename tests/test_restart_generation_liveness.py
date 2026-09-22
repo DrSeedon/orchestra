@@ -827,7 +827,6 @@ async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete
         restart_inbox_drain=None,
         snapshot_task=done_task,
         bridge_task=done_task,
-        portfolio_watchdog_task=None,
     )
 
     assert order.index("bg_done") < order.index("handoff_done")

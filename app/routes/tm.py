@@ -7,8 +7,25 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app import tm as _tm
+from app.project_catalog import CatalogError, catalog
 
 router = APIRouter(prefix="/api/tm", tags=["task-manager"])
+
+
+@router.get("/projects")
+async def tm_projects():
+    """Каталог проектов для фильтра: словарь тегов закрыт этим файлом."""
+    try:
+        parsed = catalog()
+    except CatalogError as error:
+        return JSONResponse({"error": str(error)}, status_code=500)
+    return {
+        "projects": [
+            {"tag": project.tag, "name": project.name, "scope": project.scope,
+             "archived": project.archived, "namespaces": list(project.namespaces)}
+            for project in parsed.projects
+        ]
+    }
 
 
 class TmTaskCreate(BaseModel):
@@ -32,6 +49,7 @@ class TmTaskUpdate(BaseModel):
     status: str | None = None
     assignee: str | None = None
     priority: int | None = None
+    tags: list[str] | None = None
     acceptance_command: str | None = None
     acceptance_manifest: list[str] | None = None
     acceptance_required: bool | None = None
@@ -199,10 +217,17 @@ async def tm_task_create_status(
 
 @router.get("/tasks")
 async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
-                        scope: str = ""):
+                        scope: str = "", tags: str = ""):
+    wanted = [tag for tag in (t.strip() for t in tags.split(",")) if tag]
     try:
         def _do():
             proj = project
+            if wanted:
+                # Фильтр по тегам самодостаточен: тег уже покрывает все пространства
+                # номеров проекта, сужать его ещё и scope'ом нечем.
+                return _tm.api_list_tasks("", status, assignee, tags=wanted)
+            if project and catalog().by_tag(project) is not None:
+                return _tm.api_list_tasks("", status, assignee, tags=[project])
             if project:
                 proj = _resolve_task_project_id(project, "")
             elif scope:
@@ -290,6 +315,7 @@ async def tm_update_task(
                 acceptance_manifest=manifest_update,
                 acceptance_required=required_update,
                 acceptance_actor=actor,
+                tags=req.tags,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:

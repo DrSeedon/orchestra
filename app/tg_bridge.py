@@ -186,7 +186,7 @@ def _durable_attention_from_tool_result(
     if receipt is None:
         return None
     try:
-        from app.portfolio import get_attention_event
+        from app.attention import get_attention_event
 
         event = get_attention_event(receipt["event_id"])
     except Exception as error:

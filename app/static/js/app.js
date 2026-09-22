@@ -1017,7 +1017,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initFilePreviewModal();
     initUsageBar();
     QuotaPanel.init();
-    PortfolioPanel.init();
     Connection.init();
     _startCacheCountdown();
 });
@@ -2513,7 +2512,6 @@ async function onOrchestratorChange() {
     refreshSessions();
     initFilePanel();
     if (_tasksTabActive) loadTasks();
-    if (_portfolioTabActive) PortfolioPanel.load();
     if (_jobsTabActive) loadJobs();
 }
 
@@ -3327,7 +3325,7 @@ function initFilePanel() {
 
     if (currentScope) {
         loadFileTree(currentScope, tree);
-        if (!_tasksTabActive && !_jobsTabActive && !_portfolioTabActive) {
+        if (!_tasksTabActive && !_jobsTabActive) {
             _pollRegister('files', refreshOpenFolders, 10000);
             _pollWake('files');
         } else _pollStop('files');
@@ -3663,281 +3661,6 @@ let _tasksTabActive = false;
 
 let _jobsTabActive = false;
 
-let _portfolioTabActive = false;
-
-const PortfolioPanel = (() => {
-    let requestGeneration = 0;
-    let currentPayload = {projects: []};
-    let operatorCsrf = '';
-    const openDisclosures = new Set();
-
-    const _terminalStatuses = new Set(['done', 'paid', 'cancelled']);
-    const _queueStatuses = new Set(['new', 'backlog']);
-
-    function init() {
-        if (document.querySelector('[data-left-tab="portfolio"]')) return;
-        const folderButton = document.getElementById('open-folder-btn');
-        const tabs = folderButton?.parentElement;
-        if (!tabs) return;
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.dataset.leftTab = 'portfolio';
-        button.className = 'left-tab portfolio-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors';
-        button.textContent = T('PROJECTS');
-        button.title = T('Portfolio projects');
-        button.setAttribute('aria-label', T('Open project board'));
-        button.addEventListener('click', () => switchLeftTab('portfolio'));
-        tabs.insertBefore(button, folderButton);
-    }
-
-    function projectMeta(project) {
-        const owner = project.owner?.name || 'owner missing';
-        const contributors = (project.contributors || []).map(member => member.name).filter(Boolean);
-        const contributorText = contributors.length
-            ? contributors.map(name => `<span class="portfolio-person">+ ${escHtml(name)}</span>`).join('')
-            : `<span class="portfolio-person portfolio-person-muted">${T('no sub')}</span>`;
-        return `<div class="portfolio-project-meta">
-            <span class="portfolio-owner">◆ ${escHtml(owner)}</span>${contributorText}
-        </div>`;
-    }
-
-    function taskNumber(task) {
-        const number = task.task_display_number ?? task.par_number ?? task.par ?? task.id;
-        return task.ref_prefix ? `${task.ref_prefix}-${number}` : number;
-    }
-
-    function waitsForTask(project, task) {
-        const stableId = task.task_stable_id || '';
-        if (!stableId) return [];
-        return (project.waits || []).filter(wait =>
-            wait.status === 'open' && wait.task_stable_id === stableId
-        );
-    }
-
-    function taskCard(project, task, kind) {
-        const waits = waitsForTask(project, task);
-        const par = String(taskNumber(task));
-        const namespace = task.task_namespace_id || project.task_namespace_id || '';
-        const stableId = task.task_stable_id || '';
-        const waitAttrs = waits.length
-            ? ' data-wait-open="true"'
-            : ' data-wait-open="false"';
-        return `<button type="button" class="portfolio-road-task"
-            data-road-task="true" data-road-task-kind="${escHtml(kind)}"
-            data-task-par="${escHtml(par)}" data-task-project="${escHtml(namespace)}"
-            data-task-status="${escHtml(task.status || '')}"
-            data-task-stable-id="${escHtml(stableId)}"${waitAttrs}>
-            <span class="portfolio-road-task-ref">#${escHtml(par)}</span>
-            <strong>${escHtml(task.title || T('Untitled'))}</strong>
-            <small>${escHtml(task.status || 'unknown')}</small>
-            ${waits.map(wait => `<em>${T('NEED REPLY · {question}', {question: escHtml(wait.question)})}</em>`).join('')}
-        </button>`;
-    }
-
-    function markerTarget(project, stageOrder, staged, unassigned) {
-        let target = '';
-        for (const label of stageOrder) {
-            if ((staged.get(label) || []).some(task => task.status === 'in_progress')) {
-                target = label;
-            }
-        }
-        if (target) return `stage:${target}`;
-        for (const label of stageOrder) {
-            if ((staged.get(label) || []).some(task => _queueStatuses.has(task.status))) {
-                return `stage:${label}`;
-            }
-        }
-        if (unassigned.some(task => !_terminalStatuses.has(task.status))) return 'unassigned';
-        return stageOrder.length ? `stage:${stageOrder[stageOrder.length - 1]}` : 'unassigned';
-    }
-
-    function markerHtml(active) {
-        return active ? `<div class="portfolio-road-marker" data-road-marker="true">
-            <i></i><span>${T('we are here')}</span>
-        </div>` : '';
-    }
-
-    function stageHtml(project, label, tasks, marker) {
-        const active = tasks.some(task => task.status === 'in_progress');
-        return `<section class="portfolio-road-stage" data-road-stage="true"
-            data-road-stage-label="${escHtml(label)}" data-stage-active="${active}">
-            <header><span>${escHtml(label)}</span><b>${tasks.length}</b></header>
-            <div class="portfolio-road-stage-tasks">
-                ${tasks.map(task => taskCard(project, task, 'stage')).join('') || `<span class="portfolio-road-empty">${T('empty for now')}</span>`}
-            </div>
-            ${markerHtml(marker)}
-        </section>`;
-    }
-
-    function disclosure(project, kind, tasks) {
-        if (!tasks.length) return '';
-        const key = `${project.id}:${kind}`;
-        const expanded = openDisclosures.has(key);
-        const label = kind === 'queue'
-            ? T('{sign}{count} in queue', {sign: expanded ? '−' : '+', count: tasks.length})
-            : T('{sign}{count} in history', {sign: expanded ? '−' : '+', count: tasks.length});
-        return `<div class="portfolio-road-disclosure-block">
-            <button type="button" class="portfolio-road-disclosure"
-                data-road-disclosure="${kind}" data-disclosure-key="${escHtml(key)}"
-                aria-expanded="${expanded}">${escHtml(label)}</button>
-            ${expanded ? `<div class="portfolio-road-disclosed">
-                ${tasks.map(task => taskCard(project, task, kind)).join('')}
-            </div>` : ''}
-        </div>`;
-    }
-
-    function unassignedHtml(project, tasks, marker, noStages) {
-        const active = tasks.filter(task => !_queueStatuses.has(task.status) && !_terminalStatuses.has(task.status));
-        const queue = tasks.filter(task => _queueStatuses.has(task.status));
-        const history = tasks.filter(task => _terminalStatuses.has(task.status));
-        const expanded = openDisclosures.has(`${project.id}:queue`) || openDisclosures.has(`${project.id}:history`);
-        const title = noStages ? T('NO STAGES') : T('NO LABEL');
-        const empty = !tasks.length ? `<span class="portfolio-road-empty">${T('Stages not set · no tasks yet')}</span>` : '';
-        return `<section class="portfolio-road-unassigned ${expanded ? 'is-expanded' : ''}"
-            data-road-unassigned="true">
-            <header><span>${title}</span><b>${tasks.length}</b></header>
-            <div class="portfolio-road-stage-tasks">
-                ${active.map(task => taskCard(project, task, 'active')).join('')}${empty}
-                ${disclosure(project, 'queue', queue)}
-                ${disclosure(project, 'history', history)}
-            </div>
-            ${markerHtml(marker)}
-        </section>`;
-    }
-
-    function projectRoad(project) {
-        const stageOrder = Array.isArray(project.stage_order) ? project.stage_order : [];
-        const staged = new Map(stageOrder.map(label => [label, []]));
-        const unassigned = [];
-        for (const task of project.tasks || []) {
-            const canonical = stageOrder.find(label => label === task.stage_label);
-            if (canonical) staged.get(canonical).push(task);
-            else unassigned.push(task);
-        }
-        const marker = markerTarget(project, stageOrder, staged, unassigned);
-        const taskStableIds = new Set(
-            (project.tasks || []).map(task => task.task_stable_id).filter(Boolean)
-        );
-        const projectWaits = (project.waits || []).filter(wait =>
-            wait.status === 'open' && (
-                !wait.task_stable_id || !taskStableIds.has(wait.task_stable_id)
-            )
-        );
-        const goal = project.goal && ['active', 'paused'].includes(project.goal.status)
-            ? `<div class="portfolio-road-goal"><span>${T('GOAL')}</span><strong>${escHtml(project.goal.objective)}</strong></div>`
-            : '';
-        const road = stageOrder.map(label => stageHtml(
-            project, label, staged.get(label), marker === `stage:${label}`
-        )).join('');
-        return `<article class="portfolio-project-road" data-project-id="${escHtml(project.id)}">
-            <header class="portfolio-project-road-head">
-                <div><h3>${escHtml(project.name)}</h3><code>${escHtml(project.id)}</code></div>
-                ${projectMeta(project)}
-            </header>
-            ${goal}
-            ${projectWaits.map(wait => `<button type="button" class="portfolio-project-wait"
-                data-project-wait-id="${escHtml(wait.id)}">${T('DECISION NEEDED · {question} · REPLY', {question: escHtml(wait.question)})}</button>`).join('')}
-            <div class="portfolio-road-scroll" data-road-scroll="true">
-                <div class="portfolio-road-track">
-                    ${road}
-                    ${unassignedHtml(project, unassigned, marker === 'unassigned', stageOrder.length === 0)}
-                </div>
-            </div>
-        </article>`;
-    }
-
-    function bindInteractions(panel) {
-        panel.querySelector('[data-portfolio-refresh]')?.addEventListener('click', load);
-        panel.querySelectorAll('[data-road-disclosure]').forEach(button => {
-            button.addEventListener('click', event => {
-                event.stopPropagation();
-                const key = button.dataset.disclosureKey;
-                if (openDisclosures.has(key)) openDisclosures.delete(key);
-                else openDisclosures.add(key);
-                render(currentPayload);
-            });
-        });
-        panel.querySelectorAll('[data-road-task]').forEach(button => {
-            button.addEventListener('click', () => {
-                const project = (currentPayload.projects || []).find(item =>
-                    item.id === button.closest('[data-project-id]')?.dataset.projectId
-                );
-                const stableId = button.dataset.taskStableId || '';
-                const waits = (project?.waits || []).filter(item =>
-                    item.status === 'open' && item.task_stable_id === stableId
-                ).map(wait => ({...wait, project_id: project.id}));
-                showTaskDetail(
-                    button.dataset.taskPar,
-                    button.dataset.taskProject,
-                    waits,
-                );
-            });
-        });
-        panel.querySelectorAll('[data-project-wait-id]').forEach(button => {
-            button.addEventListener('click', () => {
-                const project = (currentPayload.projects || []).find(item =>
-                    item.id === button.closest('[data-project-id]')?.dataset.projectId
-                );
-                const wait = (project?.waits || []).find(item =>
-                    item.id === button.dataset.projectWaitId
-                );
-                if (project && wait) {
-                    showProjectWaitResponse(project, {...wait, project_id: project.id});
-                }
-            });
-        });
-    }
-
-    function render(payload) {
-        const panel = document.getElementById('tasks-panel');
-        if (!panel) return;
-        currentPayload = payload && typeof payload === 'object' ? payload : {projects: []};
-        operatorCsrf = currentPayload.csrf_token || operatorCsrf;
-        const projects = Array.isArray(currentPayload.projects) ? currentPayload.projects : [];
-        panel.innerHTML = `<div class="portfolio-shell" data-portfolio-board="true">
-            <header class="portfolio-board-head">
-                <div><span>${T('PORTFOLIO / ROAD')}</span><h2>${T('Road to goal')}</h2></div>
-                <div class="portfolio-board-actions">
-                    <span>${projects.length} ${projects.length === 1 ? T('project') : T('projects')}</span>
-                    <button type="button" data-portfolio-refresh aria-label="${T('Refresh board')}">↻</button>
-                </div>
-            </header>
-            <div class="portfolio-road-board" data-portfolio-road="true">
-                ${projects.map(projectRoad).join('') || `<div class="portfolio-empty">${T('NO PROJECTS YET')}</div>`}
-            </div>
-        </div>`;
-        bindInteractions(panel);
-    }
-
-    // Доска показывает проекты ВЫБРАННОГО оркестратора, а не все подряд (#472).
-    // Адресуем сессией по id: именно его хранит portfolio_members, а имена сессий
-    // между scope не уникальны. Id лежит в опции пикера, отдельный запрос не нужен.
-    function selectedOrchestratorSessionId() {
-        return document.getElementById('orch-picker')?.selectedOptions?.[0]?.dataset?.id || '';
-    }
-
-    async function load() {
-        const panel = document.getElementById('tasks-panel');
-        if (!panel || !_portfolioTabActive) return;
-        const generation = ++requestGeneration;
-        panel.innerHTML = `<div class="portfolio-loading"><span></span>${T('Gathering exact project state…')}</div>`;
-        try {
-            const sessionId = selectedOrchestratorSessionId();
-            const query = sessionId ? `?agent_session_id=${encodeURIComponent(sessionId)}` : '';
-            const payload = await api(`/api/portfolio/projects${query}`);
-            if (generation !== requestGeneration || !_portfolioTabActive) return;
-            render(payload);
-        } catch (error) {
-            if (generation !== requestGeneration || !_portfolioTabActive) return;
-            panel.innerHTML = `<div class="portfolio-error"><strong>${T('Board unavailable')}</strong><span>${escHtml(error.message || String(error))}</span></div>`;
-        }
-    }
-
-    return { init, load, render, csrfToken: () => operatorCsrf };
-})();
-
-window.PortfolioPanel = PortfolioPanel;
-
 function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
     const tasksPanel = document.getElementById('tasks-panel');
@@ -3950,12 +3673,10 @@ function switchLeftTab(tab) {
         btn.classList.toggle('border-transparent', !isActive);
     });
     if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
-    if (tasksPanel) tasksPanel.classList.toggle('hidden', !['tasks', 'portfolio'].includes(tab));
+    if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
-    _portfolioTabActive = tab === 'portfolio';
-    document.getElementById('file-panel')?.classList.toggle('portfolio-mode', _portfolioTabActive);
     if (tab === 'files') initFilePanel();
     else _pollStop('files');
     if (_tasksTabActive) {
@@ -3966,10 +3687,6 @@ function switchLeftTab(tab) {
         _pollRegister('jobs', loadJobs, 10000);
         _pollWake('jobs');
     } else _pollStop('jobs');
-    if (_portfolioTabActive) {
-        _pollRegister('portfolio', PortfolioPanel.load, 15000);
-        _pollWake('portfolio');
-    } else _pollStop('portfolio');
 }
 
 function openClientModal() {
@@ -4054,16 +3771,41 @@ const STATUS_LABELS = {
 const COLLAPSED_DEFAULT = new Set(['backlog', 'paid', 'cancelled']);
 let _taskCollapsed = {};
 
+// Выбранные теги проектов. Пусто — задачи текущего scope, как было до V-576.
+const _taskTagFilter = new Set();
+let _taskCatalog = null;
+
+async function _taskProjectCatalog() {
+    if (_taskCatalog) return _taskCatalog;
+    try {
+        const payload = await api('/api/tm/projects');
+        _taskCatalog = (payload.projects || []).filter(p => !p.archived);
+    } catch (e) {
+        _taskCatalog = [];
+    }
+    return _taskCatalog;
+}
+
 async function _loadTasksNow() {
     const panel = document.getElementById('tasks-panel');
     if (!panel) return;
     try {
-        const scope = currentScope || '';
-        const data = await api(`/api/tm/tasks?scope=${encodeURIComponent(scope)}`, {pollKey: 'tasks'});
-        renderTasksPanel(panel, data);
+        const catalog = await _taskProjectCatalog();
+        const tags = [..._taskTagFilter];
+        const query = tags.length
+            ? `tags=${encodeURIComponent(tags.join(','))}`
+            : `scope=${encodeURIComponent(currentScope || '')}`;
+        const data = await api(`/api/tm/tasks?${query}`, {pollKey: 'tasks'});
+        renderTasksPanel(panel, data, catalog);
     } catch (e) {
         panel.innerHTML = `<div class="p-2 text-slate-500">${T('Failed to load tasks')}</div>`;
     }
+}
+
+function toggleTaskTag(tag) {
+    if (_taskTagFilter.has(tag)) _taskTagFilter.delete(tag);
+    else _taskTagFilter.add(tag);
+    loadTasks();
 }
 
 function loadTasks() {
@@ -4380,12 +4122,23 @@ function _renderTranscriptMsg(m) {
     return rows.join('');
 }
 
-function renderTasksPanel(panel, data) {
+function _taskTagChipsHtml(catalog) {
+    if (!catalog || !catalog.length) return '';
+    const chips = catalog.map(project => {
+        const on = _taskTagFilter.has(project.tag);
+        return `<button type="button" class="task-tag-chip${on ? ' is-on' : ''}"
+            onclick="toggleTaskTag('${escHtml(project.tag)}')"
+            title="${escHtml(project.name)}">${escHtml(project.tag)}</button>`;
+    }).join('');
+    return `<div class="task-tag-filter">${chips}</div>`;
+}
+
+function renderTasksPanel(panel, data, catalog) {
     const tasks = data.tasks || [];
     const grouped = {};
     for (const t of tasks) { (grouped[t.status] ||= []).push(t); }
 
-    let html = '';
+    let html = _taskTagChipsHtml(catalog);
     if (tasks.length === 0) {
         html += `<div class="p-4 text-center text-slate-600 italic">${T('No tasks yet')}</div>`;
         panel.innerHTML = html;
@@ -4419,7 +4172,8 @@ function renderTasksPanel(panel, data) {
                 const priColor = _PRI_COLOR[t.priority];
                 html += `<div class="task-item flex items-center gap-1.5 px-2 py-0.5 hover:bg-slate-800/50 rounded cursor-pointer" style="position:relative" data-par="${par}" onclick="showTaskDetail('${par}')">`;
                 if (priColor) html += `<span style="width:8px;height:8px;border-radius:50%;background:${priColor};flex-shrink:0"></span>`;
-                html += `<span class="text-slate-600 font-mono shrink-0 w-6 text-right">${par}</span>`;
+                html += `<span class="text-slate-600 font-mono shrink-0 text-right">${par}</span>`;
+                if (t.source) html += `<span class="task-source" title="${T('Task number issued elsewhere')}">${escHtml(t.source)}</span>`;
                 html += `<span class="truncate flex-1 ${t.status === 'paid' ? 'text-slate-500' : ''}">${escHtml(t.title)}</span>`;
                 if (priceInfo) html += `<span class="text-amber-400/70 shrink-0 font-mono">${priceInfo}</span>`;
                 html += `<span class="task-inject-btn" onclick="event.stopPropagation();injectTask('${par}')" title="${T('Insert #{par} into chat', {par})}">📩</span>`;
@@ -4447,72 +4201,7 @@ function injectTask(par) {
     }
 }
 
-function _waitResponseSectionHtml(waitContext) {
-    return `<section class="portfolio-wait-response"
-        data-wait-response-section="true" data-wait-id="${escHtml(waitContext.id)}"
-        data-wait-project="${escHtml(waitContext.project_id)}">
-        <span>${T('REPLY NEEDED')}</span>
-        <strong>${escHtml(waitContext.question || '')}</strong>
-        <textarea data-wait-response rows="4" maxlength="4000" placeholder="${T('Write solution for orchestrator')}"></textarea>
-        <div class="portfolio-wait-response-actions">
-            <small data-wait-feedback></small>
-            <button type="button" data-wait-submit>${T('Send reply')}</button>
-        </div>
-    </section>`;
-}
-
-function _bindWaitResponseSections(bodyEl) {
-    bodyEl.querySelectorAll('[data-wait-response-section]').forEach(section => {
-        const submit = section.querySelector('[data-wait-submit]');
-        submit?.addEventListener('click', async () => {
-            const textarea = section.querySelector('[data-wait-response]');
-            const feedback = section.querySelector('[data-wait-feedback]');
-            const response = textarea?.value.trim() || '';
-            if (!response) {
-                feedback.textContent = T('Reply cannot be empty');
-                return;
-            }
-            submit.disabled = true;
-            feedback.textContent = T('Sending…');
-            try {
-                const result = await api(
-                    `/api/portfolio/projects/${encodeURIComponent(section.dataset.waitProject)}/waits/${encodeURIComponent(section.dataset.waitId)}/resolve`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-Token': PortfolioPanel.csrfToken(),
-                        },
-                        body: JSON.stringify({response}),
-                    },
-                );
-                const state = result?.delivery?.delivery_state || result?.wait?.response_delivery_state || '';
-                if (state === 'SUBMITTED') feedback.textContent = T('Reply delivered');
-                else if (state === 'FAILED_BEFORE_SUBMIT') feedback.textContent = T('Not sent — can retry');
-                else if (state === 'DELIVERY_UNKNOWN') feedback.textContent = T('Delivery status unknown — not resent');
-                else feedback.textContent = T('Reply accepted and sending');
-                textarea.disabled = true;
-            } catch (error) {
-                feedback.textContent = error.message || String(error);
-                submit.disabled = false;
-            }
-        });
-    });
-}
-
-function showProjectWaitResponse(project, waitContext) {
-    const modal = document.getElementById('prompt-modal');
-    const nameEl = document.getElementById('prompt-modal-name');
-    const bodyEl = document.getElementById('prompt-modal-body');
-    if (!modal || !nameEl || !bodyEl) return;
-    nameEl.textContent = `${project.name} · ${T('reply')}`;
-    bodyEl.innerHTML = `<div class="space-y-3">${_waitResponseSectionHtml(waitContext)}</div>`;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-    _bindWaitResponseSections(bodyEl);
-}
-
-async function showTaskDetail(par, projectSelector = '', waitContext = null) {
+async function showTaskDetail(par, projectSelector = '') {
     try {
         const selector = projectSelector
             ? `?project=${encodeURIComponent(projectSelector)}`
@@ -4546,15 +4235,10 @@ async function showTaskDetail(par, projectSelector = '', waitContext = null) {
             html += `<div class="border-t border-slate-800 pt-2"><div class="text-slate-500 text-[10px] mb-1">${T('SYSTEM')}</div>`;
             html += `<div class="text-[10px] text-slate-600 font-mono">${sys.join(' · ')}</div></div>`;
         }
-        const waits = Array.isArray(waitContext)
-            ? waitContext
-            : (waitContext?.id ? [waitContext] : []);
-        html += waits.map(_waitResponseSectionHtml).join('');
         html += '</div>';
         bodyEl.innerHTML = html;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
-        _bindWaitResponseSections(bodyEl);
     } catch (e) { console.error('Task detail error:', e); }
 }
 

@@ -1,4 +1,4 @@
--- Runtime schema version 2. Historical conversion belongs to task_migration.
+-- Runtime schema version 3. Historical conversion belongs to task_migration.
 
 CREATE TABLE artifacts (
                 id TEXT PRIMARY KEY,
@@ -203,112 +203,13 @@ CREATE TABLE openrouter_attempts (
                 status INTEGER
             );
 
-CREATE TABLE portfolio_activity_leases (
-                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
-                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
-                session_id TEXT NOT NULL REFERENCES sessions(id),
-                heartbeat_at TEXT NOT NULL,
-                lease_expires_at TEXT NOT NULL,
-                PRIMARY KEY(project_id, goal_id, session_id)
-            );
-
-CREATE TABLE portfolio_attention_events (
+CREATE TABLE attention_events (
                 id TEXT PRIMARY KEY,
-                kind TEXT NOT NULL CHECK(kind IN ('legacy','incident','reversal','plan_change')),
+                kind TEXT NOT NULL
+                    CHECK(kind IN ('legacy','incident','reversal','plan_change','waiting')),
                 reason TEXT NOT NULL,
                 source_session_id TEXT NOT NULL REFERENCES sessions(id),
-                project_id TEXT REFERENCES portfolio_projects(id),
-                created_at TEXT NOT NULL,
-                delivered_at TEXT
-            );
-
-CREATE TABLE portfolio_goal_progress (
-                id TEXT PRIMARY KEY,
-                claim_key TEXT NOT NULL UNIQUE,
-                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
-                session_id TEXT NOT NULL REFERENCES sessions(id),
-                note TEXT NOT NULL,
-                stall_generation INTEGER NOT NULL,
                 created_at TEXT NOT NULL
-            );
-
-CREATE TABLE portfolio_goals (
-                id TEXT PRIMARY KEY,
-                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
-                objective TEXT NOT NULL CHECK(length(objective) BETWEEN 1 AND 4000),
-                status TEXT NOT NULL CHECK(status IN ('active','paused','completed','cancelled')),
-                watchdog_enabled INTEGER NOT NULL DEFAULT 0,
-                stall_after_seconds INTEGER NOT NULL DEFAULT 1800 CHECK(stall_after_seconds > 0),
-                last_progress_at TEXT NOT NULL,
-                stall_generation INTEGER NOT NULL DEFAULT 1,
-                revision INTEGER NOT NULL DEFAULT 1,
-                created_by_session_id TEXT NOT NULL REFERENCES sessions(id),
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                completed_at TEXT
-            );
-
-CREATE TABLE portfolio_members (
-                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
-                session_id TEXT NOT NULL REFERENCES sessions(id),
-                role TEXT NOT NULL CHECK (role IN ('owner','contributor')),
-                created_at TEXT NOT NULL,
-                revoked_at TEXT,
-                PRIMARY KEY (project_id, session_id, created_at)
-            );
-
-CREATE TABLE portfolio_projects (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                task_namespace_id TEXT REFERENCES tm_projects(id),
-                stage_order_json TEXT NOT NULL DEFAULT '[]',
-                revision INTEGER NOT NULL DEFAULT 1,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                archived_at TEXT
-            );
-
-CREATE TABLE portfolio_task_links (
-                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
-                task_stable_id TEXT NOT NULL,
-                task_row_id INTEGER NOT NULL REFERENCES tm_tasks(id) ON DELETE CASCADE,
-                task_namespace_id TEXT NOT NULL,
-                task_display_number INTEGER NOT NULL,
-                linked_by_session_id TEXT NOT NULL REFERENCES sessions(id),
-                stage_label TEXT,
-                created_at TEXT NOT NULL,
-                removed_at TEXT
-            );
-
-CREATE TABLE portfolio_waits (
-                id TEXT PRIMARY KEY,
-                claim_key TEXT NOT NULL UNIQUE,
-                open_key TEXT NOT NULL,
-                project_id TEXT NOT NULL REFERENCES portfolio_projects(id) ON DELETE CASCADE,
-                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
-                opened_by_session_id TEXT NOT NULL REFERENCES sessions(id),
-                question TEXT NOT NULL,
-                task_stable_id TEXT,
-                status TEXT NOT NULL CHECK(status IN ('open','resolved','cancelled')),
-                opened_at TEXT NOT NULL,
-                resolved_at TEXT,
-                response_text TEXT,
-                response_delivery_id TEXT,
-                response_attempt INTEGER NOT NULL DEFAULT 0
-            );
-
-CREATE TABLE portfolio_watchdog_outbox (
-                goal_id TEXT NOT NULL REFERENCES portfolio_goals(id) ON DELETE CASCADE,
-                stall_generation INTEGER NOT NULL,
-                delivery_id TEXT NOT NULL UNIQUE,
-                claim_token TEXT NOT NULL,
-                target_owner_session_id TEXT NOT NULL REFERENCES sessions(id),
-                state TEXT NOT NULL CHECK(state IN ('pending','delivering','accepted','retryable')),
-                attempts INTEGER NOT NULL DEFAULT 0,
-                claimed_at TEXT NOT NULL,
-                lease_expires_at TEXT NOT NULL,
-                accepted_at TEXT,
-                PRIMARY KEY(goal_id, stall_generation)
             );
 
 CREATE TABLE profiles (
@@ -570,6 +471,7 @@ CREATE TABLE tm_tasks (
                 completed_at TEXT,
                 acceptance_command TEXT NOT NULL DEFAULT '',
                 acceptance_oracle_json TEXT NOT NULL DEFAULT '{}', priority INTEGER NOT NULL DEFAULT 2,
+                tags TEXT NOT NULL DEFAULT '[]',
                 CHECK (status IN ('backlog','new','in_progress','done','paid','cancelled'))
             );
 
@@ -687,22 +589,6 @@ CREATE INDEX idx_or_attempts_day ON openrouter_attempts(day);
 
 CREATE INDEX idx_or_attempts_ts ON openrouter_attempts(ts);
 
-CREATE INDEX idx_portfolio_attention_project
-                ON portfolio_attention_events(project_id, created_at);
-
-CREATE INDEX idx_portfolio_goal_progress_goal
-                ON portfolio_goal_progress(goal_id, created_at);
-
-CREATE INDEX idx_portfolio_goals_project
-                ON portfolio_goals(project_id, status);
-
-CREATE INDEX idx_portfolio_task_links_project
-                ON portfolio_task_links(project_id)
-                WHERE removed_at IS NULL;
-
-CREATE INDEX idx_portfolio_waits_goal
-                ON portfolio_waits(goal_id, status);
-
 CREATE INDEX idx_restart_inbox_pending
                 ON restart_inbox(id) WHERE delivered_at IS NULL AND failed_at IS NULL;
 
@@ -751,37 +637,6 @@ CREATE INDEX idx_turn_usage_ts ON turn_usage(ts);
 
 CREATE INDEX idx_usage_ts ON usage_snapshots(ts);
 
-CREATE UNIQUE INDEX uq_portfolio_active_goal
-                ON portfolio_goals(project_id)
-                WHERE status IN ('active','paused');
-
-CREATE UNIQUE INDEX uq_portfolio_active_legacy_task
-                ON portfolio_task_links(task_row_id)
-                WHERE removed_at IS NULL;
-
-CREATE UNIQUE INDEX uq_portfolio_active_member
-                ON portfolio_members(project_id, session_id)
-                WHERE revoked_at IS NULL;
-
-CREATE UNIQUE INDEX uq_portfolio_active_stable_task
-                ON portfolio_task_links(task_stable_id)
-                WHERE removed_at IS NULL;
-
-CREATE UNIQUE INDEX uq_portfolio_one_owner
-                ON portfolio_members(project_id)
-                WHERE role='owner' AND revoked_at IS NULL;
-
-CREATE UNIQUE INDEX uq_portfolio_open_wait
-                ON portfolio_waits(open_key) WHERE status='open';
-
-CREATE UNIQUE INDEX uq_portfolio_primary_task_source
-           ON portfolio_projects(task_namespace_id)
-           WHERE archived_at IS NULL AND task_namespace_id IS NOT NULL;
-
-CREATE UNIQUE INDEX uq_portfolio_wait_response_delivery
-           ON portfolio_waits(response_delivery_id)
-           WHERE response_delivery_id IS NOT NULL;
-
 CREATE UNIQUE INDEX uq_review_receipts_artifact_round
                 ON review_receipts(artifact_path, round)
                 WHERE round IS NOT NULL;
@@ -789,24 +644,6 @@ CREATE UNIQUE INDEX uq_review_receipts_artifact_round
 CREATE UNIQUE INDEX uq_review_receipts_open_task_run_session ON review_receipts(session_id) WHERE subject_kind='task_run' AND status='requested';
 
 CREATE UNIQUE INDEX uq_review_receipts_open_task_run_task ON review_receipts(scope, task_stable_id) WHERE subject_kind='task_run' AND status='requested' AND task_stable_id<>'';
-
-CREATE TRIGGER portfolio_wait_response_submitted
-           AFTER UPDATE OF state ON message_deliveries
-           WHEN OLD.state!='SUBMITTED' AND NEW.state='SUBMITTED'
-           BEGIN
-             UPDATE portfolio_goals
-                SET last_progress_at=NEW.updated_at,
-                    stall_generation=stall_generation+1,
-                    revision=revision+1,
-                    updated_at=NEW.updated_at
-              WHERE id=(
-                    SELECT goal_id FROM portfolio_waits
-                     WHERE response_delivery_id=NEW.delivery_id AND status='open'
-              );
-             UPDATE portfolio_waits
-                SET status='resolved',resolved_at=NEW.updated_at
-              WHERE response_delivery_id=NEW.delivery_id AND status='open';
-           END;
 
 CREATE TRIGGER sessions_id_required_insert
         BEFORE INSERT ON sessions

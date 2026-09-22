@@ -5,6 +5,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from datetime import datetime, timezone
 from urllib.parse import parse_qs, quote
 
@@ -324,13 +325,11 @@ async def _shutdown_runtime(
     restart_inbox_drain: "asyncio.Task | None",
     snapshot_task: asyncio.Task,
     bridge_task: asyncio.Task,
-    portfolio_watchdog_task: "asyncio.Task | None",
 ) -> None:
     startup_tasks = {
         task for task in (
             restart_inbox_drain,
             snapshot_task,
-            portfolio_watchdog_task,
         )
         if task is not None and not task.done()
     }
@@ -378,13 +377,35 @@ async def _shutdown_runtime(
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    from dotenv import load_dotenv
-    load_dotenv()
+    # НИКОГДА под pytest: каждый TestClient(app) входит в lifespan, а `.env` чекаута
+    # несёт БОЕВЫЕ пути (`ORCHESTRA_DB_PATH`, `ORCHESTRA_TASK_REPOSITORY`). 22.09.2026
+    # это стоило боевого хранилища задач: тест поднял lifespan, load_dotenv затянул
+    # боевой путь поверх тестовой изоляции, и стартовая миграция мигрировала живые
+    # данные. Изоляция пофикстурно опаздывает — отказ должен быть в самом коде.
+    # Тот же класс ошибки, что у уборки worktree в `manager.py`.
+    import sys as _sys
+    if "pytest" in _sys.modules:
+        logger.warning("load_dotenv skipped: running under pytest")
+    else:
+        from dotenv import load_dotenv
+        load_dotenv()
     from app import db as database
     database.DB_PATH = database._db_path_from_env()
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
+    # Миграция V-576 идёт ДО init_db: тот отказывается стартовать на базе чужой
+    # версии, а привести её к нужной — как раз задача миграции. От владельца при
+    # этом требуется один рестарт и ни одной команды на остановленной системе.
+    from app.startup_migration import migrate_v576
+    from app.task_runtime import task_repository_path
+    app.state.v576_migration = migrate_v576(database.DB_PATH, task_repository_path())
     init_db()
+    # Каталог проектов раньше разметки: она ходит по зарегистрированным scope,
+    # а регистрирует их теперь файл `.orchestra/projects.yaml`, а не строка БД.
+    from app.tm import sync_catalog
+    from app.db import _conn as _database_connection
+    with _database_connection() as connection:
+        app.state.project_catalog = sync_catalog(connection)
     from app.orchestra_layout import migrate_registered_project_layouts
     layout_migrations = migrate_registered_project_layouts()
     app.state.layout_migrations = layout_migrations
@@ -436,8 +457,6 @@ async def lifespan(app: FastAPI):
         bridge_task = asyncio.create_task(_start_bridge_background(manager))
         from app.routes.system import _usage_snapshot_loop
         snapshot_task = asyncio.create_task(_usage_snapshot_loop())
-        from app.portfolio_watchdog import ensure_task as ensure_portfolio_watchdog
-        portfolio_watchdog_task = ensure_portfolio_watchdog(app)
         from app.runaway_guard import ensure_task as ensure_runaway_guard
         ensure_runaway_guard(app)
         from app.merge_operations import restore_merge_operations
@@ -449,10 +468,7 @@ async def lifespan(app: FastAPI):
         _restart_inbox_drain,
         snapshot_task,
         bridge_task,
-        portfolio_watchdog_task,
     )
-    if getattr(app.state, "portfolio_watchdog_task", None) is portfolio_watchdog_task:
-        app.state.portfolio_watchdog_task = None
 
 
 class VersionedStatic(StaticFiles):
@@ -488,7 +504,7 @@ from app.routes.subagent import router as subagent_router
 from app.routes.memory import router as memory_router
 from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
-from app.routes.portfolio import router as portfolio_router
+from app.routes.attention import router as attention_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(sessions_router)
@@ -498,7 +514,7 @@ app.include_router(subagent_router)
 app.include_router(memory_router)
 app.include_router(merge_operations_router)
 app.include_router(artifacts_router)
-app.include_router(portfolio_router)
+app.include_router(attention_router)
 
 
 @app.exception_handler(Exception)

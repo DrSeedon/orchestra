@@ -711,6 +711,26 @@ def _register_session_scope(scope: str) -> None:
         )
 
 
+def _register_catalog_scope(scope: str, *, tag: str, namespace: str) -> None:
+    """Зарегистрировать scope в каталоге проектов — с V-576 это единственный способ."""
+    import os
+    from pathlib import Path
+
+    from app import project_catalog, tm
+    from app.db import _conn
+
+    path = Path(os.environ["ORCHESTRA_PROJECT_CATALOG"])
+    path.write_text(
+        "version: 1\nprojects:\n"
+        f"  - tag: {tag}\n    name: {tag}\n    scope: {scope}\n"
+        f"    write_namespace: {namespace}\n    namespaces:\n      {namespace}: \"\"\n",
+        encoding="utf-8",
+    )
+    project_catalog.reset_cache()
+    with _conn() as conn:
+        tm.sync_catalog(conn)
+
+
 @pytest.mark.asyncio
 async def test_task_create_admits_exact_session_scope_when_tm_project_is_stale(monkeypatch):
     import app.mcp_stdio as m
@@ -719,11 +739,14 @@ async def test_task_create_admits_exact_session_scope_when_tm_project_is_stale(m
     scope = "/home/kesha/projects/VPN-Service"
     _register_session_scope(scope)
     monkeypatch.setattr(m, "SCOPE", scope)
+    # V-576: scope регистрирует каталог, а не строка БД. Регистр пути значим —
+    # именно на нём ломался прежний авто-подбор проекта по scope.
+    _register_catalog_scope(scope, tag="vpn-service", namespace="vpn-service-vps")
 
     with tm._conn() as conn:
         assert conn.execute(
-            "SELECT 1 FROM tm_projects WHERE scope = ?", (scope,)
-        ).fetchone() is None
+            "SELECT canonical_id FROM tm_projects WHERE scope = ?", (scope,)
+        ).fetchone()[0] == "vpn-service-vps"
 
     with patch.object(m, "_api", side_effect=_call_tm_task_create):
         raw = await m.task_create(title="VPN registration oracle")

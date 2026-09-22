@@ -29,6 +29,16 @@ for _quota_var in (
 ):
     os.environ.pop(_quota_var, None)
 
+# Боевые пути снимаются ТОЖЕ до импорта app и до любой фикстуры. Пофикстурная изоляция
+# опаздывает: приложение поднимается и из module/session-фикстур, и из кода, который
+# выполняется на сборе тестов. 22.09.2026 это стоило боевого хранилища задач — тест вошёл
+# в `lifespan`, тот позвал `load_dotenv()`, `.env` чекаута вернул
+# `ORCHESTRA_TASK_REPOSITORY=<боевое>` поверх изоляции, и стартовая миграция переписала
+# 1863 живые записи. Тест, которому нужен конкретный путь, задаёт его сам.
+_PRODUCTION_PATH_VARS = ("ORCHESTRA_DB_PATH", "ORCHESTRA_TASK_REPOSITORY")
+for _path_var in _PRODUCTION_PATH_VARS:
+    os.environ.pop(_path_var, None)
+
 
 def _sqlite_file_path(database, *, uri=False):
     try:
@@ -86,6 +96,25 @@ def _isolate_production_db(tmp_path):
             _guard_sqlite_connect(sqlite3.connect, production_path),
         )
         yield
+
+
+@pytest.fixture(autouse=True)
+def _isolate_project_catalog(tmp_path):
+    """Каталог проектов — тоже боевые данные: тест не должен видеть живые теги.
+
+    Без изоляции `resolve_project_selector('orchestra')` в тесте попадал бы в настоящий
+    тег и заводил строку соответствия живого пространства номеров. Тест, которому нужен
+    каталог, пишет свой файл и выставляет `ORCHESTRA_PROJECT_CATALOG` сам.
+    """
+    from app import project_catalog
+
+    path = tmp_path / "projects.yaml"
+    path.write_text("version: 1\nprojects: []\n", encoding="utf-8")
+    with pytest.MonkeyPatch.context() as guard_patch:
+        guard_patch.setenv("ORCHESTRA_PROJECT_CATALOG", str(path))
+        project_catalog.reset_cache()
+        yield path
+    project_catalog.reset_cache()
 
 
 @pytest.fixture(autouse=True)

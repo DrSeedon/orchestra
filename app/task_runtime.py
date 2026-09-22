@@ -84,6 +84,7 @@ class TaskRuntime:
             'price_rub': record['price_rub'], 'status': record['status'],
             'assignee': record['assignee'], 'priority': record['priority'],
             'git_commits': json.dumps(record['git_commits'], ensure_ascii=False),
+            'tags': json.dumps(record['tags'], ensure_ascii=False),
             'created_at': record['created_at'], 'updated_at': record['updated_at'],
             'completed_at': record['completed_at'],
             'acceptance_command': command,
@@ -121,7 +122,7 @@ class TaskRuntime:
             title=row['title'], description=row['description'], status=row['status'],
             priority=row['priority'], assignee=row['assignee'], price_rub=row['price_rub'],
             acceptance=acceptance, git_commits=json.loads(row['git_commits'] or '[]'),
-            completed_at=row['completed_at'])
+            tags=json.loads(row['tags'] or '[]'), completed_at=row['completed_at'])
         head = self.store.head
         connection.execute('UPDATE tm_tasks SET task_revision=?,task_commit=? WHERE id=?',
                            (updated['revision'], head, task_id))
@@ -177,11 +178,20 @@ def task_runtime_mode(runtime: TaskRuntime):
         _ACTIVE = None
 
 
+def task_repository_path() -> Path:
+    """Единственное место, где решается, ГДЕ лежит хранилище задач.
+
+    Стартовая миграция и открытие хранилища обязаны видеть один и тот же путь:
+    разойдясь, они мигрируют одно, а работают с другим.
+    """
+    return Path(os.environ.get('ORCHESTRA_TASK_REPOSITORY') or db.DB_PATH.parent / 'tasks')
+
+
 def production_runtime() -> TaskRuntime:
     """Open the migrated private repository, or initialize an empty installation."""
     import subprocess
     from app.task_refs import new_task_prefix
-    root = Path(os.environ.get('ORCHESTRA_TASK_REPOSITORY') or db.DB_PATH.parent / 'tasks')
+    root = task_repository_path()
     if not (root / '.git').exists():
         with db._conn() as connection:
             if connection.execute('SELECT 1 FROM tm_tasks LIMIT 1').fetchone():

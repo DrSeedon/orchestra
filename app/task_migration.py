@@ -12,7 +12,10 @@ import shutil
 
 from app import db
 from app.task_refs import project_key, TaskRef
-from app.task_store import TaskStore, TaskConflict, _bytes, _validate, _DEFAULTS
+from app.task_store import (
+    SCHEMA_VERSION as STORE_SCHEMA_VERSION, TaskStore, TaskConflict,
+    _bytes, _validate, _DEFAULTS,
+)
 import copy
 
 
@@ -68,12 +71,13 @@ def convert_tasks(connection, canonical: Path, registry: dict, mapping: dict | N
                       'required': oracle.get('required', False), **oracle}
         stable_id = identity_map.get(old['stable_id'], old['stable_id'])
         record = {
-            'schema_version': 1, 'id': stable_id, 'project_id': project_map.get(portable_project, portable_project),
+            'schema_version': STORE_SCHEMA_VERSION, 'id': stable_id, 'project_id': project_map.get(portable_project, portable_project),
             'origin': key[1], 'number': key[2],
             **{k: old[k] for k in ('title', 'description', 'status', 'priority', 'price_rub', 'assignee', 'created_at', 'updated_at')},
             'completed_at': old.get('completed_at'),
             'acceptance': acceptance, 'git_commits': old['git_commit_refs'],
             'evidence_refs': old['evidence_refs'],
+            'tags': list(old.get('tags') or []),
             'creation_key': f'migrated:{stable_id}',
             'creation_fingerprint': hashlib.sha256(_bytes(old)).hexdigest(),
         }
@@ -275,10 +279,10 @@ def _project_migrated_database(target_db, store, plan, mapping, existing_errors)
         for stable_id, row_id in plan['bindings'].items():
             connection.execute('UPDATE tm_tasks SET stable_id=?,task_revision=? WHERE id=?', (stable_id, '', row_id))
         for previous, current in mapping.get('identities', {}).items():
-            for table in ('portfolio_waits', 'review_receipts'):
-                if connection.execute(f'SELECT 1 FROM {table} WHERE task_stable_id=? LIMIT 1', (previous,)).fetchone():
-                    raise TaskConflict(f'UUID collision has {table} references; preserve their identity before conversion')
-            connection.execute('UPDATE portfolio_task_links SET task_stable_id=? WHERE task_stable_id=?', (current, previous))
+            # Портфельные ссылки на задачу ушли вместе с портфелем (V-576);
+            # остались только квитанции ревью.
+            if connection.execute('SELECT 1 FROM review_receipts WHERE task_stable_id=? LIMIT 1', (previous,)).fetchone():
+                raise TaskConflict('UUID collision has review_receipts references; preserve their identity before conversion')
         connection.execute('DELETE FROM task_projection_meta')
     runtime.refresh()
     with db._conn(target_db) as connection:
