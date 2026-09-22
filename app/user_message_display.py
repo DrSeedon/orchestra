@@ -14,7 +14,7 @@ USER_MESSAGE_TIME_PREFIX_RE = re.compile(
     r"^\[(?P<hour>[01]\d|2[0-3]):(?P<minute>[0-5]\d)\] "
 )
 TIMESTAMPED_USER_MESSAGE_SUBTYPES = frozenset({
-    "http_send", "telegram", "telegram_fallback", "tg_restart_inbox",
+    "dashboard", "http_send", "telegram", "telegram_fallback", "tg_restart_inbox",
 })
 
 
