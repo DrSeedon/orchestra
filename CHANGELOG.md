@@ -31,6 +31,13 @@
   его ожидания остались дословно прежними.
 
 ### Fixed
+- 🇷🇺 **GigaChat provider for the Harness** (`app/harness/llm.py`, `app/backend_harness.py`):
+  direct OAuth and chat requests use Sber endpoints, refresh the 30-minute token (including
+  one retry after HTTP 401), and translate the Harness OpenAI tool history to GigaChat's
+  `functions`/`function_call` contract. `GigaChat-2` and `GigaChat-2-Max` are selectable
+  alongside existing OpenRouter routes. *Triggered case:* the 17.09.2026 probe showed that
+  GigaChat silently ignores OpenAI `tools`/`tool_choice` and only calls tools through its
+  legacy function schema.
 - 🩹 **`ORCHESTRA_LAYOUT_MISSING` при auto-switch подсказывает repair на базовом чекауте,
   а не на брошенной ветке воркера** (`app/orchestra_layout.py` — новый `_base_checkout` через
   `git rev-parse --git-common-dir`, применяется в `LayoutMigrationError` для кода

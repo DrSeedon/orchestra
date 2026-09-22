@@ -13,18 +13,95 @@ from scratch (never resume a half-stream — that would duplicate text/tool_call
 """
 
 import asyncio
+import base64
 import json
 import logging
+import os
 import random
 import re
 from dataclasses import dataclass, field
 from typing import AsyncIterator, Iterable
+from uuid import uuid4
 
 import httpx
 
 from app import openrouter_counter as _counter
 
 logger = logging.getLogger(__name__)
+
+GIGACHAT_AUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
+GIGACHAT_CHAT_URL = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
+GIGACHAT_REQUEST_TIMEOUT = 600
+
+
+def tools_to_gigachat_functions(tools: list[dict]) -> list[dict]:
+    """Translate the loop's OpenAI tool envelopes to GigaChat functions."""
+    functions: list[dict] = []
+    for tool in tools or []:
+        function = tool.get("function") if isinstance(tool, dict) else None
+        if not isinstance(function, dict):
+            raise ValueError("tool must contain a function object")
+        functions.append({key: value for key, value in function.items()
+                          if key in {"name", "description", "parameters"}})
+    return functions
+
+
+def functions_to_openai_tools(functions: list[dict]) -> list[dict]:
+    """Translate GigaChat function definitions into the loop's tool envelopes."""
+    return [{"type": "function", "function": dict(function)} for function in (functions or [])]
+
+
+def openai_messages_to_gigachat(messages: list[dict]) -> list[dict]:
+    """Translate persisted OpenAI history to GigaChat's function-call history.
+
+    AgentLoop keeps one stable OpenAI-shaped history for all providers. GigaChat uses
+    an assistant ``function_call`` object and a following ``function`` message instead
+    of ``tool_calls`` and ``tool`` messages, so the conversion happens at the boundary.
+    """
+    call_names: dict[str, str] = {}
+    result: list[dict] = []
+    for message in messages:
+        role = message.get("role")
+        if role == "assistant" and message.get("tool_calls"):
+            calls = message["tool_calls"]
+            if len(calls) != 1:
+                raise ValueError("GigaChat supports one function call per assistant message")
+            call = calls[0]
+            function = call.get("function") or {}
+            name = function.get("name") or ""
+            if not name:
+                raise ValueError("assistant tool call has no function name")
+            call_id = call.get("id") or ""
+            if call_id:
+                call_names[call_id] = name
+            raw_args = function.get("arguments") or "{}"
+            try:
+                arguments = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"invalid arguments for function {name}: {exc}") from exc
+            if not isinstance(arguments, dict):
+                raise ValueError(f"arguments for function {name} must be an object")
+            result.append({
+                "role": "assistant",
+                "content": message.get("content") or "",
+                "function_call": {"name": name, "arguments": arguments},
+            })
+            continue
+        if role == "tool":
+            call_id = message.get("tool_call_id") or ""
+            name = call_names.get(call_id)
+            if not name:
+                raise ValueError(f"tool result refers to unknown call {call_id!r}")
+            result.append({
+                "role": "function",
+                "name": name,
+                # GigaChat validates function results as JSON values. A tool emits
+                # ordinary text, so encode it as a JSON string at this boundary.
+                "content": json.dumps(str(message.get("content") or ""), ensure_ascii=False),
+            })
+            continue
+        result.append(dict(message))
+    return result
 
 DEFAULT_BASE_URL = "https://openrouter.ai/api/v1"
 REQUEST_TIMEOUT = 600        # per-HTTP-request ceiling (distinct from turn timeout)
@@ -400,6 +477,177 @@ class _RetryableStatus(Exception):
         self.retry_after = retry_after
         self.kind = kind  # "platform" (наша минутная/суточная стена) | "upstream" (занят провайдер)
         super().__init__(f"retryable {kind} rate limit, status {status}")
+
+
+class GigaChatClient:
+    """GigaChat transport implementing the same event contract as OpenRouterClient."""
+
+    def __init__(self, model: str, *, http: httpx.AsyncClient | None = None,
+                 auth_url: str = GIGACHAT_AUTH_URL,
+                 chat_url: str = GIGACHAT_CHAT_URL):
+        self.model = model
+        self.auth_url = auth_url.rstrip("/")
+        self.chat_url = chat_url.rstrip("/")
+        self._http = http
+        self._owns_http = http is None
+        self._access_token = ""
+        self._token_expires_at = 0.0
+
+    async def _client(self) -> httpx.AsyncClient:
+        if self._http is None:
+            self._http = httpx.AsyncClient(
+                timeout=httpx.Timeout(GIGACHAT_REQUEST_TIMEOUT, connect=30),
+                trust_env=False,
+                verify=os.environ.get("GIGACHAT_CA_BUNDLE") or True,
+            )
+        return self._http
+
+    async def aclose(self) -> None:
+        if self._owns_http and self._http is not None:
+            await self._http.aclose()
+            self._http = None
+
+    def retarget(self, model: str, supported_parameters: Iterable[str] = ()) -> None:
+        self.model = model
+
+    def _auth_headers(self) -> dict[str, str]:
+        auth_key = os.environ.get("GIGACHAT_AUTH_KEY", "").strip()
+        if not auth_key:
+            client_id = os.environ.get("GIGACHAT_CLIENT_ID", "").strip()
+            client_secret = os.environ.get("GIGACHAT_CLIENT_SECRET", "").strip()
+            if client_id and client_secret:
+                auth_key = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+        if not auth_key:
+            raise RuntimeError(
+                "No GigaChat credentials found (checked GIGACHAT_AUTH_KEY or "
+                "GIGACHAT_CLIENT_ID/GIGACHAT_CLIENT_SECRET)"
+            )
+        return {
+            "Authorization": f"Basic {auth_key}",
+            "Content-Type": "application/x-www-form-urlencoded",
+            "Accept": "application/json",
+            "RqUID": str(uuid4()),
+        }
+
+    async def _fetch_token(self) -> None:
+        scope = os.environ.get("GIGACHAT_SCOPE", "").strip()
+        if not scope:
+            raise RuntimeError("GIGACHAT_SCOPE is required")
+        http = await self._client()
+        response = await http.post(
+            self.auth_url,
+            data={"scope": scope},
+            headers=self._auth_headers(),
+        )
+        if response.status_code >= 400:
+            detail = response.text[:500]
+            raise RuntimeError(f"GigaChat OAuth failed ({response.status_code}): {detail}")
+        try:
+            payload = response.json()
+            token = str(payload["access_token"])
+            lifetime = float(payload.get("expires_in", 1800))
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise RuntimeError("GigaChat OAuth returned an invalid token response") from exc
+        if not token:
+            raise RuntimeError("GigaChat OAuth returned an empty access token")
+        self._access_token = token
+        self._token_expires_at = asyncio.get_running_loop().time() + max(0.0, lifetime) - 30.0
+
+    async def _token(self) -> str:
+        if not self._access_token or asyncio.get_running_loop().time() >= self._token_expires_at:
+            await self._fetch_token()
+        return self._access_token
+
+    @staticmethod
+    def _error_detail(response: httpx.Response) -> str:
+        try:
+            payload = response.json()
+            if isinstance(payload, dict):
+                error = payload.get("error") or payload.get("message")
+                if isinstance(error, dict):
+                    return str(error.get("message") or error.get("code") or error)
+                if error:
+                    return str(error)
+        except (ValueError, json.JSONDecodeError):
+            pass
+        return response.text[:500]
+
+    @staticmethod
+    def _usage(payload: dict) -> dict:
+        usage = payload.get("usage") or {}
+        return {
+            key: usage[key]
+            for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+            if key in usage
+        }
+
+    async def stream(self, messages: list[dict], tools: list[dict],
+                     abort=None, effort: str | None = None) -> AsyncIterator[LLMEvent]:
+        """Issue one non-streaming request; GigaChat returns function_call as an object."""
+        if abort and abort():
+            return
+        body = {
+            "model": self.model,
+            "messages": openai_messages_to_gigachat(messages),
+            "stream": False,
+        }
+        if tools:
+            body["functions"] = tools_to_gigachat_functions(tools)
+            body["function_call"] = "auto"
+        token = await self._token()
+        http = await self._client()
+        response = await http.post(
+            self.chat_url,
+            json=body,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        )
+        if response.status_code == 401:
+            self._access_token = ""
+            token = await self._token()
+            response = await http.post(
+                self.chat_url,
+                json=body,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"GigaChat request failed ({response.status_code}): {self._error_detail(response)}"
+            )
+        try:
+            payload = response.json()
+            choice = (payload.get("choices") or [])[0]
+            message = choice.get("message") or {}
+        except (IndexError, AttributeError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise RuntimeError("GigaChat returned an invalid completion") from exc
+        function_call = message.get("function_call")
+        content = message.get("content")
+        if function_call:
+            if not isinstance(function_call, dict) or not function_call.get("name"):
+                raise RuntimeError("GigaChat returned a malformed function_call")
+            arguments = function_call.get("arguments") or {}
+            if isinstance(arguments, str):
+                try:
+                    arguments = json.loads(arguments)
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise RuntimeError("GigaChat returned invalid function_call arguments") from exc
+            if not isinstance(arguments, dict):
+                raise RuntimeError("GigaChat function_call arguments must be an object")
+            yield LLMEvent(
+                "tool_call_done",
+                tool_id=f"gigachat-{uuid4()}",
+                tool_name=str(function_call["name"]),
+                arguments=json.dumps(arguments, ensure_ascii=False),
+            )
+            yield LLMEvent("final", finish_reason="tool_calls", usage=self._usage(payload))
+            return
+        if not content:
+            raise RuntimeError("GigaChat returned an empty completion")
+        yield LLMEvent("text_delta", text=str(content))
+        yield LLMEvent(
+            "final",
+            finish_reason=str(choice.get("finish_reason") or "stop"),
+            usage=self._usage(payload),
+        )
 
 
 def _classify_rate_limit(headers) -> str:

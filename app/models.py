@@ -121,6 +121,16 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="grok-4.5", name="Grok 4.5",
         runtime="grok", provider="x-ai", context_length=500000,
     ),
+    ModelSpec(
+        id="GigaChat-2", name="GigaChat 2",
+        runtime="harness", provider="gigachat", context_length=128000,
+        supported_parameters=("functions", "function_call"),
+    ),
+    ModelSpec(
+        id="GigaChat-2-Max", name="GigaChat 2 Max",
+        runtime="harness", provider="gigachat", context_length=128000,
+        supported_parameters=("functions", "function_call"),
+    ),
     # Harness (OpenRouter) routes are NOT declared here: they come from the live
     # provider catalog via app.model_catalog. A hardcoded copy of someone else's
     # catalog goes stale silently — both entries kept here until 17.09.2026 were
@@ -175,6 +185,12 @@ ALIASES = {
     "grok4.5": "grok-4.5",
     "grok-build": "grok-4.5",
 }
+_GIGACHAT_ALIASES = {
+    "gigachat": "GigaChat-2",
+    "gigachat-2": "GigaChat-2",
+    "gigachat-2-max": "GigaChat-2-Max",
+}
+ALIASES.update(_GIGACHAT_ALIASES)
 
 BACKENDS: dict[str, str] = {}
 
@@ -213,11 +229,11 @@ PROVIDER_METADATA: dict[str, ProviderMetadata] = {
     ),
     "harness": ProviderMetadata(
         id="harness",
-        title="OpenRouter",
+        title="Harness",
         ui_provider="openrouter",
         cache_ttl_seconds=0,
         cache_ttl_approximate=True,
-        model_providers=("openrouter",),
+        model_providers=("openrouter", "gigachat"),
     ),
     "unknown": ProviderMetadata(
         id="unknown",
@@ -371,6 +387,10 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
     """
     if spec.runtime != "harness":
         raise ValueError(f"model '{spec.id}' is not a harness model")
+    if spec.provider == "gigachat":
+        if spec.id not in {"GigaChat-2", "GigaChat-2-Max"}:
+            raise ValueError(f"unsupported GigaChat model '{spec.id}'")
+        return
     if spec.id in BLOCKED_HARNESS_ROUTES:
         raise ValueError(
             f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
@@ -591,6 +611,13 @@ def _clear_selectable_models() -> None:
     MODEL_PROVIDERS.clear()
     MODEL_SPECS.clear()
     ALIASES.clear()
+    # Direct providers are independent of the enterprise proxy catalog. Keep the
+    # Russian GigaChat routes available when proxy-backed models are reloaded.
+    for spec in SELECTABLE_MODEL_SPECS:
+        if spec.provider == "gigachat":
+            MODEL_SPECS[spec.id] = spec
+            _apply_derived_views(spec)
+    ALIASES.update(_GIGACHAT_ALIASES)
 
 
 def _proxy_model_spec(raw: dict) -> ModelSpec | None:
