@@ -4393,6 +4393,28 @@ class TestTurnEndMention:
 
         assert len([m for m in sent if "@DrSeedon" in m["text"]]) == 1, sent
 
+    @pytest.mark.asyncio
+    async def test_done_gate_verdict_never_reaches_telegram(self, tb, monkeypatch):
+        """V-614: shadow-only bookkeeping row (`type='done_gate_verdict'`) must never
+        reach a Telegram chat. `stream_logs` has no explicit branch for this type, so
+        it must fall through the `else: continue` catch-all — same as any other
+        unrecognized log type. A regression that adds a branch (or forwards unknown
+        types by default) would make this send something and red this test."""
+        payload = json.dumps({
+            "session_id": "s1", "scope": "/scope", "task_id": "614",
+            "has_code_edit": True, "checked": False, "flag": True,
+        }, ensure_ascii=False)
+        sent, mirrored = await self._run(
+            tb, monkeypatch,
+            [
+                {"id": 1, "type": "done_gate_verdict", "content": payload},
+                {"id": 2, "type": "status", "content": "turn ended (end_turn, 1 turns, $0.01 turn)"},
+            ],
+            capture_mirror=True,
+        )
+        assert sent == []
+        assert mirrored == []
+
 
 class TestNotifyUserMention:
     """#241: тег приходит ТОЛЬКО по явному вызову `notify_user` в этом ходе.

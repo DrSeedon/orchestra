@@ -289,6 +289,20 @@ async def accept_message_delivery(
             ensure_target_runner(target_session_id)
         except Exception as error:
             logger.warning("message delivery runner wake failed: %s", err_text(error))
+        try:
+            from app import done_gate
+
+            done_gate.maybe_record(
+                source_session_id=source_session_id,
+                source_scope=source_scope,
+                source_task_id=source_task_id,
+                source_name=source_name,
+                message=message,
+            )
+        except Exception as error:
+            # Тень (V-614): гейт только пишет вердикт для последующего анализа и
+            # никогда не должен ломать или задерживать доставку самого DONE.
+            logger.warning("done_gate failed: %s", err_text(error))
     return resource, 202
 
 
