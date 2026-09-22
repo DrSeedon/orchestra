@@ -13,6 +13,7 @@ from typing import TypedDict
 
 from app.acceptance import PYTEST_CONFIG_NAMES
 from app.db import _conn, task_run_receipt_finish, task_run_receipt_open
+from app.project_catalog import CatalogError, catalog
 from app.task_runtime import active_runtime
 from app.task_store import TaskCreateConflict
 from app.task_refs import project_key
@@ -221,34 +222,112 @@ def get_project_by_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
     return dict(row) if row else None
 
 
-def _project_for_session_scope(conn: sqlite3.Connection, scope: str) -> dict | None:
-    """Register an exact session scope without rebinding an existing project identity."""
-    project = get_project_by_scope(conn, scope)
-    if project:
-        return project
-    if not conn.execute("SELECT 1 FROM sessions WHERE scope = ? LIMIT 1", (scope,)).fetchone():
-        return None
+def local_project_for_namespace(conn: sqlite3.Connection, canonical_id: str,
+                                created_at: str = "") -> dict:
+    """Внутренняя строка соответствия для пространства номеров.
 
-    base_id = f"scope:{scope}"
-    candidate = base_id
-    suffix = 2
-    while True:
-        matches = [
-            dict(row)
-            for row in conn.execute("SELECT * FROM tm_projects").fetchall()
-            if row["id"].casefold() == candidate.casefold()
-        ]
-        if not matches:
-            return ensure_project(conn, candidate, name=scope, scope=scope)
-        for match in matches:
-            if match.get("scope") == scope:
-                return match
-        candidate = f"{base_id}:{suffix}"
-        suffix += 1
+    `tm_projects` перестала быть «проектом» в человеческом смысле: теперь это таблица
+    соответствия local id ↔ namespace, которую человек не видит. Снести её нельзя —
+    `tm_tasks.project_id` ссылается на неё внешним ключом (`PRAGMA foreign_keys=ON`),
+    а смена `project_id` у существующей задачи роняет проекцию из Git
+    (`TaskRuntime.project`: «Git changed the immutable identity of an existing task»).
+    """
+    rows = conn.execute(
+        "SELECT * FROM tm_projects WHERE canonical_id=?", (canonical_id,)
+    ).fetchall()
+    if len(rows) > 1:
+        raise ValueError(f"namespace '{canonical_id}' needs one local project binding")
+    if rows:
+        return dict(rows[0])
+    local_id = "git:" + canonical_id
+    conn.execute(
+        "INSERT INTO tm_projects(id,name,prefix,scope,created_at,canonical_id) "
+        "VALUES(?,?,?,NULL,?,?)",
+        (local_id, canonical_id, _generate_prefix(conn, local_id),
+         created_at or _now(), canonical_id),
+    )
+    return dict(conn.execute(
+        "SELECT * FROM tm_projects WHERE id=?", (local_id,)
+    ).fetchone())
+
+
+def sync_catalog(conn: sqlite3.Connection) -> dict:
+    """Спроецировать `.orchestra/projects.yaml` в таблицу соответствия.
+
+    Scope принадлежит файлу каталога, а не строке БД: раньше неизвестный scope молча
+    заводил новый проект `scope:<путь>`, и один человеческий проект расползался на
+    несколько пространств номеров. Проекция идемпотентна и ничего не переименовывает.
+    """
+    registered: dict[str, str] = {}
+    for project in catalog().projects:
+        for namespace in project.namespaces:
+            local_project_for_namespace(conn, namespace)
+        if not project.scope:
+            continue
+        row = local_project_for_namespace(conn, project.write_namespace)
+        holder = conn.execute(
+            "SELECT id FROM tm_projects WHERE RTRIM(scope,'/')=? AND id<>?",
+            (project.scope, row["id"]),
+        ).fetchone()
+        if holder:
+            raise CatalogError(
+                f"scope '{project.scope}' проекта '{project.tag}' уже принадлежит "
+                f"'{holder['id']}' — почини каталог или запись соответствия"
+            )
+        if str(row["scope"] or "").rstrip("/") != project.scope:
+            conn.execute("UPDATE tm_projects SET scope=? WHERE id=?",
+                         (project.scope, row["id"]))
+        registered[project.scope] = row["id"]
+    return {"scopes": registered}
+
+
+def project_source_label(conn: sqlite3.Connection, project_id: str) -> str:
+    """Метка источника рядом с номером: `#161` и `#161 · ноутбук` — разные задачи."""
+    row = conn.execute(
+        "SELECT canonical_id FROM tm_projects WHERE id=?", (project_id,)
+    ).fetchone()
+    return catalog().source_label(row["canonical_id"]) if row else ""
+
+
+def normalize_tags(values: list[str]) -> list[str]:
+    """Проверить теги по каталогу. Словарь тегов закрыт: тега вне файла не существует."""
+    known = catalog()
+    normalized: list[str] = []
+    for value in values:
+        tag = str(value).strip()
+        if not tag:
+            continue
+        if known.by_tag(tag) is None:
+            raise ValueError(
+                f"unknown project tag '{tag}' — add it to .orchestra/projects.yaml first"
+            )
+        if tag not in normalized:
+            normalized.append(tag)
+    return normalized
+
+
+def task_tags(task: dict) -> list[str]:
+    """Теги задачи. Источник — запись задачи в Git; здесь читается её проекция."""
+    raw = task["tags"] if "tags" in task.keys() else ""
+    return json.loads(raw or "[]")
 
 
 def resolve_project_selector(conn: sqlite3.Connection, selector: str) -> dict | None:
-    """Resolve a project id or scope, rejecting tokens that identify two projects."""
+    """Разрешить тег каталога, scope или исторический локальный id.
+
+    Тег проверяется первым, и это чинит ловушку живых данных: строка `orchestra`
+    одновременно локальный id проекта с 5 задачами и canonical-id чужого пространства
+    с 375. Тег однозначен по построению — словарь тегов закрыт каталогом.
+    """
+    project = catalog().by_tag(selector)
+    if project:
+        # У архивного проекта нет цели записи — берём первое пространство, чтобы
+        # его историю можно было открыть по тегу. Создание там всё равно откажет:
+        # право принимать задачи даёт scope, а не разрешение селектора.
+        namespace = project.write_namespace or next(iter(project.namespaces))
+        return local_project_for_namespace(conn, namespace)
+    # Вне каталога остаётся прежний строгий отказ: токен, который одновременно
+    # локальный id одного проекта и scope другого, не разрешается молча ни в один.
     by_id = resolve_project_id(conn, selector)
     by_scope = get_project_by_scope(conn, selector)
     if by_id and by_scope and by_id["id"] != by_scope["id"]:
@@ -257,13 +336,6 @@ def resolve_project_selector(conn: sqlite3.Connection, selector: str) -> dict | 
             f"with scope of project '{by_scope['id']}'"
         )
     return by_id or by_scope
-
-
-def get_project_by_prefix(conn: sqlite3.Connection, prefix: str) -> dict | None:
-    row = conn.execute(
-        "SELECT * FROM tm_projects WHERE prefix = ?", (prefix.upper(),)
-    ).fetchone()
-    return dict(row) if row else None
 
 
 # --- Clients ---
@@ -317,7 +389,8 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
                 acceptance_command: str | None = None,
                 acceptance_manifest: list[str] | None = None,
                 acceptance_required: bool | None = None,
-                acceptance_actor: dict | None = None) -> dict:
+                acceptance_actor: dict | None = None,
+                tags: list[str] | None = None) -> dict:
     task = get_task_by_id(conn, task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -325,6 +398,13 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
     updates = []
     params = []
     changed = []
+
+    if tags is not None:
+        wanted = normalize_tags(tags)
+        if wanted != task_tags(task):
+            updates.append("tags = ?")
+            params.append(json.dumps(wanted, ensure_ascii=False))
+            changed.append("tags")
 
     if title is not None and title != task["title"]:
         updates.append("title = ?")
@@ -495,7 +575,9 @@ def resolve_task_ref(conn: sqlite3.Connection, ref: str, project_id: str) -> dic
     """Resolve a task reference inside one authoritative project."""
     if not project_id:
         raise ValueError("project authority is required")
-    project = resolve_project_id(conn, project_id)
+    # Один вход для всех: тег каталога, scope и исторический локальный id. Роут
+    # уже разрешил селектор, и для готового id это тот же ответ.
+    project = resolve_project_selector(conn, project_id)
     if not project:
         raise ValueError(f"project '{project_id}' not found")
     prefix, num = _parse_task_ref(ref)
@@ -1090,12 +1172,19 @@ def link_commits_to_task(task_ref: str, commits: list[dict], project_id: str) ->
 
 
 def list_tasks(conn: sqlite3.Connection, project_id: str = "",
-               status: str = "", assignee: str = "") -> list[dict]:
+               status: str = "", assignee: str = "",
+               tags: list[str] | None = None) -> list[dict]:
     query = "SELECT * FROM tm_tasks WHERE 1=1"
     params: list = []
     if project_id:
         query += " AND project_id = ?"
         params.append(project_id)
+    if tags:
+        # Тег лежит на самой задаче и не зависит от её пространства номеров: одна
+        # задача может числиться за несколькими проектами, другая — ни за одним.
+        query += (" AND EXISTS (SELECT 1 FROM json_each(tm_tasks.tags) "
+                  f"WHERE value IN ({','.join('?' * len(tags))}))")
+        params.extend(tags)
     if status:
         query += " AND status = ?"
         params.append(status)
@@ -1167,7 +1256,8 @@ def api_update_task(par: str, title: str | None = None,
                     acceptance_command: str | None = None,
                     acceptance_manifest: list[str] | None = None,
                     acceptance_required: bool | None = None,
-                    acceptance_actor: dict | None = None) -> dict:
+                    acceptance_actor: dict | None = None,
+                    tags: list[str] | None = None) -> dict:
     with active_runtime().operation():
         task_id = None
         with _conn() as conn:
@@ -1188,6 +1278,7 @@ def api_update_task(par: str, title: str | None = None,
                     acceptance_manifest=acceptance_manifest,
                     acceptance_required=acceptance_required,
                     acceptance_actor=acceptance_actor,
+                    tags=tags,
                 )
                 if status == "cancelled" and task.get("worker_session_id"):
                     _finish_task_run_for_task(
@@ -1200,6 +1291,7 @@ def api_update_task(par: str, title: str | None = None,
 
                 active_runtime().publish(conn, task_id)
                 updated = get_task_by_id(conn, task_id)
+                current_tags = task_tags(updated)
                 task_ref = format_task_ref(conn, updated)
                 conn.commit()
             except Exception:
@@ -1210,6 +1302,9 @@ def api_update_task(par: str, title: str | None = None,
             "par": task_ref,
             "project": updated["project_id"],
             "updated": result["changed"],
+            # Теги в ответе только когда их трогали: остальные вызовы сохраняют
+            # прежнюю ограниченную форму ответа.
+            **({"tags": current_tags} if tags is not None else {}),
         }
         if result["changed"] in (["acceptance_command"], ["acceptance_oracle"]):
             return response
@@ -1517,34 +1612,42 @@ def api_update_task_if_current(
 
 
 def api_list_tasks(project: str = "", status: str = "",
-                   assignee: str = "") -> dict:
+                   assignee: str = "", tags: list[str] | None = None) -> dict:
     with active_runtime().operation():
         with _conn() as conn:
-            resolved_project = ""
+            resolved_project, wanted_tags = "", list(tags or [])
             if project:
-                project_row = resolve_project_id(conn, project)
-                if not project_row:
-                    raise ValueError(f"project '{project}' not found")
-                resolved_project = project_row["id"]
-            tasks = list_tasks(
+                # Тег покрывает весь проект целиком; локальный id — одно пространство.
+                if catalog().by_tag(project) is not None:
+                    wanted_tags.append(project)
+                else:
+                    project_row = resolve_project_id(conn, project)
+                    if not project_row:
+                        raise ValueError(f"project '{project}' not found")
+                    resolved_project = project_row["id"]
+            for tag in wanted_tags:
+                if catalog().by_tag(tag) is None:
+                    raise ValueError(f"unknown project tag '{tag}'")
+            rows = list_tasks(
                 conn, project_id=resolved_project, status=status, assignee=assignee,
+                tags=wanted_tags,
             )
-
-        return {
-            "tasks": [
+            tasks = [
                 {
                     "par": public_task_ref(t),
                     "title": t["title"],
                     "project": t["project_id"],
+                    "tags": task_tags(t),
+                    "source": project_source_label(conn, t["project_id"]),
                     "price": _fmt_amount(t["price_rub"]),
                     "status": t["status"],
                     "assignee": t["assignee"],
                     "priority": t.get("priority", 2),
                 }
-                for t in tasks
-            ],
-            "count": len(tasks),
-        }
+                for t in rows
+            ]
+
+        return {"tasks": tasks, "count": len(tasks)}
 
 
 def api_get_task(par: str, project: str = "") -> dict:
@@ -1555,6 +1658,8 @@ def api_get_task(par: str, project: str = "") -> dict:
                 raise ValueError(f"{par} not found")
 
             task_ref = format_task_ref(conn, task)
+            tags = task_tags(task)
+            source = project_source_label(conn, task["project_id"])
 
         commits = json.loads(task["git_commits"]) if task["git_commits"] else []
 
@@ -1568,6 +1673,8 @@ def api_get_task(par: str, project: str = "") -> dict:
             "title": task["title"],
             "description": task["description"],
             "project": task["project_id"],
+            "tags": tags,
+            "source": source,
             "price_rub": task["price_rub"],
             "status": task["status"],
             "assignee": task["assignee"],
@@ -1595,7 +1702,10 @@ def _resolve_task_create_project(project_id: str, scope: str) -> str:
     with _conn() as conn:
         project = resolve_project_selector(conn, project_id) if project_id else None
         if project is None and scope:
-            project = _project_for_session_scope(conn, scope)
+            # Раньше неизвестный scope молча заводил проект `scope:<путь>`, и один
+            # человеческий проект расползался на несколько пространств номеров.
+            # Теперь право принимать задачи даёт только запись в каталоге.
+            project = get_project_by_scope(conn, scope.rstrip("/"))
         if project and str(project.get("scope") or "").strip():
             return str(project["id"])
         allowed = sorted(

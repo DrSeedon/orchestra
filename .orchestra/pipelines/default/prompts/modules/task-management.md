@@ -5,8 +5,8 @@ Built-in task tracker. Agents create, update, and close tasks.
 
 ### Tools
 - `task_create(title, project, price=0, description="", priority=2)` — create task. Price in exact currency units (20000 = 20 000). Priority: 0=critical, 1=high, 2=medium, 3=low
-- `task_update(par, status="", title="", price=-1, ...)` — update task. Only provided fields change. par: the exact returned reference, e.g. "42" or "V-42"
-- `task_list(project="", status="", assignee="")` — list tasks with optional filters
+- `task_update(par, status="", title="", price=-1, tags=[...], ...)` — update task. Only provided fields change. par: the exact returned reference, e.g. "42" or "V-42"
+- `task_list(project="", status="", assignee="", tags="a,b")` — list tasks with optional filters
 - `task_get(par)` — full task details with payment history and linked commits
 
 ### Automatic lifecycle
@@ -16,6 +16,16 @@ Built-in task tracker. Agents create, update, and close tasks.
   `merge_worker(task_outcome="complete")` closes it; `task_outcome="continue"` keeps it bound.
 - Manual `in_progress`/`done` updates from agent tools are rejected because those states belong to
   the platform lifecycle. Human edits and non-lifecycle fields remain available.
+
+### Projects are tags from one file
+- `.orchestra/projects.yaml` in the Orchestra repository is the only project catalog. Its tags
+  are a closed vocabulary: a tag absent from that file is rejected, not created. `project` and
+  `tags` in the task tools take those tags; `task_create` without one uses your own scope.
+- Tags are stored in the task's own record, not derived from where its number came from.
+  A task may carry several tags or none; `tags` on `task_update` replaces the whole list.
+- A task number is unique only inside the numbering space it was issued in, and one project
+  can hold several. Listings carry `source` for exactly that reason: `#161` and
+  `#161 · ноутбук` are different tasks. Quote `source` whenever it is set.
 
 ### Rules
 - Before approved work that will leave a persistent `.orchestra/` artifact (research, audit,

@@ -38,6 +38,11 @@ def _start_auth_dashboard(db_path: Path):
     """Сервер С включённым логином: страница входа — первый экран пользователя."""
     env = os.environ.copy()
     env["ORCHESTRA_DB_PATH"] = str(db_path)
+    # Сервер поднимается ОТДЕЛЬНЫМ процессом, где `pytest` в sys.modules нет, а
+    # `load_dotenv()` в lifespan читает `.env` чекаута с БОЕВЫМИ путями. Не передав
+    # хранилище задач явно, мы отдаём подпроцессу живое: 22.09.2026 так было
+    # переписано 1863 записи боевого хранилища.
+    env["ORCHESTRA_TASK_REPOSITORY"] = str(db_path.parent / "tasks")
     env["DASHBOARD_USER"] = USER
     env["DASHBOARD_PASSWORD"] = PASSWORD
     env["OWNER_MODE"] = "1"

@@ -30,10 +30,12 @@ class TaskCreateConflict(TaskConflict):
     """An accepted creation request belongs to a different payload."""
 
 
+SCHEMA_VERSION = 2
+
 _DEFAULTS = {
     'description': '', 'status': 'new', 'priority': 2, 'assignee': '', 'price_rub': 0,
     'acceptance': {'command': '', 'manifest_paths': [], 'required': False},
-    'git_commits': [], 'evidence_refs': [], 'completed_at': None,
+    'git_commits': [], 'evidence_refs': [], 'completed_at': None, 'tags': [],
 }
 _MUTABLE = frozenset({'title', *_DEFAULTS})
 _STATUSES = frozenset({'backlog', 'new', 'in_progress', 'done', 'cancelled', 'paid'})
@@ -58,7 +60,7 @@ def _view(record: dict) -> dict:
 def _validate(record: dict) -> None:
     required = {'schema_version', 'id', 'project_id', 'origin', 'number', 'created_at',
                 'updated_at', 'creation_key', 'creation_fingerprint', *_MUTABLE}
-    if set(record) != required or record['schema_version'] != 1:
+    if set(record) != required or record['schema_version'] != SCHEMA_VERSION:
         raise ValueError('invalid task record shape/version')
     if str(uuid.UUID(record['id'])) != record['id']:
         raise ValueError('task ID must be a canonical UUID')
@@ -87,6 +89,11 @@ def _validate(record: dict) -> None:
         raise ValueError('invalid acceptance values')
     if not isinstance(record['git_commits'], list) or not isinstance(record['evidence_refs'], list):
         raise ValueError('task references must be lists')
+    tags = record['tags']
+    if not isinstance(tags, list) or not all(isinstance(t, str) and t.strip() for t in tags):
+        raise ValueError('task tags must be a list of non-empty strings')
+    if len(set(tags)) != len(tags):
+        raise ValueError('task tags must be unique')
     _bytes(record)
 
 
@@ -125,8 +132,15 @@ class TaskStore:
 
     def _ready(self):
         marker = self.root / 'task-store.json'
-        if marker.is_symlink() or not marker.is_file() or json.loads(marker.read_text()) != {'schema_version': 1}:
+        if marker.is_symlink() or not marker.is_file():
             raise TaskConflict('task repository is not initialized')
+        version = json.loads(marker.read_text())
+        if version != {'schema_version': SCHEMA_VERSION}:
+            # Явный отказ вместо тихого чтения чужой формы: запись версии N+1 старым
+            # кодом потеряла бы поля, которых он не знает, и сделала бы это молча.
+            raise TaskConflict(
+                f'task repository schema {version} is not supported; this build reads '
+                f'schema_version {SCHEMA_VERSION} — migrate the store or update the code')
         if self._git('ls-files', '-u').stdout:
             raise TaskConflict('task repository has unresolved Git conflicts')
         if self._git('status', '--porcelain', '--untracked-files=all', '--', 'projects').stdout:
@@ -138,7 +152,7 @@ class TaskStore:
             if path.exists():
                 self._ready()
                 return
-            self._commit_files({path: _bytes({'schema_version': 1})}, 'Initialize task store')
+            self._commit_files({path: _bytes({'schema_version': SCHEMA_VERSION})}, 'Initialize task store')
 
     @property
     def head(self) -> str:
@@ -234,7 +248,7 @@ class TaskStore:
             while number in (reserved_numbers or set()):
                 number += 1
             now = datetime.now(timezone.utc).isoformat()
-            record = {**body, 'schema_version': 1, 'project_id': project, 'origin': self.origin,
+            record = {**body, 'schema_version': SCHEMA_VERSION, 'project_id': project, 'origin': self.origin,
                       'number': number, 'id': str(uuid.uuid5(uuid.NAMESPACE_URL,
                           f'orchestra-task:{project}:{self.origin}:{request_key}')),
                       'created_at': now, 'updated_at': now, 'creation_key': request_key,
@@ -311,7 +325,7 @@ class TaskStore:
             tree = candidate.stdout.splitlines()[0]
             if not self._git('ls-tree', tree, '--', 'task-store.json').stdout.startswith('100644 blob '):
                 raise TaskConflict('task-store marker must be a regular file')
-            if json.loads(self._git('show', f'{tree}:task-store.json').stdout) != {'schema_version': 1}:
+            if json.loads(self._git('show', f'{tree}:task-store.json').stdout) != {'schema_version': SCHEMA_VERSION}:
                 raise TaskConflict('incoming task store version is unsupported')
             merged = {r['id']: r for r in self._tree_records(tree)}
             immutable = {'id', 'project_id', 'origin', 'number', 'creation_key', 'creation_fingerprint', 'created_at'}

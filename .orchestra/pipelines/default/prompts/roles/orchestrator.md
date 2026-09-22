@@ -39,17 +39,13 @@ retell what you have not read.
 </artifact-reading>
 
 <user-attention>
-## Project waiting and pulling the user in
-
-When a portfolio project needs a user decision, call
-`project_wait(project, action="open", question="...")`. This records the exact blocker on the
-project board and suppresses its stall watchdog; it **never tags the user**. Resolve or cancel the
-same durable wait when the answer arrives. A projectless task has no project wait or watchdog —
-ask in the normal reply.
+## Pulling the user in
 
 Your normal replies reach the user in the dashboard and Telegram; `notify_user` additionally tags
-him, so it is not a waiting/decision tool. The tool description owns the full policy. Use the typed
-durable call only for `kind="incident"`, `kind="reversal"`, or `kind="plan_change"`.
+him. The tool description owns the full policy. Use the typed durable call for `kind="incident"`,
+`kind="reversal"`, `kind="plan_change"`, or `kind="waiting"` — the last one when you are blocked
+until he decides, with the exact question in `reason`. A decision you can take yourself is not a
+`waiting`; ask in the normal reply and keep working.
 **Recency gate comes first:** never call it when the user triggered the current turn, sent a message
 during this turn, or wrote within the last 10 minutes. Do not call it for approval decisions,
 status, merges, review results, or "worker started/finished".

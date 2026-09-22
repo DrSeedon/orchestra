@@ -6,7 +6,7 @@ import uuid
 from app import tm
 from app.task_refs import project_key
 from app.task_refs import new_task_prefix
-from app.task_store import _DEFAULTS, _bytes, _validate
+from app.task_store import SCHEMA_VERSION as STORE_SCHEMA_VERSION, _DEFAULTS, _bytes, _validate
 
 
 def create_task(connection, project_id, title, price_rub=0, description='', assignee='',
@@ -25,7 +25,7 @@ def create_task(connection, project_id, title, price_rub=0, description='', assi
         acceptance.update(json.loads(tm._acceptance_oracle_json(required=acceptance_required,
             manifest=acceptance_manifest or [], revision=1, actor=tm._normalize_acceptance_actor(acceptance_actor))))
     now, stable_id = tm._now(), str(uuid.uuid4())
-    record = {**copy.deepcopy(_DEFAULTS), 'schema_version': 1, 'id': stable_id,
+    record = {**copy.deepcopy(_DEFAULTS), 'schema_version': STORE_SCHEMA_VERSION, 'id': stable_id,
         'project_id': canonical_id, 'origin': new_task_prefix(), 'number': number,
         'title': title, 'description': description, 'assignee': assignee, 'status': status,
         'price_rub': price_rub, 'priority': priority, 'acceptance': acceptance,

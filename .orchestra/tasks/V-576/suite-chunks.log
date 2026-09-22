@@ -1,0 +1,470 @@
+=== chunk 0 (66 файлов) ===
+...............................sssssssssssssssssssssssssssssssssssssss.. [  7%]
+........................................................................ [ 14%]
+........................................................................ [ 21%]
+........................................................................ [ 29%]
+........................................................................ [ 36%]
+........................................................................ [ 43%]
+........................................................................ [ 51%]
+...................................................................s.... [ 58%]
+........................................................................ [ 65%]
+.....F.................................................................. [ 73%]
+...................................F...................FFF..F.F..FF..... [ 80%]
+........................................................................ [ 87%]
+........................................................................ [ 94%]
+..................................................                       [100%]
+=================================== FAILURES ===================================
+E   AssertionError: assert ['prompts/mod...ource marker'] == []
+      
+      Left contains 2 more items, first extra item: 'prompts/modules/model-routing.md:25: measured numeric claim lacks inline source marker'
+      Use -v to get more diff
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_check_pipeline_manifest.py:30: AssertionError: assert ['prompts/mod...ource marker'] == []
+E   assert 403 == 409
+     +  where 403 = <starlette.responses.JSONResponse object at 0x74c1220d4950>.status_code
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_codex_writer_conflict_536.py:198: assert 403 == 409
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at render (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:89:25)
+        at set (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:115:9)
+        at Object.recover (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:236:13)
+        at eval (eval at evaluate (:302:30), <anonymous>:15:30)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at render (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:89:25)
+        at set (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:115:9)
+        at Object.recover (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:236:13)
+        at eval (eval at evaluate (:302:30), <anonymous>:15:30)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at render (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:89:25)
+        at set (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:115:9)
+        at Object.recover (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/connection.js:236:13)
+        at eval (eval at evaluate (:302:30), <anonymous>:15:30)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   AssertionError: assert 'Загружаю актуальные сообщения' in 'Loading actual messagesfe-orch — showing history in one frame'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_frontend.py:4913: AssertionError: assert 'Загружаю актуальные сообщения' in 'Loading actual messagesfe-orch — showing history in one frame'
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: addChatEntry is not defined
+        at eval (eval at evaluate (:302:30), <anonymous>:1:16)
+        at UtilityScript.evaluate (<anonymous>:309:18)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: addChatEntry is not defined
+E   AttributeError: module 'tests.test_frontend' has no attribute 'test_short_snapshot_offers_one_shot_previous_500_without_cache'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_connection_recovery.py:135: AttributeError: module 'tests.test_frontend' has no attribute 'test_short_snapshot_offers_one_shot_previous_500_without_cache'
+E   assert 'runtime отключён' in "● running · runtime detached · delivery not confirmed; restart this agent's CLI to free the queue (without resending)"
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_connection_recovery.py:130: assert 'runtime отключён' in "● running · runtime detached · delivery not confirmed; restart this agent's CLI to free the queue (without resending)"
+=============================== warnings summary ===============================
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__get for function open_artifact at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/routes/artifacts.py
+    warnings.warn(message, stacklevel=1)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_check_pipeline_manifest.py::test_check_passes_on_current_default
+FAILED tests/test_codex_writer_conflict_536.py::test_http_repeated_conflict_never_returns_queued
+FAILED tests/test_connection_recovery.py::test_recovery_isolates_failure_and_can_run_again[sync]
+FAILED tests/test_connection_recovery.py::test_recovery_isolates_failure_and_can_run_again[async]
+FAILED tests/test_connection_recovery.py::test_recovery_isolates_failure_and_can_run_again[chat_reset]
+FAILED tests/test_connection_recovery.py::test_chat_contracts_without_live_server[test_chat_open_waits_for_authoritative_snapshot_and_paints_once]
+FAILED tests/test_connection_recovery.py::test_chat_contracts_without_live_server[test_photo_batch_renders_as_compact_expandable_gallery]
+FAILED tests/test_connection_recovery.py::test_chat_contracts_without_live_server[test_short_snapshot_offers_one_shot_previous_500_without_cache]
+FAILED tests/test_connection_recovery.py::test_chat_contracts_without_live_server[runtime_status]
+9 failed, 937 passed, 40 skipped, 1 deselected, 3 warnings in 73.35s (0:01:13)
+--- chunk 0 rc=1 ---
+=== chunk 1 (66 файлов) ===
+........................................................................ [  7%]
+......................................................FFFFFFFFFFF....... [ 14%]
+........................................................................ [ 21%]
+...........................................F............................ [ 28%]
+........................................................................ [ 35%]
+....................................................F..........--- chunk 1 rc=137 ---
+=== chunk 2 (66 файлов) ===
+.......................................F................................ [  9%]
+........................................................................ [ 18%]
+........................................................................ [ 27%]
+........................................................................ [ 36%]
+........................................................................ [ 45%]
+........................................................................ [ 54%]
+........................................................................ [ 63%]
+....................................F................................... [ 72%]
+........................................................................ [ 81%]
+.................................................ss..s.................. [ 90%]
+........................................................................ [ 99%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _catalogRow (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/app.js:4558:105)
+        at eval (eval at evaluate (:302:30), <anonymous>:21:25)
+        at UtilityScript.evaluate (<anonymous>:309:18)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at renderUsageBar (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:273:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:66)
+        at UtilityScript.evaluate (<anonymous>:309:18)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+=========================== short test summary info ============================
+FAILED tests/test_model_catalog_frontend.py::test_catalog_free_filter_and_admission_work_with_new_and_old_api_payloads
+FAILED tests/test_quota_headroom_447.py::test_usage_bar_renders_worker_headroom_from_quota_map
+2 failed, 790 passed, 3 skipped, 3 deselected in 56.39s
+--- chunk 2 rc=1 ---
+=== chunk 3 (63 файлов) ===
+..............F......................................................... [  6%]
+........................................................................ [ 13%]
+........................................................................ [ 20%]
+........................................................................ [ 26%]
+..........................................................F............F [ 33%]
+.FFF.FFFFFFF.F..F....................................................... [ 40%]
+................sssssss................................................. [ 46%]
+........................................................................ [ 53%]
+........................................................................ [ 60%]
+........................................................................ [ 66%]
+........................................................................ [ 73%]
+..FFFFFFFFFFFFFF.......FFFFFFFFFFF...................................... [ 80%]
+...................................................................F.... [ 86%]
+...............FFF..FF.................................................. [ 93%]
+....................................................................     [100%]
+=================================== FAILURES ===================================
+E   assert '🔗 Открыть' in "_SEND_FILE_OPENABLE.test(path)) {\n            row.appendChild(_sendFileButton(T('🔗 Open'), () => _openSendFile(path)...w);\n    });\n\n    if (paths.length > SEND_FILES_VISIBLE_LIMIT) {\n        const toggle = document.createElement('but"
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_send_file_open_button.py:54: assert '🔗 Открыть' in "_SEND_FILE_OPENABLE.test(path)) {\n            row.appendChild(_sendFileButton(T('🔗 Open'), () => _openSendFile(path)...w);\n    });\n\n    if (paths.length > SEND_FILES_VISIBLE_LIMIT) {\n        const toggle = document.createElement('but"
+E   AssertionError: assert 'Message from dashboard' == 'Сообщение из дашборда'
+      
+      - Сообщение из дашборда
+      + Message from dashboard
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_system_chat_entry.py:146: AssertionError: assert 'Message from dashboard' == 'Сообщение из дашборда'
+E   assert 'порог Sol — снят' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — liftedClaude threshold — lift...% · diagonal not applied — only hard 99%Claude-воркерыactual 20% · expected 50% · diagonal not applied — only hard 99%'
+     +  where '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — liftedClaude threshold — lift...% · diagonal not applied — only hard 99%Claude-воркерыactual 20% · expected 50% · diagonal not applied — only hard 99%' = text_content()
+     +    where text_content = <Locator frame=<Frame name= url='http://harness.local/'> selector="[data-ql-chart='all']">.text_content
+     +      where <Locator frame=<Frame name= url='http://harness.local/'> selector="[data-ql-chart='all']"> = locator("[data-ql-chart='all']")
+     +        where locator = <Page url='http://harness.local/'>.locator
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:277: assert 'порог Sol — снят' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — liftedClaude threshold — lift...% · diagonal not applied — only hard 99%Claude-воркерыactual 20% · expected 50% · diagonal not applied — only hard 99%'
+E   AssertionError: assert 'работают' in 'Sol, Luna, Spark, Claude-воркеры — running'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:307: AssertionError: assert 'работают' in 'Sol, Luna, Spark, Claude-воркеры — running'
+E   AssertionError: assert ('Sol' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running' and 'стоят' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running')
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:334: AssertionError: assert ('Sol' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running' and 'стоят' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running')
+E   AssertionError: assert 'всегда работает' in 'Orchestrator: always runs'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:353: AssertionError: assert 'всегда работает' in 'Orchestrator: always runs'
+E   AssertionError: assert 'диагональ не применяется' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — burning pool earlyClaude thre...actual 39% · expected 62% · diagonal not applied — only hard 99%Claude-воркерыactual 30% · expected 50% · no threshold'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:378: AssertionError: assert 'диагональ не применяется' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — burning pool earlyClaude thre...actual 39% · expected 62% · diagonal not applied — only hard 99%Claude-воркерыactual 30% · expected 50% · no threshold'
+E   AssertionError: assert 'нет данных' in 'no data — some lanes missing telemetry'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:403: AssertionError: assert 'нет данных' in 'no data — some lanes missing telemetry'
+E   AssertionError: assert 'срок сброса неизвестен' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — burning pool earlyClaude thre...actual 39% · expected 50% · diagonal not applied — only hard 99%Claude-воркерыactual 30% · expected 50% · no threshold'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:416: AssertionError: assert 'срок сброса неизвестен' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — burning pool earlyClaude thre...actual 39% · expected 50% · diagonal not applied — only hard 99%Claude-воркерыactual 30% · expected 50% · no threshold'
+E   AssertionError: assert 'нет данных' in '▾ allowance rule\ngate: no data\nno data — server did not send rule constants\nPool quotas\nsingle scale: window progress share, 0–100%\n\nno data — server did not send rule constants'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:428: AssertionError: assert 'нет данных' in '▾ allowance rule\ngate: no data\nno data — server did not send rule constants\nPool quotas\nsingle scale: window progress share, 0–100%\n\nno data — server did not send rule constants'
+E   AssertionError: no data — server did not send rule constants
+    assert 'нет данных' in 'no data — server did not send rule constants'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:444: AssertionError: no data — server did not send rule constants
+E   AssertionError: Sol — blocked · Luna, Spark, Claude-воркеры — running
+    assert ('Sol' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running' and 'стоят' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running')
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:459: AssertionError: Sol — blocked · Luna, Spark, Claude-воркеры — running
+E   AssertionError: assert (True and 'истории за это окно нет' in 'Pool quotas\nsingle scale: window progress share, 0–100%\n0%\n20%\n40%\n60%\n80%\n100%\n0%\n10%\n20%\n30%\n40%\n50%\n...ning no diagonal\nSpark: running no diagonal\nClaude-воркеры: opens at reset, in 4d 15h 40m\nOrchestrator: always runs')
+     +  where True = isinstance('Pool quotas\nsingle scale: window progress share, 0–100%\n0%\n20%\n40%\n60%\n80%\n100%\n0%\n10%\n20%\n30%\n40%\n50%\n...ning no diagonal\nSpark: running no diagonal\nClaude-воркеры: opens at reset, in 4d 15h 40m\nOrchestrator: always runs', str)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:467: AssertionError: assert (True and 'истории за это окно нет' in 'Pool quotas\nsingle scale: window progress share, 0–100%\n0%\n20%\n40%\n60%\n80%\n100%\n0%\n10%\n20%\n30%\n40%\n50%\n...ning no diagonal\nSpark: running no diagonal\nClaude-воркеры: opens at reset, in 4d 15h 40m\nOrchestrator: always runs')
+E   AssertionError: assert 'нет данных' in '▾ allowance rule\ngate: no data\nno data — boom\nPool quotas\nsingle scale: window progress share, 0–100%\n\nno data — boom'
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_t344_quota_lines_browser.py:491: AssertionError: assert 'нет данных' in '▾ allowance rule\ngate: no data\nno data — boom\nPool quotas\nsingle scale: window progress share, 0–100%\n\nno data — boom'
+E   AssertionError: собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали классы. Почини запуском: bash scripts/build-tailwind.sh
+    assert '*,:after,:be...e-offset:2px}' == '*,:after,:be...e-offset:2px}'
+      
+      Skipping 5868 identical leading characters in diff, use -v to show
+      - ay:table}.\!grid{display:grid!important}.grid{display:grid}.hidden{display:none}.h-1{height:.25rem}.h-1\.5{height:.375rem}.h-4{height:1rem}.h-full{height:100%}.h-screen{height:100vh}.max-h-48{max-height:12rem}.max-h-\[300px\]{max-height:300px}.max-h-\[80vh\]{max-height:80vh}.max-h-\[85vh\]{max-height:85vh}.min-h-0{min-height:0}.w-1\.5{width:.375rem}.w-4{width:1rem}.w-44{width:11rem}.w-6{width:1.5rem}.w-\[250px\]{width:250px}.w-\[320px\]{width:320px}.w-\[380px\]{width:380px}.w-\[420px\]{width:420px}.w-\[...
+      
+      ...Full output truncated (4 lines hidden), use '-vv' to show
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_tailwind_css.py:45: AssertionError: собранный CSS разошёлся с закоммиченным — в исходниках появились или пропали классы. Почини запуском: bash scripts/build-tailwind.sh
+E   IndexError: list index out of range
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_usage_analytics_frontend.py:319: IndexError: list index out of range
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+        at _analyticsRenderControls (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:83:44)
+        at openAnalyticsModal (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/analytics.js:50:5)
+        at eval (eval at evaluate (:302:30), <anonymous>:1:1)
+        at eval (<anonymous>)
+        at UtilityScript.evaluate (<anonymous>:302:30)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_analyticsPeriods' before initialization
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at renderUsageBar (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:265:13)
+        at fetchUsage (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:935:9)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:589:15)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:581:13)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _renderSparklines (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:684:18)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:597:9
+        at Array.forEach (<anonymous>)
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:595:11)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _renderSparklines (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:684:18)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:597:9
+        at Array.forEach (<anonymous>)
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:595:11)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _renderSparklines (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:684:18)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:597:9
+        at Array.forEach (<anonymous>)
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:595:11)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _renderSparklines (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:684:18)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:597:9
+        at Array.forEach (<anonymous>)
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:595:11)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _renderSparklines (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:684:18)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:597:9
+        at Array.forEach (<anonymous>)
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:595:11)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+        at _renderSparklines (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:684:18)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:597:9
+        at Array.forEach (<anonymous>)
+        at _loadSparkline (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:595:11)
+        at async <anonymous>:328:30
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: T is not defined
+E   playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_apiActiveGets' before initialization
+        at _apiPermitAvailable (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/app.js:3482:5)
+        at /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/app.js:3512:13
+        at new Promise (<anonymous>)
+        at _apiAcquireGetPermit (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/app.js:3488:12)
+        at api (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/app.js:3571:48)
+        at _sparkFetch (/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/app/static/js/usage.js:552:27)
+        at eval (eval at evaluate (:302:30), <anonymous>:13:20)
+        at UtilityScript.evaluate (<anonymous>:309:18)
+        at UtilityScript.<anonymous> (<anonymous>:1:44)
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: playwright._impl._errors.Error: Page.evaluate: ReferenceError: Cannot access '_apiActiveGets' before initialization
+E   AssertionError: свой signal вызывающего отменил таймаут: {'name': 'ReferenceError'}
+    assert 'ReferenceError' == 'TimeoutError'
+      
+      - TimeoutError
+      + ReferenceError
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_usage_history_frontend.py:358: AssertionError: свой signal вызывающего отменил таймаут: {'name': 'ReferenceError'}
+E   assert 403 == 202
+     +  where 403 = <starlette.responses.JSONResponse object at 0x7cc6d0685a30>.status_code
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_work_acceptance.py:103: assert 403 == 202
+E   TypeError: 'JSONResponse' object is not subscriptable
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_work_review_jobs.py:45: TypeError: 'JSONResponse' object is not subscriptable
+E   assert 403 == 409
+     +  where 403 = <starlette.responses.JSONResponse object at 0x7cc6c0758440>.status_code
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_work_review_jobs.py:57: assert 403 == 409
+E   assert 403 == 409
+     +  where 403 = <starlette.responses.JSONResponse object at 0x7cc6c20a4ef0>.status_code
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_work_review_jobs.py:70: assert 403 == 409
+E   AssertionError: assert '' == 'parent'
+      
+      - parent
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_work_review_jobs.py:106: AssertionError: assert '' == 'parent'
+E   assert 403 == 409
+     +  where 403 = <starlette.responses.JSONResponse object at 0x7cc6d05494c0>.status_code
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/tests/test_work_review_jobs.py:119: assert 403 == 409
+=============================== warnings summary ===============================
+tests/test_static_compression.py::test_sse_arrives_incrementally_and_is_not_compressed
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_static_compression.py::test_sse_arrives_incrementally_and_is_not_compressed
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_tg_ingress_509.py::test_unknown_nonservice_type_still_reaches_agent
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/research-projects-model/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7cc6d73f9e40>
+  
+  Traceback (most recent call last):
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+      self.close()
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+      proto.pipe.close()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+      self.write_eof()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+      self._loop.call_soon(self._call_connection_lost, None)
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+      self._check_closed()
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_send_file_open_button.py::test_download_button_is_kept_next_to_open
+FAILED tests/test_system_chat_entry.py::test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender
+FAILED tests/test_t344_quota_lines_browser.py::test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate
+FAILED tests/test_t344_quota_lines_browser.py::test_calm_window_says_everyone_works
+FAILED tests/test_t344_quota_lines_browser.py::test_above_the_curve_stops_sol_but_not_luna_and_spark
+FAILED tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works
+FAILED tests/test_t344_quota_lines_browser.py::test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it
+FAILED tests/test_t344_quota_lines_browser.py::test_missing_telemetry_says_no_data_not_works
+FAILED tests/test_t344_quota_lines_browser.py::test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop
+FAILED tests/test_t344_quota_lines_browser.py::test_old_payload_without_rule_block_says_no_data
+FAILED tests/test_t344_quota_lines_browser.py::test_summary_without_rule_block_says_no_data_not_works
+FAILED tests/test_t344_quota_lines_browser.py::test_summary_repeats_the_body_verdict_when_the_rule_arrives
+FAILED tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_and_history_empty_notice
+FAILED tests/test_t344_quota_lines_browser.py::test_failed_request_says_no_data_and_does_not_pretend_to_work
+FAILED tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+FAILED tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources
+FAILED tests/test_usage_analytics_frontend.py::test_analytics_renders_usd_when_task_currency_is_rubles
+FAILED tests/test_usage_analytics_frontend.py::test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch
+FAILED tests/test_usage_analytics_frontend.py::test_wake_button_schedules_once_and_renders_post_decision
+FAILED tests/test_usage_analytics_frontend.py::test_monthly_limit_panel_requires_manual_action
+FAILED tests/test_usage_analytics_frontend.py::test_wake_panel_renders_all_decision_groups_together
+FAILED tests/test_usage_analytics_frontend.py::test_wake_click_with_no_action_is_explicitly_acknowledged
+FAILED tests/test_usage_analytics_frontend.py::test_period_change_ignores_stale_snapshot_response
+FAILED tests/test_usage_analytics_frontend.py::test_agent_filters_drilldown_and_reliability_are_honest
+FAILED tests/test_usage_analytics_frontend.py::test_partial_tool_error_coverage_does_not_claim_zero
+FAILED tests/test_usage_analytics_frontend.py::test_partial_task_cost_coverage_does_not_show_exact_price
+FAILED tests/test_usage_analytics_frontend.py::test_unaccounted_cost_is_visible_and_never_rendered_as_zero
+FAILED tests/test_usage_analytics_frontend.py::test_new_frontend_remains_compatible_with_old_analytics_payload
+FAILED tests/test_usage_analytics_frontend.py::test_modal_has_no_document_overflow_at_390px
+FAILED tests/test_usage_history_frontend.py::test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure
+FAILED tests/test_usage_history_frontend.py::test_empty_history_says_what_is_missing
+FAILED tests/test_usage_history_frontend.py::test_failed_request_surfaces_the_error
+FAILED tests/test_usage_history_frontend.py::test_real_data_draws_a_chart_not_a_stub
+FAILED tests/test_usage_history_frontend.py::test_provider_absent_from_history_is_not_the_same_as_no_data
+FAILED tests/test_usage_history_frontend.py::test_hole_in_data_breaks_the_line_instead_of_bridging_it
+FAILED tests/test_usage_history_frontend.py::test_null_pct_is_a_hole_not_a_zero
+FAILED tests/test_usage_history_frontend.py::test_older_period_is_fetched_on_demand
+FAILED tests/test_usage_history_frontend.py::test_series_order_does_not_depend_on_which_chunk_loaded_first
+FAILED tests/test_usage_history_frontend.py::test_history_request_gets_its_own_timeout
+FAILED tests/test_usage_history_frontend.py::test_history_timeout_survives_a_caller_signal
+FAILED tests/test_work_acceptance.py::test_caller_cannot_forge_acceptance_actor_in_http_body
+FAILED tests/test_work_review_jobs.py::test_one_receipt_starts_one_job_even_on_parallel_http_replay
+FAILED tests/test_work_review_jobs.py::test_historical_receipts_cannot_bypass_task_review_budget
+FAILED tests/test_work_review_jobs.py::test_review_job_rejects_missing_proof_and_changed_replay
+FAILED tests/test_work_review_jobs.py::test_parent_acceptance_is_limited_to_its_child_and_own_branch
+FAILED tests/test_work_review_jobs.py::test_receipt_cannot_start_a_new_job_after_assignment_closed
+46 failed, 1023 passed, 7 skipped, 3 warnings in 111.06s (0:01:51)
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7cc6d73f9e40>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed
+--- chunk 3 rc=1 ---
+ALL CHUNKS DONE
