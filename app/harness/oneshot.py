@@ -9,7 +9,7 @@ import os
 from pathlib import Path
 
 from app.harness import prompts, tools
-from app.harness.llm import OpenRouterClient
+from app.harness.llm import GigaChatClient, OpenRouterClient
 from app.harness.loop import AgentLoop
 from app.harness.mcp import MCPClient
 from app.models import get_model_spec, validate_harness_model_spec
@@ -21,16 +21,19 @@ async def run_oneshot(
 ) -> dict:
     spec = get_model_spec(model)
     validate_harness_model_spec(spec)
-    key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY", "")
-    if not key:
-        raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
-    base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-    if not base_url.rstrip("/").endswith("/v1"):
-        base_url = base_url.rstrip("/") + "/v1"
-    llm = llm or OpenRouterClient(
-        api_key=key, model=model, base_url=base_url,
-        supported_parameters=spec.supported_parameters,
-    )
+    if llm is None and spec.provider == "gigachat":
+        llm = GigaChatClient(model=model)
+    elif llm is None:
+        key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY", "")
+        if not key:
+            raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+        base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        if not base_url.rstrip("/").endswith("/v1"):
+            base_url = base_url.rstrip("/") + "/v1"
+        llm = OpenRouterClient(
+            api_key=key, model=model, base_url=base_url,
+            supported_parameters=spec.supported_parameters,
+        )
     mcp_client = MCPClient()
     try:
         if mcp and tools_level == "all" and network:

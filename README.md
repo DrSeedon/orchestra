@@ -85,7 +85,7 @@ Reviewer (GPT) ── cross-model review
 Merge ── squash to main
 ```
 
-Each worker is a full agent session in its own git worktree — Claude Code, Codex, Grok or Orchestra's OpenRouter Harness, chosen per worker. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
+Each worker is a full agent session in its own git worktree — Claude Code, Codex, Grok or Orchestra's Harness (OpenRouter and Russian GigaChat), chosen per worker. They don't share context, don't step on each other's code, and merge through squash PRs. The orchestrator coordinates. Not a graph engine. An actual AI deciding what to do next.
 
 Workers can talk to each other via `send_message`. The backend worker finishes an API endpoint and messages the frontend worker: "endpoint ready at /api/users, here's the schema." No human relay needed.
 
@@ -114,7 +114,7 @@ not to*:
 | Cross-model review as a **code-enforced** merge gate | ✅ | Enforced at merge since #462: the merge runner blocks on a review-coverage verdict (`review_coverage_policy_active`, `app/merge_operations.py:1934`) and refuses with `RECORD_REVIEW_THEN_NEW_OPERATION` when no receipt matches the exact snapshot (`app/merge_operations.py:635`). The policy is switched on by a marker inside the review skill and read at runtime (`policy_active`, `app/review_coverage.py:382`) — on as of 2026-09-05. Known limit: the receipt is matched by the worker's own session id, so an orchestrator cannot certify a review on the worker's behalf |
 | Human approval as machine-checkable state | 🚧 | Lives in chat and in the `<approval-gate>` prompt block. No approval receipt exists in the database and merge doesn't ask for one |
 | Sandbox around commands an agent runs | 🚧 | The worktree isolates *files*, not execution. Our reviewer runs `-s danger-full-access -a never` (`app/mcp_stdio.py:4449`). That is a decision we have lived with, not a limit of the machine: `cat /proc/sys/kernel/unprivileged_userns_clone` answers `1` here, and no sandbox binary is installed to use it. No isolation work is underway |
-| Several vendors' models behind one runtime contract | ✅ | 4 runtimes: the Claude Code, Codex and Grok CLIs, plus our own in-process OpenRouter Harness — `BUILTIN_RUNTIMES` at `app/runtime_registry.py:330` |
+| Several vendors' models behind one runtime contract | ✅ | 4 runtimes: the Claude Code, Codex and Grok CLIs, plus our own in-process Harness with selectable OpenRouter and Russian GigaChat providers — `BUILTIN_RUNTIMES` at `app/runtime_registry.py:330` |
 | Adding a new CLI agent by config | 🚫 | Every runtime is a hand-written backend; there is no config path. Orca, by contrast, advertises "any CLI agent" |
 | Write with one vendor's model, review with another's | ✅ | `codex_review`, `app/mcp_stdio.py:4154` — the review starts a different vendor's CLI |
 | Quota gate that blocks workers near a subscription wall | ✅ | `line_limit` at `app/quota_gate.py:115` |
@@ -143,7 +143,7 @@ checked **2026-09-03**.
 |---|---|---|---|
 | Lifecycle belongs to | a row in our database — the worker survives restarts and hibernation | the parent conversation: "Each subagent invocation creates a new instance rather than continuing an earlier one" | the parent run: "Codex waits until all requested results are available, then returns a consolidated response" |
 | Repo isolation | a worktree per worker, always | opt-in `isolation: worktree`; by default "A subagent starts in the main conversation's current working directory" | "Subagents inherit your current sandbox policy" |
-| Model vendor | four runtimes: Anthropic, OpenAI, xAI, OpenRouter | `model`: "`sonnet`, `opus`, `haiku`, `fable`, a full model ID such as `claude-opus-5`, or `inherit`" | `gpt-5.6`, `gpt-5.6-terra`, `gpt-5.6-luna` |
+| Model vendor | four runtimes: Anthropic, OpenAI, xAI, and the Harness (OpenRouter or Russian GigaChat) | `model`: "`sonnet`, `opus`, `haiku`, `fable`, a full model ID such as `claude-opus-5`, or `inherit`" | `gpt-5.6`, `gpt-5.6-terra`, `gpt-5.6-luna` |
 | Review | a different vendor's model, required by role prompt (see the 🚧 row above) | "Spawn a teammate using the security-reviewer agent type" | "Review this branch with parallel subagents" |
 
 Measured on our own database, 2026-09-02: sub-agents of both kinds recorded here lived a median of
@@ -312,7 +312,7 @@ DEEPGRAM_API_KEY=your_key
 
 - Python 3.12+, FastAPI, Jinja2, SSE
 - `claude-agent-sdk` — Claude Code SDK (persistent client per session)
-- Codex and Grok runtimes behind one backend contract (JSON-RPC over stdio), plus the in-process OpenRouter Harness
+- Codex and Grok runtimes behind one backend contract (JSON-RPC over stdio), plus the in-process Harness for OpenRouter and GigaChat
 - SQLite (WAL mode), git worktrees
 - Tailwind CSS, highlight.js, marked.js (bundled offline)
 - aiogram 3.x (Telegram bridge)

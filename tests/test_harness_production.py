@@ -28,7 +28,9 @@ def test_unsuffixed_zero_price_preview_is_rejected_before_a_request_is_built():
 
 
 @pytest.mark.asyncio
-async def test_backend_never_uses_anthropic_credentials_for_openrouter(monkeypatch, tmp_path):
+async def test_backend_never_uses_anthropic_credentials_for_openrouter(
+        monkeypatch, tmp_path, live_harness_route):
+    live_harness_route("z-ai/glm-5.2:free")
     monkeypatch.delenv("OPENROUTER_API_KEY", raising=False)
     monkeypatch.delenv("OPENROUTER_KEY", raising=False)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "must-not-cross-provider-boundary")

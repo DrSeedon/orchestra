@@ -23,7 +23,7 @@ from uuid import uuid4
 from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 from app.harness import prompts, tools as builtin
-from app.harness.llm import OpenRouterClient
+from app.harness.llm import GigaChatClient, OpenRouterClient
 from app.harness.loop import AgentLoop, ReviewCtx
 from app.harness.mcp import MCPClient
 from app.harness.sessions import SessionStore
@@ -137,29 +137,36 @@ class HarnessBackend:
         spec = get_model_spec(model)
         validate_harness_model_spec(spec)
         if self._llm is not None:
+            if spec.provider == "gigachat" and not isinstance(self._llm, GigaChatClient):
+                raise RuntimeError("cannot retarget an active OpenRouter session to GigaChat")
+            if spec.provider != "gigachat" and isinstance(self._llm, GigaChatClient):
+                raise RuntimeError("cannot retarget an active GigaChat session to OpenRouter")
             self._llm.retarget(model, spec.supported_parameters)
         self.model = model
 
     # ── lifecycle ──
 
     async def connect(self) -> None:
-        api_key = (os.environ.get("OPENROUTER_API_KEY")
-                   or os.environ.get("OPENROUTER_KEY", ""))
-        if not api_key:
-            raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
         from app.models import get_model_spec, validate_harness_model_spec
 
         spec = get_model_spec(self.model)
         validate_harness_model_spec(spec)
-        base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-        if base_url and not base_url.endswith("/v1"):
-            base_url = base_url.rstrip("/") + "/v1"
-        self._llm = OpenRouterClient(
-            api_key=api_key,
-            model=self.model,
-            base_url=base_url,
-            supported_parameters=spec.supported_parameters,
-        )
+        if spec.provider == "gigachat":
+            self._llm = GigaChatClient(model=self.model)
+        else:
+            api_key = (os.environ.get("OPENROUTER_API_KEY")
+                       or os.environ.get("OPENROUTER_KEY", ""))
+            if not api_key:
+                raise RuntimeError("No API key found (checked OPENROUTER_API_KEY, OPENROUTER_KEY)")
+            base_url = os.environ.get("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+            if base_url and not base_url.endswith("/v1"):
+                base_url = base_url.rstrip("/") + "/v1"
+            self._llm = OpenRouterClient(
+                api_key=api_key,
+                model=self.model,
+                base_url=base_url,
+                supported_parameters=spec.supported_parameters,
+            )
 
         # MCP must NEVER break backend startup. connect() is atomic (clears its own state on
         # a hard error), and merge_tool_schemas can itself raise on a builtin↔MCP name

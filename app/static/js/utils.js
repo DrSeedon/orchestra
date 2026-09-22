@@ -24,7 +24,7 @@ const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
 const _PROVIDER_COLORS = {
     anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
-    openrouter: '#a78bfa', deepseek: '#60a5fa',
+    openrouter: '#a78bfa', gigachat: '#ef4444', deepseek: '#60a5fa',
     unknown: '#94a3b8',
 };
 
