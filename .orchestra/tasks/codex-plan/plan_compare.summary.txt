@@ -1,0 +1,30 @@
+files scanned: 183
+== 5h window  (unc_in = input - cached)
+08-20 03:56 prolite pct 0->5 files=1 unc_in=0.45M cached=13.7M out=42k per1%: unc_in=89k cached=2.73M out=8.4k
+08-23 07:26 pro   pct 52->83 files=2 unc_in=2.69M cached=78.2M out=350k per1%: unc_in=87k cached=2.52M out=11.3k
+08-30 07:28 pro   pct 7->51 files=2 unc_in=0.41M cached=13.7M out=37k per1%: unc_in=9k cached=0.31M out=0.8k
+09-01 14:35 pro   pct 0->12 files=1 unc_in=0.88M cached=38.5M out=100k per1%: unc_in=74k cached=3.21M out=8.4k
+09-04 02:37 pro   pct 9->49 files=4 unc_in=2.71M cached=127.0M out=286k per1%: unc_in=68k cached=3.17M out=7.1k
+09-04 02:37 pro   pct 9->49 files=2 unc_in=0.04M cached=3.8M out=8k per1%: unc_in=1k cached=0.10M out=0.2k
+09-06 04:12 pro   pct 2->28 files=2 unc_in=2.47M cached=90.9M out=144k per1%: unc_in=95k cached=3.50M out=5.5k
+09-07 03:36 pro   pct 0->97 files=58 unc_in=18.06M cached=1011.0M out=2110k per1%: unc_in=186k cached=10.42M out=21.8k
+09-07 03:37 pro   pct 0->97 files=52 unc_in=3.71M cached=204.5M out=422k per1%: unc_in=38k cached=2.11M out=4.4k
+09-11 10:53 pro   pct 0->78 files=21 unc_in=7.21M cached=392.7M out=761k per1%: unc_in=92k cached=5.03M out=9.8k
+09-11 10:53 pro   pct 37->49 files=2 unc_in=0.00M cached=0.8M out=1k per1%: unc_in=0k cached=0.06M out=0.1k
+09-13 15:06 pro   pct 0->67 files=44 unc_in=10.10M cached=410.9M out=1278k per1%: unc_in=151k cached=6.13M out=19.1k
+09-13 15:06 pro   pct 1->65 files=11 unc_in=0.17M cached=11.5M out=52k per1%: unc_in=3k cached=0.18M out=0.8k
+09-13 15:06 pro   pct 2->36 files=2 unc_in=0.00M cached=0.6M out=9k per1%: unc_in=0k cached=0.02M out=0.3k
+09-15 01:52 pro   pct 0->99 files=25 unc_in=4.53M cached=165.8M out=533k per1%: unc_in=46k cached=1.67M out=5.4k
+09-19 14:12 pro   pct 1->100 files=11 unc_in=13.41M cached=599.7M out=1581k per1%: unc_in=135k cached=6.06M out=16.0k
+09-20 06:05 plus  pct 2->14 files=4 unc_in=0.65M cached=26.6M out=62k per1%: unc_in=54k cached=2.22M out=5.2k
+09-20 11:05 plus  pct 0->98 files=3 unc_in=1.13M cached=158.3M out=240k per1%: unc_in=12k cached=1.62M out=2.5k
+09-20 16:05 plus  pct 1->17 files=1 unc_in=0.01M cached=4.8M out=2k per1%: unc_in=1k cached=0.30M out=0.1k
+09-20 16:05 plus  pct 0->18 files=1 unc_in=0.60M cached=56.5M out=46k per1%: unc_in=33k cached=3.14M out=2.6k
+09-21 07:07 plus  pct 3->23 files=4 unc_in=0.64M cached=17.5M out=96k per1%: unc_in=32k cached=0.88M out=4.8k
+09-21 12:07 plus  pct 0->31 files=3 unc_in=1.27M cached=74.8M out=240k per1%: unc_in=41k cached=2.41M out=7.7k
+09-22 13:14 plus  pct 68->100 files=6 unc_in=1.27M cached=44.8M out=136k per1%: unc_in=40k cached=1.40M out=4.2k
+09-22 13:14 plus  pct 70->95 files=2 unc_in=0.01M cached=0.2M out=0k per1%: unc_in=0k cached=0.01M out=0.0k
+10-16 11:03 free  pct 0->100 files=6 unc_in=1.26M cached=55.9M out=205k per1%: unc_in=13k cached=0.56M out=2.0k
+10-16 11:03 free  pct 5->81 files=2 unc_in=0.01M cached=1.4M out=2k per1%: unc_in=0k cached=0.02M out=0.0k
+== 7d window  (unc_in = input - cached)
+09-26 14:34 plus  pct 0->62 files=19 unc_in=6.27M cached=399.9M out=858k per1%: unc_in=101k cached=6.45M out=13.8k
