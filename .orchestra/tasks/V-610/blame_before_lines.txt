@@ -1,0 +1,239 @@
+app/backend_claude.py:72: _ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
+app/backend_claude.py:452: def _disallowed_tools(is_orchestrator: bool) -> list[str]:
+app/backend_claude.py:453:     """Инструменты, полностью убираемые из набора модели (через CLI),
+app/backend_claude.py:454:     а не через can_use_tool. Оркестратор делегирует через spawn_worker,
+app/backend_claude.py:461: 
+app/backend_claude.py:462: 
+app/backend_claude.py:931:             disallowed_tools=_disallowed_tools(self._is_orchestrator),
+app/db.py:8: import os
+app/db.py:19: _DEFAULT_DB_PATH = Path(__file__).parent.parent / "data" / "orchestra.db"
+app/db.py:20: 
+app/db.py:21: def _resolve_db_path() -> Path:
+app/db.py:22:     """Путь к БД: ORCHESTRA_DB_PATH из env (если задан) или дефолт data/orchestra.db.
+app/db.py:23: 
+app/db.py:24:     Позволяет разным worktree/веткам и тестам держать свою БД, не блокируя
+app/db.py:25:     друг друга через SQLite-лок при параллельной работе.
+app/db.py:26:     """
+app/db.py:27:     override = os.getenv("ORCHESTRA_DB_PATH", "").strip()
+app/db.py:28:     if not override:
+app/db.py:29:         return _DEFAULT_DB_PATH
+app/db.py:30:     p = Path(override)
+app/db.py:31:     return p if p.is_absolute() else (Path(__file__).parent.parent / p)
+app/db.py:32: 
+app/db.py:33: 
+app/db.py:34: DB_PATH = _resolve_db_path()
+app/db.py:2254: # ── Test Lock ──
+app/db.py:2255: 
+app/db.py:2273:     """Захватить глобальный тест-лок для scope.
+app/db.py:2274: 
+app/db.py:2275:     Возвращает (ok, current_holder):
+app/db.py:2276:     - (True, None)   — лок свободен, захвачен
+app/db.py:2278:     - (False, name)  — занят другим, name = текущий держатель
+app/db.py:2279:     """
+app/db.py:2280:     now = datetime.now(timezone.utc).isoformat()
+app/db.py:2281:     with _conn() as c:
+app/db.py:2283:         if row is not None:
+app/db.py:2291:                 return True, holder
+app/db.py:2292:             return False, row["holder"]
+app/db.py:2293:         c.execute(
+app/db.py:2297:         )
+app/db.py:2298:         return True, None
+app/db.py:2299: 
+app/db.py:2300: 
+app/db.py:2303:     with _conn() as c:
+app/db.py:2308:         return cur.rowcount > 0
+app/db.py:2309: 
+app/db.py:2310: 
+app/db.py:2311: def get_test_lock(scope: str) -> dict | None:
+app/db.py:2312:     """Текущий держатель лока для scope или None."""
+app/db.py:2313:     with _conn() as c:
+app/db.py:2314:         row = c.execute("SELECT * FROM test_lock WHERE scope = ?", (scope,)).fetchone()
+app/db.py:2315:         return dict(row) if row else None
+app/manager.py:1204:             await session._disconnect_backend()
+app/manager.py:1394:     async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
+app/manager.py:1395:         orch_names: list[str] = []
+app/manager.py:1396:         for s in self.sessions.values():
+app/manager.py:1397:             if s.scope == scope and s.is_orchestrator and s.name not in orch_names:
+app/manager.py:1398:                 orch_names.append(s.name)
+app/manager.py:1399:         for row in get_all_sessions(scope):
+app/manager.py:1401:                 orch_names.append(row["name"])
+app/manager.py:1402: 
+app/manager.py:1409:         tg_result: dict = {}
+app/manager.py:1412:         return {"tg": tg_result}
+app/manager.py:1413: 
+app/mcp_stdio.py:976:                        description: str = "",
+app/mcp_stdio.py:996:         "base_branch": base_branch,
+app/mcp_stdio.py:1148: @mcp.tool()
+app/mcp_stdio.py:1149: async def acquire_test_lock(reason: str = "") -> str:
+app/mcp_stdio.py:1150:     """Захватить ГЛОБАЛЬНЫЙ эксклюзивный лок на ПОЛНЫЙ прогон тестов (фулл-сьют) для проекта.
+app/mcp_stdio.py:1151:     Бери его ТОЛЬКО перед полным прогоном и ТОЛЬКО с согласия PM. Узкие тесты этапа лока НЕ требуют.
+app/mcp_stdio.py:1152:     Занято другим агентом → вернётся отказ с именем держателя — НЕ запускай фулл-сьют, жди и попробуй позже.
+app/mcp_stdio.py:1153:     Всегда вызывай release_test_lock() после прогона."""
+app/mcp_stdio.py:1154:     result = await _api("POST", "/api/test-lock/acquire", json={
+app/mcp_stdio.py:1155:         "scope": SCOPE, "holder": WORKER_NAME, "reason": reason,
+app/mcp_stdio.py:1157:     })
+app/mcp_stdio.py:1158:     if isinstance(result, dict) and result.get("error"):
+app/mcp_stdio.py:1159:         return f"Lock error: {result['error']}"
+app/mcp_stdio.py:1160:     if result.get("acquired"):
+app/mcp_stdio.py:1161:         return f"Test lock ACQUIRED for '{WORKER_NAME}' (reason: {reason or 'n/a'}). Release it when done."
+app/mcp_stdio.py:1162:     return (f"Test lock BUSY — held by '{result.get('holder')}'. "
+app/mcp_stdio.py:1163:             f"Do NOT run the full suite. Wait and retry, or coordinate via PM.")
+app/mcp_stdio.py:1164: 
+app/mcp_stdio.py:1165: 
+app/mcp_stdio.py:1166: @mcp.tool()
+app/mcp_stdio.py:1167: async def release_test_lock() -> str:
+app/mcp_stdio.py:1168:     """Освободить глобальный тест-лок (если ты его держишь). Вызывай сразу после полного прогона."""
+app/mcp_stdio.py:1169:     result = await _api("POST", "/api/test-lock/release", json={
+app/mcp_stdio.py:1171:     })
+app/mcp_stdio.py:1172:     if isinstance(result, dict) and result.get("error"):
+app/mcp_stdio.py:1173:         return f"Lock error: {result['error']}"
+app/mcp_stdio.py:1174:     if result.get("released"):
+app/mcp_stdio.py:1175:         return "Test lock released."
+app/mcp_stdio.py:1176:     return "Test lock was not held by you (nothing to release)."
+app/mcp_stdio.py:1177: 
+app/mcp_stdio.py:1178: 
+app/mcp_stdio.py:1179: @mcp.tool()
+app/mcp_stdio.py:1180: async def test_lock_status() -> str:
+app/mcp_stdio.py:1181:     """Кто сейчас держит глобальный тест-лок проекта (или свободен)."""
+app/mcp_stdio.py:1182:     result = await _api("GET", "/api/test-lock", params={"scope": SCOPE})
+app/mcp_stdio.py:1183:     if isinstance(result, dict) and result.get("error"):
+app/mcp_stdio.py:1184:         return f"Lock error: {result['error']}"
+app/mcp_stdio.py:1185:     if not result.get("held"):
+app/mcp_stdio.py:1186:         return "Test lock is FREE."
+app/mcp_stdio.py:1187:     return (f"Test lock HELD by '{result.get('holder')}' "
+app/mcp_stdio.py:1188:             f"(reason: {result.get('reason') or 'n/a'}, since {result.get('acquired_at')}).")
+app/mcp_stdio.py:1189: 
+app/mcp_stdio.py:1190: 
+app/session.py:508:     _turn_gen: int = field(default=0, repr=False)
+app/session.py:510:     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
+app/static/js/app.js:2145:             openDeleteOrchModal(name, scope);
+app/static/js/app.js:2154: function openDeleteOrchModal(name, scope) {
+app/static/js/app.js:2155:     const modal = $('#delete-orch-modal');
+app/static/js/app.js:2156:     if (!modal) {
+app/static/js/app.js:2158:         api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
+app/static/js/app.js:2159:             .then(() => loadOrchestrators())
+app/static/js/app.js:2160:             .catch(e => alert(`Delete failed: ${e.message}`));
+app/static/js/app.js:2161:         return;
+app/static/js/app.js:2162:     }
+app/static/js/app.js:2163:     $('#delete-orch-name').textContent = `"${name}"`;
+app/static/js/app.js:2164:     $('#delete-tg-topics').checked = false;
+app/static/js/app.js:2165:     modal.classList.remove('hidden');
+app/static/js/app.js:2166:     modal.classList.add('flex');
+app/static/js/app.js:2167: 
+app/static/js/app.js:2168:     const close = () => {
+app/static/js/app.js:2169:         modal.classList.add('hidden');
+app/static/js/app.js:2170:         modal.classList.remove('flex');
+app/static/js/app.js:2171:     };
+app/static/js/app.js:2172: 
+app/static/js/app.js:2173:     $('#delete-orch-confirm').onclick = async () => {
+app/static/js/app.js:2174:         const deleteTopics = $('#delete-tg-topics').checked;
+app/static/js/app.js:2175:         close();
+app/static/js/app.js:2176:         try {
+app/static/js/app.js:2177:             const url = `/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}&delete_tg_topics=${deleteTopics}`;
+app/static/js/app.js:2178:             await api(url, { method: 'DELETE' });
+app/static/js/app.js:2179:             loadOrchestrators();
+app/static/js/app.js:2180:         } catch (e) {
+app/static/js/app.js:2181:             alert(`Delete failed: ${e.message}`);
+app/static/js/app.js:2182:         }
+app/static/js/app.js:2183:     };
+app/static/js/app.js:2184:     $('#delete-orch-cancel').onclick = close;
+app/static/js/app.js:2185:     $('#delete-orch-modal-close').onclick = close;
+app/static/js/app.js:2186:     modal.onclick = (e) => { if (e.target === modal) close(); };
+app/static/js/app.js:2187: }
+app/static/js/app.js:2188: 
+app/templates/dashboard.html:104:     <!-- Delete Orchestrator Modal -->
+app/templates/dashboard.html:105:     <div id="delete-orch-modal" class="fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 items-center justify-center hidden">
+app/templates/dashboard.html:106:         <div class="glass glow rounded-xl p-6 w-[380px]">
+app/templates/dashboard.html:107:             <div class="flex items-center justify-between mb-4">
+app/templates/dashboard.html:109:                 <button id="delete-orch-modal-close" class="text-slate-500 hover:text-white text-lg">✕</button>
+app/templates/dashboard.html:110:             </div>
+app/templates/dashboard.html:112:             <label class="flex items-center gap-2 mb-4 cursor-pointer">
+app/templates/dashboard.html:113:                 <input id="delete-tg-topics" type="checkbox" class="accent-indigo-500">
+app/templates/dashboard.html:115:             </label>
+app/templates/dashboard.html:116:             <div class="flex gap-2">
+app/templates/dashboard.html:119:             </div>
+app/templates/dashboard.html:120:         </div>
+app/templates/dashboard.html:121:     </div>
+app/templates/dashboard.html:122: 
+app/tg_bridge.py:138: TG_USER_MENTION = os.getenv("TG_USER_MENTION", "").strip()
+app/tg_bridge.py:139: 
+app/tg_bridge.py:2663: def _pick_unique_topic_name(orch_name: str) -> str:
+app/tg_bridge.py:2664:     """Выбрать свободное имя для TG-топика по orch_name с учётом коллизий.
+app/tg_bridge.py:2665: 
+app/tg_bridge.py:2666:     Если short(orch_name) уже занят другим оркестратором, возвращаем
+app/tg_bridge.py:2667:     ``<short>-2``, ``<short>-3`` и т.д. Имя оркестратора, для которого
+app/tg_bridge.py:2668:     уже выбрано имя в ``config['topic_names']``, возвращается без изменений.
+app/tg_bridge.py:2669:     """
+app/tg_bridge.py:2670:     topic_names = config.setdefault("topic_names", {})
+app/tg_bridge.py:2671:     if orch_name in topic_names:
+app/tg_bridge.py:2672:         return topic_names[orch_name]
+app/tg_bridge.py:2673:     base = _short_name(orch_name)
+app/tg_bridge.py:2674:     used = set(topic_names.values()) | {
+app/tg_bridge.py:2675:         _short_name(k) for k in config["topics"] if k not in topic_names
+app/tg_bridge.py:2676:     }
+app/tg_bridge.py:2677:     if base not in used:
+app/tg_bridge.py:2678:         return base
+app/tg_bridge.py:2679:     i = 2
+app/tg_bridge.py:2680:     while f"{base}-{i}" in used:
+app/tg_bridge.py:2681:         i += 1
+app/tg_bridge.py:2682:     return f"{base}-{i}"
+app/tg_bridge.py:2683: 
+app/tg_bridge.py:2684: 
+app/tg_bridge.py:2748: async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
+app/tg_bridge.py:2749:     """Удалить TG-топики и записи из ``config['topics']`` для указанных оркестраторов.
+app/tg_bridge.py:2750: 
+app/tg_bridge.py:2751:     Mirrors не трогаем — их пользователь настраивает руками для отдельных групп.
+app/tg_bridge.py:2752:     Ошибки Bot API (топик уже удалён в TG) логируются как warning, но запись
+app/tg_bridge.py:2753:     из ``config`` всё равно убирается, чтобы не оставалось зомби.
+app/tg_bridge.py:2754: 
+app/tg_bridge.py:2755:     Возвращает структуру с разбивкой по статусу:
+app/tg_bridge.py:2756:         {"deleted": [name, ...], "failed": [{"name": ..., "error": ...}], "skipped": [name, ...]}
+app/tg_bridge.py:2757:     """
+app/tg_bridge.py:2758:     if not bot or not config.get("group_id"):
+app/tg_bridge.py:2759:         return {"deleted": [], "failed": [], "skipped": list(orch_names), "error": "bridge inactive"}
+app/tg_bridge.py:2760: 
+app/tg_bridge.py:2761:     deleted: list[str] = []
+app/tg_bridge.py:2762:     failed: list[dict] = []
+app/tg_bridge.py:2763:     skipped: list[str] = []
+app/tg_bridge.py:2764:     topic_names = config.setdefault("topic_names", {})
+app/tg_bridge.py:2766: 
+app/tg_bridge.py:2767:     for name in orch_names:
+app/tg_bridge.py:2770:         thread_id = config["topics"].get(name)
+app/tg_bridge.py:2771:         if not thread_id:
+app/tg_bridge.py:2772:             skipped.append(name)
+app/tg_bridge.py:2773:             topic_names.pop(name, None)
+app/tg_bridge.py:2774:             _topic_status.pop(name, None)
+app/tg_bridge.py:2775:             continue
+app/tg_bridge.py:2776:         try:
+app/tg_bridge.py:2777:             await bot.delete_forum_topic(chat_id=config["group_id"], message_thread_id=thread_id)
+app/tg_bridge.py:2778:             deleted.append(name)
+app/tg_bridge.py:2779:         except Exception as e:
+app/tg_bridge.py:2780:             logger.warning(f"Failed to delete TG topic for {name} (thread_id={thread_id}): {e}")
+app/tg_bridge.py:2781:             failed.append({"name": name, "error": str(e)})
+app/tg_bridge.py:2782:         # config очищаем независимо от ответа API: если топика уже нет — тем более
+app/tg_bridge.py:2783:         config["topics"].pop(name, None)
+app/tg_bridge.py:2784:         topic_names.pop(name, None)
+app/tg_bridge.py:2785:         _topic_status.pop(name, None)
+app/tg_bridge.py:2786: 
+app/tg_bridge.py:2787:     save_config()
+app/tg_bridge.py:2788:     return {"deleted": deleted, "failed": failed, "skipped": skipped}
+app/tg_bridge.py:2789: 
+app/tg_bridge.py:2790: 
+app/tg_bridge.py:3028:     short = (config.get("topic_names") or {}).get(orch_name) or _short_name(orch_name)
+app/workspace.py:548:             cwd=str(repo), capture_output=True, text=True,
+app/workspace.py:549:         )
+app/workspace.py:863: 
+app/workspace.py:1372:             else:
+app/workspace.py:1373:                 branch = branch_result.stdout.strip()
+app/workspace.py:1409:                 else:
+app/workspace.py:1416:                     else:
+app/workspace.py:1518:                                             cwd=str(repo), capture_output=True, text=True,
+app/workspace.py:1519:                                         )
+app/workspace.py:1764:             if original_branch and original_branch != target_branch:
+app/workspace.py:1766:                     ["git", "checkout", original_branch],
+app/workspace.py:1767:                     cwd=str(repo), capture_output=True, text=True,
+app/workspace.py:1768:                 )
+app/workspace.py:1769:                 if restore.returncode != 0:
+app/workspace.py:1770:                     logger.error(f"restore branch failed: {restore.stderr.strip()}")
+app/workspace.py:1771:                     result = {"ok": False, "state": "restore_failed",
+app/workspace.py:1772:                               "error": f"cannot restore branch '{original_branch}': {restore.stderr.strip()}"}

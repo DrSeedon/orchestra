@@ -28,7 +28,15 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Redirect
 from pydantic import BaseModel
 
 from app.auth import is_auth_enabled, is_owner_mode
-from app.db import get_all_sessions, list_profiles, upsert_profile, delete_profile
+from app.db import (
+    acquire_test_lock,
+    delete_profile,
+    get_all_sessions,
+    get_test_lock,
+    list_profiles,
+    release_test_lock,
+    upsert_profile,
+)
 from app.deps import build_id, manager, templates
 from app.errtext import err_text
 from app.models import (
@@ -2283,30 +2291,21 @@ async def change_orchestrator_scope_endpoint(name: str, req: ChangeScopeRequest)
 
 @router.get("/api/test-lock")
 async def test_lock_status_endpoint(scope: str):
-    from app.db import get_test_lock
-    row = get_test_lock(scope)
-    if not row:
-        return {"held": False, "holder": None, "reason": None, "acquired_at": None}
-    return {"held": True, "holder": row["holder"],
-            "reason": row["reason"], "acquired_at": row["acquired_at"]}
+    lock = get_test_lock(scope) or {}
+    return {"held": bool(lock), **{key: lock.get(key) for key in ("holder", "reason", "acquired_at")}}
 
 
 @router.post("/api/test-lock/acquire")
 async def acquire_lock_endpoint(req: TestLockRequest):
-    from app.db import acquire_test_lock
-    ok, holder = acquire_test_lock(
-        req.scope, req.holder, req.reason, holder_session_id=req.holder_session_id,
-    )
-    return {"acquired": ok, "holder": holder}
+    acquired, holder = acquire_test_lock(req.scope, req.holder, req.reason,
+                                         holder_session_id=req.holder_session_id)
+    return {"acquired": acquired, "holder": holder}
 
 
 @router.post("/api/test-lock/release")
 async def release_lock_endpoint(req: TestLockRequest):
-    from app.db import release_test_lock
-    ok = release_test_lock(
-        req.scope, req.holder, holder_session_id=req.holder_session_id,
-    )
-    return {"released": ok}
+    released = release_test_lock(req.scope, req.holder, holder_session_id=req.holder_session_id)
+    return {"released": released}
 
 
 _restart_tasks: set[asyncio.Task] = set()

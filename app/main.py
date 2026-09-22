@@ -381,7 +381,7 @@ async def lifespan(app: FastAPI):
     from dotenv import load_dotenv
     load_dotenv()
     from app import db as database
-    database.DB_PATH = database._resolve_db_path()
+    database.DB_PATH = database._db_path_from_env()
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
     init_db()

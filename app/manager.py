@@ -1195,13 +1195,15 @@ class SessionManager:
         if _killed_name:
             from app import fan_barrier
             fan_barrier.on_child_killed(_killed_name)
+        # Процесс CLI есть только у загруженной живой сессии; гасим его до удаления
+        # worktree, в котором он работает. Гидрированная из БД сессия его не имеет.
+        if session is not None and session.loaded:
+            await session._disconnect_backend()
         if session is None:
             row = get_session(session_id)
             if row is None:
                 return
             session = self._hydrate_row(row)
-        if session.loaded:
-            await session._disconnect_backend()
         if session.worktree_path:
             await asyncio.to_thread(
                 remove_worktree,
@@ -1213,6 +1215,23 @@ class SessionManager:
         archive_session(session_id)
         self.sessions.pop(session_id, None)
         await asyncio.to_thread(self._cleanup_cli_home, session_id)
+
+    async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict[str, dict]:
+        """Убрать все сессии scope; с delete_tg_topics — и TG-топики его оркестраторов,
+        чьи имена снимаются до удаления: после него их строк уже не найти."""
+        live = [s for s in self.sessions.values() if s.scope == scope]
+        # dict.fromkeys держит порядок и склеивает живую сессию с её же строкой в БД.
+        orchestrators = dict.fromkeys(
+            [s.name for s in live if s.is_orchestrator]
+            + [row["name"] for row in get_all_sessions(scope) if row.get("is_orchestrator")]
+        )
+        for s in live:
+            await self.remove(s.id)
+        for row in get_all_sessions(scope):
+            await self.remove(row["id"])
+        if not (delete_tg_topics and orchestrators and self.tg_topics_remover):
+            return {"tg": {}}
+        return {"tg": await self.tg_topics_remover(list(orchestrators))}
 
     def _cleanup_cli_home(self, session_id: str) -> None:
         from app.backend_codex import _CODEX_HOME_ROOT, _SAFE_HOME_KEY
@@ -1390,26 +1409,6 @@ class SessionManager:
             if (row.get("status") or "") in ACTIVE_SESSION_STATUSES:
                 names.add(row["name"])
         return sorted(names)
-
-    async def remove_scope(self, scope: str, delete_tg_topics: bool = False) -> dict:
-        orch_names: list[str] = []
-        for s in self.sessions.values():
-            if s.scope == scope and s.is_orchestrator and s.name not in orch_names:
-                orch_names.append(s.name)
-        for row in get_all_sessions(scope):
-            if bool(row.get("is_orchestrator")) and row["name"] not in orch_names:
-                orch_names.append(row["name"])
-
-        to_remove = [s for s in self.sessions.values() if s.scope == scope]
-        for s in to_remove:
-            await self.remove(s.id)
-        for row in get_all_sessions(scope):
-            await self.remove(row["id"])
-
-        tg_result: dict = {}
-        if delete_tg_topics and orch_names and self.tg_topics_remover:
-            tg_result = await self.tg_topics_remover(orch_names)
-        return {"tg": tg_result}
 
     # ── Lookups ──
 

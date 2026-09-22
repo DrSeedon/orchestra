@@ -2141,49 +2141,12 @@ function initTabContextMenu() {
         menu.appendChild(mkItem(T('📁 Change folder'), '#60a5fa', () => {
             changeOrchScope(name, scope);
         }));
-        menu.appendChild(mkItem(T('🗑 Delete'), '#ef4444', () => {
-            openDeleteOrchModal(name, scope);
-        }));
+        menu.appendChild(mkItem(T('🗑 Delete'), '#ef4444', () => confirmOrchestratorDelete(name, scope)));
         document.body.appendChild(menu);
         const rect = menu.getBoundingClientRect();
         if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
         if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
     });
-}
-
-function openDeleteOrchModal(name, scope) {
-    const modal = $('#delete-orch-modal');
-    if (!modal) {
-        if (!confirm(T('Delete "{name}" and all its workers?', {name}))) return;
-        api(`/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}`, { method: 'DELETE' })
-            .then(() => loadOrchestrators())
-            .catch(e => alert(`Delete failed: ${e.message}`));
-        return;
-    }
-    $('#delete-orch-name').textContent = `"${name}"`;
-    $('#delete-tg-topics').checked = false;
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-
-    const close = () => {
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
-    };
-
-    $('#delete-orch-confirm').onclick = async () => {
-        const deleteTopics = $('#delete-tg-topics').checked;
-        close();
-        try {
-            const url = `/api/orchestrators/${name}?scope=${encodeURIComponent(scope)}&delete_tg_topics=${deleteTopics}`;
-            await api(url, { method: 'DELETE' });
-            loadOrchestrators();
-        } catch (e) {
-            alert(`Delete failed: ${e.message}`);
-        }
-    };
-    $('#delete-orch-cancel').onclick = close;
-    $('#delete-orch-modal-close').onclick = close;
-    modal.onclick = (e) => { if (e.target === modal) close(); };
 }
 
 function changeOrchScope(name, oldScope) {
@@ -2257,6 +2220,40 @@ function changeOrchScope(name, oldScope) {
     $('#change-scope-confirm').addEventListener('click', confirmHandler);
     browseBtn.addEventListener('click', onBrowse);
     modal.addEventListener('click', (e) => { if (e.target === modal) { close(); cleanup(); } }, { once: true });
+}
+
+// Диалог подтверждения собирается на время одного ответа и удаляется целиком:
+// галочка TG-топиков каждый раз начинается снятой, а обработчики не копятся.
+function confirmOrchestratorDelete(name, scope) {
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-black/60 backdrop-filter backdrop-blur-sm z-50 flex items-center justify-center';
+    overlay.innerHTML = `
+        <div class="glass glow rounded-xl p-6 w-[380px]">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-bold">${escHtml(T('Delete Orchestrator'))}</h2>
+                <button data-act="cancel" class="text-slate-500 hover:text-white text-lg">✕</button>
+            </div>
+            <p class="text-xs text-slate-300 mb-4">${escHtml(T('Delete "{name}" and all its workers?', {name}))}</p>
+            <label class="flex items-center gap-2 mb-4 cursor-pointer text-xs text-slate-400">
+                <input data-role="tg-topics" type="checkbox" class="accent-indigo-500">
+                ${escHtml(T('Also delete associated TG topics'))}
+            </label>
+            <div class="flex gap-2">
+                <button data-act="cancel" class="flex-1 px-3 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition-colors">${escHtml(T('Cancel'))}</button>
+                <button data-act="delete" class="flex-1 px-3 py-2 bg-red-900 hover:bg-red-800 rounded-lg text-xs font-medium transition-colors">${escHtml(T('Delete'))}</button>
+            </div>
+        </div>`;
+    overlay.addEventListener('click', (e) => {
+        const act = e.target === overlay ? 'cancel' : e.target.closest('[data-act]')?.dataset.act;
+        if (!act) return;
+        const withTopics = overlay.querySelector('[data-role="tg-topics"]').checked;
+        overlay.remove();
+        if (act !== 'delete') return;
+        const query = new URLSearchParams({ scope, delete_tg_topics: String(withTopics) });
+        api(`/api/orchestrators/${name}?${query}`, { method: 'DELETE' })
+            .then(() => loadOrchestrators(), (err) => alert(`Delete failed: ${err.message}`));
+    });
+    document.body.appendChild(overlay);
 }
 
 function _updateHiddenBtn() {

@@ -69,9 +69,20 @@ _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
 # those bypass Orchestra's worktree isolation and session tracking.
 # Blocked via disallowed_tools (not can_use_tool) because subagent launches arrive
 # as TaskStartedMessage, which the permission callback never sees.
-_ORCH_DISALLOWED_TOOLS = ["Task", "Agent"]
+_ORCH_DISALLOWED_TOOLS = ("Task", "Agent")
 # ScheduleWakeup/Cron* removed for all agents — Orchestra manages scheduling via bg_jobs
 _ALWAYS_DISALLOWED = ["ScheduleWakeup", "CronCreate", "CronDelete", "CronList", "Workflow"]
+
+
+def _disallowed_tools(for_orchestrator: bool) -> list[str]:
+    """Имена, которые CLI вырезает из набора модели целиком — в обход can_use_tool.
+
+    Планирование у всех агентов забирает Orchestra (bg_jobs); оркестратору вдобавок
+    закрыты субагенты: делегирует он через spawn_worker, а воркер ими пользуется.
+    """
+    if not for_orchestrator:
+        return list(_ALWAYS_DISALLOWED)
+    return [*_ALWAYS_DISALLOWED, *_ORCH_DISALLOWED_TOOLS]
 
 
 _SAFE_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{0,63}$")
@@ -449,17 +460,6 @@ def _make_pretooluse_hooks(classifier):
     return [HookMatcher(matcher="Bash", hooks=[_bash_pretooluse])]
 
 
-def _disallowed_tools(is_orchestrator: bool) -> list[str]:
-    """Инструменты, полностью убираемые из набора модели (через CLI),
-    а не через can_use_tool. Оркестратор делегирует через spawn_worker,
-    поэтому субагентов ему отнимаем; воркерам — оставляем.
-    ScheduleWakeup/Cron* убираем у ВСЕХ — Orchestra управляет scheduling сама."""
-    base = list(_ALWAYS_DISALLOWED)
-    if is_orchestrator:
-        base.extend(_ORCH_DISALLOWED_TOOLS)
-    return base
-
-
 def _extract_tool_result(block) -> str:
     raw = getattr(block, 'content', '')
     if isinstance(raw, list):
@@ -520,6 +520,8 @@ class ClaudeBackend:
         self._mcp_servers = mcp_servers or {}
         self._scope_mcp_servers = scope_mcp_servers or {}
         self._is_orchestrator = is_orchestrator
+        # Один расчёт на сессию: клиент и сверка handoff обязаны видеть одинаковый список.
+        self._cli_disallowed_tools = _disallowed_tools(is_orchestrator)
         # Профиль Claude (F1/F4 резолвятся против него): пустой → env процесса
         # orchestra (back-compat, 1:1 upstream).
         self._config_dir = config_dir
@@ -626,7 +628,7 @@ class ClaudeBackend:
             },
             "tools": None,
             "allowed_tools": [],
-            "disallowed_tools": _disallowed_tools(self._is_orchestrator),
+            "disallowed_tools": list(self._cli_disallowed_tools),
             "mcp_servers": merged_mcp,
             "setting_sources": (
                 ["user", "project", "local"]
@@ -928,7 +930,7 @@ class ClaudeBackend:
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
-            disallowed_tools=_disallowed_tools(self._is_orchestrator),
+            disallowed_tools=list(self._cli_disallowed_tools),
             hooks={"PreToolUse": pretooluse_hooks} if pretooluse_hooks is not None else None,
             include_partial_messages=True, max_turns=200,
             max_buffer_size=50 * 1024 * 1024,

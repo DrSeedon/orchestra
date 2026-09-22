@@ -335,7 +335,6 @@
     'add': 'добавлен',
     'allowance rule': 'правило допуска',
     'allowance rule — loading…': 'правило допуска — загрузка…',
-    'and all its workers?': ' и всех его воркеров?',
     'archived': 'в архиве',
     'blocked': 'недоступна',
     'blocks': 'блоков',

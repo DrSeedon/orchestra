@@ -500,14 +500,15 @@ class AgentSession:
     _admission_service: Optional[Callable[[str], Awaitable["QuotaDecision"]]] = field(
         default=None, repr=False,
     )
+    # Пара поколений хода: устаревший ретрай/автопродолжение сверяет обе и не стреляет.
+    _turn_gen: int = field(default=0, repr=False)
     _turn_start_cancel_gen: int = field(default=0, repr=False)
     _handoff_config_dir: str = field(default="", repr=False)
     _handoff_recovery_required: bool = field(default=False, repr=False)
     _persist_task: Optional[asyncio.Task] = field(default=None, repr=False)
-    _persist_dirty: bool = field(default=False, repr=False)
-    _turn_gen: int = field(default=0, repr=False)
-    _turn_finished_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     _auto_report_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _persist_dirty: bool = field(default=False, repr=False)
+    _turn_finished_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
     _spawn_warning: str = field(default="", repr=False)
     _spawn_repo_path: str = field(default="", repr=False)
     _spawn_git_common_dir: str = field(default="", repr=False)
