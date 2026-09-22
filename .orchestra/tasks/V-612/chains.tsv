@@ -1,0 +1,9 @@
+chain	period	n
+bg_create -> bg_list	after	1
+bg_create -> bg_list	before	10
+merge_worker -> merge_worker	after	12
+merge_worker -> merge_worker	before	40
+merge_worker -> worker_wip	after	5
+merge_worker -> worker_wip	before	27
+send_file -> file_delivery_status	after	2
+send_file -> file_delivery_status	before	8
