@@ -31,6 +31,19 @@
   его ожидания остались дословно прежними.
 
 ### Fixed
+- 💵 **Стоимость первого хода после рестарта больше не получает накопительный итог CLI**
+  (`sessions.provider_cost_baseline_usd`, `app/session_cost.py` через восстановленный
+  `_last_cost`, `app/db.py`). База провайдерского `total_cost_usd` хранится рядом с
+  native `session_id`; terminal `turn_usage` и новая база фиксируются одной транзакцией,
+  а свежая нативная сессия обнуляет её. История `turn_usage` не переписывается.
+  *Triggered case:* после рестарта 21.09 первый resumed ход записывался как `$154.21`
+  вместо `$1.52`, восемь строк за неделю дали `$502` ложного расхода.
+  *Migration:* перед рестартом остановить Orchestra и выполнить
+  `scripts/migrate_provider_cost_baseline_v609.py --db <path>/orchestra.db --apply`.
+  *Known tradeoff:* падение до commit terminal-транзакции неотличимо от потерянного
+  provider result и может повторно включить этот расход в следующий cumulative delta;
+  после commit потеря отдельной строки `turn_usage` baseline не раздувает цену.
+
 - 🧪 **Merge-гейт проверяет, что изменённые тесты сторожат изменённый исходник**
   (`app/merge_test_gate.py`, `app/merge_operations.py`). После зелёного прогона на ветке
   воркера изменённые тесты запускаются в отдельном временном дереве с исходниками target;
