@@ -1241,7 +1241,7 @@ function _addLoadMoreBtn() {
     btn.type = 'button';
     btn.id = 'load-more-btn';
     btn.className = 'w-full text-xs text-slate-500 hover:text-indigo-300 py-2 text-center cursor-pointer select-none';
-    btn.textContent = T('▲ Load previous 500');
+    btn.textContent = T('▲ Load previous 100');
     btn.addEventListener('click', loadMoreLogs);
     $('#chat').prepend(btn);
 }
@@ -1269,7 +1269,7 @@ async function loadMoreLogs() {
         const q = new URLSearchParams({
             scope: targetScope,
             before_id: String(firstId),
-            limit: '500',
+            limit: '100',
             cap: String(_CHAT_ROW_CAP),
         });
         const logs = await api(
@@ -1316,7 +1316,7 @@ async function loadMoreLogs() {
         chat.scrollTop = chat.scrollHeight - oldHeight;
     } catch (e) {
         if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
-        if (btn) { btn.textContent = T('▲ Load previous 500'); btn.disabled = false; }
+        if (btn) { btn.textContent = T('▲ Load previous 100'); btn.disabled = false; }
         console.warn('loadMoreLogs error:', e);
     }
 }
