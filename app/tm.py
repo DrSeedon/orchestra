@@ -823,6 +823,8 @@ def _finish_task_run_for_task(
     status: str,
     failure_code: str = "",
     terminal_operation_id: str = "",
+    acceptance_note: str = "",
+    worker_head: str = "",
 ) -> dict | None:
     exists = conn.execute(
         "SELECT 1 FROM review_receipts WHERE subject_kind='task_run' "
@@ -841,6 +843,8 @@ def _finish_task_run_for_task(
         prompt_template_end=str(session["template_hash"] or "") if session else "",
         terminal_operation_id=terminal_operation_id,
         failure_code=failure_code,
+        acceptance_note=acceptance_note,
+        worker_head=worker_head,
         connection=conn,
     )
 
@@ -1056,17 +1060,21 @@ def finalize_merge_outcome(payload: dict) -> dict:
     return {"ok": True, "links": links}
 
 
-def release_session_task_binding(conn: sqlite3.Connection, session_id: str) -> None:
+def release_session_task_binding(
+    conn: sqlite3.Connection, session_id: str, keep_task_id: int | None = None,
+) -> None:
     """Recompute every binding an archived session held: elect an heir or requeue.
 
     Liveness of a worker is a platform fact, so the last worker leaving an unfinished
     task returns it to the queue. Any other live worker on the same task keeps it
     `in_progress` — blind requeueing would abandon work that is still running.
+    `keep_task_id` spares the task the session is being moved onto.
     """
     rows = conn.execute(
         "SELECT t.*, p.scope FROM tm_tasks t "
-        "JOIN tm_projects p ON p.id = t.project_id WHERE t.worker_session_id = ?",
-        (session_id,),
+        "JOIN tm_projects p ON p.id = t.project_id "
+        "WHERE t.worker_session_id = ? AND t.id IS NOT ?",
+        (session_id, keep_task_id),
     ).fetchall()
     now = _now()
     session = conn.execute(
@@ -1516,6 +1524,58 @@ def validate_task_binding_repair(
         return task_dto(task)
 
 
+def _release_previous_binding(
+    conn: sqlite3.Connection,
+    *,
+    session_id: str,
+    keep_task_id: int,
+    done_note: str = "",
+    worker_head: str = "",
+) -> list[dict]:
+    """Free the tasks a switching session still holds, inside the caller's transaction.
+
+    Without `done_note` the session simply leaves: the platform release rule requeues the
+    task or hands it to another live worker. With it the orchestrator declares the task
+    done; that is refused while the task is reserved by a merge or held by another worker.
+    """
+    rows = [dict(row) for row in conn.execute(
+        "SELECT t.*, p.scope FROM tm_tasks t JOIN tm_projects p ON p.id = t.project_id "
+        "WHERE t.worker_session_id = ? AND t.id != ?",
+        (session_id, keep_task_id),
+    ).fetchall()]
+    for row in rows:
+        reserved = conn.execute(
+            "SELECT operation_id FROM tm_task_reservations WHERE task_id=?", (row["id"],),
+        ).fetchone()
+        if reserved:
+            raise ValueError(
+                f"task {public_task_ref(row)} is reserved by operation "
+                f"{reserved['operation_id']}; its binding is kept"
+            )
+    if not done_note:
+        release_session_task_binding(conn, session_id, keep_task_id=keep_task_id)
+        return [{"task": public_task_ref(row), "outcome": "released"} for row in rows]
+    for row in rows:
+        others = _live_bindings(conn, row["scope"], public_task_ref(row), session_id)
+        if others:
+            raise ValueError(
+                f"task {public_task_ref(row)} still has live workers "
+                f"({', '.join(sorted(others))}) — done is refused"
+            )
+        _finish_task_run_for_task(
+            conn, row, session_id, status="completed",
+            acceptance_note=done_note, worker_head=worker_head,
+        )
+        update_task(conn, row["id"], status="done")
+        conn.execute(
+            "UPDATE tm_tasks SET worker_session_id=NULL, "
+            "sync_revision=sync_revision+1, updated_at=? WHERE id=?",
+            (_now(), row["id"]),
+        )
+        active_runtime().publish(conn, row["id"])
+    return [{"task": public_task_ref(row), "outcome": "done"} for row in rows]
+
+
 def api_update_task_if_current(
     identity: TaskIdentity,
     *,
@@ -1523,8 +1583,13 @@ def api_update_task_if_current(
     worker_session_id: str | None = None,
     expected_status: str = "",
     require_unreserved: bool = False,
+    release_previous: dict | None = None,
 ) -> dict:
-    """Update a prevalidated task only while its immutable identity/version matches."""
+    """Update a prevalidated task only while its immutable identity/version matches.
+
+    `release_previous` ({session_id, done_note, worker_head}) frees the session's earlier
+    task in the same transaction, so a failed assignment keeps the old binding intact.
+    """
     with active_runtime().operation():
         if status not in VALID_STATUSES:
             raise ValueError(f"Invalid status: {status}")
@@ -1578,6 +1643,10 @@ def api_update_task_if_current(
                     return {"ok": False, "task_id": task_id, "error": claim_error}
                 if binding_inferred and worker_session_id:
                     _validate_inferred_task_worker(conn, task, worker_session_id)
+                previous = (
+                    _release_previous_binding(conn, keep_task_id=task_id, **release_previous)
+                    if release_previous else []
+                )
                 result = update_task(
                     conn,
                     task_id,
@@ -1608,6 +1677,7 @@ def api_update_task_if_current(
             "updated": result["changed"],
             "new_status": updated["status"],
             "sync_revision": updated["sync_revision"],
+            **({"previous_tasks": previous} if previous else {}),
         }
 
 

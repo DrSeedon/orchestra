@@ -1473,9 +1473,15 @@ def task_run_receipt_finish(
     prompt_template_end: str,
     terminal_operation_id: str = "",
     failure_code: str = "",
+    acceptance_note: str = "",
+    worker_head: str = "",
     connection: sqlite3.Connection | None = None,
 ) -> dict:
-    """Finish the single open task run; identical terminal replay is safe."""
+    """Finish the single open task run; identical terminal replay is safe.
+
+    `acceptance_note`/`worker_head` record why and at which HEAD an orchestrator declared
+    the run done outside a merge; they land in the run's verdict columns.
+    """
     if status not in {"completed", "interrupted"}:
         raise ValueError("task run terminal status must be completed or interrupted")
     terminal_operation_id = str(terminal_operation_id or "")
@@ -1527,7 +1533,8 @@ def task_run_receipt_finish(
         receipt_id = rows[0]["receipt_id"]
         c.execute(
             "UPDATE review_receipts SET status=?,completed_at=?,failure_code=?,"
-            "prompt_template_end=?,terminal_operation_id=? "
+            "prompt_template_end=?,terminal_operation_id=?,"
+            "verdict_present=?,verdict_value=?,worker_head=? "
             "WHERE receipt_id=? AND status='requested'",
             (
                 status,
@@ -1535,6 +1542,9 @@ def task_run_receipt_finish(
                 failure_code,
                 prompt_template_end,
                 terminal_operation_id,
+                1 if acceptance_note else None,
+                str(acceptance_note or ""),
+                str(worker_head or ""),
                 receipt_id,
             ),
         )

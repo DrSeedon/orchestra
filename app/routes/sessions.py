@@ -169,6 +169,26 @@ def _session_base_branch(session, requested: str = "") -> str:
     return resolve_base_branch(worktree_path, requested or getattr(session, "base_branch", ""))
 
 
+def _unlanded_work(session, worktree_path: str) -> dict:
+    """Describe worker work that has not reached its base; an empty reason means none."""
+    from app.workspace import branch_wip_status, inspect_worktree_identity
+
+    try:
+        base = _session_base_branch(session, "")
+        wip = branch_wip_status(worktree_path, base_ref=base)
+        _branch, head = inspect_worktree_identity(worktree_path)
+    except Exception as error:
+        return {"reason": f"worker branch state is unknown: {err_text(error)}", "head": ""}
+    if wip.get("error"):
+        return {"reason": f"worker branch state is unknown: {wip['error']}", "head": head}
+    parts = []
+    if wip["uncommitted"]:
+        parts.append(f"{len(wip['uncommitted'])} uncommitted file(s)")
+    if wip["unmerged_commits"]:
+        parts.append(f"{len(wip['unmerged_commits'])} commit(s) not in {base}")
+    return {"reason": ", ".join(parts), "head": head}
+
+
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
@@ -2890,15 +2910,32 @@ async def switch_branch(name: str, req: dict):
     task_id = req.get("task_id", "")
     force = req.get("force", False)
     promote_current = req.get("promote_current", False)
+    complete_previous = req.get("complete_previous", False)
+    acceptance_note = req.get("acceptance_note", "")
     if not task_id:
         return JSONResponse({"error": "task_id required"}, status_code=400)
     if not isinstance(force, bool):
         return JSONResponse({"error": "force must be a boolean"}, status_code=400)
     if not isinstance(promote_current, bool):
         return JSONResponse({"error": "promote_current must be a boolean"}, status_code=400)
+    if not isinstance(complete_previous, bool):
+        return JSONResponse({"error": "complete_previous must be a boolean"}, status_code=400)
+    if not isinstance(acceptance_note, str):
+        return JSONResponse({"error": "acceptance_note must be a string"}, status_code=400)
+    acceptance_note = acceptance_note.strip()
     if promote_current and force:
         return JSONResponse(
             {"error": "promote_current cannot be combined with force"}, status_code=400,
+        )
+    if complete_previous and (promote_current or force):
+        return JSONResponse(
+            {"error": "complete_previous cannot be combined with promote_current or force"},
+            status_code=400,
+        )
+    if complete_previous and not acceptance_note:
+        return JSONResponse(
+            {"error": "complete_previous requires an acceptance_note: why the previous task is done"},
+            status_code=400,
         )
     found = manager.get_by_name(name, scope)
     if not found:
@@ -2934,6 +2971,11 @@ async def switch_branch(name: str, req: dict):
     previous_owned_dirs = list(getattr(found, "owned_dirs", []) or [])
     if not worktree_path:
         return JSONResponse({"error": "session has no worktree"}, status_code=400)
+    if complete_previous and not (new_task and previous_task_id):
+        return JSONResponse(
+            {"error": "complete_previous needs a bound previous task and a different task_id"},
+            status_code=400,
+        )
     new_branch = f"task-{par}/{name}"
     try:
         from_ref = _session_base_branch(found, req.get("from_ref", ""))
@@ -3044,6 +3086,33 @@ async def switch_branch(name: str, req: dict):
                         "waited_seconds": round(waited_seconds, 2),
                         "message": "task/branch binding repaired",
                     }
+                # Прежняя задача держит воркера открытым прогоном, пока её не закроет мерж, —
+                # после merge(continue) закрывать уже нечем (V-620). Отпустить её можно, только
+                # пока снимок ДО git показывает, что работы на ветке нет; сам выпуск идёт в
+                # транзакции назначения новой задачи и откатывается вместе с ней.
+                release_previous = None
+                held_work = {"reason": "", "head": ""}
+                if new_task and previous_task_id:
+                    held_work = await asyncio.to_thread(
+                        _unlanded_work, found, worktree_path,
+                    )
+                    if not held_work["reason"]:
+                        release_previous = {
+                            "session_id": session_id,
+                            "done_note": acceptance_note if complete_previous else "",
+                            "worker_head": held_work["head"],
+                        }
+                    elif complete_previous:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    f"cannot close task {previous_task_id} as done: "
+                                    f"{held_work['reason']}; merge or discard that work first"
+                                ),
+                                "waited_seconds": round(waited_seconds, 2),
+                            },
+                            status_code=409,
+                        )
                 try:
                     verdict = await asyncio.to_thread(
                         _existing_branch_verdict, worktree_path, new_branch,
@@ -3105,10 +3174,20 @@ async def switch_branch(name: str, req: dict):
                                 _tm.api_update_task_if_current,
                                 task_identity,
                                 status="in_progress",
+                                release_previous=release_previous,
                             )
                         except Exception as task_error:
                             task_assignment_raised = True
                             detail = err_text(task_error)
+                            if (
+                                release_previous is None
+                                and previous_task_id
+                                and "open task run" in detail
+                            ):
+                                detail += (
+                                    f"; worker still holds task {previous_task_id}: "
+                                    f"{held_work['reason']} — merge or discard that work first"
+                                )
                             result["task_status"] = {"ok": False, "error": detail}
                         if not result["task_status"].get("ok"):
                             if task_assignment_raised and previous_branch:
