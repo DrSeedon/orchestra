@@ -901,6 +901,7 @@ function restoreDraft() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
+    window.OrchestraOwnerActivity?.init();
     $('#send-btn').addEventListener('click', sendChat);
     $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
     window._queuedMessagesTimer = setInterval(() => refreshQueuedMessages(), 5000);
@@ -2490,6 +2491,7 @@ async function onOrchestratorChange() {
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
+    window.OrchestraOwnerActivity?.setScope(currentScope);
     // V-621: чипы тегов другого оркестратора не должны пережить переключение scope.
     _taskTagFilter.clear();
     const restoreUnreadAnchor = _unreadTabs.delete(currentScope);

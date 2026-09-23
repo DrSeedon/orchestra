@@ -29,13 +29,13 @@
 <main>
   <header>
     <h1>Сколько времени владелец работает с Orchestra</h1>
-    <p class="lead">Новая оценка соединяет сообщения, видимое присутствие в dashboard и отдельные Telegram-сигналы. Она считает минуты, а не содержимое: текст сообщений в этот экран не попадает.</p>
+    <p class="lead">Система соединяет сообщения и видимое присутствие в dashboard. Она считает секунды и scope, а не содержимое: текст сообщений в этот экран не попадает.</p>
     <p class="asof">Read-only срез живой БД: 03.09–23.09.2026, до 11:20 UTC · 23.09 — неполный день · V-626</p>
   </header>
 
   <section class="grid cards" aria-label="Главные числа">
     <div class="panel"><div class="metric blue">2 474</div><div class="label">сообщения владельца</div></div>
-    <div class="panel"><div class="metric green">101,12 ч</div><div class="label">message + think, после dedupe</div></div>
+    <div class="panel"><div class="metric green">46,70 ч</div><div class="label">новый метод, estimated история</div></div>
     <div class="panel"><div class="metric amber">163,12 ч</div><div class="label">текущий V-57 / разрыв 30 мин</div></div>
     <div class="panel"><div class="metric violet">до 5</div><div class="label">scope одновременно в сигнале 18.09</div></div>
   </section>
@@ -51,7 +51,7 @@
     </article>
     <article class="panel">
       <h2>Как минуты становятся сессией</h2>
-      <p>Каждое сообщение даёт короткий интервал назад от времени сообщения — до последнего ответа ассистента, но не более 10 минут.</p>
+      <p>История: 1 минута на сообщение, ещё 1 минута за каждые полные 500 символов (потолок 10 минут); voice использует известную длительность. После рестарта presence будет резать время точно по focus/scope.</p>
       <div class="detail" id="detail"><strong>Наведите на узел схемы</strong> — связанный текст объяснит, что именно передаётся дальше.</div>
       <div class="legend"><span><i style="background:var(--blue)"></i>измеряется</span><span><i style="background:var(--amber)"></i>оценка/решение</span><span><i style="background:var(--green)"></i>результат</span></div>
     </article>
@@ -82,7 +82,8 @@
       <div class="chart" id="threshold-chart">
         <div class="chart-row"><div class="chart-label">burst ≤ 5 мин</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="5" style="width:23.8%"></div></div><div class="chart-value">38,79 ч</div></div>
         <div class="chart-row"><div class="chart-label">burst ≤ 10 мин</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="10" style="width:43%"></div></div><div class="chart-value">70,12 ч</div></div>
-        <div class="chart-row"><div class="chart-label">message + think</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="think" style="width:62%;background:var(--green)"></div></div><div class="chart-value">101,12 ч</div></div>
+        <div class="chart-row"><div class="chart-label">новый 1 мин + длина</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="new" style="width:28.6%;background:var(--green)"></div></div><div class="chart-value">46,70 ч</div></div>
+        <div class="chart-row"><div class="chart-label">старый message + think</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="think" style="width:62%;background:#8bd3a2"></div></div><div class="chart-value">101,12 ч</div></div>
         <div class="chart-row"><div class="chart-label">V-57 ≤ 30 мин</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="30" style="width:100%;background:var(--amber)"></div></div><div class="chart-value">163,12 ч</div></div>
       </div>
       <div class="detail" id="threshold-detail"><strong>V-57</strong> считает span между сообщениями. Длинный хвост пауз делает 30 минут верхней оценкой относительно активного сигнала.</div>
@@ -95,8 +96,8 @@
   </section>
 
   <section class="panel" style="margin-top:14px">
-    <h2>Живой пример: 18 сентября, UTC</h2>
-    <p class="label">221 сообщение · message+think = 8,12 ч. Блоки — обезличенные объединённые интервалы по scope; наложение разных scope не складывается глобально.</p>
+    <h2>Живой пример: 18 сентября, Красноярск (UTC+7)</h2>
+    <p class="label">221 сообщение · новый исторический метод = 4,76 ч, estimated. Блоки — обезличенные интервалы по scope; наложение разных scope не складывается глобально.</p>
     <div class="timeline" aria-label="Таймлайн 18 сентября"><div class="timeline-grid"><div class="time-axis"><span></span><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span><span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span></div>
       <div class="rail scope-katya"><div class="rail-label">katya-work</div><div class="track" id="katya"></div></div>
       <div class="rail scope-orchestra"><div class="rail-label">orchestra</div><div class="track" id="orchestra"></div></div>
@@ -106,7 +107,7 @@
       <div class="rail scope-cog"><div class="rail-label">cog-second-brain</div><div class="track" id="cog"></div></div>
       <div class="rail scope-seedon"><div class="rail-label">seedon</div><div class="track" id="seedon"></div></div>
     </div></div>
-    <div class="timeline-caption">Шкала показывает 00–18 UTC; последующие часы пусты в этом message-derived примере. Наведите на блок, чтобы увидеть начало, конец и длительность.</div>
+    <div class="timeline-caption">Блоки построены по message-derived истории; сервер хранит UTC, здесь часы показаны в UTC для компактной шкалы. Наведите на блок, чтобы увидеть начало, конец и длительность.</div>
   </section>
 
   <section class="panel" style="margin-top:14px">
@@ -116,7 +117,7 @@
 
   <section class="grid two" style="margin-top:14px">
     <article class="panel"><h2>Что остаётся невидимым</h2><ul><li>чтение Telegram без ответа;</li><li>реальное число вкладок и устройств;</li><li>пауза, во время которой владелец думает, но ничего не отправляет;</li><li>момент начала печати и чтения — timestamp лога означает доставку батча;</li><li>ранняя история до 03.09 и работа вне Orchestra.</li></ul></article>
-    <article class="panel"><h2>Что нужно решить владельцу</h2><div class="decisions"><div class="decision"><span class="tag">развилка</span><h3>Raw или buckets?</h3><p>Raw можно пересчитать и расследовать; buckets дешевле и приватнее.</p></div><div class="decision"><span class="tag">развилка</span><h3>Делить overlap?</h3><p>Равные доли удобны для scope; unattributed честнее при конкуренции.</p></div><div class="decision"><span class="tag">развилка</span><h3>Telegram?</h3><p>Оставить сообщения/voice или добавить edits/reactions.</p></div></div></article>
+    <article class="panel"><h2>Решения владельца</h2><div class="decisions"><div class="decision"><span class="tag">выбрано</span><h3>Raw навсегда</h3><p>События можно пересчитать; токен вкладки случайный, без текста.</p></div><div class="decision"><span class="tag">выбрано</span><h3>Точный scope</h3><p>Switch/focus/blur режут секунду; overlap получает deterministic winner без double count.</p></div><div class="decision"><span class="tag">выбрано</span><h3>TG без edits</h3><p>Сообщения и длительность voice учитываются; реакции и правки не ловим.</p></div></div></article>
   </section>
 
   <footer>Источник чисел: read-only SQLite и код Orchestra, описанные в <a href="./report.md">report.md</a>. Содержимое сообщений намеренно не читалось и не встраивалось. Официальная справка Telegram Bot API: <a href="https://core.telegram.org/bots/api">core.telegram.org/bots/api</a>.</footer>
@@ -124,29 +125,30 @@
 <script>
   const info={
     telegram:'Telegram и dashboard дают событие с timestamp, scope и транспортной меткой. Текст сюда не передаётся.',
-    ping:'Новый будущий сигнал: вкладка видна, окно в focus, ввод не старше 5 минут. Сейчас таких ping в БД нет.',
+    ping:'После рестарта heartbeat приходит раз в 60 секунд только при visible + focus + input не старше 5 минут. Scope-switch и focus/blur приходят сразу.',
     filter:'Владелец = origin=user и sessions.is_orchestrator=1. Это исключает 15 сообщений из worker/full-cycle сессий.',
-    interval:'Сообщение даёт [max(t−10 мин, последний assistant text), t]. Три сообщения в срезе не имели предыдущего text.',
-    union:'Пересекающиеся интервалы объединяются. В пересечении нескольких scope время делится, чтобы одна минута не стала двумя.',
+    interval:'Историческое сообщение даёт 1 минуту + 1 минуту за каждые 500 символов, максимум 10 минут; voice длится по известной metadata-длительности.',
+    union:'Presence имеет приоритет над message. При конфликте scope выбирается последнее событие, затем стабильный id — одна секунда не считается дважды.',
     result:'Результат: start, end, duration, day, scope, source и confidence. До heartbeat это estimated, не факт.',
     '5':'Порог 5 минут: 38,79 ч — только короткие burst-сессии.',
     '10':'Порог 10 минут: 70,12 ч — 43,0% от V-57.',
-    think:'Message+think: 101,12 ч — 62,0% от V-57; это промежуточная оценка.',
+    new:'Новый метод: 46,70 ч — 28,6% от V-57; вся история estimated до первого heartbeat.',
+    think:'Старый message+think: 101,12 ч — 62,0% от V-57; оставлен для сравнения.',
     '30':'Порог V-57 30 минут: 163,12 ч. Длинный хвост пауз делает его широкой оценкой.'
   };
   const detail=document.getElementById('detail'); const thresholdDetail=document.getElementById('threshold-detail');
   document.querySelectorAll('[data-info]').forEach(el=>{const key=el.dataset.info;const apply=()=>{if(info[key]){detail.innerHTML='<strong>'+key+'</strong> — '+info[key];if(el.closest('#threshold-chart'))thresholdDetail.innerHTML='<strong>'+key+'</strong> — '+info[key]}};el.addEventListener('mouseenter',apply);el.addEventListener('focus',apply);el.addEventListener('click',apply)});
   const rails={
-    katya:[[1.4,1.78],[1.92,2.0],[2.38,2.72],[2.9,3.15],[3.27,3.34],[3.5,4.9],[5.05,5.53],[13.55,13.78]],
-    orchestra:[[2.8,3.1],[5.37,5.65],[6.6,6.8],[6.97,7.02],[8.57,9.1],[9.3,9.48],[13.15,13.32],[14.78,14.95]],
-    university:[[8.72,8.87],[9.1,9.42]],
-    dnd:[[16.65,16.98]],
-    tg:[[9.32,9.48]],
-    cog:[[3.27,3.43]],
-    seedon:[[5.23,5.4],[6.28,7.78],[8.8,9.8],[10.73,10.93],[11.12,12.4],[12.5,12.67],[13.1,13.27],[13.63,13.8],[14.28,14.35],[14.48,14.7],[14.88,14.93],[15.05,15.15],[15.68,15.95],[16.13,16.8]]
+    katya:[[1.55,1.78],[1.98,2.0],[2.45,2.48],[2.62,2.72],[2.92,3.15],[3.27,3.33],[3.53,3.72],[3.85,4.63],[4.8,4.9],[5.05,5.22],[5.32,5.42],[13.7,13.78]],
+    orchestra:[[2.93,2.97],[5.5,5.65],[6.75,6.8],[7.0,7.02],[8.62,8.63],[13.28,13.32],[14.93,14.95]],
+    university:[[8.63,8.83],[9.05,9.1],[9.22,9.38]],
+    dnd:[[16.8,16.98]],
+    tg:[],
+    cog:[[3.42,3.43]],
+    seedon:[[5.38,5.4],[6.43,6.45],[6.67,6.92],[7.03,7.32],[7.48,7.5],[7.68,7.78],[8.83,9.22],[9.38,9.8],[10.88,10.93],[11.27,12.12],[12.25,12.4],[12.65,12.67],[13.25,13.27],[13.78,13.8],[14.33,14.5],[14.68,14.7],[14.92,14.93],[15.13,15.15],[15.83,15.95],[16.27,16.8]]
   };
   Object.entries(rails).forEach(([name,blocks])=>{const root=document.getElementById(name);blocks.forEach(([a,b])=>{const el=document.createElement('span');el.className='block';el.tabIndex=0;el.setAttribute('aria-label',name+' '+a.toFixed(2)+'–'+b.toFixed(2)+' UTC');el.style.left=(a/18*100)+'%';el.style.width=((b-a)/18*100)+'%';const mins=Math.round((b-a)*60);el.dataset.info='timeline';el.addEventListener('mouseenter',()=>{el.style.filter='brightness(.82)';document.getElementById('detail').innerHTML='<strong>'+name+'</strong> · '+Math.floor(a).toString().padStart(2,'0')+':'+Math.round((a%1)*60).toString().padStart(2,'0')+'–'+Math.floor(b).toString().padStart(2,'0')+':'+Math.round((b%1)*60).toString().padStart(2,'0')+' UTC · '+(mins/60).toFixed(2).replace('.',',')+' ч';});el.addEventListener('mouseleave',()=>el.style.filter='');el.addEventListener('focus',()=>el.dispatchEvent(new Event('mouseenter')));root.appendChild(el)})});
-  const days=[3.44,2.05,4.62,5.21,4.25,6.31,5.89,6.69,6.77,4.54,5.84,4.15,4.09,3.09,3.11,8.12,6.50,6.61,2.84,2.69,4.30];const daily=document.getElementById('daily');const max=Math.max(...days);days.forEach((v,i)=>{const d=document.createElement('div');d.className='day';d.tabIndex=0;d.setAttribute('aria-label',`${String(i+3).padStart(2,'0')}.09: ${v.toFixed(2)} часа`);const bar=document.createElement('div');bar.className='daybar';bar.style.height=(v/max*100)+'%';d.appendChild(bar);const label=document.createElement('span');label.className='day-label';label.textContent=String(i+3).padStart(2,'0');d.appendChild(label);d.addEventListener('mouseenter',()=>{detail.innerHTML='<strong>'+String(i+3).padStart(2,'0')+'.09</strong> — '+v.toFixed(2).replace('.',',')+' ч message+think'+(i===15?' · максимум среза':'')});d.addEventListener('focus',()=>d.dispatchEvent(new Event('mouseenter')));daily.appendChild(d)});
+  const days=[1.75,0.94,1.55,2.26,1.81,1.99,2.49,2.12,2.85,2.40,3.19,1.52,2.42,0.90,1.06,4.76,4.26,2.99,1.21,2.04,2.20];const daily=document.getElementById('daily');const max=Math.max(...days);days.forEach((v,i)=>{const d=document.createElement('div');d.className='day';d.tabIndex=0;d.setAttribute('aria-label',`${String(i+3).padStart(2,'0')}.09: ${v.toFixed(2)} часа`);const bar=document.createElement('div');bar.className='daybar';bar.style.height=(v/max*100)+'%';d.appendChild(bar);const label=document.createElement('span');label.className='day-label';label.textContent=String(i+3).padStart(2,'0');d.appendChild(label);d.addEventListener('mouseenter',()=>{detail.innerHTML='<strong>'+String(i+3).padStart(2,'0')+'.09</strong> — '+v.toFixed(2).replace('.',',')+' ч новый estimated метод'+(i===15?' · максимум среза':'')});d.addEventListener('focus',()=>d.dispatchEvent(new Event('mouseenter')));daily.appendChild(d)});
 </script>
 </body>
 </html>
