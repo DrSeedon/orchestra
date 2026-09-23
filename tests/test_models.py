@@ -7,8 +7,8 @@ from app.routes import sessions as sessmod
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [
-        ("sol", "gpt-5.6-sol"),
-        ("luna", "gpt-5.6-luna"),
+        ("sol", "gpt-6-sol"),
+        ("luna", "gpt-6-luna"),
     ],
 )
 def test_resolve_model_aliases(alias: str, expected: str) -> None:
@@ -18,8 +18,8 @@ def test_resolve_model_aliases(alias: str, expected: str) -> None:
 @pytest.mark.parametrize(
     ("alias", "expected"),
     [
-        ("sol", "gpt-5.6-sol"),
-        ("luna", "gpt-5.6-luna"),
+        ("sol", "gpt-6-sol"),
+        ("luna", "gpt-6-luna"),
     ],
 )
 def test_create_session_request_resolves_model_alias(alias: str, expected: str) -> None:
