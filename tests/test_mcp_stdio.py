@@ -2859,9 +2859,9 @@ async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypa
     # Схему тула здесь больше не проверяем: он не зарегистрирован, пока ревью заморожено
     # (20.09.2026). Проверяется то, что от заморозки не зависит — какой моделью пойдёт
     # прогон, если тул вернут.
-    assert inspect.signature(m.codex_review).parameters["model"].default == "gpt-5.6-luna"
-    assert captured["readiness"] == {"model": "gpt-5.6-luna"}
-    assert "-m gpt-5.6-luna" in captured["job"]["config"]["command"]
+    assert inspect.signature(m.codex_review).parameters["model"].default == "gpt-6-luna"
+    assert captured["readiness"] == {"model": "gpt-6-luna"}
+    assert "-m gpt-6-luna" in captured["job"]["config"]["command"]
 
 
 @pytest.mark.asyncio
