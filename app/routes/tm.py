@@ -7,16 +7,20 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from app import tm as _tm
-from app.project_catalog import CatalogError, catalog
+from app.project_catalog import CatalogError, catalog, own_catalog
 
 router = APIRouter(prefix="/api/tm", tags=["task-manager"])
 
 
 @router.get("/projects")
-async def tm_projects():
-    """Каталог проектов для фильтра: словарь тегов закрыт этим файлом."""
+async def tm_projects(scope: str = ""):
+    """Каталог проектов для фильтра.
+
+    V-621: с `scope` — только собственный каталог этого оркестратора (файл его
+    `<scope>/.orchestra/projects.yaml`), чужие теги в чипах не появляются. Без
+    `scope` — прежний слитый вид, для админского/внутреннего использования."""
     try:
-        parsed = catalog()
+        parsed = own_catalog(scope) if scope else catalog()
     except CatalogError as error:
         return JSONResponse({"error": str(error)}, status_code=500)
     return {
@@ -222,12 +226,13 @@ async def tm_list_tasks(project: str = "", status: str = "", assignee: str = "",
     try:
         def _do():
             proj = project
+            # V-621: с известным scope тег проверяется по собственному каталогу
+            # вызывающего — чужой тег не проходит валидацию и не попадает в выдачу.
+            known = own_catalog(scope) if scope else catalog()
             if wanted:
-                # Фильтр по тегам самодостаточен: тег уже покрывает все пространства
-                # номеров проекта, сужать его ещё и scope'ом нечем.
-                return _tm.api_list_tasks("", status, assignee, tags=wanted)
-            if project and catalog().by_tag(project) is not None:
-                return _tm.api_list_tasks("", status, assignee, tags=[project])
+                return _tm.api_list_tasks("", status, assignee, tags=wanted, catalog_scope=scope)
+            if project and known.by_tag(project) is not None:
+                return _tm.api_list_tasks("", status, assignee, tags=[project], catalog_scope=scope)
             if project:
                 proj = _resolve_task_project_id(project, "")
             elif scope:
@@ -316,6 +321,7 @@ async def tm_update_task(
                 acceptance_required=required_update,
                 acceptance_actor=actor,
                 tags=req.tags,
+                catalog_scope=scope,
             )
         return await asyncio.to_thread(_do)
     except (ValueError, RuntimeError) as e:

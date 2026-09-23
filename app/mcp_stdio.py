@@ -2965,9 +2965,9 @@ async def task_update(par: str, title: str = "", description: str = "",
     acceptance_command is orchestrator-only; empty means don't change.
     clear_acceptance_command=true explicitly clears it.
     project: explicit project returned by task_list; omitted uses the caller's mapped scope.
-    tags: project tags from .orchestra/projects.yaml; replaces the task's tags, so pass
-    the full list. A task may carry several tags or none. An unknown tag is rejected —
-    add it to the catalog first.
+    tags: project tags from your own project's catalog (`<scope>/.orchestra/projects.yaml`);
+    replaces the task's tags, so pass the full list. A task may carry several tags or
+    none. An unknown tag, or a tag from another project's own catalog, is rejected.
     status: lifecycle statuses (in_progress/done) are platform-owned and rejected."""
     _reject_lifecycle_status(status, "task_update")
     body: dict = {}
@@ -3014,13 +3014,19 @@ async def task_list(project: str = "", status: str = "",
                     assignee: str = "", tags: str = "") -> str:
     """List tasks with optional filters. Returns summary per task.
 
-    project/tags accept project tags from .orchestra/projects.yaml; a tag covers the
-    whole project, including task numbers inherited from another machine. Each task
-    carries `source`: `#161` and `#161 · ноутбук` are different tasks.
+    project/tags accept project tags from your own project's catalog
+    (`<scope>/.orchestra/projects.yaml`); a tag covers the whole project, including
+    task numbers inherited from another machine. A tag from another project's own
+    catalog is rejected. Each task carries `source`: `#161` and `#161 · ноутбук`
+    are different tasks.
     tags: comma-separated, matches any of them."""
     params = {}
     if tags.strip():
         params["tags"] = tags.strip()
+        # V-621: scope едет вместе с tags — сервер проверяет каждый тег по
+        # собственному каталогу вызывающего, а не по слитому виду всей платформы.
+        if SCOPE:
+            params["scope"] = SCOPE
     elif project:
         params["project"] = project
     elif SCOPE:
