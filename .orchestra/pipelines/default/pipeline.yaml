@@ -50,7 +50,7 @@ roles:
     # 20.09.2026 (флаг agents снят, spawn и смена модели отказывают): по этой карте
     # собирается промпт уже живущим агентам на astra, и без ключа их ход сломается.
     # Запрет живёт в допуске платформы и в модуле model-routing, а не в этой строке.
-    effort: &effort_policy {"claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+    effort: &effort_policy {"claude-opus-5-5[1m]": medium, "claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [vps-deploy, grill-me, orchestra-agents, laptop-access]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
