@@ -400,6 +400,11 @@ async def lifespan(app: FastAPI):
     from app.task_runtime import task_repository_path
     app.state.v576_migration = migrate_v576(database.DB_PATH, task_repository_path())
     init_db()
+    # V-621 идёт ДО sync_catalog: тот читает `catalog()`, а до миграции общий файл
+    # ещё не несёт `include_scopes` — sync_catalog должен увидеть уже разбитый вид.
+    from app.catalog_migration_v621 import migrate_v621
+    from app.project_catalog import catalog_path as _project_catalog_path
+    app.state.v621_migration = migrate_v621(_project_catalog_path())
     # Каталог проектов раньше разметки: она ходит по зарегистрированным scope,
     # а регистрирует их теперь файл `.orchestra/projects.yaml`, а не строка БД.
     from app.tm import sync_catalog

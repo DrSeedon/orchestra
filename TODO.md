@@ -1,5 +1,12 @@
 # Orchestra TODO
 
+- [ ] V-620 переименовал `_CODEX_REVIEW_DEFAULT_MODEL` в `app/mcp_stdio.py` на `gpt-6-luna`, но
+  дефолт параметра `model` у самого `codex_review()` остался `gpt-5.6-luna` — 6 тестов красные
+  на main (`test_mcp_codex_review.py` ×5, `test_mcp_stdio.py::test_codex_review_default_is_server_owned_luna_fast`).
+  Найдено при V-621, не входило в его объём.
+- [ ] `tests/test_logs_sync.py::TestRoute::test_chat_snapshot_is_never_served_from_http_cache`
+  красный на main: `GET /api/sessions/chat/logs?scope=/proj` отдаёт 404 «not found» для только
+  что сохранённой сессии вместо 200 со свежим хвостом. Найдено при V-621, не входило в его объём.
 - [ ] `prompt_template_hash` не видит модули, поэтому правка любого правила в `prompts/modules/*.md` приходит агенту с пометкой «refreshed context», а не «your role instructions were updated». `app/prompting.py:216` хеширует `base.md + role_prompt_file(role)`, а `role_prompt_file` берёт список модулей из frontmatter файла роли — которого у ролей нет вовсе (это же расхождение уже чинили в `get_role_icons`, `app/prompting.py:195-206`). Текст правила при этом доставляется исправно, ломается только уведомление. Найдено при V-577, детали: [.orchestra/tasks/V-577/report.md](.orchestra/tasks/V-577/report.md) §8.
 - [ ] Контракт «замороженные acceptance-тесты не ослаблять» ведётся двумя независимыми копиями — `prompts/roles/worker.md` и `prompts/roles/full-cycle.md`. В один собранный промпт они не попадают никогда, поэтому дублем в смысле V-577 это не является и не снималось, но расходятся копии молча. Решение (общий модуль либо осознанно разные формулировки для разных ролей) принадлежит владельцу правил.
 - [ ] `tests/test_tailwind_css.py::test_committed_css_matches_current_sources` красный на main (замечено 22.09 при V-610, не из-за V-610): пересборка добавляет `.text-red-300`, `.bg-slate-800/70`, `hover:bg-slate-600`, `hover:text-red-200` и убирает `.!grid`, `.text-amber-100` — кто-то правил классы без `bash scripts/build-tailwind.sh`. Лечение: пересобрать CSS отдельным коммитом и проверить экраны с этими классами.

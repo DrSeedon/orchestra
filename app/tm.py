@@ -13,7 +13,7 @@ from typing import TypedDict
 
 from app.acceptance import PYTEST_CONFIG_NAMES
 from app.db import _conn, task_run_receipt_finish, task_run_receipt_open
-from app.project_catalog import CatalogError, catalog
+from app.project_catalog import CatalogError, catalog, own_catalog
 from app.task_runtime import active_runtime
 from app.task_store import TaskCreateConflict
 from app.task_refs import project_key
@@ -289,9 +289,14 @@ def project_source_label(conn: sqlite3.Connection, project_id: str) -> str:
     return catalog().source_label(row["canonical_id"]) if row else ""
 
 
-def normalize_tags(values: list[str]) -> list[str]:
-    """Проверить теги по каталогу. Словарь тегов закрыт: тега вне файла не существует."""
-    known = catalog()
+def normalize_tags(values: list[str], catalog_scope: str = "") -> list[str]:
+    """Проверить теги по каталогу.
+
+    V-621: если известен scope вызывающего оркестратора, тег проверяется ТОЛЬКО по
+    его собственному файлу (`own_catalog`) — чужой тег отклоняется, даже если он
+    существует где-то ещё на платформе. Без scope (внутренние вызовы, старые тесты)
+    — прежний слитый вид `catalog()`."""
+    known = own_catalog(catalog_scope) if catalog_scope else catalog()
     normalized: list[str] = []
     for value in values:
         tag = str(value).strip()
@@ -312,14 +317,18 @@ def task_tags(task: dict) -> list[str]:
     return json.loads(raw or "[]")
 
 
-def resolve_project_selector(conn: sqlite3.Connection, selector: str) -> dict | None:
+def resolve_project_selector(conn: sqlite3.Connection, selector: str, catalog_scope: str = "") -> dict | None:
     """Разрешить тег каталога, scope или исторический локальный id.
 
     Тег проверяется первым, и это чинит ловушку живых данных: строка `orchestra`
     одновременно локальный id проекта с 5 задачами и canonical-id чужого пространства
     с 375. Тег однозначен по построению — словарь тегов закрыт каталогом.
+
+    `catalog_scope`: если задан, тег ищется ТОЛЬКО в собственном каталоге этого scope
+    (V-621) — чужой тег не резолвится, даже если существует в каталоге другого проекта.
     """
-    project = catalog().by_tag(selector)
+    known = own_catalog(catalog_scope) if catalog_scope else catalog()
+    project = known.by_tag(selector)
     if project:
         # У архивного проекта нет цели записи — берём первое пространство, чтобы
         # его историю можно было открыть по тегу. Создание там всё равно откажет:
@@ -390,7 +399,8 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
                 acceptance_manifest: list[str] | None = None,
                 acceptance_required: bool | None = None,
                 acceptance_actor: dict | None = None,
-                tags: list[str] | None = None) -> dict:
+                tags: list[str] | None = None,
+                catalog_scope: str = "") -> dict:
     task = get_task_by_id(conn, task_id)
     if not task:
         raise ValueError(f"Task {task_id} not found")
@@ -400,7 +410,7 @@ def update_task(conn: sqlite3.Connection, task_id: int, *,
     changed = []
 
     if tags is not None:
-        wanted = normalize_tags(tags)
+        wanted = normalize_tags(tags, catalog_scope=catalog_scope)
         if wanted != task_tags(task):
             updates.append("tags = ?")
             params.append(json.dumps(wanted, ensure_ascii=False))
@@ -1265,7 +1275,8 @@ def api_update_task(par: str, title: str | None = None,
                     acceptance_manifest: list[str] | None = None,
                     acceptance_required: bool | None = None,
                     acceptance_actor: dict | None = None,
-                    tags: list[str] | None = None) -> dict:
+                    tags: list[str] | None = None,
+                    catalog_scope: str = "") -> dict:
     with active_runtime().operation():
         task_id = None
         with _conn() as conn:
@@ -1287,6 +1298,7 @@ def api_update_task(par: str, title: str | None = None,
                     acceptance_required=acceptance_required,
                     acceptance_actor=acceptance_actor,
                     tags=tags,
+                    catalog_scope=catalog_scope,
                 )
                 if status == "cancelled" and task.get("worker_session_id"):
                     _finish_task_run_for_task(
@@ -1682,13 +1694,15 @@ def api_update_task_if_current(
 
 
 def api_list_tasks(project: str = "", status: str = "",
-                   assignee: str = "", tags: list[str] | None = None) -> dict:
+                   assignee: str = "", tags: list[str] | None = None,
+                   catalog_scope: str = "") -> dict:
     with active_runtime().operation():
         with _conn() as conn:
+            known = own_catalog(catalog_scope) if catalog_scope else catalog()
             resolved_project, wanted_tags = "", list(tags or [])
             if project:
                 # Тег покрывает весь проект целиком; локальный id — одно пространство.
-                if catalog().by_tag(project) is not None:
+                if known.by_tag(project) is not None:
                     wanted_tags.append(project)
                 else:
                     project_row = resolve_project_id(conn, project)
@@ -1696,7 +1710,7 @@ def api_list_tasks(project: str = "", status: str = "",
                         raise ValueError(f"project '{project}' not found")
                     resolved_project = project_row["id"]
             for tag in wanted_tags:
-                if catalog().by_tag(tag) is None:
+                if known.by_tag(tag) is None:
                     raise ValueError(f"unknown project tag '{tag}'")
             rows = list_tasks(
                 conn, project_id=resolved_project, status=status, assignee=assignee,
@@ -1770,8 +1784,15 @@ def normalize_task_create_request_key(value: str = "") -> str:
 
 def _resolve_task_create_project(project_id: str, scope: str) -> str:
     with _conn() as conn:
-        project = resolve_project_selector(conn, project_id) if project_id else None
-        if project is None and scope:
+        project = resolve_project_selector(conn, project_id, catalog_scope=scope) if project_id else None
+        if project is None and project_id and scope and catalog().by_tag(project_id) is not None:
+            # Тег существует, но не в собственном каталоге этого scope (V-621:
+            # оркестратор видит и может ставить только свои теги) — молча подменять
+            # его собственным проектом нельзя, отказ должен сказать это прямо.
+            raise ValueError(
+                f"project tag '{project_id}' is not registered in this scope's own catalog"
+            )
+        if project is None and not project_id and scope:
             # Раньше неизвестный scope молча заводил проект `scope:<путь>`, и один
             # человеческий проект расползался на несколько пространств номеров.
             # Теперь право принимать задачи даёт только запись в каталоге.

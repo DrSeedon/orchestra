@@ -105,13 +105,20 @@ def _isolate_project_catalog(tmp_path):
     Без изоляции `resolve_project_selector('orchestra')` в тесте попадал бы в настоящий
     тег и заводил строку соответствия живого пространства номеров. Тест, которому нужен
     каталог, пишет свой файл и выставляет `ORCHESTRA_PROJECT_CATALOG` сам.
+
+    V-621: `own_catalog(scope)` больше не читает `<scope>/.orchestra/projects.yaml` с
+    настоящего диска — `ORCHESTRA_PROJECT_CATALOG_ROOT` уводит его в пустую песочницу,
+    так что случайный вызов с боевым scope громко падает, а не видит чужие файлы.
     """
     from app import project_catalog
 
     path = tmp_path / "projects.yaml"
     path.write_text("version: 1\nprojects: []\n", encoding="utf-8")
+    scope_root = tmp_path / "scopes"
+    scope_root.mkdir()
     with pytest.MonkeyPatch.context() as guard_patch:
         guard_patch.setenv("ORCHESTRA_PROJECT_CATALOG", str(path))
+        guard_patch.setenv("ORCHESTRA_PROJECT_CATALOG_ROOT", str(scope_root))
         project_catalog.reset_cache()
         yield path
     project_catalog.reset_cache()

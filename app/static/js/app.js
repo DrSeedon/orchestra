@@ -2490,6 +2490,8 @@ async function onOrchestratorChange() {
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
+    // V-621: чипы тегов другого оркестратора не должны пережить переключение scope.
+    _taskTagFilter.clear();
     const restoreUnreadAnchor = _unreadTabs.delete(currentScope);
     chatLogs = {};
     currentSessions = [];
@@ -3774,15 +3776,18 @@ let _taskCollapsed = {};
 // Выбранные теги проектов. Пусто — задачи текущего scope, как было до V-576.
 const _taskTagFilter = new Set();
 let _taskCatalog = null;
+let _taskCatalogScope = undefined;
 
+// V-621: каталог теперь свой у каждого scope — чужие теги не должны попасть в чипы.
 async function _taskProjectCatalog() {
-    if (_taskCatalog) return _taskCatalog;
+    if (_taskCatalog && _taskCatalogScope === currentScope) return _taskCatalog;
     try {
-        const payload = await api('/api/tm/projects');
+        const payload = await api(`/api/tm/projects?scope=${encodeURIComponent(currentScope || '')}`);
         _taskCatalog = (payload.projects || []).filter(p => !p.archived);
     } catch (e) {
         _taskCatalog = [];
     }
+    _taskCatalogScope = currentScope;
     return _taskCatalog;
 }
 
@@ -3792,9 +3797,10 @@ async function _loadTasksNow() {
     try {
         const catalog = await _taskProjectCatalog();
         const tags = [..._taskTagFilter];
+        const scopeParam = `scope=${encodeURIComponent(currentScope || '')}`;
         const query = tags.length
-            ? `tags=${encodeURIComponent(tags.join(','))}`
-            : `scope=${encodeURIComponent(currentScope || '')}`;
+            ? `tags=${encodeURIComponent(tags.join(','))}&${scopeParam}`
+            : scopeParam;
         const data = await api(`/api/tm/tasks?${query}`, {pollKey: 'tasks'});
         renderTasksPanel(panel, data, catalog);
     } catch (e) {
