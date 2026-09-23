@@ -541,6 +541,26 @@ CREATE TABLE voice_costs (
                 file_id TEXT NOT NULL
             );
 
+CREATE TABLE owner_activity_events (
+                event_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('message', 'presence')),
+                event_type TEXT NOT NULL DEFAULT '',
+                ts TEXT NOT NULL,
+                start_ts TEXT NOT NULL,
+                end_ts TEXT NOT NULL,
+                session_id TEXT NOT NULL DEFAULT '',
+                scope TEXT NOT NULL DEFAULT '',
+                tab_token TEXT NOT NULL DEFAULT '',
+                visible INTEGER,
+                focused INTEGER,
+                last_input_at TEXT,
+                content_length INTEGER NOT NULL DEFAULT 0 CHECK(content_length >= 0),
+                voice_duration_sec REAL NOT NULL DEFAULT 0 CHECK(voice_duration_sec >= 0),
+                source TEXT NOT NULL CHECK(source IN ('message', 'presence', 'estimated')),
+                estimated INTEGER NOT NULL DEFAULT 0 CHECK(estimated IN (0, 1)),
+                created_at TEXT NOT NULL
+            );
+
 CREATE INDEX idx_artifacts_expiry
                 ON artifacts(state, expires_at);
 
@@ -636,6 +656,12 @@ CREATE INDEX idx_turn_usage_session ON turn_usage(session_id, ts);
 CREATE INDEX idx_turn_usage_ts ON turn_usage(ts);
 
 CREATE INDEX idx_usage_ts ON usage_snapshots(ts);
+
+CREATE INDEX idx_owner_activity_ts ON owner_activity_events(ts, kind);
+
+CREATE INDEX idx_owner_activity_range ON owner_activity_events(start_ts, end_ts, scope);
+
+CREATE INDEX idx_owner_activity_tab ON owner_activity_events(tab_token, ts);
 
 CREATE UNIQUE INDEX uq_review_receipts_artifact_round
                 ON review_receipts(artifact_path, round)

@@ -400,6 +400,7 @@ async def lifespan(app: FastAPI):
     from app.task_runtime import task_repository_path
     app.state.v576_migration = migrate_v576(database.DB_PATH, task_repository_path())
     init_db()
+    app.state.owner_activity_backfill = database.ensure_owner_activity_schema()
     # V-621 идёт ДО sync_catalog: тот читает `catalog()`, а до миграции общий файл
     # ещё не несёт `include_scopes` — sync_catalog должен увидеть уже разбитый вид.
     from app.catalog_migration_v621 import migrate_v621
@@ -510,6 +511,7 @@ from app.routes.memory import router as memory_router
 from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
 from app.routes.attention import router as attention_router
+from app.routes.owner_activity import router as owner_activity_router
 app.include_router(tm_router)
 app.include_router(bg_router)
 app.include_router(sessions_router)
@@ -520,6 +522,7 @@ app.include_router(memory_router)
 app.include_router(merge_operations_router)
 app.include_router(artifacts_router)
 app.include_router(attention_router)
+app.include_router(owner_activity_router)
 
 
 @app.exception_handler(Exception)

@@ -205,6 +205,24 @@
   ]
  ],
  [
+  "/api/owner-activity/events",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/owner-activity/sessions",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/owner-activity/summary",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/pipelines",
   [
    "GET"
