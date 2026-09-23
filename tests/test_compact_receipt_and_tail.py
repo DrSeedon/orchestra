@@ -225,3 +225,29 @@ async def test_compact_requires_successful_nonempty_result(session, monkeypatch,
     assert session.last_summary == 'previous summary'
     assert session.session_id_history == []
     acknowledge.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_t1b_multi_call_ack_turn_reports_one_call_not_the_sum(session):
+    """Ход подтверждения из 4 обращений: «после» — контекст одного обращения, не сумма (katya-work 23.09)."""
+    session._last_context = {
+        "percentage": 20, "total_tokens": 200_000, "max_tokens": 1_000_000,
+        "known": True,
+    }
+    backend = _CompactBackend({"input": 8_000, "cache_create": 300_000})
+    logged = []
+    session._log = lambda t, c, **kw: logged.append((t, c))
+    wire = _wire(session, backend)
+
+    async def four_call_ack(force_fresh=False):
+        result = await wire(force_fresh)
+        session._last_turn_api_calls = 4
+        return result
+
+    with patch.object(session, "_make_backend", return_value=backend), \
+         patch.object(session, "_ensure_backend", side_effect=four_call_ack):
+        result = await session.compact()
+
+    assert result["post_tokens"] == 77_000
+    assert result["after_pct"] == 8
+
