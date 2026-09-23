@@ -847,7 +847,7 @@ async def _post_initial_delivery(
 
 # Server-owned default: Luna is always the Fast lane, and omitted-model reviews
 # take it. Sol is an explicit, opt-in choice.
-_CODEX_REVIEW_DEFAULT_MODEL = "gpt-5.6-luna"
+_CODEX_REVIEW_DEFAULT_MODEL = "gpt-6-luna"
 
 
 def _resolve_codex_review_model(model: str) -> str:

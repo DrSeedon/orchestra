@@ -190,12 +190,13 @@ ALIASES = {
     "gpt5.3spark": "gpt-5.3-codex-spark",
     "gpt5.6": "gpt-5.6-sol",
     "gpt5.6sol": "gpt-5.6-sol",
-    "sol": "gpt-5.6-sol",
+    "sol": "gpt-6-sol",
+    "sol5.6": "gpt-5.6-sol",
     "astra": "gpt-6-astra",
     "gpt6astra": "gpt-6-astra",
-    # Маршрут по умолчанию остаётся на 5.6 до живой проверки GPT-6 на воркере.
-    "luna": "gpt-5.6-luna",
-    "luna6": "gpt-6-luna",
+    # 23.09.2026 владелец перевёл рабочую лошадку на GPT-6 после замера V-616…V-620.
+    "luna": "gpt-6-luna",
+    "luna5.6": "gpt-5.6-luna",
     "gpt6luna": "gpt-6-luna",
     "gpt6sol": "gpt-6-sol",
     "gpt5.6terra": "gpt-5.6-terra",

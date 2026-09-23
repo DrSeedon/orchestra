@@ -193,8 +193,8 @@ async def test_available_review_starts_job(api):
 @pytest.mark.asyncio
 async def test_review_defaults_to_luna_the_always_fast_lane(api):
     """Luna всегда Fast и всегда по умолчанию, включая `codex_review` (#343)."""
-    assert mcp._CODEX_REVIEW_DEFAULT_MODEL == "gpt-5.6-luna"
-    assert mcp._resolve_codex_review_model("luna") == "gpt-5.6-luna"
+    assert mcp._CODEX_REVIEW_DEFAULT_MODEL == "gpt-6-luna"
+    assert mcp._resolve_codex_review_model("luna") == "gpt-6-luna"
 
 
 @pytest.mark.asyncio
