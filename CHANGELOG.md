@@ -6,6 +6,15 @@
 
 ## Unreleased
 
+### Added
+- 🆕 **Opus 5.5, GPT-6 Luna и GPT-6 Sol в каталоге моделей** (`app/models.py`). CLI обновлены до
+  claude 2.1.280 и codex-cli 0.156.1 — до этого Opus 5.5 отвечал «version 2.1.280 or newer is
+  required», а GPT-6 — «not supported when using Codex with a ChatGPT account». Алиас `opus`
+  теперь указывает на Opus 5.5 (вход $4, выход $20, чтение кеша $0.20 против $5/$25/$0.50 у
+  Opus 5); прежний остаётся по `opus5`. Маршрут `luna` намеренно оставлен на GPT-5.6 до живой
+  проверки воркером, GPT-6 доступен по `luna6`. GPT-6 Sol заведён с `default_agents=False`:
+  запрет владельца на Sol от 20.09.2026 новая версия не снимает.
+
 ### Changed
 - 🗂 **Один каталог проектов файлом вместо двух сущностей «проект»** (`.orchestra/projects.yaml`,
   `app/project_catalog.py`, `app/tm.py`, `app/routes/tm.py`, `app/task_store.py`,

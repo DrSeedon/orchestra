@@ -58,6 +58,11 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         context_length=1000000, price_input=10.0, price_output=50.0,
     ),
     ModelSpec(
+        id="claude-opus-5-5[1m]", name="Opus 5.5 (1M)",
+        runtime="claude", provider="anthropic",
+        context_length=1000000, price_input=4.0, price_output=20.0,
+    ),
+    ModelSpec(
         id="claude-opus-5[1m]", name="Opus 5 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=5.0, price_output=25.0,
@@ -102,6 +107,17 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
     ModelSpec(
         id="gpt-5.6-terra", name="GPT-5.6 Terra",
         runtime="codex", provider="openai", context_length=258400,
+    ),
+    ModelSpec(
+        id="gpt-6-luna", name="GPT-6 Luna",
+        runtime="codex", provider="openai", context_length=258400,
+    ),
+    # GPT-6 Sol зарегистрирован, но агентам недоступен: запрет владельца на Sol
+    # (20.09.2026) снимает только он сам, новая версия сама по себе его не снимает.
+    ModelSpec(
+        id="gpt-6-sol", name="GPT-6 Sol",
+        runtime="codex", provider="openai", context_length=258400,
+        default_agents=False,
     ),
     ModelSpec(
         id="gpt-5.6-luna", name="GPT-5.6 Luna",
@@ -152,7 +168,9 @@ ALIASES = {
     "claude-fable-5-1": "claude-fable-5-1[1m]",
     "claude-fable-5-1-1m": "claude-fable-5-1[1m]",
     "mythos": "claude-fable-5-1[1m]",
-    "opus": "claude-opus-5[1m]",
+    "opus": "claude-opus-5-5[1m]",
+    "opus5.5": "claude-opus-5-5[1m]",
+    "claude-opus-5-5": "claude-opus-5-5[1m]",
     "opus5": "claude-opus-5[1m]",
     "claude-opus-5": "claude-opus-5[1m]",
     "claude-opus-4-8[1m]": "claude-opus-5[1m]",
@@ -175,7 +193,11 @@ ALIASES = {
     "sol": "gpt-5.6-sol",
     "astra": "gpt-6-astra",
     "gpt6astra": "gpt-6-astra",
+    # Маршрут по умолчанию остаётся на 5.6 до живой проверки GPT-6 на воркере.
     "luna": "gpt-5.6-luna",
+    "luna6": "gpt-6-luna",
+    "gpt6luna": "gpt-6-luna",
+    "gpt6sol": "gpt-6-sol",
     "gpt5.6terra": "gpt-5.6-terra",
     "gpt5.6luna": "gpt-5.6-luna",
     "codex": "gpt-5.6-sol",
