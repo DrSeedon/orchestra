@@ -622,9 +622,12 @@ class TestEffortByModel:
         assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
 
     def test_alias_key_normalized_to_model_id(self, pipelines_root):
+        from app.models import resolve_model
+
+        opus_id = resolve_model("opus")
         eff = self._role(pipelines_root, "{opus: low}")
-        assert eff == {"claude-opus-5[1m]": "low"}
-        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
+        assert eff == {opus_id: "low"}
+        assert P.resolve_effort(eff, opus_id, "claude") == "low"
 
     def test_unknown_key_kept_but_never_matches(self, pipelines_root, caplog):
         """Незнакомый ключ переживает валидацию, но ни с чем не совпадает.
