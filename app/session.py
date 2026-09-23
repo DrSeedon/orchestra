@@ -2376,6 +2376,9 @@ class AgentSession:
         elif event.type in ("plan", "warning", "review"):
             self._log(event.type, event.content)
         elif event.type == "turn_end":
+            # Сколько обращений к модели было в ходе: расход хода — их сумма, и компакт
+            # делит на это число, чтобы получить размер контекста ОДНОГО обращения.
+            self._last_turn_api_calls = max(1, int(event.metadata.get("num_turns") or 1))
             self._turns.handle_turn_end(event)
         elif event.type == "error":
             # rate_limit → single retry-status log (skip raw error to avoid duplicate
@@ -2924,6 +2927,7 @@ class AgentSession:
         # берём из расхода самого ack-хода — он доступен синхронно (медиана ошибки 2 п.п.
         # на 57 замеренных компактах).
         tokens_before_ack = self._context_token_total()
+        self._last_turn_api_calls = 1
         self._compact_ack_event = asyncio.Event()
         ack_event = self._compact_ack_event
         ack_deferred = False
@@ -3006,7 +3010,10 @@ class AgentSession:
         await self._drain_persist()
         if LOG_COMPACT_SUMMARY:
             self._log("text", f"📋 **Compact summary:**\n\n{summary}")
-        post_tokens = max(0, self._context_token_total() - tokens_before_ack)
+        # Расход ack-хода — СУММА по всем его обращениям к модели. 23.09 у katya-work ход из
+        # 4 обращений по ~77 тыс. дал «post 307564» и «20% → 31%», хотя контекст ужался в 2.6 раза.
+        ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
+        post_tokens = max(0, self._context_token_total() - tokens_before_ack) // ack_calls
         if post_tokens and max_tokens:
             after_pct = round(post_tokens * 100 / max_tokens)
         else:
