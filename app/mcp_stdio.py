@@ -2629,6 +2629,8 @@ async def switch_worker_branch(
     force: bool = False,
     promote_current: bool = False,
     owned_dirs: str = "",
+    complete_previous: bool = False,
+    acceptance_note: str = "",
 ) -> str:
     """After merge, switch worker to a new branch for a new task.
     from_ref — optional local base override; empty uses the worker's persisted base.
@@ -2636,6 +2638,9 @@ async def switch_worker_branch(
     promote_current=True preserves and assigns committed taskless adhoc work.
     owned_dirs — optional JSON array replacing the worker's ownership on a new task;
     omitted or [] clears it.
+    A clean worker with nothing unmerged is released from its previous task, which
+    returns to the queue; complete_previous=True closes it as done instead and requires
+    acceptance_note (why it is done).
     Worker must be idle with clean working tree."""
     payload = {
         "scope": SCOPE,
@@ -2644,6 +2649,9 @@ async def switch_worker_branch(
         "force": force,
         "promote_current": promote_current,
     }
+    if complete_previous or acceptance_note:
+        payload["complete_previous"] = complete_previous
+        payload["acceptance_note"] = acceptance_note
     if owned_dirs:
         try:
             parsed_owned_dirs = json.loads(owned_dirs)
@@ -2677,7 +2685,13 @@ async def switch_worker_branch(
             f"No-op: worker is already on healthy branch {result.get('branch', '?')}"
         )
     if isinstance(result, dict) and result.get("ok"):
-        return f"Switched to branch {result.get('branch', '?')}"
+        task_status = result.get("task_status") if isinstance(result.get("task_status"), dict) else {}
+        previous = "; ".join(
+            f"previous task {item.get('task')} {item.get('outcome')}"
+            for item in task_status.get("previous_tasks") or []
+            if isinstance(item, dict)
+        )
+        return f"Switched to branch {result.get('branch', '?')}" + (f"; {previous}" if previous else "")
     if isinstance(result, dict) and result.get("conflicts"):
         return f"Merge conflict with base branch on: {', '.join(result['conflicts'])}"
     return f"Switch result: {result}"

@@ -105,6 +105,25 @@
   его ожидания остались дословно прежними.
 
 ### Fixed
+- 🔓 **`switch_worker_branch` снимает привязку воркера, застрявшего после
+  `merge_worker(task_outcome="continue")`** (`app/routes/sessions.py`, `app/tm.py`, `app/db.py`,
+  `app/mcp_stdio.py`). После continue-мержа ветка воркера стоит на цели, а прогон задачи
+  (`review_receipts`, `subject_kind='task_run'`) остаётся открытым: `merge_worker(complete)`
+  отказывал «point to the same commit», а перевод на новую задачу падал с `ValueError: open task
+  run conflicts with current assignment provenance` и откатывал ветку — воркер оставался на
+  старой задаче навсегда. Теперь, если снимок до git (`branch_wip_status` против базы воркера)
+  чист — нет незакоммиченного и нет коммитов вне базы, — перевод освобождает прежнюю задачу
+  в той же транзакции, что назначает новую (`api_update_task_if_current(release_previous=...)`):
+  прогон закрывается `interrupted/binding_released`, задача по правилу `release_session_task_binding`
+  возвращается в `new` (или остаётся за другим живым воркером). Явный
+  `complete_previous=True` с обязательным `acceptance_note` закрывает её как `done`; основание
+  и HEAD ложатся в `verdict_value`/`worker_head` закрытого прогона. Мерж не менялся.
+  Грязное дерево или несмерженные коммиты сохраняют привязку (с `complete_previous` — отказ 409
+  до git); задача, зарезервированная merge-операцией, не отпускается.
+  *Triggered case:* katya-work 23.09.2026, воркер `struktura-ege` навсегда оставался на V-5.
+  *Known tradeoff:* поведение по умолчанию изменилось для любого чистого воркера с прежней
+  задачей — перевод теперь возвращает её в очередь, а не оставляет `in_progress` за ушедшим
+  воркером.
 - 🇷🇺 **GigaChat provider for the Harness** (`app/harness/llm.py`, `app/backend_harness.py`):
   direct OAuth and chat requests use Sber endpoints, refresh the 30-minute token (including
   one retry after HTTP 401), and translate the Harness OpenAI tool history to GigaChat's
