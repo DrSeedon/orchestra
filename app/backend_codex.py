@@ -66,6 +66,10 @@ CODEX_TOKEN_PRICES = {
     "gpt-6-astra":   {"input": 10.0, "cached": 1.0, "write": 12.5, "output": 50.0},
     "gpt-5.6-terra": {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 12.0},
     "gpt-5.6-luna":  {"input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2},
+    # GPT-6, объявлены 22.09.2026 вдвое дешевле промо-цен GPT-5.6; кешированный вход −90%,
+    # запись кеша по тому же отношению 1.25×input, что и у остальных строк таблицы.
+    "gpt-6-sol":     {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 10.0},
+    "gpt-6-luna":    {"input": 0.1, "cached": 0.01, "write": 0.125, "output": 0.5},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
     "gpt-5.3-codex-spark": None,
 }
