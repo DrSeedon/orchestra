@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Время владельца в Orchestra — V-626</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23007aff'/%3E%3Cpath d='M16 33h10l6-15 7 28 5-13h8' fill='none' stroke='white' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root{--bg:#f5f5f7;--panel:#fff;--ink:#1d1d1f;--muted:#6e6e73;--line:#d8d8dc;--blue:#007aff;--blue2:#5ac8fa;--green:#34c759;--amber:#ff9f0a;--red:#ff453a;--violet:#5856d6;--shadow:0 5px 20px #1d1d1f0b}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;font-size:15px;line-height:1.42}
+    main{max-width:1240px;margin:0 auto;padding:28px 22px 56px} h1{font-size:27px;line-height:1.15;margin:0 0 8px;letter-spacing:-.02em} h2{font-size:18px;margin:0 0 14px} h3{font-size:15px;margin:0 0 8px} p{margin:7px 0} .lead{color:var(--muted);max-width:850px}.asof{font-size:12px;color:var(--muted);margin-top:10px}
+    .grid{display:grid;gap:14px}.cards{grid-template-columns:repeat(4,minmax(0,1fr));margin:22px 0 14px}.two{grid-template-columns:1.15fr .85fr}.panel{background:var(--panel);border:1px solid #e2e2e6;border-radius:12px;padding:18px;box-shadow:var(--shadow)}.metric{font-size:27px;font-weight:750;letter-spacing:-.03em}.label{color:var(--muted);font-size:12px;margin-top:2px}.blue{color:var(--blue)}.green{color:var(--green)}.amber{color:var(--amber)}.violet{color:var(--violet)}
+    .source-row{display:flex;gap:10px;align-items:center;margin:11px 0}.source-icon{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:13px;flex:none}.dash{background:var(--blue)}.tg{background:#229ed9}.http{background:var(--violet)}.mail{background:var(--amber)}.source-name{font-weight:650}.source-count{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}.bar{height:8px;border-radius:99px;background:#ececf0;overflow:hidden;margin-top:5px}.fill{height:100%;border-radius:inherit}.note{background:#f2f8ff;border-left:3px solid var(--blue);padding:10px 12px;border-radius:7px;color:#24415c}.warning{background:#fff8e9;border-left-color:var(--amber);color:#604817}
+    svg{width:100%;height:auto;display:block}.diagram-wrap{overflow:auto}.node{fill:#fff;stroke:#cfd0d5;stroke-width:1.3}.node.signal{stroke:#9dc8ff}.node.output{stroke:#7bd89a}.link{stroke:#9ba1ac;stroke-width:1.8;fill:none;marker-end:url(#arrow)}.link-label{font-size:11px;fill:#686b73}.node-label{font-size:13px;fill:var(--ink);font-weight:650}.node-sub{font-size:11px;fill:var(--muted)}.diagram-item{cursor:pointer;outline:none}.diagram-item:focus .node,.diagram-item:hover .node{stroke:var(--blue);stroke-width:2.5}.diagram-item:focus .node-label,.diagram-item:hover .node-label{fill:var(--blue)}
+    .detail{min-height:48px;background:#fafafd;border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-top:12px;color:#45464c}.detail strong{color:var(--ink)}
+    .chart{display:flex;flex-direction:column;gap:9px}.chart-row{display:grid;grid-template-columns:155px 1fr 80px;gap:10px;align-items:center;font-size:13px}.chart-label{color:#444}.chart-track{height:22px;background:#eef0f4;border-radius:5px;overflow:hidden}.chart-bar{height:100%;border-radius:5px;min-width:2px;background:var(--blue);cursor:pointer;transition:filter .15s}.chart-bar:hover,.chart-bar:focus{filter:brightness(.88);outline:2px solid #007aff55;outline-offset:2px}.chart-value{text-align:right;font-variant-numeric:tabular-nums;color:#46484f}.legend{display:flex;flex-wrap:wrap;gap:13px;margin:14px 0 2px;color:var(--muted);font-size:12px}.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+    .daily{display:grid;grid-template-columns:repeat(21,1fr);gap:4px;align-items:end;height:160px;padding:0 2px;border-bottom:1px solid var(--line)}.day{display:flex;height:100%;flex-direction:column;justify-content:end;align-items:center;gap:4px;font-size:9px;color:var(--muted)}.daybar{width:100%;max-width:27px;background:linear-gradient(#5ac8fa,#007aff);border-radius:4px 4px 0 0;min-height:2px}.day:nth-child(16) .daybar{background:linear-gradient(#34c759,#248a3d)}.day:focus .daybar,.day:hover .daybar{outline:2px solid var(--blue);outline-offset:2px}.day-label{white-space:nowrap}.axis{display:flex;justify-content:space-between;color:var(--muted);font-size:11px;margin-top:5px}.axis span{font-variant-numeric:tabular-nums}
+    .timeline{overflow:auto}.timeline-grid{min-width:850px}.time-axis{display:grid;grid-template-columns:110px repeat(18,1fr);height:24px;color:var(--muted);font-size:11px}.time-axis span{border-left:1px solid #e7e7eb;padding-left:4px}.rail{display:grid;grid-template-columns:110px 1fr;min-height:34px;align-items:center}.rail-label{font-size:12px;font-weight:650;padding-right:8px}.track{position:relative;height:25px;background:repeating-linear-gradient(90deg,#fbfbfd 0,#fbfbfd calc(5.555% - 1px),#e5e5e9 calc(5.555% - 1px),#e5e5e9 5.555%);border-radius:5px}.block{position:absolute;top:3px;height:19px;border-radius:5px;background:var(--blue);opacity:.86;cursor:pointer}.block:hover,.block:focus{opacity:1;outline:2px solid #007aff66;outline-offset:2px}.scope-katya .block{background:#ff9f0a}.scope-orchestra .block{background:#007aff}.scope-university .block{background:#34c759}.scope-dnd .block{background:#5856d6}.scope-tg .block{background:#229ed9}.scope-cog .block{background:#ff375f}.scope-seedon .block{background:#af52de}.timeline-caption{color:var(--muted);font-size:12px;margin-top:9px}.hour-label{grid-column:span 1}
+    table{border-collapse:collapse;width:100%;font-size:13px}th,td{text-align:left;padding:8px 6px;border-bottom:1px solid #ececf0}th{font-size:12px;color:var(--muted);font-weight:600}td.num{text-align:right;font-variant-numeric:tabular-nums}.delta{color:var(--muted)}
+    .decisions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.decision{border:1px solid var(--line);border-radius:9px;padding:12px;background:#fff}.decision .tag{display:inline-block;font-size:11px;color:#fff;background:var(--amber);padding:2px 6px;border-radius:99px;margin-bottom:6px}.decision p{font-size:13px;color:#53545a}
+    footer{color:var(--muted);font-size:12px;margin-top:20px}a{color:var(--blue)}button{font:inherit}.sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+    @media(max-width:850px){main{padding:20px 14px 42px}.cards{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}.decisions{grid-template-columns:1fr}.chart-row{grid-template-columns:125px 1fr 70px}}
+    @media print{body{background:#fff}.panel{box-shadow:none;break-inside:avoid}.cards{grid-template-columns:repeat(4,1fr)}.timeline-grid{min-width:0}.block{print-color-adjust:exact;-webkit-print-color-adjust:exact}.chart-bar,.daybar{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Сколько времени владелец работает с Orchestra</h1>
+    <p class="lead">Новая оценка соединяет сообщения, видимое присутствие в dashboard и отдельные Telegram-сигналы. Она считает минуты, а не содержимое: текст сообщений в этот экран не попадает.</p>
+    <p class="asof">Read-only срез живой БД: 03.09–23.09.2026, до 11:20 UTC · 23.09 — неполный день · V-626</p>
+  </header>
+
+  <section class="grid cards" aria-label="Главные числа">
+    <div class="panel"><div class="metric blue">2 474</div><div class="label">сообщения владельца</div></div>
+    <div class="panel"><div class="metric green">101,12 ч</div><div class="label">message + think, после dedupe</div></div>
+    <div class="panel"><div class="metric amber">163,12 ч</div><div class="label">текущий V-57 / разрыв 30 мин</div></div>
+    <div class="panel"><div class="metric violet">до 5</div><div class="label">scope одновременно в сигнале 18.09</div></div>
+  </section>
+
+  <section class="grid two">
+    <article class="panel">
+      <h2>Откуда берётся сигнал</h2>
+      <div class="source-row"><div class="source-icon dash">DB</div><div><div class="source-name">Dashboard</div><div class="label">origin=user, subtype=dashboard</div></div><div class="source-count">1 112</div></div><div class="bar"><div class="fill dash" style="width:45%"></div></div>
+      <div class="source-row"><div class="source-icon tg">TG</div><div><div class="source-name">Telegram</div><div class="label">батч сообщений, subtype=telegram</div></div><div class="source-count">900</div></div><div class="bar"><div class="fill tg" style="width:36.4%"></div></div>
+      <div class="source-row"><div class="source-icon http">API</div><div><div class="source-name">HTTP / http_send</div><div class="label">только если origin=user</div></div><div class="source-count">461</div></div><div class="bar"><div class="fill http" style="width:18.6%"></div></div>
+      <div class="source-row"><div class="source-icon mail">M</div><div><div class="source-name">Mailbox</div><div class="label">отдельный тип доставки</div></div><div class="source-count">1</div></div>
+      <div class="note warning">Сейчас это сообщения. Открытая вкладка, чтение без ответа и фокус браузера пока не видны.</div>
+    </article>
+    <article class="panel">
+      <h2>Как минуты становятся сессией</h2>
+      <p>Каждое сообщение даёт короткий интервал назад от времени сообщения — до последнего ответа ассистента, но не более 10 минут.</p>
+      <div class="detail" id="detail"><strong>Наведите на узел схемы</strong> — связанный текст объяснит, что именно передаётся дальше.</div>
+      <div class="legend"><span><i style="background:var(--blue)"></i>измеряется</span><span><i style="background:var(--amber)"></i>оценка/решение</span><span><i style="background:var(--green)"></i>результат</span></div>
+    </article>
+  </section>
+
+  <section class="panel" style="margin-top:14px">
+    <h2>Схема: от сигнала до линейки себестоимости</h2>
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 1120 190" role="img" aria-labelledby="diagram-title diagram-desc">
+        <title id="diagram-title">Путь сигнала владельца к сессии и себестоимости</title>
+        <desc id="diagram-desc">Сообщения и пинги проходят фильтрацию, превращаются в интервалы, объединяются и распределяются по scope.</desc>
+        <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0L8 4L0 8z" fill="#9ba1ac"/></marker></defs>
+        <path class="link" d="M168 47H235"/><path class="link" d="M168 143H235"/><path class="link" d="M400 95H468"/><path class="link" d="M635 95H703"/><path class="link" d="M870 95H938"/>
+        <text class="link-label" x="185" y="37">метаданные</text><text class="link-label" x="185" y="133">без текста</text><text class="link-label" x="420" y="84">timestamp</text><text class="link-label" x="650" y="84">set union</text><text class="link-label" x="886" y="84">scope split</text>
+        <g class="diagram-item" tabindex="0" data-info="telegram"><rect class="node signal" x="22" y="20" width="146" height="54" rx="10"/><text class="node-label" x="38" y="44">TG / dashboard</text><text class="node-sub" x="38" y="62">сообщение</text></g>
+        <g class="diagram-item" tabindex="0" data-info="ping"><rect class="node signal" x="22" y="116" width="146" height="54" rx="10"/><text class="node-label" x="38" y="140">Presence ping</text><text class="node-sub" x="38" y="158">видно + focus + input</text></g>
+        <g class="diagram-item" tabindex="0" data-info="filter"><rect class="node" x="235" y="68" width="165" height="54" rx="10"/><text class="node-label" x="251" y="92">Фильтр автора</text><text class="node-sub" x="251" y="110">user + orchestrator</text></g>
+        <g class="diagram-item" tabindex="0" data-info="interval"><rect class="node" x="468" y="68" width="167" height="54" rx="10"/><text class="node-label" x="484" y="92">Интервалы</text><text class="node-sub" x="484" y="110">start / end / source</text></g>
+        <g class="diagram-item" tabindex="0" data-info="union"><rect class="node" x="703" y="68" width="167" height="54" rx="10"/><text class="node-label" x="719" y="92">Склейка</text><text class="node-sub" x="719" y="110">без двойного счёта</text></g>
+        <g class="diagram-item" tabindex="0" data-info="result"><rect class="node output" x="938" y="68" width="160" height="54" rx="10"/><text class="node-label" x="954" y="92">Сессии по scope</text><text class="node-sub" x="954" y="110">дни · часы · цена</text></g>
+      </svg>
+    </div>
+  </section>
+
+  <section class="grid two" style="margin-top:14px">
+    <article class="panel">
+      <h2>Порог меняет ответ</h2>
+      <div class="chart" id="threshold-chart">
+        <div class="chart-row"><div class="chart-label">burst ≤ 5 мин</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="5" style="width:23.8%"></div></div><div class="chart-value">38,79 ч</div></div>
+        <div class="chart-row"><div class="chart-label">burst ≤ 10 мин</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="10" style="width:43%"></div></div><div class="chart-value">70,12 ч</div></div>
+        <div class="chart-row"><div class="chart-label">message + think</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="think" style="width:62%;background:var(--green)"></div></div><div class="chart-value">101,12 ч</div></div>
+        <div class="chart-row"><div class="chart-label">V-57 ≤ 30 мин</div><div class="chart-track"><div class="chart-bar" tabindex="0" data-info="30" style="width:100%;background:var(--amber)"></div></div><div class="chart-value">163,12 ч</div></div>
+      </div>
+      <div class="detail" id="threshold-detail"><strong>V-57</strong> считает span между сообщениями. Длинный хвост пауз делает 30 минут верхней оценкой относительно активного сигнала.</div>
+    </article>
+    <article class="panel">
+      <h2>Паузы между сообщениями</h2>
+      <table><thead><tr><th>перцентиль</th><th class="num">минуты</th></tr></thead><tbody><tr><td>p25</td><td class="num">0,75</td></tr><tr><td>p50</td><td class="num">2,76</td></tr><tr><td>p75</td><td class="num">11,42</td></tr><tr><td>p90</td><td class="num">48,11</td></tr><tr><td>p95</td><td class="num">195,20</td></tr><tr><td>p99</td><td class="num">1 412,12</td></tr></tbody></table>
+      <div class="note" style="margin-top:12px">62,4% пауз ≤5 мин · 73,2% ≤10 мин · 86,3% ≤30 мин. Поэтому порог — бизнес-решение линейки, не свойство БД.</div>
+    </article>
+  </section>
+
+  <section class="panel" style="margin-top:14px">
+    <h2>Живой пример: 18 сентября, UTC</h2>
+    <p class="label">221 сообщение · message+think = 8,12 ч. Блоки — обезличенные объединённые интервалы по scope; наложение разных scope не складывается глобально.</p>
+    <div class="timeline" aria-label="Таймлайн 18 сентября"><div class="timeline-grid"><div class="time-axis"><span></span><span>01</span><span>02</span><span>03</span><span>04</span><span>05</span><span>06</span><span>07</span><span>08</span><span>09</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span><span>15</span><span>16</span><span>17</span></div>
+      <div class="rail scope-katya"><div class="rail-label">katya-work</div><div class="track" id="katya"></div></div>
+      <div class="rail scope-orchestra"><div class="rail-label">orchestra</div><div class="track" id="orchestra"></div></div>
+      <div class="rail scope-university"><div class="rail-label">University</div><div class="track" id="university"></div></div>
+      <div class="rail scope-dnd"><div class="rail-label">dnd-game-master</div><div class="track" id="dnd"></div></div>
+      <div class="rail scope-tg"><div class="rail-label">kesha-tg-bot</div><div class="track" id="tg"></div></div>
+      <div class="rail scope-cog"><div class="rail-label">cog-second-brain</div><div class="track" id="cog"></div></div>
+      <div class="rail scope-seedon"><div class="rail-label">seedon</div><div class="track" id="seedon"></div></div>
+    </div></div>
+    <div class="timeline-caption">Шкала показывает 00–18 UTC; последующие часы пусты в этом message-derived примере. Наведите на блок, чтобы увидеть начало, конец и длительность.</div>
+  </section>
+
+  <section class="panel" style="margin-top:14px">
+    <h2>Дни: где виден сигнал</h2>
+    <div class="daily" id="daily" aria-label="Дневные часы"></div><div class="axis"><span>03.09</span><span>23.09*</span></div>
+  </section>
+
+  <section class="grid two" style="margin-top:14px">
+    <article class="panel"><h2>Что остаётся невидимым</h2><ul><li>чтение Telegram без ответа;</li><li>реальное число вкладок и устройств;</li><li>пауза, во время которой владелец думает, но ничего не отправляет;</li><li>момент начала печати и чтения — timestamp лога означает доставку батча;</li><li>ранняя история до 03.09 и работа вне Orchestra.</li></ul></article>
+    <article class="panel"><h2>Что нужно решить владельцу</h2><div class="decisions"><div class="decision"><span class="tag">развилка</span><h3>Raw или buckets?</h3><p>Raw можно пересчитать и расследовать; buckets дешевле и приватнее.</p></div><div class="decision"><span class="tag">развилка</span><h3>Делить overlap?</h3><p>Равные доли удобны для scope; unattributed честнее при конкуренции.</p></div><div class="decision"><span class="tag">развилка</span><h3>Telegram?</h3><p>Оставить сообщения/voice или добавить edits/reactions.</p></div></div></article>
+  </section>
+
+  <footer>Источник чисел: read-only SQLite и код Orchestra, описанные в <a href="./report.md">report.md</a>. Содержимое сообщений намеренно не читалось и не встраивалось. Официальная справка Telegram Bot API: <a href="https://core.telegram.org/bots/api">core.telegram.org/bots/api</a>.</footer>
+</main>
+<script>
+  const info={
+    telegram:'Telegram и dashboard дают событие с timestamp, scope и транспортной меткой. Текст сюда не передаётся.',
+    ping:'Новый будущий сигнал: вкладка видна, окно в focus, ввод не старше 5 минут. Сейчас таких ping в БД нет.',
+    filter:'Владелец = origin=user и sessions.is_orchestrator=1. Это исключает 15 сообщений из worker/full-cycle сессий.',
+    interval:'Сообщение даёт [max(t−10 мин, последний assistant text), t]. Три сообщения в срезе не имели предыдущего text.',
+    union:'Пересекающиеся интервалы объединяются. В пересечении нескольких scope время делится, чтобы одна минута не стала двумя.',
+    result:'Результат: start, end, duration, day, scope, source и confidence. До heartbeat это estimated, не факт.',
+    '5':'Порог 5 минут: 38,79 ч — только короткие burst-сессии.',
+    '10':'Порог 10 минут: 70,12 ч — 43,0% от V-57.',
+    think:'Message+think: 101,12 ч — 62,0% от V-57; это промежуточная оценка.',
+    '30':'Порог V-57 30 минут: 163,12 ч. Длинный хвост пауз делает его широкой оценкой.'
+  };
+  const detail=document.getElementById('detail'); const thresholdDetail=document.getElementById('threshold-detail');
+  document.querySelectorAll('[data-info]').forEach(el=>{const key=el.dataset.info;const apply=()=>{if(info[key]){detail.innerHTML='<strong>'+key+'</strong> — '+info[key];if(el.closest('#threshold-chart'))thresholdDetail.innerHTML='<strong>'+key+'</strong> — '+info[key]}};el.addEventListener('mouseenter',apply);el.addEventListener('focus',apply);el.addEventListener('click',apply)});
+  const rails={
+    katya:[[1.4,1.78],[1.92,2.0],[2.38,2.72],[2.9,3.15],[3.27,3.34],[3.5,4.9],[5.05,5.53],[13.55,13.78]],
+    orchestra:[[2.8,3.1],[5.37,5.65],[6.6,6.8],[6.97,7.02],[8.57,9.1],[9.3,9.48],[13.15,13.32],[14.78,14.95]],
+    university:[[8.72,8.87],[9.1,9.42]],
+    dnd:[[16.65,16.98]],
+    tg:[[9.32,9.48]],
+    cog:[[3.27,3.43]],
+    seedon:[[5.23,5.4],[6.28,7.78],[8.8,9.8],[10.73,10.93],[11.12,12.4],[12.5,12.67],[13.1,13.27],[13.63,13.8],[14.28,14.35],[14.48,14.7],[14.88,14.93],[15.05,15.15],[15.68,15.95],[16.13,16.8]]
+  };
+  Object.entries(rails).forEach(([name,blocks])=>{const root=document.getElementById(name);blocks.forEach(([a,b])=>{const el=document.createElement('span');el.className='block';el.tabIndex=0;el.setAttribute('aria-label',name+' '+a.toFixed(2)+'–'+b.toFixed(2)+' UTC');el.style.left=(a/18*100)+'%';el.style.width=((b-a)/18*100)+'%';const mins=Math.round((b-a)*60);el.dataset.info='timeline';el.addEventListener('mouseenter',()=>{el.style.filter='brightness(.82)';document.getElementById('detail').innerHTML='<strong>'+name+'</strong> · '+Math.floor(a).toString().padStart(2,'0')+':'+Math.round((a%1)*60).toString().padStart(2,'0')+'–'+Math.floor(b).toString().padStart(2,'0')+':'+Math.round((b%1)*60).toString().padStart(2,'0')+' UTC · '+(mins/60).toFixed(2).replace('.',',')+' ч';});el.addEventListener('mouseleave',()=>el.style.filter='');el.addEventListener('focus',()=>el.dispatchEvent(new Event('mouseenter')));root.appendChild(el)})});
+  const days=[3.44,2.05,4.62,5.21,4.25,6.31,5.89,6.69,6.77,4.54,5.84,4.15,4.09,3.09,3.11,8.12,6.50,6.61,2.84,2.69,4.30];const daily=document.getElementById('daily');const max=Math.max(...days);days.forEach((v,i)=>{const d=document.createElement('div');d.className='day';d.tabIndex=0;d.setAttribute('aria-label',`${String(i+3).padStart(2,'0')}.09: ${v.toFixed(2)} часа`);const bar=document.createElement('div');bar.className='daybar';bar.style.height=(v/max*100)+'%';d.appendChild(bar);const label=document.createElement('span');label.className='day-label';label.textContent=String(i+3).padStart(2,'0');d.appendChild(label);d.addEventListener('mouseenter',()=>{detail.innerHTML='<strong>'+String(i+3).padStart(2,'0')+'.09</strong> — '+v.toFixed(2).replace('.',',')+' ч message+think'+(i===15?' · максимум среза':'')});d.addEventListener('focus',()=>d.dispatchEvent(new Event('mouseenter')));daily.appendChild(d)});
+</script>
+</body>
+</html>
