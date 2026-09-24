@@ -60,20 +60,44 @@ dp = Dispatcher()
 
 
 def _format_user_message_log(log: dict, target_name: str) -> str:
+    header, content = _incoming_message_parts(log, target_name)
+    if header is None:
+        return f"👤\n{content}"
+    return f"{header}\n{content}"
+
+
+def _incoming_message_parts(log: dict, target_name: str) -> tuple[str | None, str]:
     origin = str(log.get("origin") or "unknown")
     detail = log.get("origin_detail")
     if not isinstance(detail, dict):
         origin, detail = "unknown", {"senders": ["unknown"]}
     senders = detail.get("senders")
     if not isinstance(senders, list) or not senders:
-        origin, senders = "unknown", ["unknown"]
+        origin, detail, senders = "unknown", {"senders": ["unknown"]}, ["unknown"]
+    subtype = str(detail.get("subtype") or "").strip()
     content = user_message_display_content(log)
     if origin == "user":
-        return f"👤\n{content}"
+        return None, content
     label = ", ".join(str(sender) for sender in senders)
     if origin == "agent":
-        return f"📨 {label} → {target_name}\n{content}"
-    return f"⚙ {origin}: {label}\n{content}"
+        return f"📨 {label} → {target_name}", content
+    kinds = {
+        "compact": "сводка сжатия контекста",
+        "compact_summary": "сводка сжатия контекста",
+        "cron": "результат фонового задания",
+        "cron_command": "результат фонового задания",
+        "undelivered": "недоставка",
+        "fan_manifest": "результат веера",
+    }
+    kind = kinds.get(subtype)
+    if kind is None and origin == "background_task":
+        kind = "результат фонового задания"
+    header = f"⚙ {origin}"
+    if kind:
+        header += f" · {kind}"
+    return f"{header}: {label}", content
+
+
 _manager = None
 _tasks = []
 _stream_tasks: dict[tuple[str, int], asyncio.Task] = {}
@@ -649,7 +673,7 @@ def _md_entities(text: str, base_offset: int = 0):
     from aiogram.types import MessageEntity as AioEntity
     try:
         converted, raw_ents = md_convert(text)
-        ents = [AioEntity(**{**e.to_dict(), "offset": e.offset + base_offset}) for e in raw_ents] if raw_ents else []
+        ents = [AioEntity(**{**entity.to_dict(), "offset": entity.offset + base_offset}) for entity in raw_ents] if raw_ents else []
         return converted, ents
     except Exception as e:
         # Молчаливый фолбэк деградирует КАЖДОЕ форматированное TG-сообщение до
@@ -996,14 +1020,7 @@ async def _send_expandable(
     telemetry_key=None,
     batch_bucket=None,
 ):
-    from aiogram.types import MessageEntity
-    from aiogram.enums import MessageEntityType
-    body = body.rstrip()
-    conv_body, body_ents = _md_entities(body, _utf16_len(header) + 1)
-    text = f"{header}\n{conv_body}"
-    offset = _utf16_len(header) + 1
-    length = _utf16_len(conv_body)
-    entities = [MessageEntity(type=MessageEntityType.EXPANDABLE_BLOCKQUOTE, offset=offset, length=length)] + body_ents
+    text, entities = _expandable_message(header, body)
     return await _tg_send_safe(
         chat_id,
         text,
@@ -1012,6 +1029,60 @@ async def _send_expandable(
         important=important,
         telemetry_key=telemetry_key,
         batch_bucket=batch_bucket,
+    )
+
+
+def _truncate_utf16(text: str, limit: int) -> str:
+    if limit <= 0:
+        return ""
+    if _utf16_len(text) <= limit:
+        return text
+    lo, hi = 0, len(text)
+    while lo < hi:
+        mid = (lo + hi + 1) // 2
+        if _utf16_len(text[:mid]) <= limit:
+            lo = mid
+        else:
+            hi = mid - 1
+    return text[:lo]
+
+
+def _expandable_message(header: str, body: str) -> tuple[str, list]:
+    """Build one Telegram-sized message with a collapsed body quote."""
+    from aiogram.types import MessageEntity
+    from aiogram.enums import MessageEntityType
+
+    body = body.rstrip()
+    body_offset = _utf16_len(header) + 1
+    conv_body, body_ents = _md_entities(body, body_offset)
+    body_limit = TG_MSG_LIMIT - body_offset
+    if _utf16_len(conv_body) > body_limit:
+        notice = "\n\n[… полный текст в дашборде …]"
+        prefix = _truncate_utf16(
+            conv_body,
+            max(0, body_limit - _utf16_len(notice)),
+        ).rstrip()
+        conv_body = prefix + notice
+        prefix_end = body_offset + _utf16_len(prefix)
+        body_ents = [
+            entity for entity in body_ents
+            if entity.offset + entity.length <= prefix_end
+        ]
+    text = f"{header}\n{conv_body}"
+    entities = [MessageEntity(
+        type=MessageEntityType.EXPANDABLE_BLOCKQUOTE,
+        offset=body_offset,
+        length=_utf16_len(conv_body),
+    )] + body_ents
+    return text, entities
+
+
+def _is_platform_text_message(log: dict) -> bool:
+    detail = log.get("origin_detail")
+    return (
+        log.get("origin") not in (None, "", "unknown", "user")
+        and isinstance(detail, dict)
+        and bool(detail.get("subtype"))
     )
 
 
@@ -3409,7 +3480,37 @@ async def stream_logs(orch_name: str, thread_id: int):
                             except Exception as e:
                                 logger.warning(f"TG send photo failed: {e}")
                             continue
-                        text = _format_user_message_log(log, orch_name)
+                        incoming_header, incoming_body = _incoming_message_parts(log, orch_name)
+                        if incoming_header is not None:
+                            expanded_text, expanded_entities = _expandable_message(
+                                incoming_header, incoming_body,
+                            )
+                            await _tg_send_safe(
+                                config["group_id"], expanded_text, thread_id,
+                                entities=expanded_entities, important=True,
+                                telemetry_key=("stream", thread_id, log["id"], 0),
+                            )
+                            await _mirror_send(
+                                orch_name, expanded_text,
+                                entities=expanded_entities, important=True,
+                            )
+                            continue
+                        text = f"👤\n{incoming_body}"
+                    elif t == "text" and _is_platform_text_message(log):
+                        incoming_header, incoming_body = _incoming_message_parts(log, orch_name)
+                        expanded_text, expanded_entities = _expandable_message(
+                            incoming_header, incoming_body,
+                        )
+                        await _tg_send_safe(
+                            config["group_id"], expanded_text, thread_id,
+                            entities=expanded_entities, important=True,
+                            telemetry_key=("stream", thread_id, log["id"], 0),
+                        )
+                        await _mirror_send(
+                            orch_name, expanded_text,
+                            entities=expanded_entities, important=True,
+                        )
+                        continue
                     elif t == "text":
                         if is_silent_turn_text(c):
                             continue

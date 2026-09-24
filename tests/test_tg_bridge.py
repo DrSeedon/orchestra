@@ -1552,6 +1552,49 @@ class TestFormattedChunks:
         assert entities
 
 
+class TestIncomingExpandableMessages:
+    @pytest.mark.asyncio
+    async def test_expandable_message_is_one_utf16_bounded_send(self, tb, monkeypatch):
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+
+        header = "⚙ platform · сводка сжатия контекста: Orchestra"
+        body = "🚀 кир **жирный**\n" + ("контекст " * 1000)
+        await tb._send_expandable(-100, 42, header, body, important=True)
+
+        assert tb.bot.send_message.await_count == 1
+        call = tb.bot.send_message.await_args
+        text = call.args[1]
+        entities = call.kwargs["entities"]
+        assert tb._utf16_len(text) <= tb.TG_MSG_LIMIT
+        assert "полный текст" in text
+        quote = entities[0]
+        assert quote.type == "expandable_blockquote"
+        assert quote.offset == tb._utf16_len(header) + 1
+        assert quote.length == tb._utf16_len(text) - quote.offset
+        assert all(
+            entity.offset >= quote.offset
+            and entity.offset + entity.length <= quote.offset + quote.length
+            for entity in entities[1:]
+        )
+
+    def test_short_markdown_entities_use_utf16_offsets(self, tb):
+        header = "⚙ источник: Orchestra"
+        text, entities = tb._expandable_message(header, "🚀 кир **жирный**")
+
+        quote = entities[0]
+        assert quote.offset == tb._utf16_len(header) + 1
+        assert quote.length == tb._utf16_len(text) - quote.offset
+        bold = next(entity for entity in entities[1:] if entity.type == "bold")
+        assert bold.offset == quote.offset + tb._utf16_len("🚀 кир ")
+        assert bold.length == tb._utf16_len("жирный")
+        assert all(
+            entity.offset + entity.length <= quote.offset + quote.length
+            for entity in entities[1:]
+        )
+
+
 @pytest.mark.timeout(30)
 class TestLimitsCommand:
     @staticmethod
@@ -4877,6 +4920,60 @@ class TestTurnFoldStream:
         assert formatted == ['💬\n' + text]
         assert mirrored == ['💬\n' + text]
         assert any(item['text'] == '💬\n' + text for item in sent)
+
+    @pytest.mark.asyncio
+    async def test_agent_incoming_message_is_one_collapsed_message(self, tb, monkeypatch):
+        sent, expandables, _ = await self._run(tb, monkeypatch, [[
+            {
+                "id": 1,
+                "type": "user_message",
+                "content": "отчёт агента",
+                "origin": "agent",
+                "origin_detail": {
+                    "senders": ["worker-a"],
+                    "subtype": "auto_report",
+                },
+            },
+        ]])
+
+        assert len(sent) == 1
+        assert not expandables
+        assert sent[0]["text"].startswith("📨")
+
+    @pytest.mark.asyncio
+    async def test_compact_summary_text_uses_one_collapsed_message(self, tb, monkeypatch):
+        sent, expandables, _ = await self._run(tb, monkeypatch, [[
+            {
+                "id": 1,
+                "type": "text",
+                "content": "📋 **Compact summary:**\n\n[PREVIOUS CONTEXT SUMMARY …]",
+                "origin": "platform",
+                "origin_detail": {
+                    "senders": ["Orchestra"],
+                    "subtype": "compact_summary",
+                },
+            },
+        ]])
+
+        assert len(sent) == 1
+        assert not expandables
+        assert sent[0]["text"].startswith("⚙ platform")
+
+    @pytest.mark.asyncio
+    async def test_owner_message_is_not_collapsed(self, tb, monkeypatch):
+        sent, expandables, _ = await self._run(tb, monkeypatch, [[
+            {
+                "id": 1,
+                "type": "user_message",
+                "content": "вопрос владельца",
+                "origin": "user",
+                "origin_detail": {"senders": ["user"], "subtype": "dashboard"},
+            },
+        ]])
+
+        assert len(sent) == 1
+        assert not expandables
+        assert sent[0]["text"].startswith("👤")
 
     async def _run(self, tb, monkeypatch, batches, overload_first_anchor=False,
                    overload_after_anchor=False, mirror_output=None):
