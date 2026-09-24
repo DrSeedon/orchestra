@@ -1,0 +1,97 @@
+RENDER_LIMITS_CARD by tests/test_tg_bridge.py::TestLimitsCommand::test_limits_uses_important_file_delivery_path
+  after render: browser=<Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+RENDER_LIMITS_CARD by tests/test_tg_bridge.py::TestLimitsCommand::test_limits_sends_explicit_error_when_image_delivery_fails
+  after render: browser=<Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+=== HANGDUMP tests/test_api.py::TestDashboard::test_root_returns_html phase=teardown ===
+--- loop <_UnixSelectorEventLoop running=True closed=False debug=False> running=True tasks=4
+TASK anyio.from_thread.BlockingPortal._call_func <Task pending name='anyio.from_thread.BlockingPortal._call_func' coro=<BlockingPortal._call_func() running at /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/from_thread.py:259> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[TaskGroup._spawn.<locals>.task_done() at /home/kesha/orches
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/from_thread.py:259 in _call_func
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/testclient.py:704 in lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/applications.py:1159 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/applications.py:90 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/middleware/errors.py:151 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/middleware/gzip.py:19 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/middleware/base.py:103 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/main.py:242 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/middleware/exceptions.py:49 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/middleware/asyncexitstack.py:18 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/routing.py:660 in __call__
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/routing.py:669 in app
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/routing.py:638 in lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba598dd0c0>
+TASK runaway-guard <Task pending name='runaway-guard' coro=<run_loop() running at /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/runaway_guard.py:122> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/runaway_guard.py:122 in run_loop
+    /usr/lib/python3.12/asyncio/tasks.py:665 in sleep
+    awaiting leaf: <_asyncio.FutureIter object at 0x76ba59793700>
+TASK anyio.from_thread.start_blocking_portal.<locals>.run_portal <Task pending name='anyio.from_thread.start_blocking_portal.<locals>.run_portal' coro=<start_blocking_portal.<locals>.run_portal() running at /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2341> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[_ru
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:2341 in wrapper
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/from_thread.py:527 in run_portal
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/from_thread.py:222 in sleep_until_stopped
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1804 in wait
+    /usr/lib/python3.12/asyncio/locks.py:212 in wait
+    awaiting leaf: <_asyncio.FutureIter object at 0x76ba59793d30>
+TASK anyio.from_thread.BlockingPortal._call_func <Task pending name='anyio.from_thread.BlockingPortal._call_func' coro=<BlockingPortal._call_func() running at /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/from_thread.py:259> wait_for=<Future pending cb=[Task.task_wakeup()]> cb=[TaskGroup._spawn.<locals>.task_done() at /home/kesha/orches
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/from_thread.py:259 in _call_func
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/testclient.py:733 in wait_shutdown
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/starlette/testclient.py:727 in receive
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/streams/stapled.py:80 in receive
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/streams/memory.py:125 in receive
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/anyio/_backends/_asyncio.py:1804 in wait
+    /usr/lib/python3.12/asyncio/locks.py:212 in wait
+    awaiting leaf: <_asyncio.FutureIter object at 0x76ba685f5f00>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba5aa68cc0>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba59f03800>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba59f003c0>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba59f02dc0>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba59f01f00>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba5aba1200>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba5aa571c0>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba5aa57980>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba5aa56500>
+ASYNCGEN _merge_lifespan_context.<locals>.merged_lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/fastapi/routing.py:216 in merged_lifespan
+    /usr/lib/python3.12/contextlib.py:217 in __aexit__
+    awaiting leaf: <async_generator_asend object at 0x76ba5aa54680>
+ASYNCGEN lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/main.py:467 in lifespan
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/main.py:364 in _shutdown_runtime
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/limits_card.py:97 in shutdown_renderer
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/limits_card.py:62 in _close_renderer
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/app/limits_card.py:47 in _close_renderer_resources
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/playwright/async_api/_generated.py:16034 in close
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/playwright/_impl/_browser.py:241 in close
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69 in send
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:557 in wrap_api_call
+    /home/kesha/orchestra/worktrees/home-kesha-orchestra/bench2-opus55/.venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:123 in _inner_send
+    /usr/lib/python3.12/asyncio/tasks.py:464 in wait
+    /usr/lib/python3.12/asyncio/tasks.py:550 in _wait
+    awaiting leaf: <_asyncio.FutureIter object at 0x76ba6a1cf160>

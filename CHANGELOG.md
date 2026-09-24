@@ -7,6 +7,22 @@
 ## Unreleased
 
 ### Fixed
+- 🧪 **Полный `pytest tests/` снова доходит до сводки (V-624).** Две независимые причины:
+  1. **rc=137 на ~35–38 %.** Тесты пути рестарта (`test_hot_apply`, `test_seamless_restart`,
+     `test_system_restart`) глушили `os.kill`, но не `_arm_supervisor_exit_guard`, и тот
+     поднимал настоящего помощника `app.restart_guard` с целью `os.getpid()` — то есть сам
+     pytest. Первый же позднейший `TestClient` в teardown писал ему `application_teardown_complete`,
+     и через 5 с помощник слал SIGKILL по pidfd. bpftrace поймал отправителя дословно:
+     `python3 -m app.restart_guard --pid <pytest> … --post-cleanup-budget 5.0`. Теперь
+     `tests/conftest.py` отказывает взводу стража на pid pytest (`AssertionError`), а файлы
+     пути рестарта берут фикстуру `no_real_exit_guard`.
+  2. **Вечное ожидание на ~85–88 % (набор V-610).** `app.limits_card.shutdown_renderer()`
+     ждал `browser.close()` у Chromium, поднятого на цикле событий ДРУГОГО теста
+     (`test_tg_bridge::TestLimitsCommand` рендерит настоящую карточку); ответ Playwright
+     уходит в мёртвый цикл, и lifespan-teardown `TestClient` висел бесконечно. Теперь
+     shutdown на чужом цикле отпускает ресурсы через `_release_renderer_from_previous_loop`,
+     как это уже делал путь рендера. Регрессионный тест
+     `test_shutdown_does_not_await_browser_of_another_loop`.
 - 🛑 **SIGTERM больше не ждёт закрытия дашбордного SSE бесконечно** (`deploy/orchestra.service`, `deploy/orchestra.service.template`): Uvicorn принудительно закрывает долгие соединения через 5 секунд graceful shutdown и продолжает штатный teardown lifespan. Случай: открытая вкладка дашборда оставляла `Waiting for connections to close`, и systemd доходил до второго сигнала.
 - 📎 **Ошибка загрузки файла больше не переезжает в чат другого агента** (`app/static/js/app.js`,
   `selectAgent`): красная строка `#chat-drop-error` снимается при переключении агента. Триггер —
