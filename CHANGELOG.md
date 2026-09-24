@@ -7,6 +7,16 @@
 ## Unreleased
 
 ### Fixed
+- 🧹 **Рестарт без продвижения каталога больше не коммитит, а чужой scope не считается
+  ошибкой раскладки** (`app/catalog_migration_v621.py`, `app/orchestra_layout.py`
+  `migrate_registered_projects`, V-634). `migrate_v621` раньше писал бэкап, переписывал
+  домашний файл тем же содержимым и коммитил его на каждом старте, пока в каталоге
+  оставался хоть один пропущенный scope. Теперь при `include_scopes` без единого сдвинутого
+  scope он возвращает `state=pending` без записей. Scope, которого нет на диске этой
+  машины, в миграции раскладки получает `status=absent` вместо `ORCHESTRA_LAYOUT_GIT_ERROR`.
+  Триггер: ноутбук держит в общем каталоге девять путей VPS (`/home/kesha/...`, `/opt/...`).
+  Из-за них в main ноутбука набралось пять одинаковых коммитов «V-621: разбить общий
+  каталог», а журнал на каждом старте получал девять ложных «not a Git checkout».
 - **`change_worker_model` now follows the dashboard history path** (`app/mcp_stdio.py`,
   `app/session.py`, `app/routes/sessions.py`, V-633): MCP sends `model` and `scope` with its
   existing `via: mcp` authorization metadata, so
