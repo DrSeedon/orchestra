@@ -2631,7 +2631,9 @@ class TestPrecompactTimer:
         session._hibernate.schedule.assert_called_once_with()
 
     @pytest.mark.asyncio
-    async def test_codex_native_compact_queues_message_until_completion(self, session):
+    async def test_codex_native_compact_queues_message_until_completion(
+        self, session, monkeypatch,
+    ):
         from app.session import AgentStatus
 
         compact_started = asyncio.Event()
@@ -2651,7 +2653,11 @@ class TestPrecompactTimer:
         backend.compact_context = AsyncMock(side_effect=compact_context)
         session.backend_type = "codex"
         session.session_id = "thread-1"
-        session.status = AgentStatus.IDLE
+        session.status = AgentStatus.WAITING
+        monkeypatch.setattr(
+            "app.bg_jobs.bg_manager",
+            MagicMock(has_active_jobs=lambda *_: True),
+        )
         session._ensure_backend = AsyncMock(return_value=backend)
         session._log = MagicMock()
         session._hibernate.schedule = MagicMock()
@@ -2676,6 +2682,7 @@ class TestPrecompactTimer:
 
         assert result["ok"] is True
         assert "_flush_pending" in spawned
+        assert session.status is AgentStatus.WAITING
         session._hibernate.schedule.assert_not_called()
 
     @pytest.mark.asyncio
@@ -2715,7 +2722,7 @@ class TestPrecompactTimer:
         assert '"crossed_60m": true' in outcome[0].lower()
 
     @pytest.mark.asyncio
-    async def test_precompact_timer_suppressed_when_not_idle(self, session, monkeypatch):
+    async def test_precompact_timer_runs_when_waiting_for_bg_job(self, session, monkeypatch):
         from app.session import AgentStatus
         from unittest.mock import MagicMock
 
@@ -2726,7 +2733,28 @@ class TestPrecompactTimer:
         session._last_context["percentage"] = 55
 
         session.compact = AsyncMock(return_value={"ok": True})
-        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: False))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: True))
+        session.PRECOMPACT_DELAY_SECONDS = 0
+
+        session._schedule_precompact_timer(55)
+        await asyncio.sleep(0.05)
+
+        session.compact.assert_awaited_once_with()
+        assert session._precompact_timer["compact_result"] == {"ok": True}
+        assert not any("precompact timer skipped" in c for _, c in logs)
+
+    @pytest.mark.asyncio
+    async def test_precompact_timer_suppressed_while_running(self, session, monkeypatch):
+        from app.session import AgentStatus
+        from unittest.mock import MagicMock
+
+        logs = []
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
+        session.status = AgentStatus.RUNNING
+        session._last_context["percentage"] = 55
+
+        session.compact = AsyncMock(return_value={"ok": True})
+        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: True))
         session.PRECOMPACT_DELAY_SECONDS = 0
 
         session._schedule_precompact_timer(55)
@@ -2734,7 +2762,29 @@ class TestPrecompactTimer:
 
         assert session.compact.await_count == 0
         assert session._precompact_timer is None
-        assert any("precompact timer skipped" in c for _, c in logs)
+        assert any('"skip_reason": "not_idle"' in c for _, c in logs)
+
+    @pytest.mark.asyncio
+    async def test_precompact_timer_suppressed_while_compacting(self, session, monkeypatch):
+        from app.session import AgentStatus
+        from unittest.mock import MagicMock
+
+        logs = []
+        session._log = lambda log_type, content, **_kwargs: logs.append((log_type, content))
+        session.status = AgentStatus.WAITING
+        session._compacting = True
+        session._last_context["percentage"] = 55
+
+        session.compact = AsyncMock(return_value={"ok": True})
+        monkeypatch.setattr("app.bg_jobs.bg_manager", MagicMock(has_active_jobs=lambda *_: True))
+        session.PRECOMPACT_DELAY_SECONDS = 0
+
+        session._schedule_precompact_timer(55)
+        await asyncio.sleep(0.05)
+
+        assert session.compact.await_count == 0
+        assert session._precompact_timer is None
+        assert any('"skip_reason": "compacting"' in c for _, c in logs)
 
     def test_precompact_timer_arm_once_per_episode(self, session):
         launched = []
@@ -2771,7 +2821,7 @@ class TestPrecompactTimer:
         assert session._precompact_timer is None
 
     @pytest.mark.asyncio
-    async def test_precompact_timer_skipped_when_bg_job_active(self, session, monkeypatch):
+    async def test_precompact_timer_ignores_active_bg_job(self, session, monkeypatch):
         from app.session import AgentStatus
         from unittest.mock import MagicMock
 
@@ -2786,9 +2836,9 @@ class TestPrecompactTimer:
         session._schedule_precompact_timer(55)
         await asyncio.sleep(0.05)
 
-        assert session.compact.await_count == 0
-        assert session._precompact_timer is None
-        assert any("precompact timer skipped" in c for _, c in logs)
+        session.compact.assert_awaited_once_with()
+        assert session._precompact_timer["compact_result"] == {"ok": True}
+        assert not any("precompact timer skipped" in c for _, c in logs)
 class TestRateLimitClassification:
     @staticmethod
     def _capture_coroutines(session):
