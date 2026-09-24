@@ -1,0 +1,120 @@
+REPO /mnt/data/Projects/Python/seedon preserve_snapshots= 8065
+ BEST c29954eeb 2026-09-04 23:03:52 base=020495050 tracked=0 zero=0 untracked=324 uzero=0
+ LAST 59462fff6 2026-09-23 13:08:26 base=049cb8c85 tracked=0 zero=0 untracked=324 uzero=324
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+REPO /mnt/data/Projects/Python/kesha-tg-bot preserve_snapshots= 8067
+ BEST ea7f2c2da 2026-09-04 23:03:49 base=c3c5166ba tracked=1 zero=0 untracked=98 uzero=0
+ LAST 626470c28 2026-09-23 13:08:23 base=0b16a6112 tracked=0 zero=0 untracked=98 uzero=98
+REPO /mnt/data/Projects/Python/VPN-Service preserve_snapshots= 20
+ BEST 23cf7c856 2026-09-05 09:59:44 base=e8b3df6d7 tracked=1 zero=0 untracked=77 uzero=0
+ LAST 4bb708826 2026-09-05 10:23:09 base=e40659b76 tracked=0 zero=0 untracked=77 uzero=0
+REPO /mnt/data/Projects/comfy-image-pipeline preserve_snapshots= 8040
+ BEST 7cecfd9a2 2026-09-13 09:37:15 base=bc88d1d5f tracked=27 zero=0 untracked=49 uzero=0
+ LAST 0347a7528 2026-09-23 13:08:24 base=bc88d1d5f tracked=27 zero=27 untracked=49 uzero=49
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+REPO /home/maxim/polus preserve_snapshots= 8067
+ BEST 37ba2ea13 2026-09-09 12:10:43 base=815a6d0f6 tracked=8 zero=0 untracked=96 uzero=0
+ LAST b69f2b30b 2026-09-23 13:08:23 base=20507ea3f tracked=8 zero=8 untracked=96 uzero=96
+REPO /mnt/data/Projects/Python/TradingCryptoBot preserve_snapshots= 41
+ BEST 41f25adaa 2026-09-04 23:03:53 base=29c07b947 tracked=1 zero=0 untracked=179 uzero=0
+ LAST dd659b811 2026-09-13 09:37:20 base=592e25a18 tracked=1 zero=1 untracked=179 uzero=179
+REPO /mnt/data/Projects/Python/Parsing preserve_snapshots= 1
+ BEST 8f8b13bbc 2026-09-03 13:34:10 base=d2841da18 tracked=3 zero=0 untracked=51 uzero=0
+ LAST 8f8b13bbc 2026-09-03 13:34:10 base=d2841da18 tracked=3 zero=0 untracked=51 uzero=0
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+NOPRESERVE /mnt/data/Projects/Python/Parsing/zahoron-phone
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+REPO /mnt/data/Projects/Python/WebView preserve_snapshots= 8068
+ BEST 1b8a3ac28 2026-09-04 23:03:49 base=886b35b57 tracked=0 zero=0 untracked=8 uzero=0
+ LAST 8d37c0e6a 2026-09-23 13:08:23 base=fa9cbd45b tracked=0 zero=0 untracked=8 uzero=8
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+REPO /mnt/data/Projects/Python/stargate-tactics preserve_snapshots= 1
+ BEST 3190a9c96 2026-09-03 13:34:15 base=22487648a tracked=1 zero=0 untracked=15 uzero=0
+ LAST 3190a9c96 2026-09-03 13:34:15 base=22487648a tracked=1 zero=0 untracked=15 uzero=0
+NOPRESERVE /mnt/data/media
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+REPO /mnt/data/Projects/University preserve_snapshots= 1
+ BEST e2049cab3 2026-09-03 13:34:17 base=5ec32bc79 tracked=0 zero=0 untracked=79 uzero=0
+ LAST e2049cab3 2026-09-03 13:34:17 base=5ec32bc79 tracked=0 zero=0 untracked=79 uzero=0
+NOPRESERVE /mnt/data/Projects/Python/ai-proxy-manager
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+NOPRESERVE /mnt/data/Projects/Python/DnD-Music-MCP
+NOPRESERVE /mnt/data/Projects/Python/claude-server
+NOPRESERVE /mnt/data/Projects/Python/CursorUsageAnalyzer
+NOPRESERVE /mnt/data/Projects/Python/E-CommerceBench
+NOPRESERVE /mnt/data/Projects/Python/claude-plugins-official
+NOPRESERVE /mnt/data/Projects/Unity/AIMedical
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
+NOPRESERVE /home/maxim/clawd
+Traceback (most recent call last):
+  File "/tmp/pbest.py", line 22, in <module>
+    best=max(res,key=lambda r:((r["tn"]-r["tz"])+(r["un"]-r["uz"]),r["dt"]))
+ValueError: max() iterable argument is empty
