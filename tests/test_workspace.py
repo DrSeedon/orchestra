@@ -1,5 +1,6 @@
 """TDD tests for workspace.py — git worktree management."""
 
+import os
 import shutil
 import subprocess
 import sys
@@ -2293,3 +2294,23 @@ class TestParentStrategyAcrossRepos:
         from app.manager import _crosses_repo_boundary
 
         assert _crosses_repo_boundary(str(tmp_path / "nope"), str(tmp_path / "also-nope")) is False
+
+
+def test_git_cmd_text_output_survives_bytes_that_are_not_utf8(tmp_path):
+    """24.09.2026: `git merge --squash` printed a diffstat path cut mid-character, strict
+    decoding raised after the squash was staged, and the merge was left UNKNOWN."""
+    import subprocess
+
+    from app.workspace import _git_cmd
+
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / os.fsdecode(b"\xd0\x94\x80.pdf")).write_bytes(b"x")
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+
+    result = _git_cmd(
+        ["git", "-c", "core.quotepath=false", "ls-files"],
+        cwd=tmp_path, capture_output=True, text=True,
+    )
+
+    assert result.returncode == 0
+    assert "�" in result.stdout
