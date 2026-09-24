@@ -557,15 +557,58 @@ def _write_worktree_entry(
         raise RuntimeError(f"cannot restore worktree object type for {path}: {object_type}")
     content = _run_bytes(repository, "cat-file", "blob", blob).stdout
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.is_symlink() or destination.exists():
-        if destination.is_dir():
-            raise RuntimeError(f"cannot replace directory with preserved file: {path}")
-        destination.unlink()
-    if mode == "120000":
-        destination.symlink_to(content.decode("utf-8"))
-    else:
-        destination.write_bytes(content)
-        destination.chmod(0o755 if mode == "100755" else 0o644)
+    if destination.is_dir():
+        raise RuntimeError(f"cannot replace directory with preserved file: {path}")
+    temporary = destination.with_name(f".{destination.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        if mode == "120000":
+            temporary.symlink_to(content.decode("utf-8"))
+        else:
+            temporary.write_bytes(content)
+            temporary.chmod(0o755 if mode == "100755" else 0o644)
+        os.replace(temporary, destination)
+    finally:
+        if temporary.is_symlink() or temporary.is_file():
+            temporary.unlink()
+
+
+def _verify_restored_stash(
+    repository: Path, stash_oid: str, dirty_paths: set[str], untracked_paths: list[str]
+) -> None:
+    expected_untracked = set(untracked_paths)
+    for path in sorted(dirty_paths | expected_untracked):
+        source_tree = f"{stash_oid}^3" if path in expected_untracked else stash_oid
+        entry = _tree_entry(repository, source_tree, path)
+        destination = repository / _map_legacy_path(path)
+        if entry is None:
+            if destination.exists() or destination.is_symlink():
+                _raise(
+                    "ORCHESTRA_LAYOUT_GIT_ERROR",
+                    repository,
+                    f"preserved path should be absent after restore: {path}",
+                )
+            continue
+        mode, object_type, blob = entry
+        if object_type != "blob":
+            _raise(
+                "ORCHESTRA_LAYOUT_GIT_ERROR",
+                repository,
+                f"cannot verify preserved object type for {path}: {object_type}",
+            )
+        expected = _run_bytes(repository, "cat-file", "blob", blob).stdout
+        if mode == "120000" and destination.is_symlink():
+            observed = os.fsencode(os.readlink(destination))
+        elif mode != "120000" and not destination.is_symlink() and destination.is_file():
+            observed = destination.read_bytes()
+        else:
+            observed = None
+        if observed != expected:
+            _raise(
+                "ORCHESTRA_LAYOUT_GIT_ERROR",
+                repository,
+                f"preserved content changed during restore: {path} "
+                f"(saved blob {blob}, mode {mode})",
+            )
 
 
 def _stash_ref(repository: Path, stash_oid: str) -> str | None:
@@ -744,6 +787,12 @@ def _recover_preserved_dirty(
             )
 
     _restore_preserved_stash(repository, source_head, stash_oid)
+    index_tree = f"{stash_oid}^2"
+    dirty_paths = set(_diff_paths(repository, source_head, index_tree))
+    dirty_paths.update(_diff_paths(repository, index_tree, stash_oid))
+    _verify_restored_stash(
+        repository, stash_oid, dirty_paths, _untracked_stash_paths(repository, stash_oid)
+    )
     expected_records = _mapped_status_records(before_records)
     observed_records = sorted(
         _status_records(repository),
@@ -1027,10 +1076,21 @@ def migrate_project_layout_preserving_dirty(
             if recovered is not None:
                 return recovered
 
+        state, _ = _layout_state(repository)
+        if state == "current":
+            return migrate_project_layout(
+                repository,
+                repair=False,
+                _lock=False,
+                _allow_dirty=True,
+                live_session_ids=live_session_ids,
+            )
+
         before_records = _status_records(repository)
         if not before_records:
+            state, _ = _layout_state(repository)
             return migrate_project_layout(
-                repository, repair=False, _lock=False,
+                repository, repair=state == "partial", _lock=False,
                 live_session_ids=live_session_ids,
             )
         _, managed_before = _layout_state(repository)
@@ -1087,6 +1147,15 @@ def migrate_project_layout_preserving_dirty(
 
         if stash_oid:
             _restore_preserved_stash(repository, source_head, stash_oid)
+            index_tree = f"{stash_oid}^2"
+            dirty_paths = set(_diff_paths(repository, source_head, index_tree))
+            dirty_paths.update(_diff_paths(repository, index_tree, stash_oid))
+            _verify_restored_stash(
+                repository,
+                stash_oid,
+                dirty_paths,
+                _untracked_stash_paths(repository, stash_oid),
+            )
         expected_records = _mapped_status_records(before_records)
         observed_records = sorted(
             _status_records(repository),
