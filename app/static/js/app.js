@@ -2528,6 +2528,7 @@ async function selectAgent(name) {
     resetChatTransientState();
     selectedAgent = name;
     _hideRateLimitBanner();
+    _showChatDropError('');
     $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(false);
     updateInputState();
