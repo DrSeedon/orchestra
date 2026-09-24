@@ -3008,7 +3008,14 @@ class AgentSession:
         self._persist()
         await self._drain_persist()
         if LOG_COMPACT_SUMMARY:
-            self._log("text", f"📋 **Compact summary:**\n\n{summary}")
+            self._log(
+                "text",
+                f"📋 **Compact summary:**\n\n{summary}",
+                provenance=MessageProvenance(
+                    origin="platform", senders=("Orchestra",),
+                    subtype="compact_summary",
+                ),
+            )
         # Расход ack-хода — СУММА по всем его обращениям к модели. 23.09 у katya-work ход из
         # 4 обращений по ~77 тыс. дал «post 307564» и «20% → 31%», хотя контекст ужался в 2.6 раза.
         ack_calls = max(1, getattr(self, "_last_turn_api_calls", 1))
