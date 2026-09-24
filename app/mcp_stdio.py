@@ -2386,8 +2386,9 @@ async def merge_worker(
     task_outcome: str = "",
     expected_head: str = "",
     acceptance_note: str = "",
+    task_id: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff."""
+    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. For an unbound adhoc session, task_id explicitly identifies its in_progress task."""
     if waive_diff_budget and ROLE not in _ORCH_ROLES:
         return mcp_tool_result(
             result={
@@ -2406,7 +2407,7 @@ async def merge_worker(
         )
     operation_id = operation_id or str(uuid.uuid4())
     merge_schema_version: int | None = None
-    if task_outcome or expected_head or acceptance_note:
+    if task_outcome or expected_head or acceptance_note or task_id:
         try:
             capability = await _api("GET", "/api/merge-operations/capabilities")
         except ApiToolError as capability_error:
@@ -2458,6 +2459,7 @@ async def merge_worker(
         "scope": SCOPE,
         "target": target,
         "next_task_id": next_task_id,
+        "task_id": task_id,
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": WORKER_NAME if waive_diff_budget else "",
         "completion_session_id": SESSION_ID,

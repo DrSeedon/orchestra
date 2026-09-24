@@ -888,6 +888,125 @@ async def test_t2_taskless_adhoc_deadlock_promotes_head_then_merge_succeeds(
     assert (durable["task_id"], durable["needs_switch"]) == ("", 1)
 
 
+@pytest.mark.parametrize("owner_state", ["missing", "archived", "same"])
+@pytest.mark.asyncio
+async def test_t3_explicit_task_merge_reclaims_only_inactive_owner(
+    monkeypatch, tmp_path, owner_state,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+
+    _repo, _worktree, found, target, branch, head = _make_taskless_adhoc_worker(
+        monkeypatch, tmp_path, name=f"adhoc-{owner_state}", target_status="in_progress",
+    )
+    owner_id = found.id if owner_state == "same" else f"prior-{owner_state}"
+    if owner_state == "archived":
+        _save_worker(
+            session_id=owner_id, task_id="43", scope=found.scope,
+            worktree_path="/missing-archived-worktree", branch="task-43/prior-archived",
+        )
+        with tm._conn() as connection:
+            connection.execute("UPDATE sessions SET status='archived' WHERE id=?", (owner_id,))
+    with tm._conn() as connection:
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?",
+            (owner_id, target["id"]),
+        )
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id, expected_name=found.name, expected_scope=found.scope,
+        expected_branch=branch, expected_head=head,
+        req={
+            "scope": found.scope, "task_id": "43", "task_outcome": "complete",
+            "merge_schema_version": 2,
+        },
+    )
+
+    assert result["ok"] is True, result
+    with tm._conn() as connection:
+        closed = tm.get_task_by_id(connection, target["id"])
+    assert closed["status"] == "done"
+    assert closed["worker_session_id"] is None
+    assert "#43: preserve current adhoc work" in closed["git_commits"]
+
+
+@pytest.mark.parametrize("status", ["running", "waiting"])
+@pytest.mark.asyncio
+async def test_t3_explicit_task_merge_refuses_live_holder_before_git(
+    monkeypatch, tmp_path, status,
+):
+    import app.routes.sessions as sessions_route
+    from app import tm
+
+    _repo, _worktree, found, target, branch, head = _make_taskless_adhoc_worker(
+        monkeypatch, tmp_path, name=f"held-{status}", target_status="in_progress",
+    )
+    _save_worker(
+        session_id="live-holder", task_id="43", scope=found.scope,
+        worktree_path="/unused", branch="task-43/live-holder",
+    )
+    with tm._conn() as connection:
+        connection.execute("UPDATE sessions SET status=? WHERE id='live-holder'", (status,))
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id='live-holder' WHERE id=?",
+            (target["id"],),
+        )
+    merge = MagicMock()
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id, expected_name=found.name, expected_scope=found.scope,
+        expected_branch=branch, expected_head=head,
+        req={
+            "scope": found.scope, "task_id": "43", "task_outcome": "complete",
+            "merge_schema_version": 2,
+        },
+    )
+
+    assert result["commit_point"] == "not_reached"
+    assert "held by live session 'live-holder'" in result["error"]
+    merge.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_t3_explicit_task_merge_refuses_idle_holder_with_unfinished_branch(
+    monkeypatch, tmp_path,
+):
+    import app.routes.sessions as sessions_route
+    import app.workspace as workspace
+    from app import tm
+
+    _repo, _worktree, found, target, branch, head = _make_taskless_adhoc_worker(
+        monkeypatch, tmp_path, name="idle-takeover", target_status="in_progress",
+    )
+    holder_worktree = workspace.create_worktree(found.scope, "unfinished-holder", task_id="43")
+    _commit_file(holder_worktree.path, "held.txt", "unfinished #43")
+    _save_worker(
+        session_id="unfinished-holder", task_id="43", scope=found.scope,
+        worktree_path=holder_worktree.path, branch=holder_worktree.branch,
+    )
+    with tm._conn() as connection:
+        connection.execute(
+            "UPDATE tm_tasks SET worker_session_id='unfinished-holder' WHERE id=?",
+            (target["id"],),
+        )
+    merge = MagicMock()
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", merge)
+
+    result = await sessions_route.execute_merge_session(
+        session_id=found.id, expected_name=found.name, expected_scope=found.scope,
+        expected_branch=branch, expected_head=head,
+        req={
+            "scope": found.scope, "task_id": "43", "task_outcome": "complete",
+            "merge_schema_version": 2,
+        },
+    )
+
+    assert result["commit_point"] == "not_reached"
+    assert "unfinished work in live session 'unfinished-holder'" in result["error"]
+    merge.assert_not_called()
+
+
 @pytest.mark.asyncio
 async def test_t2_promotion_binding_failure_restores_branch_and_preserves_head(
     monkeypatch, tmp_path,
@@ -2116,5 +2235,3 @@ async def test_t4_list_agents_carries_fresh_bounded_project_task_view(monkeypatc
     assert second.count("[new]") <= 5
     assert len(second) <= 2_000
     assert [path for _method, path, _params in calls].count("/api/tm/tasks") == 2
-
-

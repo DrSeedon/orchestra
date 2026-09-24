@@ -1689,6 +1689,8 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
     monkeypatch.setattr(m, "WORKER_NAME", "orch")
     captured = {}
     async def fake_api(method, path, **kw):
+        if method == "GET":
+            return {"merge_schema_version": 2, "capabilities": ["task-lifecycle-v2"]}
         captured["path"] = path
         captured["json"] = kw.get("json", {})
         operation_id = captured["json"]["operation_id"]
@@ -1703,12 +1705,17 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
             "next_action": {"code": "NONE", "message": "done"},
         }, "error": None}
     with patch.object(m, "_api", side_effect=fake_api):
-        out = await m.merge_worker(name="coder", target="main", next_task_id="task-43")
+        out = await m.merge_worker(
+            name="coder", target="main", next_task_id="task-43",
+            task_id="task-42", task_outcome="complete",
+        )
     assert captured["path"] == "/api/merge-operations"
     assert captured["json"]["name"] == "coder"
     assert captured["json"]["scope"] == "/s"
     assert captured["json"]["operation_id"]
     assert captured["json"]["next_task_id"] == "task-43"
+    assert captured["json"]["task_id"] == "task-42"
+    assert captured["json"]["task_outcome"] == "complete"
     assert captured["json"]["target"] == "main"
     assert out.isError is False
     assert out.structuredContent["result"]["operation_state"] == "SUCCEEDED"
