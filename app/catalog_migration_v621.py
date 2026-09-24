@@ -158,7 +158,10 @@ def migrate_v621(home_path: Path) -> dict:
             _migrate_one_scope(scope, entries)
             written.append(scope)
         except _ScopeSkipped as error:
-            logger.warning("V-621: scope '%s' пропущен, остаётся в домашнем файле: %s", scope, error)
+            # Каталог общий для машин: scope другой машины на этом диске отсутствует штатно
+            # (ноутбук держит девять путей VPS), это не повод для предупреждения на каждом старте.
+            level = logging.WARNING if scope_root(scope).is_dir() else logging.INFO
+            logger.log(level, "V-621: scope '%s' пропущен, остаётся в домашнем файле: %s", scope, error)
             skipped[scope] = str(error)
             home_entries.extend(entries)
 
