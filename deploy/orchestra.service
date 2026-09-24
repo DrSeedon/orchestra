@@ -35,7 +35,7 @@ StateDirectoryMode=0700
 # /etc/systemd/system/orchestra.service.d/60-runtime-isolation.conf (#303) resets ExecStart= and
 # pins an isolated runtime under /opt/orchestra/runtimes. This line is the base that must stay
 # safe when that drop-in is absent.
-ExecStart=/home/kesha/orchestra/.venv/bin/python -m uvicorn app.main:app --fd 3
+ExecStart=/home/kesha/orchestra/.venv/bin/python -m uvicorn app.main:app --fd 3 --timeout-graceful-shutdown 5
 
 Restart=always
 RestartSec=5
