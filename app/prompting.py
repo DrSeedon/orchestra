@@ -71,6 +71,11 @@ def load_worker_memory(
     """
     base = Path(repository_path or scope)
     layout_file = base / ".orchestra" / "layout.json"
+    if not layout_file.is_file() and repository_path:
+        # Resume, auto-switch and the first message all assemble the prompt here, so this
+        # is the one place a worker branch left behind by its base's migration catches up.
+        from app.orchestra_layout import migrate_worker_worktree
+        migrate_worker_worktree(base)
     if not layout_file.is_file():
         # LEGACY_PATH_FIXTURE: old dirs are only evidence for a loud migration error.
         managed_state_signals = (
