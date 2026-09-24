@@ -1,150 +1,69 @@
-# Каталог проектов Orchestra — единственный источник истины о том, что человек
-# называет «проектом». Правится РУКАМИ, живёт в git, виден в диффе.
-#
-# Как это читать:
-#   tag             — короткое имя проекта. Оно же в UI, оно же в task_list(project=...).
-#                     Словарь тегов ЗАКРЫТ: тега вне этого файла не существует.
-#   scope           — каталог на диске. Есть scope → проект принимает новые задачи из него.
-#                     Уникален. Пишется ТОЧНО так, как он на диске (регистр важен).
-#   write_namespace — пространство номеров, куда уходит номер НОВОЙ задачи.
-#                     Обязателен при наличии scope. Менять нельзя: номер неизменяем.
-#   namespaces      — все пространства номеров этого проекта и метка источника для
-#                     каждого. Метка печатается рядом с номером, потому что номер
-#                     уникален только внутри пространства: `#161 · ноутбук` и `#161`
-#                     — разные задачи. Пустая метка = текущее пространство, без пометки.
-#   archived        — проект закрыт: новых задач не принимает, в списках не предлагается.
-#
-# Почему namespace нельзя слить с тегом: на 15.09.2026 внутри этих тегов 424
-# конфликтующие ссылки `#N` на 857 задач из 1755 — замер в
-# .orchestra/tasks/V-576/namespace-map.md.
-
 version: 1
-
+include_scopes:
+- /home/kesha/katya-work
+- /home/kesha/projects/University
+- /home/kesha/projects/VPN-Service
+- /home/kesha/projects/comfy-image-pipeline
+- /home/kesha/projects/dnd-game-master
+- /home/kesha/projects/kesha-tg-bot
+- /home/kesha/projects/seedon
 projects:
-  - tag: orchestra
-    name: Orchestra
-    scope: /home/kesha/orchestra
-    write_namespace: home-kesha-orchestra-8b68cd9600cc
-    namespaces:
-      home-kesha-orchestra-8b68cd9600cc: ""
-      orchestra: ноутбук
-      vps-orchestra: старый VPS
-      orchestra-15ebb64920a9: ноутбук
-      mnt-data-projects-python-orchestra-13dc8d0cd9fb: ноутбук
-
-  - tag: seedon
-    name: Seedon
-    scope: /home/kesha/projects/seedon
-    write_namespace: vps-seedon
-    namespaces:
-      vps-seedon: ""
-      seedon: ноутбук
-      seedon-ab14b1ec414e: ноутбук
-
-  - tag: comfy-image-pipeline
-    name: Comfy Image Pipeline
-    scope: /home/kesha/projects/comfy-image-pipeline
-    write_namespace: scope-home-kesha-projects-comfy-image-pipeline-eda5417930f8
-    namespaces:
-      scope-home-kesha-projects-comfy-image-pipeline-eda5417930f8: ""
-      scope-mnt-data-projects-comfy-image-pipeline-11e5d3b4b1f9: ноутбук
-
-  - tag: cog-second-brain
-    name: Cog Second Brain
-    scope: /opt/cog-second-brain
-    write_namespace: scope-opt-cog-second-brain-ae141e685f2e
-    namespaces:
-      scope-opt-cog-second-brain-ae141e685f2e: ""
-      cog-second-brain-77dd306ac2a0: ноутбук
-      mnt-data-cursor-cog-second-brain-ebf4c5a1c0e2: ноутбук
-
-  - tag: kesha-tg-bot
-    name: Telegram-бот Кеши
-    scope: /home/kesha/projects/kesha-tg-bot
-    write_namespace: vps-kesha-tg-bot
-    namespaces:
-      vps-kesha-tg-bot: ""
-      kesha-tg-bot: ноутбук
-
-  - tag: katya-work
-    name: Работа Кати
-    scope: /home/kesha/katya-work
-    write_namespace: scope-home-kesha-katya-work-4d99f07b63b0
-    namespaces:
-      scope-home-kesha-katya-work-4d99f07b63b0: ""
-
-  - tag: dnd-game-master
-    name: D&D Game Master
-    scope: /home/kesha/projects/dnd-game-master
-    write_namespace: dnd-game-master
-    namespaces:
-      dnd-game-master: ""
-
-  - tag: vpn-service
-    name: VPN Service
-    # Регистр повторяет каталог на диске; файловая система регистрозависима.
-    scope: /home/kesha/projects/VPN-Service
-    write_namespace: scope-home-kesha-projects-vpn-service-8c275eacd1e2
-    namespaces:
-      scope-home-kesha-projects-vpn-service-8c275eacd1e2: ""
-      vpn-service-7c16d6f598b1: ноутбук
-
-  - tag: university
-    name: Университет
-    # Живая сессия в этом каталоге была, а проекта под неё не существовало:
-    # первый task_create оттуда молча заводил новое пространство номеров.
-    scope: /home/kesha/projects/University
-    write_namespace: university
-    namespaces:
-      university: ""
-      university-9d38443e2220: ноутбук
-
-  - tag: polus
-    name: Полюс
-    namespaces:
-      polus: ноутбук
-
-  - tag: sensar
-    name: Sensar
-    namespaces:
-      sensar-5e197e867bb2: ноутбук
-
-  - tag: parsing-hub
-    name: Parsing Hub
-    namespaces:
-      parsing-hub: ноутбук
-
-  - tag: stargate-tactics
-    name: Stargate Tactics
-    namespaces:
-      stargate-tactics: ноутбук
-
-  - tag: family-tree
-    name: Семейное древо
-    archived: true
-    namespaces:
-      family-tree: ноутбук
-
-  - tag: inscryption-ai
-    name: Inscryption AI
-    archived: true
-    namespaces:
-      inscryption-ai: ноутбук
-
-  - tag: tradingcryptobot
-    name: Trading Crypto Bot
-    archived: true
-    namespaces:
-      tradingcryptobot: ноутбук
-
-  - tag: webview
-    name: WebView
-    archived: true
-    namespaces:
-      webview-c212de852078: ноутбук
-
-  - tag: zahoron-mobile
-    name: Захорон (мобильный)
-    archived: true
-    namespaces:
-      zahoron-mobile: ноутбук
+- tag: orchestra
+  name: Orchestra
+  scope: /home/kesha/orchestra
+  write_namespace: home-kesha-orchestra-8b68cd9600cc
+  namespaces:
+    home-kesha-orchestra-8b68cd9600cc: ''
+    orchestra: ноутбук
+    vps-orchestra: старый VPS
+    orchestra-15ebb64920a9: ноутбук
+    mnt-data-projects-python-orchestra-13dc8d0cd9fb: ноутбук
+- tag: polus
+  name: Полюс
+  namespaces:
+    polus: ноутбук
+- tag: sensar
+  name: Sensar
+  namespaces:
+    sensar-5e197e867bb2: ноутбук
+- tag: parsing-hub
+  name: Parsing Hub
+  namespaces:
+    parsing-hub: ноутбук
+- tag: stargate-tactics
+  name: Stargate Tactics
+  namespaces:
+    stargate-tactics: ноутбук
+- tag: family-tree
+  name: Семейное древо
+  archived: true
+  namespaces:
+    family-tree: ноутбук
+- tag: inscryption-ai
+  name: Inscryption AI
+  archived: true
+  namespaces:
+    inscryption-ai: ноутбук
+- tag: tradingcryptobot
+  name: Trading Crypto Bot
+  archived: true
+  namespaces:
+    tradingcryptobot: ноутбук
+- tag: webview
+  name: WebView
+  archived: true
+  namespaces:
+    webview-c212de852078: ноутбук
+- tag: zahoron-mobile
+  name: Захорон (мобильный)
+  archived: true
+  namespaces:
+    zahoron-mobile: ноутбук
+- tag: cog-second-brain
+  name: Cog Second Brain
+  scope: /opt/cog-second-brain
+  write_namespace: scope-opt-cog-second-brain-ae141e685f2e
+  namespaces:
+    scope-opt-cog-second-brain-ae141e685f2e: ''
+    cog-second-brain-77dd306ac2a0: ноутбук
+    mnt-data-cursor-cog-second-brain-ebf4c5a1c0e2: ноутбук
