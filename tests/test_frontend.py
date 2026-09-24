@@ -81,9 +81,10 @@ def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result
     assert "bounded fallback packet" in helper
     assert "native provider thread resumed after total-context preflight" in helper
     assert "dialog switch blocked; source retained" in helper
-    assert "fresh target session" in helper
+    assert "transfer.mode === 'native_in_place'" in helper
+    assert "transfer.mode === 'chat_history_v1'" in helper
     assert "raw snapshot remains operator-only and untrusted" in helper
-    assert "fresh: true" not in picker
+    assert "body: JSON.stringify({ model: m.id, scope: currentScope })" in picker
     assert "_showHistoryTransfer(resp.history_transfer);" in picker
     assert "body.error_code" in picker
 

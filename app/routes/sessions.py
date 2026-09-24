@@ -1607,10 +1607,7 @@ async def change_model(name: str, req: dict):
     found = await manager.ensure_loaded(name, scope)
     if not found:
         return _worker_not_found(name, scope)
-    fresh = req.get("fresh", False)
-    if not isinstance(fresh, bool):
-        return JSONResponse({"error": "fresh must be boolean"}, status_code=400)
-    result = await found.change_model(new_model, fresh=fresh)
+    result = await found.change_model(new_model)
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
     return result

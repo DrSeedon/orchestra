@@ -2639,10 +2639,16 @@ function _historyTransferMessage(transfer) {
             text: 'native provider thread resumed after total-context preflight',
         };
     }
-    if (transfer.mode === 'fresh') {
+    if (transfer.mode === 'native_in_place') {
         return {
             type: 'status',
-            text: 'fresh target session started; previous dialog discarded',
+            text: 'native session preserved',
+        };
+    }
+    if (transfer.mode === 'chat_history_v1') {
+        return {
+            type: 'status',
+            text: `chat_history_v1 transferred ${transfer.chars || 0} chars`,
         };
     }
     if (transfer.mode === 'summary') {
