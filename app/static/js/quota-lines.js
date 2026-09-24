@@ -462,7 +462,7 @@ function renderQuotaLines() {
     // Button always present except on connection loss: pressing it blindly,
     // not knowing gate state, means lifting rule at random.
     const button = gate.state === 'nodata' ? '' :
-        `<button type="button" id="quota-gate-override" class="ql-gate-btn">${overrideOn ? T('restore gate') : T('lift for 30 min')}</button>`;
+        `<button type="button" id="quota-gate-override" class="ql-gate-btn">${overrideOn ? T('restore gate') : T('lift for 2 h')}</button>`;
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} ${T('allowance rule')}</button>
@@ -483,7 +483,7 @@ function renderQuotaLines() {
                 await api('/api/usage/quota-override', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({minutes: overrideOn ? 0 : 30}),
+                    body: JSON.stringify({minutes: overrideOn ? 0 : 120}),
                 });
             } finally {
                 // State redraws from server response, not from our intent.
