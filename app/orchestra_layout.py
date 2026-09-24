@@ -97,12 +97,14 @@ def _base_checkout(repository: Path) -> Path:
 
 
 class LayoutMigrationError(RuntimeError):
-    def __init__(self, code: str, repository: Path, detail: str) -> None:
+    def __init__(
+        self, code: str, repository: Path, detail: str, repair_command: str = "",
+    ) -> None:
         self.code = code
         self.repository = repository.resolve()
         if code == "ORCHESTRA_LAYOUT_MISSING":
             self.repository = _base_checkout(self.repository)
-        self.repair_command = _repair_command(self.repository)
+        self.repair_command = repair_command or _repair_command(self.repository)
         super().__init__(
             f"{code}: {detail}; repository={self.repository}; repair: {self.repair_command}"
         )
@@ -1061,6 +1063,45 @@ def migrate_project_layout(
             raise
         except Exception as exc:
             _raise("ORCHESTRA_LAYOUT_GIT_ERROR", repository, str(exc))
+
+
+def migrate_worker_worktree(worktree: Path) -> dict[str, Any] | None:
+    """Bring a worker's old-layout worktree to the layout its base checkout already has.
+
+    A branch created before its project's migration keeps `docs/*` after the base
+    checkout moved on (V-634: 22 such worktrees on one machine). Only a clean linked
+    worktree over a current base is migrated, with the same commit as the base got.
+    A dirty tree is refused, never stashed: the preserve path has lost work before
+    (V-625, V-629). An old base is left to the V-611 error, which names the base.
+    Returns None when there is nothing for this function to do.
+    """
+    worktree = Path(worktree).expanduser().resolve()
+    top = _run(worktree, "rev-parse", "--show-toplevel", check=False)
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != worktree:
+        return None
+    base = _base_checkout(worktree)
+    if base == worktree or _layout_state(worktree)[0] != "old":
+        return None
+    if _layout_state(base)[0] != "current":
+        return None
+    raw_status, dirty_paths = _status(worktree)
+    if raw_status:
+        quoted = shlex.quote(str(worktree))
+        script = Path(__file__).resolve().parents[1] / "scripts" / "migrate_orchestra_layout.py"
+        raise LayoutMigrationError(
+            "ORCHESTRA_LAYOUT_DIRTY",
+            worktree,
+            f"worker worktree {worktree} is in the old layout and has uncommitted "
+            f"changes {dirty_paths[:5]}; it is migrated only when clean",
+            repair_command=(
+                f"git -C {quoted} add -A && git -C {quoted} commit -m "
+                f"'WIP before layout migration' && "
+                f"{shlex.quote(sys.executable)} {shlex.quote(str(script))} {quoted}"
+            ),
+        )
+    result = migrate_project_layout(worktree)
+    logger.info("migrated worker worktree %s to .orchestra: %s", worktree, result.get("commit"))
+    return result
 
 
 def migrate_project_layout_preserving_dirty(
