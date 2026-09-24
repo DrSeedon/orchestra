@@ -145,10 +145,6 @@ def migrate_v621(home_path: Path) -> dict:
         return {"state": "already"}
     previous_includes = list(raw.get("include_scopes") or [])
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    backup = home_path.with_name(f"{home_path.stem}-pre-v621-{stamp}{home_path.suffix}")
-    backup.write_text(home_path.read_text(encoding="utf-8"), encoding="utf-8")
-
     written: list[str] = []
     already: list[str] = []
     skipped: dict[str, str] = {}
@@ -165,6 +161,16 @@ def migrate_v621(home_path: Path) -> dict:
             logger.warning("V-621: scope '%s' пропущен, остаётся в домашнем файле: %s", scope, error)
             skipped[scope] = str(error)
             home_entries.extend(entries)
+
+    if already_migrated and not written and not already:
+        # Ни один scope не сдвинулся: домашний файл вышел бы байт-в-байт прежним, а
+        # бэкап и коммит — новыми на каждом старте (V-634: ноутбук держит в каталоге
+        # девять путей VPS, которых на его диске нет, — пять одинаковых коммитов за сутки).
+        return {"state": "pending", "skipped": skipped}
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    backup = home_path.with_name(f"{home_path.stem}-pre-v621-{stamp}{home_path.suffix}")
+    backup.write_text(home_path.read_text(encoding="utf-8"), encoding="utf-8")
 
     new_home = {
         "version": 1,
