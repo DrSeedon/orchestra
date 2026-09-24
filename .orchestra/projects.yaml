@@ -1,6 +1,24 @@
 version: 1
-include_scopes: []
+include_scopes:
+- /home/kesha/katya-work
+- /home/kesha/projects/University
+- /home/kesha/projects/VPN-Service
+- /home/kesha/projects/comfy-image-pipeline
+- /home/kesha/projects/dnd-game-master
+- /home/kesha/projects/kesha-tg-bot
+- /home/kesha/projects/seedon
+- /opt/cog-second-brain
 projects:
+- tag: orchestra
+  name: Orchestra
+  scope: /home/kesha/orchestra
+  write_namespace: home-kesha-orchestra-8b68cd9600cc
+  namespaces:
+    home-kesha-orchestra-8b68cd9600cc: ''
+    orchestra: ноутбук
+    vps-orchestra: старый VPS
+    orchestra-15ebb64920a9: ноутбук
+    mnt-data-projects-python-orchestra-13dc8d0cd9fb: ноутбук
 - tag: polus
   name: Полюс
   namespaces:
@@ -42,69 +60,3 @@ projects:
   archived: true
   namespaces:
     zahoron-mobile: ноутбук
-- tag: orchestra
-  name: Orchestra
-  scope: /home/kesha/orchestra
-  write_namespace: home-kesha-orchestra-8b68cd9600cc
-  namespaces:
-    home-kesha-orchestra-8b68cd9600cc: ''
-    orchestra: ноутбук
-    vps-orchestra: старый VPS
-    orchestra-15ebb64920a9: ноутбук
-    mnt-data-projects-python-orchestra-13dc8d0cd9fb: ноутбук
-- tag: seedon
-  name: Seedon
-  scope: /home/kesha/projects/seedon
-  write_namespace: vps-seedon
-  namespaces:
-    vps-seedon: ''
-    seedon: ноутбук
-    seedon-ab14b1ec414e: ноутбук
-- tag: comfy-image-pipeline
-  name: Comfy Image Pipeline
-  scope: /home/kesha/projects/comfy-image-pipeline
-  write_namespace: scope-home-kesha-projects-comfy-image-pipeline-eda5417930f8
-  namespaces:
-    scope-home-kesha-projects-comfy-image-pipeline-eda5417930f8: ''
-    scope-mnt-data-projects-comfy-image-pipeline-11e5d3b4b1f9: ноутбук
-- tag: cog-second-brain
-  name: Cog Second Brain
-  scope: /opt/cog-second-brain
-  write_namespace: scope-opt-cog-second-brain-ae141e685f2e
-  namespaces:
-    scope-opt-cog-second-brain-ae141e685f2e: ''
-    cog-second-brain-77dd306ac2a0: ноутбук
-    mnt-data-cursor-cog-second-brain-ebf4c5a1c0e2: ноутбук
-- tag: kesha-tg-bot
-  name: Telegram-бот Кеши
-  scope: /home/kesha/projects/kesha-tg-bot
-  write_namespace: vps-kesha-tg-bot
-  namespaces:
-    vps-kesha-tg-bot: ''
-    kesha-tg-bot: ноутбук
-- tag: katya-work
-  name: Работа Кати
-  scope: /home/kesha/katya-work
-  write_namespace: scope-home-kesha-katya-work-4d99f07b63b0
-  namespaces:
-    scope-home-kesha-katya-work-4d99f07b63b0: ''
-- tag: dnd-game-master
-  name: D&D Game Master
-  scope: /home/kesha/projects/dnd-game-master
-  write_namespace: dnd-game-master
-  namespaces:
-    dnd-game-master: ''
-- tag: vpn-service
-  name: VPN Service
-  scope: /home/kesha/projects/VPN-Service
-  write_namespace: scope-home-kesha-projects-vpn-service-8c275eacd1e2
-  namespaces:
-    scope-home-kesha-projects-vpn-service-8c275eacd1e2: ''
-    vpn-service-7c16d6f598b1: ноутбук
-- tag: university
-  name: Университет
-  scope: /home/kesha/projects/University
-  write_namespace: university
-  namespaces:
-    university: ''
-    university-9d38443e2220: ноутбук
