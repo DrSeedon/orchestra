@@ -1,0 +1,14 @@
+== code=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-cog-layout repo=/home/kesha/v632-cog/rehearsal
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-cog-layout/app/orchestra_layout.py
+{'status': 'already_current', 'code': None, 'error': None, 'commit': None, 'dirty_status_after': [' M 02-personal/katya/<file>.md', ' M AGENTS.md', ' M CLAUDE.md', '?? 02-personal/drive-audit/']}
+VERIFY_OK
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-cog-layout/app/orchestra_layout.py
+{'status': 'already_current', 'code': None, 'error': None, 'commit': None, 'dirty_status_after': [' M 02-personal/katya/<file>.md', ' M AGENTS.md', ' M CLAUDE.md', '?? 02-personal/drive-audit/']}
+VERIFY_OK
+== code=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-layout-loss repo=/home/kesha/v632-cog/rehearsal-v629
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-layout-loss/app/orchestra_layout.py
+{'status': 'already_current', 'code': None, 'error': None, 'commit': None, 'dirty_status_after': None}
+VERIFY_OK
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-layout-loss/app/orchestra_layout.py
+{'status': 'already_current', 'code': None, 'error': None, 'commit': None, 'dirty_status_after': None}
+VERIFY_OK
