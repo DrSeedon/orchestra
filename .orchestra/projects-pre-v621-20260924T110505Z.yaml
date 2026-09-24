@@ -1,0 +1,69 @@
+version: 1
+include_scopes:
+- /home/kesha/katya-work
+- /home/kesha/projects/University
+- /home/kesha/projects/VPN-Service
+- /home/kesha/projects/comfy-image-pipeline
+- /home/kesha/projects/dnd-game-master
+- /home/kesha/projects/kesha-tg-bot
+- /home/kesha/projects/seedon
+projects:
+- tag: orchestra
+  name: Orchestra
+  scope: /home/kesha/orchestra
+  write_namespace: home-kesha-orchestra-8b68cd9600cc
+  namespaces:
+    home-kesha-orchestra-8b68cd9600cc: ''
+    orchestra: ноутбук
+    vps-orchestra: старый VPS
+    orchestra-15ebb64920a9: ноутбук
+    mnt-data-projects-python-orchestra-13dc8d0cd9fb: ноутбук
+- tag: polus
+  name: Полюс
+  namespaces:
+    polus: ноутбук
+- tag: sensar
+  name: Sensar
+  namespaces:
+    sensar-5e197e867bb2: ноутбук
+- tag: parsing-hub
+  name: Parsing Hub
+  namespaces:
+    parsing-hub: ноутбук
+- tag: stargate-tactics
+  name: Stargate Tactics
+  namespaces:
+    stargate-tactics: ноутбук
+- tag: family-tree
+  name: Семейное древо
+  archived: true
+  namespaces:
+    family-tree: ноутбук
+- tag: inscryption-ai
+  name: Inscryption AI
+  archived: true
+  namespaces:
+    inscryption-ai: ноутбук
+- tag: tradingcryptobot
+  name: Trading Crypto Bot
+  archived: true
+  namespaces:
+    tradingcryptobot: ноутбук
+- tag: webview
+  name: WebView
+  archived: true
+  namespaces:
+    webview-c212de852078: ноутбук
+- tag: zahoron-mobile
+  name: Захорон (мобильный)
+  archived: true
+  namespaces:
+    zahoron-mobile: ноутбук
+- tag: cog-second-brain
+  name: Cog Second Brain
+  scope: /opt/cog-second-brain
+  write_namespace: scope-opt-cog-second-brain-ae141e685f2e
+  namespaces:
+    scope-opt-cog-second-brain-ae141e685f2e: ''
+    cog-second-brain-77dd306ac2a0: ноутбук
+    mnt-data-cursor-cog-second-brain-ebf4c5a1c0e2: ноутбук
