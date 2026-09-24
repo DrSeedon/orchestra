@@ -9,6 +9,7 @@
 
 import os
 import sqlite3
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,6 +39,16 @@ for _quota_var in (
 _PRODUCTION_PATH_VARS = ("ORCHESTRA_DB_PATH", "ORCHESTRA_TASK_REPOSITORY")
 for _path_var in _PRODUCTION_PATH_VARS:
     os.environ.pop(_path_var, None)
+
+# Каталог проектов уводится в песочницу тоже до любой фикстуры: сервер, поднятый
+# module-фикстурой ОТДЕЛЬНЫМ процессом, наследует окружение раньше пофикстурной изоляции.
+# 24.09.2026 такой uvicorn из worktree выполнил `migrate_v621()` над настоящими путями:
+# закоммитил каталог в ветку воркера и файл каталога в /opt/cog-second-brain.
+_CATALOG_SANDBOX = Path(tempfile.mkdtemp(prefix="orchestra-test-catalog-"))
+(_CATALOG_SANDBOX / "scopes").mkdir()
+(_CATALOG_SANDBOX / "projects.yaml").write_text("version: 1\nprojects: []\n", encoding="utf-8")
+os.environ["ORCHESTRA_PROJECT_CATALOG"] = str(_CATALOG_SANDBOX / "projects.yaml")
+os.environ["ORCHESTRA_PROJECT_CATALOG_ROOT"] = str(_CATALOG_SANDBOX / "scopes")
 
 
 def _sqlite_file_path(database, *, uri=False):
