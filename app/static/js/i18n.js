@@ -379,7 +379,7 @@
     'job': 'задание',
     'just now': 'сейчас',
     'killed': 'убит',
-    'lift for 30 min': 'снять на 30 мин',
+    'lift for 2 h': 'снять на 2 ч',
     'local': 'локальный',
     'minute': 'минута',
     'minute: <span style="color:{minColor}">{minCount}/{minLimit}</span>': 'минута: <span style="color:{minColor}">{minCount}/{minLimit}</span>',
