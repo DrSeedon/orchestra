@@ -35,7 +35,7 @@ async def test_change_model_loads_unloaded_idle_worker(monkeypatch):
     assert body["ok"] is True
     assert body["model"] == "gpt-5.6-sol"
     routes.manager.ensure_loaded.assert_awaited_once_with("feat-charts", "/s")
-    live.change_model.assert_awaited_once_with("gpt-5.6-sol", fresh=False)
+    live.change_model.assert_awaited_once_with("gpt-5.6-sol")
 
 
 @pytest.mark.asyncio
@@ -54,6 +54,30 @@ async def test_change_model_missing_session_is_404(monkeypatch):
     assert status == 404
     assert body["code"] == "worker_not_found"
     assert body["worker"] == "ghost"
+
+
+@pytest.mark.asyncio
+async def test_change_model_refusal_returns_route_error_without_claiming_success(monkeypatch):
+    from app.routes import sessions as routes
+
+    live = SimpleNamespace(
+        change_model=AsyncMock(return_value={
+            "ok": False,
+            "error_code": "handoff_blocked",
+            "error": "source dialog could not be transferred",
+        }),
+    )
+    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=live))
+
+    response = await routes.change_model(
+        "worker", {"scope": "/s", "model": "claude-opus-5[1m]"},
+    )
+
+    status, body = _status_body(response)
+    assert status == 409
+    assert body["error_code"] == "handoff_blocked"
+    assert body["error"] == "source dialog could not be transferred"
+    live.change_model.assert_awaited_once_with("claude-opus-5[1m]")
 
 
 @pytest.mark.asyncio
@@ -97,24 +121,3 @@ async def test_worker_name_refusal_distinguishes_foreign_scope_for_all_loaded_ro
     assert body["code"] == "worker_in_other_scope"
     assert body["worker"] == "globe-astra"
     assert body["scopes"] == ["/foreign"]
-
-
-@pytest.mark.asyncio
-async def test_change_model_keeps_explicit_fresh_escape_hatch(monkeypatch):
-    from app.routes import sessions as routes
-
-    live = SimpleNamespace(
-        loaded=True,
-        change_model=AsyncMock(return_value={"ok": True, "changed": True}),
-    )
-    monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=live))
-
-    response = await routes.change_model(
-        "feat-charts",
-        {"scope": "/s", "model": "gpt-5.6-sol", "fresh": True},
-    )
-
-    status, body = _status_body(response)
-    assert status == 200
-    assert body["ok"] is True
-    live.change_model.assert_awaited_once_with("gpt-5.6-sol", fresh=True)

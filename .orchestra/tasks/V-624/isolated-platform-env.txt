@@ -1,0 +1,25 @@
+tests/test_audit0901_sysquota.py	1	1 failed in 5.63s
+tests/test_backend_codex.py	1	1 failed in 3.55s
+tests/test_backend_routing.py	1	1 failed in 3.56s
+tests/test_codex_writer_conflict_536.py	1	1 passed in 3.68s
+tests/test_connection_recovery.py	7	7 failed in 8.56s
+tests/test_frontend.py	31	31 failed in 164.09s (0:02:44)
+tests/test_grok_usage_frontend.py	11	11 failed in 49.22s
+tests/test_i18n_dashboard.py	1	1 passed in 10.38s
+tests/test_initial_deliveries.py	1	1 failed in 3.99s
+tests/test_logs_sync.py	1	1 failed in 4.32s
+tests/test_manager.py	1	1 passed in 3.53s
+tests/test_mcp_codex_review.py	6	5 failed, 1 passed in 5.09s
+tests/test_message_delivery_receipts_380.py	3	3 passed in 4.28s
+tests/test_message_provenance_review_433.py	1	1 passed in 3.82s
+tests/test_model_catalog_frontend.py	1	1 failed in 5.46s
+tests/test_quota_headroom_447.py	1	1 failed in 5.20s
+tests/test_send_file_open_button.py	1	1 failed in 3.38s
+tests/test_system_chat_entry.py	1	1 failed in 18.27s
+tests/test_t344_quota_lines_browser.py	12	12 failed in 11.49s
+tests/test_tailwind_css.py	1	1 failed in 6.51s
+tests/test_usage_analytics_frontend.py	14	14 failed in 10.42s
+tests/test_usage_history_frontend.py	11	11 failed in 9.09s
+tests/test_work_acceptance.py	1	1 passed in 3.19s
+tests/test_work_review_jobs.py	5	5 passed in 3.63s
+DONE

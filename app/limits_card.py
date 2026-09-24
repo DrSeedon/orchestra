@@ -92,7 +92,12 @@ def _release_renderer_from_previous_loop(old_loop) -> None:
 async def shutdown_renderer() -> None:
     """Close the persistent browser on the application's running event loop."""
     global _renderer_lock, _renderer_loop
-    if _renderer_lock is not None:
+    if _renderer_loop is not None and _renderer_loop is not asyncio.get_running_loop():
+        # Браузер поднят на другом цикле: ответ Playwright придёт туда, а не сюда, и
+        # `browser.close()` здесь ждал бы вечно. V-624: так висел lifespan-teardown
+        # второго `TestClient`, когда карточку рендерил цикл первого.
+        _release_renderer_from_previous_loop(_renderer_loop)
+    elif _renderer_lock is not None:
         async with _renderer_lock:
             await _close_renderer()
     else:

@@ -9,6 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+# V-624: путь рестарта здесь идёт до конца, и настоящий страж взвёлся бы на pid самого pytest.
+pytestmark = pytest.mark.usefixtures("no_real_exit_guard")
+
 
 
 

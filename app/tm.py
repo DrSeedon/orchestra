@@ -868,6 +868,7 @@ def prepare_merge_finalization(
     task: TaskIdentity,
     next_task: TaskIdentity | None,
     operation_id: str,
+    explicit_task_binding: bool = False,
 ) -> dict:
     """Reserve the task lifecycle BEFORE Git and freeze what the finalizer will apply.
 
@@ -881,8 +882,72 @@ def prepare_merge_finalization(
         with _conn() as conn:
             conn.execute("BEGIN IMMEDIATE")
             try:
+                task_row = get_task_by_id(conn, task["id"])
+                if not task_row:
+                    raise ValueError("merge task disappeared before finalization")
+                task_run_session_id = session_id
+                stale_owner = str(task_row.get("worker_session_id") or "")
+                reclaimable_owner = ""
+                if explicit_task_binding and stale_owner and stale_owner != session_id:
+                    owner = conn.execute(
+                        "SELECT id,scope,status,task_id,branch,base_branch,worktree_path "
+                        "FROM sessions WHERE id=?",
+                        (stale_owner,),
+                    ).fetchone()
+                    if owner and owner["status"] in {"running", "waiting"}:
+                        raise ValueError(
+                            f"task #{task['par_number']} is held by live session "
+                            f"'{stale_owner}' ({owner['status']})"
+                        )
+                    if owner and str(owner["scope"] or "").rstrip("/") != scope.rstrip("/"):
+                        raise ValueError(
+                            f"task #{task['par_number']} owner session scope changed"
+                        )
+                    if owner and owner["status"] == "idle":
+                        target_branch = f"task-{task['par_number']}/{owner['id']}"
+                        is_task_branch = (
+                            str(owner["task_id"] or "") == public_task_ref(task)
+                            or str(owner["branch"] or "") == target_branch
+                        )
+                        if is_task_branch:
+                            owner_worktree = str(owner["worktree_path"] or "")
+                            if not owner_worktree:
+                                raise ValueError(
+                                    f"cannot verify task branch for live session "
+                                    f"'{stale_owner}': worktree path is missing"
+                                )
+                            from app.workspace import branch_wip_status
+
+                            wip = branch_wip_status(
+                                owner_worktree,
+                                base_ref=str(owner["base_branch"] or ""),
+                            )
+                            if wip.get("error"):
+                                raise ValueError(
+                                    f"cannot verify task branch for live session "
+                                    f"'{stale_owner}': {wip['error']}"
+                                )
+                            if wip.get("uncommitted") or wip.get("unmerged_commits"):
+                                raise ValueError(
+                                    f"task #{task['par_number']} has unfinished work in "
+                                    f"live session '{stale_owner}'"
+                                )
+                    elif owner and owner["status"] != "archived":
+                        raise ValueError(
+                            f"task #{task['par_number']} is held by session "
+                            f"'{stale_owner}' with unknown lifecycle "
+                            f"'{owner['status']}'"
+                        )
+                    reclaimable_owner = stale_owner
+                    task_run_session_id = stale_owner
+                if explicit_task_binding and task_row["status"] != "in_progress":
+                    raise ValueError(
+                        f"explicit merge task must be in_progress "
+                        f"(found {task_row['status']})"
+                    )
                 if outcome == "complete":
                     others = _live_bindings(conn, scope, public_task_ref(task), session_id)
+                    others = [owner for owner in others if owner != reclaimable_owner]
                     if others:
                         raise ValueError(
                             f"task #{task['par_number']} still has live workers "
@@ -914,6 +979,7 @@ def prepare_merge_finalization(
                 "task_id": task["id"],
                 "par_number": task["par_number"],
             },
+            "task_run_session_id": task_run_session_id,
             "next_task": (
                 {
                     "project_id": next_task["project_id"],
@@ -1034,7 +1100,7 @@ def finalize_merge_outcome(payload: dict) -> dict:
                 _finish_task_run_for_task(
                     conn,
                     task,
-                    payload["session_id"],
+                    payload.get("task_run_session_id") or payload["session_id"],
                     status="completed",
                     terminal_operation_id=payload.get("operation_id", ""),
                 )

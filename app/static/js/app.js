@@ -901,6 +901,7 @@ function restoreDraft() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
+    window.OrchestraOwnerActivity?.init();
     $('#send-btn').addEventListener('click', sendChat);
     $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
     window._queuedMessagesTimer = setInterval(() => refreshQueuedMessages(), 5000);
@@ -2490,6 +2491,7 @@ async function onOrchestratorChange() {
     const picker = $('#orch-picker');
     const opt = picker.selectedOptions[0];
     currentScope = picker.value || null;
+    window.OrchestraOwnerActivity?.setScope(currentScope);
     // V-621: чипы тегов другого оркестратора не должны пережить переключение scope.
     _taskTagFilter.clear();
     const restoreUnreadAnchor = _unreadTabs.delete(currentScope);
@@ -2526,6 +2528,7 @@ async function selectAgent(name) {
     resetChatTransientState();
     selectedAgent = name;
     _hideRateLimitBanner();
+    _showChatDropError('');
     $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(false);
     updateInputState();
@@ -2636,10 +2639,16 @@ function _historyTransferMessage(transfer) {
             text: 'native provider thread resumed after total-context preflight',
         };
     }
-    if (transfer.mode === 'fresh') {
+    if (transfer.mode === 'native_in_place') {
         return {
             type: 'status',
-            text: 'fresh target session started; previous dialog discarded',
+            text: 'native session preserved',
+        };
+    }
+    if (transfer.mode === 'chat_history_v1') {
+        return {
+            type: 'status',
+            text: `chat_history_v1 transferred ${transfer.chars || 0} chars`,
         };
     }
     if (transfer.mode === 'summary') {

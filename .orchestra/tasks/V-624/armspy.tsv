@@ -1,0 +1,5 @@
+tests/test_hot_apply.py::test_t3_restart_signals_without_waiting_for_live_turns	target=695636	self=695636
+tests/test_hot_apply.py::test_t3_restart_cuts_blocking_turns_without_grace	target=695636	self=695636
+tests/test_hot_apply.py::test_t3_restart_never_attempts_live_turn_handover	target=695636	self=695636
+tests/test_hot_apply.py::test_t3_drain_outcome_is_persisted_before_the_signal	target=695636	self=695636
+tests/test_hot_apply.py::test_t3_broken_recorder_does_not_cancel_the_signal	target=695636	self=695636

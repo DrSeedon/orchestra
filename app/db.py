@@ -81,6 +81,132 @@ def init_db(path: Path | None = None) -> None:
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 
+def _owner_activity_voice_duration(connection: sqlite3.Connection, session_name: str,
+                                   scope: str, ts: datetime) -> float:
+    """Best-effort duration metadata; transcript/audio bytes never enter telemetry."""
+    row = connection.execute(
+        """SELECT duration_sec FROM voice_costs
+           WHERE session_name=? AND scope=?
+             AND ABS((julianday(ts) - julianday(?)) * 86400.0) <= 600
+           ORDER BY ABS((julianday(ts) - julianday(?)) * 86400.0), id
+           LIMIT 1""",
+        (session_name, scope, ts.isoformat(), ts.isoformat()),
+    ).fetchone()
+    return max(0.0, float(row[0])) if row else 0.0
+
+
+def _record_owner_message_activity(connection: sqlite3.Connection, log_id: int,
+                                   session_id: str, ts: datetime, content_length: int,
+                                   provenance, *, estimated: bool = False) -> None:
+    """Persist only message timing metadata for an owner/orchestrator message."""
+    try:
+        row = connection.execute(
+            "SELECT name, scope, is_orchestrator FROM sessions WHERE id=?",
+            (session_id,),
+        ).fetchone()
+        if not row or not row[2] or provenance.origin != "user":
+            return
+        detail = provenance.detail()
+        voice_duration = 0.0
+        if detail.get("subtype") in {"telegram", "dashboard_voice", "telegram_fallback"}:
+            voice_duration = _owner_activity_voice_duration(
+                connection, row[0], row[1], ts,
+            )
+        from app.owner_activity import message_window_seconds
+        duration = message_window_seconds(content_length, voice_duration)
+        event_id = f"message:{log_id}"
+        connection.execute(
+            """INSERT OR IGNORE INTO owner_activity_events
+               (event_id, kind, event_type, ts, start_ts, end_ts, session_id, scope,
+                content_length, voice_duration_sec, source, estimated, created_at)
+               VALUES (?, 'message', 'message', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                event_id, ts.isoformat(),
+                (ts - timedelta(seconds=duration)).isoformat(), ts.isoformat(),
+                session_id, row[1], max(0, int(content_length)), voice_duration,
+                "estimated" if estimated else "message", int(estimated),
+                datetime.now(timezone.utc).isoformat(),
+            ),
+        )
+    except sqlite3.OperationalError as error:
+        # A direct legacy DB helper can be used before the startup migration. The
+        # journal write remains valid; the next service start backfills telemetry.
+        if "owner_activity_events" not in str(error):
+            raise
+
+
+def ensure_owner_activity_schema(path: Path | None = None) -> dict[str, int]:
+    """Create telemetry storage and backfill historical message metadata once."""
+    now = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+    with _conn(path) as connection:
+        connection.executescript(
+            """CREATE TABLE IF NOT EXISTS owner_activity_events (
+                event_id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL CHECK(kind IN ('message', 'presence')),
+                event_type TEXT NOT NULL DEFAULT '',
+                ts TEXT NOT NULL,
+                start_ts TEXT NOT NULL,
+                end_ts TEXT NOT NULL,
+                session_id TEXT NOT NULL DEFAULT '',
+                scope TEXT NOT NULL DEFAULT '',
+                tab_token TEXT NOT NULL DEFAULT '',
+                visible INTEGER,
+                focused INTEGER,
+                last_input_at TEXT,
+                content_length INTEGER NOT NULL DEFAULT 0 CHECK(content_length >= 0),
+                voice_duration_sec REAL NOT NULL DEFAULT 0 CHECK(voice_duration_sec >= 0),
+                source TEXT NOT NULL CHECK(source IN ('message', 'presence', 'estimated')),
+                estimated INTEGER NOT NULL DEFAULT 0 CHECK(estimated IN (0, 1)),
+                created_at TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_owner_activity_ts
+                ON owner_activity_events(ts, kind);
+            CREATE INDEX IF NOT EXISTS idx_owner_activity_range
+                ON owner_activity_events(start_ts, end_ts, scope);
+            CREATE INDEX IF NOT EXISTS idx_owner_activity_tab
+                ON owner_activity_events(tab_token, ts);
+            """
+        )
+        rows = connection.execute(
+            """SELECT l.id, l.session_id, l.ts, length(l.content) AS content_length,
+                      l.origin_detail, s.name, s.scope
+                 FROM logs l JOIN sessions s ON s.id=l.session_id
+                WHERE l.type='user_message' AND l.origin='user'
+                  AND s.is_orchestrator=1"""
+        ).fetchall()
+        for row in rows:
+            try:
+                detail = json.loads(row[4] or "{}")
+            except (TypeError, json.JSONDecodeError):
+                detail = {}
+            try:
+                ts = datetime.fromisoformat(str(row[2]).replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            ts = ts.astimezone(timezone.utc)
+            voice = 0.0
+            if detail.get("subtype") in {"telegram", "dashboard_voice", "telegram_fallback"}:
+                voice = _owner_activity_voice_duration(connection, row[5], row[6], ts)
+            from app.owner_activity import message_window_seconds
+            duration = message_window_seconds(row[3] or 0, voice)
+            cursor = connection.execute(
+                """INSERT OR IGNORE INTO owner_activity_events
+                   (event_id, kind, event_type, ts, start_ts, end_ts, session_id, scope,
+                    content_length, voice_duration_sec, source, estimated, created_at)
+                   VALUES (?, 'message', 'message', ?, ?, ?, ?, ?, ?, ?, 'estimated', 1, ?)""",
+                (
+                    f"message:{row[0]}", ts.isoformat(),
+                    (ts - timedelta(seconds=duration)).isoformat(), ts.isoformat(),
+                    row[1], row[6], row[3] or 0, voice, now,
+                ),
+            )
+            inserted += int(cursor.rowcount == 1)
+    return {"inserted": inserted, "scanned": len(rows)}
+
+
 
 def kv_get(key: str, default: str = "") -> str:
     with _conn() as c:
@@ -554,6 +680,10 @@ def add_log(
                 origin, origin_detail,
             ),
         )
+        if type == "user_message" and provenance is not None and provenance.origin == "user":
+            _record_owner_message_activity(
+                c, int(cur.lastrowid), session_id, ts, len(content or ""), provenance,
+            )
         return cur.lastrowid
 
 

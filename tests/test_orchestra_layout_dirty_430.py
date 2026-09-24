@@ -94,6 +94,105 @@ def test_t4_forced_dirty_migration_preserves_bytes_status_and_commit_scope(tmp_p
     assert _git(repository, "stash", "list").stdout == ""
     assert not layout._preserve_journal_path(repository).exists()
 
+    repeated = layout.migrate_project_layout_preserving_dirty(repository)
+    assert repeated["status"] == "already_current"
+    assert _sha(repository / ".orchestra/kb/modified.md") == before_hashes["modified"]
+    assert _git(repository, "stash", "list").stdout == ""
+
+
+def test_restore_content_mismatch_keeps_the_preserved_stash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    repository = tmp_path / "truncated"
+    (repository / "docs/kb").mkdir(parents=True)
+    (repository / "docs/kb/fact.md").write_text("BASE\n", encoding="utf-8")
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.email", "task629@example.invalid")
+    _git(repository, "config", "user.name", "task629")
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-qm", "old layout")
+    saved = b"complete user content\n"
+    (repository / "docs/kb/fact.md").write_bytes(saved)
+
+    original_restore = layout._restore_preserved_stash
+
+    def restore_then_truncate(*args, **kwargs):
+        original_restore(*args, **kwargs)
+        (repository / ".orchestra/kb/fact.md").write_bytes(b"")
+
+    monkeypatch.setattr(layout, "_restore_preserved_stash", restore_then_truncate)
+    with pytest.raises(layout.LayoutMigrationError, match="preserved content changed"):
+        layout.migrate_project_layout_preserving_dirty(repository)
+
+    stash_lines = _git(repository, "stash", "list", "--format=%H").stdout.splitlines()
+    assert len(stash_lines) == 1
+    assert _git(repository, "show", f"{stash_lines[0]}:docs/kb/fact.md").stdout == (
+        saved.decode()
+    )
+    assert (repository / ".orchestra/kb/fact.md").read_bytes() == b""
+    assert layout._preserve_journal_path(repository).is_file()
+
+
+def test_clean_mixed_layout_is_repaired_without_a_preserve_stash(tmp_path: Path):
+    repository = tmp_path / "mixed-clean"
+    for name in ("kb", "tasks", "workers"):
+        (repository / "docs" / name).mkdir(parents=True)
+        (repository / "docs" / name / f"{name}.md").write_text(name, encoding="utf-8")
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.email", "task629@example.invalid")
+    _git(repository, "config", "user.name", "task629")
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-qm", "old layout")
+    (repository / ".orchestra").mkdir()
+    _git(repository, "mv", "docs/tasks", ".orchestra/tasks")
+    _git(repository, "mv", "docs/workers", ".orchestra/workers")
+    (repository / ".orchestra/layout.json").write_text(
+        '{"schema_version":1,"layout":".orchestra",'
+        '"managed_paths":["kb","tasks","workers"]}\n',
+        encoding="utf-8",
+    )
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-qm", "partial layout")
+
+    result = layout.migrate_project_layout_preserving_dirty(repository)
+
+    assert result["status"] == "repaired"
+    assert (repository / ".orchestra/kb/kb.md").read_text(encoding="utf-8") == "kb"
+    assert not (repository / "docs/kb").exists()
+    assert _git(repository, "status", "--porcelain").stdout == ""
+    assert _git(repository, "stash", "list").stdout == ""
+
+
+def test_failed_restore_write_leaves_the_existing_file_intact(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    repository = tmp_path / "atomic-write"
+    (repository / "docs/kb").mkdir(parents=True)
+    destination = repository / "docs/kb/fact.md"
+    destination.write_bytes(b"saved bytes")
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.email", "task629@example.invalid")
+    _git(repository, "config", "user.name", "task629")
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-qm", "old layout")
+    destination.write_bytes(b"live bytes")
+    saved_entry = layout._tree_entry(repository, "HEAD", "docs/kb/fact.md")
+    assert saved_entry is not None
+    original_write_bytes = Path.write_bytes
+
+    def fail_temp_write(path: Path, content: bytes) -> int:
+        if path.name.startswith(".fact.md.") and path.name.endswith(".tmp"):
+            original_write_bytes(path, b"")
+            raise OSError("simulated interrupted write")
+        return original_write_bytes(path, content)
+
+    monkeypatch.setattr(Path, "write_bytes", fail_temp_write)
+    with pytest.raises(OSError, match="simulated interrupted write"):
+        layout._write_worktree_entry(repository, "docs/kb/fact.md", saved_entry)
+
+    assert destination.read_bytes() == b"live bytes"
+    assert not list(destination.parent.glob(".fact.md.*.tmp"))
+
 
 def test_t4_interrupted_dirty_restore_recovers_from_preserved_stash(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -133,3 +232,53 @@ def test_t4_interrupted_dirty_restore_recovers_from_preserved_stash(
     ]
     assert _git(repository, "stash", "list").stdout == ""
     assert not layout._preserve_journal_path(repository).exists()
+
+
+def test_current_dirty_layout_skips_repeated_stash_transactions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    repository = tmp_path / "current-dirty"
+    (repository / "docs/kb").mkdir(parents=True)
+    for name, content in (
+        ("modified.md", "BASE\n"),
+        ("deleted.md", "DELETE ME\n"),
+        ("clean.md", "CLEAN\n"),
+    ):
+        (repository / "docs/kb" / name).write_text(content, encoding="utf-8")
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.email", "task629@example.invalid")
+    _git(repository, "config", "user.name", "task629")
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-qm", "old layout")
+
+    (repository / "docs/kb/modified.md").write_text("DIRTY BYTES\n", encoding="utf-8")
+    (repository / "docs/kb/new.md").write_text("UNTRACKED BYTES\n", encoding="utf-8")
+    (repository / "docs/kb/deleted.md").unlink()
+    initial = layout.migrate_project_layout_preserving_dirty(repository)
+    assert initial["status"] == "migrated"
+    expected = {
+        "modified": _sha(repository / ".orchestra/kb/modified.md"),
+        "untracked": _sha(repository / ".orchestra/kb/new.md"),
+        "deleted": _sha(repository / ".orchestra/kb/deleted.md"),
+    }
+    stash_before = _git(repository, "stash", "list", "--format=%H").stdout.splitlines()
+    stash_operations: list[str] = []
+    original_run = layout._run
+
+    def count_stash_commands(repo: Path, *args: str, **kwargs):
+        if args[:1] == ("stash",):
+            stash_operations.append(" ".join(args[:2]))
+        return original_run(repo, *args, **kwargs)
+
+    monkeypatch.setattr(layout, "_run", count_stash_commands)
+    for _ in range(3):
+        result = layout.migrate_project_layout_preserving_dirty(repository)
+        assert result["status"] == "already_current"
+        assert _git(repository, "stash", "list", "--format=%H").stdout.splitlines() == stash_before
+        assert {
+            "modified": _sha(repository / ".orchestra/kb/modified.md"),
+            "untracked": _sha(repository / ".orchestra/kb/new.md"),
+            "deleted": _sha(repository / ".orchestra/kb/deleted.md"),
+        } == expected
+
+    assert stash_operations == []
