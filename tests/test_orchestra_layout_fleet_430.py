@@ -68,6 +68,8 @@ def test_fleet_failure_does_not_stop_later_project(monkeypatch, tmp_path: Path):
         return {"status": "migrated", "repository": str(repository)}
 
     monkeypatch.setattr(layout, "migrate_project_layout", fake_one)
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "healthy").mkdir()
     result = layout.migrate_registered_projects(
         {
             "a-broken": tmp_path / "broken",
@@ -100,6 +102,8 @@ def test_fleet_isolates_a_raw_git_failure_from_a_broken_checkout(monkeypatch, tm
         return {"status": "migrated", "repository": str(repository)}
 
     monkeypatch.setattr(layout, "migrate_project_layout_preserving_dirty", fake_one)
+    (tmp_path / "broken").mkdir()
+    (tmp_path / "healthy").mkdir()
     result = layout.migrate_registered_projects(
         {
             "a-broken": tmp_path / "broken",
@@ -114,3 +118,26 @@ def test_fleet_isolates_a_raw_git_failure_from_a_broken_checkout(monkeypatch, tm
     assert "is empty" in result["a-broken"]["error"]
     assert str(tmp_path / "broken") in result["a-broken"]["repair_command"]
     assert result["b-healthy"]["status"] == "migrated"
+
+
+def test_fleet_skips_a_scope_that_is_not_on_this_machine(monkeypatch, tmp_path: Path):
+    """V-634: the laptop's tm_projects carries VPS scopes from the shared catalog.
+
+    Before the fix each of them was reported as ORCHESTRA_LAYOUT_GIT_ERROR on every start.
+    """
+    calls = []
+
+    def fake_one(repository, live_session_ids=None):
+        calls.append(repository.name)
+        return {"status": "migrated", "repository": str(repository)}
+
+    monkeypatch.setattr(layout, "migrate_project_layout_preserving_dirty", fake_one)
+    (tmp_path / "local").mkdir()
+    result = layout.migrate_registered_projects(
+        {"other-machine": tmp_path / "home" / "kesha" / "seedon", "local": tmp_path / "local"},
+        preserve_dirty=True,
+    )
+
+    assert calls == ["local"]
+    assert result["other-machine"]["status"] == "absent"
+    assert result["local"]["status"] == "migrated"
