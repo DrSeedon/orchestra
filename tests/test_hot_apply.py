@@ -21,6 +21,9 @@ from app.events import MessageProvenance
 
 USER_PROVENANCE = MessageProvenance(origin="user", senders=("user",))
 
+# V-624: путь рестарта здесь идёт до конца, и настоящий страж взвёлся бы на pid самого pytest.
+pytestmark = pytest.mark.usefixtures("no_real_exit_guard")
+
 
 @pytest.fixture(autouse=True)
 def _restore_drain_gate():

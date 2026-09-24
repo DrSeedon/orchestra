@@ -1,0 +1,4 @@
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-cog-layout/app/orchestra_layout.py
+live require: /opt/cog-second-brain/.orchestra
+{'status': 'already_current', 'code': None, 'error': None}
+VERIFY_OK

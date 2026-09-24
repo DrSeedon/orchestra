@@ -6,6 +6,62 @@
 
 ## Unreleased
 
+### Fixed
+- **`change_worker_model` now follows the dashboard history path** (`app/mcp_stdio.py`,
+  `app/session.py`, `app/routes/sessions.py`, V-633): MCP sends `model` and `scope` with its
+  existing `via: mcp` authorization metadata, so
+  same-runtime changes retain their native session and Claude↔Codex changes use
+  `chat_history_v1`. The tool reports the transfer mode and character count, and displays
+  API refusal errors. Removed the unused fresh-switch branch and updated the KB.
+  Trigger: MCP model changes always sent `fresh: true`, discarding dialogs while the same
+  dashboard switches preserved or transferred history.
+- 🔗 **Taskless adhoc work can finish through `merge_worker(task_id=..., task_outcome="complete")`** (`app/routes/sessions.py`, `app/tm.py`, `app/mcp_stdio.py`, V-631): the explicitly named in-progress task receives commit links and closes in merge finalization. A live owner blocks transfer while running or waiting, and an idle owner blocks it when its task branch has unmerged commits or dirty files. Trigger: seedon’s `accountant` had completed V-44 on a taskless adhoc branch, while the task still belonged to another session.
+- 🛡 **Восстановление раскладки сверяет содержимое и пишет атомарно** (`app/orchestra_layout.py`,
+  V-629): перед `stash drop` восстановленные staged, unstaged и untracked файлы побайтно
+  сравниваются со снимком; несовпадение оставляет stash и recovery-журнал. Запись идёт во
+  временный файл с атомарной подменой, поэтому сбой не оставляет целевой файл пустым. Чистая
+  смешанная раскладка ремонтируется при старте, а актуальная больше не создаёт stash без
+  необходимости. Триггер — цикл сохранения состояния раз в событие мог принять нулевой файл
+  за восстановленный по одному лишь Git status и удалить stash с целым содержимым.
+- 🧪 **Полный `pytest tests/` снова доходит до сводки (V-624).** Две независимые причины:
+  1. **rc=137 на ~35–38 %.** Тесты пути рестарта (`test_hot_apply`, `test_seamless_restart`,
+     `test_system_restart`) глушили `os.kill`, но не `_arm_supervisor_exit_guard`, и тот
+     поднимал настоящего помощника `app.restart_guard` с целью `os.getpid()` — то есть сам
+     pytest. Первый же позднейший `TestClient` в teardown писал ему `application_teardown_complete`,
+     и через 5 с помощник слал SIGKILL по pidfd. bpftrace поймал отправителя дословно:
+     `python3 -m app.restart_guard --pid <pytest> … --post-cleanup-budget 5.0`. Теперь
+     `tests/conftest.py` отказывает взводу стража на pid pytest (`AssertionError`), а файлы
+     пути рестарта берут фикстуру `no_real_exit_guard`.
+  2. **Вечное ожидание на ~85–88 % (набор V-610).** `app.limits_card.shutdown_renderer()`
+     ждал `browser.close()` у Chromium, поднятого на цикле событий ДРУГОГО теста
+     (`test_tg_bridge::TestLimitsCommand` рендерит настоящую карточку); ответ Playwright
+     уходит в мёртвый цикл, и lifespan-teardown `TestClient` висел бесконечно. Теперь
+     shutdown на чужом цикле отпускает ресурсы через `_release_renderer_from_previous_loop`,
+     как это уже делал путь рендера. Регрессионный тест
+     `test_shutdown_does_not_await_browser_of_another_loop`.
+- 🛑 **SIGTERM больше не ждёт закрытия дашбордного SSE бесконечно** (`deploy/orchestra.service`, `deploy/orchestra.service.template`): Uvicorn принудительно закрывает долгие соединения через 5 секунд graceful shutdown и продолжает штатный teardown lifespan. Случай: открытая вкладка дашборда оставляла `Waiting for connections to close`, и systemd доходил до второго сигнала.
+- 📎 **Ошибка загрузки файла больше не переезжает в чат другого агента** (`app/static/js/app.js`,
+  `selectAgent`): красная строка `#chat-drop-error` снимается при переключении агента. Триггер —
+  загрузка PDF 29.9 МБ падала на `HTTP 413` от nginx (`client_max_body_size 20m` при лимите
+  приложения 2000 МБ; nginx-лимит поднят до 2000m вне репозитория), а ошибка оставалась висеть
+  после перехода к другому оркестратору.
+- 📥 **Входящие сообщения в TG-топиках свёрнуты в одно сообщение** (`app/tg_bridge.py`, V-628):
+  agent/platform/background/system/unknown provenance теперь получает короткий заголовок и
+  `EXPANDABLE_BLOCKQUOTE`; длинный текст ограничивается 4096 UTF-16 внутри цитаты с указанием
+  на полный текст в дашборде. Сводка контекстного сжатия (`compact_summary`) передаётся по
+  тому же пути, а сообщения владельца и обычная речь оркестратора не меняются.
+- ⏱ **Плановый precompact больше не пропускается из-за фоновых заданий** (`app/session.py`,
+  V-627): таймер запускается для `IDLE` и `WAITING`, в том числе при активном cron/timer/command;
+  одновременно сохраняются пропуски во время хода и уже выполняющегося сжатия. Доставка,
+  пришедшая во время сжатия, остаётся в штатной очереди `_pending_messages`, а активное задание
+  сохраняет статус `WAITING` после native Codex compact. *Triggered case:* постоянные фоновые
+  задания оставляли seedon-orchestrator и другие сессии без планового сжатия.
+- 📏 **Строка «compact done» показывает контекст одного обращения, а не сумму за ход**
+  (`app/session.py`, `compact()` делит расход ack-хода на `num_turns` из его `turn_end`).
+  Случай: 23.09 у katya-work ход подтверждения после сжатия сделал 4 обращения к модели по
+  ~77 тыс. токенов, и отчёт написал «20% → 31% (post 307564)», хотя контекст ужался с ~198 тыс.
+  до ~77 тыс. Прежний расчёт предполагал, что ack-ход — одно обращение.
+
 ### Changed
 - 🎚 **Opus 5.5 работает на `medium`, а не на унаследованном `high`** (`pipeline.yaml`,
   карта `effort_policy`). Anthropic сменила умолчание эффорта именно у 5.5 и в своём

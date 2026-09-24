@@ -2116,15 +2116,25 @@ async def update_progress(percent: int, status: str) -> str:
 
 @mcp.tool()
 async def change_worker_model(name: str, model: str) -> str:
-    """Change an idle worker's model. Inside one runtime the dialog CONTINUES: the session is
-    retargeted in place or resumed natively, history intact. A fresh dialog happens only when
-    the runtime itself changes (codex → claude and back), where history moves by handoff and
-    may be refused. Refused while the worker is running or compacting."""
-    result = await _api("POST", f"/api/sessions/{name}/change-model", json={"scope": SCOPE, "model": model, "fresh": True, "via": "mcp"})
+    """Change an idle worker's model while preserving its dialog. Within one runtime the
+    native session continues. Between Claude and Codex, recent chat history is handed off
+    (chat_history_v1); a refused transfer returns an error. Refused while the worker is
+    running or compacting."""
+    result = await _api("POST", f"/api/sessions/{name}/change-model", json={
+        "scope": SCOPE, "model": model, "via": "mcp",
+    })
     if isinstance(result, dict) and result.get("error"):
         return f"Model change failed: {result['error']}"
     if isinstance(result, dict) and result.get("changed"):
-        return f"Model changed: {result.get('old_model')} → {result.get('model')}"
+        transfer = result.get("history_transfer") or {}
+        mode = transfer.get("mode", "unknown")
+        detail = f"; history transfer={mode}"
+        if "chars" in transfer:
+            detail += f" ({transfer['chars']} chars)"
+        return (
+            f"Model changed: {result.get('old_model')} → {result.get('model')}"
+            f"{detail}"
+        )
     return f"Model already {result.get('model', model)}"
 
 
@@ -2386,8 +2396,9 @@ async def merge_worker(
     task_outcome: str = "",
     expected_head: str = "",
     acceptance_note: str = "",
+    task_id: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff."""
+    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. For an unbound adhoc session, task_id explicitly identifies its in_progress task."""
     if waive_diff_budget and ROLE not in _ORCH_ROLES:
         return mcp_tool_result(
             result={
@@ -2406,7 +2417,7 @@ async def merge_worker(
         )
     operation_id = operation_id or str(uuid.uuid4())
     merge_schema_version: int | None = None
-    if task_outcome or expected_head or acceptance_note:
+    if task_outcome or expected_head or acceptance_note or task_id:
         try:
             capability = await _api("GET", "/api/merge-operations/capabilities")
         except ApiToolError as capability_error:
@@ -2458,6 +2469,7 @@ async def merge_worker(
         "scope": SCOPE,
         "target": target,
         "next_task_id": next_task_id,
+        "task_id": task_id,
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": WORKER_NAME if waive_diff_budget else "",
         "completion_session_id": SESSION_ID,

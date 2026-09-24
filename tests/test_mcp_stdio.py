@@ -60,6 +60,77 @@ async def _protocol_call(module, name, arguments):
 
 
 @pytest.mark.asyncio
+async def test_change_worker_model_preserves_history_by_default(monkeypatch):
+    import app.mcp_stdio as m
+
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return {
+            "ok": True,
+            "changed": True,
+            "old_model": "claude-sonnet-5[1m]",
+            "model": "claude-opus-5[1m]",
+            "history_transfer": {"mode": "native_in_place"},
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await m.change_worker_model("worker", "claude-opus-5[1m]")
+
+    assert calls[0][2]["json"] == {
+        "scope": m.SCOPE,
+        "model": "claude-opus-5[1m]",
+        "via": "mcp",
+    }
+    assert "history transfer=native_in_place" in result
+
+
+@pytest.mark.asyncio
+async def test_change_worker_model_reports_chat_history_transfer_size(monkeypatch):
+    import app.mcp_stdio as m
+
+    async def fake_api(method, path, **kwargs):
+        return {
+            "ok": True,
+            "changed": True,
+            "old_model": "gpt-5.6-sol",
+            "model": "claude-opus-5[1m]",
+            "history_transfer": {"mode": "chat_history_v1", "chars": 63500},
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await m.change_worker_model("worker", "claude-opus-5[1m]")
+
+    assert "history transfer=chat_history_v1 (63500 chars)" in result
+
+
+@pytest.mark.asyncio
+async def test_change_worker_model_surfaces_api_refusal_with_code_and_reason(monkeypatch):
+    import app.mcp_stdio as m
+
+    async def fake_api(method, path, **kwargs):
+        raise m.ApiToolError(
+            code="handoff_blocked",
+            message="source dialog could not be transferred",
+            status=409,
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await _protocol_call(
+        m, "change_worker_model", {"name": "worker", "model": "claude-opus-5[1m]"},
+    )
+
+    assert result.isError is True
+    text = result.content[0].text
+    assert "handoff_blocked" in text
+    assert "source dialog could not be transferred" in text
+
+
+@pytest.mark.asyncio
 async def test_send_file_accepts_legacy_synchronous_receipt_without_status_lookup(monkeypatch):
     import app.mcp_stdio as m
 
@@ -1689,6 +1760,8 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
     monkeypatch.setattr(m, "WORKER_NAME", "orch")
     captured = {}
     async def fake_api(method, path, **kw):
+        if method == "GET":
+            return {"merge_schema_version": 2, "capabilities": ["task-lifecycle-v2"]}
         captured["path"] = path
         captured["json"] = kw.get("json", {})
         operation_id = captured["json"]["operation_id"]
@@ -1703,12 +1776,17 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
             "next_action": {"code": "NONE", "message": "done"},
         }, "error": None}
     with patch.object(m, "_api", side_effect=fake_api):
-        out = await m.merge_worker(name="coder", target="main", next_task_id="task-43")
+        out = await m.merge_worker(
+            name="coder", target="main", next_task_id="task-43",
+            task_id="task-42", task_outcome="complete",
+        )
     assert captured["path"] == "/api/merge-operations"
     assert captured["json"]["name"] == "coder"
     assert captured["json"]["scope"] == "/s"
     assert captured["json"]["operation_id"]
     assert captured["json"]["next_task_id"] == "task-43"
+    assert captured["json"]["task_id"] == "task-42"
+    assert captured["json"]["task_outcome"] == "complete"
     assert captured["json"]["target"] == "main"
     assert out.isError is False
     assert out.structuredContent["result"]["operation_state"] == "SUCCEEDED"
