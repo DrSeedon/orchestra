@@ -752,8 +752,8 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        if self.status != AgentStatus.IDLE:
-            state["skip_reason"] = "not_idle"
+        if self._compacting:
+            state["skip_reason"] = "compacting"
             self._log(
                 "status",
                 f"precompact timer skipped: {self._precompact_payload(state)}",
@@ -761,9 +761,8 @@ class AgentSession:
             self._precompact_timer = None
             return
 
-        from app.bg_jobs import bg_manager
-        if bg_manager and bg_manager.has_active_jobs(self.id):
-            state["skip_reason"] = "active_bg_jobs"
+        if self.status not in (AgentStatus.IDLE, AgentStatus.WAITING):
+            state["skip_reason"] = "not_idle"
             self._log(
                 "status",
                 f"precompact timer skipped: {self._precompact_payload(state)}",
