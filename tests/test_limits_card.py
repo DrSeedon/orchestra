@@ -268,6 +268,33 @@ async def test_renderer_does_not_await_resources_from_closed_loop(monkeypatch, t
 
 
 @pytest.mark.asyncio
+@pytest.mark.timeout(10)
+async def test_shutdown_does_not_await_browser_of_another_loop(monkeypatch):
+    """V-624: браузер другого цикла на `close()` не отвечает никогда — shutdown не ждёт его."""
+    import asyncio
+    import app.limits_card as card
+
+    async def never(*_args):
+        await asyncio.Event().wait()
+
+    browser, playwright = AsyncMock(), AsyncMock()
+    browser.close.side_effect = never
+    playwright.stop.side_effect = never
+    old_loop = asyncio.new_event_loop()
+    old_loop.close()
+    monkeypatch.setattr(card, "_renderer_loop", old_loop)
+    monkeypatch.setattr(card, "_renderer_lock", asyncio.Lock())
+    monkeypatch.setattr(card, "_renderer_browser", browser)
+    monkeypatch.setattr(card, "_renderer_playwright", playwright)
+
+    await asyncio.wait_for(card.shutdown_renderer(), 2)
+
+    browser.close.assert_not_awaited()
+    assert card._renderer_browser is None
+    assert card._renderer_loop is None
+
+
+@pytest.mark.asyncio
 async def test_renderer_shutdown_closes_browser_and_playwright(monkeypatch):
     import asyncio
     import app.limits_card as card

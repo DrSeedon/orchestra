@@ -125,6 +125,40 @@ def _isolate_project_catalog(tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _forbid_restart_guard_on_test_runner(monkeypatch):
+    """Настоящий страж рестарта, взведённый на pid самого pytest, убивает весь прогон.
+
+    V-624: тесты рестарта глушили `os.kill`, но не `_arm_supervisor_exit_guard`, и тот
+    поднимал настоящего помощника `app.restart_guard` с целью `os.getpid()`. Помощник
+    оставался взведённым; первый же позднейший `TestClient` в teardown сообщал
+    `application_teardown_complete`, и через 5 с помощник слал SIGKILL процессу pytest:
+    прогон умирал без сводки с rc=137 около 35–38 %. Тест, которому нужен настоящий
+    помощник, взводит его на свой дочерний процесс.
+    """
+    from app import restart_guard
+
+    real_arm = restart_guard.arm_guard
+
+    def guarded(**kwargs):
+        if kwargs.get("target_pid") == os.getpid():
+            raise AssertionError(
+                "test armed the real restart guard on the pytest process; "
+                "stub app.routes.system._arm_supervisor_exit_guard"
+            )
+        return real_arm(**kwargs)
+
+    monkeypatch.setattr(restart_guard, "arm_guard", guarded)
+
+
+@pytest.fixture
+def no_real_exit_guard(monkeypatch):
+    """Для тестов пути рестарта: `os.kill` они глушат, а помощник стража шлёт SIGKILL сам, по pidfd."""
+    from app.routes import system
+
+    monkeypatch.setattr(system, "_arm_supervisor_exit_guard", lambda **_kw: None)
+
+
+@pytest.fixture(autouse=True)
 def _stable_worker_quota(request, monkeypatch):
     """Ordinary tests never read live subscription telemetry."""
     if request.node.path.name in {"test_quota_gate.py", "test_usage_readiness.py"}:
