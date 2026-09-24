@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- 🛑 **SIGTERM больше не ждёт закрытия дашбордного SSE бесконечно** (`deploy/orchestra.service`, `deploy/orchestra.service.template`): Uvicorn принудительно закрывает долгие соединения через 5 секунд graceful shutdown и продолжает штатный teardown lifespan. Случай: открытая вкладка дашборда оставляла `Waiting for connections to close`, и systemd доходил до второго сигнала.
 - 📎 **Ошибка загрузки файла больше не переезжает в чат другого агента** (`app/static/js/app.js`,
   `selectAgent`): красная строка `#chat-drop-error` снимается при переключении агента. Триггер —
   загрузка PDF 29.9 МБ падала на `HTTP 413` от nginx (`client_max_body_size 20m` при лимите
