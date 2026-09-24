@@ -2220,6 +2220,15 @@ async def execute_merge_session(
                     http_status=400,
                 )
             primary_task_ref = str(row.get("task_id") or "").strip()
+            explicit_task_ref = str(req.get("task_id") or "").strip()
+            if explicit_task_ref and task_outcome != "complete":
+                return _merge_not_reached(
+                    "explicit task_id requires task_outcome='complete'",
+                    worker_branch=row_branch, worker_head=expected_head,
+                    http_status=400,
+                )
+            if explicit_task_ref:
+                primary_task_ref = explicit_task_ref
             if not primary_task_ref:
                 return _merge_not_reached(
                     "session has no bound task",
@@ -2232,7 +2241,11 @@ async def execute_merge_session(
                     _tm.resolve_scoped_task_identities,
                     row_scope,
                     [primary_task_ref],
-                    bound_session_id=session_id,
+                    bound_session_id=(
+                        session_id
+                        if str(row.get("task_id") or "").strip() and not explicit_task_ref
+                        else ""
+                    ),
                 )
             except ValueError as e:
                 return _merge_not_reached(
@@ -2241,6 +2254,15 @@ async def execute_merge_session(
                 )
             primary_task_identity = primary_resolution["tasks"][0]
             primary_task_ref = primary_resolution["canonical_refs"][0]
+            bound_task_ref = str(row.get("task_id") or "").strip()
+            if explicit_task_ref and bound_task_ref and (
+                bound_task_ref.lstrip("#") != primary_task_ref.lstrip("#")
+            ):
+                return _merge_not_reached(
+                    "task_id cannot override the session's bound task",
+                    worker_branch=row_branch, worker_head=expected_head,
+                    http_status=409,
+                )
             project_id = primary_resolution["project_id"]
         if next_task_id:
             try:
@@ -2371,6 +2393,7 @@ async def execute_merge_session(
                         task=primary_task_identity,
                         next_task=task_identity,
                         operation_id=operation_id,
+                        explicit_task_binding=bool(req.get("task_id")),
                     )
                 except ValueError as e:
                     return _merge_not_reached(
