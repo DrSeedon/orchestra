@@ -7,7 +7,6 @@ include_scopes:
 - /home/kesha/projects/dnd-game-master
 - /home/kesha/projects/kesha-tg-bot
 - /home/kesha/projects/seedon
-- /opt/cog-second-brain
 projects:
 - tag: orchestra
   name: Orchestra
@@ -60,3 +59,11 @@ projects:
   archived: true
   namespaces:
     zahoron-mobile: ноутбук
+- tag: cog-second-brain
+  name: Cog Second Brain
+  scope: /opt/cog-second-brain
+  write_namespace: scope-opt-cog-second-brain-ae141e685f2e
+  namespaces:
+    scope-opt-cog-second-brain-ae141e685f2e: ''
+    cog-second-brain-77dd306ac2a0: ноутбук
+    mnt-data-cursor-cog-second-brain-ebf4c5a1c0e2: ноутбук
