@@ -7,6 +7,14 @@
 ## Unreleased
 
 ### Fixed
+- **`change_worker_model` now follows the dashboard history path** (`app/mcp_stdio.py`,
+  `app/session.py`, `app/routes/sessions.py`, V-633): MCP sends `model` and `scope` with its
+  existing `via: mcp` authorization metadata, so
+  same-runtime changes retain their native session and Claude↔Codex changes use
+  `chat_history_v1`. The tool reports the transfer mode and character count, and displays
+  API refusal errors. Removed the unused fresh-switch branch and updated the KB.
+  Trigger: MCP model changes always sent `fresh: true`, discarding dialogs while the same
+  dashboard switches preserved or transferred history.
 - 🔗 **Taskless adhoc work can finish through `merge_worker(task_id=..., task_outcome="complete")`** (`app/routes/sessions.py`, `app/tm.py`, `app/mcp_stdio.py`, V-631): the explicitly named in-progress task receives commit links and closes in merge finalization. A live owner blocks transfer while running or waiting, and an idle owner blocks it when its task branch has unmerged commits or dirty files. Trigger: seedon’s `accountant` had completed V-44 on a taskless adhoc branch, while the task still belonged to another session.
 - 🛡 **Восстановление раскладки сверяет содержимое и пишет атомарно** (`app/orchestra_layout.py`,
   V-629): перед `stash drop` восстановленные staged, unstaged и untracked файлы побайтно

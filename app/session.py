@@ -68,7 +68,6 @@ if TYPE_CHECKING:
 from app.db import (
     add_log, allocate_runtime_handoff_attempt, confirm_runtime_handoff,
     enqueue_fact, get_history_logs, get_logs, get_runtime_handoff,
-    get_latest_runtime_handoff_for_session, list_runtime_handoff_attempts,
     prepare_runtime_handoff_snapshot, retire_runtime_handoff, save_session,
     tool_error_add, update_runtime_handoff_attempt, update_runtime_handoff_status,
 )
@@ -3257,136 +3256,11 @@ class AgentSession:
         history = render_chat_history(list(reversed(visible)))
         return f"Source Orchestra session: {self.id}\n{history}" if history else ""
 
-    async def change_model(self, new_model: str, *, fresh: bool = False) -> dict:
+    async def change_model(self, new_model: str) -> dict:
         async with self._lifecycle_lock:
             if self._compacting:
                 return {"ok": False, "error": "cannot change model while compacting"}
-            if fresh:
-                return await self._change_model_fresh_locked(new_model)
             return await self._change_model_locked(new_model)
-
-    async def _discard_unfinished_handoff_for_fresh_switch(self) -> None:
-        """Retire staged handoff state because the operator chose to discard it."""
-        loop = asyncio.get_running_loop()
-        handoff = await loop.run_in_executor(
-            _db_executor(), get_latest_runtime_handoff_for_session, self.id,
-        )
-        if handoff is None:
-            return
-        attempts = await loop.run_in_executor(
-            _db_executor(), list_runtime_handoff_attempts, handoff["handoff_id"],
-        )
-        for attempt in attempts:
-            locator = str(attempt.get("cleanup_locator") or "")
-            if not locator:
-                continue
-            if not self._handoff_cleanup_locator_is_owned(locator):
-                raise RuntimeError("handoff cleanup locator is outside staging root")
-            await asyncio.to_thread(self._remove_handoff_cleanup_locator, locator)
-        await loop.run_in_executor(
-            _db_executor(),
-            partial(
-                retire_runtime_handoff,
-                handoff["handoff_id"],
-                status="failed",
-                failure_code="operator_discarded_for_fresh_model_switch",
-            ),
-        )
-
-    async def _change_model_fresh_locked(self, new_model: str) -> dict:
-        """Switch runtimes without importing or resuming the previous dialog."""
-        old_model = self.model
-        if old_model == new_model:
-            return {"ok": True, "model": new_model, "changed": False}
-        if self.status == AgentStatus.RUNNING:
-            return {"ok": False, "error": "cannot change model while running"}
-
-        old_runtime = self.backend_type or backend_for_model(old_model)
-        new_runtime = get_model_spec(new_model).runtime
-        old_session_id = self.session_id
-        await self._drain_persist()
-        try:
-            await self._disconnect_backend()
-            await self._discard_unfinished_handoff_for_fresh_switch()
-        except Exception as error:
-            return {
-                "ok": False,
-                "error": err_text(error),
-                "error_code": "fresh_switch_cleanup_failed",
-                "history_transfer": {"mode": "blocked"},
-            }
-
-        new_history = list(self.session_id_history)
-        if old_session_id:
-            new_history.append({
-                "session_id": old_session_id,
-                "runtime": old_runtime,
-                "model": old_model,
-                "discarded_at": datetime.now(timezone.utc).isoformat(),
-            })
-            new_history = new_history[-10:]
-
-        snapshot = self._to_db_dict()
-        snapshot.update({
-            "model": new_model,
-            "backend_type": new_runtime,
-            "session_id": "",
-            "provider_cost_baseline_usd": 0.0,
-            "runtime_handoff": "",
-            "history_import_source": None,
-            "last_summary": "",
-            "context_pct": 0,
-            "context_tokens": 0,
-            "session_id_history": json.dumps(new_history) if new_history else "[]",
-        })
-
-        try:
-            await asyncio.get_running_loop().run_in_executor(
-                _db_executor(), save_session, snapshot,
-            )
-        except Exception as error:
-            return {
-                "ok": False,
-                "error": err_text(error),
-                "error_code": "fresh_switch_persistence_failed",
-                "history_transfer": {"mode": "blocked"},
-            }
-
-        self.model = new_model
-        self.backend_type = new_runtime
-        self.session_id = ""
-        self._last_cost = 0.0
-        self._last_cost_cached = 0.0
-        self.session_id_history = new_history
-        self.runtime_handoff = ""
-        self.history_import_source = None
-        self.last_summary = ""
-        self._last_context = empty_context()
-        self._prompt_injected = False
-        self._hibernated = False
-        self._handoff_config_dir = ""
-        self._handoff_recovery_required = False
-        self._runtime_error = ""
-        self._session_limit_hit = False
-        self._cancel_precompact_timer("fresh_model_switch")
-        self._log(
-            "status",
-            f"fresh model change: {old_model} ({old_runtime}) → "
-            f"{new_model} ({new_runtime}); previous dialog discarded",
-        )
-        return {
-            "ok": True,
-            "model": new_model,
-            "old_model": old_model,
-            "runtime": new_runtime,
-            "old_runtime": old_runtime,
-            "runtime_changed": old_runtime != new_runtime,
-            "native_session_reset": True,
-            "history_transfer": {
-                "mode": "fresh", "previous_dialog_discarded": True,
-            },
-            "changed": True,
-        }
 
     async def _change_runtime_chat_locked(
         self,
