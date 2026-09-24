@@ -187,6 +187,26 @@ def test_a_skipped_scope_is_picked_up_on_the_next_start_once_clean(tmp_path):
     assert home_data["include_scopes"] == sorted([str(ext1), str(ext2)])
 
 
+def test_a_scope_that_stays_skipped_leaves_no_trace_on_the_next_start(tmp_path):
+    """V-634: scope другой машины не появится никогда — рестарт не должен плодить коммиты."""
+    ghost = tmp_path / "ghost"
+    home_root, home_path = _seed_home(tmp_path, external={str(ghost): "ghost"})
+
+    first = migrate_v621(home_path)
+    assert first["state"] == "migrated"
+    head = _git(home_root, "rev-parse", "HEAD")
+    files = sorted(p.name for p in (home_root / ".orchestra").iterdir())
+    content = home_path.read_text(encoding="utf-8")
+
+    second = migrate_v621(home_path)
+
+    assert second["state"] == "pending"
+    assert str(ghost) in second["skipped"]
+    assert _git(home_root, "rev-parse", "HEAD") == head
+    assert sorted(p.name for p in (home_root / ".orchestra").iterdir()) == files
+    assert home_path.read_text(encoding="utf-8") == content
+
+
 def test_a_scope_with_a_pre_existing_own_catalog_is_adopted_not_overwritten(tmp_path):
     ext = tmp_path / "ext"
     ext.mkdir()

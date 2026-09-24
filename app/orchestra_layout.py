@@ -1196,6 +1196,13 @@ def migrate_registered_projects(
 ) -> dict[str, dict[str, Any]]:
     results: dict[str, dict[str, Any]] = {}
     for project_id, repository in sorted(project_roots.items()):
+        # The catalog is shared between machines, so tm_projects also carries the other
+        # machine's scopes (V-634: nine VPS paths on the laptop). A checkout that is not
+        # on this disk has nothing to migrate; logging it as a layout failure on every
+        # start buried the real failures among them.
+        if not Path(repository).expanduser().exists():
+            results[str(project_id)] = {"status": "absent", "repository": str(repository)}
+            continue
         try:
             if preserve_dirty:
                 result = migrate_project_layout_preserving_dirty(
