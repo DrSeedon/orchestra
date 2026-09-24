@@ -135,6 +135,12 @@ def _git_cmd(args: list[str], **kwargs) -> subprocess.CompletedProcess:
         gosu = _sh.which("gosu")
         if gosu:
             args = [gosu, agent_uid] + args
+    if kwargs.get("text") and "errors" not in kwargs:
+        # git truncates long diffstat paths by bytes: `git merge --squash` in seedon
+        # (24.09.2026) printed "...\x80…" after cutting a Cyrillic name mid-character,
+        # and strict decoding raised AFTER the squash was staged — the merge became UNKNOWN.
+        kwargs["encoding"] = kwargs.get("encoding") or "utf-8"
+        kwargs["errors"] = "replace"
     return subprocess.run(args, **kwargs)
 
 
