@@ -809,7 +809,8 @@ def _tool_target(tool_name: str, body: str) -> str:
     if tool_name in ("WebSearch", "WebFetch"):
         return str(params.get("query") or params.get("url", "")) or short
     if "send_message" in tool_name:
-        return f"→ {params.get('to', '?')}: «{params.get('message', '')}»"
+        # Текст уходит отдельным раскрываемым сообщением (_send_message_parts)
+        return f"→ {params.get('to', '?')}"
     if "spawn_worker" in tool_name:
         model = _MODEL_SHORT.get(params.get("model", ""), params.get("model", ""))
         return f"{params.get('name', '?')} ({model})"
@@ -821,6 +822,19 @@ def _tool_target(tool_name: str, body: str) -> str:
         return f"/{skill}{' ' + args if args else ''}" if skill else short
     named = params.get("name") or params.get("par") or params.get("query") or ""
     return f"{short} {named}".strip()
+
+
+def _send_message_parts(tool_name: str, body: str) -> tuple[str, str] | None:
+    """(заголовок, полный текст) вызова send_message агентом; иное — None."""
+    if "send_message" not in tool_name:
+        return None
+    try:
+        params = json.loads(body.strip())
+    except ValueError:
+        return None
+    if not isinstance(params, dict):
+        return None
+    return f"✉️ → {params.get('to', '?')}", str(params.get("message", ""))
 
 
 def _tool_line(tool_name: str, body: str) -> str:
@@ -974,7 +988,7 @@ async def _update_progress(
     """
     if not state.block:
         return
-    text = _progress_text(state.lines(), len(state.actions),
+    text = _progress_text(state.lines(), len(state.block),
                           time.time() - state.started)
     if text == state.last_text:
         return
@@ -3438,6 +3452,8 @@ async def stream_logs(orch_name: str, thread_id: int):
     # Отметка «якорь по этой строке уже ушёл» живёт ВНЕ состояния хода: состояние
     # обнуляется на границе, а откат курсора переигрывает саму строку `turn ended`.
     _anchor_sent_for = None
+    # Так же вне хода: якорь обнуляет состояние, а откат курсора переигрывает вызовы.
+    _sent_messages: set[int] = set()
     # None — ни явного notify call, ни durable attention result в ходе не было.
     # Строка — есть хотя бы один из сигналов; explicit call остаётся fallback при сбое БД.
     _notify_reason = None
@@ -3535,6 +3551,24 @@ async def stream_logs(orch_name: str, thread_id: int):
                                  log.get("tool_use_id") or "")
                         turn.raw[log["id"]] = tool_body
                         turn.names[log["id"]] = tool_name
+                        parts = _send_message_parts(tool_name, tool_body)
+                        if parts is not None:
+                            # Что и кому написал агент — отдельным раскрываемым
+                            # сообщением; ⚙️ закрывается, чтобы порядок ленты не путался.
+                            await _update_progress(turn, thread_id, orch_name, force=True)
+                            dm_text, dm_ents = _expandable_message(*parts)
+                            if log["id"] not in _sent_messages:
+                                await _tg_send_safe(
+                                    config["group_id"], dm_text, thread_id,
+                                    entities=dm_ents, important=True,
+                                    telemetry_key=("stream", thread_id, log["id"], 0),
+                                )
+                                _sent_messages.add(log["id"])
+                            turn.new_block()
+                            await _mirror_send(
+                                orch_name, dm_text, entities=dm_ents, important=True,
+                            )
+                            continue
                         await _update_progress(turn, thread_id, orch_name)
                         continue
                     elif t == "tool_result":
