@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0.5,
+  "why": "Has 'сочинение' and '2 примера + пояснения', but says Katya's answer is missing and lacks СК2/4 балла"
+ },
+ "q2": {
+  "score": 1,
+  "why": "All numbers match: 3, 5, 3, 6, total 17, pass from 10"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Replace the copy only after Katya's 'да'"
+ },
+ "q4": {
+  "score": 1,
+  "why": "ee35804 and 74 pages match"
+ },
+ "q5": {
+  "score": 1,
+  "why": "ID and folder match"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 1,
+  "why": "Quote 'не очень', 11th grade, and the 3 grade are present; the cards are not mentioned, but the answer is essentially correct"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Both commit hashes match"
+ },
+ "q9": {
+  "score": 1,
+  "why": "43 slides and 60 pages match"
+ },
+ "q10": {
+  "score": 1,
+  "why": "d89b171 and the 'Старые материалы' folder match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "4 pages instead of 2–3, 43 slides"
+ },
+ "q12": {
+  "score": 0.5,
+  "why": "The rclone workaround is correct, but there is no 403 exportSizeLimitExceeded; it only says the >10 MB limit"
+ },
+ "q13": {
+  "score": 1,
+  "why": "rclone about iskra: before curl, otherwise 403"
+ },
+ "q14": {
+  "score": 1,
+  "why": "The hook blocks recursive rm; delete only to the trash"
+ },
+ "q15": {
+  "score": 1,
+  "why": "All rules and $1 match"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Both folders, no publishing, trash only"
+ },
+ "q17": {
+  "score": 1,
+  "why": "Branch, hash, plan not shown to Katya"
+ },
+ "q18": {
+  "score": 1,
+  "why": "7–10 posts, VK link, topic proposal"
+ },
+ "q19": {
+  "score": 1,
+  "why": "Both IDs match"
+ },
+ "q20": {
+  "score": 1,
+  "why": "All lessons and commit bf8bbcf match"
+ }
+}

@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "university только учёба; seedon ВКР/гранты/ООО; all present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "pandoc запрет, docx skill, matplotlib"
+ },
+ "q3": {
+  "score": 1,
+  "why": "ssh kesha@localhost, 12G, cgroup all present"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "с первого раза present, no explicit 'комментар' but markers of process traces; mostly correct"
+ },
+ "q5": {
+  "score": 0,
+  "why": "UNKNOWN for numbers; missing 293 667 and guard"
+ },
+ "q6": {
+  "score": 1,
+  "why": "738 211, 38, 308 match"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "лог and 5 graphs present, but sampling claim slightly muddled; 'без обрезки' not stated"
+ },
+ "q8": {
+  "score": 1,
+  "why": "applieddasfu, файлом, links"
+ },
+ "q9": {
+  "score": 0.5,
+  "why": "23 correct, deadline UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "all dates and regulation correct"
+ },
+ "q11": {
+  "score": 1,
+  "why": "exact title, дословно"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Кустицкая and Антипова correct"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all codes and trap correct"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "correct numbers, missing origin КИ24-05М"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "email and phone correct, очная missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "форматирование, подставить, бланки, commit"
+ },
+ "q17": {
+  "score": 1,
+  "why": "ментор, рецензенты, смена темы present"
+ },
+ "q18": {
+  "score": 1,
+  "why": "no letters without word, forbidden phrases present"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "01.10, 03.10, 10.10 present; ПЗАД 02.10 missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "Jupyter close, random draw in December"
+ }
+}

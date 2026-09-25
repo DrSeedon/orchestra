@@ -1,0 +1,22 @@
+{
+ "q1": "Owner answered «ядро бот» (13:03): core + bot only, without technologies, perks, races, events, Esteem, quirks; this created task V-44 (core engine, two bots, stats pages).",
+ "q2": "`.orchestra/tasks/V-42/report.md`; merged at commit 3ae93ff",
+ "q3": "Task V-43, worker `slipways-extract`, merged at commit c0ac749 (report at .orchestra/tasks/V-43/report.md); branch name UNKNOWN",
+ "q4": "UNKNOWN",
+ "q5": "UNKNOWN (only known: 5th star is at 12000 score; the owner's record 14126 is 5★; the maximum is not stated)",
+ "q6": "UNKNOWN",
+ "q7": "UNKNOWN",
+ "q8": "UNKNOWN",
+ "q9": "UNKNOWN",
+ "q10": "Score 14126, 5★, rank 5 of 9 saves; seed UNKNOWN",
+ "q11": "UNKNOWN (the summary only says the map generator was not fully reverse-engineered, so bot maps are approximate: our own or taken from the owner's sandbox save)",
+ "q12": "ssh -i /home/kesha/.ssh/tunnel_laptop -o IdentitiesOnly=yes -o BatchMode=yes -p 2222 maxim@127.0.0.1; game at /mnt/data/Games/Slipways; saves at /home/maxim/.wine_slipways/drive_c/users/maxim/AppData/LocalLow/Beetlewing/Slipways/saves/",
+ "q13": "Release dir /var/www/cog-slipways/releases/270da3b48b6b0c7615ad65a213af07f1f25d94dc with `current` symlink pointing to it; nginx location /slipways/ (URL https://photo-158-220-127-161.sslip.io/slipways/, stats at /slipways/auto.html)",
+ "q14": "Whether to open money and the shop (25 locked cards); not answered, still waiting",
+ "q15": "UNKNOWN",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN",
+ "q18": "Only I publish; workers are forbidden to push and deploy.",
+ "q19": "Do not edit the `dnd-duckdns` vhost; /var/www/balatro/ belongs to D&D; content of 02-personal/ is never given outside.",
+ "q20": "UNKNOWN"
+}

@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "42, 90+42+10+33+60=235 all present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "exact quote"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24, 36, 60, 25 words, 2 colours present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "file name and 15 layouts match"
+ },
+ "q5": {
+  "score": 1,
+  "why": "$1/day, $0 spent"
+ },
+ "q6": {
+  "score": 1,
+  "why": "all paths and git status correct"
+ },
+ "q7": {
+  "score": 1,
+  "why": "all five tiles match"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx/PDF, no rigid split, click-reveal etc."
+ },
+ "q9": {
+  "score": 1,
+  "why": "demo keys/FIPI only, disputed excluded"
+ },
+ "q10": {
+  "score": -1,
+  "why": "gives different file, says builder unknown; gold V-3/V-7 paths"
+ },
+ "q11": {
+  "score": 1,
+  "why": "XML and LibreOffice only, not PowerPoint/Keynote"
+ },
+ "q12": {
+  "score": 1,
+  "why": "13, 38, 235 and other numbers present"
+ },
+ "q13": {
+  "score": 1,
+  "why": "70 and 139 rule correct"
+ },
+ "q14": {
+  "score": 1,
+  "why": "17, 10, 15–16, 5 min all present"
+ },
+ "q15": {
+  "score": 1,
+  "why": "not made, 5-question conversation, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "1a6a611, 51 slides"
+ },
+ "q17": {
+  "score": 1,
+  "why": "slides 7 and 19, gap required"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "FIPI, ПРОЕКТ, refs present but no 'publish/send nothing'"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "final state pages given, XML check not mentioned"
+ },
+ "q20": {
+  "score": 1,
+  "why": "both 0 points"
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "q1": "UNKNOWN",
+ "q2": "UNKNOWN",
+ "q3": "Partially known: main text not smaller than 48 pt in file (24 pt on a normal slide), max 25 words per slide, only master-template colors. Owner's exact wording UNKNOWN.",
+ "q4": "UNKNOWN",
+ "q5": "UNKNOWN (only known: $0 was spent on image generation for this deck; the limit itself is not stated)",
+ "q6": "Outputs: artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf (plus contact-sheet.png); report: .orchestra/tasks/V-8/report.md. The script location and which files are in git: UNKNOWN (work was committed, but the exact contents are not stated)",
+ "q7": "UNKNOWN",
+ "q8": "'In two formats' means pptx and PDF. There is no rigid split of mini-tasks into two types; they may vary (question with answer on click, task on a demo crop, 'find the error', 'choose an option', etc.), choosing the format that fits the block.",
+ "q9": "Keys are taken only from the demo version tables (FIPI documents); disputed classification tasks were not used. For the interview, keys only from FIPI criteria and documents.",
+ "q10": "UNKNOWN (only known: the scheme was taken from the EGE deck; the paths and EGE output file are not in the text)",
+ "q11": "Animations were checked via XML and LibreOffice (check_anim.py), but were not run live in PowerPoint or Keynote.",
+ "q12": "UNKNOWN",
+ "q13": "UNKNOWN (the 139-word rule is not stated; only the demo mini-task 'summary of 65 words' → 0 points is known)",
+ "q14": "From the demo: 5 minutes of preparation for tasks 1 and 2; task 2 is 'Беседа по тексту' with five questions; monologue at least 10 sentences, no more than 3 minutes; reading criterion Ч3 (one word distorted → 0 points).",
+ "q15": "The mini-task 'where to insert the quote' was not made: the 2027 retelling-with-quote task no longer exists (task 2 is a conversation on the text, with the quote only in the fifth question) and the 2027 documents provide no key for it.",
+ "q16": "Commit 1a6a611; the deck has 51 slides (PDF 51 pages).",
+ "q17": "UNKNOWN for the third round specifically; known: labels on the circular algorithm slides (10 and 27) overlapping the circle were moved away from the circle line.",
+ "q18": "UNKNOWN (only known: answer keys are taken from FIPI demo documents)",
+ "q19": "UNKNOWN as an explicit request; the result was that on animated slides the PDF shows the final state with all elements visible.",
+ "q20": "72 + 66 words grammar → 0 points; 65-word summary → 0 points."
+}

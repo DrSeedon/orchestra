@@ -1,0 +1,22 @@
+{
+ "q1": "Owner answered '[13:03] ядро бот' — scale 'ядро + бот'; this created task V-44 (core engine, two bots, stats pages).",
+ "q2": "`.orchestra/tasks/V-42/report.md`; accepted at worker commit `3ae93ff` (in main `dcf9f23`).",
+ "q3": "Task V-43, branch `task-V-43/slipways-extract`, worker head `c0ac749` (in main `2262a69`); report `.orchestra/tasks/V-43/report.md`.",
+ "q4": "Planet lv1/lv2/lv3/lv4 = 80/160/320/640; empire size ×400 per level (Esteem ×50).",
+ "q5": "Ranks 0–9: 12 000 = 5★, then 16 000/20 000/24 000, maximum 30 000.",
+ "q6": "−500 for an unfinished quest, only from the 20th year.",
+ "q7": "Wiki was wrong: Forgiving trade base_value/income = 8 (not 7); Everted slipway ×1.6 (not ×2).",
+ "q8": "base_cost=6, base_distance=1.223×3.8, range=2.82×3.8 (cost ∝ (distance/base)^1.5, min half of base); no hard cap on ports.",
+ "q9": "Before multipliers the June run was 18 632; after the sector debuff of −30% it was 13 042 (happiness is a multiplier on everything). Exact happiness multiplier: UNKNOWN.",
+ "q10": "Record 14126, 5★, rank 5 of 9; seed: UNKNOWN.",
+ "q11": "The game's map generator was not fully reverse-engineered, so bot maps are approximate (own generator or maps from the owner's sandbox save), with differences documented on the page.",
+ "q12": "ssh -i /home/kesha/.ssh/tunnel_laptop -o IdentitiesOnly=yes -o BatchMode=yes -p 2222 maxim@127.0.0.1; game at /mnt/data/Games/Slipways; saves at /home/maxim/.wine_slipways/drive_c/users/maxim/AppData/LocalLow/Beetlewing/Slipways/saves/ (read-only).",
+ "q13": "Release dir /var/www/cog-slipways/releases/270da3b48b6b0c7615ad65a213af07f1f25d94dc with `current` symlink; nginx location ^~ /slipways/ alias /var/www/cog-slipways/current/; URL https://photo-158-220-127-161.sslip.io/slipways/ (auto.html for stats).",
+ "q14": "Whether to open money and shop jokers (94 of 150 jokers unavailable; catalog has 56); no answer from the owner yet.",
+ "q15": "blueprint+blue+half on policy v9: 13.567 blinds vs baseline 12.95, delta +0.583, CI [0.450; 0.717] (on greedy v8 it was 12.983, i.e. zero).",
+ "q16": "962 598 sets ≈ 50 days of compute; proposed width (V-34): union of top-3 survival + top-10 d3 with build-up search.",
+ "q17": "V-33, V-34, V-19 (legacy, in_progress) have no assignee; if 'no' — V-33 (enumeration shows a set as an autorun) or V-34 (5 slots + build-up search).",
+ "q18": "Only the orchestrator publishes; workers are forbidden git push and deploy.",
+ "q19": "Do not edit the dnd-duckdns vhost; /var/www/balatro/ belongs to the D&D project; content of 02-personal/ is never served outward.",
+ "q20": "Because different slot order, policy or engine version gives different results; the mutation test cited was for Slipways scoring (rounding half up at scoring.js:17 → 2 test failures; line length from centers → 1 failure), not for the cache key — a cache-key mutation test: UNKNOWN."
+}

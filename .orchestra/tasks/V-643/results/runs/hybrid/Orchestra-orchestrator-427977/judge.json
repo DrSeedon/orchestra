@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, no retention/deletion"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.70, 101.12, 163.12 all present"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk"
+ },
+ "q4": {
+  "score": 1,
+  "why": "open chat project, per second, seamless"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers match"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact even with bg; skip only turn/compaction running"
+ },
+ "q7": {
+  "score": 1,
+  "why": "exact path matches"
+ },
+ "q8": {
+  "score": 1,
+  "why": "both projects and code; cog file intact 59398 bytes"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly with me, don't write to seedon"
+ },
+ "q10": {
+  "score": 1,
+  "why": "Sol banned since 20.09, Opus 5.5 medium"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules"
+ },
+ "q12": {
+  "score": 1,
+  "why": "prompts/base.md, not CLAUDE.md"
+ },
+ "q13": {
+  "score": 1,
+  "why": "V-44, in progress, dead session; fix matches"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "branch right; gc timing ~2 weeks after 23.09 implies 07.10 not 27.09 earliest, less specific"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 1,
+  "why": "exit guard, 32b982be, 115/3876"
+ },
+ "q17": {
+  "score": 1,
+  "why": "not_idle, 18, 92%"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "option C and release right; complete_previous missing"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "closed, nothing needed; says unused rather than not transferred, Koshelева spelled differently but ok"
+ },
+ "q20": {
+  "score": 1,
+  "why": "dev-lead, media-orchestrator, always running"
+ }
+}

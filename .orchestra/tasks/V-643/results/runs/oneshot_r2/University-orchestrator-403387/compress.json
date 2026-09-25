@@ -1,0 +1,8 @@
+{
+ "method": "oneshot",
+ "case": "University-orchestrator-403387",
+ "sec": 73.5,
+ "cost": 1.2169,
+ "calls": 1,
+ "summary_chars": 12085
+}

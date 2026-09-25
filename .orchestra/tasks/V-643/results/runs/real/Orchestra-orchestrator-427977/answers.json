@@ -1,0 +1,22 @@
+{
+ "q1": "Keep raw events forever (owner: don't delete, let them lie, not much data).",
+ "q2": "46.70 h estimated (03.09–23.09 range not confirmed in text), compared with 101.12 h under the old 10-minute think window and 163.12 h under V-57's 30-minute gap.",
+ "q3": "Krasnoyarsk time (UTC+7).",
+ "q4": "Attribute time to exactly one scope per second, presence wins over a message; owner demanded precise counting of seconds per project, seamlessly.",
+ "q5": "Precompact fix: V-627, worker fix-precompact. TG collapse: V-628, worker tg-incoming.",
+ "q6": "Owner said to compress even when background jobs are active (precompact fires in IDLE and WAITING regardless of active bg jobs). When it may still be skipped: UNKNOWN.",
+ "q7": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db (1.97 GB)",
+ "q8": "dnd-game-master fails with ORCHESTRA_LAYOUT_PARTIAL; cog-second-brain fails with ORCHESTRA_LAYOUT_GIT_ERROR (stash fb3d4d…). Data-loss check for VPS: not done yet; a task for the layout-preserve data-loss fix covering dnd and cog VPS migration failures is planned after the 07:00 UTC cron.",
+ "q9": "UNKNOWN",
+ "q10": "Sol is banned (Astra and Sol banned). Opus 5.5 effort is medium.",
+ "q11": "No Co-Authored-By trailer; no git stash; git config overrides: UNKNOWN.",
+ "q12": "UNKNOWN",
+ "q13": "UNKNOWN (only that a seedon V-44 adhoc-merge fix is to be proposed; details not in the text).",
+ "q14": "UNKNOWN",
+ "q15": "UNKNOWN",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN",
+ "q18": "UNKNOWN",
+ "q19": "Closed: the director had already sent their own version; nothing more is needed from me.",
+ "q20": "Rule: laptop Orchestra must always be running. Which orchestrators were not moved to Opus 5.5 and why: UNKNOWN. Open item: laptop-rescue (V-625) to be woken (undelivered bg-5b9a7aa887, pin preserve snapshots first) and a task for the laptop SIGTERM hang."
+}

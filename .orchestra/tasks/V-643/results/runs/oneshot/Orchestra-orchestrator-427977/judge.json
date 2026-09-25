@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, don't delete"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.7, 101.12, 163.12 all present"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk"
+ },
+ "q4": {
+  "score": 1,
+  "why": "open chat project, to the second"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers correct"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact anyway, skip only turn/compaction"
+ },
+ "q7": {
+  "score": 1,
+  "why": "exact path matches"
+ },
+ "q8": {
+  "score": 0.5,
+  "why": "projects and code right; says no VPS check recorded, cog file 59KB intact"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly, not via seedon"
+ },
+ "q10": {
+  "score": -1,
+  "why": "says Sol → GPT-6 Sol agents OFF, not clearly banned; medium correct; ambiguous but routing asserted differently"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules"
+ },
+ "q12": {
+  "score": 0.5,
+  "why": "base.md correct, CLAUDE.md missing"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 1,
+  "why": "not_idle, 18, 92% correct"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "option C only, no details"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "nothing needed, not used; Кошелева not named"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "only always-running rule; orchestrators unknown"
+ }
+}

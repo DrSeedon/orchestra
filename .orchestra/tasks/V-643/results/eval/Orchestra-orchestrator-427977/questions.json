@@ -1,0 +1,309 @@
+[
+ {
+  "id": "q1",
+  "category": "owner_decision",
+  "question": "What did the owner decide about retention of raw owner-activity (time-tracking) events in the V-626 implementation?",
+  "gold": "Store all raw events forever; no retention and no deletion (rejected the 30-day cleanup).",
+  "must_contain": [
+   "forever",
+   "no deletion"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   423111,
+   423121
+  ]
+ },
+ {
+  "id": "q2",
+  "category": "number",
+  "question": "After the owner's rules were applied (1 minute of thinking before a message, plus extra for long text and voice), how many owner hours did the recalculated history for 03.09–23.09 give, and what were the two earlier estimates it was compared with?",
+  "gold": "46.7 h (estimated); earlier 101.12 h (message + 10 min think) and 163.12 h (V-57 30 min gap).",
+  "must_contain": [
+   "46.7",
+   "101",
+   "163"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   423657,
+   423850
+  ]
+ },
+ {
+  "id": "q3",
+  "category": "owner_decision",
+  "question": "Which timezone did the owner choose for splitting days in owner-time accounting?",
+  "gold": "Krasnoyarsk (+7), not UTC or Berlin.",
+  "must_contain": [
+   "Krasnoyarsk"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   423111,
+   423126
+  ]
+ },
+ {
+  "id": "q4",
+  "category": "owner_decision",
+  "question": "How did the owner decide to allocate a minute when they are in several projects at once, and what precision did they demand?",
+  "gold": "Time goes to the project whose chat is open, to the second, seamless (no equal splitting, no 'general' line); the switch happens the same moment.",
+  "must_contain": [
+   "project whose chat is open",
+   "second"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   423111,
+   423126
+  ]
+ },
+ {
+  "id": "q5",
+  "category": "path",
+  "question": "Which task ids and worker names were used for the precompact fix and for the TG collapsed-incoming-messages change on 24.09?",
+  "gold": "V-627 with worker fix-precompact (precompact); V-628 with worker tg-incoming (TG collapse).",
+  "must_contain": [
+   "V-627",
+   "fix-precompact",
+   "V-628",
+   "tg-incoming"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   426450,
+   426465,
+   426567,
+   426582
+  ]
+ },
+ {
+  "id": "q6",
+  "category": "owner_decision",
+  "question": "What did the owner decide about planned precompaction for orchestrators that have active cron/background jobs, and when may it still be skipped?",
+  "gold": "Compact anyway even with bg jobs; skip only while a turn is running or a compaction is already in progress.",
+  "must_contain": [
+   "compact",
+   "bg",
+   "turn"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   426447,
+   426478,
+   426757
+  ]
+ },
+ {
+  "id": "q7",
+  "category": "path",
+  "question": "What is the path/name of the DB backup made just before the 24.09 VPS restart?",
+  "gold": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db",
+  "must_contain": [
+   "orchestra-pre-v626-20260924.db"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   427623,
+   427650
+  ]
+ },
+ {
+  "id": "q8",
+  "category": "open_item",
+  "question": "After the 24.09 restart, which projects still fail the project layout migration at every restart (with what code), and is there a data-loss check for the VPS?",
+  "gold": "dnd-game-master and cog-second-brain fail with ORCHESTRA_LAYOUT_PARTIAL on every restart since 22.09; cog's dirty file was checked intact (59 KB); the mechanism fix is still planned.",
+  "must_contain": [
+   "dnd-game-master",
+   "cog-second-brain",
+   "ORCHESTRA_LAYOUT_PARTIAL"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   427702,
+   427733,
+   427735,
+   427738
+  ]
+ },
+ {
+  "id": "q9",
+  "category": "prohibition",
+  "question": "What did the owner say (via seedon-orchestrator) about who handles the owner time-accounting topic and about writing to seedon on it?",
+  "gold": "The owner decides time accounting directly with Orchestra-orchestrator; do not conduct it via seedon-orchestrator or write to it on this topic.",
+  "must_contain": [
+   "directly",
+   "not",
+   "seedon"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   421451
+  ]
+ },
+ {
+  "id": "q10",
+  "category": "owner_decision",
+  "question": "What is the routing status of the Sol models and what is the effort setting for Opus 5.5?",
+  "gold": "Sol stays banned (both Sol versions have agents flag OFF, ban since 20.09); luna maps to GPT-6 Luna; Opus 5.5 effort is medium.",
+  "must_contain": [
+   "Sol",
+   "banned",
+   "medium"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q11",
+  "category": "prohibition",
+  "question": "What git/commit rules apply to this agent's work regarding trailers, git config overrides and stash?",
+  "gold": "No Co-Authored-By trailer in commits (owner rule); don't use `git -c user.*`; no git stash (shared stack).",
+  "must_contain": [
+   "Co-Authored-By",
+   "git -c",
+   "stash"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q12",
+  "category": "user_verbatim",
+  "question": "Where must the keep-going/stop rule be written, and where must it never be written, per the owner?",
+  "gold": "Only in orchestrator prompts, shared prompts/base.md for all roles; never in CLAUDE.md.",
+  "must_contain": [
+   "prompts/base.md",
+   "CLAUDE.md"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q13",
+  "category": "open_item",
+  "question": "What is the pending problem in the seedon V-44 merge case and what fix was proposed awaiting the owner's decision?",
+  "gold": "merge_worker fails 'session has no bound task' because the task V-44 is held by another session; proposed fix in the switch-branch-to-task step: allow taking an in-progress task if held by a dead session or the worker itself. Workaround now: assign the worker a task first.",
+  "must_contain": [
+   "V-44",
+   "dead session",
+   "in progress"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q14",
+  "category": "path",
+  "question": "What branch name does laptop-rescue (V-625) push last good preserve snapshots to, and by when will git gc delete the dangling snapshots?",
+  "gold": "Branch laptop-preserve-rescue; git gc deletes the dangling snapshots in ~2 weeks (earliest ~27.09).",
+  "must_contain": [
+   "laptop-preserve-rescue",
+   "27.09"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q15",
+  "category": "number",
+  "question": "Which commit hashes hold the last full preserve snapshots for comfy and kesha-tg-bot on the laptop, and their dates?",
+  "gold": "comfy: 7cecfd9 (13.09); kesha-tg-bot: ea7f2c2 (04.09).",
+  "must_contain": [
+   "7cecfd9",
+   "ea7f2c2"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q16",
+  "category": "number",
+  "question": "What was the proven root cause of the full-test-run failures in bench-2 (V-623), the commit, and the failure counts?",
+  "gold": "Restart tests arm the real exit guard at pytest's PID; commit 32b982be; 115 failed / 3876 passed.",
+  "must_contain": [
+   "exit guard",
+   "32b982be",
+   "115"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q17",
+  "category": "number",
+  "question": "Why did seedon's planned compaction not fire: what skip_reason, how many alarms did seedon have, and at what context percent was its last emergency compaction?",
+  "gold": "skip_reason not_idle (status WAITING due to cron/bg jobs); 18 alarms; last emergency compaction at 92% (09:57 UTC 23.09) while it sat at 57%.",
+  "must_contain": [
+   "not_idle",
+   "18",
+   "92"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   423937,
+   423952
+  ]
+ },
+ {
+  "id": "q18",
+  "category": "owner_decision",
+  "question": "What was decided about V-620 (branch switch) behaviour?",
+  "gold": "Option C: switch releases the binding by default (task back to new); complete_previous plus acceptance_note closes it as done.",
+  "must_contain": [
+   "option C",
+   "releases",
+   "complete_previous"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   420474
+  ]
+ },
+ {
+  "id": "q19",
+  "category": "open_item",
+  "question": "What is the end state of the ВКРС package review for University-orchestrator, and does anything remain to be done?",
+  "gold": "The package already went to Кошелева; University-orchestrator redrew slide 5 itself; our version in /tmp/vkrs-review2 is not transferred; nothing more is needed from us on ВКРС.",
+  "must_contain": [
+   "Кошелева",
+   "not transferred",
+   "nothing"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   423004,
+   423011
+  ]
+ },
+ {
+  "id": "q20",
+  "category": "open_item",
+  "question": "Which laptop-related items remain open per the compacted context: which orchestrators were not moved to Opus 5.5 and why, and what is the rule about the laptop Orchestra?",
+  "gold": "dev-lead stays on Opus 5 (layout missing on stale branch); media-orchestrator stays on Opus 4.6 by owner decision; laptop Orchestra must always stay running.",
+  "must_contain": [
+   "dev-lead",
+   "media-orchestrator",
+   "always"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   420474
+  ]
+ }
+]

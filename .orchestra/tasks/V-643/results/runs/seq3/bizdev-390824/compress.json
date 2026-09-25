@@ -1,0 +1,8 @@
+{
+ "method": "seq3",
+ "case": "bizdev-390824",
+ "sec": 269.3,
+ "cost": 2.5219,
+ "calls": 3,
+ "summary_chars": 19859
+}

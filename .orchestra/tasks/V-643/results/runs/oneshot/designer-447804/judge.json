@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "all three phrases and waitlist status"
+ },
+ "q2": {
+  "score": 1,
+  "why": "exact wording with звук обязательно and голос"
+ },
+ "q3": {
+  "score": 1,
+  "why": "no paid service without confirmation; clean rights, source/license"
+ },
+ "q4": {
+  "score": 1,
+  "why": "draft voice-over until director's live voice"
+ },
+ "q5": {
+  "score": 1,
+  "why": "frame 6, seedon.ru, no customer name"
+ },
+ "q6": {
+  "score": 1,
+  "why": "-20..-24 and -14 LUFS"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "Vosk and Apache correct, Silero rejected; but Piper reason differs (model cards vs non-commercial), Silero fine"
+ },
+ "q8": {
+  "score": 1,
+  "why": "path, tar over ssh, laptop-access"
+ },
+ "q9": {
+  "score": 1,
+  "why": "both commits and branch correct"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "final durations correct, but the planned 22.5 for A/B fine; C 15 ok - actually all correct"
+ },
+ "q11": {
+  "score": 1,
+  "why": "quote with непонятно and без галочки"
+ },
+ "q12": {
+  "score": 1,
+  "why": "A sneakers 38, B clay, C 15 s"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all fixes listed"
+ },
+ "q14": {
+  "score": 1,
+  "why": "all three file names"
+ },
+ "q15": {
+  "score": 1,
+  "why": "220 and 380"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 1,
+  "why": "no publishing, no PNG frames/cache"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "128 BPM, 11 scenes, 29 MB correct; 60 fps missing"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "build.log and unknown cause right; loudness -11.2 fix missing"
+ }
+}

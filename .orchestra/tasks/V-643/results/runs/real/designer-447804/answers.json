@@ -1,0 +1,22 @@
+{
+ "q1": "Banned: «первые в России», «аналогов нет», «уже пользуются тысячи». Status: the product does not exist yet — it's a waiting list (лист ожидания); the script is shown as an example.",
+ "q2": "Director's decision (24.09 18:30): reels 2 and 3 are also to be made, and «звук обязательно — все звуки надо и голос, если получится»; reel 1 to be rebuilt with sound.",
+ "q3": "Don't set up a new paid service without the director's confirmation (keys searched in secrets/; local TTS like Silero or cloud if a key exists). Music only with clean rights: CC0, own generation, or a library with explicit commercial license; record source and license in the report.",
+ "q4": "Label it in the report as a draft voice-over (черновая озвучка) until it is recorded with the live voice; it is the director's first-person speech, so it remains to be replaced by a live recording.",
+ "q5": "Frame 6 («выиграем ли закупку — узнаем 30 сентября») must be kept; the link in reel 3 is seedon.ru; the customer's name must not be shown on screen.",
+ "q6": "Music under voice −20…−24 LUFS; final reel about −14 LUFS.",
+ "q7": "Local Vosk TTS `vosk-model-tts-ru-0.9-multi` (Apache 2.0). Silero, Piper ruslan and Edge were rejected over licensing.",
+ "q8": "`/mnt/data/Рабочий стол/СИДОН — документы/Рилсы лист ожидания/` on the director's laptop, copied via tar over ssh (laptop-access skill).",
+ "q9": "Final commit `08428bb` on branch `task-V-75/designer`; the first motion version was `488f938`.",
+ "q10": "Final: A 24.4 s, B 24.4 s, C 15.0 s. Originally planned: A 22.5 s, B 22.5 s, C 15 s.",
+ "q11": "Director: «прикольно, только по тексту надо разобраться, че там мама хотела — непонятно, типа лепить без галочки вещей». Dynamics and format worked but the story was unclear, so the text had to be rewritten so it reads without sound.",
+ "q12": "A «Кроссовки, 38-й размер» (22.5 s), B «Лепить из глины» (22.5 s), C short version of A (15 s). Recommended: A.",
+ "q13": "Question hook, quotes held for the whole bar, long answer on two bars, about 25 hits instead of 48, loop ending, CTA «ссылка в профиле» with a large «СКОРО».",
+ "q14": "`out/reel1-motion-A.mp4`, `out/reel1-motion-B.mp4`, `out/reel1-motion-C.mp4`.",
+ "q15": "About 220 px at the top and about 380 px at the bottom.",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN",
+ "q18": "Do not publish anywhere; do not commit frames (PNG) or cache to git — only final MP4s, contact sheets and the report.",
+ "q19": "128 BPM, 11 scenes of one bar (1.875 s) each, 60 fps, 22.5 s; size fix: re-encoding with x264 CRF 20 / -maxrate 10M brought the 244 MB file down to ~29 MB.",
+ "q20": "UNKNOWN"
+}

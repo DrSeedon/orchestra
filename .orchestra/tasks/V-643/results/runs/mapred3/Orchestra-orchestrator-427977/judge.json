@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, no deletion"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.7, 101.12, 163.12 all present"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "per-second, per project, but doesn't say project whose chat is open"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers match"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact anyway, skip only when turn active/compaction running"
+ },
+ "q7": {
+  "score": 1,
+  "why": "exact path"
+ },
+ "q8": {
+  "score": 0.5,
+  "why": "dnd ok with PARTIAL; cog given different code GIT_ERROR, no every-restart"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly, not via seedon"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "Sol ban and medium ok; 'banned' implied, luna mapping missing, sol->GPT-6 Sol dubious"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules"
+ },
+ "q12": {
+  "score": 1,
+  "why": "base.md, never CLAUDE.md"
+ },
+ "q13": {
+  "score": 1,
+  "why": "dead session, in_progress, workaround; V-44 implied by case"
+ },
+ "q14": {
+  "score": 1,
+  "why": "branch and 27.09"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "hashes correct, dates missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "exit guard, commit, 115"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "not_idle, 18, 92 ok but status/57% details missing; mostly matches must_contain"
+ },
+ "q18": {
+  "score": 1,
+  "why": "option C, releases, complete_previous"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "Koshelева, nothing needed; 'not transferred' missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "dev-lead, media-orchestrator, always running"
+ }
+}
