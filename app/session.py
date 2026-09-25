@@ -79,6 +79,8 @@ logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
 TURN_COMPLETION_RECHECK = 1.0
+# Ходы, начатые платформой, а не пользователем/агентом: квотный гейт их не блокирует (V-640).
+QUOTA_GATE_EXEMPT_ORIGINS = frozenset({"background_task", "platform", "system"})
 _COMPACT_USER_MESSAGES_REQUIREMENT = (
     "Preserve all user messages verbatim, in order of arrival "
     "(все сообщения юзера, дословно, в порядке поступления)."
@@ -1151,7 +1153,10 @@ class AgentSession:
                 raise RuntimeError(
                     "handoff_recovery_required: operator recovery is required before sends"
                 )
-            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+            if (
+                self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
+                or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
+            ):
                 break
             if decision is None:
                 admitted_model = self.model
@@ -2589,41 +2594,16 @@ class AgentSession:
                     await self._disconnect_backend()
 
     async def _compaction_permit(self, *, reserve: bool = False):
-        decision = None
-        admitted_model = ""
-        admitted_stop_gen = -1
-        while True:
-            async with self._lifecycle_lock:
-                if self.status == AgentStatus.RUNNING:
-                    raise RuntimeError("cannot compact while agent is running")
-                if reserve and self._compacting:
-                    raise RuntimeError("compact already in progress")
-                if self.is_orchestrator:
-                    if reserve:
-                        self._compacting = True
-                    return None, self.model, self._turn_start_cancel_gen
-                if decision is not None:
-                    if admitted_stop_gen != self._turn_start_cancel_gen:
-                        raise RuntimeError("compaction start cancelled by stop")
-                    if self.model != admitted_model:
-                        decision = None
-                        continue
-                    if (
-                        decision.state in {"available", "blocked"}
-                        and decision.valid_until is not None
-                        and time.time() >= decision.valid_until
-                    ):
-                        decision = None
-                        continue
-                    from app.quota_gate import require_worker_admission
-
-                    require_worker_admission(decision)
-                    if reserve:
-                        self._compacting = True
-                    return decision, admitted_model, admitted_stop_gen
-                admitted_model = self.model
-                admitted_stop_gen = self._turn_start_cancel_gen
-            decision = await self._worker_admission(admitted_model)
+        # Сжатие не проходит через квотный гейт (решение владельца V-640):
+        # реальный лимит провайдера ловит сам backend.
+        async with self._lifecycle_lock:
+            if self.status == AgentStatus.RUNNING:
+                raise RuntimeError("cannot compact while agent is running")
+            if reserve and self._compacting:
+                raise RuntimeError("compact already in progress")
+            if reserve:
+                self._compacting = True
+            return None, self.model, self._turn_start_cancel_gen
 
     def _compaction_permit_valid_locked(self, permit) -> bool:
         decision, model, stop_gen = permit
