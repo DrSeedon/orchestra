@@ -1256,6 +1256,7 @@ function updateLoadMoreBtn() {
     _addLoadMoreBtn();
 }
 
+const _OLDER_PAGE_SIZE = 100;
 async function loadMoreLogs() {
     if (!selectedAgent || !currentScope) return;
     const targetAgent = selectedAgent;
@@ -1269,7 +1270,7 @@ async function loadMoreLogs() {
         const q = new URLSearchParams({
             scope: targetScope,
             before_id: String(firstId),
-            limit: '100',
+            limit: String(_OLDER_PAGE_SIZE),
             cap: String(_CHAT_ROW_CAP),
         });
         const logs = await api(
@@ -1282,7 +1283,9 @@ async function loadMoreLogs() {
         );
         if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
         if (!Array.isArray(logs)) throw new TypeError('older chat history response is not an array');
-        chatLogs[targetAgent].olderPageLoaded = true;
+        // A full page means older rows may remain: the button comes back for the next page.
+        const exhausted = logs.length < _OLDER_PAGE_SIZE;
+        chatLogs[targetAgent].olderPageLoaded = exhausted;
         if (logs.length === 0) {
             if (btn) btn.remove();
             return;
@@ -1313,6 +1316,7 @@ async function loadMoreLogs() {
         } finally {
             _replayingHistory = false;
         }
+        if (!exhausted) _addLoadMoreBtn();
         chat.scrollTop = chat.scrollHeight - oldHeight;
     } catch (e) {
         if (!_chatLoadIsCurrent(targetGeneration, targetAgent, targetScope)) return;
