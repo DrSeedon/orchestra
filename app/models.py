@@ -152,6 +152,21 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="harness", provider="gigachat", context_length=128000,
         supported_parameters=("functions", "function_call"),
     ),
+    ModelSpec(
+        id="GigaChat-2-Pro", name="GigaChat 2 Pro",
+        runtime="harness", provider="gigachat", context_length=128000,
+        supported_parameters=("functions", "function_call"),
+    ),
+    ModelSpec(
+        id="GigaChat-3-Lightning", name="GigaChat 3 Lightning",
+        runtime="harness", provider="gigachat", context_length=128000,
+        supported_parameters=("functions", "function_call"),
+    ),
+    ModelSpec(
+        id="GigaChat-3-Pro", name="GigaChat 3 Pro",
+        runtime="harness", provider="gigachat", context_length=128000,
+        supported_parameters=("functions", "function_call"),
+    ),
     # Harness (OpenRouter) routes are NOT declared here: they come from the live
     # provider catalog via app.model_catalog. A hardcoded copy of someone else's
     # catalog goes stale silently — both entries kept here until 17.09.2026 were
@@ -217,6 +232,9 @@ _GIGACHAT_ALIASES = {
     "gigachat": "GigaChat-2",
     "gigachat-2": "GigaChat-2",
     "gigachat-2-max": "GigaChat-2-Max",
+    "gigachat-2-pro": "GigaChat-2-Pro",
+    "gigachat-3-lightning": "GigaChat-3-Lightning",
+    "gigachat-3-pro": "GigaChat-3-Pro",
     "gigachat-3-ultra": "GigaChat-3-Ultra",
 }
 ALIASES.update(_GIGACHAT_ALIASES)
@@ -417,7 +435,7 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
     if spec.runtime != "harness":
         raise ValueError(f"model '{spec.id}' is not a harness model")
     if spec.provider == "gigachat":
-        if spec.id not in {"GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra"}:
+        if spec.id not in {"GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max", "GigaChat-3-Lightning", "GigaChat-3-Pro", "GigaChat-3-Ultra"}:
             raise ValueError(f"unsupported GigaChat model '{spec.id}'")
         return
     if spec.id in BLOCKED_HARNESS_ROUTES:
