@@ -1,0 +1,10 @@
+{"scenario": "S1", "ok": true, "detail": "bubble_sort.py prints the components sorted", "seconds": 38, "tool_calls": 3}
+{"scenario": "S2", "ok": true, "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'", "seconds": 38, "tool_calls": 3}
+{"scenario": "S3", "ok": true, "detail": "справка_эксперту.md has licenses and correct counts", "seconds": 41, "tool_calls": 6}
+{"scenario": "S6x", "ok": true, "detail": "both modes correct", "seconds": 47, "tool_calls": 4}
+{"scenario": "S5", "ok": true, "detail": "3 new tasks [6, 7, 8], answer states total", "seconds": 44, "tool_calls": 4}
+{"scenario": "S8", "ok": true, "detail": "6 checkbox lines, 1 task", "seconds": 47, "tool_calls": 5}
+{"scenario": "C1", "ok": true, "detail": "committed: Проверка лицензий: ключ --json, справка, чеклист", "seconds": 38, "tool_calls": 2}
+{"scenario": "S4", "ok": true, "detail": "worker inventory, file has python 3.12.3 and OS Ubuntu", "seconds": 57, "tool_calls": 9}
+{"scenario": "S7", "ok": true, "detail": "3 tests pass", "seconds": 151, "tool_calls": 28}
+{"scenario": "S9", "ok": true, "detail": "audit_report2.md: real kernel 6.8.0-124-generic, 69222 chars", "seconds": 93, "tool_calls": 22}

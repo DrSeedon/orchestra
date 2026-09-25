@@ -1,0 +1,25 @@
+{
+ "scenario": "S7",
+ "tag": "chain-S7-run2",
+ "user_messages": 1,
+ "ok": false,
+ "detail": "unittest exit 1, 1 passed: 'e 53, in test_json_output\\n    self.assertEqual(len(lines), 1)\\nAssertionError: 6 != 1\\n\\n----------------------------------------------------------------------\\nRan 3 tests in 0.138s\\n\\nFAILED (failures=2)\\n'",
+ "seconds": 141,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 56,
+ "tool_errors": 20,
+ "loop_errors": 0,
+ "in_tokens": 331595,
+ "out_tokens": 8015,
+ "tools_by_name": {
+  "?": 15,
+  "bash": 15,
+  "edit": 16,
+  "read": 4,
+  "spawn_worker": 1,
+  "write": 5
+ },
+ "final_text": "< супругиtool_calls>\n< супругиinvoke name=\"bash\">\n< супругиparameter name=\"command\" string=\"true\">python3 -m unittest test_проверка_лицензий.py</ супругиparameter>\n</ супругиinvoke>\n</"
+}

@@ -1,0 +1,14 @@
+{
+ "scenario": "S2",
+ "attempt": 1,
+ "ok": true,
+ "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'",
+ "seconds": 35,
+ "user_messages": 1,
+ "turns": 1,
+ "in_tokens": 6751,
+ "out_tokens": 312,
+ "tool_calls": 3,
+ "tool_errors": 0,
+ "final_text": "Результат выполнения скрипта:\nРоссия — 1\nИностранные — 4\nДоля иностранных — 80%"
+}

@@ -1,0 +1,25 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run1",
+ "user_messages": 2,
+ "ok": true,
+ "detail": "audit_report.txt: real kernel 6.8.0-136-generic, 8380 chars",
+ "seconds": 236,
+ "timed_out": false,
+ "turns": 6,
+ "turns_failed": 0,
+ "tool_calls": 53,
+ "tool_errors": 13,
+ "loop_errors": 0,
+ "in_tokens": 459676,
+ "out_tokens": 13624,
+ "tools_by_name": {
+  "?": 3,
+  "bash": 29,
+  "glob": 1,
+  "read": 13,
+  "spawn_worker": 2,
+  "write": 5
+ },
+ "final_text": "Файл audit_report.txt содержит 118 строк. Последние секции отчёта:\n\n- Сетевые соединения (ss -tulpen, топ-50): видны systemd-resolved на 127.0.0.54:53; photobooth-enroll-web 127.0.0.1:8248; Telegram Bot API 0.0.0.0:8081; несколько портов Orchestra на 127.0.0.1 (8912, 8765, 41541, 42197, 59513, 10822); xray 127.0.0.1:10822.\n- Диск и память: /dev/sda1 — 290G/272G занято (94%); MemTotal ~23 GiB, доступно ~17 GiB; Swap ~15 GiB.\n- Пользователь kesha в группе sudo; последний вход root с IP 194.87.250.243.\n- Проект (/workspace/project): упоминаний .env*, *.key*, *.pem, id_* не найдено; права владельца зафиксированы для известных файлов проекта.\n\nЕсли нужно больше деталей по конкретному разделу или выгрузка фрагмента — укажи диапазон строк или тему."
+}

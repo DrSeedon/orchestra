@@ -3689,6 +3689,11 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 }
                 if (rc === 0) resText = resText.slice(rcMatch[0].length);
             }
+            // V-637: a silent command (cp, mkdir) left an empty black output box under its card.
+            if (!resText.trim()) {
+                addTimestamp(lastTool, ts);
+                return;
+            }
             const sep = document.createElement('div');
             sep.className = 'border-t border-slate-700/50 mt-2 pt-2';
             const resLines = resText.split('\n');

@@ -1,0 +1,9 @@
+{
+ "scenario": "S9",
+ "ok": true,
+ "detail": "audit_report2.md: real kernel 6.8.0-124-generic, 69222 chars",
+ "seconds": 93,
+ "user_messages": 1,
+ "tool_calls": 22,
+ "final_text": "Файл инвентаризации audit_report2.md перенесён в проект.\n\nТри главных факта:\n- ОС: Ubuntu 24.04.4 LTS, ядро Linux 6.8.0-124-generic; диск /dev/sda1 — 29G, использовано 89% (иноды ~13%).\n- Сеть и доступы: eth0 с публичным адресом 72.56.235.40/24; слушают порты 22, 80, 443, 8080, 8081 и др.; пользователи включают kesha, deploy, redis и системные учётки.\n- Службы и безопасность: активны nginx, ssh, fail2ban, orchestra-reestr-demo и seedon-* сервисы; права на /etc/shadow -rw-r-----; присутствуют PasswordAuthentication и PermitRootLogin в конфигурации SSH; pwquality.conf имеется."
+}

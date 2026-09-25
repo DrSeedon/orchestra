@@ -1,0 +1,5 @@
+{"tag": "S6x-run1", "ok": true, "detail": "both modes correct", "seconds": 23, "turns": 1, "tool_calls": 12, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6x-run2", "ok": true, "detail": "both modes correct", "seconds": 20, "turns": 1, "tool_calls": 12, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6x-run3", "ok": true, "detail": "both modes correct", "seconds": 20, "turns": 1, "tool_calls": 12, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6x-run4", "ok": true, "detail": "both modes correct", "seconds": 20, "turns": 1, "tool_calls": 12, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6x-run5", "ok": true, "detail": "both modes correct", "seconds": 20, "turns": 1, "tool_calls": 12, "tool_errors": 0, "loop_errors": 0}
