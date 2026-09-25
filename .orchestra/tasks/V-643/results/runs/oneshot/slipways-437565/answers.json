@@ -1,0 +1,22 @@
+{
+ "q1": "A1 (build sites precomputed per map, about 2–3 per planet); B1 (no fog, no probes)",
+ "q2": "«Давай ядро улучшать. Дорабатывать. Технологии квесты и все такое.»",
+ "q3": "task-V-46/slipways, cut from main (with V-45)",
+ "q4": ".orchestra/tasks/V-46/ — inventory.md lists 16 mechanics (report.md is still to be written there)",
+ "q5": "V-45 runs are in data/runs-v45/ (git mv); new V-46 runs go to data/runs/*.jsonl",
+ "q6": "bg-57f6630065: node tools/run_bots.mjs --seeds 1-100 --difficulties forgiving,reasonable --bots \"greedy,greedy:gift=2000,rollout\" --workers 7 via ssh kesha@localhost, logging to run_bots.log",
+ "q7": "1) launch rollout:width=8 on seeds 1–100, both difficulties (~6h) via bg_create with ssh; 2) build stats and replays, then report46.html; 3) write CHANGELOG entry and .orchestra/tasks/V-46/report.md; 4) commit '#V-46: ...'; 5) atomic deploy to the release dir, checking Slipways URLs and /balatro/ for 200 before and after; 6) send DONE",
+ "q8": "No `rm -r`; move files to trash instead (a hook enforces this)",
+ "q9": "Don't touch /var/www/balatro (or cog-balatro); deploy atomically to the release directory, same method as V-45, checking Slipways URLs and /balatro/ for 200 before and after",
+ "q10": "newGame(map, diff, {features, years}) with s.years = opts.years ?? 25; yearsLeft = Math.max(0, s.years − s.year − s.moy/mpy) supporting Infinity; lambda = s.years===Infinity ? p.moneyValue : p.moneyValue*left/s.years; V-46 merges first, V-47 rebases onto it",
+ "q11": "V-45 engine: greedy 13.7 s, rollout 122.2 s; V-46 engine with all mechanics: greedy 149.4 s, rollout 1241 s",
+ "q12": "scienceValue 80, labSites 8 (maxLabs 10), projectReserve 200 (scaled by fraction of years left), saveFor 999 (saving off)",
+ "q13": "24046 with the 2000 free science vs 15267 without on Forgiving",
+ "q14": "Lab upkeep grows quadratically (9 labs cost 189 Wealth/year) and labs can't be demolished; fix: bot builds a lab only if yearly income stays ≥20 afterwards, and negative income is penalised in evaluation (labIncomeFloor 20, negIncome 100)",
+ "q15": "5 of 100",
+ "q16": "greedy:rules=m and greedy:rules=mc — a 5-seed recheck per difficulty gave identical scores, so they were kept",
+ "q17": "UNKNOWN",
+ "q18": ".orchestra/kb/slipways-rules.md — Slipways rules (with a line added to .orchestra/kb/README.md)",
+ "q19": "UNKNOWN",
+ "q20": "Via bg_create or ssh kesha@localhost (don't sleep to poll); process-stop caveat: UNKNOWN"
+}

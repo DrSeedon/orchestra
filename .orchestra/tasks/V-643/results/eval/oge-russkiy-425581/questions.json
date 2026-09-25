@@ -1,0 +1,313 @@
+[
+ {
+  "id": "q1",
+  "category": "number",
+  "question": "In the corrected timing chart for the OGE Russian deck (after the orchestrator's fix), how many minutes were assigned to tasks 2–7 and what sum of the five segments equals the 235-minute limit?",
+  "gold": "Tasks 2–7 = 6 tasks × 7 min = 42 minutes; 90+42+10+33+60 = 235",
+  "must_contain": [
+   "42",
+   "90",
+   "33",
+   "60",
+   "235"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   423078
+  ]
+ },
+ {
+  "id": "q2",
+  "category": "user_verbatim",
+  "question": "What were Katya's exact words when she rejected the second (23-slide) deck?",
+  "gold": "«Очень мелкий шрифт много текста много цветов нет картинок»",
+  "must_contain": [
+   "мелкий шрифт",
+   "много текста",
+   "много цветов",
+   "нет картинок"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   424261
+  ]
+ },
+ {
+  "id": "q3",
+  "category": "prohibition",
+  "question": "What font-size, word-count and colour limits did the owner set for the rebuilt deck?",
+  "gold": "Body text not smaller than 24 pt, titles from 36 pt, key numbers from 60 pt; ≤ ~25–30 words per slide; max 2 accent colours plus background and text, taken from her master layout",
+  "must_contain": [
+   "24",
+   "36",
+   "60",
+   "25",
+   "2"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   424261
+  ]
+ },
+ {
+  "id": "q4",
+  "category": "path",
+  "question": "Which master template file must the OGE deck slides be built on, and how many layouts does it have?",
+  "gold": "/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx, 15 layouts",
+  "must_contain": [
+   "Мастер-макет ИСПР.pptx",
+   "15"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   424261,
+   424290
+  ]
+ },
+ {
+  "id": "q5",
+  "category": "prohibition",
+  "question": "What is the image generation budget limit, and what was spent on this deck?",
+  "gold": "Project limit $1 per day for everyone; generation avoided, $0 spent; use her files, then public-domain images with licenses in licenses.json",
+  "must_contain": [
+   "$1",
+   "0"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   422824,
+   424261
+  ]
+ },
+ {
+  "id": "q6",
+  "category": "path",
+  "question": "Where are the final pptx and PDF outputs of V-8 and where are the script and report (and which are in git)?",
+  "gold": "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf (outside git); script .orchestra/tasks/V-8/build_deck.py and report.md in .orchestra/tasks/V-8/ (in git)",
+  "must_contain": [
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx",
+   ".orchestra/tasks/V-8/build_deck.py",
+   "report.md"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   422824
+  ]
+ },
+ {
+  "id": "q7",
+  "category": "owner_decision",
+  "question": "After the orchestrator's slide-12 correction, how must tasks 8–12 be split into tiles on that slide (per SPEC generalized plan)?",
+  "gold": "8 — нормы, 9 — словосочетания (грамматическая синонимия словосочетаний), 10 — смысл текста, 11 — выразительность (выразительные средства), 12 — лексика (лексический анализ слова)",
+  "must_contain": [
+   "8",
+   "нормы",
+   "9",
+   "словосочетания",
+   "10",
+   "11",
+   "выразительность",
+   "12",
+   "лексика"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   424567
+  ]
+ },
+ {
+  "id": "q8",
+  "category": "owner_decision",
+  "question": "How did Katya clarify her request for mini-tasks 'in two formats'?",
+  "gold": "Two formats = pptx and PDF; no rigid split of mini-tasks into two types; they may vary (click-reveal question, task on demo crop, find the error, choose the option); choose a format that suits the block",
+  "must_contain": [
+   "pptx",
+   "PDF",
+   "не",
+   "клик"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   424762
+  ]
+ },
+ {
+  "id": "q9",
+  "category": "prohibition",
+  "question": "What restriction applies to the answer keys of the mini-tasks?",
+  "gold": "Answers only per the demo keys or indisputable; no disputed classification keys",
+  "must_contain": [
+   "ключам демоверсии",
+   "спорные"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   424695
+  ]
+ },
+ {
+  "id": "q10",
+  "category": "path",
+  "question": "Where is the EGE deck builder and report whose 'linguistics sections' scheme with gradual appearance must be reused, and what is the EGE output file?",
+  "gold": "Builder .orchestra/tasks/V-3/build_deck.py, slides 3–14; report .orchestra/tasks/V-7/report.md; output artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+  "must_contain": [
+   "V-3/build_deck.py",
+   "V-7/report.md",
+   "struktura-ege-2027.pptx"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   424695
+  ]
+ },
+ {
+  "id": "q11",
+  "category": "open_item",
+  "question": "What did the agent state at the end regarding animations that remains unverified?",
+  "gold": "Animations checked via XML and LibreOffice only; not run live in PowerPoint or Keynote",
+  "must_contain": [
+   "PowerPoint",
+   "Keynote"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   425002
+  ]
+ },
+ {
+  "id": "q12",
+  "category": "number",
+  "question": "What are the key numbers of the exam confirmed from SPEC that must not be changed in the deck?",
+  "gold": "13 tasks, 38 points, 235 minutes; parts max 6/11/8 plus 13 for literacy (as stated); ГК scale 3/2/1/0, СК2 up to 4",
+  "must_contain": [
+   "13",
+   "38",
+   "235"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   422873,
+   424261
+  ]
+ },
+ {
+  "id": "q13",
+  "category": "number",
+  "question": "What zeroing threshold on word count did the deck present, and what is the 139-word rule?",
+  "gold": "Fewer than 70 words in the summary or essay → zero for that task; if the total is 139 words or fewer, ГК1–ГК4 and ФК1 are scored zero",
+  "must_contain": [
+   "70",
+   "139"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   424343,
+   424493
+  ]
+ },
+ {
+  "id": "q14",
+  "category": "number",
+  "question": "What are the key numbers for the final interview (итоговое собеседование) used in the deck?",
+  "gold": "Max 17 points, pass from 10, about 15–16 minutes; 5 minutes preparation for tasks 1 and 2",
+  "must_contain": [
+   "17",
+   "10",
+   "15–16",
+   "5"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   423019,
+   425097
+  ]
+ },
+ {
+  "id": "q15",
+  "category": "owner_decision",
+  "question": "What did the agent decide about the 'retelling with quote' interview mini-task, and why?",
+  "gold": "Not done: in 2027 there is no retelling-with-quote task; task 2 is 'Беседа по тексту' (5 questions); no key in documents for 'where to insert the quote'",
+  "must_contain": [
+   "беседа",
+   "5",
+   "ключа"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   425097
+  ]
+ },
+ {
+  "id": "q16",
+  "category": "path",
+  "question": "What is the latest commit hash after the interview block, and how many slides does the deck now have?",
+  "gold": "1a6a611; 51 slides (PDF 51 pages)",
+  "must_contain": [
+   "1a6a611",
+   "51"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   425079,
+   425097
+  ]
+ },
+ {
+  "id": "q17",
+  "category": "owner_decision",
+  "question": "Which slide-layout problems did the owner ask to fix on circular algorithm slides in the third round?",
+  "gold": "Text overlapped the circle on slide 7 ('Пишем ключевые слова' at step 2), also check slide 19; move labels out so there is a gap between label and circle",
+  "must_contain": [
+   "7",
+   "19",
+   "зазор"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   424695
+  ]
+ },
+ {
+  "id": "q18",
+  "category": "prohibition",
+  "question": "What were the original rules about sources for numbers and criteria in V-8?",
+  "gold": "Only official FIPI documents; every number/criterion with reference to section/table; nothing from memory; mark 'ПРОЕКТ' on title; 'what changed in 2027' only by spec text; publish/send nothing",
+  "must_contain": [
+   "ФИПИ",
+   "ПРОЕКТ",
+   "ничего"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   422824
+  ]
+ },
+ {
+  "id": "q19",
+  "category": "open_item",
+  "question": "What did Katya ask for regarding animated slides in the PDF?",
+  "gold": "Check animations at XML level of pptx; in PDF give final state of each animated slide as separate pages",
+  "must_contain": [
+   "XML",
+   "финальное состояние"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   424695
+  ]
+ },
+ {
+  "id": "q20",
+  "category": "number",
+  "question": "What is the doc-based limit on the demo mini-task answers: how many points for grammar with 72+66 words and for 65-word summary?",
+  "gold": "Both answers are 0 (65-word summary → 0; 72+66=138 words ≤139 → 0 for literacy)",
+  "must_contain": [
+   "0"
+  ],
+  "importance": 1,
+  "evidence_log_ids": [
+   424343,
+   424989
+  ]
+ }
+]

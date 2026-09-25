@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "42, 90+42+10+33+60=235 all present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "exact quote matches"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24, 36, 60, 25–30 words, 2 colours all present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "path and 15 layouts match"
+ },
+ "q5": {
+  "score": 1,
+  "why": "$1 limit and $0 spent"
+ },
+ "q6": {
+  "score": 1,
+  "why": "paths and git split match"
+ },
+ "q7": {
+  "score": 1,
+  "why": "all tile assignments match"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx and PDF, no rigid split, click answer variants"
+ },
+ "q9": {
+  "score": 1,
+  "why": "demo keys or indisputable, no disputable keys"
+ },
+ "q10": {
+  "score": 1,
+  "why": "builder, report, output file all match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "not run in PowerPoint/Keynote; XML and LibreOffice only"
+ },
+ "q12": {
+  "score": 1,
+  "why": "13, 38, 235, ГК scale, СК2 all match"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "only the 5 min preparation matches; lacks 17 max, pass 10, 15–16 min, and other details are not the gold facts"
+ },
+ "q15": {
+  "score": 1,
+  "why": "no such task in 2027, беседа with five questions, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "1a6a611 and 51 slides"
+ },
+ "q17": {
+  "score": 1,
+  "why": "slides 7 and 19, gap between label and circle"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "FIPI, ПРОЕКТ, spec-only present; omits 'publish/send nothing'"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "final state as separate pages given, but XML-level animation check missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "both 0"
+ }
+}

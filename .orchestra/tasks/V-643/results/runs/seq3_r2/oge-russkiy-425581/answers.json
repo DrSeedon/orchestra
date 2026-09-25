@@ -1,0 +1,22 @@
+{
+ "q1": "42 minutes for tasks 2–7 (6×7 min); sum 90+42+10+33+60 = 235",
+ "q2": "«Очень мелкий шрифт много текста много цветов нет картинок»",
+ "q3": "Main text ≥24 pt (≥48 pt in file since master slide is 2x), headings ≥36 pt, key numbers ≥60 pt; one idea per slide, ≤ ~25–30 words; max 2 accent colours + background + text, from her master template (no rainbows)",
+ "q4": "/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx — 15 layouts",
+ "q5": "Limit $1/day for the whole project; spent $0",
+ "q6": "Outputs (not in git): artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf (also contact-sheet.png, slide-stats.json). In git (.orchestra/tasks/V-8/): build_deck.py, check_anim.py, report.md, contact-sheet.png (reduced)",
+ "q7": "8 norms; 9 word combinations (grammatical synonymy of word combinations); 10 text meaning; 11 expressiveness (expressive means); 12 lexis (lexical analysis of a word) — 8 tiles, 5 topics",
+ "q8": "'In two formats' means pptx and PDF; no rigid split into two mini-task types — they can vary (question with click answer, demo crop task, find the error, choose a variant), pick format to fit the block",
+ "q9": "Answers only per FIPI demo keys/criteria (demo tables); indisputable ones only; disputable classification tasks not used",
+ "q10": ".orchestra/tasks/V-3/build_deck.py (slides 3–14), report .orchestra/tasks/V-7/report.md; output artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+ "q11": "Animations were not run live in PowerPoint/Keynote; verified only via XML and LibreOffice",
+ "q12": "38 points, 13 tasks, 235 min, ГК 3/2/1/0, СК2 up to 4",
+ "q13": "Essay/summary under 70 words → 0 points. The 139-word rule: UNKNOWN",
+ "q14": "Max 17 points (reading 3, conversation 5, monologue 3, speech literacy 6), pass ≥10, ~15–16 min, prep 5 min (tasks 1–2) and 2 min (monologue), monologue ≤3 min",
+ "q15": "Not made: there's no 'retelling with quote' task in 2027 (task 2 is 'Беседа по тексту', 5 questions, quote only in the 5th), and no answer key in the 2027 documents",
+ "q16": "1a6a611; 51 slides (PDF 51 pages)",
+ "q17": "Captions overlapped the circle on circular algorithm slides (originally slides 7/19, now 10 and 27); owner asked to add a gap from the circle. 'Third round' specifics: UNKNOWN",
+ "q18": "Only official FIPI OGE-2027 documents; every number, criterion, time, task count with a reference to a document section/table; nothing from memory",
+ "q19": "For animated slides, PDF should give the final state of each slide with appearance as separate pages",
+ "q20": "Both 0 points (72+66 words → 0 for grammar; 65-word summary → 0)"
+}

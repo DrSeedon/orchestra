@@ -1,0 +1,22 @@
+{
+ "q1": "Banned: «первые в России», «аналогов нет», «уже пользуются тысячи». Product must be presented as not existing yet: a waitlist («лист ожидания»), the scenario shown as an example (final card «пример сценария · данные вымышлены»).",
+ "q2": "UNKNOWN",
+ "q3": "No new paid service without the orchestrator's confirmation («Новый платный сервис без моего подтверждения не заводи»). Music only with clean rights: CC0, own generation, or a library with an explicit commercial-use license; record source and license in the report.",
+ "q4": "It is a draft synthesized voice-over «до записи живым голосом», so it still has to be re-recorded with a live voice (possibly Katya, per the V-74 brief).",
+ "q5": "Frame 6 («выиграем ли закупку — узнаем 30 сентября») must be kept. Do not show the customer's name on screen. The link in reel 3 is seedon.ru.",
+ "q6": "Music under voice −20…−24 LUFS; final reel about −14 LUFS.",
+ "q7": "Vosk TTS `vosk-model-tts-ru-0.9-multi`, Apache 2.0. Piper rejected: denis card says CC0 but irina's license is unknown. Silero rejected: non-commercial license.",
+ "q8": "/mnt/data/Рабочий стол/СИДОН — документы/Рилсы лист ожидания/ on the director's laptop, copied via tar over ssh (skill laptop-access), verified by sha256.",
+ "q9": "Final A/B/C commit: 08428bb on branch task-V-75/designer. First motion version (v1): 488f938.",
+ "q10": "Final: A 24,37 s (24,4), B 24,37 s (24,4), C 15,0 s. Originally planned: A 22,5 s, B 22,5 s, C 15 s.",
+ "q11": "«прикольно, только по тексту надо разобраться, че там мама хотела — непонятно, типа лепить без галочки вещей». Dynamics and format worked, but the story was unclear (viewer doesn't understand what mom wanted as a gift), so the text was to be rewritten.",
+ "q12": "A «Кроссовки, 38-й размер» 22,5 s (recommended); B «Лепить из глины» 22,5 s; C short version of A, 15 s.",
+ "q13": "Hook question, quotes held the full bar, long answer across two bars, about 25 hits instead of 48, loop, CTA «ссылка в профиле» with large «СКОРО».",
+ "q14": "out/reel1-motion-A.mp4, out/reel1-motion-B.mp4, out/reel1-motion-C.mp4.",
+ "q15": "Top ~220 px, bottom ~380 px.",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN",
+ "q18": "Do not publish anywhere. Do not commit PNG frames or cache; only final MP4s, contact sheets and report go to git.",
+ "q19": "128 BPM, bar 1,875 s, 11 scenes of one bar each, 22,5 s. Hook «МАМА / СКАЗАЛА, / ЧТО ХОЧЕТ / В ПОДАРОК» one word per beat, then story, rapid cuts before the finale, CTA. Size fix: CRF 17 grain gave 244 MB; switched to x264 preset slow, crf 20, maxrate 10M, bufsize 20M, giving 29,8 MB.",
+ "q20": "UNKNOWN. The cause of the 24.09 V-75 render crash (bg-4bb86d4ee0) was not established, output was not saved. What was changed to prevent loss next time is not stated."
+}

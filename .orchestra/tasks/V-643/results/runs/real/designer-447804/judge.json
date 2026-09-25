@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "All three phrases and waitlist/example status present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "Exact quote with 'звук обязательно' and 'голос'; reels 2,3 and reel 1 rebuilt"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Paid service needs confirmation; music rights CC0/own/commercial license; source and license in report"
+ },
+ "q4": {
+  "score": 1,
+  "why": "Draft voiceover label and replacement with live voice"
+ },
+ "q5": {
+  "score": 1,
+  "why": "Frame 6 with 30 сентября, seedon.ru, no customer name"
+ },
+ "q6": {
+  "score": 1,
+  "why": "-20…-24 under voice, -14 final"
+ },
+ "q7": {
+  "score": 1,
+  "why": "Vosk, Apache 2.0, Silero rejected for licensing"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Correct path, tar over ssh"
+ },
+ "q9": {
+  "score": 1,
+  "why": "08428bb on task-V-75/designer, 488f938 first"
+ },
+ "q10": {
+  "score": 1,
+  "why": "A/B 24.4, C 15.0; planned 22.5"
+ },
+ "q11": {
+  "score": 1,
+  "why": "Quote includes 'непонятно' and 'галочки'; story unclear"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Sneakers 38, clay, 15 s short version, A recommended"
+ },
+ "q13": {
+  "score": 1,
+  "why": "All fixes listed including hook, 25, loop, СКОРО"
+ },
+ "q14": {
+  "score": 1,
+  "why": "All three filenames correct"
+ },
+ "q15": {
+  "score": 1,
+  "why": "220 top, 380 bottom"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 1,
+  "why": "No publishing; no PNG frames/cache committed"
+ },
+ "q19": {
+  "score": 1,
+  "why": "128 BPM, 60 fps, 11 scenes, 244→29 MB crf 20 maxrate 10M"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN"
+ }
+}

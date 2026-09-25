@@ -1,0 +1,22 @@
+{
+ "q1": "A1 (buildings only at precomputed sites, ~2–3 per planet) and B1 (no fog of war or probes for now)",
+ "q2": "«Давай ядро улучшать. Дорабатывать. Технологии квесты и все такое.»",
+ "q3": "task-V-46/slipways, cut from main (which includes V-45)",
+ "q4": ".orchestra/tasks/V-46/ (inventory.md is the inventory; report.md planned); the number of mechanics listed: UNKNOWN",
+ "q5": "V-45 runs are in data/runs-v45/ (moved with git mv from data/runs); new V-46 runs go to data/runs/",
+ "q6": "bg-57f6630065 — greedy, greedy:gift=2000 and rollout (×4) on seeds 1–100, both difficulties, 7 workers, via ssh",
+ "q7": "Run rollout:width=8 (~6 h); node tools/build_stats.mjs --replays; node tools/build_report46.mjs; check text claims against data and fix KB gift numbers; CHANGELOG 0.3.0 and .orchestra/tasks/V-46/report.md; commit '#V-46: ...'; deploy atomically like V-45; DONE to orchestrator",
+ "q8": "Never use rm -r (the hook blocks it); use trash instead",
+ "q9": "Do not touch /var/www/balatro (cog-balatro); deploy the V-45 way: atomic release in /var/www/cog-slipways/releases/<sha> with the current symlink switched, 200 checks on neighbours before and after, headless render check; no push",
+ "q10": "newGame(map, diff, {features, years}), s.years = opts.years ?? 25, yearsLeft Infinity branch kept; my branch merges first, slipways-notime rebases and moves skipYears/lastBuild/endReason into advance() later",
+ "q11": "V-45 engine: greedy 13.7 s (40 games), rollout ×4 122.2 s (6 games); V-46 engine with all mechanics: greedy 149.4 s, rollout 1241 s (older bot code)",
+ "q12": "scienceValue 80, labSites 8, maxLabs 10, projectReserve 200 (shrinks with time left), saveFor 999 (science saving off)",
+ "q13": "24,046 with gift=2000 vs 15,267 without (Forgiving)",
+ "q14": "Lab upkeep grows quadratically (9 labs cost 189 Wealth/yr) and labs can't be demolished; the bot now builds a lab only if yearly income stays ≥20 afterwards and penalises negative income in evaluation",
+ "q15": "5 of 100",
+ "q16": "The multi-import-only (rules=m) and multi-import+council (rules=mc) greedy runs, because re-running 5 maps per difficulty for each gave identical scores",
+ "q17": "UNKNOWN",
+ "q18": ".orchestra/kb/slipways-rules.md — Slipways rules/mechanics (indexed in .orchestra/kb/README.md)",
+ "q19": "UNKNOWN",
+ "q20": "Via bg_create or ssh kesha@localhost, no sleeping or polling; the process-stop caveat: UNKNOWN"
+}

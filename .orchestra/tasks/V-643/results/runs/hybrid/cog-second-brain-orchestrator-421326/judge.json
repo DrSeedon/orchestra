@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "ядро бот and V-44 present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "path and 3ae93ff match"
+ },
+ "q3": {
+  "score": 1,
+  "why": "V-43 and c0ac749 match"
+ },
+ "q4": {
+  "score": 1,
+  "why": "80/160/320/640 and 400 per level"
+ },
+ "q5": {
+  "score": 1,
+  "why": "12 000 and 30 000 correct"
+ },
+ "q6": {
+  "score": 1,
+  "why": "-500, year 20"
+ },
+ "q7": {
+  "score": 1,
+  "why": "8 and 1.6 correct"
+ },
+ "q8": {
+  "score": 1,
+  "why": "6, 2.82×3.8, no hard cap"
+ },
+ "q9": {
+  "score": 0.5,
+  "why": "has 18632 and 13042 with -30%, but 0.70 present implicitly; happiness 1.37 unknown, 13600 missing"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "score 14126 and 5 stars correct, seed unknown"
+ },
+ "q11": {
+  "score": 1,
+  "why": "generator not reverse-engineered, maps approximate"
+ },
+ "q12": {
+  "score": 1,
+  "why": "2222, tunnel_laptop, game path present"
+ },
+ "q13": {
+  "score": 1,
+  "why": "dir and URL path match"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "money/shop question and no answer, but 94 locked instead of 25 locked jokers"
+ },
+ "q15": {
+  "score": 1,
+  "why": "all figures match"
+ },
+ "q16": {
+  "score": 1,
+  "why": "962 598, 50 days, top-3 union"
+ },
+ "q17": {
+  "score": 1,
+  "why": "V-33, V-34, V-19 and next action match"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "publish/push rules correct, owner-only restart missing"
+ },
+ "q19": {
+  "score": 1,
+  "why": "all three constraints present"
+ },
+ "q20": {
+  "score": 0,
+  "why": "mutation test for cache key unknown; slot order reason stated generically but 2 of 3 missing"
+ }
+}

@@ -1,0 +1,22 @@
+{
+ "q1": "UNKNOWN",
+ "q2": "UNKNOWN",
+ "q3": "UNKNOWN",
+ "q4": "UNKNOWN",
+ "q5": "UNKNOWN",
+ "q6": "bg-57f6630065 (replaced bg-1fd430b441): greedy, the \"free science\" variant, rollout x4",
+ "q7": "Run rollout x8 (about 6 more hours), then build the stats and the report",
+ "q8": "UNKNOWN",
+ "q9": "UNKNOWN",
+ "q10": "UNKNOWN",
+ "q11": "V-45 engine: greedy 13734 ms (13.7 s), rollout 122210 ms (122 s); V-46 engine with all V-46 mechanics: greedy 149400 ms (149 s), rollout 1241290 ms (~1241 s)",
+ "q12": "UNKNOWN",
+ "q13": "24,046 with 2000 science handed at the start vs 15,267 without, on Forgiving",
+ "q14": "Lab upkeep grows quadratically (9 labs cost 189 Wealth a year) and a lab can't be demolished; fixed by building a lab only if yearly income stays at 20 or more afterwards, and penalising negative income in the bot's evaluation",
+ "q15": "5 of 100",
+ "q16": "The multi-import-only and multi-import-plus-council greedy runs were kept: re-running 5 maps per difficulty for each gave identical scores",
+ "q17": "UNKNOWN",
+ "q18": "UNKNOWN",
+ "q19": "UNKNOWN",
+ "q20": "UNKNOWN"
+}

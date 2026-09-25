@@ -1,0 +1,22 @@
+{
+ "q1": "Tasks 2–7 = 42 min; the five segments 90+42+10+33+60 = 235 min (the 1st build wrongly had 35 instead of 42)",
+ "q2": "«Очень мелкий шрифт много текста много цветов нет картинок»",
+ "q3": "Body ≥24 pt on a normal slide (≥48 pt in the 26.67×15″ master file), headings ≥36 (72–80 in file), key numbers ≥60 (≥120 in file); ≤25 words per slide (one idea per slide); max 2 accent colours, only the master palette",
+ "q4": "«Мастер-макет ИСПР.pptx» (/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx), 15 layouts",
+ "q5": "Limit $1 per day for the whole project; $0 spent on this deck",
+ "q6": "Outputs (outside git): artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf. Script .orchestra/tasks/V-8/build_deck.py and report .orchestra/tasks/V-8/report.md are in git (commit 1a6a611)",
+ "q7": "8 — нормы, 9 — словосочетания (синонимия словосочетаний), 10 — смысл текста (смысловой анализ), 11 — выразительность (выразительные средства), 12 — лексика (лексический анализ); one tile each, 'the rest don't touch'",
+ "q8": "«В двух форматах» = pptx and PDF; no rigid split of mini-tasks into two types — they can vary: click-reveal question, task on a demo crop, «найди ошибку», «выбери вариант»; choose the format that fits the block",
+ "q9": "Keys only from the FIPI demo tables and FIPI criteria/documents; disputed classification tasks excluded",
+ "q10": "/home/kesha/katya-work/artifacts/struktura-ege/inbox/struktura-ege-2025-original.pptx (slide 4; the scheme is on slides 3–4). The builder/report of the EGE deck are UNKNOWN",
+ "q11": "Animations verified only by XML and LibreOffice, not in PowerPoint/Keynote",
+ "q12": "13 tasks, 3 parts, max primary score 38, 235 min (90+42+10+33+60), 11 short + 2 extended answers; ГК2–ГК4 3/2/1/0; СК2 up to 4; demo keys 2=134, 3=135, 4=123, 5=1234568, 6=125, 7=12679, 8=жжётся, 9=безымянная река, 10=25, 11=13, 12=чутьсвет",
+ "q13": "Under 70 words the work scores 0; if summary+essay ≤139 words, ГК1–ГК4 and ФК1 = 0",
+ "q14": "17 points, pass ≥10, 15–16 min, prep 5 min (tasks 1–2) and 2 min (monologue), monologue ≥10 sentences, ≤3 min; task 1 = 3 pts (Ч1–Ч3), task 2 = Д1–Д4 1 pt each in demo (earlier data 5 pts/5 replies — discrepancy), task 3 = 3 pts, speech literacy up to 6; all docs marked «ПРОЕКТ»",
+ "q15": "Not made: in 2027 there is no 'retelling with quote' task; task 2 is a conversation of 5 questions, quote only in Q5, no key in the documents",
+ "q16": "1a6a611; 51 slides",
+ "q17": "Text overlapping the circle on the circular algorithm slides (7 and 19) — a gap between the caption and the circle was required",
+ "q18": "Only official FIPI OGE-2027 documents (ДЕМО, СПЕЦ, КОДИФ) plus final interview 2027; every number/criterion/time with a reference to the section/table, nothing from memory; documents marked «ПРОЕКТ» with a disclaimer in the deck; 'what changed in 2027' only from the spec text",
+ "q19": "In PDF give the final state of each animated slide as separate pages (orchestrator: «В PDF отдельными страницами дать финальное состояние каждого слайда с появлением»)",
+ "q20": "72 + 66 words for grammar → 0 points; 65-word summary → 0 points (under 70 words the work scores 0)"
+}

@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q4": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q5": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q8": {
+  "score": 1,
+  "why": "path, tar over ssh match"
+ },
+ "q9": {
+  "score": 1,
+  "why": "both commits and branch correct"
+ },
+ "q10": {
+  "score": 1,
+  "why": "durations match gold"
+ },
+ "q11": {
+  "score": 1,
+  "why": "quote with непонятно and галочки"
+ },
+ "q12": {
+  "score": 1,
+  "why": "A/B/C and recommendation correct"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all fixes listed"
+ },
+ "q14": {
+  "score": 1,
+  "why": "file names correct"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "not-published correct; frames/PNG cache not mentioned, names -sfx.mp4 instead"
+ },
+ "q19": {
+  "score": 1,
+  "why": "128 BPM, 60 fps, 244→29 MB correct"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN"
+ }
+}

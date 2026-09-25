@@ -1,0 +1,22 @@
+{
+ "q1": "Store raw events forever, no retention/deletion (owner: «пусть лежат не много же данных»).",
+ "q2": "New rule gave 46.70 h; compared with pause ≤5 min = 38.79 h, ≤10 min = 70.12 h (also ≤30 min 163.12 h and message+10 min 101.12 h).",
+ "q3": "Krasnoyarsk (UTC+7).",
+ "q4": "Time is credited to the project of the open chat, counted precisely per second and seamlessly («надо четко считать в каком проекте сижу сколько секунд все бесшовно»).",
+ "q5": "Precompact fix: V-627, worker `fix-precompact` (Luna); TG collapsed incoming messages: V-628, worker `tg-incoming` (Luna).",
+ "q6": "Precompact must run even with WAITING/active bg jobs («сжимать даже с бг»); it is skipped only when a turn is in progress or a compaction is already running.",
+ "q7": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db (1968668672 bytes).",
+ "q8": "dnd-game-master and cog-second-brain fail with ORCHESTRA_LAYOUT_PARTIAL at every restart since 22.09 (22 lines); VPS data check: cog file 02-personal/katya/katya-health-2026-07.md is intact, 59398 bytes.",
+ "q9": "seedon-orchestrator said: «учёт времени он решит напрямую с тобой, через меня этот вопрос больше не веди. Мне по этой теме не пиши.» — the owner handles it directly with me and I must not write to seedon about it.",
+ "q10": "`sol` routes to GPT-6 Sol, but Sol agents=OFF in both (Sol banned since 20.09); Opus 5.5 effort is medium (in pipeline.yaml).",
+ "q11": "No Co-Authored-By trailers in commits; don't use `git -c user.*`; never use `git stash`.",
+ "q12": "Only in the orchestrator prompts `prompts/base.md` (`<keep-going>`); never in CLAUDE.md.",
+ "q13": "merge_worker fails with «session has no bound task» for seedon V-44; proposed fix: allow switching the branch to the task if the task is «in progress» with a dead session or with the worker itself — awaiting owner's decision.",
+ "q14": "Branch `laptop-preserve-rescue`; dangling commits will be removed by git gc about 2 weeks after 23.09.",
+ "q15": "UNKNOWN",
+ "q16": "Restart tests arm a real exit guard on the pytest PID; bench2-opus5 commit `32b982be`: 115 failed / 3876 passed (bench2-opus55: 127 failed / 3864 passed).",
+ "q17": "skip_reason=not_idle (15:13 UTC 23.09), context 57%, 18 crons; last compaction was emergency at 92%.",
+ "q18": "V-620: switch_worker_branch releases the binding, variant C («давай С»).",
+ "q19": "Closed: University redrew slide 5 itself, the director sent the package to Koshelева; nothing more required from me («Больше по ВКРС от тебя ничего не нужно»); my version in /tmp/vkrs-review2/ unused.",
+ "q20": "Laptop `dev-lead` stayed on Opus 5 (no layout on outdated branch); media-orchestrator stays on Opus 4.6 by owner's decision; laptop Orchestra must always be running; stopping after rescue only on owner's command."
+}

@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "study vs seedon/ООО split stated; later change is extra"
+ },
+ "q2": {
+  "score": 0.5,
+  "why": "pandoc and docx skill present, matplotlib missing"
+ },
+ "q3": {
+  "score": 0.5,
+  "why": "ssh kesha@localhost and 12G present, but reason given is DuckDB, not the cgroup"
+ },
+ "q4": {
+  "score": 1,
+  "why": "the 'с первого раза' rule and comments stated"
+ },
+ "q5": {
+  "score": 1,
+  "why": "293 667 of 938 323 and post-fix figures correct; guard cause not named, but numbers are the core"
+ },
+ "q6": {
+  "score": 1,
+  "why": "738 211 × 38, 308 МБ"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "log chart kept, but the five new clustering charts are missing"
+ },
+ "q8": {
+  "score": 1,
+  "why": "applieddasfu, both links, attach as a file"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "regulation and all dates match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "exact title, unchanged in all documents"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Kustitskaya consents, Antipova gives the resolution"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all three codes and the trap"
+ },
+ "q14": {
+  "score": 1,
+  "why": "correct number, wrong number and its source"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "email and phone correct, form of study (очная) missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "keep the formatting, substitute text into the original blanks"
+ },
+ "q17": {
+  "score": 1,
+  "why": "mentor, reviewers, topic change all present"
+ },
+ "q18": {
+  "score": 1,
+  "why": "both the no-writing rule and the banned phrases"
+ },
+ "q19": {
+  "score": 1,
+  "why": "all four dates present"
+ },
+ "q20": {
+  "score": 1,
+  "why": "Jupyter to be closed, random lab draw"
+ }
+}

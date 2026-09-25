@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 0.5,
+  "why": "docx skill and no md→docx conversion, but no pandoc or matplotlib"
+ },
+ "q3": {
+  "score": 0.5,
+  "why": "ssh kesha@localhost present, but no 12G/cgroup reason"
+ },
+ "q4": {
+  "score": 1,
+  "why": "с первого раза, comments and process traces"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "293 667 and 938 323 present, but no guard cause"
+ },
+ "q6": {
+  "score": 0.5,
+  "why": "738 211 and 308 present; says 39 columns vs gold 38, hedged"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "log scale kept, no sample or cut-off, but five new charts not stated"
+ },
+ "q8": {
+  "score": 0.5,
+  "why": "two links and file not comment, but applieddasfu missing"
+ },
+ "q9": {
+  "score": 0,
+  "why": "real deadline 02.10 is UNKNOWN; only 23 correct"
+ },
+ "q10": {
+  "score": 1,
+  "why": "regulation and all dates match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "exact title, used unchanged"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Кустицкая agrees, Антипова signs resolution"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all codes and trap correct"
+ },
+ "q14": {
+  "score": 1,
+  "why": "correct number, wrong one and its source"
+ },
+ "q15": {
+  "score": 1,
+  "why": "email, phone, full-time correct"
+ },
+ "q16": {
+  "score": 1,
+  "why": "complaint and originals with text substituted"
+ },
+ "q17": {
+  "score": 1,
+  "why": "mentor, reviewers, topic change all present"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "no writing to teachers and banned phrases, but 'без слова пользователя' hedged; region ok"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "has 01.10, 03.10, 10.10, but 02.10 for ПЗАД missing"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "Jupyter open, but no close or random draw rule"
+ }
+}

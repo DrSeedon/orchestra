@@ -1,0 +1,22 @@
+{
+ "q1": "Keep raw events forever, no deletion (\"пусть лежат не много же данных\").",
+ "q2": "New method gave 46.70 h (estimate); compared with old message+10min = 101.12 h and V-57/30 min = 163.12 h (also gap≤5 min 38.79 h, gap≤10 min 70.12 h).",
+ "q3": "Krasnoyarsk (UTC+7), storage in UTC.",
+ "q4": "Owner: exact per-second split by scope/project, seamless (\"надо четко считать в каком проекте сижу сколько секунд все бесшовно\"); no equal division.",
+ "q5": "Precompact fix: V-627, worker fix-precompact (task id 4531). TG collapsed incoming: V-628, worker tg-incoming (task id 4532).",
+ "q6": "Planned precompact must still run even with bg tasks; it is skipped only when a turn is active or a compaction is already running (also unknown context or backend change).",
+ "q7": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db (~1.97 GB)",
+ "q8": "dnd-game-master fails with ORCHESTRA_LAYOUT_PARTIAL and /opt/cog-second-brain with ORCHESTRA_LAYOUT_GIT_ERROR (stash fb3d4dac not found). Data-loss check: cog file 02-personal/katya/katya-health-2026-07.md is intact (59398 bytes); repair via migrate_orchestra_layout.py --repair <repo>.",
+ "q9": "Time accounting is conducted directly with the orchestrator; do not route through seedon and do not write to seedon on this topic (#421451).",
+ "q10": "Sol: flag agents OFF on both Sol versions (Sol ban since 20.09 stays in force); sol→GPT-6 Sol. Opus 5.5 effort is medium (in pipeline.yaml).",
+ "q11": "No Co-Authored-By trailers in commits; do not use `git -c user.*`; do not use git stash (shared stack).",
+ "q12": "Only in the common prompts/base.md (<keep-going> block) for all roles; never in CLAUDE.md.",
+ "q13": "seedon merge_worker fails with \"session has no bound task\" (bug ...c9c6649b...). Proposed fix: let switch-to-task take an in_progress task held by a dead session or the worker itself; the owner was asked 23.09 and hasn't answered. Workaround told to seedon: first assign the task to the worker.",
+ "q14": "Branch laptop-preserve-rescue; git gc will delete the dangling commits no earlier than ~27.09.",
+ "q15": "comfy 7cecfd9 and kesha-tg-bot ea7f2c2 (dangling commits); dates UNKNOWN.",
+ "q16": "Restart tests arm a real exit guard on the pytest PID; commit 32b982be (V-623), full run 115 failed / 3876 passed (V-624: 127 failed / 3864 passed with 8 more tests).",
+ "q17": "Skipped 23.09 15:13 UTC with reason \"занят\" (not_idle); seedon had 18 alarms; the last emergency compaction was at 92%→10% (23.09 09:57 UTC).",
+ "q18": "Variant C: switch by default releases the binding (task returns to new); complete_previous + acceptance_note closes it as done.",
+ "q19": "Closed: University-orchestrator redrew slide 5 itself, director sent the package to Koshelева; nothing more needed from me (#423004).",
+ "q20": "dev-lead stays on Opus 5 (stale branch, no layout); media-orchestrator stays on Opus 4.6 by owner decision. Rule: Orchestra on the laptop must always be running (do not stop without the owner's command); open: the layout-preserve fix, SIGTERM hang on laptop with open dashboard, laptop-rescue V-625."
+}

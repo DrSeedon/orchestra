@@ -1,0 +1,22 @@
+{
+ "q1": "Keep raw events forever (don't delete, 'пусть лежат, не много данных'); one token per tab.",
+ "q2": "46.7 hours (estimate). Compared with: old method (message + 10 min thinking) 101.12 h and burst with 30-min gap (V-57 method) 163.12 h.",
+ "q3": "Krasnoyarsk (+7).",
+ "q4": "Time counts per second into the currently open scope; owner demanded precise counting: 'надо четко считать в каком проекте сижу сколько секунд все бесшовно'.",
+ "q5": "Precompact fix: V-627, worker fix-precompact (Luna). TG incoming messages: V-628, worker tg-incoming (Luna).",
+ "q6": "Owner: 'чини механизм все равно сжимать даже с бг' — precompact now fires for IDLE/WAITING sessions even with active bg tasks; skipped only during a running turn or an already running compaction.",
+ "q7": "data/orchestra-pre-v626-20260924.db",
+ "q8": "dnd-game-master (ORCHESTRA_LAYOUT_PARTIAL) and /opt/cog-second-brain (ORCHESTRA_LAYOUT_GIT_ERROR: cannot locate migration commit while recovering stash fb3d4dac…). Data-loss check on cog: dirty file 02-personal/katya/katya-health-2026-07.md intact (59398 bytes), not zeroed; the dnd VPS check is UNKNOWN.",
+ "q9": "seedon-orchestrator said the owner decides time accounting directly with me: 'через меня этот вопрос больше не веди. Мне по этой теме не пиши.' — so do not write to seedon about it.",
+ "q10": "Sol (both versions) has agents flag OFF (Sol banned since 20.09); Opus 5.5 effort = medium in pipeline.yaml.",
+ "q11": "No Co-Authored-By trailer in commits (owner rule overrides system reminder); do not use `git -c user.*`; never use git stash (shared stack).",
+ "q12": "In the shared orchestrator prompt `.orchestra/pipelines/default/prompts/base.md` (<keep-going> block); never in CLAUDE.md.",
+ "q13": "merge_worker fails with 'session has no bound task' for a persistent worker; seedon merged V-44 manually. Proposed fix: let a branch switch take over an in-progress task held by a dead session or the same worker. Awaiting owner.",
+ "q14": "Branch `laptop-preserve-rescue`; git gc may delete the dangling snapshots from about 27.09.",
+ "q15": "comfy: 7cecfd9 (13.09); kesha-tg-bot: ea7f2c2 (04.09).",
+ "q16": "Tests of restart arm a real exit guard on the pytest PID; bench2-opus5 commit 32b982be, full run 115 failed / 3876 passed (Opus 5.5 found the same plus 8 more tests: 127 failed / 3864 passed).",
+ "q17": "UNKNOWN (skip_reason not in the text); precompact skips before fix since 16.09: seedon 10 misses; seedon last compacted 23.09 at 92% (emergency). Number of alarms UNKNOWN.",
+ "q18": "Variant C: a branch switch releases the binding by default; complete_previous + acceptance_note closes the previous task as done.",
+ "q19": "Closed: the package already went to Koshелева with the 5th slide redrawn by University; University-orchestrator said nothing more is needed from me. Nothing remains.",
+ "q20": "dev-lead stays on Opus 5 (old branch); media-orchestrator on Opus 4.6 (owner's exception). Rule: Orchestra on the laptop must always be running."
+}

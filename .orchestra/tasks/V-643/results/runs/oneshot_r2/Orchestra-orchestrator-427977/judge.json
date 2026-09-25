@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, don't delete"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.7, 101.12, 163.12 all present; extra estimates don't contradict"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk"
+ },
+ "q4": {
+  "score": 1,
+  "why": "open chat scope, to the second, seamless"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers match"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact despite bg; skip only if turn running or compaction in progress"
+ },
+ "q7": {
+  "score": 1,
+  "why": "exact path matches"
+ },
+ "q8": {
+  "score": 1,
+  "why": "both projects and code correct; cog file 59 KB intact noted"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly, not via seedon, don't write"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "Sol agents OFF but banned not stated; medium correct; luna missing"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules"
+ },
+ "q12": {
+  "score": 0.5,
+  "why": "base.md correct, CLAUDE.md never missing"
+ },
+ "q13": {
+  "score": 0,
+  "why": "fix not known"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 1,
+  "why": "not_idle, 18, 92% all present"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "option C only, no details"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "slide 5 and nothing more correct, but Кошелева not named and not-transferred is only loosely stated"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "always-running rule correct; orchestrators unknown"
+ }
+}

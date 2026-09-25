@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 1,
+  "why": "exact quote matches gold"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24/36/60, 25–30 words, 2 accent colours all present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "path and 15 layouts match"
+ },
+ "q5": {
+  "score": 1,
+  "why": "$1 per day, $0 spent"
+ },
+ "q6": {
+  "score": 1,
+  "why": "paths and git status match"
+ },
+ "q7": {
+  "score": 1,
+  "why": "all tiles 8-12 match"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx/PDF, no rigid split, click-reveal etc."
+ },
+ "q9": {
+  "score": 1,
+  "why": "demo keys only, no disputable keys"
+ },
+ "q10": {
+  "score": 1,
+  "why": "builder, report and output file match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "XML/LibreOffice only, not PowerPoint or Keynote"
+ },
+ "q12": {
+  "score": 1,
+  "why": "13, 38, 235, ГК scale, СК2 4 present"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q15": {
+  "score": 1,
+  "why": "Беседа по тексту, 5 questions, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "1a6a611 and 51 slides"
+ },
+ "q17": {
+  "score": 1,
+  "why": "slides 7 and 19, gap between label and circle"
+ },
+ "q18": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "final state as separate pages given, XML check missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "both 0 points"
+ }
+}

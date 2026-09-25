@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "42, 90, 33, 60, 235 all present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "exact quote"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24, 36, 60, 25–30, 2 colours all present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "path and 15 layouts match"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "$1 and $0 correct, but omits sourcing/licenses part"
+ },
+ "q6": {
+  "score": 1,
+  "why": "pptx/pdf path, build_deck.py, report.md, git split correct"
+ },
+ "q7": {
+  "score": 1,
+  "why": "all tiles 8–12 match gold"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx+PDF, no rigid split, click-reveal variants"
+ },
+ "q9": {
+  "score": 1,
+  "why": "demo keys only, indisputable, disputed excluded"
+ },
+ "q10": {
+  "score": 1,
+  "why": "all three paths match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "PowerPoint/Keynote not tested, XML/LibreOffice only"
+ },
+ "q12": {
+  "score": 1,
+  "why": "13, 38, 235 and scales present"
+ },
+ "q13": {
+  "score": 0.5,
+  "why": "70 correct, 139 rule unknown"
+ },
+ "q14": {
+  "score": 1,
+  "why": "17, 10, 15–16, 5 all present"
+ },
+ "q15": {
+  "score": 1,
+  "why": "Беседа по тексту, 5 questions, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "hash and 51 match"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "slides 7/19 and gap right, but third-round detail unknown and 'Пишем ключевые слова' missing"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "FIPI and refs correct, missing ПРОЕКТ, publish nothing"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "final state as separate pages given, XML check omitted"
+ },
+ "q20": {
+  "score": 1,
+  "why": "both 0 correct"
+ }
+}
