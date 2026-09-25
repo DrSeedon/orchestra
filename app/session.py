@@ -52,6 +52,7 @@ from app.runtime_history import (
 )
 from app.session_cost import CostTracker
 from app.session_hibernate import HibernateManager
+from app.stall_signals import describe_event, watch_turn_start
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
 )
@@ -479,6 +480,7 @@ class AgentSession:
     _template_hash: str = field(default="", repr=False)
     _turn_start: float = field(default=0.0, repr=False)
     _last_msg_time: float = field(default=0.0, repr=False)
+    _last_event: str = field(default="", repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
     on_turn_blocked: Optional[callable] = field(default=None, repr=False)
@@ -1454,6 +1456,8 @@ class AgentSession:
                             else None
                         ),
                     )
+                    if allow_running_delivery:
+                        self._spawn_bg(watch_turn_start(self, delivery.delivery_id))
             except asyncio.CancelledError as error:
                 if delivery is not None and dispatch_started:
                     await delivery.mark_unknown(error)
@@ -2136,6 +2140,7 @@ class AgentSession:
                     return
                 async for event in self._backend.events():
                     self._last_msg_time = asyncio.get_event_loop().time()
+                    self._last_event = describe_event(event)
                     self._handle_event(event)
                     consecutive_failures = 0
                 # Persistent streams may return without error when the upstream closes.
@@ -2221,6 +2226,7 @@ class AgentSession:
         try:
             async for event in backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
+                self._last_event = describe_event(event)
                 # thread.started is emitted before turn.completed. Store it now so an
                 # interrupted long turn can resume instead of silently starting fresh.
                 early_session_id = event.metadata.get("session_id") if event.type == "status" else None
