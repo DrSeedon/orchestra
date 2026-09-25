@@ -3217,6 +3217,51 @@ def test_short_snapshot_offers_one_shot_previous_100_without_cache(
     assert "cap=16384" in requests[0]
 
 
+def test_full_previous_page_keeps_offering_older_history(
+    dashboard_browser: Browser,
+):
+    """Owner 25.09: after one «previous 100» the button vanished and older history was unreachable."""
+    page = _open_tool_correlation_page(dashboard_browser, False)
+    requests: list[str] = []
+
+    def history_route(route):
+        requests.append(route.request.url)
+        before_id = int(route.request.url.split("before_id=")[1].split("&")[0])
+        rows = [
+            {"id": before_id - 100 + i, "session_id": "history-id", "type": "text",
+             "content": f"older-{before_id - 100 + i}", "ts": "2026-08-28T08:00:00+00:00"}
+            for i in range(100)
+        ]
+        route.fulfill(status=200, content_type="application/json", body=json.dumps(rows))
+
+    page.route("**/api/sessions/history-fixture/logs*", history_route)
+    page.evaluate("""() => {
+        selectedAgent = 'history-fixture';
+        currentScope = '/fixture';
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        document.querySelector('#chat').replaceChildren();
+        _renderHistory(selectedAgent, Array.from({length: 10}, (_, i) => ({
+            id: 1000 + i, session_id: 'history-id', type: 'text',
+            content: `current-${i}`, ts: '2026-08-28T09:00:00+00:00',
+        })));
+    }""")
+    page.click("#load-more-btn")
+    page.wait_for_function(
+        "() => (document.querySelector('#chat')?.textContent || '').includes('older-900')",
+        timeout=10000,
+    )
+    page.click("#load-more-btn")
+    page.wait_for_function(
+        "() => (document.querySelector('#chat')?.textContent || '').includes('older-800')",
+        timeout=10000,
+    )
+    page.close()
+
+    assert len(requests) == 2
+    assert "before_id=1000" in requests[0]
+    assert "before_id=900" in requests[1]
+
+
 def test_tool_view_mode_is_visible_without_desktop_header_overflow(
     dashboard_browser: Browser,
 ):
