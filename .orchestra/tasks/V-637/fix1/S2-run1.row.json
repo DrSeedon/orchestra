@@ -1,0 +1,24 @@
+{
+ "scenario": "S2",
+ "tag": "S2-run1",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'",
+ "seconds": 23,
+ "timed_out": false,
+ "turns": 1,
+ "turns_failed": 0,
+ "tool_calls": 14,
+ "tool_errors": 0,
+ "loop_errors": 0,
+ "in_tokens": 29997,
+ "out_tokens": 1115,
+ "tools_by_name": {
+  "?": 5,
+  "bash": 3,
+  "edit": 3,
+  "read": 1,
+  "write": 2
+ },
+ "final_text": "Результат выполнения скрипта:\nРоссия — 1\nИностранные — 4\nДоля иностранных — 80%"
+}

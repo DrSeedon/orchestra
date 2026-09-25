@@ -1,0 +1,266 @@
+[
+ {
+  "id": 4502,
+  "name": "orchestrator",
+  "type": "user_message",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "[16:47] сделай воркера чтобы он изучил текущее кружение впс и аудит сделал системы"
+ },
+ {
+  "id": 4503,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "spawn_worker",
+  "tool_is_error": 0,
+  "content": "mcp__orchestra__spawn_worker: {\"base_branch\": \"\", \"delivery_id\": \"\", \"description\": \"Аудит окружения VPS и системы\", \"mcp_servers\": \"\", \"model\": \"GigaChat-3-Ultra\", \"name\": \"worker-audit\", \"owned_dirs\": \"\", \"repo_path\": \"/workspace/project\", \"role\": \"worker\", \"system_prompt\": \"Собери сведения о системе командами ОС, не меняя конфигураций и не запрашивая секреты. Сформируй читаемый отчёт с разделами. Если обнаружишь признаки контейнера/ВМ — укажи.\", \"task\": \"Провести аудит текущего окружения VPS и собрать сведения о системе: ОС и версия ядра; архитектура; CPU, память, диски и их использование; сеть (интерфейсы, маршруты, DNS); пользователи и группы; активные сервисы; время/дата и часовой пояс; SELinux/AppArmor; виртуализация/контейнер; краткие рекомендации по безопасности. Результаты оформить в /workspace/project/audit_report.txt с разделами и без секретов.\", \"task_id\": \"\", \"tg_topic\": false}"
+ },
+ {
+  "id": 4504,
+  "name": "worker-audit",
+  "type": "user_message",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Провести аудит текущего окружения VPS и собрать сведения о системе: ОС и версия ядра; архитектура; CPU, память, диски и их использование; сеть (интерфейсы, маршруты, DNS); пользователи и группы; активные сервисы; время/дата и часовой пояс; SELinux/AppArmor; виртуализация/контейнер; краткие рекомендации по безопасности. Результаты оформить в /workspace/project/audit_report.txt с разделами и без секретов."
+ },
+ {
+  "id": 4505,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "spawn_worker",
+  "tool_is_error": 0,
+  "content": "Worker 'worker-audit' spawned. Model: GigaChat-3-Ultra. Task accepted. delivery_id=aba75775-9641-4fe5-baeb-f9da53511502; state=QUEUED. Check delivery status with delivery_status('aba75775-9641-4fe5-baeb-f9da53511502') or GET /api/initial-deliveries/aba75775-9641-4fe5-baeb-f9da53511502.\nWorktree: /home/kesha/bench-v637/stand/worktrees/workspace-project/worker-audit\nRepository: /workspace/project\nGit common dir: /workspace/project/.git\nBranch: task-5/worker-audit\nTask: #5 [in_progress]"
+ },
+ {
+  "id": 4506,
+  "name": "orchestrator",
+  "type": "text",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Запустил воркера worker-audit для аудита окружения VPS и системы. Ожидаю отчёт в /workspace/project/audit_report.txt"
+ },
+ {
+  "id": 4507,
+  "name": "orchestrator",
+  "type": "status",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "turn ended (end_turn, 1 turns, $0.00 turn, $0.00 ctx, $0.00 session, $0.00 total )"
+ },
+ {
+  "id": 4508,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "write",
+  "tool_is_error": 0,
+  "content": "write: {\"content\": \"# Аудит окружения VPS\\n\\nСбор сведений...\\n\", \"path\": \"/workspace/project/audit_report.txt\"}"
+ },
+ {
+  "id": 4509,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "write",
+  "tool_is_error": 1,
+  "content": "[write error] path '/workspace/project/audit_report.txt' is outside the workspace"
+ },
+ {
+  "id": 4510,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "write",
+  "tool_is_error": 0,
+  "content": "write: {\"content\": \"# Аудит окружения VPS\\n\\nСбор сведений...\\n\", \"path\": \"audit_report.txt\"}"
+ },
+ {
+  "id": 4511,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "write",
+  "tool_is_error": 0,
+  "content": "wrote audit_report.txt (40 chars)"
+ },
+ {
+  "id": 4512,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "file: add audit_report.txt"
+ },
+ {
+  "id": 4513,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"{ echo \\\"## ОС и версия ядра\\\"; uname -r; echo; echo \\\"## Архитектура\\\"; uname -m; echo; echo \\\"## CPU\\\"; lscpu | head -n 20; echo; echo \\\"## Память\\\"; free -h; echo; echo \\\"## Диски и использование\\\"; df -h; echo; echo \\\"## Inodes\\\"; df -i; } >> audit_report.txt\"}"
+ },
+ {
+  "id": 4514,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0"
+ },
+ {
+  "id": 4515,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"{ echo \\\"## Сеть — интерфейсы\\\"; ip -br addr; echo; echo \\\"## Сеть — маршруты\\\"; ip -4 route show; echo; echo \\\"## DNS\\\"; cat /etc/resolv.conf 2>/dev/null || echo 'resolv.conf not found'; echo; echo \\\"## Пользователи (локальные)\\\"; cut -d: -f1 /etc/passwd | head -n 20; echo; echo \\\"## Группы (локальные)\\\"; cut -d: -f1 /etc/group | head -n 20; } >> audit_report.txt\"}"
+ },
+ {
+  "id": 4516,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0"
+ },
+ {
+  "id": 4517,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"{ echo \\\"## Активные сервисы (systemd)\\\"; systemctl list-units --type=service --state=running --no-pager | head -n 20; echo; echo \\\"## Время и дата\\\"; date -u; date; echo; echo \\\"## Часовой пояс\\\"; timedatectl 2>/dev/null | grep -E 'Time zone|Local time|Universal time' || echo 'timedatectl not available'; echo; echo \\\"## SELinux/AppArmor\\\"; if [ -f /etc/selinux/config ]; then echo 'SELinux:'; grep -E '^SELINUX=' /etc/selinux/config; fi; if command -v aa-status >/dev/null 2>&1; then echo 'AppArmor:'; aa-status --enabled 2>&1 || true; fi; echo; echo \\\"## Виртуализация/контейнер\\\"; systemd-detect-virt 2>/dev/null || echo 'systemd-detect-virt not available'; cat /proc/1/cgroup 2>/dev/null | head -n 5; } >> audit_report.txt\"}"
+ },
+ {
+  "id": 4518,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0"
+ },
+ {
+  "id": 4519,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"echo \\\"## Рекомендации по безопасности\\\" >> audit_report.txt\"}"
+ },
+ {
+  "id": 4520,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0"
+ },
+ {
+  "id": 4521,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "edit",
+  "tool_is_error": 0,
+  "content": "edit: {\"new\": \"## Рекомендации по безопасности\\n- Ограничить вход по SSH: отключить парольную аутентификацию, разрешить вход по ключу, сменить порт по необходимости, включить Fail2Ban.\\n- Включить автоматические обновления безопасности (unattended-upgrades для Debian/Ubuntu, dnf-automatic для RHEL/CentOS).\\n- Настроить брандмауэр (ufw/nftables/firewalld): разрешить только необходимые входящие порты.\\n- Регулярно обновлять ядро и системные пакеты; перезагружать для применения обновлений ядра.\\n- Проверить открытые порты (ss -tulpen) и закрыть неиспользуемые сервисы.\\n- Настроить ротацию и мониторинг логов; включить централизованный сбор при необходимости.\\n- Для веб-сервисов: актуальные TLS (Let's Encrypt), строгие заголовки безопасности, HSTS.\\n- Резервное копирование критичных данных и проверка восстановления.\\n- Разграничение прав: принцип наименьших привилегий, отдельные пользователи для сервисов, sudo по требованию.\\n- Включить и проверить AppArmor/SELinux профили для сервисов, если доступны.\", \"old\": \"## Рекомендации по безопасности\", \"path\": \"audit_report.txt\"}"
+ },
+ {
+  "id": 4522,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "edit",
+  "tool_is_error": 0,
+  "content": "replaced 1× in audit_report.txt"
+ },
+ {
+  "id": 4523,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "file: update audit_report.txt"
+ },
+ {
+  "id": 4524,
+  "name": "worker-audit",
+  "type": "tool",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "read: {\"path\": \"audit_report.txt\"}"
+ },
+ {
+  "id": 4525,
+  "name": "worker-audit",
+  "type": "tool_result",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "1\t# Аудит окружения VPS\n2\t\n3\tСбор сведений...\n4\t## ОС и версия ядра\n5\t6.8.0-136-generic\n6\t\n7\t## Архитектура\n8\tx86_64\n9\t\n10\t## CPU\n11\tArchitecture:                            x86_64\n12\tCPU op-mode(s):                          32-bit, 64-bit\n13\tAddress sizes:                           48 bits physical, 48 bits virtual\n14\tByte Order:                              Little Endian\n15\tCPU(s):                                  8\n16\tOn-line CPU(s) list:                     0-7\n17\tVendor ID:                               AuthenticAMD\n18\tModel name:                              AMD EPYC Processor (with IBPB)\n19\tCPU family:                              23\n20\tModel:                                   1\n21\tThread(s) per core:                      1\n22\tCore(s) per socket:                      8\n23\tSocket(s):                               1\n24\tStepping:                                2\n25\tBogoMIPS:                                5589.49\n26\tFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext ssbd ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 rdseed adx smap clflushopt sha_ni xsaveopt xsavec xgetbv1 arat\n27\tHypervisor vendor:                       KVM\n28\tVirtualization type:                     full\n29\tL1d cache:                               256 KiB (8 instances)\n30\tL1i cache:                               512 KiB (8 instances)\n31\t\n32\t## Память\n33\t               total        used        free      shared  buff/cache   available\n34\tMem:            23Gi       6.0Gi        10Gi        10Mi       7.6Gi        17Gi\n35\tSwap:           15Gi       1.1Gi        14Gi\n36\t\n37\t## Диски и использование\n38\tFilesystem      Size  Used Avail Use% Mounted on\n39\t/dev/sda1       290G  273G   18G  95% /\n40\ttmpfs            12G     0   12G   0% /dev/shm\n41\ttmpfs           2.4G  1.1M  2.4G   1% /run\n42\ttmpfs           5.0M     0  5.0M   0% /run/lock\n43\ttmpfs           2.4G   12K  2.4G   1% /run/user/0\n44\ttmpfs           2.4G   12K  2.4G   1% /run/user/999\n45\t/dev/sda16      881M  117M  703M  15% /boot\n46\t/dev/sda15      105M  6.2M   99M   6% /boot/efi\n47\t\n48\t## Inodes\n49\tFilesystem       Inodes   IUsed    IFree IUse% Mounted on\n50\t/dev/sda1      39190528 2075462 37115066    6% /\n51\ttmpfs           3076072       1  3076071    1% /dev/shm\n52\ttmpfs           3076072     754  3075318    1% /run\n53\ttmpfs           3076072       4  3076068    1% /run/lock\n54\ttmpfs            615214      33   615181    1% /run/user/0\n55\ttmpfs            615214      32   615182    1% /run/user/999\n56\t/dev/sda16        58496     604    57892    2% /boot\n57\t/dev/sda15            0       0        0     - /boot/efi\n58\t## Сеть — интерфейсы\n59\tlo               UNKNOWN        127.0.0.1/8 ::1/128 \n60\teth0             UP             158.220.127.161/20 2a02:c207:2340:7579::1/64 fe80::250:56ff:fe65:3bd2/64 \n61\ttailscale0       UNKNOWN        fe80::bc64:98f6:5e72:d739/64 \n62\t\n63\t## Сеть — маршруты\n64\tdefault via 158.220.112.1 dev eth0 proto static \n65\t\n66\t## DNS\n67\t# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n68\t# Do not edit.\n69\t#\n70\t# This file might be symlinked as /etc/resolv.conf. If you're looking at\n71\t# /etc/resolv.conf and seeing this text, you have followed the symlink.\n72\t#\n73\t# This is a dynamic resolv.conf file for connecting local clients to the\n74\t# internal DNS stub resolver of systemd-resolved. This file lists all\n75\t# configured search domains.\n76\t#\n77\t# Run \"resolvectl status\" to see details about the uplink DNS servers\n78\t# currently in use.\n79\t#\n80\t# Third party programs should typically not access this file directly, but only\n81\t# through the symlink at /etc/resolv.conf. To manage man:resolv.conf(5) in a\n82\t# different way, replace this symlink by a static file or a different symlink.\n83\t#\n84\t# See man:systemd-resolved.service(8) for details about the supported modes of\n85\t# operation for /etc/resolv.conf.\n86\t\n87\tnameserver 127.0.0.53\n88\toptions edns0 trust-ad\n89\tsearch .\n90\t\n91\t## Пользователи (локальные)\n92\troot\n93\tdaemon\n94\tbin\n95\tsys\n96\tsync\n97\tgames\n98\tman\n99\tlp\n100\tmail\n101\tnews\n102\tuucp\n103\tproxy\n104\twww-data\n105\tbackup\n106\tlist\n107\tirc\n108\t_apt\n109\tnobody\n110\tsystemd-network\n111\tsystemd-timesync\n112\t\n113\t## Группы (локальные)\n114\troot\n115\tdaemon\n116\tbin\n117\tsys\n118\tadm\n119\ttty\n120\tdisk\n121\tlp\n122\tmail\n123\tnews\n124\tuucp\n125\tman\n126\tproxy\n127\tkmem\n128\tdialout\n129\tfax\n130\tvoice\n131\tcdrom\n132\tfloppy\n133\ttape\n134\t## Активные сервисы (systemd)\n135\t  UNIT                          LOAD   ACTIVE SUB     DESCRIPTION\n136\t  ai-table-i1.service           loaded active running AI Table I1 owner checkpoint (isolated, owner-only)\n137\t  cron.service                  loaded active running Regular background program processing daemon\n138\t  dbus.service                  loaded active running D-Bus System Message Bus\n139\t  dnd-game-master.service       loaded active running DnD Game Master (AI DM)\n140\t  fail2ban.service              loaded active running Fail2Ban Service\n141\t  getty@tty1.service            loaded active running Getty on tty1\n142\t  hysteria-server.service       loaded active running Hysteria2 Server\n143\t  kesha-bot-vps.service         loaded active running Kesha Telegram Bot (Contabo)\n144\t  kiosk-heartbeat.service       loaded active running Kiosk heartbeat receiver\n145\t  ModemManager.service          loaded active running Modem Manager\n146\t  mtg.service                   loaded active running MTProto Proxy for Telegram\n147\t  multipathd.service            loaded active running Device-Mapper Multipath Device Controller\n148\t  nginx.service                 loaded active running A high performance web server and a reverse proxy server\n149\t  orchestra-proxy.service       loaded active running Orchestra API Proxy\n150\t  orchestra.service             loaded active running Orchestra AI Agent Orchestrator\n151\t  photobooth-enroll-web.service loaded active running Photobooth HTTPS enrollment spool\n152\t  photoserver.service           loaded active running Photobooth QR PhotoServer\n153\t  polkit.service                loaded active running Authorization Manager\n154\t  rsyslog.service               loaded active running System Logging Service\n155\t\n156\t## Время и дата\n157\tFri Sep 25 09:47:28 UTC 2026\n158\tFri Sep 25 11:47:28 CEST 2026\n159\t\n160\t## Часовой пояс\n161\t               Local time: Fri 2026-09-25 11:47:28 CEST\n162\t           Universal time: Fri 2026-09-25 09:47:28 UTC\n163\t                Time zone: Europe/Berlin (CEST, +0200)\n164\t\n165\t## SELinux/AppArmor\n166\t\n167\t## Виртуализация/контейнер\n168\tkvm\n169\t0::/init.scope\n170\t## Рекомендации по безопасности\n171\t- Ограничить вход по SSH: отключить парольную аутентификацию, разрешить вход по ключу, сменить порт по необходимости, включить Fail2Ban.\n172\t- Включить автоматические обновления безопасности (unattended-upgrades для Debian/Ubuntu, dnf-automatic для RHEL/CentOS).\n173\t- Настроить брандмауэр (ufw/nftables/firewalld): разрешить только необходимые входящие порты.\n174\t- Регулярно обновлять ядро и системные пакеты; перезагружать для применения обновлений ядра.\n175\t- Проверить открытые порты (ss -tulpen) и закрыть неиспользуемые сервисы.\n176\t- Настроить ротацию и мониторинг логов; включить централизованный сбор при необходимости.\n177\t- Для веб-сервисов: актуальные TLS (Let's Encrypt), строгие заголовки безопасности, HSTS.\n178\t- Резервное копирование критичных данных и проверка восстановления.\n179\t- Разграничение прав: принцип наименьших привилегий, отдельные пользователи для сервисов, sudo по требованию.\n180\t- Включить и проверить AppArmor/SELinux профили для сервисов, если доступны."
+ },
+ {
+  "id": 4526,
+  "name": "worker-audit",
+  "type": "text",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Файл audit_report.txt создан. Ключевые факты из отчёта:\n- ОС/ядро: 6.8.0-136-generic; архитектура x86_64.\n- CPU: AMD EPYC, 8 ядер (1 сокет), виртуализация KVM/full.\n- Память: всего 23 ГиБ, доступно ~17 ГиБ; swap 15 ГиБ (использовано 1.1 ГиБ).\n- Диски: корень /dev/sda1 — 290Г занято 273Г (95%); inodes в норме (~6%).\n- Сеть: eth0 с публичным IPv4 и IPv6; шлюз по умолчанию через eth0; DNS via systemd-resolved (127.0.0.53). Есть tailscale0.\n- Пользователи/группы: присутствуют стандартные системные учётные записи.\n- Активные сервисы: nginx, fail2ban, cron, rsyslog, orchestra*, несколько прикладных служб.\n- Время/дата: локальное CEST/Europe-Berlin (+02:00), UTC также указано.\n- Виртуализация: kvm; AppArmor/SELinux не включены или недоступны для проверки.\n\nРекомендации добавлены в отчёт."
+ },
+ {
+  "id": 4527,
+  "name": "worker-audit",
+  "type": "status",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "turn ended (end_turn, 1 turns, $0.00 turn, $0.00 ctx, $0.00 session, $0.00 total ctx:4%)"
+ },
+ {
+  "id": 4528,
+  "name": "orchestrator",
+  "type": "user_message",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "[from:worker-audit] [auto-report] (stop_reason=end_turn) Finished without explicit report. Last output:\n[tool] file: update audit_report.txt\n[tool] read: {\"path\": \"audit_report.txt\"}\nФайл audit_report.txt создан. Ключевые факты из отчёта:\n- ОС/ядро: 6.8.0-136-generic; архитектура x86_64.\n- CPU: AMD EPYC, 8 ядер (1 сокет), виртуализация KVM/full.\n- Память: всего 23 ГиБ, доступно ~17 ГиБ; swap 15 ГиБ (использовано 1.1 ГиБ).\n- Диски: корень /dev/sda1 — 290Г занято 273Г (95%); inodes в норме (~6%).\n- Сеть: eth0 с публичным IPv4 и IPv6; шлюз по умолчанию через eth0; DNS via systemd-resolved (127.0.0.53). Есть tailscale0.\n- Пользователи/группы: присутствуют стандартные системные учётные записи.\n- Активные сервисы: nginx, fail2ban, cron, rsyslog, orchestra*, несколько прикладных служб.\n- Время/дата: локальное CEST/Europe-Berlin (+02:00), UTC также указано.\n- Виртуализация: kvm; AppArmor/SELinux не включены или недоступны для проверки.\n\nРекомендации добавлены в отчёт."
+ },
+ {
+  "id": 4529,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"cp /home/kesha/bench-v637/stand/worktrees/workspace-project/worker-audit/audit_report.txt /workspace/project/\"}"
+ },
+ {
+  "id": 4530,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0"
+ },
+ {
+  "id": 4531,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "read: {\"path\": \"/workspace/project/audit_report.txt\"}"
+ },
+ {
+  "id": 4532,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "1\t# Аудит окружения VPS\n2\t\n3\tСбор сведений...\n4\t## ОС и версия ядра\n5\t6.8.0-136-generic\n6\t\n7\t## Архитектура\n8\tx86_64\n9\t\n10\t## CPU\n11\tArchitecture:                            x86_64\n12\tCPU op-mode(s):                          32-bit, 64-bit\n13\tAddress sizes:                           48 bits physical, 48 bits virtual\n14\tByte Order:                              Little Endian\n15\tCPU(s):                                  8\n16\tOn-line CPU(s) list:                     0-7\n17\tVendor ID:                               AuthenticAMD\n18\tModel name:                              AMD EPYC Processor (with IBPB)\n19\tCPU family:                              23\n20\tModel:                                   1\n21\tThread(s) per core:                      1\n22\tCore(s) per socket:                      8\n23\tSocket(s):                               1\n24\tStepping:                                2\n25\tBogoMIPS:                                5589.49\n26\tFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ht syscall nx mmxext fxsr_opt pdpe1gb rdtscp lm rep_good nopl cpuid extd_apicid tsc_known_freq pni pclmulqdq ssse3 fma cx16 sse4_1 sse4_2 x2apic movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm cmp_legacy cr8_legacy abm sse4a misalignsse 3dnowprefetch osvw topoext ssbd ibpb stibp vmmcall fsgsbase bmi1 avx2 smep bmi2 rdseed adx smap clflushopt sha_ni xsaveopt xsavec xgetbv1 arat\n27\tHypervisor vendor:                       KVM\n28\tVirtualization type:                     full\n29\tL1d cache:                               256 KiB (8 instances)\n30\tL1i cache:                               512 KiB (8 instances)\n31\t\n32\t## Память\n33\t               total        used        free      shared  buff/cache   available\n34\tMem:            23Gi       6.0Gi        10Gi        10Mi       7.6Gi        17Gi\n35\tSwap:           15Gi       1.1Gi        14Gi\n36\t\n37\t## Диски и использование\n38\tFilesystem      Size  Used Avail Use% Mounted on\n39\t/dev/sda1       290G  273G   18G  95% /\n40\ttmpfs            12G     0   12G   0% /dev/shm\n41\ttmpfs           2.4G  1.1M  2.4G   1% /run\n42\ttmpfs           5.0M     0  5.0M   0% /run/lock\n43\ttmpfs           2.4G   12K  2.4G   1% /run/user/0\n44\ttmpfs           2.4G   12K  2.4G   1% /run/user/999\n45\t/dev/sda16      881M  117M  703M  15% /boot\n46\t/dev/sda15      105M  6.2M   99M   6% /boot/efi\n47\t\n48\t## Inodes\n49\tFilesystem       Inodes   IUsed    IFree IUse% Mounted on\n50\t/dev/sda1      39190528 2075462 37115066    6% /\n51\ttmpfs           3076072       1  3076071    1% /dev/shm\n52\ttmpfs           3076072     754  3075318    1% /run\n53\ttmpfs           3076072       4  3076068    1% /run/lock\n54\ttmpfs            615214      33   615181    1% /run/user/0\n55\ttmpfs            615214      32   615182    1% /run/user/999\n56\t/dev/sda16        58496     604    57892    2% /boot\n57\t/dev/sda15            0       0        0     - /boot/efi\n58\t## Сеть — интерфейсы\n59\tlo               UNKNOWN        127.0.0.1/8 ::1/128 \n60\teth0             UP             158.220.127.161/20 2a02:c207:2340:7579::1/64 fe80::250:56ff:fe65:3bd2/64 \n61\ttailscale0       UNKNOWN        fe80::bc64:98f6:5e72:d739/64 \n62\t\n63\t## Сеть — маршруты\n64\tdefault via 158.220.112.1 dev eth0 proto static \n65\t\n66\t## DNS\n67\t# This is /run/systemd/resolve/stub-resolv.conf managed by man:systemd-resolved(8).\n68\t# Do not edit.\n69\t#\n70\t# This file might be symlinked as /etc/resolv.conf. If you're looking at\n71\t# /etc/resolv.conf and seeing this text, you have followed the symlink.\n72\t#\n73\t# This is a dynamic resolv.conf file for connecting local clients to the\n74\t# internal DNS stub resolver of systemd-resolved. This file lists all\n75\t# configured search domains.\n76\t#\n77\t# Run \"resolvectl status\" to see details about the uplink DNS servers\n78\t# currently in use.\n79\t#\n80\t# Third party programs should typically not access this file directly, but only\n81\t# through the symlink at /etc/resolv.conf. To manage man:resolv.conf(5) in a\n82\t# different way, replace this symlink by a static file or a different symlink.\n83\t#\n84\t# See man:systemd-resolved.service(8) for details about the supported modes of\n85\t# operation for /etc/resolv.conf.\n86\t\n87\tnameserver 127.0.0.53\n88\toptions edns0 trust-ad\n89\tsearch .\n90\t\n91\t## Пользователи (локальные)\n92\troot\n93\tdaemon\n94\tbin\n95\tsys\n96\tsync\n97\tgames\n98\tman\n99\tlp\n100\tmail\n101\tnews\n102\tuucp\n103\tproxy\n104\twww-data\n105\tbackup\n106\tlist\n107\tirc\n108\t_apt\n109\tnobody\n110\tsystemd-network\n111\tsystemd-timesync\n112\t\n113\t## Группы (локальные)\n114\troot\n115\tdaemon\n116\tbin\n117\tsys\n118\tadm\n119\ttty\n120\tdisk\n121\tlp\n122\tmail\n123\tnews\n124\tuucp\n125\tman\n126\tproxy\n127\tkmem\n128\tdialout\n129\tfax\n130\tvoice\n131\tcdrom\n132\tfloppy\n133\ttape\n134\t## Активные сервисы (systemd)\n135\t  UNIT                          LOAD   ACTIVE SUB     DESCRIPTION\n136\t  ai-table-i1.service           loaded active running AI Table I1 owner checkpoint (isolated, owner-only)\n137\t  cron.service                  loaded active running Regular background program processing daemon\n138\t  dbus.service                  loaded active running D-Bus System Message Bus\n139\t  dnd-game-master.service       loaded active running DnD Game Master (AI DM)\n140\t  fail2ban.service              loaded active running Fail2Ban Service\n141\t  getty@tty1.service            loaded active running Getty on tty1\n142\t  hysteria-server.service       loaded active running Hysteria2 Server\n143\t  kesha-bot-vps.service         loaded active running Kesha Telegram Bot (Contabo)\n144\t  kiosk-heartbeat.service       loaded active running Kiosk heartbeat receiver\n145\t  ModemManager.service          loaded active running Modem Manager\n146\t  mtg.service                   loaded active running MTProto Proxy for Telegram\n147\t  multipathd.service            loaded active running Device-Mapper Multipath Device Controller\n148\t  nginx.service                 loaded active running A high performance web server and a reverse proxy server\n149\t  orchestra-proxy.service       loaded active running Orchestra API Proxy\n150\t  orchestra.service             loaded active running Orchestra AI Agent Orchestrator\n151\t  photobooth-enroll-web.service loaded active running Photobooth HTTPS enrollment spool\n152\t  photoserver.service           loaded active running Photobooth QR PhotoServer\n153\t  polkit.service                loaded active running Authorization Manager\n154\t  rsyslog.service               loaded active running System Logging Service\n155\t\n156\t## Время и дата\n157\tFri Sep 25 09:47:28 UTC 2026\n158\tFri Sep 25 11:47:28 CEST 2026\n159\t\n160\t## Часовой пояс\n161\t               Local time: Fri 2026-09-25 11:47:28 CEST\n162\t           Universal time: Fri 2026-09-25 09:47:28 UTC\n163\t                Time zone: Europe/Berlin (CEST, +0200)\n164\t\n165\t## SELinux/AppArmor\n166\t\n167\t## Виртуализация/контейнер\n168\tkvm\n169\t0::/init.scope\n170\t## Рекомендации по безопасности\n171\t- Ограничить вход по SSH: отключить парольную аутентификацию, разрешить вход по ключу, сменить порт по необходимости, включить Fail2Ban.\n172\t- Включить автоматические обновления безопасности (unattended-upgrades для Debian/Ubuntu, dnf-automatic для RHEL/CentOS).\n173\t- Настроить брандмауэр (ufw/nftables/firewalld): разрешить только необходимые входящие порты.\n174\t- Регулярно обновлять ядро и системные пакеты; перезагружать для применения обновлений ядра.\n175\t- Проверить открытые порты (ss -tulpen) и закрыть неиспользуемые сервисы.\n176\t- Настроить ротацию и мониторинг логов; включить централизованный сбор при необходимости.\n177\t- Для веб-сервисов: актуальные TLS (Let's Encrypt), строгие заголовки безопасности, HSTS.\n178\t- Резервное копирование критичных данных и проверка восстановления.\n179\t- Разграничение прав: принцип наименьших привилегий, отдельные пользователи для сервисов, sudo по требованию.\n180\t- Включить и проверить AppArmor/SELinux профили для сервисов, если доступны."
+ },
+ {
+  "id": 4533,
+  "name": "orchestrator",
+  "type": "text",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Отчёт аудита перенесён в /workspace/project/audit_report.txt. Ключевые факты:\n\n- ОС/ядро: 6.8.0-136-generic; архитектура x86_64.\n- CPU: AMD EPYC, 8 ядер (1 сокет), виртуализация KVM/full.\n- Память: всего 23 ГиБ, доступно ~17 ГиБ; swap 15 ГиБ (использовано 1.1 ГиБ).\n- Диски: корень /dev/sda1 — 290Г занято 273Г (95%); inodes ~6%.\n- Сеть: eth0 с публичным IPv4 и IPv6; шлюз через eth0; DNS via systemd-resolved (127.0.0.53). Есть tailscale0.\n- Активные сервисы включают nginx, fail2ban, cron, rsyslog, orchestra*, несколько прикладных служб.\n- Время/дата: локальное CEST/Europe-Berlin (+02:00).\n- Виртуализация: kvm; AppArmor/SELinux не включены или недоступны для проверки.\n\nРекомендации по безопасности добавлены в отчёт (SSH-ключи, автообновления, брандмауэр, ротация логов, TLS, резервные копии, принцип наименьших привилегий, профили AppArmor/SELinux при возможности)."
+ },
+ {
+  "id": 4534,
+  "name": "orchestrator",
+  "type": "status",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "turn ended (end_turn, 1 turns, $0.00 turn, $0.00 ctx, $0.00 session, $0.00 total ctx:4%)"
+ }
+]

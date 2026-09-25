@@ -1,0 +1,9 @@
+{
+ "scenario": "S2",
+ "ok": false,
+ "detail": "no script printed Россия 1 / Иностранные 4 / 80 (new .py: ['страны.py'])",
+ "seconds": 41,
+ "user_messages": 1,
+ "tool_calls": 3,
+ "final_text": "Скрипт страны.py создан и выполнен. Результат:\n\nРоссия — 1\nИностранные — 4\nДоля иностранных — 80%"
+}

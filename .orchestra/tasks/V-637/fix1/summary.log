@@ -1,0 +1,6 @@
+{"tag": "S2-run1", "ok": true, "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'", "seconds": 23, "turns": 1, "tool_calls": 14, "tool_errors": 0, "loop_errors": 0, "in_tokens": 29997, "out_tokens": 1115}
+{"tag": "S7-run1", "ok": false, "detail": "the tests destroyed or changed the project's компоненты.csv", "seconds": 32, "turns": 3, "tool_calls": 10, "tool_errors": 1, "loop_errors": 0, "in_tokens": 43847, "out_tokens": 1839}
+{"tag": "S9-run1", "ok": true, "detail": "vps_audit_report.txt: real kernel 6.8.0-136-generic, 17090 chars", "seconds": 114, "turns": 3, "tool_calls": 41, "tool_errors": 4, "loop_errors": 0, "in_tokens": 424251, "out_tokens": 6195}
+{"tag": "S2-run2", "ok": true, "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'", "seconds": 17, "turns": 1, "tool_calls": 7, "tool_errors": 0, "loop_errors": 0, "in_tokens": 8418, "out_tokens": 866}
+{"tag": "S7-run2", "ok": true, "detail": "3 tests pass", "seconds": 38, "turns": 3, "tool_calls": 14, "tool_errors": 2, "loop_errors": 0, "in_tokens": 40169, "out_tokens": 2100}
+{"tag": "S9-run2", "ok": true, "detail": "audit_report.txt: real kernel 6.8.0-136-generic, 12402 chars", "seconds": 113, "turns": 3, "tool_calls": 16, "tool_errors": 1, "loop_errors": 0, "in_tokens": 110598, "out_tokens": 8155}

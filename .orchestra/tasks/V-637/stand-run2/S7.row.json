@@ -1,0 +1,9 @@
+{
+ "scenario": "S7",
+ "ok": true,
+ "detail": "3 tests pass",
+ "seconds": 151,
+ "user_messages": 1,
+ "tool_calls": 28,
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект и исправлен (добавлен импорт patch). Все 3 теста прошли: OK."
+}

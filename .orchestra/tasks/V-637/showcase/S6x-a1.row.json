@@ -1,0 +1,14 @@
+{
+ "scenario": "S6x",
+ "attempt": 1,
+ "ok": true,
+ "detail": "both modes correct",
+ "seconds": 44,
+ "user_messages": 1,
+ "turns": 1,
+ "in_tokens": 23443,
+ "out_tokens": 962,
+ "tool_calls": 7,
+ "tool_errors": 0,
+ "final_text": "Обновлённый скрипт проверка_лицензий.py поддерживает ключ --json.\n\nВывод без ключа:\nFastAPI — MIT — допустима\nSQLite — Public Domain — допустима\nUvicorn — BSD-3-Clause — допустима\nPydantic — MIT — допустима\nМодуль оркестрации — Проприетарная — допустима\nИтого: допустимо — 5, требует проверки — 0\n\nВывод с ключом --json:\n{\"допустимо\": 5, \"требует_проверки\": 0}"
+}

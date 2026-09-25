@@ -1,0 +1,14 @@
+{
+ "scenario": "S5",
+ "attempt": 1,
+ "ok": true,
+ "detail": "3 new tasks [6, 7, 8], answer states total",
+ "seconds": 41,
+ "user_messages": 1,
+ "turns": 1,
+ "in_tokens": 22976,
+ "out_tokens": 666,
+ "tool_calls": 4,
+ "tool_errors": 0,
+ "final_text": "Всего задач в трекере: 8.\n\nНомера новых задач:\n- Собрать подтверждение российского происхождения ПО — №6\n- Подготовить расчёт доли иностранных выплат — №7\n- Оформить заявление в реестр — №8"
+}

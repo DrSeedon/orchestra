@@ -1,0 +1,194 @@
+[
+ {
+  "id": 4502,
+  "name": "orchestrator",
+  "type": "user_message",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "[17:33] Создай воркера, пусть он напишет unittest для проверка_лицензий.py в файле test_проверка_лицензий.py, не меньше трёх тестов. Когда он отчитается, перенеси файл в проект, запусти python3 -m unittest и скажи результат."
+ },
+ {
+  "id": 4503,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "spawn_worker",
+  "tool_is_error": 0,
+  "content": "mcp__orchestra__spawn_worker: {\"base_branch\": \"\", \"delivery_id\": \"\", \"description\": \"Unittest для проверка_лицензий.py\", \"mcp_servers\": \"\", \"model\": \"GigaChat-3-Ultra\", \"name\": \"Worker-unittest-licenses\", \"owned_dirs\": \"\", \"repo_path\": \"/workspace/project\", \"role\": \"worker\", \"system_prompt\": \"Ты — тестировщик. Напиши unit-тесты для проверка_лицензий.py, используя только стандартный unittest. Не добавляй внешних зависимостей. Создай тестовый файл test_проверка_лицензий.py в корне рабочей копии. Обязательно три теста: валидная лицензия, невалидная лицензия, отсутствующий/нечитаемый файл. Используй только чтение файлов, без сетевых вызовов.\", \"task\": \"Написать файл test_проверка_лицензий.py с не менее чем тремя unit-тестами для проверка_лицензий.py. Покрыть: (1) валидная лицензия, (2) невалидная лицензия, (3) отсутствующий/нечитаемый файл. Использовать только стандартный unittest, без внешних зависимостей. Разместить файл в корне рабочей копии.\", \"task_id\": \"\", \"tg_topic\": false}"
+ },
+ {
+  "id": 4504,
+  "name": "Worker-unittest-licenses",
+  "type": "user_message",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Написать файл test_проверка_лицензий.py с не менее чем тремя unit-тестами для проверка_лицензий.py. Покрыть: (1) валидная лицензия, (2) невалидная лицензия, (3) отсутствующий/нечитаемый файл. Использовать только стандартный unittest, без внешних зависимостей. Разместить файл в корне рабочей копии."
+ },
+ {
+  "id": 4505,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "spawn_worker",
+  "tool_is_error": 0,
+  "content": "Worker 'Worker-unittest-licenses' spawned. Model: GigaChat-3-Ultra. Task accepted. delivery_id=5006cf56-7922-4521-b07c-a7f7c21b06ea; state=QUEUED. Check delivery status with delivery_status('5006cf56-7922-4521-b07c-a7f7c21b06ea') or GET /api/initial-deliveries/5006cf56-7922-4521-b07c-a7f7c21b06ea.\nWorktree: /home/kesha/bench-v637/stand/worktrees/workspace-project/Worker-unittest-licenses\nRepository: /workspace/project\nGit common dir: /workspace/project/.git\nBranch: task-5/Worker-unittest-licenses\nTask: #5 [in_progress]"
+ },
+ {
+  "id": 4506,
+  "name": "orchestrator",
+  "type": "text",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Воркеру выдано поручение: написать unit-тесты для проверка_лицензий.py (файл test_проверка_лицензий.py, не менее трёх тестов). Ожидаю отчёт."
+ },
+ {
+  "id": 4507,
+  "name": "orchestrator",
+  "type": "status",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "turn ended (end_turn, 1 turns, $0.00 turn, $0.00 ctx, $0.00 session, $0.00 total )"
+ },
+ {
+  "id": 4508,
+  "name": "Worker-unittest-licenses",
+  "type": "tool_result",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "1\timport csv\n2\t\n3\tdef main():\n4\t    allowed_licenses = {\n5\t        'MIT', 'BSD-3-Clause', 'Apache-2.0', 'Public Domain', 'Проприетарная'\n6\t    }\n7\t    allowed_count = 0\n8\t    needs_review_count = 0\n9\t\n10\t    with open('компоненты.csv', 'r', encoding='utf-8', newline='') as f:\n11\t        reader = csv.reader(f, delimiter=';')\n12\t        next(reader, None)  # пропустить заголовок\n13\t        for row in reader:\n14\t            if len(row) < 2:\n15\t                continue\n16\t            component = row[0].strip()\n17\t            license_ = row[1].strip()\n18\t            if license_ in allowed_licenses:\n19\t                status = 'допустима'\n20\t                allowed_count += 1\n21\t            else:\n22\t                status = 'требует проверки'\n23\t                needs_review_count += 1\n24\t            print(f'{component} — {license_} — {status}')\n25\t\n26\t    print(f'Итого: допустимо — {allowed_count}, требует проверки — {needs_review_count}')\n27\t\n28\tif __name__ == '__main__':\n29\t    main()"
+ },
+ {
+  "id": 4509,
+  "name": "Worker-unittest-licenses",
+  "type": "tool",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "read: {\"path\": \"проверка_лицензий.py\"}"
+ },
+ {
+  "id": 4510,
+  "name": "Worker-unittest-licenses",
+  "type": "tool",
+  "tool_name": "write",
+  "tool_is_error": 0,
+  "content": "write: {\"content\": \"import unittest\\nimport os\\nimport tempfile\\nimport csv\\nfrom unittest.mock import patch\\nfrom io import StringIO\\nimport проверка_лицензий\\n\\nclass TestПроверкаЛицензий(unittest.TestCase):\\n    def setUp(self):\\n        self.temp_dir = tempfile.mkdtemp()\\n        self.csv_path = os.path.join(self.temp_dir, 'компоненты.csv')\\n\\n    def tearDown(self):\\n        try:\\n            os.remove(self.csv_path)\\n        except FileNotFoundError:\\n            pass\\n        try:\\n            os.rmdir(self.temp_dir)\\n        except OSError:\\n            pass\\n\\n    def write_csv(self, rows):\\n        with open(self.csv_path, 'w', encoding='utf-8', newline='') as f:\\n            writer = csv.writer(f, delimiter=';')\\n            writer.writerow(['Компонент', 'Лицензия'])\\n            writer.writerows(rows)\\n\\n    def test_valid_license(self):\\n        self.write_csv([\\n            ['CompA', 'MIT'],\\n            ['CompB', 'Apache-2.0'],\\n        ])\\n        with patch('builtins.open', return_value=open(self.csv_path, 'r', encoding='utf-8')):\\n            with patch('sys.stdout', new_callable=StringIO) as fake_out:\\n                проверка_лицензий.main()\\n        output = fake_out.getvalue()\\n        self.assertIn('CompA — MIT — допустима', output)\\n        self.assertIn('CompB — Apache-2.0 — допустима', output)\\n        self.assertIn('Итого: допустимо — 2, требует проверки — 0', output)\\n\\n    def test_invalid_license(self):\\n        self.write_csv([\\n            ['CompA', 'GPL-3.0'],\\n            ['CompB', 'Unknown'],\\n        ])\\n        with patch('builtins.open', return_value=open(self.csv_path, 'r', encoding='utf-8')):\\n            with patch('sys.stdout', new_callable=StringIO) as fake_out:\\n                проверка_лицензий.main()\\n        output = fake_out.getvalue()\\n        self.assertIn('CompA — GPL-3.0 — требует проверки', output)\\n        self.assertIn('CompB — Unknown — требует проверки', output)\\n        self.assertIn('Итого: допустимо — 0, требует проверки — 2', output)\\n\\n    def test_missing_file(self):\\n        # Убедимся, что файла нет\\n        if os.path.exists(self.csv_path):\\n            os.remove(self.csv_path)\\n        with patch('builtins.open', side_effect=FileNotFoundError):\\n            with patch('sys.stdout', new_callable=StringIO) as fake_out:\\n                with self.assertRaises(FileNotFoundError):\\n                    проверка_лицензий.main()\\n\\nif __name__ == '__main__':\\n    unittest.main()\\n\", \"path\": \"test_проверка_лицензий.py\"}"
+ },
+ {
+  "id": 4511,
+  "name": "Worker-unittest-licenses",
+  "type": "tool",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "file: add test_проверка_лицензий.py"
+ },
+ {
+  "id": 4512,
+  "name": "Worker-unittest-licenses",
+  "type": "tool_result",
+  "tool_name": "write",
+  "tool_is_error": 0,
+  "content": "wrote test_проверка_лицензий.py (2396 chars)"
+ },
+ {
+  "id": 4513,
+  "name": "Worker-unittest-licenses",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"python3 -m unittest test_проверка_лицензий.py -v\"}"
+ },
+ {
+  "id": 4514,
+  "name": "Worker-unittest-licenses",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0\ntest_invalid_license (test_проверка_лицензий.TestПроверкаЛицензий.test_invalid_license) ... ok\ntest_missing_file (test_проверка_лицензий.TestПроверкаЛицензий.test_missing_file) ... ok\ntest_valid_license (test_проверка_лицензий.TestПроверкаЛицензий.test_valid_license) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.002s\n\nOK"
+ },
+ {
+  "id": 4515,
+  "name": "Worker-unittest-licenses",
+  "type": "text",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Файл test_проверка_лицензий.py создан. Все три теста прошли успешно: валидная лицензия (2 допустимых, 0 на проверку), невалидная лицензия (0 допустимых, 2 на проверку) и отсутствующий файл — корректно выбрасывается FileNotFoundError при вызове main()."
+ },
+ {
+  "id": 4516,
+  "name": "Worker-unittest-licenses",
+  "type": "status",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "turn ended (end_turn, 1 turns, $0.00 turn, $0.00 ctx, $0.00 session, $0.00 total ctx:2%)"
+ },
+ {
+  "id": 4517,
+  "name": "orchestrator",
+  "type": "user_message",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "[from:Worker-unittest-licenses] [auto-report] (stop_reason=end_turn) Finished without explicit report. Last output:\n[tool] file: add test_проверка_лицензий.py\n[tool] bash: {\"command\": \"python3 -m unittest test_проверка_лицензий.py -v\"}\nФайл test_проверка_лицензий.py создан. Все три теста прошли успешно: валидная лицензия (2 допустимых, 0 на проверку), невалидная лицензия (0 допустимых, 2 на проверку) и отсутствующий файл — корректно выбрасывается FileNotFoundError при вызове main()."
+ },
+ {
+  "id": 4518,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"cp /home/kesha/bench-v637/stand/worktrees/workspace-project/Worker-unittest-licenses/test_проверка_лицензий.py /workspace/project/\"}"
+ },
+ {
+  "id": 4519,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0"
+ },
+ {
+  "id": 4520,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "read: {\"path\": \"/workspace/project/test_проверка_лицензий.py\"}"
+ },
+ {
+  "id": 4521,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "read",
+  "tool_is_error": 0,
+  "content": "1\timport unittest\n2\timport os\n3\timport tempfile\n4\timport csv\n5\tfrom unittest.mock import patch\n6\tfrom io import StringIO\n7\timport проверка_лицензий\n8\t\n9\tclass TestПроверкаЛицензий(unittest.TestCase):\n10\t    def setUp(self):\n11\t        self.temp_dir = tempfile.mkdtemp()\n12\t        self.csv_path = os.path.join(self.temp_dir, 'компоненты.csv')\n13\t\n14\t    def tearDown(self):\n15\t        try:\n16\t            os.remove(self.csv_path)\n17\t        except FileNotFoundError:\n18\t            pass\n19\t        try:\n20\t            os.rmdir(self.temp_dir)\n21\t        except OSError:\n22\t            pass\n23\t\n24\t    def write_csv(self, rows):\n25\t        with open(self.csv_path, 'w', encoding='utf-8', newline='') as f:\n26\t            writer = csv.writer(f, delimiter=';')\n27\t            writer.writerow(['Компонент', 'Лицензия'])\n28\t            writer.writerows(rows)\n29\t\n30\t    def test_valid_license(self):\n31\t        self.write_csv([\n32\t            ['CompA', 'MIT'],\n33\t            ['CompB', 'Apache-2.0'],\n34\t        ])\n35\t        with patch('builtins.open', return_value=open(self.csv_path, 'r', encoding='utf-8')):\n36\t            with patch('sys.stdout', new_callable=StringIO) as fake_out:\n37\t                проверка_лицензий.main()\n38\t        output = fake_out.getvalue()\n39\t        self.assertIn('CompA — MIT — допустима', output)\n40\t        self.assertIn('CompB — Apache-2.0 — допустима', output)\n41\t        self.assertIn('Итого: допустимо — 2, требует проверки — 0', output)\n42\t\n43\t    def test_invalid_license(self):\n44\t        self.write_csv([\n45\t            ['CompA', 'GPL-3.0'],\n46\t            ['CompB', 'Unknown'],\n47\t        ])\n48\t        with patch('builtins.open', return_value=open(self.csv_path, 'r', encoding='utf-8')):\n49\t            with patch('sys.stdout', new_callable=StringIO) as fake_out:\n50\t                проверка_лицензий.main()\n51\t        output = fake_out.getvalue()\n52\t        self.assertIn('CompA — GPL-3.0 — требует проверки', output)\n53\t        self.assertIn('CompB — Unknown — требует проверки', output)\n54\t        self.assertIn('Итого: допустимо — 0, требует проверки — 2', output)\n55\t\n56\t    def test_missing_file(self):\n57\t        # Убедимся, что файла нет\n58\t        if os.path.exists(self.csv_path):\n59\t            os.remove(self.csv_path)\n60\t        with patch('builtins.open', side_effect=FileNotFoundError):\n61\t            with patch('sys.stdout', new_callable=StringIO) as fake_out:\n62\t                with self.assertRaises(FileNotFoundError):\n63\t                    проверка_лицензий.main()\n64\t\n65\tif __name__ == '__main__':\n66\t    unittest.main()"
+ },
+ {
+  "id": 4522,
+  "name": "orchestrator",
+  "type": "tool",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "bash: {\"command\": \"python3 -m unittest test_проверка_лицензий.py -v\"}"
+ },
+ {
+  "id": 4523,
+  "name": "orchestrator",
+  "type": "tool_result",
+  "tool_name": "bash",
+  "tool_is_error": 0,
+  "content": "exit_code=0\ntest_invalid_license (test_проверка_лицензий.TestПроверкаЛицензий.test_invalid_license) ... ok\ntest_missing_file (test_проверка_лицензий.TestПроверкаЛицензий.test_missing_file) ... ok\ntest_valid_license (test_проверка_лицензий.TestПроверкаЛицензий.test_valid_license) ... ok\n\n----------------------------------------------------------------------\nRan 3 tests in 0.003s\n\nOK"
+ },
+ {
+  "id": 4524,
+  "name": "orchestrator",
+  "type": "text",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "Файл test_проверка_лицензий.py перенесён в проект и содержит три теста: валидная лицензия, невалидная лицензия, отсутствующий файл. Запуск python3 -m unittest test_проверка_лицензий.py — OK (3 теста пройдены)."
+ },
+ {
+  "id": 4525,
+  "name": "orchestrator",
+  "type": "status",
+  "tool_name": null,
+  "tool_is_error": null,
+  "content": "turn ended (end_turn, 1 turns, $0.00 turn, $0.00 ctx, $0.00 session, $0.00 total ctx:2%)"
+ }
+]

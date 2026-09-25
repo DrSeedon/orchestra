@@ -1,0 +1,25 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run1",
+ "user_messages": 2,
+ "ok": false,
+ "detail": "no audit_report.md in the project; md files: ['/workspace/project/CLAUDE.md', '/workspace/project/сводка.md', '/workspace/project/требования.md', '/workspace/project/system_audit_deep.txt', '/workspace/project/system_audit_report.txt']",
+ "seconds": 342,
+ "timed_out": false,
+ "turns": 6,
+ "turns_failed": 1,
+ "tool_calls": 53,
+ "tool_errors": 4,
+ "loop_errors": 1,
+ "in_tokens": 405855,
+ "out_tokens": 12596,
+ "tools_by_name": {
+  "?": 5,
+  "bash": 34,
+  "glob": 2,
+  "read": 3,
+  "spawn_worker": 2,
+  "write": 7
+ },
+ "final_text": "Готово: собрал расширенный аудит и сохранил в /workspace/project/system_audit_deep.txt.\n\nКратко по ключевым моментам:\n- Слушающие сокеты: видны UDP/DNS на 127.0.0.53/54, Telegram API :8081, Xray :10822, TinyProxy — локально; публичные порты 22, 80, 443, 18080–18082, 4443, 2443, 8888, 8899(Jupyter) и *:8443.\n- Процессы: два инстанса Xray (pids 809 и 1764588), Nginx master+workers, telegram-bot-api (:8081), tinyproxy, tailscaled; множество оркестраторов uvicorn/python на loopback 18080–18085 и др.\n- Env процессов: доступ к env xray закрыт правами; у оркестраторов присутствуют токены/секреты — рекомендуется вынести их в vault или защищённое окружение.\n- Конфигурации: Hysteria слушает :443 с парольной аутентификацией (пароль хранится открыто); включены TLS-сертификаты и masquerade через Google; sites-enabled включает ai-table-i1, dnd-duckdns, jupyter-vps, orchestra(+proxy), photobooth-enroll, photoserver-qr.\n- Логи за последние 200 строк: активность ботов/оркестратора, HTTP 200/302/401 на внутренних эндпоинтах, события Telegram, Deepgram; критичных сбоев нет, есть rate limit при отправке TG.\n- Cron: crontab отсутствуют у root и kesha.\n- Пакеты: fail2ban, nginx (+certbot-nginx), tailscale (+keyring), tinyproxy; бинарники hysteria/xray установлены вне dpkg.\n\nРиски и рекомендации:\n- Очистить место на диске (сейчас 98% занято, свободно ~7.9G).\n- Убрать пароль из /etc/hysteria/config.yaml и использовать отдельный механизм хранения секретов.\n- Ограничить доступ к переменным окружения п"
+}

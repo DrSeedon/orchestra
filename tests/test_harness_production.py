@@ -299,6 +299,62 @@ async def test_verbatim_repeated_call_is_flagged_to_the_model():
     assert loop.ok
 
 
+class _VaryingBashLLM(_RepeatingLLM):
+    """V-637: the model nudges one character of the same broken call every round."""
+
+    async def stream(self, messages, tools, abort=None):
+        from app.harness.llm import LLMEvent
+
+        self.requests.append([dict(m) for m in messages])
+        self.tools.append(list(tools))
+        if tools:
+            n = len(self.requests)
+            yield LLMEvent("tool_call_done", tool_id=f"c{n}", tool_name="bash",
+                           arguments=json.dumps({"command": "python3 - << 'PY'\n" + "x" * n}))
+            yield LLMEvent("final", finish_reason="tool_calls")
+        else:
+            yield LLMEvent("text_delta", text="failed, telling the user")
+            yield LLMEvent("final", finish_reason="stop")
+
+
+@pytest.mark.asyncio
+async def test_same_result_with_changing_arguments_is_a_loop(tmp_path):
+    llm = _VaryingBashLLM()
+    schemas = [{"type": "function", "function": {"name": "bash", "parameters": {}}}]
+    loop = AgentLoop(llm, _NoMCP(), str(tmp_path), [{"role": "system", "content": "s"}], schemas,
+                     max_context=100000)
+    from app.harness import tools as builtin
+
+    async def fake_dispatch(name, args, cwd):
+        return "exit_code=2\n/bin/sh: 21: Syntax error: unterminated quoted string near here", False
+
+    orig = builtin.dispatch
+    builtin.dispatch = fake_dispatch
+    try:
+        events = [ev async for ev in loop.run("go")]
+    finally:
+        builtin.dispatch = orig
+    results = [m["content"] for m in llm.requests[-1] if m["role"] == "tool"]
+    assert "[harness]" not in results[1]
+    assert "write to save it to a file" in results[2]
+    assert [bool(t) for t in llm.tools][:6] == [True] * 6 and not llm.tools[6]
+    assert loop.ok and events[-1].content == "failed, telling the user"
+
+
+@pytest.mark.asyncio
+async def test_writing_a_shell_template_into_a_report_is_flagged(tmp_path):
+    llm = _RepeatingLLM()
+    loop = AgentLoop(llm, _NoMCP(), str(tmp_path), [{"role": "system", "content": "s"}], [],
+                     max_context=100000)
+    call = {"id": "w", "function": {"name": "write", "arguments": json.dumps(
+        {"path": "a.md", "content": "Kernel: $(uname -r)"})}}
+    [ev async for ev in loop._dispatch_tool(call)]
+    assert "stay unexpanded" in loop.history[-1]["content"]
+    call["function"]["arguments"] = json.dumps({"path": "run.sh", "content": "echo $(uname -r)"})
+    [ev async for ev in loop._dispatch_tool(call)]
+    assert "stay unexpanded" not in loop.history[-1]["content"]
+
+
 class _CreatingLLM(_RepeatingLLM):
     async def stream(self, messages, tools, abort=None):
         from app.harness.llm import LLMEvent
@@ -380,3 +436,124 @@ async def test_repeatedly_refused_mcp_tool_is_withdrawn_for_the_turn():
     assert mcp.calls == 2
     assert llm.tools[-1] == ["write"]
     assert loop.ok
+
+
+@pytest.mark.asyncio
+async def test_installation_can_forbid_system_changing_bash(tmp_path, monkeypatch):
+    """V-637: the stand's model tried `sudo fallocate` + fstab after its own audit advice."""
+    from app.harness import tools as builtin
+
+    monkeypatch.setenv("HARNESS_BASH_DENY", r"\bsudo\b|/etc/fstab")
+    refused, _ = await builtin.dispatch("bash", {"command": "sudo swapon /swapfile"}, str(tmp_path))
+    assert refused.startswith("[bash error] refused")
+    refused, _ = await builtin.dispatch("bash", {"command": "echo x >> /etc/fstab"}, str(tmp_path))
+    assert refused.startswith("[bash error] refused")
+    allowed, _ = await builtin.dispatch("bash", {"command": "uname -s"}, str(tmp_path))
+    assert "Linux" in allowed
+    monkeypatch.delenv("HARNESS_BASH_DENY")
+    assert "refused" not in (await builtin.dispatch("bash", {"command": "echo sudo"}, str(tmp_path)))[0]
+
+
+class _WritesCodeLLM(_RepeatingLLM):
+    """Writes a script and declares success without running it; runs it only when reminded."""
+
+    async def stream(self, messages, tools, abort=None):
+        from app.harness.llm import LLMEvent
+
+        self.requests.append([dict(m) for m in messages])
+        self.tools.append(list(tools))
+        n = len(self.requests)
+        last = messages[-1]
+        if n == 1:
+            yield LLMEvent("tool_call_done", tool_id="w", tool_name="write",
+                           arguments=json.dumps({"path": "t.py", "content": "print(42)\n"}))
+            yield LLMEvent("final", finish_reason="tool_calls")
+        elif last["role"] == "user" and "never ran it" in last["content"]:
+            yield LLMEvent("tool_call_done", tool_id="b", tool_name="bash",
+                           arguments=json.dumps({"command": "python3 t.py"}))
+            yield LLMEvent("final", finish_reason="tool_calls")
+        else:
+            yield LLMEvent("text_delta", text="all tests pass")
+            yield LLMEvent("final", finish_reason="stop")
+
+
+@pytest.mark.asyncio
+async def test_code_written_but_never_run_gets_one_reminder(tmp_path):
+    """V-637: a worker reported passing tests it had never executed."""
+    llm = _WritesCodeLLM()
+    schemas = [{"type": "function", "function": {"name": n, "parameters": {}}} for n in ("write", "bash")]
+    loop = AgentLoop(llm, _NoMCP(), str(tmp_path), [{"role": "system", "content": "s"}], schemas,
+                     max_context=100000)
+    [ev async for ev in loop.run("go")]
+    ran = [m["content"] for m in loop.history if m["role"] == "tool" and m["content"].startswith("exit_code=")]
+    assert ran and "42" in ran[0]
+    reminders = [m for m in loop.history if m["role"] == "user" and "never ran it" in m["content"]]
+    assert len(reminders) == 1 and loop.ok
+
+
+@pytest.mark.asyncio
+async def test_output_cap_is_configurable_per_installation(tmp_path, monkeypatch):
+    from app.harness import tools as builtin
+
+    monkeypatch.setenv("HARNESS_OUTPUT_CAP", "100")
+    out, _ = await builtin.dispatch("bash", {"command": "seq 1 1000"}, str(tmp_path))
+    assert len(out) < 250 and "truncated" in out
+    monkeypatch.delenv("HARNESS_OUTPUT_CAP")
+    out, _ = await builtin.dispatch("bash", {"command": "seq 1 1000"}, str(tmp_path))
+    assert "truncated" not in out
+
+
+class _RereadLLM(_RepeatingLLM):
+    """Probes one file with ever-new sed ranges, as the V-637 audit worker did."""
+
+    async def stream(self, messages, tools, abort=None):
+        from app.harness.llm import LLMEvent
+
+        self.requests.append([dict(m) for m in messages])
+        self.tools.append(list(tools))
+        n = len(self.requests)
+        if tools:
+            yield LLMEvent("tool_call_done", tool_id=f"r{n}", tool_name="bash",
+                           arguments=json.dumps({"command": f"sed -n '{180 + n},{200 + n}p' /w/report.txt"}))
+            yield LLMEvent("final", finish_reason="tool_calls")
+        else:
+            yield LLMEvent("text_delta", text="done")
+            yield LLMEvent("final", finish_reason="stop")
+
+
+@pytest.mark.asyncio
+async def test_rereading_one_file_is_stopped(tmp_path):
+    from app.harness import tools as builtin
+
+    llm = _RereadLLM()
+    schemas = [{"type": "function", "function": {"name": "bash", "parameters": {}}}]
+    loop = AgentLoop(llm, _NoMCP(), str(tmp_path), [{"role": "system", "content": "s"}], schemas,
+                     max_context=100000)
+
+    async def fake_dispatch(name, args, cwd):
+        return "exit_code=0", False
+
+    orig = builtin.dispatch
+    builtin.dispatch = fake_dispatch
+    try:
+        [ev async for ev in loop.run("go")]
+    finally:
+        builtin.dispatch = orig
+    results = [m["content"] for m in loop.history if m["role"] == "tool"]
+    assert "[harness]" not in results[2] and "Stop re-reading" in results[3]
+    assert len(results) == 8 and loop.ok
+
+
+def test_edit_escapes_line_breaks_that_break_a_python_string(tmp_path):
+    """V-637: `new` arrived with real newlines inside a string literal; three edits were refused."""
+    from app.harness import tools as builtin
+
+    (tmp_path / "t.py").write_text('data = "a;MIT\\n"\n', encoding="utf-8")
+    out = builtin.edit("t.py", 'data = "a;MIT\\n"', 'data = "a;MIT\nb;GPL\n"', str(tmp_path))
+    assert out.startswith("replaced"), out
+    ns = {}
+    exec((tmp_path / "t.py").read_text(encoding="utf-8"), ns)
+    assert ns["data"] == "a;MIT\nb;GPL\n"
+    # a genuine multi-line edit is left alone
+    out = builtin.edit("t.py", 'data = "a;MIT\\nb;GPL\\n"', 'x = 1\ny = 2', str(tmp_path))
+    assert out.startswith("replaced") and "y = 2" in (tmp_path / "t.py").read_text()

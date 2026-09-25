@@ -1,0 +1,39 @@
+{"tag": "S7-run1", "ok": true, "detail": "3 tests pass", "seconds": 35, "turns": 3, "tool_calls": 10, "tool_errors": 2, "loop_errors": 0, "in_tokens": 28068, "out_tokens": 1903}
+{"tag": "S9-run1", "ok": false, "detail": "vps_audit_report.txt: unexpanded $(...)", "seconds": 128, "turns": 4, "tool_calls": 24, "tool_errors": 6, "loop_errors": 0, "in_tokens": 254308, "out_tokens": 7065}
+{"tag": "S7-run2", "ok": true, "detail": "5 tests pass", "seconds": 29, "turns": 3, "tool_calls": 9, "tool_errors": 1, "loop_errors": 0, "in_tokens": 23572, "out_tokens": 1615}
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-gigachat/.orchestra/tasks/V-637/bench.py", line 125, in <module>
+    main()
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-gigachat/.orchestra/tasks/V-637/bench.py", line 120, in main
+    row = run_scenario(env, sc, out, tag)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-gigachat/.orchestra/tasks/V-637/bench.py", line 78, in run_scenario
+    dt, timed_out = wait_quiet()
+                    ^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-gigachat/.orchestra/tasks/V-637/bench.py", line 57, in wait_quiet
+    busy = any(v in ("running", "waiting", "starting") for v in statuses().values())
+                                                                ^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-gigachat/.orchestra/tasks/V-637/bench.py", line 50, in statuses
+    return {s["name"]: s["status"] for s in api("GET", f"/api/sessions?scope={SCOPE.replace('/', '%2F')}")}
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/bench-gigachat/.orchestra/tasks/V-637/bench.py", line 45, in api
+    with urllib.request.urlopen(req, timeout=60) as r:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/usr/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 500: Internal Server Error

@@ -1,0 +1,25 @@
+{
+ "scenario": "S7",
+ "tag": "S7-run2",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "3 tests pass",
+ "seconds": 83,
+ "timed_out": false,
+ "turns": 2,
+ "turns_failed": 0,
+ "tool_calls": 42,
+ "tool_errors": 9,
+ "loop_errors": 0,
+ "in_tokens": 119817,
+ "out_tokens": 5069,
+ "tools_by_name": {
+  "?": 11,
+  "bash": 14,
+  "edit": 9,
+  "read": 4,
+  "spawn_worker": 2,
+  "write": 2
+ },
+ "final_text": "Файл test_проверка_лицензий.py перенесён в /workspace/project. Все 3 теста проходят: валидная лицензия (MIT, Apache-2.0) — допустима; просроченная/неизвестная (Expired-2020, Deprecated) — требует проверки; неверный формат (пустая строка и лишние поля CSV) корректно обрабатывается с подсчётом итогов. Запуск python3 -m unittest успешен."
+}
