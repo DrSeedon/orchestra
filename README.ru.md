@@ -63,6 +63,18 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
 # Создаём оркестратора, указываем ему проект и начинаем разговаривать
 ```
 
+### Офлайн-установка (без интернета, без uv)
+
+Комплект поставки — один архив `orchestra-offline-<версия>-linux-x86_64-cp312.tar.gz` (~150 МБ): код, все зависимости рантайма в `wheels/` (версии и хеши из `uv.lock`), README и LICENSE. Нужны Linux x86_64, `python3.12` с модулем venv (`python3.12-venv`) и `git`; сеть не нужна.
+
+```bash
+tar -xzf orchestra-offline-*.tar.gz && cd orchestra-offline-*/
+sudo ./deploy/install-offline.sh            # /opt/orchestra, пользователь orchestra, systemd-сервис на 127.0.0.1:8888
+# варианты: --dir /путь --user имя --port 8888 --no-service (без systemd — команда запуска будет выведена)
+```
+
+Скрипт создаёт venv через `python3 -m venv`, ставит `pip install --no-index --find-links wheels --require-hashes`, генерирует `.env` со случайным паролем дашборда и пустой каталог проектов. Комплект собирается у нас (нужна сеть): `scripts/build_offline_bundle.sh`. Chromium для картинки `/limits` в комплект не входит — без него сервис работает, эта картинка недоступна.
+
 Ни описаний графа, ни YAML-воркфлоу, ни настройки нод. С оркестратором разговаривают так же, как с тимлидом.
 
 <a id="how-it-works"></a>

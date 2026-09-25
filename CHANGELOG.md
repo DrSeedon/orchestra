@@ -6,6 +6,17 @@
 
 ## Unreleased
 
+### Added
+- **Офлайн-установка из комплекта поставки** (`scripts/build_offline_bundle.sh`, `deploy/install-offline.sh`, V-638).
+  Сборка вытягивает 60 wheels (linux x86_64, CPython 3.12, версии и sha256 из `uv.lock` через
+  `uv export --no-dev`) и пакует код, `wheels/`, README и LICENSE в архив (~150 МБ); установка ставит
+  из него через `python3 -m venv` и `pip install --no-index --require-hashes`, без uv и сети.
+  Комплект не несёт наш `.orchestra/projects*.yaml`: установщик создаёт пустой каталог проектов
+  (приложение без него не стартует) и git-идентичность пользователя сервиса (хранилище задач — git-репозиторий).
+  Проверено в пустом network namespace: установка доходит до сервиса, отвечающего HTTP 302.
+  Триггер: подача в реестр российского ПО, установка не должна тянуть uv и пакеты из-за рубежа.
+  Онлайн-путь `deploy/install.sh` не менялся. Known tradeoff: Chromium для `/limits` в комплект не входит.
+
 ### Changed
 - **Автокомпакт Claude по простою взводится только от 30% контекста, а не от 5%** (`app/session.py`
   `PRECOMPACT_MIN_CONTEXT_PCT`, общий для Claude и Codex).

@@ -30,3 +30,7 @@ docs/vps-*.md
 
 # Платёжные документы провайдеров — в публичный репозиторий не выкладываются
 .orchestra/archive/*.pdf
+
+# Офлайн-комплект поставки (scripts/build_offline_bundle.sh)
+/wheels/
+/dist/

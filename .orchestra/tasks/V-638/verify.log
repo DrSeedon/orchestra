@@ -1,0 +1,16 @@
+--- network check: pypi.org must be unreachable
+unreachable OK: [Errno -3] Temporary failure in name resolution
+[3/5] .env...
+  Dashboard: admin / <пароль тестовой установки, установка удалена>
+[4/5] systemd skipped (--no-service). Start manually:
+  cd /tmp/orch-offline-verify-1971743/inst && set -a && . ./.env && set +a && /tmp/orch-offline-verify-1971743/inst/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 18899
+[5/5] Done. Nginx/TLS are optional and not configured.
+--- start service
+HTTP / -> 302 (after 4s)
+HTTP / with auth -> 302
+runaway guard armed: limit=2.0GiB interval=20s strikes=2
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:18899 (Press CTRL+C to quit)
+INFO:     127.0.0.1:44624 - "GET / HTTP/1.1" 302 Found
+INFO:     127.0.0.1:44634 - "GET / HTTP/1.1" 302 Found
+513M	/tmp/orch-offline-verify-1971743/inst/.venv

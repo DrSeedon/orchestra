@@ -62,6 +62,18 @@ uv run uvicorn app.main:app --host 127.0.0.1 --port 8888
 # Create an orchestrator, point it at a project, start chatting
 ```
 
+### Offline install (no internet, no uv)
+
+The delivery bundle is one archive, `orchestra-offline-<version>-linux-x86_64-cp312.tar.gz` (~150 MB): code, all runtime dependencies in `wheels/` (versions and hashes from `uv.lock`), README and LICENSE. It needs Linux x86_64, `python3.12` with the venv module (`python3.12-venv`) and `git`; no network.
+
+```bash
+tar -xzf orchestra-offline-*.tar.gz && cd orchestra-offline-*/
+sudo ./deploy/install-offline.sh            # /opt/orchestra, user orchestra, systemd service on 127.0.0.1:8888
+# options: --dir /path --user name --port 8888 --no-service (skip systemd; the start command is printed)
+```
+
+The script builds a venv with `python3 -m venv`, runs `pip install --no-index --find-links wheels --require-hashes`, generates `.env` with a random dashboard password and an empty project catalog. The bundle is built on our side (network required): `scripts/build_offline_bundle.sh`. Chromium for the `/limits` card image is not bundled; the service runs without it, only that image is unavailable.
+
 No graph definitions, no YAML workflows, no node configurations. You talk to the orchestrator like you'd talk to a tech lead.
 
 ## How It Works
