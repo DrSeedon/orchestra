@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, no deletion"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.70, 101.12, 163.12 all match"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "seconds, seamless, but doesn't say project whose chat is open"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers match"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact despite bg; skip only if turn or compact running"
+ },
+ "q7": {
+  "score": 1,
+  "why": "path matches"
+ },
+ "q8": {
+  "score": -1,
+  "why": "cog-second-brain code given as GIT_ERROR, contradicts PARTIAL"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly, not via seedon, don't write"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "Sol ban and medium ok; luna mapping missing, 'banned' implied"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules"
+ },
+ "q12": {
+  "score": 1,
+  "why": "prompts/base.md, never CLAUDE.md"
+ },
+ "q13": {
+  "score": 1,
+  "why": "V-44, dead session, in work; matches"
+ },
+ "q14": {
+  "score": -1,
+  "why": "gc date ~07.10 vs gold earliest ~27.09; branch correct"
+ },
+ "q15": {
+  "score": 1,
+  "why": "hashes and dates match"
+ },
+ "q16": {
+  "score": 1,
+  "why": "exit guard, 32b982be, 115"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "18 and 92 correct; skip_reason unknown"
+ },
+ "q18": {
+  "score": 1,
+  "why": "option C, releases, complete_previous"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "nothing needed correct; lacks Кошелева and not-transferred details"
+ },
+ "q20": {
+  "score": 1,
+  "why": "dev-lead, media-orchestrator, always running"
+ }
+}

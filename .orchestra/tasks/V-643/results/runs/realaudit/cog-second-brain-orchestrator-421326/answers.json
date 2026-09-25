@@ -1,0 +1,22 @@
+{
+ "q1": "«ядро бот» (13:03) — created V-44 (core engine + two bots + pages, task_id 4510), worker slipways",
+ "q2": ".orchestra/tasks/V-42/report.md (task V-42, task_id 4505); worker commit 3ae93ff merged as dcf9f23",
+ "q3": "V-43 (task_id 4507), branch task-V-43/slipways-extract, commit c0ac749, merged as 2262a69",
+ "q4": "UNKNOWN",
+ "q5": "Rank thresholds 0–9: 2400, 4800, 7200, 9600, 12000, 16000, 20000, 24000, 30000; 5th star = 12000; max threshold 30000",
+ "q6": "UNKNOWN",
+ "q7": "UNKNOWN",
+ "q8": "UNKNOWN",
+ "q9": "UNKNOWN",
+ "q10": "14126 points, 5 stars, seed JRJ-AWIQZXFKC",
+ "q11": "UNKNOWN (only known: the map generator was not fully reverse-engineered, so maps are our own approximation or taken from the owner's sandbox save)",
+ "q12": "ssh -i /home/kesha/.ssh/tunnel_laptop -o IdentitiesOnly=yes -o BatchMode=yes -p 2222 maxim@127.0.0.1 (read-only); game at /mnt/data/Games/Slipways/, saves at /home/maxim/.wine_slipways/drive_c/users/maxim/AppData/LocalLow/Beetlewing/Slipways/saves/",
+ "q13": "Release dir /var/www/cog-slipways/releases/270da3b48b6b0c7615ad65a213af07f1f25d94dc with symlink /var/www/cog-slipways/current; nginx location ^~ /slipways/ in /etc/nginx/sites-available/photoserver-qr; URLs https://photo-158-220-127-161.sslip.io/slipways/ and /slipways/auto.html",
+ "q14": "UNKNOWN (the summary only says the owner's question about opening money and the shop for Balatro is unanswered; nothing about a joker catalog question, though the catalog covers 56 of 150 jokers)",
+ "q15": "Best set blueprint+blue+half on v9 reached 13.567 blinds versus 12.95 baseline; the delta's confidence interval is UNKNOWN",
+ "q16": "962 598 sets ≈ 50 days of compute; the proposed narrowed width is UNKNOWN",
+ "q17": "Open tasks without an assignee: V-33, V-34, V-19 (legacy, in_progress); next action if the owner says no to money/shop is UNKNOWN",
+ "q18": "Only I publish; workers are forbidden git push and deploy; deploys/sudo go via ssh -o BatchMode=yes kesha@localhost, using release + symlink scheme; Orchestra restart is initiated only by the owner",
+ "q19": "Do not edit the dnd-duckdns vhost; /var/www/balatro/ belongs to the D&D project — don't touch; contents of 02-personal/ must not be given out",
+ "q20": "Reason for the key is not stated in my summary (key must include slot order, policy and engine fingerprint); the mutation test for the cache is UNKNOWN (the Slipways mutations were rounding half up in scoring.js and slipway length from centers in engine.js)"
+}

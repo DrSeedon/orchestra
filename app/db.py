@@ -1248,6 +1248,31 @@ def get_logs(session_id: str, after_id: int = 0, limit: int = 5000, conn=None) -
             c.close()
 
 
+def get_compact_segment(session_id: str, tool_cap: int = 4000) -> list[dict]:
+    """Речь и инструменты сессии от последней преамбулы компакта (включительно) до конца.
+
+    Это то, что было в контексте модели к моменту компакта: прежняя сводка плюс всё
+    после неё. Результаты инструментов режутся в SQL — одна строка бывает на мегабайты
+    base64, и тащить её в память ради агентного аудита незачем.
+    """
+    with _conn() as c:
+        row = c.execute(
+            "SELECT MAX(id) FROM logs WHERE session_id = ? AND type = 'user_message' "
+            "AND content LIKE '[PREVIOUS CONTEXT SUMMARY%'",
+            (session_id,),
+        ).fetchone()
+        start = row[0] or 0
+        rows = c.execute(
+            "SELECT id, ts, type, tool_name, tool_is_error, "
+            "CASE WHEN type IN ('tool', 'tool_result') THEN substr(content, 1, ?) "
+            "ELSE content END AS content "
+            "FROM logs WHERE session_id = ? AND id >= ? "
+            "AND type IN ('user_message', 'text', 'tool', 'tool_result') ORDER BY id",
+            (tool_cap, session_id, start),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def get_log(log_id: int) -> dict | None:
     """Одна строка журнала целиком, без потолка — за ней приходят по кнопке «загрузить
     целиком», когда обрезанного текста не хватило (#74)."""

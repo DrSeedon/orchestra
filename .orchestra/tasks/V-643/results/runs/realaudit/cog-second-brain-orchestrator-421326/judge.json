@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "ядро бот, V-44"
+ },
+ "q2": {
+  "score": 1,
+  "why": "path and 3ae93ff match"
+ },
+ "q3": {
+  "score": 1,
+  "why": "V-43 and c0ac749 match"
+ },
+ "q4": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q5": {
+  "score": 1,
+  "why": "12000 5th star, max 30000"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q8": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "score and seed match"
+ },
+ "q11": {
+  "score": 0.5,
+  "why": "generator not reverse-engineered, maps approximate; flagged UNKNOWN but content matches"
+ },
+ "q12": {
+  "score": 1,
+  "why": "port, key, game path match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "dir and URL match"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "money/shop question unanswered, but no 25 locked jokers"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "13.567, 12.95 present; delta missing"
+ },
+ "q16": {
+  "score": 0.5,
+  "why": "962 598 and 50 days; no top-3 narrowing"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "tasks correct; next action missing"
+ },
+ "q18": {
+  "score": 1,
+  "why": "all rules stated"
+ },
+ "q19": {
+  "score": 1,
+  "why": "all constraints stated"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN"
+ }
+}

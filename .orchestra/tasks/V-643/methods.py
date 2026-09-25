@@ -124,4 +124,5 @@ METHODS = {
     "seq3": _passes([SEQ_P1, AUDIT, FINAL]),
     "mapred3": _mapreduce([REDUCE, AUDIT, FINAL]),
     "hybrid": _hybrid([AUDIT, FINAL]),
+    "realaudit": _hybrid([AUDIT, FINAL], base="real"),
 }

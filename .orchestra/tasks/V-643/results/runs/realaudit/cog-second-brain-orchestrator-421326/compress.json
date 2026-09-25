@@ -1,0 +1,8 @@
+{
+ "method": "realaudit",
+ "case": "cog-second-brain-orchestrator-421326",
+ "sec": 152.2,
+ "cost": 1.0953,
+ "calls": 3,
+ "summary_chars": 10941
+}

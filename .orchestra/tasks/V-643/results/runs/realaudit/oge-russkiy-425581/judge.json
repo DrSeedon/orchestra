@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "42, 90+42+10+33+60=235 all present"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24/36/60, 25–30 words, 2 accent colors from master; extra detail on doubled canvas not contradictory"
+ },
+ "q4": {
+  "score": 1,
+  "why": "file path and 15 layouts match"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "$1/day and $0 spent correct; omits use of her files/public-domain with licenses.json (main facts present)"
+ },
+ "q6": {
+  "score": 1,
+  "why": "paths and git status match"
+ },
+ "q7": {
+  "score": 1,
+  "why": "all five tiles match"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx and PDF, no rigid split, click-reveal variants"
+ },
+ "q9": {
+  "score": 1,
+  "why": "demo keys only, no disputed keys"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "V-3 build_deck.py and output correct; V-7 report given without path but named; acceptable but less specific"
+ },
+ "q11": {
+  "score": 1,
+  "why": "XML/LibreOffice only, not PowerPoint/Keynote"
+ },
+ "q12": {
+  "score": 0.5,
+  "why": "13, 38, 235, ГК scale, СК2 correct; parts 6/11/8 missing"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0,
+  "why": "Lacks 17 points, pass 10, 15–16 minutes; gives only 5 min prep; other details not the gold"
+ },
+ "q15": {
+  "score": 1,
+  "why": "not done, task 2 is Беседа по тексту with 5 questions, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "1a6a611 and 51 slides"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "slides 7 and 19 and moving labels away correct; gap not explicit"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "FIPI only and references, nothing from memory; missing ПРОЕКТ mark and publish restriction"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "final state in PDF correct; XML check not mentioned"
+ },
+ "q20": {
+  "score": 1,
+  "why": "both 0"
+ }
+}

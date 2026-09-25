@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0.5,
+  "why": "UNKNOWN for the directive, but states university=учёба and Сидон=ООО, гранты, ВКР-стартап; effectively contains key facts"
+ },
+ "q2": {
+  "score": 0.5,
+  "why": "pandoc and docx skill present; matplotlib missing"
+ },
+ "q3": {
+  "score": 1,
+  "why": "ssh kesha@localhost, 12G, cgroup all present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "с первого раза and comment traces present"
+ },
+ "q5": {
+  "score": 1,
+  "why": "numbers 293 667, 938 323 and guard present; after-count 140 454 325 consistent with 140,5 млн"
+ },
+ "q6": {
+  "score": 1,
+  "why": "738 211, 38, 308 present"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "log scale kept, but no mention of five new clustering graphs"
+ },
+ "q8": {
+  "score": 1,
+  "why": "applieddasfu and файлом present"
+ },
+ "q9": {
+  "score": 0.5,
+  "why": "23 correct but deadline 02.10 UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "all regulation and dates match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "exact title and дословно"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Кустицкая and Антипова correct"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all codes and trap match"
+ },
+ "q14": {
+  "score": 1,
+  "why": "all three tokens and fixes match"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "email and phone correct, form of study (очная) missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "форматирование, подставить, бланки present"
+ },
+ "q17": {
+  "score": 1,
+  "why": "ментор, рецензенты, смена темы all present"
+ },
+ "q18": {
+  "score": 1,
+  "why": "no writing without user's word; forbidden phrases listed"
+ },
+ "q19": {
+  "score": 1,
+  "why": "all four dates present and consistent"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "Jupyter and closing correct; random draw in December stated but rules partially UNKNOWN"
+ }
+}
