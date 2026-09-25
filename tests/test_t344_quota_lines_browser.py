@@ -491,3 +491,23 @@ def test_failed_request_says_no_data_and_does_not_pretend_to_work(browser):
     assert "нет данных" in text
     assert page.locator(".ql-chart").count() == 0
     page.close()
+
+
+def test_panel_is_absent_outside_owner_mode(browser):
+    """V-636: вне owner mode сервер квоты не отдаёт; «нет данных — owner_mode_only»
+    на стенде для внешнего эксперта читалось как неисправность."""
+    page = browser.new_page()
+    page.route("http://harness.local/**", lambda route: route.fulfill(
+        status=200, content_type="text/html", body="<body><div id='usage-bar'></div></body>"))
+    page.goto("http://harness.local/")
+    page.add_style_tag(path=str(STYLE_CSS))
+    for script in [*VENDOR_JS, I18N_JS, UTILS_JS, QUOTA_JS, CONNECTION_JS, APP_JS]:
+        page.add_script_tag(path=str(script))
+    page.evaluate("""async () => {
+        api = async () => ({data_available: false, error: 'owner_mode_only'});
+        QuotaPanel.init();
+        await QuotaPanel.fetch();
+    }""")
+    assert page.locator("#quota-lines").count() == 1
+    assert not page.locator("#quota-lines").is_visible()
+    page.close()

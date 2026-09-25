@@ -874,13 +874,6 @@ class SessionManager:
                 raise
 
             self.sessions[session.id] = session
-            if task_identity:
-                try:
-                    from app.tm import _fire_sync
-                    _fire_sync(task_identity["id"])
-                except Exception as error:
-                    logger.warning("task sync after publish failed: %s", err_text(error))
-
             return session
 
         finalize_task = asyncio.create_task(finalize())

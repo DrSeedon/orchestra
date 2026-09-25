@@ -1,5 +1,6 @@
 # Orchestra TODO
 
+- [ ] **Миграция раскладки проекта при старте прячет незакоммиченные файлы проекта в stash и не возвращает их, если миграция падает.** Стенд реестра (V-636), 25.09: `/workspace/project` без состояния Orchestra, при каждом старте `project layout migration failed … ORCHESTRA_LAYOUT_MISSING` / `ORCHESTRA_LAYOUT_GIT_ERROR: worktree changed after the preserve snapshot; stash=…`; после рестарта `bubble.py` и `README.md` пропали из рабочей папки и лежат в `stash@{0}: orchestra-layout-preserve:…`. Путь — `app/orchestra_layout.py` (`stash push --include-untracked` ~стр. 1162, восстановление только после успешной `migrate_project_layout`). Лечить: при любой ошибке после stash возвращать его содержимое; до этого на стенде демо-файлы держать закоммиченными.
 - [ ] V-620 переименовал `_CODEX_REVIEW_DEFAULT_MODEL` в `app/mcp_stdio.py` на `gpt-6-luna`, но
   дефолт параметра `model` у самого `codex_review()` остался `gpt-5.6-luna` — 6 тестов красные
   на main (`test_mcp_codex_review.py` ×5, `test_mcp_stdio.py::test_codex_review_default_is_server_owned_luna_fast`).

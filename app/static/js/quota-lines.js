@@ -25,6 +25,9 @@ let _quotaLinesData = null;
 let _quotaLinesError = '';
 let _quotaLinesOpen = false;
 let _quotaLinesTimer = null;
+// Server withholds subscription quotas outside owner mode: the panel has nothing to
+// govern there, and "no data — owner_mode_only" read as a fault to outside users.
+let _quotaLinesOwnerOnly = false;
 
 const _qlX = t => _QL_ML + t * _QL_PW;
 const _qlY = p => _QL_MT + (1 - p / 100) * _QL_PH;
@@ -456,6 +459,7 @@ function _qlSummary() {
 function renderQuotaLines() {
     const root = document.getElementById('quota-lines');
     if (!root) return;
+    root.hidden = _quotaLinesOwnerOnly;
     const body = _QL_PANELS.map(_qlPanelHtml).join('');
     const gate = _qlGateState();
     const overrideOn = gate.state === 'override';
@@ -508,6 +512,7 @@ async function fetchQuotaLines() {
             dataRaw = await _fetchQuotaMapShared();
         }
         const data = typeof dataRaw === 'string' ? JSON.parse(dataRaw) : dataRaw;
+        _quotaLinesOwnerOnly = !!data && data.data_available === false && data.error === 'owner_mode_only';
         if (data && data.data_available === false) {
             _quotaLinesData = null;
             _quotaLinesError = T('no data — {error}', {error: data.error || T('server did not send quota map')});
