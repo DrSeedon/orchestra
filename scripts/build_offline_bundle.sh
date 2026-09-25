@@ -26,8 +26,11 @@ python3 -m pip download --require-hashes --no-deps --only-binary=:all: \
     -r "$STAGE/$NAME/requirements-offline.txt" -d "$ROOT/wheels"
 cp -a "$ROOT/wheels" "$STAGE/$NAME/wheels"
 
-# Код: только отслеживаемые файлы, без тестов, документации-исследований и состояния задач.
-git ls-files -z -- . ':!tests' ':!docs' ':!.orchestra/tasks' ':!.orchestra/workers' ':!.orchestra/kb' ':!.orchestra/archive' ':!.orchestra/projects*.yaml' \
+# Состав поставки — явный список того, что нужно для установки и работы. Файлы разработки
+# (CI, правила агентов разработки, TODO, служебные хуки) в поставку не входят.
+git ls-files -z -- app .orchestra/pipelines .orchestra/layout.json pyproject.toml .env.example \
+    README.md README.ru.md LICENSE deploy/install-offline.sh deploy/orchestra.service.template \
+    deploy/nginx.conf.template \
     | tar --null -T - -cf - | tar -xf - -C "$STAGE/$NAME"
 
 tar -C "$STAGE" -czf "$OUT/$NAME.tar.gz" "$NAME"
