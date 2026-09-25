@@ -1,0 +1,22 @@
+{
+ "q1": "Banned: «первые в России», «аналогов нет», «уже пользуются тысячи». The product doesn't exist yet: present it as a waiting list («лист ожидания»); don't publish anywhere.",
+ "q2": "UNKNOWN",
+ "q3": "«Новый платный сервис без моего подтверждения не заводи». Music «только с чистыми правами: CC0, собственная генерация или библиотека с явной лицензией на коммерческое использование. Источник и лицензию запиши в отчёт».",
+ "q4": "Label it «черновую озвучку до записи живым голосом»; it still has to be re-recorded with a live voice (the voice was synthesized, male draft in reel 3).",
+ "q5": "Frame 6 of reel 3 («выиграем ли закупку — узнаем 30 сентября») must be kept; don't show the customer's name on screen; the link in reel 3 is seedon.ru.",
+ "q6": "Under voice −20…−24 LUFS; final reel about −14 LUFS.",
+ "q7": "Local Vosk TTS `vosk-model-tts-ru-0.9-multi`, Apache 2.0. Rejected: Silero (CC BY-NC-SA) and Piper ruslan/irina (non-commercial dataset licenses).",
+ "q8": "`/mnt/data/Рабочий стол/СИДОН — документы/Рилсы лист ожидания/` on the director's laptop, copied via tar over ssh (laptop-access skill), with sha256 check.",
+ "q9": "Final commit for A/B/C: `08428bb` on branch `task-V-75/designer`; first motion version (reel1-motion): `488f938`.",
+ "q10": "Final: A 24,4 с, B 24,4 с, C 15,0 с. Originally planned: A 22,5 с, B 22,5 с, C 15 с.",
+ "q11": "«прикольно, только по тексту надо разобраться, че там мама хотела — непонятно, типа лепить без галочки вещей». Dynamics and format were fine but the story was unclear, so the text was to be rewritten to read without sound.",
+ "q12": "A «Кроссовки, 38-й размер» (22,5 с); B «Лепить из глины» (22,5 с); C short version of A (15 с). Recommended: A.",
+ "q13": "Hook question, quotes held for the full bar, long answer over two bars, about 25 hits instead of 48, loop, CTA «ссылка в профиле» with a large «СКОРО».",
+ "q14": "`out/reel1-motion-A.mp4`, `out/reel1-motion-B.mp4`, `out/reel1-motion-C.mp4`.",
+ "q15": "Top ~220 px, bottom ~380 px.",
+ "q16": "UNKNOWN",
+ "q17": "Dates in reel 1 were set to 28.09 → 28.10, with reminder 31.10 (the decision is recorded); the technical cause/stats of the shift are not in my context, so UNKNOWN beyond that.",
+ "q18": "Do not publish anywhere. Don't commit PNG frames and cache (only final MP4s, contact sheets and report); -sfx.mp4 and *-timeline.json are gitignored.",
+ "q19": "128 BPM, 1 scene = 1 bar (1,875 с), 11 scenes, 60 fps. Size fix: the first file was 244 MB because of grain; x264 CRF 20 with -maxrate 10M reduced it to ~29 MB.",
+ "q20": "Exact cause unknown: the output wasn't saved (build bg-4bb86d4ee0 failed at the audio step on 24.09). The build log is now written to `out/build.log`."
+}

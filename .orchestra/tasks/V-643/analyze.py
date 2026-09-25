@@ -61,10 +61,12 @@ def table(cases, methods, title):
             ch.append(r["meta"]["summary_chars"]); co.append(r["meta"]["cost"]); se.append(r["meta"]["sec"])
             if m == "hybrid":  # время черновика считается отдельно
                 se[-1] += json.loads((bench.RUNS / "oneshot" / c / "compress.json").read_text())["sec"]
-            if m == "real":
+            if m in ("real", "realaudit"):
+                # черновик realaudit — сама прод-сводка: её оценочная цена и время прибавляются
                 pre, sec = real_meta(c)
-                co[-1] = pre * READ + r["meta"]["summary_chars"] / 3 * OUT
-                se[-1] = sec or 0
+                draft_chars = json.loads((bench.RUNS / "real" / c / "compress.json").read_text())["summary_chars"]
+                co[-1] += pre * READ + draft_chars / 3 * OUT
+                se[-1] += sec or 0
         if not accs:
             continue
         print(f"| {m} | " + " | ".join(cells) + f" | **{sum(accs)/len(accs):.3f}** | {wrong} | "
@@ -110,11 +112,13 @@ def losses(cases, a, b, limit=12):
 
 
 if __name__ == "__main__":
-    ms = ["real", "oneshot", "seq3", "mapred3", "hybrid"]
+    ms = ["real", "oneshot", "seq3", "mapred3", "hybrid", "realaudit"]
     table(DEV, ms, "Dev (4 кейса, на них подбирались варианты; real/oneshot/seq3 — среднее двух оценок)")
     table(HOLD, ms, "Holdout (5 кейсов, не использовались при подборе)")
-    table(DEV + HOLD, ["real", "oneshot", "hybrid"], "Все 9 кейсов")
+    table(DEV + HOLD, ["real", "oneshot", "hybrid", "realaudit"], "Все 9 кейсов")
     by_category(DEV + HOLD, ms)
     losses(DEV + HOLD, "real", "hybrid")
     losses(DEV + HOLD, "hybrid", "real", limit=8)
     losses(DEV + HOLD, "oneshot", "hybrid", limit=8)
+    losses(DEV + HOLD, "real", "realaudit", limit=8)
+    losses(DEV + HOLD, "realaudit", "hybrid", limit=8)

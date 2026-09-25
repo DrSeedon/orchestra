@@ -1,0 +1,22 @@
+{
+ "q1": "Raw events are kept forever, no deletion (\"пусть лежат не много же данных\").",
+ "q2": "46.70 h (estimated); compared with old method 'message+think 10 min' = 101.12 h and V-57 method with 30-min gap = 163.12 h.",
+ "q3": "Krasnoyarsk (UTC+7).",
+ "q4": "Each second goes to exactly one scope/project (seamless); owner demanded precise counting of seconds per project (\"надо четко считать в каком проекте сижу сколько секунд все бесшовно\"). Conflict presence vs message resolved as presence > message.",
+ "q5": "Precompact fix: V-627, worker fix-precompact. TG collapsed incoming messages: V-628, worker tg-incoming.",
+ "q6": "Precompact must fire even with active bg jobs and alarms (owner: \"все равно сжимать даже с бг\"); it is skipped only when a turn is running or a compact is already running.",
+ "q7": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db (1.97 GB).",
+ "q8": "dnd-game-master fails with ORCHESTRA_LAYOUT_PARTIAL; cog-second-brain (/opt/cog-second-brain) fails with ORCHESTRA_LAYOUT_GIT_ERROR (stash orchestra-layout-preserve). Data-loss check for the VPS: UNKNOWN (only cog file katya-health-2026-07.md confirmed intact, 59398 bytes).",
+ "q9": "Seedon said the owner will settle time accounting directly with me (orchestrator), not via seedon; seedon asked not to be written to on this topic (\"Мне по этой теме не пиши\").",
+ "q10": "Sol (GPT-6 Sol) has agents flag OFF in both versions; Sol ban since 20.09 remains in force. Opus 5.5 effort is medium in pipeline.yaml.",
+ "q11": "No Co-Authored-By trailers in commits; do not use `git -c user.*`; never use bare git stash (shared stack).",
+ "q12": "Write it in the orchestrator prompts, i.e. the shared prompts/base.md (.orchestra/pipelines/default/prompts/base.md); never in CLAUDE.md (\"никакого клауди\").",
+ "q13": "Adhoc-merge in seedon V-44 can't take a task that is 'in work'; proposed fix: allow taking an in-work task if it is held by a dead session or by this same worker. Owner has not answered yet.",
+ "q14": "Branch laptop-preserve-rescue; git gc will delete the dangling snapshots about 2 weeks after 23.09 (~07.10).",
+ "q15": "comfy 7cecfd9 from 13.09; kesha-tg-bot ea7f2c2 from 04.09.",
+ "q16": "Restart tests arm a real exit guard on the pytest PID; bench2-opus5 (V-623) commit 32b982be: 115 failed / 3876 passed (bench2-opus55 found 127 failed / 3864 passed with 8 more tests).",
+ "q17": "Precompact skip_reason: UNKNOWN (not named in the text); seedon had 18 alarms, 10 precompact skips since 16.09; last emergency compaction at 92% context (23.09 09:57 UTC).",
+ "q18": "Variant C: switch_worker_branch by default releases the binding; complete_previous together with acceptance_note closes the task.",
+ "q19": "The ВКРС (University) package is closed; nothing is needed from me.",
+ "q20": "media-orchestrator stays on Opus 4.6 by owner decision; dev-lead on laptop stays on Opus 5 because the stale branch has no layout. Rule: the laptop Orchestra must always be running (\"оркестра на ноуте должна быть всегда в работе\"); open question whether to stop it after rescue."
+}

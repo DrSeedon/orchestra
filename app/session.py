@@ -20,6 +20,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app import agentic_compact
 from app.events import AgentEvent, InjectedMessage, MessageProvenance
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
@@ -2712,6 +2713,36 @@ class AgentSession:
                 self._hibernate.schedule()
             self._wake_durable_message_deliveries()
 
+    async def _agentic_audit_summary(self, draft: str, stop_gen: int) -> str:
+        """V-643: свежий черновик по журналу + AUDIT/FINAL; сбой → сводка из контекста."""
+        if self.backend_type != "claude" or not agentic_compact.enabled():
+            return draft
+        config_dir = self._handoff_config_dir
+        if not config_dir and self.profile:
+            from app.db import get_profile
+            profile = get_profile(self.profile)
+            config_dir = profile["config_dir"] if profile else ""
+        result = await agentic_compact.audit_summary(
+            session_id=self.id, model=self.model, draft=draft,
+            draft_prompt=_compact_prompt(self.name, self.scope), config_dir=config_dir,
+            should_stop=lambda: self._turn_start_cancel_gen != stop_gen,
+        )
+        # Проходы аудита — отдельный процесс CLI мимо backend: их цену добавляем сами.
+        self.cost_usd += result.cost
+        if result.applied:
+            self._log(
+                "status",
+                f"agentic compact audit: summary {len(draft)} → {len(result.summary)} chars, "
+                f"${result.cost:.2f}, {result.seconds:.0f}s",
+            )
+        else:
+            self._log(
+                "status",
+                f"agentic compact audit skipped, original summary kept: {result.reason} "
+                f"(${result.cost:.2f}, {result.seconds:.0f}s)",
+            )
+        return result.summary
+
     async def compact(self) -> dict:
         if self.backend_type == "codex":
             return await self._compact_codex_context()
@@ -2875,6 +2906,7 @@ class AgentSession:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
 
+        summary = await self._agentic_audit_summary(summary, compact_stop_gen)
         tail = _preserved_tail(
             self.id,
             COMPACT_TAIL_CHARS,

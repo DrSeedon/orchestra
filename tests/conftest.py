@@ -289,6 +289,13 @@ def _hermetic_dashboard_env(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _no_agentic_compact(monkeypatch):
+    """Агентный аудит компакта (V-643) запускает настоящий CLI провайдера — в обычных
+    тестах он выключен; тесты механики включают его сами и подменяют запуск прохода."""
+    monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", "0")
+
+
+@pytest.fixture(autouse=True)
 def _no_tg_bridge(monkeypatch):
     """Не зовём реальный Telegram Bot API в обычных тестах.
 
