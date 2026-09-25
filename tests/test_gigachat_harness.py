@@ -387,3 +387,14 @@ def test_gigachat_3_ultra_is_a_selectable_harness_model():
     validate_harness_model_spec(spec)
     with pytest.raises(ValueError):
         validate_harness_model_spec(dataclasses.replace(spec, id="GigaChat-9-Imaginary"))
+
+
+@pytest.mark.parametrize("model_id", [
+    "GigaChat-2", "GigaChat-2-Pro", "GigaChat-2-Max",
+    "GigaChat-3-Lightning", "GigaChat-3-Pro", "GigaChat-3-Ultra",
+])
+def test_every_gigachat_api_chat_model_is_selectable(model_id):
+    """The expert's stand offers every GigaChat chat model the API serves (owner, 25.09)."""
+    from app.models import MODEL_SPECS, validate_harness_model_spec
+
+    validate_harness_model_spec(MODEL_SPECS[model_id])
