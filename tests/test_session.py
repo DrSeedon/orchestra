@@ -2278,7 +2278,7 @@ class TestPrecompactTimer:
         session.is_orchestrator = True
         session.backend_type = "claude"
         session.status = AgentStatus.IDLE
-        session._last_context.update({"percentage": 19, "known": True})
+        session._last_context.update({"percentage": 35, "known": True})
         session._log = MagicMock()
         session.compact = AsyncMock(return_value={"ok": True})
         session._auto_compact_window_state = MagicMock(return_value={
@@ -2539,6 +2539,26 @@ class TestPrecompactTimer:
             "auto-compact triggered" in call.args[1]
             for call in session._log.call_args_list
         )
+
+    def test_claude_precompact_timer_arms_only_from_30_percent(self, session):
+        """Below 30% a Claude compact cuts ~35% and re-writes the cache (25.09 measurement)."""
+        launched = []
+        session.backend_type = "claude"
+        session._log = lambda *_: None
+
+        def capture(coro):
+            launched.append(coro)
+            coro.close()
+            return MagicMock(done=lambda: False)
+
+        session._spawn_bg = capture
+
+        session._schedule_precompact_timer(29)
+        assert launched == []
+        assert session._precompact_timer is None
+
+        session._schedule_precompact_timer(30)
+        assert len(launched) == 1
 
     def test_codex_precompact_policy_uses_25m_and_low_context_floor(self, session):
         launched = []
