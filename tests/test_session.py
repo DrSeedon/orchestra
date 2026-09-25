@@ -3349,48 +3349,6 @@ class TestRetryAdmissionRaces:
         assert (session._rate_limit_retries, session._server_error_retries) == (0, 0)
         assert backend.sent[-1] == "new user request"
 
-    @pytest.mark.asyncio
-    @pytest.mark.parametrize("kind", ["server_error", "rate_limit", "auto_continue"])
-    @pytest.mark.parametrize("new_turn", [False, True])
-    async def test_stop_during_retry_admission_prevents_submission(
-        self, session, kind, new_turn,
-    ):
-        from app.session import AgentStatus
-
-        entered = asyncio.Event()
-        release = asyncio.Event()
-
-        async def admission(_model):
-            entered.set()
-            await release.wait()
-            return _quota_decision()
-
-        session.status = AgentStatus.IDLE
-        session._worker_admission = admission
-        session._disconnect_backend = AsyncMock()
-        session._ensure_backend = AsyncMock()
-        if kind == "server_error":
-            coroutine = session._retry_after_server_error(0, session._turn_gen)
-        elif kind == "rate_limit":
-            coroutine = session._rate_limit_retry(0, session._turn_gen)
-        else:
-            coroutine = session._auto_continue(session._turn_gen)
-        retry = asyncio.create_task(coroutine)
-        try:
-            await entered.wait()
-            await session.interrupt()
-            if new_turn:
-                session._start_turn_state()
-                session._manually_interrupted = False
-            release.set()
-            await retry
-            session._ensure_backend.assert_not_awaited()
-            assert session.status == (AgentStatus.RUNNING if new_turn else AgentStatus.IDLE)
-        finally:
-            release.set()
-            retry.cancel()
-            await asyncio.gather(retry, return_exceptions=True)
-
 
 class TestCompactReArmsPromptInjection:
     """#126: a resumed CLI is never given system_prompt (backend_claude.py:165-168).
@@ -5027,6 +4985,49 @@ class TestWeeklyQuotaAdmission:
         assert session.status == AgentStatus.IDLE
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("origin", ["background_task", "platform", "system"])
+    async def test_platform_initiated_turn_passes_closed_gate(self, session, origin):
+        from app.events import MessageProvenance
+
+        backend = AsyncMock()
+        backend.resume_failed = False
+        session._admission_service = AsyncMock(return_value=_quota_decision("blocked"))
+        session._ensure_backend = AsyncMock(return_value=backend)
+
+        await session.send(
+            "job result",
+            provenance=MessageProvenance(origin=origin, senders=("bg-1",)),
+        )
+
+        session._admission_service.assert_not_awaited()
+        backend.send.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_agent_turn_still_blocked_by_closed_gate(self, session):
+        from app.events import MessageProvenance
+        from app.quota_gate import QuotaGateError
+
+        session._admission_service = AsyncMock(return_value=_quota_decision("blocked"))
+        session._ensure_backend = AsyncMock()
+
+        with pytest.raises(QuotaGateError):
+            await session.send(
+                "task", provenance=MessageProvenance(origin="agent", senders=("boss",)),
+            )
+
+        session._ensure_backend.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_compaction_permit_ignores_closed_gate(self, session):
+        session._admission_service = AsyncMock(return_value=_quota_decision("blocked"))
+
+        permit = await session._compaction_permit(reserve=True)
+
+        assert permit[0] is None
+        assert session._compacting is True
+        session._admission_service.assert_not_awaited()
+
+    @pytest.mark.asyncio
     async def test_idle_available_worker_starts_exactly_one_backend_turn(self, session):
         backend = AsyncMock()
         backend.resume_failed = False
@@ -5158,7 +5159,7 @@ class TestWeeklyQuotaAdmission:
         session._ensure_backend.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_internal_retry_and_auto_continue_are_new_gated_turns(
+    async def test_internal_retry_and_auto_continue_skip_closed_gate(
         self, session, monkeypatch,
     ):
         session._admission_service = AsyncMock(return_value=_quota_decision("blocked"))
@@ -5168,8 +5169,8 @@ class TestWeeklyQuotaAdmission:
         await session._rate_limit_retry(0, session._turn_gen)
         await session._auto_continue(session._turn_gen)
 
-        assert session._admission_service.await_count == 2
-        session._ensure_backend.assert_not_awaited()
+        session._admission_service.assert_not_awaited()
+        assert session._ensure_backend.await_count == 2
 
 
 class TestQuotaGatedDeferredTurns:
@@ -5217,35 +5218,31 @@ class TestQuotaGatedDeferredTurns:
         assert session._quota_block_notice_signature == ""
 
     @pytest.mark.asyncio
-    async def test_native_codex_compact_is_gated_before_backend(self, session):
-        from app.quota_gate import QuotaGateError
-
+    async def test_native_codex_compact_ignores_closed_gate(self, session):
         session.model = "gpt-5.6-sol"
         session.backend_type = "codex"
         session._admission_service = AsyncMock(return_value=_quota_decision(
             "blocked", model="gpt-5.6-sol",
         ))
-        session._ensure_backend = AsyncMock()
+        session._ensure_backend = AsyncMock(side_effect=RuntimeError("backend reached"))
 
-        with pytest.raises(QuotaGateError):
-            await session.compact()
+        result = await session.compact()
 
-        session._ensure_backend.assert_not_awaited()
-        assert session._compacting is False
+        session._ensure_backend.assert_awaited()
+        session._admission_service.assert_not_awaited()
+        assert "backend reached" in str(result)
 
     @pytest.mark.asyncio
-    async def test_claude_summary_is_gated_before_backend(self, session, monkeypatch):
-        from app.quota_gate import QuotaGateError
-
+    async def test_claude_summary_ignores_closed_gate(self, session, monkeypatch):
         monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
         session._admission_service = AsyncMock(return_value=_quota_decision("blocked"))
-        session._make_backend = MagicMock(side_effect=AssertionError("backend started"))
+        session._make_backend = MagicMock(side_effect=RuntimeError("backend reached"))
+        monkeypatch.setattr("app.session.asyncio.sleep", AsyncMock())
 
-        with pytest.raises(QuotaGateError):
-            await session.compact()
+        await asyncio.wait_for(session.compact(), timeout=5)
 
-        session._make_backend.assert_not_called()
-        assert session._compacting is False
+        session._make_backend.assert_called()
+        session._admission_service.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_stop_interrupts_active_claude_summary_without_starting_ack(
@@ -5291,110 +5288,8 @@ class TestQuotaGatedDeferredTurns:
         assert result["ok"] is False
         assert result["error"] == "compaction cancelled by stop"
         assert backend.interrupt_calls == 1
-        assert session._admission_service.await_count == 1
+        session._admission_service.assert_not_awaited()
         assert session._compacting is False
-
-    @pytest.mark.asyncio
-    async def test_ack_quota_cross_retains_summary_then_later_commits_once(
-        self, session, monkeypatch,
-    ):
-        from app.events import AgentEvent
-        from app.session import AgentStatus
-
-        summary = "TASK STATE: retained compaction summary. " + "x" * 260
-
-        class SummaryBackend:
-            def __init__(self, session_id):
-                self.session_id = session_id
-                self.sent = []
-
-            async def connect(self):
-                return None
-
-            async def send(self, message):
-                self.sent.append(message)
-
-            async def events(self):
-                yield AgentEvent("text", summary)
-                yield AgentEvent("turn_end", metadata={
-                    "session_id": self.session_id,
-                    "ok": True,
-                    "stop_reason": "end_turn",
-                    "num_turns": 1,
-                })
-
-            async def disconnect(self):
-                return None
-
-        first_summary = SummaryBackend("summary-one")
-        second_summary = SummaryBackend("summary-two")
-        ack_backend = AsyncMock()
-        ack_backend.resume_failed = False
-
-        summaries = [first_summary, second_summary]
-
-        async def ensure_backend(force_fresh=False, activate=True):
-            if not force_fresh:
-                backend = summaries.pop(0)
-                session._backend = backend
-                return backend
-
-            async def complete_ack():
-                await asyncio.sleep(0)
-                session.session_id = "committed-session"
-                session.status = AgentStatus.IDLE
-                session._compact_ack_event.set()
-
-            asyncio.create_task(complete_ack())
-            return ack_backend
-
-        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
-        session.session_id = "old-session"
-        session.history_import_source = "logs:claude"
-        session.session_id_history = []
-        session._prompt_injected = True
-        session._pending_messages = ["retained pending"]
-        session._make_backend = MagicMock()
-        session._ensure_backend = ensure_backend
-        spawned = []
-
-        def discard_background(coroutine):
-            spawned.append(coroutine)
-            coroutine.close()
-
-        session._spawn_bg = discard_background
-        session._admission_service = AsyncMock(side_effect=[
-            _quota_decision(), _quota_decision("blocked"),
-        ])
-
-        deferred = await session.compact()
-
-        assert deferred["phase"] == "ack_deferred"
-        assert deferred["summary_retained"] is True
-        assert session.last_summary == summary
-        assert session.session_id == "old-session"
-        assert session.session_id_history == []
-        assert session._prompt_injected is True
-        assert session.history_import_source == "logs:claude"
-        assert session._pending_messages == ["retained pending"]
-        assert session._compacting is False
-        assert spawned == []
-
-        session._pending_messages = []
-        session._admission_service = AsyncMock(side_effect=[
-            _quota_decision(), _quota_decision(),
-        ])
-        completed = await session.compact()
-
-        assert completed["ok"] is True
-        assert session.session_id == "committed-session"
-        assert [item["session_id"] for item in session.session_id_history] == ["old-session"]
-        assert session._prompt_injected is False
-        assert session.history_import_source is None
-        assert len(first_summary.sent) == 1
-        assert len(second_summary.sent) == 1
-        session._make_backend.assert_not_called()
-        ack_backend.send.assert_awaited_once()
 
 
 def _history_for_switch(session_id, model="claude-sonnet-5[1m]"):
