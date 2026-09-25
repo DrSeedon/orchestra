@@ -2572,13 +2572,13 @@ class TestPrecompactTimer:
 
         session._spawn_bg = capture
 
-        session._schedule_precompact_timer(19)
+        session._schedule_precompact_timer(35)
 
         assert len(launched) == 1
         assert session._precompact_timer["delay_seconds"] == 25 * 60
         assert session._precompact_timer["cache_window_seconds"] == 30 * 60
         assert session._precompact_timer["context_threshold"] == 60
-        assert session._precompact_timer["min_context_pct"] == 5
+        assert session._precompact_timer["min_context_pct"] == 30
         assert session._precompact_timer["compact_mode"] == "native"
 
     @pytest.mark.asyncio

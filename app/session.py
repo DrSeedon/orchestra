@@ -533,12 +533,11 @@ class AgentSession:
     PRECOMPACT_CONTEXT_THRESHOLD = 20
     CODEX_PRECOMPACT_DELAY_SECONDS = 25 * 60
     CODEX_PRECOMPACT_CONTEXT_THRESHOLD = 60
-    # Claude sessions run a 1M window and come back from compact at 7-12% (prompt +
-    # handoff). Week to 25.09: 34 of 67 compacts started below 30% and cut only
-    # 35-38%, while re-writing 90-150k tokens of cache; above 30% they cut 78-86%.
+    # Sessions come back from compact at 7-12% (prompt + handoff). Week to 25.09
+    # (Claude, 1M window): 34 of 67 compacts started below 30% and cut only 35-38%,
+    # while re-writing 90-150k tokens of cache; above 30% they cut 78-86%.
+    # Codex uses the same floor by the owner's decision (25.09).
     PRECOMPACT_MIN_CONTEXT_PCT = 30
-    # Codex floor keeps the earlier 5%: its native compaction was not re-measured.
-    CODEX_PRECOMPACT_MIN_CONTEXT_PCT = 5
     CLAUDE_CACHE_WINDOW_SECONDS = 60 * 60
     # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
     # safety margin before the observed/documented ~30-minute reference window.
@@ -577,8 +576,8 @@ class AgentSession:
                 "delay_seconds": self.CODEX_PRECOMPACT_DELAY_SECONDS,
                 "cache_window_seconds": self.CODEX_CACHE_WINDOW_SECONDS,
                 "context_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
-                "arm_threshold": self.CODEX_PRECOMPACT_MIN_CONTEXT_PCT,
-                "min_context_pct": self.CODEX_PRECOMPACT_MIN_CONTEXT_PCT,
+                "arm_threshold": self.PRECOMPACT_MIN_CONTEXT_PCT,
+                "min_context_pct": self.PRECOMPACT_MIN_CONTEXT_PCT,
                 "compact_mode": "native",
             }
         return None
