@@ -1,7 +1,7 @@
 #!/bin/bash
 # V-636: перезапуск стенда с чистым разговором оркестратора и пустой рабочей папкой (тестовые файлы).
 set -e
-D=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-reestr-demo/.orchestra/tasks/V-636
+D=$(cd "$(dirname "$0")" && pwd)
 python3 -c "import json,sys; print(json.dumps({'scope':'/workspace/project','system_prompt':open(sys.argv[1]).read()}))" $D/stand-orchestrator-prompt.md > /tmp/v636_prompt.json
 scp -q /tmp/v636_prompt.json $D/stand-orchestrator-tools.sql "root@${STAND_HOST:?set STAND_HOST}":/tmp/
 ssh -o BatchMode=yes "root@${STAND_HOST:?set STAND_HOST}" 'set -e; cd /home/kesha/orchestra-reestr-demo

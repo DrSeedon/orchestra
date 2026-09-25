@@ -8,3 +8,5 @@ update sessions set disabled_tools = (
     union select value from json_each('["task_update","get_worker_logs","kill_worker","task_get","review","send_message"]')
   )
 ) where name = 'orchestrator';
+-- Оркестратор стенда работает на самой сильной модели GigaChat (решение владельца 25.09).
+update sessions set model = 'GigaChat-3-Ultra' where name = 'orchestrator';
