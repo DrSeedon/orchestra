@@ -133,6 +133,9 @@ class _NoMCP:
     def has_tool(self, name):
         return False
 
+    def display_name(self, name):
+        return f"mcp__orchestra__{name}" if self.has_tool(name) else name
+
     async def call(self, name, args):
         return "[noop]"
 
@@ -245,3 +248,135 @@ async def test_mcp_invalid_json_fails_pending_request_with_the_real_reason():
 
     with pytest.raises(ConnectionError, match="invalid JSON"):
         await pending
+
+
+class _RepeatingLLM:
+    """Repeats the same MCP call for as long as it is offered tools."""
+
+    def __init__(self):
+        self.requests = []
+        self.tools = []
+
+    async def stream(self, messages, tools, abort=None):
+        from app.harness.llm import LLMEvent
+
+        self.requests.append([dict(m) for m in messages])
+        self.tools.append(list(tools))
+        if tools:
+            yield LLMEvent("tool_call_done", tool_id=f"c{len(self.requests)}",
+                           tool_name="list_agents", arguments="{}")
+            yield LLMEvent("final", finish_reason="tool_calls")
+        else:
+            yield LLMEvent("text_delta", text="done")
+            yield LLMEvent("final", finish_reason="stop")
+
+
+class _AgentsMCP(_NoMCP):
+    def has_tool(self, name):
+        return name == "list_agents"
+
+    async def call(self, name, args):
+        return "orchestrator | idle"
+
+
+@pytest.mark.asyncio
+async def test_verbatim_repeated_call_is_flagged_to_the_model():
+    """V-636: GigaChat re-sent list_agents with an identical result ~40 times in one turn."""
+    llm = _RepeatingLLM()
+    schemas = [{"type": "function", "function": {"name": "list_agents", "parameters": {}}}]
+    loop = AgentLoop(llm, _AgentsMCP(), "/tmp", [{"role": "system", "content": "s"}], schemas,
+                     max_context=100000)
+    events = [ev async for ev in loop.run("go")]
+    results = [m["content"] for m in llm.requests[-1] if m["role"] == "tool"]
+    assert results[0] == "orchestrator | idle"
+    assert all(r.startswith("orchestrator | idle\n[harness]") for r in results[1:])
+    shown = [ev.content for ev in events if ev.type == "tool_result"]
+    assert shown == ["orchestrator | idle"] * 3
+    # The dashboard renders Orchestra tool cards by the Claude-style name.
+    assert {ev.content for ev in events if ev.type == "tool_use"} == {"mcp__orchestra__list_agents: {}"}
+    # A note did not stop GigaChat; after the third verbatim repeat the turn loses its tools.
+    assert [bool(t) for t in llm.tools] == [True, True, True, False]
+    assert loop.ok
+
+
+class _CreatingLLM(_RepeatingLLM):
+    async def stream(self, messages, tools, abort=None):
+        from app.harness.llm import LLMEvent
+
+        self.requests.append([dict(m) for m in messages])
+        self.tools.append(list(tools))
+        if tools:
+            yield LLMEvent("tool_call_done", tool_id=f"c{len(self.requests)}",
+                           tool_name="task_create", arguments='{"title": "t"}')
+            yield LLMEvent("final", finish_reason="tool_calls")
+        else:
+            yield LLMEvent("text_delta", text="done")
+            yield LLMEvent("final", finish_reason="stop")
+
+
+class _TasksMCP(_NoMCP):
+    def __init__(self):
+        self.created = 0
+
+    def has_tool(self, name):
+        return name == "task_create"
+
+    async def call(self, name, args):
+        self.created += 1
+        return f"Task #{self.created} created"
+
+
+@pytest.mark.asyncio
+async def test_identical_creating_call_in_one_turn_creates_once():
+    """V-636: GigaChat repeated one task_create 23 times and got 23 tasks."""
+    mcp = _TasksMCP()
+    schemas = [{"type": "function", "function": {"name": "task_create", "parameters": {}}}]
+    loop = AgentLoop(_CreatingLLM(), mcp, "/tmp", [{"role": "system", "content": "s"}], schemas,
+                     max_context=100000)
+    [ev async for ev in loop.run("go")]
+    assert mcp.created == 1
+    assert loop.ok
+
+
+class _SelfMessagingLLM(_RepeatingLLM):
+    """Calls send_message with a new text every round while it is offered."""
+
+    async def stream(self, messages, tools, abort=None):
+        from app.harness.llm import LLMEvent
+
+        n = len(self.requests)
+        self.requests.append([dict(m) for m in messages])
+        self.tools.append([t["function"]["name"] for t in tools])
+        if "send_message" in self.tools[-1]:
+            yield LLMEvent("tool_call_done", tool_id=f"c{n}", tool_name="send_message",
+                           arguments=json.dumps({"to": "orchestrator", "message": f"текст {n}"}))
+            yield LLMEvent("final", finish_reason="tool_calls")
+        else:
+            yield LLMEvent("text_delta", text="готово")
+            yield LLMEvent("final", finish_reason="stop")
+
+
+class _RefusingMCP(_NoMCP):
+    def __init__(self):
+        self.calls = 0
+
+    def has_tool(self, name):
+        return name == "send_message"
+
+    async def call(self, name, args):
+        self.calls += 1
+        return "[mcp error] invalid_argument: send_message cannot target yourself"
+
+
+@pytest.mark.asyncio
+async def test_repeatedly_refused_mcp_tool_is_withdrawn_for_the_turn():
+    """V-636: GigaChat sent itself 32 differently worded messages, each refused, until stopped."""
+    llm, mcp = _SelfMessagingLLM(), _RefusingMCP()
+    schemas = [{"type": "function", "function": {"name": "send_message", "parameters": {}}},
+               {"type": "function", "function": {"name": "write", "parameters": {}}}]
+    loop = AgentLoop(llm, mcp, "/tmp", [{"role": "system", "content": "s"}], schemas,
+                     max_context=100000)
+    [ev async for ev in loop.run("go")]
+    assert mcp.calls == 2
+    assert llm.tools[-1] == ["write"]
+    assert loop.ok

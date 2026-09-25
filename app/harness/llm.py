@@ -41,14 +41,117 @@ def tools_to_gigachat_functions(tools: list[dict]) -> list[dict]:
         function = tool.get("function") if isinstance(tool, dict) else None
         if not isinstance(function, dict):
             raise ValueError("tool must contain a function object")
-        functions.append({key: value for key, value in function.items()
-                          if key in {"name", "description", "parameters"}})
+        clean = {key: value for key, value in function.items()
+                 if key in {"name", "description", "parameters"}}
+        if "parameters" in clean:
+            clean["parameters"] = _gigachat_schema(clean["parameters"])
+        functions.append(clean)
     return functions
+
+
+def _gigachat_schema(node):
+    """Rewrite a JSON schema into the subset GigaChat validates.
+
+    GigaChat answers 422 to the whole request when ONE function has a nullable union
+    (``anyOf``/``type`` list with ``null`` → "Type properties.X.type is wrong") or an
+    object without ``properties`` ("Field 'properties.X.properties' is missing"). An
+    optional argument is already expressed by leaving it out of ``required``.
+    """
+    if isinstance(node, list):
+        return [_gigachat_schema(item) for item in node]
+    if not isinstance(node, dict):
+        return node
+    node = dict(node)
+    for key in ("anyOf", "oneOf"):
+        variants = node.get(key)
+        if not isinstance(variants, list):
+            continue
+        concrete = [v for v in variants if not (isinstance(v, dict) and v.get("type") == "null")]
+        if len(concrete) == 1 and isinstance(concrete[0], dict):
+            del node[key]
+            node = {**concrete[0], **node}
+        elif concrete:
+            node[key] = concrete
+    if isinstance(node.get("type"), list):
+        concrete = [t for t in node["type"] if t != "null"]
+        node["type"] = concrete[0] if concrete else "string"
+    if "default" in node and node["default"] is None:
+        del node["default"]
+    if node.get("type") == "object" and not isinstance(node.get("properties"), dict):
+        node["properties"] = {}
+    if node.get("type") == "array" and not isinstance(node.get("items"), dict):
+        node["items"] = {"type": "string"}
+    return {key: _gigachat_schema(value) for key, value in node.items()}
 
 
 def functions_to_openai_tools(functions: list[dict]) -> list[dict]:
     """Translate GigaChat function definitions into the loop's tool envelopes."""
     return [{"type": "function", "function": dict(function)} for function in (functions or [])]
+
+
+# GigaChat links a function result to its call through ``functions_state_id``; without
+# it Max re-issued the same call round after round (V-636: 12 identical list_agents).
+# The loop keeps OpenAI-shaped history, so the id rides inside the tool call id.
+_STATE_ID_PREFIX = "gigachat-fs-"
+
+
+def _gigachat_call_id(functions_state_id: str) -> str:
+    suffix = uuid4().hex[:8]
+    if functions_state_id:
+        return f"{_STATE_ID_PREFIX}{functions_state_id}-{suffix}"
+    return f"gigachat-{uuid4()}"
+
+
+def _functions_state_id(call_id: str) -> str:
+    if not call_id.startswith(_STATE_ID_PREFIX):
+        return ""
+    return call_id[len(_STATE_ID_PREFIX):].rsplit("-", 1)[0]
+
+
+_FENCED = re.compile(r"\A\s*```[\w+-]*[ \t]*\n(?P<body>.*?)\n?```\s*\Z", re.S)
+
+
+def _repair_file_arguments(name: str, arguments: dict) -> dict:
+    """Undo two GigaChat artifacts in file contents before the write tool sees them.
+
+    Measured on GigaChat-2-Max (V-636): ``content`` arrived as one line with literal
+    ``\\n`` sequences instead of line breaks, and wrapped in a markdown code fence.
+    The write tool's syntax guard then rejected the file a dozen times in a row.
+    """
+    fields = {"write": ("content",), "edit": ("old", "new")}.get(name, ())
+    repaired = dict(arguments)
+    for field in fields:
+        value = repaired.get(field)
+        if not isinstance(value, str):
+            continue
+        if "\n" not in value and value.count("\\n") >= 2:
+            value = value.replace("\\n", "\n").replace("\\t", "\t")
+        path = str(repaired.get("path") or "")
+        fenced = _FENCED.match(value)
+        if name == "write" and fenced and not path.lower().endswith((".md", ".markdown")):
+            value = fenced.group("body") + "\n"
+        if name == "write" and path.endswith(".py"):
+            value = _first_compiling_python(value, repaired[field])
+        repaired[field] = value
+    return repaired
+
+
+def _first_compiling_python(repaired: str, original: str) -> str:
+    """Python from GigaChat-2-Max arrived in several broken shapes (V-636): every quote as
+    ``\\"``; one line of literal ``\\n`` inside a code fence followed by stray JSON
+    (``",`` and a real line break), which also defeated the one-line check above. Try the
+    plausible undoings and keep the first that compiles; nothing compiles → keep the input
+    so the write tool's syntax guard reports it."""
+    unescaped = original.replace("\\n", "\n").replace("\\t", "\t")
+    fence = re.search(r"```[\w+-]*[ \t]*\n(?P<body>.*?)\n?```", unescaped, re.S)
+    body = fence.group("body") + "\n" if fence else unescaped
+    for candidate in (repaired, repaired.replace('\\"', '"'), body, body.replace('\\"', '"')):
+        try:
+            compile(candidate, "<write>", "exec")
+        except SyntaxError:
+            continue
+        return candidate
+    return repaired
 
 
 def openai_messages_to_gigachat(messages: list[dict]) -> list[dict]:
@@ -81,11 +184,15 @@ def openai_messages_to_gigachat(messages: list[dict]) -> list[dict]:
                 raise ValueError(f"invalid arguments for function {name}: {exc}") from exc
             if not isinstance(arguments, dict):
                 raise ValueError(f"arguments for function {name} must be an object")
-            result.append({
+            converted = {
                 "role": "assistant",
                 "content": message.get("content") or "",
                 "function_call": {"name": name, "arguments": arguments},
-            })
+            }
+            state_id = _functions_state_id(call_id)
+            if state_id:
+                converted["functions_state_id"] = state_id
+            result.append(converted)
             continue
         if role == "tool":
             call_id = message.get("tool_call_id") or ""
@@ -479,6 +586,16 @@ class _RetryableStatus(Exception):
         super().__init__(f"retryable {kind} rate limit, status {status}")
 
 
+# V-636: the stand's GigaChat account serves one request at a time. An orchestrator and its
+# worker asking together got HTTP 429 until retries ran out and the worker's turn failed.
+# One in-flight request per endpoint in this process queues them instead.
+_GIGACHAT_SLOTS: dict[str, asyncio.Lock] = {}
+
+
+def _gigachat_slot(chat_url: str) -> asyncio.Lock:
+    return _GIGACHAT_SLOTS.setdefault(chat_url, asyncio.Lock())
+
+
 class GigaChatClient:
     """GigaChat transport implementing the same event contract as OpenRouterClient."""
 
@@ -581,6 +698,47 @@ class GigaChatClient:
             if key in usage
         }
 
+    async def _post_with_retry(self, body: dict, abort=None) -> httpx.Response | None:
+        """POST a completion; a dropped connection or 429/5xx is retried before failing.
+
+        V-636: the first turn after a restart failed with an empty ``httpx`` transport
+        error and the user saw a bare "llm round failed:" — one blip ended the turn.
+        """
+        for attempt in range(MAX_RETRIES + 1):
+            try:
+                async with _gigachat_slot(self.chat_url):
+                    token = await self._token()
+                    http = await self._client()
+                    response = await http.post(
+                        self.chat_url,
+                        json=body,
+                        headers={"Authorization": f"Bearer {token}",
+                                 "Content-Type": "application/json"},
+                    )
+                    if response.status_code == 401:
+                        self._access_token = ""
+                        token = await self._token()
+                        response = await http.post(
+                            self.chat_url,
+                            json=body,
+                            headers={"Authorization": f"Bearer {token}",
+                                     "Content-Type": "application/json"},
+                        )
+            except httpx.TransportError as exc:
+                if attempt == MAX_RETRIES:
+                    raise RuntimeError(
+                        f"GigaChat connection failed: {type(exc).__name__} {exc}".rstrip()
+                    ) from exc
+                logger.warning("GigaChat transport error, retrying: %s %s", type(exc).__name__, exc)
+            else:
+                if response.status_code not in (429, 500, 502, 503, 504) or attempt == MAX_RETRIES:
+                    return response
+                logger.warning("GigaChat HTTP %s, retrying", response.status_code)
+            if abort and abort():
+                return None
+            await asyncio.sleep(BACKOFF_BASE * (2 ** attempt) + random.uniform(0, 1))
+        raise AssertionError("unreachable")
+
     async def stream(self, messages: list[dict], tools: list[dict],
                      abort=None, effort: str | None = None) -> AsyncIterator[LLMEvent]:
         """Issue one non-streaming request; GigaChat returns function_call as an object."""
@@ -594,21 +752,9 @@ class GigaChatClient:
         if tools:
             body["functions"] = tools_to_gigachat_functions(tools)
             body["function_call"] = "auto"
-        token = await self._token()
-        http = await self._client()
-        response = await http.post(
-            self.chat_url,
-            json=body,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-        )
-        if response.status_code == 401:
-            self._access_token = ""
-            token = await self._token()
-            response = await http.post(
-                self.chat_url,
-                json=body,
-                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            )
+        response = await self._post_with_retry(body, abort)
+        if response is None:
+            return
         if response.status_code >= 400:
             raise RuntimeError(
                 f"GigaChat request failed ({response.status_code}): {self._error_detail(response)}"
@@ -632,9 +778,13 @@ class GigaChatClient:
                     raise RuntimeError("GigaChat returned invalid function_call arguments") from exc
             if not isinstance(arguments, dict):
                 raise RuntimeError("GigaChat function_call arguments must be an object")
+            arguments = _repair_file_arguments(str(function_call["name"]), arguments)
+            # The text beside a function_call is dropped: GigaChat puts a textual
+            # imitation of the call there ("write path=... content=...") that differs
+            # from the call it actually makes (V-636).
             yield LLMEvent(
                 "tool_call_done",
-                tool_id=f"gigachat-{uuid4()}",
+                tool_id=_gigachat_call_id(str(message.get("functions_state_id") or "")),
                 tool_name=str(function_call["name"]),
                 arguments=json.dumps(arguments, ensure_ascii=False),
             )

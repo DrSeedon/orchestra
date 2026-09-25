@@ -970,7 +970,7 @@ def _cross_repo_note(scope: str, mapping: dict) -> str:
 
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
-                       model: str = "",
+                       model: str,
                        description: str = "",
                        system_prompt: str = "",
                        task_id: str = "",
@@ -1226,6 +1226,17 @@ async def send_message(
     to: str, message: str, delivery_id: str = "", file_path: str = "",
 ) -> str:
     """Send a message to an agent by name; triggers a turn. file_path optionally appends a local UTF-8 text file (max 64 KiB). delivery_id is an optional UUID for duplicate-safe delivery. QUEUED means accepted, not delivered; resolve an ambiguous outcome with message_delivery_status using the same id, not a fresh send."""
+    # A message to oneself wakes a new turn that repeats the same call: the reestr
+    # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
+    if to.strip() == (WORKER_NAME or ROLE):
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                "send_message cannot target yourself; do the work in this turn "
+                "or answer the user with plain text"
+            ),
+            details={"field": "to"},
+        )
     if file_path:
         attachment, attachment_size = _read_message_file(file_path)
         attachment_header = (

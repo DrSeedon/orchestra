@@ -233,6 +233,11 @@ class MCPClient:
     def has_tool(self, name: str) -> bool:
         return name in self._tool_server
 
+    def display_name(self, name: str) -> str:
+        """Claude-style ``mcp__<server>__<tool>`` name the dashboard renders tool cards by."""
+        server = self._tool_server.get(name)
+        return f"mcp__{server}__{name}" if server else name
+
     async def call(self, name: str, args: dict) -> str:
         """Call an MCP tool → text content. Errors come back as strings, never raised."""
         server_name = self._tool_server.get(name)

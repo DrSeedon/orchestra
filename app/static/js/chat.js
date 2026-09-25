@@ -1598,7 +1598,7 @@ function _taskCardBodyHtml(task) {
     const safe = (value) => DOMPurify.sanitize(String(value));
     const statusColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[task.status] || '#e2e8f0';
     if (task.status) rows.push(`<div><span style="color:#64748b">${T('Status:')}</span> <b style="color:${statusColor}">${T(safe(task.status))}</b></div>`);
-    if (task.project) rows.push(`<div><span style="color:#64748b">${T('Project:')}</span> <span style="color:#94a3b8">${safe(task.project)}</span></div>`);
+    if (task.project) rows.push(`<div><span style="color:#64748b">${T('Project:')}</span> <span style="color:#94a3b8">${safe(String(task.project).replace(/^scope:/, ''))}</span></div>`);
     const price = task.price_rub ?? task.price;
     if (Number(price) > 0) rows.push(`<div><span style="color:#64748b">${T('Price:')}</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
     if (task.assignee) rows.push(`<div><span style="color:#64748b">${T('Assignee:')}</span> ${safe(task.assignee)}</div>`);
@@ -2169,6 +2169,15 @@ function _renderFullToolCall(content, payload, div) {
     const colonIdx = content.indexOf(':');
     const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
     const body = colonIdx > 0 ? content.slice(colonIdx + 1).trim() : '';
+    // V-636: the harness logs a file change as a pseudo-call "file: add <path>"; the Write/Edit
+    // card above already shows the content, so this is one localized line, not an English card.
+    if (rawName === 'file' && /^(add|update) /.test(body)) {
+        const path = body.replace(/^(add|update) /, '');
+        div.className += ' text-xs';
+        div.style.color = '#64748b';
+        div.textContent = `📄 ${body.startsWith('add ') ? T('File created: {path}', {path}) : T('File updated: {path}', {path})}`;
+        return;
+    }
     const icon = toolIcon(rawName);
     const short = toolShortName(rawName);
     const isOrch = rawName.startsWith('mcp__orchestra__');
@@ -2192,7 +2201,7 @@ function _renderFullToolCall(content, payload, div) {
     header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
     let toolDesc = '';
     try { toolDesc = JSON.parse(body).description || ''; } catch {}
-    header.innerHTML = `${icon} ${DOMPurify.sanitize(short)}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
+    header.innerHTML = `${icon} ${DOMPurify.sanitize(T(short))}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
     div.appendChild(header);
 
     // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
@@ -3014,6 +3023,32 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         delete lastTool.dataset.lastTool;
         return;
     }
+    // V-636: a harness tool refusal is agent-facing English; the chat shows one localized line
+    // and keeps the original under "Technical details".
+    // Reading a file that does not exist yet is how agents check before writing, not a failure.
+    if (lastTool && /^\[read error\] \[Errno 2\]/.test(content)) {
+        const absent = document.createElement('div');
+        absent.className = 'text-xs';
+        absent.style.cssText = 'margin-top:4px;color:#64748b';
+        absent.textContent = T('File does not exist yet');
+        lastTool.appendChild(absent);
+        completeCodexToolCard(lastTool);
+        delete lastTool.dataset.lastTool;
+        addTimestamp(lastTool, ts);
+        return;
+    }
+    if (lastTool && /^\[(?:[a-z_]+ )?error\]/.test(content)) {
+        const refusal = document.createElement('div');
+        refusal.className = 'text-xs text-amber-400';
+        refusal.style.marginTop = '4px';
+        refusal.textContent = T('⚠️ The call failed — see technical details');
+        lastTool.appendChild(refusal);
+        _appendToolTechnicalDetails(lastTool, content);
+        completeCodexToolCard(lastTool, false);
+        delete lastTool.dataset.lastTool;
+        addTimestamp(lastTool, ts);
+        return;
+    }
     const clean = content.replace(/^\{?"?result"?:\s*"?|"?\}?$/g, '').replace(/\\n/g, '\n');
     // Strip raw JSON link arrays from WebSearch results (shown as ugly JSON at top)
     const stripped = clean.replace(/^(Links:\s*\[.*?\}\]\s*\n?)+/gms, '');
@@ -3042,7 +3077,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         }
         if (lastTool.dataset.isSpawnWorker) {
             const hdr = lastTool.querySelector('.flex.items-center');
-            if (hdr) setCodexToolTitle(hdr, `${lastTool.dataset.workerName || 'Worker'} spawned`);
+            if (hdr) setCodexToolTitle(hdr, T('{name} spawned', {name: lastTool.dataset.workerName || T('Worker')}));
             delete lastTool.dataset.lastTool;
             addTimestamp(lastTool, ts);
             return;
@@ -3255,7 +3290,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
                         row.dataset.taskRow = '1';
                         const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
-                        row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${t.status}</span>${priceStr}`;
+                        row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${DOMPurify.sanitize(T(t.status || ''))}</span>${priceStr}`;
                         container.appendChild(row);
                     }
                     _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'flex');
@@ -3438,10 +3473,10 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
                         if (i >= PREVIEW_COUNT) row.style.display = 'none';
                         row.dataset.agentRow = '1';
-                        let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(status)}</span></div>`;
+                        let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(T(status.trim()))}</span></div>`;
                         h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
                         if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
-                        h += `<span style="display:inline-flex;align-items:center;gap:3px">ctx:<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
+                        h += `<span style="display:inline-flex;align-items:center;gap:3px">${T('ctx:')}<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
                         if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
                         row.innerHTML = h;
                         container.appendChild(row);
@@ -3893,6 +3928,22 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
 // Central renderer for all log entry types (text, tool, tool_result, stream, user_message, etc.)
 // anchor = insert before this node instead of appending — used by loadMoreLogs for prepend
 // payload = full SSE log object (carries subagent_id for sub-agent nesting)
+// The header already names the sender, so the agent-facing "[from:X]" prefix is dropped,
+// and an auto-report's English service header and "[tool] ..." echo lines are replaced by
+// one localized line (V-636: they were the only English text in the stand's chat).
+function _agentMessageDisplay(text, subtype) {
+    const out = text.replace(/^\[from:[^\]]+\]\s*/, '');
+    if (subtype !== 'auto_report') return out;
+    const m = out.match(/^\[auto-report\](?: \(stop_reason=[^)]*\))? (Finished without explicit report|Turn failed before an explicit report)\. Last output:\n?/);
+    if (!m) return out;
+    const head = m[1].startsWith('Finished')
+        ? T('Worker finished its turn without a separate report. Last output:')
+        : T('Worker turn failed before a report. Last output:');
+    const rest = out.slice(m[0].length).split('\n').filter(line => !line.startsWith('[tool] '))
+        .map(line => line === '(no output)' ? T('(no output)') : line).join('\n');
+    return `${head}\n\n${rest}`;
+}
+
 function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
     if (type === 'done_gate_verdict') return; // V-614 shadow-only bookkeeping, not a chat event.
@@ -4147,11 +4198,12 @@ function addChatEntry(type, content, ts, anchor, payload) {
             label.style.color = senderColor;
             label.textContent = `${originLabels[origin]}: ${senders.join(', ')} → ${selectedAgent}`;
             div.appendChild(label);
+            const agentText = _agentMessageDisplay(displayContent, suppliedDetail && suppliedDetail.subtype);
             const body = document.createElement('div');
             body.className = 'markdown-body';
-            body.innerHTML = DOMPurify.sanitize(marked.parse(displayContent));
+            body.innerHTML = DOMPurify.sanitize(marked.parse(agentText));
             div.appendChild(body);
-            renderImages(body, displayContent);
+            renderImages(body, agentText);
         }
     }
     else if (type === 'tool') {
