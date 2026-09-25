@@ -375,3 +375,15 @@ async def test_concurrent_agents_send_one_gigachat_request_at_a_time(monkeypatch
     await http.aclose()
     assert results == [["text_delta", "final"]] * 3
     assert state["peak"] == 1
+
+
+def test_gigachat_3_ultra_is_a_selectable_harness_model():
+    """The stand needs the strongest GigaChat; an unknown GigaChat id must still be refused."""
+    import dataclasses
+    from app.models import MODEL_SPECS, resolve_model, validate_harness_model_spec
+
+    assert resolve_model("gigachat-3-ultra") == "GigaChat-3-Ultra"
+    spec = MODEL_SPECS["GigaChat-3-Ultra"]
+    validate_harness_model_spec(spec)
+    with pytest.raises(ValueError):
+        validate_harness_model_spec(dataclasses.replace(spec, id="GigaChat-9-Imaginary"))
