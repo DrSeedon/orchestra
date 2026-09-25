@@ -30,7 +30,8 @@ from app import openrouter_counter as _counter
 logger = logging.getLogger(__name__)
 
 GIGACHAT_AUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
-GIGACHAT_CHAT_URL = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions"
+# api.giga.chat is the unified endpoint since 16.07.2026; GigaChat-3-Ultra is served only there.
+GIGACHAT_CHAT_URL = "https://api.giga.chat/v1/chat/completions"
 GIGACHAT_REQUEST_TIMEOUT = 600
 
 
