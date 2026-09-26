@@ -2730,6 +2730,8 @@ class AgentSession:
         # Проходы аудита — отдельный процесс CLI мимо backend: их цену добавляем сами.
         self.cost_usd += result.cost
         if result.applied:
+            # Сводка из контекста иначе нигде не остаётся — без неё не видно, что дали проходы.
+            self._log("status", f"agentic compact context summary (replaced):\n{draft}")
             self._log(
                 "status",
                 f"agentic compact audit: summary {len(draft)} → {len(result.summary)} chars, "
