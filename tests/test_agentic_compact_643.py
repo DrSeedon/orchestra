@@ -195,6 +195,8 @@ def test_compact_uses_audited_summary_and_counts_cost(stub_cli, journal, tmp_pat
     assert "исходная сводка" not in preamble
     assert session.cost_usd == pytest.approx(0.75)
     assert any(t == "status" and c.startswith("agentic compact audit:") for t, c in logged)
+    replaced = [c for t, c in logged if c.startswith("agentic compact context summary")]
+    assert replaced and DRAFT in replaced[0]
 
 
 def test_compact_falls_back_to_original_summary_on_audit_error(stub_cli, journal, tmp_path, monkeypatch):
