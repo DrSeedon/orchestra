@@ -11,6 +11,9 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT))
+from app.secret_mask import mask_secrets
+
 PRIVATE = ROOT / "data" / "v649"
 DB = Path("/home/kesha/orchestra/data/orchestra.db")
 CASES = {
@@ -107,6 +110,8 @@ def prepare(case):
 
     out = PRIVATE / "cases" / case
     (out / "journal").mkdir(parents=True, exist_ok=True)
+    rows = [(lid, row_ts, typ, mask_secrets(row_content), tool, is_err)
+            for lid, row_ts, typ, row_content, tool, is_err in rows]
     full = render(rows)
     parts, cur, size = [], [], 0
     for part in full.split("\n\n[#"):
@@ -131,7 +136,7 @@ def prepare(case):
         for lid, row_ts, typ, row_content, tool, is_err in rows:
             f.write(json.dumps(dict(id=lid, ts=row_ts, type=typ, tool=tool,
                                     error=bool(is_err), content=row_content[:20000]), ensure_ascii=False) + "\n")
-    real, tail = split_preamble(content)
+    real, tail = (mask_secrets(part) for part in split_preamble(content))
     (out / "summary.md").write_text(real)
     (out / "tail.md").write_text(tail)
     meta = dict(case=case, compact_log_id=cid, compact_ts=ts, role=name, scope=scope, model=model,
@@ -142,18 +147,24 @@ def prepare(case):
     return meta
 
 
-def prompt_for(case, stage):
+def prompt_for(case, stage, *, fresh=False):
     d = PRIVATE / "cases" / case
     journal = d / "journal"
-    summary = d / "summary.md"
+    summary = d / ("in_session_fresh_summary.md" if fresh else "summary.md")
     cap = 20000
+    if stage == "draft":
+        return f"""This is pass 1 — DRAFT. Create a new handoff summary from scratch from the complete journal at {journal}. Read every chunk listed in INDEX.md in chronological order, completely. Use python over {journal / 'journal.jsonl'} and grep to check exact ids, paths, numbers, user requirements, decisions and reversals. Later events override earlier ones. Keep active task state, exact user constraints, decisions, paths, ids, measured numbers, bans, unresolved items and next action. Never copy credentials; replace any with <secret>. Do not use the existing production summary as a draft. Return the complete new summary as plain text.
+"""
     if stage == "audit":
-        return f"""This is pass 2 — AUDIT. The current production compact summary is the latest assistant message in this conversation. It is a draft and may have missed or distorted facts. Verify and complete it against the session journal at {journal} with python over {journal / 'journal.jsonl'} and grep, systematically:
+        basis = "The newly written summary" if fresh else "The current production compact summary is the latest assistant message in this conversation"
+        location = ("The draft is the previous assistant response. You may inspect the journal but must not modify any files."
+                    if fresh else f"The summary file path is {summary}. You may inspect the journal but must not modify any files.")
+        return f"""This is pass 2 — AUDIT. {basis} is a draft and may have missed or distorted facts. Verify and complete it against the session journal at {journal} with python over {journal / 'journal.jsonl'} and grep, systematically:
 1. Print every user_message (python; shorten long platform notices) and check that each still-relevant instruction, decision, ban and number in the summary is present — requirement wording verbatim.
 2. Grep the journal for paths, commit hashes, task ids (e.g. #V-123, V-123, #123), URLs, numbers with units, and ban words (нельзя, не делай, запрещ, никогда, только, NEVER, do not, don't) — add what matters for continuing.
 3. Check each status in the summary is FINAL: a later message may have changed it. Fix outdated statements.
 4. Read the last chunk fully: in-flight work, promises, open items and the next action must be exact.
-The summary file path is {summary}. You may inspect the journal but must not modify files outside {d}. Return the complete audited summary as plain text; do not include credentials (write <secret>).
+{location} Return the complete audited summary as plain text; do not include credentials (write <secret>).
 """
     return f"""This is the last pass — FINALIZE. Use the audited summary from your previous response and the journal at {journal}. Make a clean handoff of at most {cap} characters: merge duplicates, remove what is not needed to continue, keep every verbatim requirement, decision, path, id, number, ban and open item. Do not add facts you have not verified in the journal. Check the size with python (len of the file text) and iterate until it fits. Never include credentials; write <secret>. Return the complete final summary as plain text.
 """
@@ -185,60 +196,111 @@ def invoke(prompt, cwd, model, *, resume=None, fork=False, add_dir=None, no_pers
     return rec
 
 
-def compress(case):
+def compress(case, *, fresh=False, resume_fresh=None):
     d = PRIVATE / "cases" / case
-    if (d / "compress.json").exists() and (d / "in_session_summary.md").exists():
-        print(f"skip existing compression {case}", flush=True)
+    method = "in_session_fresh" if fresh else "in_session"
+    out_path = d / f"{method}.json"
+    summary_path = d / f"{method}_summary.md"
+    if out_path.exists() and summary_path.exists():
+        print(f"skip existing compression {method} {case}", flush=True)
         return
     meta = json.loads((d / "meta.json").read_text()) if (d / "meta.json").exists() else prepare(case)
     records = []
     # The source UUID ends immediately after the actual production summary. Forking
     # preserves that full history while isolating all new turns from the original.
-    first = invoke(prompt_for(case, "audit"), meta["original_cwd"], meta["model"], resume=meta["source_session_id"],
-                   fork=True, add_dir=d, label=f"audit:{case}")
-    records.append(first)
-    fork_id = first["session_id"]
+    if resume_fresh:
+        fork_id = resume_fresh
+        source_files = list((Path.home() / ".claude/projects").glob(f"*/{fork_id}.jsonl"))
+        if len(source_files) != 1:
+            raise RuntimeError(f"{case}: expected one saved draft fork, got {len(source_files)}")
+        source_events = [json.loads(line) for line in Path(meta["source_session_file"]).read_text().splitlines()]
+        source_end = max(e.get("timestamp", "") for e in source_events)
+        calls = {}
+        started_at = None
+        for line in source_files[0].read_text().splitlines():
+            entry = json.loads(line)
+            timestamp = entry.get("timestamp", "")
+            if entry.get("sessionId") != fork_id or timestamp <= source_end:
+                continue
+            if entry.get("type") == "user":
+                content = (entry.get("message") or {}).get("content")
+                if isinstance(content, str) and started_at is None:
+                    started_at = timestamp
+                elif isinstance(content, str):
+                    break
+            if entry.get("type") != "assistant" or not entry.get("requestId"):
+                continue
+            message = entry.get("message", {})
+            usage = message.get("usage") or {}
+            calls[entry["requestId"]] = dict(ts=entry.get("timestamp"), model=message.get("model"),
+                usage={k: usage.get(k, 0) for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")})
+        draft_calls = list(calls.values())
+        if not draft_calls or any(c["model"] != meta["model"].removesuffix("[1m]") for c in draft_calls):
+            raise RuntimeError(f"{case}: could not recover draft model calls from the saved fork")
+        usage = {k: sum(c["usage"][k] for c in draft_calls) for k in draft_calls[0]["usage"]}
+        started_at = started_at or draft_calls[0]["ts"]
+        sec = max(0, (dt.datetime.fromisoformat(draft_calls[-1]["ts"].replace("Z", "+00:00")) -
+                      dt.datetime.fromisoformat(started_at.replace("Z", "+00:00"))).total_seconds())
+        records.append(dict(label=f"draft:{case}", session_id=fork_id, model=meta["model"], sec=round(sec, 1),
+                            cost=0, usage=usage, turns=len(draft_calls), result="recovered from saved CLI usage"))
+    elif fresh:
+        first = invoke(prompt_for(case, "draft", fresh=True), meta["original_cwd"], meta["model"],
+                       resume=meta["source_session_id"], fork=True, add_dir=d, label=f"draft:{case}")
+        records.append(first)
+        fork_id = first["session_id"]
+        if len(first["result"].strip()) < 500:
+            raise RuntimeError(f"draft:{case}: no usable summary was returned")
+    else:
+        first = invoke(prompt_for(case, "audit"), meta["original_cwd"], meta["model"], resume=meta["source_session_id"],
+                       fork=True, add_dir=d, label=f"audit:{case}")
+        records.append(first)
+        fork_id = first["session_id"]
     if not fork_id or fork_id == meta["source_session_id"]:
         raise RuntimeError(f"{case}: CLI did not report fork session id")
-    second = invoke(prompt_for(case, "final"), meta["original_cwd"], meta["model"], resume=fork_id,
+    if fresh:
+        audit = invoke(prompt_for(case, "audit", fresh=True), meta["original_cwd"], meta["model"], resume=fork_id,
+                       add_dir=d, label=f"audit:{case}")
+        records.append(audit)
+    second = invoke(prompt_for(case, "final", fresh=fresh), meta["original_cwd"], meta["model"], resume=fork_id,
                     add_dir=d, label=f"final:{case}")
     records.append(second)
-    summary = second["result"].strip()
+    summary = mask_secrets(second["result"].strip())
     summary = re.sub(r"^```(?:markdown|md|text)?\s*", "", summary)
     summary = re.sub(r"\s*```\s*$", "", summary)
-    (d / "in_session_summary.md").write_text(summary + "\n")
+    summary_path.write_text(summary + "\n")
     for record in records:
         record["cumulative_session_cost_usd"] = record.pop("cost")
         record["incremental_cost_usd"] = token_cost(meta["model"], record["usage"])
-    out = dict(method="in_session", case=case, model=meta["model"], sec=round(sum(r["sec"] for r in records), 1),
+    out = dict(method=method, case=case, model=meta["model"], sec=round(sum(r["sec"] for r in records), 1),
                incremental_cost=round(sum(r["incremental_cost_usd"] for r in records), 6),
                incremental_usage={k: sum(r["usage"].get(k, 0) for r in records)
                                   for k in ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens", "output_tokens")},
                calls=[{k:v for k,v in r.items() if k != "result"} for r in records],
                summary_chars=len(summary), fork_session_id=fork_id)
-    (d / "compress.json").write_text(json.dumps(out, ensure_ascii=False, indent=2))
-    with (PRIVATE / "ledger.jsonl").open("a") as f:
+    out_path.write_text(json.dumps(out, ensure_ascii=False, indent=2))
+    with (PRIVATE / f"{method}_ledger.jsonl").open("a") as f:
         f.write(json.dumps(out, ensure_ascii=False) + "\n")
     print(json.dumps({k:v for k,v in out.items() if k != "calls"}, ensure_ascii=False), flush=True)
 
 
-def run_eval(case):
+def run_eval(case, *, fresh=False):
     # Reuse V-643's exact question set, answer/judge prompts, and tail-only filter.
     sys.path.insert(0, str(ROOT / ".orchestra/tasks/V-643"))
     import bench  # noqa: E402
     d = PRIVATE / "cases" / case
-    if (d / "eval/score.json").exists():
+    method = "in_session_fresh" if fresh else "in_session"
+    eval_dir = d / "eval" / method
+    if (eval_dir / "score.json").exists():
         print(f"skip existing evaluation {case}", flush=True)
         return
-    summary = (d / "in_session_summary.md").read_text()
+    summary = (d / f"{method}_summary.md").read_text()
     questions = json.loads((ROOT / ".orchestra/tasks/V-643/results/eval" / case / "questions.json").read_text())
     tail = (d / "tail.md").read_text()
     preamble = bench.PREAMBLE.format(summary=summary,
         tail=(f"\n[VERBATIM TAIL — last messages before compaction, unabridged]\n\n{tail}\n\n[END OF TAIL]\n" if tail else ""))
     qtext = "\n".join(f'{q["id"]}: {q["question"]}' for q in questions)
     model = "claude-sonnet-5[1m]"
-    eval_dir = d / "eval"
-    eval_dir.mkdir(exist_ok=True)
+    eval_dir.mkdir(parents=True, exist_ok=True)
     answers_prompt = bench.ANSWER.format(preamble=preamble, questions=qtext)
     costs_file = eval_dir / "costs.json"
     answers_file, judge_file = eval_dir / "answers.json", eval_dir / "judge.json"
@@ -275,13 +337,13 @@ def run_eval(case):
         score += max(v, 0) * importance
         weight += importance
         wrong += v < 0
-    result = dict(case=case, score=score / weight if weight else 0, wrong=wrong,
-                  kept_questions=len(questions)-len(easy), evaluation_cost=answer["cost"]+judge["cost"],
+    result = dict(case=case, method=method, score=score / weight if weight else 0, wrong=wrong,
+                  kept_questions=len(questions)-len(easy), evaluation_cost=token_cost(model, answer["usage"])+token_cost(model, judge["usage"]),
                   evaluation_sec=answer["sec"]+judge["sec"],
                   usage={k: answer["usage"].get(k,0)+judge["usage"].get(k,0)
                          for k in ("input_tokens","cache_creation_input_tokens","cache_read_input_tokens","output_tokens")})
     (eval_dir / "score.json").write_text(json.dumps(result, indent=2))
-    with (PRIVATE / "eval_ledger.jsonl").open("a") as f:
+    with (PRIVATE / f"{method}_eval_ledger.jsonl").open("a") as f:
         f.write(json.dumps(result) + "\n")
     print(json.dumps(result), flush=True)
 
@@ -291,15 +353,19 @@ if __name__ == "__main__":
     if command == "prepare":
         for case in cases:
             print(json.dumps(prepare(case), ensure_ascii=False), flush=True)
-    elif command == "compress":
-        for case in cases:
-            compress(case)
-    elif command == "eval":
-        for case in cases:
-            run_eval(case)
-    elif command == "pilot":
-        for case in cases:
-            compress(case)
-            run_eval(case)
+    elif command in ("compress", "compress-fresh", "eval", "eval-fresh", "pilot", "pilot-fresh", "resume-fresh"):
+        fresh = command.endswith("-fresh")
+        resume_fresh = command == "resume-fresh"
+        if resume_fresh and len(cases) != 2:
+            raise SystemExit("usage: measure.py resume-fresh <case> <existing-fork-session-id>")
+        for case in cases[:1] if resume_fresh else cases:
+            if command.startswith("compress") or command.startswith("pilot"):
+                compress(case, fresh=fresh)
+            elif resume_fresh:
+                compress(case, fresh=True, resume_fresh=cases[1])
+            if command.startswith("eval") or command.startswith("pilot"):
+                run_eval(case, fresh=fresh)
+            elif resume_fresh:
+                run_eval(case, fresh=True)
     else:
-        raise SystemExit("usage: measure.py prepare|compress|eval <case>...")
+        raise SystemExit("usage: measure.py prepare|compress|compress-fresh|eval|eval-fresh|pilot|pilot-fresh <case>...")
