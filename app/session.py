@@ -2556,12 +2556,12 @@ class AgentSession:
             logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
             self._log("error", f"listen task died: {exc}")
             self._finish_failed_running_turn(f"listen task exception: {exc}")
+        elif self.status != AgentStatus.RUNNING:
+            # Штатный конец потока после turn_end или подавленная отмена (V-648: 474 из 475 за неделю).
+            logger.debug(f"[{self.name}] listen task finished, status={self.status}")
         else:
             logger.warning(f"[{self.name}] listen task exited without exception (silent death), status={self.status}")
-            if self.status == AgentStatus.RUNNING:
-                self._finish_failed_running_turn(
-                    "listen task exited unexpectedly while RUNNING"
-                )
+            self._finish_failed_running_turn("listen task exited unexpectedly while RUNNING")
         if self.status != AgentStatus.RUNNING and self._auto_continue_count == 0:
             self._turns.publish_turn_finished()
 
