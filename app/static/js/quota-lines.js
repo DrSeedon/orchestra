@@ -232,6 +232,106 @@ function _qlLanes(panel) {
     return lanes;
 }
 
+function _qlTimelineSvg(panel, rule) {
+    const now = Date.parse(_quotaLinesData?.generated_at) || Date.now();
+    const half = 84 * 60 * 60 * 1000;
+    const from = now - half, to = now + half;
+    const x = ts => _QL_ML + (ts - from) / (to - from) * _QL_PW;
+    const y = _qlY;
+    const p = [];
+    const day = 86400000, zoneOffset = 7 * 3600000;
+    const firstLocalDay = Math.floor((from + zoneOffset) / day) * day - zoneOffset;
+    for (let start = firstLocalDay; start < to; start += day) {
+        const nightStart = start;
+        const nightEnd = start + 8 * 3600000;
+        const left = Math.max(from, nightStart), right = Math.min(to, nightEnd);
+        if (right > left) p.push(`<rect class="ql-night" x="${x(left)}" y="${_QL_MT}" width="${x(right)-x(left)}" height="${_QL_PH}"/>`);
+    }
+    for (let pct = 0; pct <= 100; pct += 20) {
+        p.push(`<line class="ql-grid" x1="${_QL_ML}" y1="${y(pct)}" x2="${_QL_ML + _QL_PW}" y2="${y(pct)}"/>`);
+        p.push(`<text class="ql-axis" x="${_QL_ML - 10}" y="${y(pct) + 4}" text-anchor="end">${pct}%</text>`);
+    }
+    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
+    const tickFormat = new Intl.DateTimeFormat(locale, {timeZone: 'Asia/Krasnoyarsk', weekday: 'short', hour: '2-digit', hourCycle: 'h23'});
+    for (let tick = Math.ceil(from / (12 * 3600000)) * 12 * 3600000; tick <= to; tick += 12 * 3600000) {
+        const tx = x(tick), parts = Object.fromEntries(tickFormat.formatToParts(new Date(tick)).map(part => [part.type, part.value]));
+        p.push(`<line class="ql-grid" x1="${tx}" y1="${_QL_MT}" x2="${tx}" y2="${_QL_MT + _QL_PH}"/>`);
+        p.push(`<text class="ql-axis" x="${tx}" y="${_QL_MT + _QL_PH + 16}" text-anchor="middle">${_escHtml(parts.weekday)} ${_escHtml(parts.hour)}</text>`);
+    }
+
+    // Quota policy curves restart at each provider window boundary. The prior
+    // and next boundaries use the duration and reset timestamp from the API.
+    for (const bucket of panel.buckets.map(_qlBucket).filter(Boolean)) {
+        const window = bucket.window;
+        const reset = Date.parse(window?.resets_at);
+        const duration = Number(window?.window_minutes) * 60000;
+        if (!Number.isFinite(reset) || !(duration > 0)) continue;
+        const cycles = new Map();
+        const addCycle = (end, span) => cycles.set(`${end}:${span}`, {end, span});
+        let foundPastBoundary = false;
+        for (const point of bucket.timeline?.points || []) {
+            const historicalReset = Number(point.resets_at) * 1000;
+            const historicalDuration = Number(point.window_minutes) * 60000;
+            if (Number.isFinite(historicalReset) && historicalReset < now
+                    && historicalReset + historicalDuration > from && historicalDuration > 0) {
+                addCycle(historicalReset, historicalDuration);
+                foundPastBoundary = true;
+            }
+        }
+        if (!foundPastBoundary) {
+            for (let end = reset - duration; end > from; end -= duration) addCycle(end, duration);
+        }
+        addCycle(reset, duration);
+        for (let end = reset + duration; end - duration < to; end += duration) addCycle(end, duration);
+        for (const {end, span} of cycles.values()) {
+            const start = end - span;
+            const left = Math.max(from, start), right = Math.min(to, end);
+            if (right <= left) continue;
+            const progressAt = ts => Math.max(0, Math.min(1, (ts - start) / span));
+            const baseline = [];
+            for (let i = 0; i <= 50; i++) {
+                const ts = left + (right - left) * i / 50, progress = progressAt(ts);
+                baseline.push(`${x(ts)},${y(progress * 100)}`);
+            }
+            p.push(`<polyline class="ql-timeline-burn" points="${baseline.join(' ')}"/>`);
+            for (const lane of bucket.lanes || []) {
+                if ((rule.gated_lanes || []).includes(lane.lane)) {
+                    const coords = [];
+                    for (let i = 0; i <= 50; i++) {
+                        const ts = left + (right - left) * i / 50;
+                        coords.push(`${x(ts)},${y(_qlLimitAt(progressAt(ts), rule, lane.lane))}`);
+                    }
+                    const colorClass = lane.lane === 'sol' ? 'ql-gated-sol' : '';
+                    p.push(`<polyline class="ql-gated ${colorClass}" data-ql-timeline-threshold="${_escHtml(lane.lane)}" points="${coords.join(' ')}"/>`);
+                }
+                const stop = _qlHardStop(rule, lane.lane);
+                p.push(`<line class="ql-hard" data-ql-timeline-hard="${_escHtml(lane.lane)}" x1="${x(left)}" y1="${y(stop)}" x2="${x(right)}" y2="${y(stop)}"/>`);
+            }
+        }
+    }
+    // Facts stop at now. Add a current sample there; the right half is policy only.
+    for (const lane of _qlLanes(panel)) {
+        const point = _qlPoint(lane.bucket);
+        if (!point) continue;
+        const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
+        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="5.5" fill="var(--bg)" stroke="${color}" stroke-width="2.5"><title>${_escHtml(lane.label || lane.lane)}: ${_qlNum(point.util)}%</title></circle>`);
+    }
+    p.push(`<line class="ql-now" x1="${x(now)}" y1="${_QL_MT}" x2="${x(now)}" y2="${_QL_MT + _QL_PH}"/>`);
+    const histories = new Set();
+    for (const bucket of panel.buckets.map(_qlBucket).filter(Boolean)) {
+        if (histories.has(bucket.bucket)) continue;
+        histories.add(bucket.bucket);
+        const points = bucket.timeline?.points || [];
+        const coords = points.map(point => [Number(point.ts) * 1000, Number(point.utilization)])
+            .filter(([ts, util]) => Number.isFinite(ts) && Number.isFinite(util) && ts >= from && ts <= now)
+            .map(([ts, util]) => `${x(ts)},${y(util)}`);
+        const current = _qlPoint(bucket);
+        if (current) coords.push(`${x(now)},${y(current.util)}`);
+        if (coords.length > 1) p.push(`<polyline class="ql-trace ql-trace-${bucket.bucket.replace('_', '-') }" data-ql-timeline-history="${_escHtml(bucket.bucket)}" points="${coords.join(' ')}"/>`);
+    }
+    return `<svg class="ql-chart" data-ql-timeline="${_escHtml(panel.key)}" viewBox="0 0 ${_QL_W} ${_QL_H}" preserveAspectRatio="xMidYMid meet">${p.join('')}</svg>`;
+}
+
 function _qlChartSvg(panel, rule) {
     const p = [];
 
@@ -429,6 +529,8 @@ function _qlPanelHtml(panel) {
         .join('');
     return `<section class="ql-panel" data-ql-panel="${_escHtml(panel.key)}">
         <div class="ql-head"><h3>${_escHtml(panel.title)}</h3><span>${_escHtml(panel.sub)}</span></div>
+        <div class="ql-head ql-timeline-head"><h4>${T('Quota timeline')}</h4><span>${T('±3.5 days · current time centered · Krasnoyarsk')}</span></div>
+        ${_qlTimelineSvg(panel, rule)}
         ${chart.svg}
         <div class="ql-legend">
             <span><i style="background:#8595ab"></i>${T('steady burn')}</span>

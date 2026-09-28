@@ -1788,6 +1788,55 @@ async def build_quota_map() -> dict:
                 })
         return traces
 
+    def _load_bucket_timeline_points() -> dict[str, list[dict]]:
+        # The timeline is independent of a quota window reset: retain samples
+        # across resets so the chart shows the actual drop in utilization.
+        start = now - 84 * 60 * 60
+        timelines: dict[str, list[dict]] = {}
+        with db._conn() as c:
+            if not c.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='usage_snapshots'"
+            ).fetchone():
+                return timelines
+            start_iso = datetime.fromtimestamp(start, tz=timezone.utc).isoformat()
+            now_iso = datetime.fromtimestamp(now, tz=timezone.utc).isoformat()
+            try:
+                rows = c.execute(
+                    """SELECT ts, five_hour_pct, seven_day_pct,
+                              five_hour_resets_at, seven_day_resets_at, provider_usage
+                       FROM usage_snapshots
+                       WHERE ((ts >= ? AND ts <= ?)
+                           OR ((ts NOT LIKE '%-%' AND ts NOT LIKE '%T%')
+                               AND CAST(ts AS REAL) BETWEEN ? AND ?))
+                       ORDER BY ts ASC""",
+                    (start_iso, now_iso, start, now),
+                ).fetchall()
+            except sqlite3.OperationalError:
+                return timelines
+        for row in rows:
+            ts = parse_quota_timestamp(row["ts"])
+            if ts is None or not start <= ts <= now:
+                continue
+            snapshot_providers = _extract_provider_usage(dict(row))
+            for bucket, provider in snapshot_providers.items():
+                if not isinstance(provider, dict):
+                    continue
+                window = deciding_window(provider, bucket)
+                if not isinstance(window, dict):
+                    continue
+                utilization = window.get("utilization")
+                minutes = window.get("window_minutes")
+                reset = parse_quota_timestamp(window.get("resets_at"))
+                if (not isinstance(utilization, (int, float)) or isinstance(utilization, bool)
+                        or not isinstance(minutes, (int, float)) or isinstance(minutes, bool)
+                        or minutes <= 0):
+                    continue
+                timelines.setdefault(bucket, []).append({
+                    "ts": ts, "utilization": utilization,
+                    "resets_at": reset, "window_minutes": minutes,
+                })
+        return {bucket: _downsample_timeline(points) for bucket, points in timelines.items()}
+
     def _downsample_trace(points: list[dict], max_points: int = 200) -> list[dict]:
         if len(points) <= max_points:
             return points
@@ -1796,6 +1845,18 @@ async def build_quota_map() -> dict:
         if sampled[-1] is not points[-1]:
             sampled.append(points[-1])
         return sampled
+
+    def _downsample_timeline(points: list[dict], max_points: int = 200) -> list[dict]:
+        if len(points) <= max_points:
+            return points
+        # Preserve both sides of utilization drops, which mark window resets.
+        required = {0, len(points) - 1}
+        for index in range(1, len(points)):
+            if points[index]["utilization"] < points[index - 1]["utilization"]:
+                required.update((index - 1, index))
+        stride = max(1, (len(points) + max_points - 1) // max_points)
+        chosen = required | set(range(0, len(points), stride))
+        return [points[index] for index in sorted(chosen)]
 
     # Всякий раз, пока у провайдера текущий `deciding window` живёт, нужна трасса
     # от его начала этого окна до «сейчас» в тех же координатах, что и точка.
@@ -1853,9 +1914,11 @@ async def build_quota_map() -> dict:
         })
 
     traces = _load_bucket_trace_points(bucket_meta)
+    timelines = _load_bucket_timeline_points()
     for bucket_item in buckets:
         points = traces.get(bucket_item["bucket"], [])
         bucket_item["trace"]["points"] = _downsample_trace(points)
+        bucket_item["timeline"] = {"points": timelines.get(bucket_item["bucket"], [])}
 
     return {
         "generated_at": datetime.now(timezone.utc).isoformat(),

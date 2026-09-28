@@ -181,7 +181,8 @@ def test_unified_panel_has_four_points_without_console_errors(browser):
     page, errors = _render(browser, _payload())
     assert page.locator("#quota-lines").count() == 1
     assert page.locator("[data-ql-chart='all']").count() == 1
-    assert page.locator(".ql-chart").count() == 1
+    assert page.locator(".ql-chart").count() == 2
+    assert page.locator("[data-ql-timeline='all'] + [data-ql-chart='all']").count() == 1
     for lane in ("sol", "luna", "spark", "claude"):
         assert page.locator(f"[data-ql-point='{lane}']").count() == 1
     assert errors == [], errors
@@ -195,6 +196,49 @@ def test_panel_renders_when_api_returns_object_payload(browser):
     assert page.locator("[data-ql-chart='all']").count() == 1
     assert "not valid JSON" not in page.locator("#quota-lines").inner_text()
     assert errors == [], errors
+    page.close()
+
+
+def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser):
+    payload = _payload()
+    payload["generated_at"] = "2026-08-19T12:00:00+00:00"
+    bucket = payload["buckets"][0]
+    bucket["timeline"] = {"points": [
+        {"ts": 1787130000, "utilization": 25.0, "resets_at": 1787745600, "window_minutes": 10080},
+        {"ts": 1787133600, "utilization": 26.0, "resets_at": 1787745600, "window_minutes": 10080},
+    ]}
+    page, errors = _render(browser, payload)
+    timeline = page.locator("[data-ql-timeline='all']")
+    now_x = timeline.locator(".ql-now").get_attribute("x1")
+    assert float(now_x) == pytest.approx(497.0)
+    current_points = timeline.locator("[data-ql-timeline-point]")
+    assert current_points.count() == 4
+    assert all(float(current_points.nth(i).get_attribute("cx")) == pytest.approx(float(now_x)) for i in range(4))
+    nights = timeline.locator(".ql-night")
+    assert nights.count() >= 7
+    day_ms, offset_ms = 86400000, 7 * 3600000
+    from_ms = 1787140800000 - 84 * 3600000
+    first_midnight = (int((from_ms + offset_ms) // day_ms) + 1) * day_ms - offset_ms
+    expected_night_x = 54 + (first_midnight - from_ms) / (168 * 3600000) * 886
+    expected_full_width = 8 * 3600000 / (168 * 3600000) * 886
+    assert float(nights.first.get_attribute("x")) == pytest.approx(54.0)
+    assert float(nights.first.get_attribute("width")) == pytest.approx(3600000 / (168 * 3600000) * 886)
+    assert float(nights.nth(1).get_attribute("x")) == pytest.approx(expected_night_x)
+    assert float(nights.nth(1).get_attribute("width")) == pytest.approx(expected_full_width)
+    assert timeline.locator("[data-ql-timeline-threshold='sol']").count() >= 2
+    assert timeline.locator("[data-ql-timeline-history='codex']").count() == 1
+    assert errors == [], errors
+    page.evaluate("""() => {
+        const body = document.querySelector('.ql-body');
+        body.style.maxHeight = 'none';
+        body.style.height = 'auto';
+        body.style.overflow = 'visible';
+    }""")
+    page.add_style_tag(content=".ql-body { max-height: none !important; overflow: visible !important; }")
+    screenshot = ROOT / ".orchestra/tasks/V-652/quota-timeline.png"
+    screenshot.parent.mkdir(parents=True, exist_ok=True)
+    page.set_viewport_size({"width": 1280, "height": 1600})
+    page.screenshot(path=str(screenshot), full_page=True)
     page.close()
 
 
