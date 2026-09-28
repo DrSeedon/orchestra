@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sqlite3
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field, replace
@@ -2713,37 +2714,95 @@ class AgentSession:
                 self._hibernate.schedule()
             self._wake_durable_message_deliveries()
 
-    async def _agentic_audit_summary(self, draft: str, stop_gen: int) -> str:
-        """V-643: свежий черновик по журналу + AUDIT/FINAL; сбой → сводка из контекста."""
+    async def _agentic_audit_summary(self, draft: str, stop_gen: int, backend) -> str:
+        """Run AUDIT and FINAL as subsequent turns in the draft's Claude session."""
         if self.backend_type != "claude" or not agentic_compact.enabled():
             return draft
-        config_dir = self._handoff_config_dir
-        if not config_dir and self.profile:
-            from app.db import get_profile
-            profile = get_profile(self.profile)
-            config_dir = profile["config_dir"] if profile else ""
-        result = await agentic_compact.audit_summary(
-            session_id=self.id, model=self.model, draft=draft,
-            draft_prompt=_compact_prompt(self.name, self.scope), config_dir=config_dir,
-            should_stop=lambda: self._turn_start_cancel_gen != stop_gen,
-        )
-        # Проходы аудита — отдельный процесс CLI мимо backend: их цену добавляем сами.
-        self.cost_usd += result.cost
-        if result.applied:
-            # Сводка из контекста иначе нигде не остаётся — без неё не видно, что дали проходы.
+        started = time.monotonic()
+        cost = 0.0
+        directory = None
+        events = backend.events().__aiter__()
+
+        async def run_pass(prompt: str, deadline: float) -> None:
+            nonlocal cost
+            if self._turn_start_cancel_gen != stop_gen:
+                raise RuntimeError("stopped")
+            await backend.send(prompt)
+            end_event = None
+            next_event = None
+            while end_event is None:
+                if self._turn_start_cancel_gen != stop_gen:
+                    await backend.interrupt()
+                    if next_event is not None:
+                        next_event.cancel()
+                        await asyncio.gather(next_event, return_exceptions=True)
+                    raise RuntimeError("stopped")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    await backend.interrupt()
+                    if next_event is not None:
+                        next_event.cancel()
+                        await asyncio.gather(next_event, return_exceptions=True)
+                    raise TimeoutError("timeout")
+                if next_event is None:
+                    next_event = asyncio.create_task(events.__anext__())
+                done, _ = await asyncio.wait({next_event}, timeout=min(1, remaining))
+                if not done:
+                    continue
+                event = next_event.result()
+                next_event = None
+                if event.type == "turn_end":
+                    end_event = event
+                    self._cost.apply_turn_result(event.metadata, event.usage)
+                    cost += self._turn_cost
+                elif event.type in {"tool", "tool_result"}:
+                    self._log(event.type, event.content)
+                elif event.type == "error":
+                    raise RuntimeError(event.content or "provider error during compact audit")
+                elif event.type == "provider_limit":
+                    self._handle_event(event)
+                    raise RuntimeError("provider limit during compact audit")
+            if end_event.metadata.get("ok") is not True:
+                raise RuntimeError("compact audit turn failed")
+
+        try:
+            sandbox_root = agentic_compact.sandbox_root()
+            sandbox_root.mkdir(parents=True, exist_ok=True)
+            directory = Path(tempfile.mkdtemp(prefix="compact-", dir=sandbox_root))
+            journal_dir = await agentic_compact.prepare_journal(self.id, directory)
+            summary_path = directory / "summary.md"
+            summary_path.write_text(draft)
+            deadline = started + float(os.getenv("AGENTIC_COMPACT_TIMEOUT", "900"))
+            for prompt in (
+                agentic_compact.audit_prompt(journal_dir, summary_path),
+                agentic_compact.final_prompt(journal_dir, summary_path),
+            ):
+                await run_pass(prompt, deadline)
+            result = summary_path.read_text().strip() if summary_path.exists() else ""
+            if not result:
+                raise RuntimeError("audit produced empty summary")
+            if len(result) > agentic_compact.max_chars():
+                raise RuntimeError(
+                    f"audit summary too long ({len(result)} > {agentic_compact.max_chars()} chars)"
+                )
             self._log("status", f"agentic compact context summary (replaced):\n{draft}")
             self._log(
                 "status",
-                f"agentic compact audit: summary {len(draft)} → {len(result.summary)} chars, "
-                f"${result.cost:.2f}, {result.seconds:.0f}s",
+                f"agentic compact audit: summary {len(draft)} → {len(result)} chars, "
+                f"${cost:.2f}, {time.monotonic() - started:.0f}s",
             )
-        else:
+            return result
+        except Exception as error:
+            reason = f"{type(error).__name__}: {error}"[:400]
             self._log(
                 "status",
-                f"agentic compact audit skipped, original summary kept: {result.reason} "
-                f"(${result.cost:.2f}, {result.seconds:.0f}s)",
+                f"agentic compact audit skipped, original summary kept: {reason} "
+                f"(${cost:.2f}, {time.monotonic() - started:.0f}s)",
             )
-        return result.summary
+            return draft
+        finally:
+            if directory is not None:
+                shutil.rmtree(directory, ignore_errors=True)
 
     async def compact(self) -> dict:
         if self.backend_type == "codex":
@@ -2817,6 +2876,7 @@ class AgentSession:
             summary_turn = None
             summary_error = ""
             terminal_limit = False
+            keep_backend_open = False
             backend = self._backend
             need_connect = self._backend is None
             try:
@@ -2847,6 +2907,10 @@ class AgentSession:
                         summary_turn = event
                         if event.metadata.get("session_id"):
                             self.session_id = event.metadata["session_id"]
+                        self._cost.apply_turn_result(event.metadata, event.usage)
+                        self._last_turn_api_calls = max(
+                            1, int(event.metadata.get("num_turns") or 1),
+                        )
                         break
             except QuotaGateError:
                 abort_compact("weekly quota blocked compact summary", flush_pending=False)
@@ -2870,14 +2934,29 @@ class AgentSession:
                     continue
                 return abort_compact(last_error)
             finally:
-                if backend is not None:
+                keep_backend_open = bool(
+                    self.backend_type == "claude"
+                    and agentic_compact.enabled()
+                    and summary_turn is not None
+                    and summary_turn.metadata.get("ok") is True
+                    and not summary_error
+                    and not terminal_limit
+                    and "".join(summary_parts).strip()
+                )
+                if backend is not None and not keep_backend_open:
                     try:
                         await backend.disconnect()
                     except Exception:
                         pass
-                self._backend = None
+                    self._backend = None
 
             if self._turn_start_cancel_gen != compact_stop_gen:
+                if keep_backend_open:
+                    try:
+                        await backend.disconnect()
+                    except Exception:
+                        pass
+                    self._backend = None
                 return abort_compact("compaction cancelled by stop", flush_pending=False)
 
             summary = "".join(summary_parts).strip()
@@ -2908,7 +2987,17 @@ class AgentSession:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
 
-        summary = await self._agentic_audit_summary(summary, compact_stop_gen)
+        if keep_backend_open:
+            try:
+                summary = await self._agentic_audit_summary(summary, compact_stop_gen, backend)
+            finally:
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    logger.warning("[%s] backend disconnect failed after compact audit", self.name)
+                self._backend = None
+        if self._turn_start_cancel_gen != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
         tail = _preserved_tail(
             self.id,
             COMPACT_TAIL_CHARS,
