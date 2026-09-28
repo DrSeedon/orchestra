@@ -40,6 +40,8 @@ def test_threshold_and_quota_noise_classification():
     assert noise[0]["noise"] == "quota/rate limit"
     assert watch.classify_noise(watch.normalize_signature("command exited with code 143")) == "expected command termination"
     assert watch.classify_noise(watch.normalize_signature("Merge operation x: FAILED — DIFF TOO LARGE: 2720 insertions (limit 2000).")) == "merge gate refusal"
+    assert watch.classify_noise(watch.normalize_signature("Exit code 1")) == "agent command exit code"
+    assert watch.classify_noise(watch.normalize_signature("This app tool requires a non-empty string link_id argument")) == "external app tool argument"
 
 
 def test_normal_listener_end_is_noise_but_running_failure_is_actionable():

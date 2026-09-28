@@ -26,6 +26,8 @@ _NOISE = (
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
     ("expected command termination", re.compile(r"command exited with code", re.I)),
     ("merge gate refusal", re.compile(r"DIFF TOO LARGE", re.I)),
+    ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
+    ("external app tool argument", re.compile(r"This app tool requires", re.I)),
 )
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
 _LONG_HEX = re.compile(r"\b(?:0x)?[0-9a-f]{12,}\b", re.I)
