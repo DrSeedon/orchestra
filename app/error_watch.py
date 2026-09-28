@@ -28,6 +28,9 @@ _NOISE = (
     ("merge gate refusal", re.compile(r"DIFF TOO LARGE", re.I)),
     ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
     ("external app tool argument", re.compile(r"This app tool requires", re.I)),
+    ("TG polling cut by shutdown", re.compile(r"Failed to fetch updates.*ServerDisconnectedError", re.I)),
+    ("agent shell syntax", re.compile(r"-c: line (?:\d+|<N>): syntax error", re.I)),
+    ("agent missing python package", re.compile(r"File \"<stdin>\".*ModuleNotFoundError", re.I)),
 )
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
 _LONG_HEX = re.compile(r"\b(?:0x)?[0-9a-f]{12,}\b", re.I)
