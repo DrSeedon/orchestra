@@ -127,6 +127,25 @@ def test_second_start_changes_nothing(legacy_install):
     assert sorted(p.name for p in database.parent.glob("*pre-v576*")) == backups_after_first
 
 
+def test_v3_database_missing_attention_events_is_repaired(legacy_install):
+    database, root, _records = legacy_install
+    migrate_v576(database, root)
+    with sqlite3.connect(database) as connection:
+        connection.execute("DROP TABLE attention_events")
+        connection.commit()
+
+    result = migrate_v576(database, root)
+
+    assert result["state"] == "migrated"
+    with sqlite3.connect(database) as connection:
+        table = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='attention_events'"
+        ).fetchone()
+        assert table and "CREATE TABLE attention_events" in table[0]
+        assert int(connection.execute("PRAGMA user_version").fetchone()[0]) == 3
+    assert migrate_v576(database, root) == {"state": "already"}
+
+
 def test_a_dirty_task_store_refuses_instead_of_mixing_changes_in(legacy_install):
     database, root, records = legacy_install
     stray = root / "projects" / "alpha-vps" / "tasks" / "stray.json"

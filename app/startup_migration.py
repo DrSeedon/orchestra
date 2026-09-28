@@ -59,7 +59,7 @@ def _database_needs_migration(connection: sqlite3.Connection) -> bool:
     columns = {
         str(row[1]) for row in connection.execute("PRAGMA table_info(tm_tasks)").fetchall()
     }
-    return "tags" not in columns
+    return "tags" not in columns or "attention_events" not in tables
 
 
 def _backup(database: Path) -> Path:
@@ -135,12 +135,27 @@ def _migrate_database(database: Path) -> dict:
             connection.execute(f"PRAGMA user_version={DB_VERSION_AFTER}")
             connection.commit()
             return {"state": "version_only", "schema_version": DB_VERSION_AFTER}
-        if version != DB_VERSION_BEFORE:
+        if version not in (DB_VERSION_BEFORE, DB_VERSION_AFTER):
             raise MigrationError(
-                f"unsupported schema version {version}; expected {DB_VERSION_BEFORE} before V-576"
+                f"unsupported schema version {version}; expected {DB_VERSION_BEFORE} or "
+                f"{DB_VERSION_AFTER} for V-576 repair"
             )
         connection.execute("BEGIN IMMEDIATE")
-        connection.execute("ALTER TABLE tm_tasks ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+        columns = {
+            str(row[1]) for row in connection.execute("PRAGMA table_info(tm_tasks)").fetchall()
+        }
+        if "tags" not in columns:
+            connection.execute("ALTER TABLE tm_tasks ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'")
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS attention_events (
+                id TEXT PRIMARY KEY,
+                kind TEXT NOT NULL
+                    CHECK(kind IN ('legacy','incident','reversal','plan_change','waiting')),
+                reason TEXT NOT NULL,
+                source_session_id TEXT NOT NULL REFERENCES sessions(id),
+                created_at TEXT NOT NULL
+            )
+        """)
         connection.execute(f"PRAGMA user_version={DB_VERSION_AFTER}")
         connection.commit()
         return {"state": "migrated", "schema_version": DB_VERSION_AFTER}

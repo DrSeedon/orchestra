@@ -462,7 +462,7 @@ class TestCronCommand:
         session.send.assert_not_awaited()
 
     @pytest.mark.asyncio
-    async def test_timeout_never_wakes_even_after_partial_match(
+    async def test_timeout_wakes_once_until_a_successful_run(
         self, db, mgr_mock, monkeypatch,
     ):
         import app.bg_jobs as module
@@ -473,28 +473,41 @@ class TestCronCommand:
         manager, session = mgr_mock
         mgr.set_session_manager(manager)
         bg_save_job(self._job("cron-command-timeout", datetime.now(timezone.utc)))
-        proc = self._proc(output=b"ALERT: partial\n", returncode=None)
-        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(return_value=proc))
+        procs = [
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+            self._proc(output=b"healthy\n"),
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+        ]
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(side_effect=procs))
 
-        async def timeout(_process):
-            raise asyncio.TimeoutError
+        async def communicate(process):
+            if process.returncode is None:
+                raise asyncio.TimeoutError
+            return process.output, process.error
 
         killed = AsyncMock()
-        monkeypatch.setattr(module, "_communicate_cron_command", timeout)
+        monkeypatch.setattr(module, "_communicate_cron_command", communicate)
         monkeypatch.setattr(module, "_kill_proc", killed)
 
-        await mgr._fire_cron_command(
-            "cron-command-timeout",
-            "python monitor.py",
-            "ALERT",
-            "monitor found work",
-            "w1",
-            "/s",
-        )
+        for _ in range(4):
+            await mgr._fire_cron_command(
+                "cron-command-timeout",
+                "python monitor.py",
+                "ALERT",
+                "monitor found work",
+                "w1",
+                "/s",
+            )
 
-        manager.ensure_loaded.assert_not_awaited()
-        session.send.assert_not_awaited()
-        killed.assert_awaited_once_with(proc)
+        assert manager.ensure_loaded_by_id.await_count == 2
+        assert session.send.await_count == 2
+        notified = session.send.await_args_list[0].args[0]
+        assert "cron-command-timeout" in notified
+        assert "python monitor.py" in notified
+        assert "600 seconds" in notified
+        assert "Check its runtime/output" in notified
+        assert killed.await_count == 4
         row = next(
             job for job in bg_get_active_all()
             if job["id"] == "cron-command-timeout"

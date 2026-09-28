@@ -1188,6 +1188,8 @@ class SessionManager:
         if _killed_name:
             from app import fan_barrier
             fan_barrier.on_child_killed(_killed_name)
+        if session is not None:
+            session._cancel_precompact_timer("removed")
         # Процесс CLI есть только у загруженной живой сессии; гасим его до удаления
         # worktree, в котором он работает. Гидрированная из БД сессия его не имеет.
         if session is not None and session.loaded:
