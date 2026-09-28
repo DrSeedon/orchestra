@@ -242,6 +242,53 @@ def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser):
     page.close()
 
 
+def test_live_quota_map_history_and_two_hour_labels(browser):
+    payload = json.loads((ROOT / "tests/fixtures/v654_quota_map_live_shape.json").read_text())
+    page, errors = _render(browser, payload)
+    timeline = page.locator("[data-ql-timeline='all']")
+    histories = {el.get_attribute("data-ql-timeline-history"): el for el in timeline.locator("[data-ql-timeline-history]").all()}
+    assert set(histories) == {"codex", "anthropic"}
+    for bucket, expected_points in (("codex", 171), ("anthropic", 169)):
+        coords = histories[bucket].get_attribute("points").split()
+        assert len(coords) == expected_points + 1  # historical samples plus the current sample at now
+        assert len(set(coords)) > expected_points // 2
+    assert timeline.locator(".ql-timeline-burn").count() <= 6
+    now_x = float(timeline.locator(".ql-now").get_attribute("x1"))
+    assert now_x == pytest.approx(497.0)
+    current = timeline.locator("[data-ql-timeline-point]")
+    assert {current.nth(i).get_attribute("data-ql-timeline-point") for i in range(current.count())} == {"sol", "luna", "claude"}
+    codex_radii = [float(current.nth(i).get_attribute("r")) for i in range(2)]
+    assert len(set(codex_radii)) == 2
+    ticks = timeline.locator("[data-ql-time-tick]")
+    assert ticks.count() == 84
+    tick_x = [float(ticks.nth(i).get_attribute("x1")) for i in range(ticks.count())]
+    assert all(b - a == pytest.approx(886 / 84) for a, b in zip(tick_x, tick_x[1:]))
+    boundaries = timeline.locator("[data-ql-time-boundary]")
+    assert boundaries.count() == 14
+    assert {boundaries.nth(i).get_attribute("data-ql-time-boundary") for i in range(boundaries.count())} == {"0", "8"}
+    labels = timeline.locator("[data-ql-time-label]")
+    assert labels.count() > 0
+    label_boxes = timeline.locator("[data-ql-time-label], [data-ql-time-boundary]").evaluate_all(
+        "els => els.map(el => { const b = el.getBBox(); return [b.x, b.y, b.width, b.height]; })"
+    )
+    for i, (x1, y1, w1, h1) in enumerate(label_boxes):
+        for x2, y2, w2, h2 in label_boxes[i + 1:]:
+            assert x1 + w1 <= x2 or x2 + w2 <= x1 or y1 + h1 <= y2 or y2 + h2 <= y1
+    assert errors == [], errors
+    page.evaluate("""() => {
+        const body = document.querySelector('.ql-body');
+        body.style.maxHeight = 'none';
+        body.style.height = 'auto';
+        body.style.overflow = 'visible';
+    }""")
+    page.add_style_tag(content=".ql-body { max-height: none !important; overflow: visible !important; }")
+    screenshot = ROOT / ".orchestra/tasks/V-654/quota-timeline-live-fixture.png"
+    screenshot.parent.mkdir(parents=True, exist_ok=True)
+    page.set_viewport_size({"width": 1280, "height": 1600})
+    page.screenshot(path=str(screenshot), full_page=True)
+    page.close()
+
+
 def test_panel_curve_matches_the_limit_the_server_computed(browser):
     """Кривая панели и порог гейта — одно число, а не две копии.
 
