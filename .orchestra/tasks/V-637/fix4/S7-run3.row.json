@@ -1,0 +1,25 @@
+{
+ "scenario": "S7",
+ "tag": "S7-run3",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "3 tests pass and catch a broken allowed list",
+ "seconds": 38,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 10,
+ "tool_errors": 0,
+ "loop_errors": 0,
+ "in_tokens": 32028,
+ "out_tokens": 2290,
+ "tools_by_name": {
+  "?": 1,
+  "bash": 3,
+  "read": 2,
+  "send_message": 2,
+  "spawn_worker": 1,
+  "write": 1
+ },
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект. Локальный запуск: 3 теста пройдены (OK)."
+}

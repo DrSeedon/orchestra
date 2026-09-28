@@ -5177,3 +5177,90 @@ class TestTurnFoldStream:
         bar = anchor.splitlines()[0]
         assert bar == "━" * 19
         assert len(bar) == tb._ANCHOR_BAR_WIDTH == 19
+
+
+class TestSendMessageOwnBubble:
+    """V-644: каждый send_message агента — отдельное раскрываемое сообщение с адресатом
+    и полным текстом; счётчик ⚙️ равен числу показанных строк пачки."""
+
+    _CALL = 'mcp__orchestra__send_message: '
+
+    @staticmethod
+    async def _stream(tb, monkeypatch, rows, *, overload_mirror_once=False):
+        class FakeConn:
+            def close(self):
+                pass
+
+        calls = 0
+
+        def get_logs(session_id, after_id=0, conn=None):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                return []
+            if calls in (2, 3):
+                return [r for r in rows if r["id"] > after_id]
+            raise asyncio.CancelledError
+
+        sent, failed = [], False
+
+        async def tg_send_safe(chat_id, text, thread_id, entities=None, **kw):
+            sent.append({"text": text, "entities": entities})
+
+        async def mirror_send(_name, text, **_kw):
+            nonlocal failed
+            if overload_mirror_once and not failed:
+                failed = True
+                raise tb._TgDeliveryOverloaded("mirror full")
+
+        async def no_sleep(_delay):
+            return None
+
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: [{"name": "orch", "scope": "/s"}])
+        monkeypatch.setattr("app.db.get_session_by_name", lambda n, s: {"id": "sid"})
+        monkeypatch.setattr("app.db.get_logs", get_logs)
+        monkeypatch.setattr("app.db._conn", FakeConn)
+        monkeypatch.setattr(tb, "_schedule_topic_status", lambda *a: None)
+        monkeypatch.setattr(tb, "_tg_send_safe", tg_send_safe)
+        monkeypatch.setattr(tb, "_mirror_send", mirror_send)
+        monkeypatch.setattr(tb.asyncio, "sleep", no_sleep)
+        with pytest.raises(asyncio.CancelledError):
+            await tb.stream_logs("orch", 42)
+        return sent
+
+    def _row(self, log_id, to, message):
+        body = json.dumps({"to": to, "message": message}, ensure_ascii=False)
+        return {"id": log_id, "type": "tool", "content": self._CALL + body}
+
+    @pytest.mark.asyncio
+    async def test_full_text_and_addressee_in_own_expandable_message(self, tb, monkeypatch):
+        text = "решение владельца по развилке — " + "слово " * 40
+        sent = await self._stream(tb, monkeypatch, [self._row(1, "agentic-compact", text)])
+        own = [m for m in sent if "agentic-compact" in m["text"].splitlines()[0]]
+        assert len(own) == 1
+        assert text.strip() in own[0]["text"]
+        assert any(e.type == "expandable_blockquote" for e in own[0]["entities"])
+
+    @pytest.mark.asyncio
+    async def test_replayed_log_row_does_not_duplicate_the_message(self, tb, monkeypatch):
+        sent = await self._stream(
+            tb, monkeypatch, [self._row(1, "w", "привет")], overload_mirror_once=True,
+        )
+        assert len([m for m in sent if m["text"].startswith("✉️")]) == 1
+
+    @pytest.mark.asyncio
+    async def test_counter_equals_lines_of_the_current_block(self, tb, monkeypatch):
+        state = tb._TurnState()
+        state.add(1, "🖥 old")
+        state.new_block()                       # текст юзеру закрыл первую пачку
+        state.add(2, "→ w")
+        shown = []
+
+        async def send_expandable(chat_id, thread_id, header, body, **kw):
+            shown.append((header, body))
+
+        monkeypatch.setattr(tb, "_send_expandable", send_expandable)
+        monkeypatch.setattr(tb, "config", {"group_id": -100})
+        await tb._update_progress(state, 42, "orch", force=True)
+        head, body = shown[0]
+        assert head.startswith("⚙️ 1 ") and len(body.splitlines()) == 1

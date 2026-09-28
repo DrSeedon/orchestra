@@ -1,0 +1,22 @@
+{
+ "scenario": "S2",
+ "tag": "chain-S2-run1",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'",
+ "seconds": 8,
+ "timed_out": false,
+ "turns": 1,
+ "turns_failed": 0,
+ "tool_calls": 3,
+ "tool_errors": 0,
+ "loop_errors": 0,
+ "in_tokens": 4221,
+ "out_tokens": 304,
+ "tools_by_name": {
+  "?": 1,
+  "bash": 1,
+  "write": 1
+ },
+ "final_text": "Готово. Скрипт страны.py создан и выполнен.\n\nРезультат:\n- Россия — 1\n- Иностранные — 4\n- Доля иностранных — 80%"
+}

@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 0.5,
+  "why": "docx skill, no conversion; missing pandoc and matplotlib"
+ },
+ "q3": {
+  "score": 0.5,
+  "why": "ssh kesha@localhost given, but no 12G/cgroup reason; says reason not named"
+ },
+ "q4": {
+  "score": 1,
+  "why": "rule 'looks done first time', no process traces in comments"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "numbers 293 667/938 323 correct, guard cause missing"
+ },
+ "q6": {
+  "score": 0.5,
+  "why": "738 211 and 308 correct, but 39 columns vs gold 38 (hedged)"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "keeps log chart, but five new clustering charts not stated; lists different set"
+ },
+ "q8": {
+  "score": 1,
+  "why": "applieddasfu, two Drive links, docx as file not comment"
+ },
+ "q9": {
+  "score": 0.5,
+  "why": "23 variables correct, real deadline 02.10 missing"
+ },
+ "q10": {
+  "score": 1,
+  "why": "regulation name and all dates match"
+ },
+ "q11": {
+  "score": 0.5,
+  "why": "exact title and verbatim usage, but does not state chosen by director; 'дословно' semantics present"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Kustitskaya consents, Antipova resolution"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all codes and trap correct"
+ },
+ "q14": {
+  "score": 1,
+  "why": "correct number, wrong one and source template group"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "email and phone correct, form of study (очная) missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "formatting preserved, text substituted into original blanks"
+ },
+ "q17": {
+  "score": 1,
+  "why": "mentor, two reviewers, theme change statement all present"
+ },
+ "q18": {
+  "score": 1,
+  "why": "no writing to teachers without user's word, forbidden phrases named"
+ },
+ "q19": {
+  "score": 1,
+  "why": "all four dates 01.10, 02.10 (implicit?) "
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "Jupyter open noted, no closing instruction; defense rules unknown"
+ }
+}

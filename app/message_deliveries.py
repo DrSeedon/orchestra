@@ -50,6 +50,7 @@ def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
     provider_ref = row["provider_ref"]
     if isinstance(provider_ref, str) and provider_ref.startswith(_STEERED_PROVIDER_REF_PREFIX):
         provider_ref = provider_ref[len(_STEERED_PROVIDER_REF_PREFIX):]
+    stalled = bool(error) and error.get("code") == "TURN_NOT_STARTED"
     return {
         "ok": True,
         "acceptance": acceptance,
@@ -61,6 +62,7 @@ def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
         "provider_ref": provider_ref,
         "error": error,
         "next_action": _next_action(row),
+        **({"stalled": True} if stalled else {}),
     }
 
 
@@ -119,6 +121,16 @@ def _next_action(row: sqlite3.Row | dict) -> dict:
             "message": (
                 "Provider acceptance may have occurred. Check this delivery_id; "
                 "do not resend the direct message automatically."
+            ),
+        }
+    if row["state"] == "SUBMITTED" and row["error_json"] and "TURN_NOT_STARTED" in row["error_json"]:
+        return {
+            "code": "TURN_NOT_STARTED",
+            "retryable": False,
+            "message": (
+                "The message was delivered to the target, but no turn started "
+                "(see error.message for the agent status). Check the target with "
+                "list_agents; do not resend blindly."
             ),
         }
     if row["state"] == "DELIVERY_UNKNOWN_ORPHANED":

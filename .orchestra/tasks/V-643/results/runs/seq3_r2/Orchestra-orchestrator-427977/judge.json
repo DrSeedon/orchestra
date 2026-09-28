@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, don't delete"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.7, 101.12, 163.12 all present"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk +7"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "per-second precision but says 'open scope', not the project whose chat is open"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers match"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact despite bg; skip only during turn/compaction"
+ },
+ "q7": {
+  "score": 1,
+  "why": "filename matches"
+ },
+ "q8": {
+  "score": 0.5,
+  "why": "dnd correct, cog has different code (GIT_ERROR vs LAYOUT_PARTIAL); cog integrity correct"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly with me, don't write to seedon"
+ },
+ "q10": {
+  "score": 1,
+  "why": "Sol banned, Opus 5.5 medium"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules"
+ },
+ "q12": {
+  "score": 1,
+  "why": "base.md, not CLAUDE.md"
+ },
+ "q13": {
+  "score": 0.5,
+  "why": "fix and dead session correct; the cause (task held by another session) and workaround missing"
+ },
+ "q14": {
+  "score": 1,
+  "why": "branch and 27.09 match"
+ },
+ "q15": {
+  "score": 1,
+  "why": "hashes and dates match"
+ },
+ "q16": {
+  "score": 1,
+  "why": "exit guard, 32b982be, 115 failed"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "only the 92% emergency compaction matches; not_idle and 18 alarms unknown"
+ },
+ "q18": {
+  "score": 1,
+  "why": "option C, releases, complete_previous"
+ },
+ "q19": {
+  "score": 1,
+  "why": "closed, went to Кошелева, nothing needed"
+ },
+ "q20": {
+  "score": 1,
+  "why": "dev-lead, media-orchestrator, always running"
+ }
+}

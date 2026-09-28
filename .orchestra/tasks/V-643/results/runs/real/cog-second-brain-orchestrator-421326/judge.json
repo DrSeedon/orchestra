@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0.5,
+  "why": "Says UNKNOWN but gives 'ядро бот' and V-44; contains all key facts though hedged. Partial credit"
+ },
+ "q2": {
+  "score": 0.5,
+  "why": "Correct path but commit dcf9f23 differs from 3ae93ff"
+ },
+ "q3": {
+  "score": 0.5,
+  "why": "V-43 and report right, but commit 2262a69 not c0ac749; branch unknown"
+ },
+ "q4": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q5": {
+  "score": 1,
+  "why": "12000 fifth star, max 30000"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q8": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "14126, 5 stars, seed matches"
+ },
+ "q11": {
+  "score": 0.5,
+  "why": "Maps approximate, generator not decoded; matches partly though stated as unknown for V-43"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Port 2222, key, game path all match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "Directory and URL match"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "Money/shop question unanswered, but no 25 locked jokers"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "Tasks correct, next action unknown"
+ },
+ "q18": {
+  "score": 1,
+  "why": "Only orchestrator publishes; workers no push/deploy"
+ },
+ "q19": {
+  "score": 1,
+  "why": "dnd-duckdns, balatro dir, 02-personal all correct"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN"
+ }
+}

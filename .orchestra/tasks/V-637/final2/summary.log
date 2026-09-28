@@ -1,0 +1,12 @@
+{"tag": "S2-run1", "ok": true, "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'", "seconds": 17, "turns": 1, "tool_calls": 7, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S3-run1", "ok": true, "detail": "справка_эксперту.md has licenses and correct counts", "seconds": 11, "turns": 1, "tool_calls": 6, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6-run1", "ok": false, "detail": "--json output is not JSON: 'FastAPI — MIT — допустима\\nSQLite — Public Domain — допустима\\nUvicorn — BSD-3-Clause — допустима\\nPydantic — MIT — допустима\\nМодуль оркестрации — Проприетарная — допустима\\n{\"допустимо\": 5, \"требует_пров'", "seconds": 17, "turns": 1, "tool_calls": 11, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S7-run1", "ok": true, "detail": "3 tests pass", "seconds": 38, "turns": 2, "tool_calls": 12, "tool_errors": 1, "loop_errors": 0}
+{"tag": "S2-run2", "ok": true, "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'", "seconds": 23, "turns": 1, "tool_calls": 10, "tool_errors": 1, "loop_errors": 0}
+{"tag": "S3-run2", "ok": true, "detail": "справка_эксперту.md has licenses and correct counts", "seconds": 11, "turns": 1, "tool_calls": 6, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6-run2", "ok": true, "detail": "both modes correct", "seconds": 17, "turns": 1, "tool_calls": 7, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S7-run2", "ok": true, "detail": "3 tests pass", "seconds": 29, "turns": 3, "tool_calls": 8, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S2-run3", "ok": false, "detail": "no script printed Россия 1 / Иностранные 4 / 80 (new .py: ['страны.py'])", "seconds": 23, "turns": 1, "tool_calls": 12, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S3-run3", "ok": true, "detail": "справка_эксперту.md has licenses and correct counts", "seconds": 11, "turns": 1, "tool_calls": 6, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S6-run3", "ok": true, "detail": "both modes correct", "seconds": 17, "turns": 1, "tool_calls": 6, "tool_errors": 0, "loop_errors": 0}
+{"tag": "S7-run3", "ok": true, "detail": "3 tests pass", "seconds": 77, "turns": 3, "tool_calls": 26, "tool_errors": 9, "loop_errors": 0}

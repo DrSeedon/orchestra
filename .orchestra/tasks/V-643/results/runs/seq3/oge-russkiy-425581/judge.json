@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "All numbers present: 42, 90, 33, 60, 235"
+ },
+ "q2": {
+  "score": 1,
+  "why": "Exact quote matches"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24, 36, 60, 25-30 words, 2 accent colours all present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "Path and 15 layouts match"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "$1/day and $0 correct, but omits use own files/public-domain/licenses.json"
+ },
+ "q6": {
+  "score": 1,
+  "why": "Paths and report present, git status correct"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "Lists the 5 topics correctly, but garbled '8 tiles' claim and hedging"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Matches gold: pptx and PDF, no rigid split, click answer variations"
+ },
+ "q9": {
+  "score": 1,
+  "why": "Demo keys/indisputable, disputed excluded"
+ },
+ "q10": {
+  "score": 1,
+  "why": "All paths match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "PowerPoint/Keynote not run live; XML and LibreOffice"
+ },
+ "q12": {
+  "score": 1,
+  "why": "13, 38, 235, ГК scale and СК2 present"
+ },
+ "q13": {
+  "score": 0.5,
+  "why": "70-word threshold correct, 139-word rule UNKNOWN"
+ },
+ "q14": {
+  "score": 1,
+  "why": "17, 10, 15–16, 5 min all present"
+ },
+ "q15": {
+  "score": 1,
+  "why": "Same decision and reason as gold"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Hash and 51 slides match"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "Overlap and gap correct, but slide numbers 7/19 given only as original and adds 10/27; less specific"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "FIPI-only and references, nothing from memory; missing ПРОЕКТ mark and other rules"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "Final state pages correct; XML check missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "Both 0 matches"
+ }
+}

@@ -1,0 +1,21 @@
+{
+ "scenario": "S5",
+ "tag": "chain-S5-run1",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "3 new tasks [7, 8, 9], answer states total",
+ "seconds": 14,
+ "timed_out": false,
+ "turns": 1,
+ "turns_failed": 0,
+ "tool_calls": 4,
+ "tool_errors": 0,
+ "loop_errors": 0,
+ "in_tokens": 19570,
+ "out_tokens": 648,
+ "tools_by_name": {
+  "task_create": 3,
+  "task_list": 1
+ },
+ "final_text": "Задачи заведены. Всего в трекере сейчас 8 задач.\n\nНомера новых: 7, 8, 9"
+}

@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "ядро бот, V-44 present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "path and commit match"
+ },
+ "q3": {
+  "score": 1,
+  "why": "V-43 and c0ac749 present; branch missing but must_contain met"
+ },
+ "q4": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "12000 for 5th star but max missing"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q8": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "score correct, seed missing"
+ },
+ "q11": {
+  "score": 0.5,
+  "why": "maps approximate, generator not reverse-engineered; somewhat hedged"
+ },
+ "q12": {
+  "score": 1,
+  "why": "port, key, game path match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "dir and /slipways/ match"
+ },
+ "q14": {
+  "score": 1,
+  "why": "money/shop, 25, unanswered"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "publish/push rule present, Orchestra restart by owner missing"
+ },
+ "q19": {
+  "score": 1,
+  "why": "all three constraints match"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN"
+ }
+}

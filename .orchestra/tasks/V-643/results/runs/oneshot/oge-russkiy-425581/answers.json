@@ -1,0 +1,22 @@
+{
+ "q1": "42 minutes for tasks 2–7 (six tasks × 7 min); 90+42+10+33+60 = 235",
+ "q2": "«Очень мелкий шрифт много текста много цветов нет картинок»",
+ "q3": "Main text ≥ 24 pt, headings from 36 pt, key numbers from 60 pt (source captions may be smaller); one idea per slide, ≤ ~25–30 words; max 2 accent colours plus background and text, taken from her master layout",
+ "q4": "/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx, 15 layouts",
+ "q5": "Limit $1 per day for the whole project; $0 spent on this deck",
+ "q6": "Outputs (outside git): artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf; script and report (in git): .orchestra/tasks/V-8/build_deck.py and report.md",
+ "q7": "8 — norms, 9 — phrases (grammatical synonymy of phrases), 10 — text meaning, 11 — expressiveness, 12 — lexis (7 tiles allowed if needed)",
+ "q8": "'In two formats' means pptx and PDF; no rigid split into two mini-task types — they can be varied (question with click answer, task on a demo crop, find the error, choose an option, etc.)",
+ "q9": "Keys only from the demo keys/FIPI documents or indisputable; no disputable classification keys",
+ "q10": ".orchestra/tasks/V-3/build_deck.py (slides 3–14 with element-by-element appearance) and .orchestra/tasks/V-7/report.md; output artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+ "q11": "Not verified that the animations were played in real PowerPoint/Keynote (checked only via XML and LibreOffice); PDF uses Montserrat instead of Avenir Next",
+ "q12": "38 points, 13 tasks, 235 min, ГК 3/2/1/0, СК2 up to 4",
+ "q13": "UNKNOWN",
+ "q14": "UNKNOWN",
+ "q15": "Skipped the 'where to insert the quote' mini-task: the 'retelling with quote' task doesn't exist in 2027 (task 2 is «Беседа по тексту» with five questions) and there is no key in the 2027 documents",
+ "q16": "1a6a611; 51 slides",
+ "q17": "Text overlapping the circle: slide 7 («Пишем ключевые слова» at step 2) and slide 19 — labels moved out so there is a gap between labels and circle",
+ "q18": "Only official FIPI OGE-2027 Russian documents; every number, criterion, time, task count with a reference to a section/table; nothing from memory; a «ПРОЕКТ» caveat on the title if documents are marked so",
+ "q19": "Animations checked at pptx XML level; in the PDF give the final state of each animated slide as separate pages",
+ "q20": "Both give 0 points (72 + 66 words → 0 for grammar; 65-word summary → 0)"
+}

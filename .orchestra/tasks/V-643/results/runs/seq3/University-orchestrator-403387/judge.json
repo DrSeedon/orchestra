@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "study vs startup/ООО split matches gold"
+ },
+ "q2": {
+  "score": 1,
+  "why": "pandoc banned, docx skill, matplotlib"
+ },
+ "q3": {
+  "score": 1,
+  "why": "ssh kesha@localhost, cgroup, MemoryMax=12G"
+ },
+ "q4": {
+  "score": 1,
+  "why": "first-time-right rule and banned process words match"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "guard and 938 323 present; 293 667 missing"
+ },
+ "q6": {
+  "score": 1,
+  "why": "738 211 × 38, 308 МБ, constants removed"
+ },
+ "q7": {
+  "score": 1,
+  "why": "log-scale kept, five new charts"
+ },
+ "q8": {
+  "score": 1,
+  "why": "applieddasfu, docx attached as file, not comment"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "regulation name, order no. and all dates match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "exact title, verbatim"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Кустицкая agrees, Антипова signs"
+ },
+ "q13": {
+  "score": 1,
+  "why": "codes and 01.04.02.08 trap match"
+ },
+ "q14": {
+  "score": 1,
+  "why": "correct number, wrong one and its origin"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "phone and email right; форма обучения очная missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "complaint and fill-in-originals fix match"
+ },
+ "q17": {
+  "score": 1,
+  "why": "mentor, reviewers, topic change all present"
+ },
+ "q18": {
+  "score": 1,
+  "why": "no writing without Maxim's word; banned phrases match"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "01.10, 03.10, 10.10 present; ПЗАД 02.10 missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "Jupyter to close; random lab draw in December"
+ }
+}

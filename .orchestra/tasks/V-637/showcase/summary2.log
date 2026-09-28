@@ -1,0 +1,4 @@
+{"scenario": "S7", "attempt": 1, "ok": true, "detail": "3 tests pass and catch a broken allowed list", "seconds": 63, "tool_calls": 14, "in_tokens": 106795, "out_tokens": 1789}
+checkpoint data/backups/v637-cp-S7
+{"scenario": "S9", "attempt": 1, "ok": true, "detail": "audit_report.md: real kernel 6.8.0-124-generic, 2832 chars", "seconds": 97, "tool_calls": 27, "in_tokens": 113655, "out_tokens": 4159}
+checkpoint data/backups/v637-cp-S9

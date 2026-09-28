@@ -1,0 +1,25 @@
+{
+ "scenario": "S7",
+ "tag": "chain-S7-run1",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "3 tests pass",
+ "seconds": 47,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 13,
+ "tool_errors": 2,
+ "loop_errors": 0,
+ "in_tokens": 72069,
+ "out_tokens": 2851,
+ "tools_by_name": {
+  "?": 3,
+  "bash": 4,
+  "edit": 1,
+  "read": 2,
+  "spawn_worker": 1,
+  "write": 2
+ },
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект и тесты прошли: 3 теста, OK.\n\nТри главных факта:\n- Все допустимые лицензии дают статус «допустима» (итог 5,0).\n- Неизвестная лицензия даёт «требует проверки» (итог 0,2).\n- Смешанный набор корректно считает итоги (3,2)."
+}

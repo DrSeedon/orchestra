@@ -1,0 +1,23 @@
+{
+ "q1": "Tasks 2–7 = 42 minutes (six tasks × 7 min, not 35); sum 90+42+10+33+60 = 235",
+ "q2": "«Очень мелкий шрифт много текста много цветов нет картинок»",
+ "q3": "Main text ≥ 24 pt, headings ≥ 36 pt, key numbers ≥ 60 pt (source captions may be smaller); one idea per slide, ≤ ~25–30 words; max 2 accent colours plus background and text, taken from her master layout",
+ "q4": "/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx — 15 layouts",
+ "q5": "Project limit $1 per day for the whole project; $0 spent on generation for this deck",
+ "q6": "Outputs (outside git): artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf; script build_deck.py and report.md in .orchestra/tasks/V-8/ (in git)",
+ "q7": "8 — norms, 9 — phrases (grammatical synonymy of word combinations), 10 — text meaning, 11 — expressiveness, 12 — lexis (7 tiles allowed)",
+ "q8": "'Two formats' means pptx and PDF; no strict division of mini-tasks into two types — they can be varied (question with answer on click, task on demo crop, find the error, choose an option, etc.)",
+ "q9": "Answers only from the demo keys/FIPI documents or indisputable ones; no disputable classification keys",
+ "q10": "Builder .orchestra/tasks/V-3/build_deck.py (slides 3–14 with element-by-element appearance), report .orchestra/tasks/V-7/report.md; output artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+ "q11": "Not verified: no evidence the animations were played in real PowerPoint/Keynote (only checked via XML and LibreOffice); PDF also uses Montserrat instead of Avenir Next",
+ "q12": "38 points, 13 tasks, 235 min, ГК 3/2/1/0, СК2 up to 4",
+ "q13": "UNKNOWN",
+ "q14": "UNKNOWN",
+ "q15": "Skipped the 'where to insert the quote' mini-task: the 'retelling with a quote' task does not exist in 2027 (task 2 is «Беседа по тексту» with five questions), and no key exists in the documents",
+ "q16": "Commit 1a6a611; the deck has 51 slides (51 PDF pages)",
+ "q17": "Text overlapped the circle: slide 7 ('Пишем ключевые слова' at step 2) and check slide 19; labels to be moved out with a gap between them and the circle",
+ "q18": "Only official FIPI OGE-2027 documents; every number, criterion, time, task count with a reference to a document section/table; nothing from memory; add a 'ПРОЕКТ' caveat on title if marked; 'what changed in 2027' only from the spec text",
+ "q19": "Check animations at the pptx XML level (not visible in PDF); in the PDF give the final state of each slide with appearance as separate pages",
+ "q20": "72 + 66 words → 0 points for grammar; 65-word summary (изложение) → 0 points",
+ "q21": "UNKNOWN"
+}

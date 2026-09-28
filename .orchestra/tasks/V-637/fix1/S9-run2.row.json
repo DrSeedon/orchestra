@@ -1,0 +1,24 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run2",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "audit_report.txt: real kernel 6.8.0-136-generic, 12402 chars",
+ "seconds": 113,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 16,
+ "tool_errors": 1,
+ "loop_errors": 0,
+ "in_tokens": 110598,
+ "out_tokens": 8155,
+ "tools_by_name": {
+  "?": 2,
+  "bash": 3,
+  "read": 7,
+  "spawn_worker": 1,
+  "write": 3
+ },
+ "final_text": "Файл audit_report.txt перенесён в /workspace/project. Ниже — краткое резюме.\n\n- ОС: Ubuntu 24.04.4 LTS; ядро Linux 6.8.0-136-generic x86_64.\n- CPU: AMD EPYC, 8 ядер/8 потоков.\n- Память: ~23 GiB всего, доступно ~18 GiB; swap 15 GiH (использовано ~1.5 GiB).\n- Диски: корень ext4 на /dev/sda1 — 290G, занято 271G (94%); загрузочные разделы и EFI присутствуют.\n- Сеть: eth0 с публичным IPv4 158.220.127.161/20 и IPv6, шлюз 158.220.112.1; tailscale0 активен; DNS через systemd-resolved (127.0.0.53).\n- Время: Europe/Berlin (CEST), NTP синхронизирован.\n- Пользователи: root плюс системные учётки; группы типовые.\n- Процессы-лидеры по ресурсам: systemd-timedated (~57% CPU), далее uvicorn/python сервисы Orchestra/bot/Jupyter/XRay.\n- Службы (systemd): запущены accounts-daemon, apparmor, avahi-daemon, cron, dbus, irqbalance, rsyslog, snapd, ssh, journald/logind, networkd/resolved/timesyncd, ufw.\n- Пакеты: dpkg показан частично (первые строки).\n- Логи ошибок за последние 24 часа: отсутствуют.\n- Открытые сокеты: преимущественно localhost; публично слушает *:8888 у PID 1927851.\n- Права директорий: типовые (/root drwx------ и т. п.).\n- Переменные окружения сервисов (sshd, cron): пустые.\n\nЕсли нужно что-то детализировать из отчёта — скажи секцию или строку."
+}

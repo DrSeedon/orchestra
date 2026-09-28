@@ -10,6 +10,7 @@ import os
 import re
 import shutil
 import sqlite3
+import tempfile
 import time
 import uuid
 from dataclasses import dataclass, field, replace
@@ -20,6 +21,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app import agentic_compact
 from app.events import AgentEvent, InjectedMessage, MessageProvenance
 from app.models import backend_for_model, get_model_spec
 from app.prompting import (
@@ -52,6 +54,7 @@ from app.runtime_history import (
 )
 from app.session_cost import CostTracker
 from app.session_hibernate import HibernateManager
+from app.stall_signals import describe_event, watch_turn_start
 from app.session_state import (  # noqa: F401 — re-exported: importers use app.session.AgentStatus
     AgentStatus, IDLE_TIMEOUT_ORCHESTRATOR, IDLE_TIMEOUT_WORKER, empty_context,
 )
@@ -78,6 +81,8 @@ logger = logging.getLogger(__name__)
 
 _HANDOFF_LOG_RETRY_BUDGET_S = 6.0
 TURN_COMPLETION_RECHECK = 1.0
+# Ходы, начатые платформой, а не пользователем/агентом: квотный гейт их не блокирует (V-640).
+QUOTA_GATE_EXEMPT_ORIGINS = frozenset({"background_task", "platform", "system"})
 _COMPACT_USER_MESSAGES_REQUIREMENT = (
     "Preserve all user messages verbatim, in order of arrival "
     "(все сообщения юзера, дословно, в порядке поступления)."
@@ -479,6 +484,7 @@ class AgentSession:
     _template_hash: str = field(default="", repr=False)
     _turn_start: float = field(default=0.0, repr=False)
     _last_msg_time: float = field(default=0.0, repr=False)
+    _last_event: str = field(default="", repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
     on_turn_blocked: Optional[callable] = field(default=None, repr=False)
@@ -533,10 +539,11 @@ class AgentSession:
     PRECOMPACT_CONTEXT_THRESHOLD = 20
     CODEX_PRECOMPACT_DELAY_SECONDS = 25 * 60
     CODEX_PRECOMPACT_CONTEXT_THRESHOLD = 60
-    # Keep the timer above 5%: the 35 measured Claude compacts have a median
-    # 10,552-character summary (~2,638 tokens). At 5% of a 200k window, the
-    # avoided write still beats that output's cost under the subscription formula.
-    PRECOMPACT_MIN_CONTEXT_PCT = 5
+    # Sessions come back from compact at 7-12% (prompt + handoff). Week to 25.09
+    # (Claude, 1M window): 34 of 67 compacts started below 30% and cut only 35-38%,
+    # while re-writing 90-150k tokens of cache; above 30% they cut 78-86%.
+    # Codex uses the same floor by the owner's decision (25.09).
+    PRECOMPACT_MIN_CONTEXT_PCT = 30
     CLAUDE_CACHE_WINDOW_SECONDS = 60 * 60
     # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
     # safety margin before the observed/documented ~30-minute reference window.
@@ -1148,7 +1155,10 @@ class AgentSession:
                 raise RuntimeError(
                     "handoff_recovery_required: operator recovery is required before sends"
                 )
-            if self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator:
+            if (
+                self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
+                or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
+            ):
                 break
             if decision is None:
                 admitted_model = self.model
@@ -1453,6 +1463,8 @@ class AgentSession:
                             else None
                         ),
                     )
+                    if allow_running_delivery:
+                        self._spawn_bg(watch_turn_start(self, delivery.delivery_id))
             except asyncio.CancelledError as error:
                 if delivery is not None and dispatch_started:
                     await delivery.mark_unknown(error)
@@ -2135,6 +2147,7 @@ class AgentSession:
                     return
                 async for event in self._backend.events():
                     self._last_msg_time = asyncio.get_event_loop().time()
+                    self._last_event = describe_event(event)
                     self._handle_event(event)
                     consecutive_failures = 0
                 # Persistent streams may return without error when the upstream closes.
@@ -2220,6 +2233,7 @@ class AgentSession:
         try:
             async for event in backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
+                self._last_event = describe_event(event)
                 # thread.started is emitted before turn.completed. Store it now so an
                 # interrupted long turn can resume instead of silently starting fresh.
                 early_session_id = event.metadata.get("session_id") if event.type == "status" else None
@@ -2543,12 +2557,12 @@ class AgentSession:
             logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
             self._log("error", f"listen task died: {exc}")
             self._finish_failed_running_turn(f"listen task exception: {exc}")
+        elif self.status != AgentStatus.RUNNING:
+            # Штатный конец потока после turn_end или подавленная отмена (V-648: 474 из 475 за неделю).
+            logger.debug(f"[{self.name}] listen task finished, status={self.status}")
         else:
             logger.warning(f"[{self.name}] listen task exited without exception (silent death), status={self.status}")
-            if self.status == AgentStatus.RUNNING:
-                self._finish_failed_running_turn(
-                    "listen task exited unexpectedly while RUNNING"
-                )
+            self._finish_failed_running_turn("listen task exited unexpectedly while RUNNING")
         if self.status != AgentStatus.RUNNING and self._auto_continue_count == 0:
             self._turns.publish_turn_finished()
 
@@ -2582,41 +2596,16 @@ class AgentSession:
                     await self._disconnect_backend()
 
     async def _compaction_permit(self, *, reserve: bool = False):
-        decision = None
-        admitted_model = ""
-        admitted_stop_gen = -1
-        while True:
-            async with self._lifecycle_lock:
-                if self.status == AgentStatus.RUNNING:
-                    raise RuntimeError("cannot compact while agent is running")
-                if reserve and self._compacting:
-                    raise RuntimeError("compact already in progress")
-                if self.is_orchestrator:
-                    if reserve:
-                        self._compacting = True
-                    return None, self.model, self._turn_start_cancel_gen
-                if decision is not None:
-                    if admitted_stop_gen != self._turn_start_cancel_gen:
-                        raise RuntimeError("compaction start cancelled by stop")
-                    if self.model != admitted_model:
-                        decision = None
-                        continue
-                    if (
-                        decision.state in {"available", "blocked"}
-                        and decision.valid_until is not None
-                        and time.time() >= decision.valid_until
-                    ):
-                        decision = None
-                        continue
-                    from app.quota_gate import require_worker_admission
-
-                    require_worker_admission(decision)
-                    if reserve:
-                        self._compacting = True
-                    return decision, admitted_model, admitted_stop_gen
-                admitted_model = self.model
-                admitted_stop_gen = self._turn_start_cancel_gen
-            decision = await self._worker_admission(admitted_model)
+        # Сжатие не проходит через квотный гейт (решение владельца V-640):
+        # реальный лимит провайдера ловит сам backend.
+        async with self._lifecycle_lock:
+            if self.status == AgentStatus.RUNNING:
+                raise RuntimeError("cannot compact while agent is running")
+            if reserve and self._compacting:
+                raise RuntimeError("compact already in progress")
+            if reserve:
+                self._compacting = True
+            return None, self.model, self._turn_start_cancel_gen
 
     def _compaction_permit_valid_locked(self, permit) -> bool:
         decision, model, stop_gen = permit
@@ -2725,6 +2714,96 @@ class AgentSession:
                 self._hibernate.schedule()
             self._wake_durable_message_deliveries()
 
+    async def _agentic_audit_summary(self, draft: str, stop_gen: int, backend) -> str:
+        """Run AUDIT and FINAL as subsequent turns in the draft's Claude session."""
+        if self.backend_type != "claude" or not agentic_compact.enabled():
+            return draft
+        started = time.monotonic()
+        cost = 0.0
+        directory = None
+        events = backend.events().__aiter__()
+
+        async def run_pass(prompt: str, deadline: float) -> None:
+            nonlocal cost
+            if self._turn_start_cancel_gen != stop_gen:
+                raise RuntimeError("stopped")
+            await backend.send(prompt)
+            end_event = None
+            next_event = None
+            while end_event is None:
+                if self._turn_start_cancel_gen != stop_gen:
+                    await backend.interrupt()
+                    if next_event is not None:
+                        next_event.cancel()
+                        await asyncio.gather(next_event, return_exceptions=True)
+                    raise RuntimeError("stopped")
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    await backend.interrupt()
+                    if next_event is not None:
+                        next_event.cancel()
+                        await asyncio.gather(next_event, return_exceptions=True)
+                    raise TimeoutError("timeout")
+                if next_event is None:
+                    next_event = asyncio.create_task(events.__anext__())
+                done, _ = await asyncio.wait({next_event}, timeout=min(1, remaining))
+                if not done:
+                    continue
+                event = next_event.result()
+                next_event = None
+                if event.type == "turn_end":
+                    end_event = event
+                    self._cost.apply_turn_result(event.metadata, event.usage)
+                    cost += self._turn_cost
+                elif event.type in {"tool", "tool_result"}:
+                    self._log(event.type, event.content)
+                elif event.type == "error":
+                    raise RuntimeError(event.content or "provider error during compact audit")
+                elif event.type == "provider_limit":
+                    self._handle_event(event)
+                    raise RuntimeError("provider limit during compact audit")
+            if end_event.metadata.get("ok") is not True:
+                raise RuntimeError("compact audit turn failed")
+
+        try:
+            sandbox_root = agentic_compact.sandbox_root()
+            sandbox_root.mkdir(parents=True, exist_ok=True)
+            directory = Path(tempfile.mkdtemp(prefix="compact-", dir=sandbox_root))
+            journal_dir = await agentic_compact.prepare_journal(self.id, directory)
+            summary_path = directory / "summary.md"
+            summary_path.write_text(draft)
+            deadline = started + float(os.getenv("AGENTIC_COMPACT_TIMEOUT", "900"))
+            for prompt in (
+                agentic_compact.audit_prompt(journal_dir, summary_path),
+                agentic_compact.final_prompt(journal_dir, summary_path),
+            ):
+                await run_pass(prompt, deadline)
+            result = summary_path.read_text().strip() if summary_path.exists() else ""
+            if not result:
+                raise RuntimeError("audit produced empty summary")
+            if len(result) > agentic_compact.max_chars():
+                raise RuntimeError(
+                    f"audit summary too long ({len(result)} > {agentic_compact.max_chars()} chars)"
+                )
+            self._log("status", f"agentic compact context summary (replaced):\n{draft}")
+            self._log(
+                "status",
+                f"agentic compact audit: summary {len(draft)} → {len(result)} chars, "
+                f"${cost:.2f}, {time.monotonic() - started:.0f}s",
+            )
+            return result
+        except Exception as error:
+            reason = f"{type(error).__name__}: {error}"[:400]
+            self._log(
+                "status",
+                f"agentic compact audit skipped, original summary kept: {reason} "
+                f"(${cost:.2f}, {time.monotonic() - started:.0f}s)",
+            )
+            return draft
+        finally:
+            if directory is not None:
+                shutil.rmtree(directory, ignore_errors=True)
+
     async def compact(self) -> dict:
         if self.backend_type == "codex":
             return await self._compact_codex_context()
@@ -2797,6 +2876,7 @@ class AgentSession:
             summary_turn = None
             summary_error = ""
             terminal_limit = False
+            keep_backend_open = False
             backend = self._backend
             need_connect = self._backend is None
             try:
@@ -2827,6 +2907,10 @@ class AgentSession:
                         summary_turn = event
                         if event.metadata.get("session_id"):
                             self.session_id = event.metadata["session_id"]
+                        self._cost.apply_turn_result(event.metadata, event.usage)
+                        self._last_turn_api_calls = max(
+                            1, int(event.metadata.get("num_turns") or 1),
+                        )
                         break
             except QuotaGateError:
                 abort_compact("weekly quota blocked compact summary", flush_pending=False)
@@ -2850,14 +2934,29 @@ class AgentSession:
                     continue
                 return abort_compact(last_error)
             finally:
-                if backend is not None:
+                keep_backend_open = bool(
+                    self.backend_type == "claude"
+                    and agentic_compact.enabled()
+                    and summary_turn is not None
+                    and summary_turn.metadata.get("ok") is True
+                    and not summary_error
+                    and not terminal_limit
+                    and "".join(summary_parts).strip()
+                )
+                if backend is not None and not keep_backend_open:
                     try:
                         await backend.disconnect()
                     except Exception:
                         pass
-                self._backend = None
+                    self._backend = None
 
             if self._turn_start_cancel_gen != compact_stop_gen:
+                if keep_backend_open:
+                    try:
+                        await backend.disconnect()
+                    except Exception:
+                        pass
+                    self._backend = None
                 return abort_compact("compaction cancelled by stop", flush_pending=False)
 
             summary = "".join(summary_parts).strip()
@@ -2888,6 +2987,17 @@ class AgentSession:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
 
+        if keep_backend_open:
+            try:
+                summary = await self._agentic_audit_summary(summary, compact_stop_gen, backend)
+            finally:
+                try:
+                    await backend.disconnect()
+                except Exception:
+                    logger.warning("[%s] backend disconnect failed after compact audit", self.name)
+                self._backend = None
+        if self._turn_start_cancel_gen != compact_stop_gen:
+            return abort_compact("compaction cancelled by stop", flush_pending=False)
         tail = _preserved_tail(
             self.id,
             COMPACT_TAIL_CHARS,

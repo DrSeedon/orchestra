@@ -1,0 +1,14 @@
+{
+ "scenario": "S7",
+ "attempt": 1,
+ "ok": true,
+ "detail": "3 tests pass and catch a broken allowed list",
+ "seconds": 63,
+ "user_messages": 1,
+ "turns": 3,
+ "in_tokens": 106795,
+ "out_tokens": 1789,
+ "tool_calls": 14,
+ "tool_errors": 2,
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект.\n\nРезультаты запуска:\n- Тихий режим: OK (3 теста, 0.004s)\n- Подробный режим: все три теста прошли — ok; Ran 3 tests in 0.004s ОК"
+}

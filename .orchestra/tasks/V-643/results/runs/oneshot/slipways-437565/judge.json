@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "A1 and B1 both stated"
+ },
+ "q2": {
+  "score": 1,
+  "why": "verbatim quote matches"
+ },
+ "q3": {
+  "score": 1,
+  "why": "branch and base correct"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "16 correct, but path given as directory plus filename; acceptable but not full path string"
+ },
+ "q5": {
+  "score": 1,
+  "why": "both paths correct"
+ },
+ "q6": {
+  "score": 1,
+  "why": "job id and rollout present; details consistent"
+ },
+ "q7": {
+  "score": 1,
+  "why": "rollout width=8, report, CHANGELOG, commit, deploy all covered"
+ },
+ "q8": {
+  "score": 1,
+  "why": "trash rule stated"
+ },
+ "q9": {
+  "score": 1,
+  "why": "balatro untouched, atomic deploy"
+ },
+ "q10": {
+  "score": 1,
+  "why": "opts, Infinity, V-46 merges first"
+ },
+ "q11": {
+  "score": 1,
+  "why": "numbers match (13.7 s, 149.4 s, 1241 s)"
+ },
+ "q12": {
+  "score": 1,
+  "why": "all parameters match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "24046 and 15267 match"
+ },
+ "q14": {
+  "score": 1,
+  "why": "quadratic upkeep, income floor 20, negIncome"
+ },
+ "q15": {
+  "score": 1,
+  "why": "5 of 100"
+ },
+ "q16": {
+  "score": 1,
+  "why": "rules=m and rules=mc with identical rerun scores"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "correct file, but description vague on content"
+ },
+ "q19": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "launch method correct, caveat unknown"
+ }
+}

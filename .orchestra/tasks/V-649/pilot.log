@@ -1,0 +1,11 @@
+V-649 pilot: University-orchestrator-403387, original compact model Opus 5.5.
+
+Compression: forked the saved precompact Claude CLI session after its real summary. AUDIT: 7 turns, 117.5 s. FINAL: 2 turns, 108.1 s. Total 225.6 s.
+
+AUDIT+FINAL usage: input=18, cache_create=653011, cache_read=5018464, output=25550. Cost recomputed from V-643 per-token rates: $6.738853 cold fork; $1.935722 with 615786 cold-prefix cache_create reclassified as cache_read.
+
+Evaluation: existing V-643 20 questions; tail-only filter left 11. Sonnet 5 answer and judge ran once each; combined API-equivalent $0.1949554, 116.9 s. Score 0.6607142857; confident wrong=0.
+
+Initial score aggregation stopped with FileNotFoundError for the unavailable ignored path data/v643/runs/tailonly/University-orchestrator-403387/judge.json after answer and judge outputs were saved. Aggregation was repaired to read the committed V-643 tail-only judge artifact. No model call was repeated.
+
+Cost note: resumed CLI total_cost_usd was cumulative for the source session: $75.3547516 after AUDIT and $76.0566068 after FINAL. Those values were excluded; the token-derived costs above match isolated-call V-643 rates. No prompt text, source journal contents, answers, or secrets are included in this log.

@@ -23,6 +23,8 @@ Invariants:
 
 import json
 import logging
+import os
+import re
 from typing import AsyncIterator, Callable
 
 from app.events import AgentEvent
@@ -32,6 +34,25 @@ from app.harness.mcp import MCPClient
 
 logger = logging.getLogger(__name__)
 
+# V-636: GigaChat re-sent one task_create 23 times in a turn and every call made a new task.
+# An identical repeat of a creating call within one turn reuses the first result instead.
+ONCE_PER_TURN_TOOLS = frozenset({"task_create", "spawn_worker", "send_message", "bg_create"})
+# V-636: GigaChat sent send_message to itself 32 times with a new text each time; every call
+# was refused, so the verbatim-repeat guard never fired and the turn was lost. An Orchestra
+# tool refused this many times in one turn is withdrawn for the rest of that turn.
+MCP_ERRORS_OFF = 2
+REPEAT_TOOLS_OFF = 3            # verbatim repeats of one call before a turn loses its tools
+# V-637: GigaChat-3-Ultra retried one broken `bash -lc 'python3 - << "PY" ...'` 16 times, nudging
+# a character each time, so no call was verbatim and the guard above never fired. The same
+# tool returning the same substantial result again and again is a loop whatever the arguments.
+SAME_RESULT_HINT = 3
+SAME_RESULT_OFF = 6
+SAME_RESULT_MIN_LEN = 60
+# V-637: an audit worker re-read its own 178-line report with 25 `sed -n 'A,Bp'` calls, most of
+# them past the end (empty results, so the same-result guard never counted them): 430k tokens.
+REREAD_HINT = 4
+REREAD_OFF = 8
+_INSPECT = re.compile(r"^\s*(?:sed\s+-n|head|tail|cat|wc|awk|less|more)\b[^|;&>]*?(\S+)\s*$")
 MAX_TOOL_ROUNDS = 100         # ceiling on tool-call rounds in a single turn (#367):
                               # 2× the highest observed demand (>50, censored) on the OLD
                               # lying tools; measured defect-fixes cut rounds up to 4×;
@@ -45,12 +66,34 @@ CARRIED_OVER_PREFIX = "[carried over from the previous turn — not the latest i
 BYTES_PER_TOKEN = 3.5         # conservative across ASCII/Cyrillic; no tokenizer dependency
 
 
+def _inspected_path(name: str, args: dict) -> str:
+    if name == "read":
+        return os.path.basename(str(args.get("path", "")))
+    if name == "bash":
+        m = _INSPECT.match(str(args.get("command", "")))
+        if m and not m.group(1).startswith("-"):
+            return os.path.basename(m.group(1).strip("'\""))
+    return ""
+
+
+_TEMPLATE_EXTS = (".md", ".txt", ".html", ".json", ".csv", ".yaml", ".yml")
+
+
+def _has_shell_template(args: dict) -> bool:
+    """V-637: a worker "did an audit" by writing $(uname -r) into a report and reported success."""
+    path = str(args.get("path", "")).lower()
+    return path.endswith(_TEMPLATE_EXTS) and re.search(r"\$\([a-z]", str(args.get("content", "")))
+
+
 class _NoopMCP:
     """MCP stand-in for the read-only reviewer sub-loop — no tools reachable (#126). Ensures the
     reviewer physically cannot call mutating MCP tools (spawn_worker, etc.), beyond the read-only
     schema + dispatch guard (defense in depth)."""
     def has_tool(self, name: str) -> bool:
         return False
+
+    def display_name(self, name: str) -> str:
+        return name
 
     async def call(self, name: str, args: dict) -> str:
         return "[review] MCP tools are not available to the reviewer"
@@ -79,6 +122,15 @@ class AgentLoop:
         self.cwd = cwd
         self.history = history            # full OpenAI-format message list (shared, mutated)
         self.tool_schemas = tool_schemas
+        self._seen_calls: dict[tuple[str, str, str], int] = {}
+        self._same_result: dict[tuple[str, str], int] = {}
+        self._unrun_code: list[str] = []
+        self._reads: dict[str, int] = {}
+        self._unrun_nudged = False
+        self._tools_off = False
+        self._created: dict[tuple[str, str], str] = {}
+        self._mcp_errors: dict[str, int] = {}
+        self._withdrawn: set[str] = set()
         self.max_context = max_context
         self._abort = abort or (lambda: False)
         self.effort = effort              # OpenRouter reasoning effort for this turn (or None)
@@ -159,8 +211,9 @@ class AgentLoop:
                     async for ev in self._one_round(assistant_msg):
                         yield ev
                 except Exception as e:
-                    logger.error(f"harness loop round failed: {e}")
-                    yield AgentEvent("error", f"llm round failed: {e}")
+                    detail = str(e) or type(e).__name__
+                    logger.error(f"harness loop round failed: {detail}")
+                    yield AgentEvent("error", f"llm round failed: {detail}")
                     self._terminal("error", ok=False, detail=f"llm_error: {e}")
                     return
 
@@ -175,6 +228,18 @@ class AgentLoop:
                     for _ in absorbed:
                         yield AgentEvent("status", "message steered into active turn")
                     if absorbed:
+                        continue
+                    # V-637: a GigaChat worker wrote tests calling functions that do not exist,
+                    # never ran them and reported "all tests pass"; the orchestrator then
+                    # rewrote the user's script to fit them. One reminder per turn.
+                    if self._unrun_code and not self._unrun_nudged and not self._tools_off:
+                        self._unrun_nudged = True
+                        entry = {"role": "user", "content": (
+                            "[harness] You wrote " + ", ".join(self._unrun_code) + " in this turn "
+                            "but never ran it. Run it (or its tests) with bash now and report the "
+                            "real output; if it fails, fix it first.")}
+                        self.history.append(entry)
+                        self.new_messages.append(entry)
                         continue
                     # No tools requested → turn is done. Normalize the OpenAI "stop"/""
                     # finish to "end_turn" (parity with other backends); pass through other
@@ -235,10 +300,14 @@ class AgentLoop:
         messages = self.history + ([self._round_hint] if self._round_hint else [])
         # Pass effort only when set — keeps the call signature-compatible with stream() stubs
         # that don't accept the kwarg (real backwards compatibility, not just body-identical).
+        tools = [] if self._tools_off else [
+            schema for schema in self.tool_schemas
+            if schema.get("function", {}).get("name") not in self._withdrawn
+        ]
         if self.effort is None:
-            gen = self.llm.stream(messages, self.tool_schemas, abort=self._abort)
+            gen = self.llm.stream(messages, tools, abort=self._abort)
         else:
-            gen = self.llm.stream(messages, self.tool_schemas, abort=self._abort, effort=self.effort)
+            gen = self.llm.stream(messages, tools, abort=self._abort, effort=self.effort)
         async for ev in gen:
             if ev.kind == "text_delta":
                 text_parts.append(ev.text)
@@ -294,7 +363,9 @@ class AgentLoop:
             arg_summary = json.dumps(args, ensure_ascii=False)
         except (TypeError, ValueError):
             arg_summary = str(args)
-        yield AgentEvent("tool_use", f"{name}: {arg_summary}",
+        # V-636: bare "task_create" missed the dashboard's Russian cards for Orchestra tools
+        # and showed raw JSON fields; the card is keyed by the Claude-style mcp__ name.
+        yield AgentEvent("tool_use", f"{self.mcp.display_name(name)}: {arg_summary}",
                          metadata=metadata)
 
         # Reviewer sub-loop is READ-ONLY (#126): reject any non-read tool (incl. a hallucinated
@@ -325,18 +396,109 @@ class AgentLoop:
                 path = args.get("path", "")
                 verb = "add" if name == "write" else "update"
                 yield AgentEvent("file_change", f"{verb} {path}")
+        elif name in self._withdrawn:
+            result = (f"[error] {name} is not available for the rest of this turn: it was refused "
+                      "repeatedly. Use another tool or answer the user.")
+            is_file_change = False
         elif self.mcp.has_tool(name):
-            result = await self.mcp.call(name, args)
+            once_key = (name, json.dumps(args, sort_keys=True, ensure_ascii=False))
+            result = self._created.get(once_key) if name in ONCE_PER_TURN_TOOLS else None
+            if result is None:
+                result = await self.mcp.call(name, args)
+                if name in ONCE_PER_TURN_TOOLS and not result.startswith("[mcp error]"):
+                    self._created[once_key] = result
             is_file_change = False
         else:
             result = f"[error] unknown tool: {name}"
+
+        if name in ("write", "edit") and is_file_change and not result.startswith("["):
+            path = str(args.get("path", ""))
+            if path.endswith((".py", ".sh")) and path not in self._unrun_code:
+                self._unrun_code.append(path)
+        elif name == "bash":
+            self._unrun_code.clear()
+        if name in ("write", "edit"):
+            self._reads.pop(_inspected_path(name, args), None)
+        reread = self._reread_note(name, args)
+        if name == "write" and is_file_change and not result.startswith("[") and _has_shell_template(args):
+            result += ("\n[harness] This file contains $(...) command substitutions. write stores "
+                       "text as is and runs nothing, so they stay unexpanded. Run the commands with "
+                       "bash and write their real output instead.")
 
         # Bash owns its status header; text printed by the command follows that header.
         failed = result.startswith((f"[{name} error]", "[error]"))
         if name == "bash" and result.startswith("exit_code="):
             failed = result.splitlines()[0] != "exit_code=0"
         yield AgentEvent("tool_result", result, metadata={**metadata, "is_error": failed})
-        self._append_tool_result(call_id, result)
+        self._append_tool_result(
+            call_id, result + self._repeat_note(name, args, result) + self._refusal_note(name, result)
+            + reread)
+
+    def _refusal_note(self, name: str, result: str) -> str:
+        if not result.startswith("[mcp error]"):
+            return ""
+        self._mcp_errors[name] = self._mcp_errors.get(name, 0) + 1
+        if self._mcp_errors[name] < MCP_ERRORS_OFF:
+            return ""
+        self._withdrawn.add(name)
+        return (f"\n[harness] {name} was refused {self._mcp_errors[name]} times in this turn and is "
+                "withdrawn for the rest of this turn. Do the task with other tools "
+                "(write, read, edit, glob, bash) or answer the user.")
+
+    def _repeat_note(self, name: str, args: dict, result: str) -> str:
+        """Model-only note when a call repeats itself verbatim within one turn.
+
+        V-636: GigaChat-2-Max re-sent the same call with the same arguments dozens of
+        times (list_agents ×40, a write rejected ×12) until the round cap ended the turn.
+        """
+        key = (name, json.dumps(args, sort_keys=True, ensure_ascii=False), result)
+        count = self._seen_calls.get(key, 0) + 1
+        self._seen_calls[key] = count
+        if count == 1:
+            return self._same_result_note(name, result)
+        if count >= REPEAT_TOOLS_OFF:
+            # A note alone did not stop GigaChat (178 more identical spawn_worker calls):
+            # the next request goes without tools, so the model has to answer in text.
+            self._tools_off = True
+            return ("\n[harness] This call has now repeated verbatim several times. "
+                    "Tools are switched off for the rest of this turn: answer the user with "
+                    "what you have, including what failed.")
+        return ("\n[harness] This exact call already returned this exact result in this turn. "
+                "Do not repeat it: change the arguments, use another tool, or answer the user.")
+
+    def _reread_note(self, name: str, args: dict) -> str:
+        path = _inspected_path(name, args)
+        if not path:
+            return ""
+        count = self._reads.get(path, 0) + 1
+        self._reads[path] = count
+        if count >= REREAD_OFF:
+            self._tools_off = True
+            return (f"\n[harness] {path} was read {count} times in this turn. Tools are switched off: "
+                    "finish with what you already have.")
+        if count >= REREAD_HINT:
+            return (f"\n[harness] You have read {path} {count} times in this turn and it has not "
+                    "changed. Use what you already got; `wc -l` gives its length, ranges past the end "
+                    "are empty. Stop re-reading and finish the task.")
+        return ""
+
+    def _same_result_note(self, name: str, result: str) -> str:
+        if len(result.strip()) < SAME_RESULT_MIN_LEN:
+            return ""
+        key = (name, result)
+        count = self._same_result.get(key, 0) + 1
+        self._same_result[key] = count
+        if count >= SAME_RESULT_OFF:
+            self._tools_off = True
+            return ("\n[harness] The same result came back again and again. Tools are switched off "
+                    "for the rest of this turn: tell the user plainly what you tried and what failed.")
+        if count >= SAME_RESULT_HINT:
+            return (f"\n[harness] {name} has returned this same result {count} times although the "
+                    "arguments changed: the approach does not work, stop retrying variants. For a "
+                    "multi-line script use write to save it to a file, then run it with bash "
+                    "(python3 file.py) — no heredocs inside quoted bash -c strings. If it still "
+                    "fails, tell the user what failed.")
+        return ""
 
     def _append_tool_result(self, call_id: str, content: str) -> None:
         entry = {"role": "tool", "tool_call_id": call_id, "content": content}

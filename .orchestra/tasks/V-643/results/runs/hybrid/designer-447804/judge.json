@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "All three banned phrases and the waitlist/example status are present"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 1,
+  "why": "No paid service without confirmation; clean music rights; source and license in report"
+ },
+ "q4": {
+  "score": 1,
+  "why": "Draft voice-over until recorded with a live voice"
+ },
+ "q5": {
+  "score": 1,
+  "why": "Frame 6 (30 September), no customer name on screen, seedon.ru"
+ },
+ "q6": {
+  "score": 1,
+  "why": "-20…-24 LUFS under voice, about -14 LUFS final"
+ },
+ "q7": {
+  "score": 1,
+  "why": "Vosk, Apache 2.0, Silero rejected as non-commercial; the Piper reason differs slightly from gold but does not contradict it"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Correct path, tar over ssh, sha256"
+ },
+ "q9": {
+  "score": 1,
+  "why": "08428bb on task-V-75/designer; 488f938 for the first version"
+ },
+ "q10": {
+  "score": 1,
+  "why": "A and B 24.4 s, C 15 s, planned 22.5 s"
+ },
+ "q11": {
+  "score": 1,
+  "why": "Quote and reason for the rewrite match gold"
+ },
+ "q12": {
+  "score": 1,
+  "why": "A sneakers (recommended), B clay, C 15 s short version"
+ },
+ "q13": {
+  "score": 1,
+  "why": "All required fixes listed"
+ },
+ "q14": {
+  "score": 1,
+  "why": "All three file names correct"
+ },
+ "q15": {
+  "score": 1,
+  "why": "220 px top, 380 px bottom"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 1,
+  "why": "No publishing; no PNG frames or cache committed"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "128 BPM, 11 scenes and the 29.8 MB fix are present, but 60 fps is missing"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN; build.log and the loudness fix are not mentioned"
+ }
+}

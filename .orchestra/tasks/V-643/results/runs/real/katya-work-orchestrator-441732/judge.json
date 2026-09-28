@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0.5,
+  "why": "Says no new criterion, put '2 примера + пояснения' and told her; but 'no Katya answer' framing, no сочинение/СК2 mention"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Update only after Katya says yes; not update yet"
+ },
+ "q4": {
+  "score": 1,
+  "why": "ee35804 and 74 match"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "ID correct, folder UNKNOWN"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "Not writing, 11 class, тройка present; no cards replacement, 'не очень' paraphrased; also says skipped 9–10 fine"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Both hashes correct in right order"
+ },
+ "q9": {
+  "score": 1,
+  "why": "43 slides, 60 pages"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "Commit correct; folder described as next to presentation but no 'Старые материалы' name"
+ },
+ "q11": {
+  "score": 1,
+  "why": "4 pages vs 2–3, 43 slides"
+ },
+ "q12": {
+  "score": 0.5,
+  "why": "Has rclone and exportSizeLimitExceeded but no 403"
+ },
+ "q13": {
+  "score": 1,
+  "why": "rclone about iskra: and 403"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q15": {
+  "score": 1,
+  "why": "All workers rules and $1/day present"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Both folders, no publishing, trash only"
+ },
+ "q17": {
+  "score": 1,
+  "why": "Branch, hash, not merged, not shown"
+ },
+ "q18": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q19": {
+  "score": 1,
+  "why": "Both IDs match"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "Topics and commit right, but module numbers У2.2/У2.3/У5.8 not given, only М2/М5"
+ }
+}

@@ -24,6 +24,7 @@ from app.events import AgentEvent
 from app.usage_contract import AggregateUsage, TurnUsage, current_context
 from app.harness import prompts, tools as builtin
 from app.harness.llm import GigaChatClient, OpenRouterClient
+from app.tool_scoping import parse_disabled_tools
 from app.harness.loop import AgentLoop, ReviewCtx
 from app.harness.mcp import MCPClient
 from app.harness.sessions import SessionStore
@@ -84,7 +85,10 @@ class HarnessBackend:
         object → default behavior preserved)."""
         names = {s.get("function", {}).get("name") for s in self._tool_schemas}
         extra: list[dict] = []
-        if allow_review and builtin.REVIEW_TOOL_NAME not in names:
+        # V-636: GigaChat answered "which tasks exist?" by calling review, whose English
+        # reviewer replied in the chat; a policy naming "review" switches it off like MCP tools.
+        if (allow_review and builtin.REVIEW_TOOL_NAME not in names
+                and builtin.REVIEW_TOOL_NAME not in self._disabled_tools()):
             extra.append(builtin.review_schema())
         if effort == "high":
             if builtin.TODO_TOOL_NAME in names:
@@ -176,13 +180,14 @@ class HarnessBackend:
         try:
             await self._mcp.connect(self._mcp_servers)
             self._tool_schemas = prompts.merge_tool_schemas(
-                builtin.tool_schemas(), self._mcp.tool_schemas())
+                builtin.tool_schemas(), self._offered_mcp_schemas())
         except Exception as e:
             logger.warning(f"MCP unavailable, built-in tools only: {e}")
             with contextlib.suppress(Exception):
                 await self._mcp.disconnect()
             self._tool_schemas = prompts.merge_tool_schemas(builtin.tool_schemas(), [])
-        self._full_system_prompt = prompts.build_system_prompt(self.system_prompt)
+        self._full_system_prompt = prompts.build_system_prompt(
+            self.system_prompt, cwd=self.cwd, single_call=spec.provider == "gigachat")
 
         # Alongside the DB, not /tmp: a reboot must not erase agent history.
         session_dir = str(Path(__file__).parent.parent / "data" / "harness-sessions")
@@ -192,6 +197,21 @@ class HarnessBackend:
         self._reset_system_message()
         logger.info(f"HarnessBackend connected: model={self.model}, session={self.session_id}, "
                     f"tools={len(self._tool_schemas)}, history={len(self._history)}")
+
+    def _offered_mcp_schemas(self) -> list[dict]:
+        """MCP schemas minus the Orchestra tools this agent's policy refuses.
+
+        The Orchestra server lists disabled tools and rejects them only when called.
+        A model offered them spends rounds on refusals; GigaChat also degraded with a
+        long function list and stopped reaching bash/glob at all (V-636).
+        """
+        disabled = self._disabled_tools()
+        return [schema for schema in self._mcp.tool_schemas()
+                if schema.get("function", {}).get("name") not in disabled]
+
+    def _disabled_tools(self) -> set[str]:
+        env = (self._mcp_servers.get("orchestra") or {}).get("env") or {}
+        return set(parse_disabled_tools(env.get("ORCHESTRA_DISABLED_TOOLS", "[]")))
 
     def _reset_system_message(self) -> None:
         sys_msg = {"role": "system", "content": self._full_system_prompt}
@@ -314,7 +334,7 @@ class HarnessBackend:
         usage = loop.last_usage or {}
         turn_input = int(usage.get("prompt_tokens", 0) or 0)
         max_tokens = self._max_context()
-        # The last round's prompt_tokens IS the live context: OpenRouter re-sends the whole
+        # The last round's prompt_tokens IS the live context: the loop re-sends the whole
         # history each round, so the final prompt carries everything the model still holds.
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
@@ -324,7 +344,7 @@ class HarnessBackend:
             current_context(
                 turn_input or None,
                 max_tokens,
-                unknown_reason="OpenRouter returned no usage for the final round",
+                unknown_reason="the model provider returned no usage for the final round",
             ),
         )
         content = f"stop_reason={stop_reason}" + (f" ({detail})" if detail else "")

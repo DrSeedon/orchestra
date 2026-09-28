@@ -1,0 +1,86 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q4": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q5": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q6": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q7": {
+  "score": 1,
+  "why": "/docx, pandoc forbidden"
+ },
+ "q8": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "bank and SFR cabinets closed, but omits that the director brings the data"
+ },
+ "q11": {
+  "score": 1,
+  "why": "matches gold"
+ },
+ "q11b": {
+  "score": 1,
+  "why": "exact quote"
+ },
+ "q12": {
+  "score": 1,
+  "why": "path and commit match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "19,200/12 mo = 1,600; 211,389; 1% all present"
+ },
+ "q14": {
+  "score": 1,
+  "why": "3%/day, 33.3 days"
+ },
+ "q15": {
+  "score": 1,
+  "why": "matches gold and adds detail"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Stars only, risk of bot being hidden from mobile users"
+ },
+ "q17": {
+  "score": 1,
+  "why": "no case law cited; kad.arbitr closed; courts of general jurisdiction"
+ },
+ "q18": {
+  "score": 1,
+  "why": "matches gold"
+ },
+ "q19": {
+  "score": 1,
+  "why": "IP and kad.arbitr.ru match"
+ },
+ "q20": {
+  "score": 1,
+  "why": "send_message, 'ты'"
+ }
+}

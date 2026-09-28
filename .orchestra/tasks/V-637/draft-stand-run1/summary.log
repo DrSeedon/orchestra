@@ -1,0 +1,9 @@
+{"scenario": "S1", "ok": true, "detail": "sort_bubble.py prints the components sorted", "seconds": 45, "tool_calls": 3}
+{"scenario": "S2", "ok": false, "detail": "no script printed Россия 1 / Иностранные 4 / 80 (new .py: ['страны.py'])", "seconds": 41, "tool_calls": 3}
+{"scenario": "S3", "ok": false, "detail": "справка_эксперту.md is missing", "seconds": 51, "tool_calls": 6}
+{"scenario": "S4", "ok": false, "detail": "инвентаризация.md was not delivered into the project folder", "seconds": 54, "tool_calls": 8}
+{"scenario": "S5", "ok": true, "detail": "3 new tasks [7, 8, 9], answer states total", "seconds": 48, "tool_calls": 4}
+{"scenario": "S6x", "ok": false, "detail": "plain output changed: \"python3: can't open file '/workspace/project/u043fu0440u043eu0432u0435u0440u043au0430_u043bu0438u0446u0435u043du0437u0438u0439.py': [Errno 2] No such file or directory\\n\"", "seconds": 48, "tool_calls": 4}
+{"scenario": "S7", "ok": false, "detail": "test_проверка_лицензий.py was not delivered", "seconds": 75, "tool_calls": 14}
+{"scenario": "S8", "ok": false, "detail": "чеклист_реестра.md is missing", "seconds": 48, "tool_calls": 5}
+{"scenario": "S9", "ok": true, "detail": "audit_report2_summary.md: real kernel 6.8.0-124-generic, 1250 chars", "seconds": 138, "tool_calls": 29}

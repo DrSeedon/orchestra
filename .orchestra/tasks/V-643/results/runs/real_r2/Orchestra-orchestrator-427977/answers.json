@@ -1,0 +1,22 @@
+{
+ "q1": "Keep raw events forever (owner: don't delete, there isn't much data)",
+ "q2": "46.70 h estimated (owner's rules), compared with 101.12 h under the old 10-minute think window and 163.12 h under V-57's 30-minute gap. The 03.09–23.09 range itself is not stated in my context.",
+ "q3": "Krasnoyarsk time (UTC+7)",
+ "q4": "Attribute time to exactly one scope per second (presence wins over a message); owner demanded exact counting of seconds per project, seamlessly",
+ "q5": "Precompact fix: V-627, worker fix-precompact. TG collapsed incoming messages: V-628, worker tg-incoming",
+ "q6": "Owner said to compress even when background jobs are active; V-627 makes precompact fire in IDLE and WAITING regardless of active background jobs. Conditions under which it may still be skipped: UNKNOWN",
+ "q7": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db (1.97 GB)",
+ "q8": "dnd-game-master fails with ORCHESTRA_LAYOUT_PARTIAL; cog-second-brain fails with ORCHESTRA_LAYOUT_GIT_ERROR (stash fb3d4d…). A data-loss fix task is planned covering the VPS migration failures, but whether a VPS data-loss check has been done is UNKNOWN (cog's dirty file is 59398 bytes, not zeroed)",
+ "q9": "UNKNOWN",
+ "q10": "Astra and Sol are banned; Opus 5.5 effort is medium",
+ "q11": "No Co-Authored-By trailer; no git stash; git config overrides: UNKNOWN",
+ "q12": "UNKNOWN",
+ "q13": "UNKNOWN. Only known: plan to propose the seedon V-44 adhoc-merge fix (details and owner decision not in my context)",
+ "q14": "UNKNOWN",
+ "q15": "UNKNOWN",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN. Only known: seedon was at 57% context, and precompact gate was fixed in V-627",
+ "q18": "UNKNOWN",
+ "q19": "VKRS package closed; the director sent their own version and nothing more is needed from me",
+ "q20": "UNKNOWN which orchestrators were not moved to Opus 5.5 or why. Rule: laptop Orchestra must always be running. Open items: laptop-rescue (V-625) wake with pin of preserve snapshots first, and the laptop SIGTERM hang task"
+}

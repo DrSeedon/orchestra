@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "forever, don't delete"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.7, 101.12, 163.12 all present"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk UTC+7"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "seconds precision, seamless, but not 'project whose chat is open'"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers correct"
+ },
+ "q6": {
+  "score": 0.5,
+  "why": "compact despite bg jobs; skip conditions unknown"
+ },
+ "q7": {
+  "score": 1,
+  "why": "exact path matches"
+ },
+ "q8": {
+  "score": -1,
+  "why": "cog code stated as GIT_ERROR, contradicts PARTIAL"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "banned and medium, but says Astra and omits luna mapping; mostly correct"
+ },
+ "q11": {
+  "score": 0.5,
+  "why": "Co-Authored-By and stash correct; git -c unknown"
+ },
+ "q12": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q15": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN, only 57% mentioned"
+ },
+ "q18": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "nothing more needed; missing Кошелева and not-transferred detail"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "only the always-running rule; orchestrators unknown"
+ }
+}

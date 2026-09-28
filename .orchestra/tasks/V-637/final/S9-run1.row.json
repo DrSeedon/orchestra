@@ -1,0 +1,25 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run1",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "audit_report.txt: real kernel 6.8.0-136-generic, 3825 chars",
+ "seconds": 116,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 57,
+ "tool_errors": 5,
+ "loop_errors": 0,
+ "in_tokens": 269869,
+ "out_tokens": 5718,
+ "tools_by_name": {
+  "?": 9,
+  "bash": 32,
+  "edit": 8,
+  "read": 5,
+  "spawn_worker": 1,
+  "write": 2
+ },
+ "final_text": "Аудит завершён, файл audit_report.txt перенесён в /workspace/project. Ключевые факты:\n\n- ОС и ядро: Ubuntu 24.04.4 LTS; Linux 6.8.0-136-generic.\n- Пользователи/группы: всего 35 пользователей (kesha есть) и 68 групп; kesha входит в sudo.\n- Сеть: интерфейсы lo, eth0 (публичный адрес), tailscale0. Примеры соединений — SSH наружу и Telegram API локально.\n- Открытые порты TCP LISTEN включают ssh(22), http(80), https(443), 8081, 8888, 8899, 18080–18085, 4443/2443/8443; UDP на localhost DNS и порт 41641.\n- Сервисы (35): nginx, ssh, fail2ban, tailscaled, telegram-bot-api, xray, orchestra/proxy и др.\n- Диски: корень /dev/sda1 занят на 95% (273G из 290G); /boot и /boot/efi с запасом.\n- Нагрузка: uptime ~53 дня; load average 0.31/0.81/1.15; RAM 23 GiB (доступно ~18 GiB); swap 15 GiB (использовано ~1 GiB).\n- Безопасность: права /tmp и /var/tmp — 1777; /root — 700; sudo доступен для kesha.\n\nЕсли нужно углубиться по какому-то разделу или выгрузить дополнительные детали — скажи какие именно."
+}

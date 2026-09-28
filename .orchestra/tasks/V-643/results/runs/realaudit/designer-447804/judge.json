@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "All three phrases present; waitlist status stated"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Both constraints quoted, includes 'без моего подтверждения' and rights"
+ },
+ "q4": {
+  "score": 1,
+  "why": "Draft voiceover until live voice recording"
+ },
+ "q5": {
+  "score": 1,
+  "why": "Frame 6, 30 сентября, no customer name, seedon.ru"
+ },
+ "q6": {
+  "score": 1,
+  "why": "−20…−24 under voice, −14 final"
+ },
+ "q7": {
+  "score": 1,
+  "why": "Vosk, Apache 2.0, Silero and Piper rejected"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Path, tar over ssh, sha256 all match"
+ },
+ "q9": {
+  "score": 1,
+  "why": "08428bb, 488f938, and branch match"
+ },
+ "q10": {
+  "score": 1,
+  "why": "24,4 / 24,4 / 15,0 and planned 22,5 match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "Quote includes 'непонятно' and 'галочки'"
+ },
+ "q12": {
+  "score": 1,
+  "why": "A sneakers 38 recommended, B clay, C 15s short version"
+ },
+ "q13": {
+  "score": 1,
+  "why": "All fixes listed: hook, quotes, 25 hits, loop, СКОРО"
+ },
+ "q14": {
+  "score": 1,
+  "why": "All three file names match"
+ },
+ "q15": {
+  "score": 1,
+  "why": "220 top, 380 bottom"
+ },
+ "q16": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q17": {
+  "score": 0,
+  "why": "Says technical cause unknown; lacks 14 марта and the birthday reason (dates 28.09→28.10 do match partially but the key fact is missing)"
+ },
+ "q18": {
+  "score": 1,
+  "why": "No publishing; no PNG frames/cache committed"
+ },
+ "q19": {
+  "score": 1,
+  "why": "128 BPM, 60 fps, 11 scenes, 244→29 MB crf 20 maxrate 10M"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "Cause unknown and build.log correct, but the −11,2 loudness fix is missing"
+ }
+}

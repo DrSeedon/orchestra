@@ -1,0 +1,22 @@
+{
+ "q1": "UNKNOWN",
+ "q2": "UNKNOWN",
+ "q3": "UNKNOWN",
+ "q4": "UNKNOWN",
+ "q5": "UNKNOWN",
+ "q6": "UNKNOWN",
+ "q7": "UNKNOWN",
+ "q8": "/mnt/data/Рабочий стол/СИДОН — документы/Рилсы лист ожидания/ on the director's laptop, copied via tar over ssh (skill laptop-access)",
+ "q9": "08428bb on branch task-V-75/designer (A/B/C); first motion version: 488f938",
+ "q10": "Final: A 24.4 s, B 24.4 s, C 15.0 s; originally planned A 22.5 s, B 22.5 s, C 15 s",
+ "q11": "«прикольно, только по тексту надо разобраться, че там мама хотела — непонятно, типа лепить без галочки вещей»; dynamics and format worked, but the story was unclear: viewer doesn't understand what exactly mom wanted as a gift, the 'галочка' scenario reads as nonsense",
+ "q12": "A — «Кроссовки, 38-й размер», 22.5 s (recommended); B — «Лепить из глины», 22.5 s; C — short version of A, 15 s",
+ "q13": "Hook-question, quotes held for a full bar, long answer over two bars, ~25 beats instead of 48, loop, 'ссылка в профиле' call-to-action with a large 'СКОРО'",
+ "q14": "out/reel1-motion-A.mp4, out/reel1-motion-B.mp4, out/reel1-motion-C.mp4",
+ "q15": "UNKNOWN",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN",
+ "q18": "Not published anywhere (nothing was published); the -sfx.mp4 versions were not committed to git (rebuilt by one command)",
+ "q19": "128 BPM, 11 scenes of one bar (1.875 s) each, 22.5 s, 1080×1920 at 60 fps; file size fix: film grain made the first file 244 MB, re-encoding brought it to 29 MB",
+ "q20": "UNKNOWN"
+}

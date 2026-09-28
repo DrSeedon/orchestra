@@ -6,6 +6,7 @@ on the session (read by send/stop/disconnect paths).
 
 import asyncio
 import logging
+from datetime import datetime, timedelta, timezone
 from typing import TYPE_CHECKING
 
 from app.session_state import (
@@ -13,6 +14,7 @@ from app.session_state import (
 )
 from app.errtext import err_text
 from app.runtime_registry import get_runtime
+from app.stall_signals import SILENCE_SIGNAL_SECONDS, signal_silence
 
 if TYPE_CHECKING:
     from app.session import AgentSession
@@ -28,6 +30,7 @@ class HibernateManager:
     def __init__(self, s: "AgentSession") -> None:
         self.s = s
         self._last_codex_silence_warning = 0.0
+        self._silence_signalled_at = 0.0
 
     @staticmethod
     def _process_runtime_dead(s: "AgentSession") -> bool:
@@ -115,6 +118,22 @@ class HibernateManager:
             s._hibernated = True
             return {"ok": True, "state": "hibernated"}
 
+    async def _signal_silence_once(self, now: float) -> None:
+        """Tell the parent once per silence; a new provider event re-arms the signal."""
+        s = self.s
+        last = s._last_msg_time
+        if last <= 0 or last == self._silence_signalled_at:
+            return
+        silence = now - last
+        if silence < SILENCE_SIGNAL_SECONDS:
+            return
+        self._silence_signalled_at = last
+        last_at = datetime.now(timezone.utc) - timedelta(seconds=silence)
+        await signal_silence(
+            s, silence, getattr(s, "_last_event", "") or "unknown",
+            last_at.strftime("%H:%M:%SZ"),
+        )
+
     async def heartbeat_loop(self) -> None:
         s = self.s
         logger.info(f"[{s.name}] heartbeat started")
@@ -163,6 +182,9 @@ class HibernateManager:
                         else:
                             logger.warning(f"[{s.name}] heartbeat: {silence:.0f}s silence during RUNNING turn")
                             s._log("status", f"no messages for {silence:.0f}s during active turn (possible long thinking)")
+
+                if s.status == AgentStatus.RUNNING and s._backend is not None:
+                    await self._signal_silence_once(asyncio.get_event_loop().time())
 
                 if s._backend is None:
                     continue

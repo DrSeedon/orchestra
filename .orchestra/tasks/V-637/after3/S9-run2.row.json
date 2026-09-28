@@ -1,0 +1,25 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run2",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "audit_report.txt: real kernel 6.8.0-136-generic, 7292 chars",
+ "seconds": 38,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 13,
+ "tool_errors": 1,
+ "loop_errors": 0,
+ "in_tokens": 29193,
+ "out_tokens": 2178,
+ "tools_by_name": {
+  "?": 2,
+  "bash": 5,
+  "edit": 1,
+  "read": 2,
+  "spawn_worker": 1,
+  "write": 2
+ },
+ "final_text": "Отчёт аудита перенесён в /workspace/project/audit_report.txt. Ключевые факты:\n\n- ОС/ядро: 6.8.0-136-generic; архитектура x86_64.\n- CPU: AMD EPYC, 8 ядер (1 сокет), виртуализация KVM/full.\n- Память: всего 23 ГиБ, доступно ~17 ГиБ; swap 15 ГиБ (использовано 1.1 ГиБ).\n- Диски: корень /dev/sda1 — 290Г занято 273Г (95%); inodes ~6%.\n- Сеть: eth0 с публичным IPv4 и IPv6; шлюз через eth0; DNS via systemd-resolved (127.0.0.53). Есть tailscale0.\n- Активные сервисы включают nginx, fail2ban, cron, rsyslog, orchestra*, несколько прикладных служб.\n- Время/дата: локальное CEST/Europe-Berlin (+02:00).\n- Виртуализация: kvm; AppArmor/SELinux не включены или недоступны для проверки.\n\nРекомендации по безопасности добавлены в отчёт (SSH-ключи, автообновления, брандмауэр, ротация логов, TLS, резервные копии, принцип наименьших привилегий, профили AppArmor/SELinux при возможности)."
+}

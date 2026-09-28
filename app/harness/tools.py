@@ -111,8 +111,12 @@ def _resolve_in_workspace(path: str, cwd: str) -> Path:
 
 
 def _cap(text: str) -> str:
-    if len(text) > OUTPUT_CAP:
-        return text[:OUTPUT_CAP] + f"\n... (truncated, {len(text) - OUTPUT_CAP} more chars)"
+    # V-637: on a metered free quota one audit read a 69 KB report whole, and every later
+    # round of that turn carried it. An installation can lower the cap per tool result.
+    cap = int(os.environ.get("HARNESS_OUTPUT_CAP") or OUTPUT_CAP)
+    if len(text) > cap:
+        return (text[:cap] + f"\n... (truncated, {len(text) - cap} more chars; "
+                "narrow it with head, tail, grep or read offset/limit)")
     return text
 
 
@@ -291,6 +295,13 @@ def edit(path: str, old: str, new: str, cwd: str, replace_all: bool = False) -> 
     if count > 1 and not replace_all:
         return f"[edit error] old string occurs {count}× in {path} — not unique (use replace_all or add context)"
     updated = content.replace(old, new) if replace_all else content.replace(old, new, 1)
+    if path.endswith(".py") and "\n" in new and _syntax_error(p, updated):
+        # V-637: GigaChat sent `new` with real line breaks inside a Python string literal where
+        # `old` had the escape "\\n"; the syntax guard refused the same edit three times.
+        escaped = new.replace("\n", "\\n")
+        candidate = content.replace(old, escaped) if replace_all else content.replace(old, escaped, 1)
+        if not _syntax_error(p, candidate):
+            updated = candidate
     result = write(path, updated, cwd)
     if not result.startswith("wrote"):
         return result                      # write blocked (e.g. syntax guard) — surface as-is
@@ -500,7 +511,15 @@ async def dispatch(name: str, args: dict, cwd: str) -> tuple[str, bool]:
     the whole subprocess/file duration (measured: 10ms sleep took 2008ms under grep, #367 D6)."""
     try:
         if name == "bash":
-            return await bash(args.get("command", ""), cwd, args.get("timeout", BASH_DEFAULT_TIMEOUT)), False
+            command = args.get("command", "")
+            # V-637: on the client stand GigaChat followed a "recommendation" from its own audit
+            # and tried sudo/fstab/swap on the host. An installation may forbid such commands.
+            deny = os.environ.get("HARNESS_BASH_DENY", "").strip()
+            if deny and re.search(deny, command):
+                return ("[bash error] refused by this installation's policy: the command changes the "
+                        "system (sudo, /etc, services, packages). Only inspection and work inside the "
+                        "project folder are allowed."), False
+            return await bash(command, cwd, args.get("timeout", BASH_DEFAULT_TIMEOUT)), False
         if name == "read":
             return await asyncio.to_thread(read, args.get("path", ""), cwd,
                                            args.get("offset", 0), args.get("limit", 0)), False

@@ -1,0 +1,22 @@
+{
+ "q1": "Owner answered «ядро бот» ([13:03]: core + bot, without technologies/perks/races); it created task V-44 (task_id 4510) «Slipways: ядро симулятора + бот + статистика».",
+ "q2": "V-42 report: .orchestra/tasks/V-42/report.md (354 lines); accepted/merged into main at commit dcf9f23.",
+ "q3": "Task V-43 (task_id 4507), merged into main as 2262a69; worker head c0ac749092a212b61c1a2ff23c49d04a2ebe6173 (worker slipways-extract). Report at .orchestra/tasks/V-43/report.md. Branch name UNKNOWN.",
+ "q4": "Planet values by level [0,80,160,320,640]: lv1=80, lv2=160, lv3=320, lv4=640 (×count). Empire size: level×400 (thresholds 8/16/24/32/40/50 colonies).",
+ "q5": "Ranks 0–9; 12 000 = 5th star; platinum 16 000 / 20 000 / 24 000; max 30 000.",
+ "q6": "−500 per unfinished council quest, only if NormalizedTurn ≥ 20.",
+ "q7": "Forgiving base is 8 (not 7 as in V-42 wiki); Everted multiplier ×1.6 (not ×2). The game is right.",
+ "q8": "Slipway cost: floor(max(0.5,(L/4.647)^1.5) × 6 × (1+overload)), base_cost 6, base_distance 1.223×3.8, L = d − 2×0.65; range 2.82×3.8 = 10.716. No hard cap on ports.",
+ "q9": "13 042 = 13 600 × 1.37 = 18 632, then × 0.70 (happiness/sector debuff multiplier) = 13 042. Pre-multiplier total 13 600 per formula; the 0.70 is the final multiplier and 1.37 the quirk/other step.",
+ "q10": "Best run: 14 126, 5 stars, forgiving, seed JRJ-AWIQZXFKC (file 20260911150509-0-10014126-bvs-nu-p_scholars-p_orbital_engineering.json).",
+ "q11": "Map generation seed→map (RNG not unravelled) was not finished; so the bot's maps are our own approximate generator (or taken from the owner's sandbox save), not identical to game maps.",
+ "q12": "Via skill laptop-access: ssh -i /home/kesha/.ssh/tunnel_laptop -o IdentitiesOnly=yes -o BatchMode=yes -p 2222 maxim@127.0.0.1 (read-only). Game: /mnt/data/Games/Slipways/; saves: /home/maxim/.wine_slipways/drive_c/users/maxim/AppData/LocalLow/Beetlewing/Slipways/saves/.",
+ "q13": "Copied from 04-projects/slipways/ to /var/www/cog-slipways/releases/270da3b48b6b0c7615ad65a213af07f1f25d94dc, current symlink; nginx location ^~ /slipways/ in photoserver-qr vhost; URL https://photo-158-220-127-161.sslip.io/slipways/ (auto.html for stats).",
+ "q14": "Question: whether to open money and shop jokers (94 unavailable jokers, 25 in money/shop category); no answer from owner yet.",
+ "q15": "blueprint+blue+half on policy v9 = 13.567 blinds vs baseline 12.95; delta +0.583, CI [0.450; 0.717] (on v8 12.983, zero effect).",
+ "q16": "Full enumeration of 5 slots = 962 598 sets ≈ 50 days, forbidden until a separate decision. Proposed narrowed width: UNKNOWN.",
+ "q17": "V-33 and V-34 [new] (also V-37 [new], effectively done; V-19 legacy in_progress); if owner says no, do V-33 or V-34.",
+ "q18": "Only I (orchestrator) publish/merge; workers are forbidden git push and deploy. Publishing via ssh kesha@localhost + sudo cp -a to /var/www/cog-<proj>/releases/<sha>, ln -sfn current.new, mv -T.",
+ "q19": "Do not edit vhost dnd-duckdns; /var/www/balatro/ belongs to the D&D project; 02-personal/ is not served externally. When editing shared vhost, check neighbor status codes before and after, nginx -t is not enough.",
+ "q20": "Cache key must include slot order, policy and engine fingerprint (durable rule); the mutation test proof for that is UNKNOWN from this text (mutation tests recorded were for Slipways rounding and slipway length).."
+}

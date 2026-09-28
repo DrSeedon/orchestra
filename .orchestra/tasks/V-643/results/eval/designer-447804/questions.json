@@ -1,0 +1,301 @@
+[
+ {
+  "id": "q1",
+  "category": "prohibition",
+  "question": "Which phrases were banned from all reel scripts/texts in task V-74 (marketing claims), and what status must the product be presented as?",
+  "gold": "Do not write «первые в России», «аналогов нет», «уже пользуются тысячи»; product doesn't exist yet — it's a waitlist, scenario shown as an example.",
+  "must_contain": [
+   "первые в России",
+   "аналогов нет",
+   "уже пользуются тысячи"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   436711
+  ]
+ },
+ {
+  "id": "q2",
+  "category": "owner_decision",
+  "question": "What did the director decide on 24.09 about the audio for reels 2 and 3 and reel 1, and what was the exact wording about sound?",
+  "gold": "Make reels 2 and 3 too; «звук обязательно — все звуки надо и голос, если получится»; reel1 rebuilt with sound.",
+  "must_contain": [
+   "звук обязательно",
+   "голос"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   438547
+  ]
+ },
+ {
+  "id": "q3",
+  "category": "prohibition",
+  "question": "Which TTS/voice and music constraints did the orchestrator set in V-75 regarding paid services and music rights?",
+  "gold": "No new paid service without owner's confirmation; music only with clean rights (CC0, own generation, or explicit commercial license); source and license into report.",
+  "must_contain": [
+   "без моего подтверждения",
+   "права"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   438547
+  ]
+ },
+ {
+  "id": "q4",
+  "category": "open_item",
+  "question": "Reel 3 voice-over is a synthesized voice; how must it be labelled and what remains to be done with it?",
+  "gold": "Labelled in the report as a draft voiceover (черновая озвучка) until recorded with the director's live voice.",
+  "must_contain": [
+   "черновая",
+   "живым голосом"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   438547
+  ]
+ },
+ {
+  "id": "q5",
+  "category": "owner_decision",
+  "question": "In reel 3 (V-75), which frame must be kept and which link and customer-name rule apply?",
+  "gold": "Keep frame 6 «выиграем ли закупку — узнаем 30 сентября»; do not show the customer's name on screen; link in reel 3 is seedon.ru.",
+  "must_contain": [
+   "30 сентября",
+   "seedon.ru",
+   "название заказчика"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   438547
+  ]
+ },
+ {
+  "id": "q6",
+  "category": "number",
+  "question": "What loudness targets did the orchestrator set for V-75 music under voice and for the final reel?",
+  "gold": "Music −20…−24 LUFS under voice; final about −14 LUFS.",
+  "must_contain": [
+   "−14",
+   "−20"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   438547
+  ]
+ },
+ {
+  "id": "q7",
+  "category": "path",
+  "question": "Which TTS engine and license was used for the voice in V-75, and which alternatives were rejected and why?",
+  "gold": "Vosk TTS (vosk-model-tts-ru-0.9-multi), Apache 2.0, local; Silero and Piper rejected for non-commercial licenses.",
+  "must_contain": [
+   "Vosk",
+   "Apache 2.0",
+   "Silero"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   438595,
+   438596,
+   443042
+  ]
+ },
+ {
+  "id": "q8",
+  "category": "path",
+  "question": "Where must each finished reel be copied for the director after rendering (path on laptop), and by what method?",
+  "gold": "/mnt/data/Рабочий стол/СИДОН — документы/Рилсы лист ожидания/ via tar over ssh (laptop-access skill), with sha256 check.",
+  "must_contain": [
+   "Рилсы лист ожидания",
+   "tar",
+   "ssh"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   445850,
+   445909
+  ]
+ },
+ {
+  "id": "q9",
+  "category": "path",
+  "question": "What is the final commit for the three motion variants A/B/C and on which branch; and the earlier commit for the first motion version?",
+  "gold": "08428bb on task-V-75/designer for A/B/C; 488f938 for first reel1-motion.",
+  "must_contain": [
+   "08428bb",
+   "488f938",
+   "task-V-75/designer"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   446920,
+   444375
+  ]
+ },
+ {
+  "id": "q10",
+  "category": "number",
+  "question": "What are the durations of the final motion variants A, B, C, and what were the originally planned ones?",
+  "gold": "A and B 24.4 s (planned 22.5), C 15.0 s.",
+  "must_contain": [
+   "24,4",
+   "15"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   446895,
+   445909
+  ]
+ },
+ {
+  "id": "q11",
+  "category": "owner_decision",
+  "question": "What did the director say about reel1-motion and why was a rewrite requested?",
+  "gold": "«прикольно», dynamics and format fine, but story unclear — what mom wanted («лепить без галочки вещей»); need concrete understandable gift.",
+  "must_contain": [
+   "непонятно",
+   "галочки"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   445008
+  ]
+ },
+ {
+  "id": "q12",
+  "category": "owner_decision",
+  "question": "What are the three script variants A/B/C for the motion reel 1 and which was recommended?",
+  "gold": "A — кроссовки для ходьбы, 38-й размер (recommended); B — лепить из глины; C — short 15 s version of A.",
+  "must_contain": [
+   "кроссовки",
+   "глины",
+   "15"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   445216
+  ]
+ },
+ {
+  "id": "q13",
+  "category": "open_item",
+  "question": "Which fixes from motion-review.md were required to be built into all three variants?",
+  "gold": "Hook-question, quotes held a full bar, long answer over two bars, ~25 hits instead of 48, loop, CTA «ссылка в профиле» with large «СКОРО».",
+  "must_contain": [
+   "хук-вопрос",
+   "25",
+   "петля",
+   "СКОРО"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   445909
+  ]
+ },
+ {
+  "id": "q14",
+  "category": "path",
+  "question": "What file names must the three variant outputs have?",
+  "gold": "out/reel1-motion-A.mp4, -B.mp4, -C.mp4 in .orchestra/tasks/V-75/",
+  "must_contain": [
+   "reel1-motion-A.mp4",
+   "-B.mp4",
+   "-C.mp4"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   445909
+  ]
+ },
+ {
+  "id": "q15",
+  "category": "number",
+  "question": "What safe-zone pixel limits were set for text in reels (top and bottom)?",
+  "gold": "About 220 px top and 380 px bottom.",
+  "must_contain": [
+   "220",
+   "380"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   436711
+  ]
+ },
+ {
+  "id": "q16",
+  "category": "open_item",
+  "question": "Which open questions/decisions did the agent flag for the director after V-74 (reel 3 link, ≈140$, price 1990, etc.)?",
+  "gold": "Reel 3 link (was seedon.ru); ≈140$ not included (needs 'API price, not real money' caveat); keep 30 sept frame; 1 990 ₽ price excluded from reel 2.",
+  "must_contain": [
+   "140",
+   "1 990"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   437939
+  ]
+ },
+ {
+  "id": "q17",
+  "category": "number",
+  "question": "What was the technical cause/stats of the reel1 first-version (V-74) date shift: what was changed in dates and why?",
+  "gold": "Landing has voice on 14 March and birthday 3 November (half a year); dates shifted to 28 September → 28 October to make a month.",
+  "must_contain": [
+   "14 марта",
+   "28 сентября"
+  ],
+  "importance": 1,
+  "evidence_log_ids": [
+   437939
+  ]
+ },
+ {
+  "id": "q18",
+  "category": "prohibition",
+  "question": "What must not be done with the motion reels regarding publishing and which files must not be committed?",
+  "gold": "Do not publish anywhere; do not commit PNG frames/cache (only MP4, contact sheets, report).",
+  "must_contain": [
+   "никуда не публиковать",
+   "кадры"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   443307,
+   442680
+  ]
+ },
+ {
+  "id": "q19",
+  "category": "number",
+  "question": "What tempo and structure were used in the first motion version, and what was the file size fix?",
+  "gold": "128 BPM, 60 fps, 11 scenes of one bar (1.875 s), 22.5 s; size 244 MB reduced to ~29 MB by re-encode crf 20 maxrate 10M.",
+  "must_contain": [
+   "128",
+   "60",
+   "29"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   444077,
+   444159,
+   444375
+  ]
+ },
+ {
+  "id": "q20",
+  "category": "open_item",
+  "question": "What was the cause of the V-75 audio build crash on 24.09 and what did the agent change to prevent losing it next time?",
+  "gold": "Exact cause unknown (output lost, likely external interruption ~14:01); rerun succeeded; log now written to out/build.log. Also fixed loudness measurement error (−11.2 vs −14 LUFS).",
+  "must_contain": [
+   "build.log",
+   "−11,2"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   442779,
+   443042
+  ]
+ }
+]

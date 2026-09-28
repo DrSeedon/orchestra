@@ -1,0 +1,24 @@
+{
+ "scenario": "S7",
+ "tag": "S7-run2",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "3 tests pass",
+ "seconds": 38,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 14,
+ "tool_errors": 2,
+ "loop_errors": 0,
+ "in_tokens": 40169,
+ "out_tokens": 2100,
+ "tools_by_name": {
+  "?": 3,
+  "bash": 5,
+  "read": 2,
+  "spawn_worker": 1,
+  "write": 3
+ },
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект. Запуск python3 -m unittest: 3 теста, все прошли (OK). Тесты покрывают валидную лицензию, невалидную и отсутствующий файл components.csv.\n\nСодержимое файла:\nimport unittest\nfrom unittest.mock import patch, mock_open\nimport проверка_лицензий as lic\n\nclass TestПроверкаЛицензий(unittest.TestCase):\n    def test_валидная_лицензия(self):\n        csv_data = 'Компонент1;MIT\\n'\n        with patch('builtins.open', mock_open(read_data=csv_data)):\n            with patch('sys.stdout'):\n                lic.main()\n\n    def test_невалидная_лицензия(self):\n        csv_data = 'Компонент2;GPL-3.0\\n'\n        with patch('builtins.open', mock_open(read_data=csv_data)):\n            with patch('sys.stdout'):\n                lic.main()\n\n    def test_отсутствующий_файл(self):\n        with patch('builtins.open', side_effect=FileNotFoundError):\n            with self.assertRaises(FileNotFoundError):\n                lic.main()\n\nif __name__ == '__main__':\n    unittest.main()"
+}

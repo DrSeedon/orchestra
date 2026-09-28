@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "kept forever, not deleted"
+ },
+ "q2": {
+  "score": 1,
+  "why": "46.7, 101.12, 163.12 all present"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Krasnoyarsk +7"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "second-by-second, open scope/project; lacks 'chat is open' specifics but close"
+ },
+ "q5": {
+  "score": 1,
+  "why": "all ids and workers match"
+ },
+ "q6": {
+  "score": 1,
+  "why": "compact despite bg; skip only during turn/compaction"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "correct filename but relative path, not full /home/kesha/orchestra/ path"
+ },
+ "q8": {
+  "score": 0.5,
+  "why": "dnd correct; cog given different code GIT_ERROR vs PARTIAL; cog check correct"
+ },
+ "q9": {
+  "score": 1,
+  "why": "directly with owner, don't write to seedon"
+ },
+ "q10": {
+  "score": 1,
+  "why": "Sol banned, Opus 5.5 medium"
+ },
+ "q11": {
+  "score": 1,
+  "why": "all three rules match"
+ },
+ "q12": {
+  "score": 1,
+  "why": "base.md and never CLAUDE.md"
+ },
+ "q13": {
+  "score": 1,
+  "why": "V-44, dead session, in-progress takeover"
+ },
+ "q14": {
+  "score": 1,
+  "why": "branch and ~27.09 correct"
+ },
+ "q15": {
+  "score": 1,
+  "why": "both hashes and dates match"
+ },
+ "q16": {
+  "score": 1,
+  "why": "exit guard, commit, 115 failed"
+ },
+ "q17": {
+  "score": 0.5,
+  "why": "skip_reason unknown, 10 skips not 18 alarms; 92% correct"
+ },
+ "q18": {
+  "score": 1,
+  "why": "Option C, releases, complete_previous"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "closed, nothing needed; misses 'our version not transferred' explicit, minor"
+ },
+ "q20": {
+  "score": 1,
+  "why": "dev-lead, media-orchestrator, always running"
+ }
+}
