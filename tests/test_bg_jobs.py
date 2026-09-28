@@ -500,7 +500,7 @@ class TestCronCommand:
             if job["id"] == "cron-command-timeout"
         )
         assert row["status"] == "active"
-        assert "timed out after 30 seconds" in row["last_output"]
+        assert "timed out after 600 seconds" in row["last_output"]
 
     @pytest.mark.asyncio
     async def test_cancellation_while_communicate_blocked_kills_process(
