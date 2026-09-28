@@ -1,0 +1,22 @@
+{
+ "q1": "Keep raw events forever (owner: don't delete, let them lie, not much data).",
+ "q2": "New rule gave 46.70 h for 03.09–23.09; compared with 38.79 h (gaps up to 5 min), 70.12 h (gaps up to 10 min), 163.12 h (gaps up to 30 min, V-57) and 101.12 h (message + 10 min think).",
+ "q3": "Krasnoyarsk time.",
+ "q4": "Time goes to the scope of the currently open chat, counted precisely to the second, seamlessly (owner: 'надо четко считать в каком проекте сижу сколько секунд все бесшовно').",
+ "q5": "Precompact fix: V-627, worker fix-precompact. TG collapsed incoming messages: V-628, worker tg-incoming.",
+ "q6": "Compact even when bg jobs/crons are active; skip only while a turn is running or a compaction is already in progress.",
+ "q7": "/home/kesha/orchestra/data/orchestra-pre-v626-20260924.db (1968668672 bytes).",
+ "q8": "dnd-game-master and cog-second-brain fail with ORCHESTRA_LAYOUT_PARTIAL at every restart since 22.09 (22 lines). A data-loss check for the VPS is not confirmed: the layout-preserve data-loss fix task is planned and covers the VPS ORCHESTRA_LAYOUT_PARTIAL, but no completed check is recorded (cog-second-brain dirty file katya-health-2026-07.md is 59398 bytes, not zeroed).",
+ "q9": "The owner discusses time accounting directly with me (the Orchestra orchestrator), not through seedon; do not write to seedon on this topic.",
+ "q10": "sol → GPT-6 Sol with agents OFF; Opus 5.5 (opus) at effort medium.",
+ "q11": "No Co-Authored-By trailer; no `git -c user.*`; no `git stash`.",
+ "q12": "The keep-going rule lives in prompts/base.md; where it must never be written is UNKNOWN.",
+ "q13": "UNKNOWN: only 'propose the seedon V-44 adhoc-merge fix' is recorded as pending, and the seedon bug report was about merge_worker with 'no bound task'; the specific fix proposal is not in the context.",
+ "q14": "UNKNOWN",
+ "q15": "UNKNOWN",
+ "q16": "UNKNOWN",
+ "q17": "skip_reason=not_idle at 15:13 UTC on 23.09; 18 active crons; seedon was at 57% context; its last compaction was emergency-only, at 92%.",
+ "q18": "V-620 option C was chosen; the details of the branch-switch behaviour are not in the context beyond that.",
+ "q19": "University had already redrawn slide 5 itself and the director sent the package; my edited version in /tmp/vkrs-review2/ is not used; nothing more is needed.",
+ "q20": "Rule: the laptop Orchestra must always be running (fix the loop/hang). Which orchestrators were not moved to Opus 5.5 and why: UNKNOWN. Also open: the laptop has not been restarted with the new code (no evidence either way), the laptop SIGTERM hang, and V-625 laptop-rescue (bg-5b9a7aa887 undelivered)."
+}

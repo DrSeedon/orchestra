@@ -1,0 +1,23 @@
+{
+ "q1": "A1 (build sites precomputed per map, ~2–3 per planet) and B1 (no fog of war, no probes)",
+ "q2": "«Давай ядро улучшать. Дорабатывать. Технологии квесты и все такое.»",
+ "q3": "task-V-46/slipways, cut from main with V-45",
+ "q4": ".orchestra/tasks/V-46/ (inventory.md; report.md still to be written); inventory lists 16 mechanics",
+ "q5": "V-45 runs moved to data/runs-v45/ (git mv); new V-46 runs write to data/runs/",
+ "q6": "bg-57f6630065: node tools/run_bots.mjs --seeds 1-100 --difficulties forgiving,reasonable --bots \"greedy,greedy:gift=2000,rollout\" --workers 7 (greedy, greedy:gift=2000, rollout x4) over ssh",
+ "q7": "Check EXIT= in run_bots.log and 100 rows per difficulty per bot in data/runs/*.jsonl; launch rollout:width=8 on seeds 1-100 both difficulties (~6h); build stats/replays and report46.html; write CHANGELOG entry and .orchestra/tasks/V-46/report.md; rerun tests; commit '#V-46: ...'; deploy atomically to /var/www/cog-slipways/releases/<sha> and switch current, checking URLs and /balatro/ before and after plus headless render; send DONE to cog-second-brain-orchestrator",
+ "q8": "Never use rm -r; move files to trash instead (a hook enforces this)",
+ "q9": "Do not touch /var/www/balatro or cog-balatro (check /balatro/ returns 200 before and after); deploy the same way as V-45: release dir /var/www/cog-slipways/releases/<full commit sha>, then atomically switch the current symlink, checking neighbours before and after; no push or other publishing",
+ "q10": "newGame(map, diff, {features, years}) with s.years = opts.years ?? 25; yearsLeft = Math.max(0, s.years − s.year − s.moy/mpy); lambda = s.years===Infinity ? p.moneyValue : p.moneyValue*left/s.years; V-46 merges into main first, then V-47 rebases onto it",
+ "q11": "V-45 engine: greedy 13.7 s, rollout 122.2 s; V-46 engine with all mechanics: greedy 149.4 s, rollout 1241 s",
+ "q12": "scienceValue 80, labSites 8, maxLabs 10, projectReserve 200 (scaled by fraction of years left), saveFor 999",
+ "q13": "24046 with the 2000 science gift vs 15267 without",
+ "q14": "Lab upkeep is quadratic (9 labs cost 189$/yr) and labs can't be demolished; fixed by building a lab only if yearly income stays >= 20 (labIncomeFloor 20) and penalizing negative income in evaluation (negIncome 100)",
+ "q15": "5 of 100",
+ "q16": "greedy:rules=m and greedy:rules=mc were kept because a recheck of 5 seeds per spec per difficulty (20 games) gave identical scores",
+ "q17": "V-45: greedy 7887 Forgiving / 6780 Reasonable; best bot rollout x8 9356 Forgiving / 8714 Reasonable (34 s per game)",
+ "q18": ".orchestra/kb/slipways-rules.md (Slipways game rules), with a line added to .orchestra/kb/README.md",
+ "q19": "/home/kesha/slipways-decomp-v43/ (decompiled Slipways.dll) and /home/kesha/slipways-data-v43/ (core/*.py and game.xls); read-only, laptop sources via laptop-access",
+ "q20": "Via bg_create or ssh kesha@localhost; never sleep to poll, end the turn and let the platform wake you. Process-stop caveat: UNKNOWN",
+ "q_note": "none"
+}

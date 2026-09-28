@@ -1,0 +1,24 @@
+{
+ "scenario": "S7",
+ "tag": "S7-run1",
+ "ok": true,
+ "detail": "4 tests pass",
+ "seconds": 38,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 19,
+ "tool_errors": 4,
+ "loop_errors": 0,
+ "in_tokens": 41152,
+ "out_tokens": 2136,
+ "tools_by_name": {
+  "?": 5,
+  "bash": 6,
+  "edit": 3,
+  "read": 2,
+  "spawn_worker": 1,
+  "write": 2
+ },
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект и содержит 4 теста. Проверка: python3 -m unittest test_проверка_лицензий.py — OK (все 4 пройдены)."
+}

@@ -1,0 +1,293 @@
+[
+ {
+  "id": "q1",
+  "category": "owner_decision",
+  "question": "In task V-46, which architectural options did the owner choose for building sites (A) and for fog/probes (B)?",
+  "gold": "A1: build sites precomputed per map, about 2–3 per planet; B1: no fog and no probes for now.",
+  "must_contain": [
+   "A1",
+   "B1"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   428134
+  ]
+ },
+ {
+  "id": "q2",
+  "category": "user_verbatim",
+  "question": "What did the owner say verbatim as the V-46 task assignment (the key phrase about the core)?",
+  "gold": "«Давай ядро улучшать. Дорабатывать. Технологии квесты и все такое.»",
+  "must_contain": [
+   "ядро улучшать",
+   "Технологии квесты"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   426822
+  ]
+ },
+ {
+  "id": "q3",
+  "category": "path",
+  "question": "What is the branch name for V-46 and which base was it cut from?",
+  "gold": "task-V-46/slipways, from main with V-45",
+  "must_contain": [
+   "task-V-46/slipways"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   426822
+  ]
+ },
+ {
+  "id": "q4",
+  "category": "path",
+  "question": "Where does the V-46 task report/inventory of mechanics live, and how many mechanics did the inventory list?",
+  "gold": ".orchestra/tasks/V-46/inventory.md, 16 mechanics",
+  "must_contain": [
+   ".orchestra/tasks/V-46/inventory.md",
+   "16"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   427192,
+   427211
+  ]
+ },
+ {
+  "id": "q5",
+  "category": "path",
+  "question": "Where are the V-45 run records now stored after V-46 reorganized data, and where do new V-46 runs go?",
+  "gold": "V-45 runs moved to data/runs-v45; V-46 runs in data/runs",
+  "must_contain": [
+   "data/runs-v45",
+   "data/runs"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   429586
+  ]
+ },
+ {
+  "id": "q6",
+  "category": "open_item",
+  "question": "What is the currently running background job for the full V-46 runs, and which bots does it cover?",
+  "gold": "bg-57f6630065: greedy, greedy:gift=2000, rollout (x4); about 3 hours",
+  "must_contain": [
+   "bg-57f6630065",
+   "rollout"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   435738,
+   435749
+  ]
+ },
+ {
+  "id": "q7",
+  "category": "open_item",
+  "question": "After the current full run finishes, what are the remaining planned steps for V-46?",
+  "gold": "Run rollout x8 (~6 more hours), then build stats and the report (report46), CHANGELOG, commit, deploy like V-45",
+  "must_contain": [
+   "rollout",
+   "x8",
+   "report"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   435757,
+   426822
+  ]
+ },
+ {
+  "id": "q8",
+  "category": "prohibition",
+  "question": "What is the rule about deleting files/directories (recursive rm), which was enforced by a hook?",
+  "gold": "Never use rm -r; move files to trash (hook blocks recursive rm)",
+  "must_contain": [
+   "trash"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   430953
+  ]
+ },
+ {
+  "id": "q9",
+  "category": "prohibition",
+  "question": "What must not be touched during the V-46 deploy, and how should it be deployed?",
+  "gold": "Do not touch /balatro/; deploy atomically like V-45 and check neighbors before and after",
+  "must_contain": [
+   "balatro",
+   "atomic"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   426822
+  ]
+ },
+ {
+  "id": "q10",
+  "category": "owner_decision",
+  "question": "How was coordination with slipways-notime (V-47) on engine.js agreed: signature of newGame and merge order?",
+  "gold": "newGame(map, diff, opts) with opts={features, years}; s.years may be Infinity (lambda branch kept); V-46 merges first, V-47 rebases",
+  "must_contain": [
+   "opts",
+   "Infinity",
+   "first"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   427497,
+   427514
+  ]
+ },
+ {
+  "id": "q11",
+  "category": "number",
+  "question": "Speed benchmark: how long did greedy (40 games) and rollout (6 games) take on the V-45 engine vs V-46 engine with all V-46 mechanics?",
+  "gold": "V-45: greedy 13.7 s, rollout 122 s; V-46 all mechanics: greedy 149.4 s, rollout 1241 s (about 10x slower)",
+  "must_contain": [
+   "13734",
+   "149400"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   430794
+  ]
+ },
+ {
+  "id": "q12",
+  "category": "number",
+  "question": "What are the current tuned bot parameters for science: scienceValue, labSites, maxLabs, projectReserve, saveFor?",
+  "gold": "scienceValue 80, labSites 8, maxLabs 10, projectReserve 200 (decays with time), saveFor 999 (disabled)",
+  "must_contain": [
+   "80",
+   "10",
+   "200",
+   "999"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   428755,
+   432350,
+   435718
+  ]
+ },
+ {
+  "id": "q13",
+  "category": "number",
+  "question": "With 2000 science handed at the start, what does greedy score on Forgiving vs without the gift (per last report to the orchestrator)?",
+  "gold": "24,046 vs 15,267",
+  "must_contain": [
+   "24,046",
+   "15,267"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   435757
+  ]
+ },
+ {
+  "id": "q14",
+  "category": "open_item",
+  "question": "What defect caused bankruptcies in Reasonable greedy games and how was it fixed?",
+  "gold": "Lab upkeep grows quadratically and labs can't be demolished; bot builds a lab only if yearly income stays >=20 after (labIncomeFloor) and penalizes negative income (negIncome 100)",
+  "must_contain": [
+   "20",
+   "income"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   435749,
+   435310
+  ]
+ },
+ {
+  "id": "q15",
+  "category": "number",
+  "question": "How many of 100 greedy Reasonable games were bankrupt before the fix?",
+  "gold": "5",
+  "must_contain": [
+   "5"
+  ],
+  "importance": 1,
+  "evidence_log_ids": [
+   435068,
+   435757
+  ]
+ },
+ {
+  "id": "q16",
+  "category": "open_item",
+  "question": "Which greedy run variants from the stopped run were kept, and why?",
+  "gold": "greedy rules=m (multi-import only) and rules=mc (multi-import + council): rerun of 5 maps per difficulty gave identical scores",
+  "must_contain": [
+   "rules=m",
+   "rules=mc"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   435725,
+   435757
+  ]
+ },
+ {
+  "id": "q17",
+  "category": "number",
+  "question": "What V-45 baseline results must V-46 be compared against (best bot and greedy scores)?",
+  "gold": "greedy 7887/6780; rollout x4 9023/8315; rollout x8 9356/8714 (Forgiving/Reasonable)",
+  "must_contain": [
+   "9356",
+   "8714"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   427168
+  ]
+ },
+ {
+  "id": "q18",
+  "category": "path",
+  "question": "Which new KB file was created in V-46 and what is it about?",
+  "gold": ".orchestra/kb/slipways-rules.md — non-obvious game rules from game code (Need.Wants, quests, Esteem, techs, labs)",
+  "must_contain": [
+   "slipways-rules.md"
+  ],
+  "importance": 1,
+  "evidence_log_ids": [
+   432369
+  ]
+ },
+ {
+  "id": "q19",
+  "category": "path",
+  "question": "Where is the decompiled game source and unpacked game data used as the read-only source of truth?",
+  "gold": "/home/kesha/slipways-decomp-v43 (C#) and /home/kesha/slipways-data-v43 (py/xls data); tables at /tmp/slipways-xls-full",
+  "must_contain": [
+   "slipways-decomp-v43",
+   "slipways-data-v43"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   426851,
+   426855
+  ]
+ },
+ {
+  "id": "q20",
+  "category": "prohibition",
+  "question": "How must heavy runs be launched in V-46 and what is the process-stop caveat found?",
+  "gold": "Via bg_create or ssh kesha@localhost; to stop a run cancel the bg job and kill the node run_bots processes (bg_cancel alone left them running)",
+  "must_contain": [
+   "bg_create",
+   "ssh kesha@localhost"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   426822,
+   431190
+  ]
+ }
+]

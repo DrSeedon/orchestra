@@ -1,0 +1,8 @@
+{
+ "method": "mapred3",
+ "case": "University-orchestrator-403387",
+ "sec": 196.8,
+ "cost": 3.838,
+ "calls": 12,
+ "summary_chars": 13464
+}

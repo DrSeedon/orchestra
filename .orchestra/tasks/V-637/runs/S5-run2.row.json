@@ -1,0 +1,20 @@
+{
+ "scenario": "S5",
+ "tag": "S5-run2",
+ "ok": true,
+ "detail": "3 new tasks [6, 7, 8], answer states total",
+ "seconds": 14,
+ "timed_out": false,
+ "turns": 1,
+ "turns_failed": 0,
+ "tool_calls": 4,
+ "tool_errors": 0,
+ "loop_errors": 0,
+ "in_tokens": 4561,
+ "out_tokens": 665,
+ "tools_by_name": {
+  "task_create": 3,
+  "task_list": 1
+ },
+ "final_text": "Всего задач в трекере: 7.\n\nНомера новых:\n- Собрать подтверждение российского происхождения ПО — №6\n- Подготовить расчёт доли иностранных выплат — №7\n- Оформить заявление в реестр — №8"
+}

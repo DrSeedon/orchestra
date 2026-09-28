@@ -1,0 +1,1 @@
+{"tag": "S7-run1", "ok": false, "detail": "unittest exit 1, 2 passed: 'se\\n    with self.assertRaises(LicenseError):\\nAssertionError: LicenseError not raised\\n\\n----------------------------------------------------------------------\\nRan 3 tests in 0.001s\\n\\nFAILED (failures=1)\\n'", "seconds": 65, "turns": 3, "tool_calls": 28, "tool_errors": 6, "loop_errors": 0}

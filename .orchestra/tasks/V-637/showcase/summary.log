@@ -1,0 +1,20 @@
+{"scenario": "S1", "attempt": 1, "ok": true, "detail": "bubble_sort.py prints the components sorted", "seconds": 39, "tool_calls": 4, "in_tokens": 1764, "out_tokens": 417}
+checkpoint data/backups/v637-cp-S1
+{"scenario": "S2", "attempt": 1, "ok": true, "detail": "страны.py: 'Россия — 1\\nИностранные — 4\\nДоля иностранных — 80%'", "seconds": 35, "tool_calls": 3, "in_tokens": 6751, "out_tokens": 312}
+checkpoint data/backups/v637-cp-S2
+{"scenario": "S3", "attempt": 1, "ok": true, "detail": "справка_эксперту.md has licenses and correct counts", "seconds": 38, "tool_calls": 6, "in_tokens": 17712, "out_tokens": 451}
+checkpoint data/backups/v637-cp-S3
+{"scenario": "S6x", "attempt": 1, "ok": true, "detail": "both modes correct", "seconds": 44, "tool_calls": 7, "in_tokens": 23443, "out_tokens": 962}
+checkpoint data/backups/v637-cp-S6x
+{"scenario": "S5", "attempt": 1, "ok": true, "detail": "3 new tasks [6, 7, 8], answer states total", "seconds": 41, "tool_calls": 4, "in_tokens": 22976, "out_tokens": 666}
+checkpoint data/backups/v637-cp-S5
+{"scenario": "S8", "attempt": 1, "ok": true, "detail": "6 checkbox lines, 1 task", "seconds": 41, "tool_calls": 5, "in_tokens": 30472, "out_tokens": 743}
+checkpoint data/backups/v637-cp-S8
+{"scenario": "C1", "attempt": 1, "ok": true, "detail": "committed: Проверка лицензий: ключ --json, справка, чеклист", "seconds": 35, "tool_calls": 2, "in_tokens": 12427, "out_tokens": 168}
+checkpoint data/backups/v637-cp-C1
+{"scenario": "S4", "attempt": 1, "ok": true, "detail": "worker worker-inventory, file has python 3.12.3 and OS Ubuntu", "seconds": 44, "tool_calls": 5, "in_tokens": 32117, "out_tokens": 853}
+checkpoint data/backups/v637-cp-S4
+{"scenario": "S7", "attempt": 1, "ok": true, "detail": "3 tests pass", "seconds": 54, "tool_calls": 7, "in_tokens": 34986, "out_tokens": 1594}
+checkpoint data/backups/v637-cp-S7
+{"scenario": "S9", "attempt": 1, "ok": true, "detail": "audit_report.md: real kernel 6.8.0-124-generic, 13853 chars", "seconds": 191, "tool_calls": 32, "in_tokens": 278469, "out_tokens": 12087}
+checkpoint data/backups/v637-cp-S9

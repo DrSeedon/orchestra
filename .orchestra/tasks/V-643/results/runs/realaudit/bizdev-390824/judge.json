@@ -1,0 +1,86 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q4": {
+  "score": 1,
+  "why": "third-party contribution and unknown citizenship both stated"
+ },
+ "q5": {
+  "score": 0.5,
+  "why": "items 4–7 identified, but contents of 5–7 UNKNOWN"
+ },
+ "q6": {
+  "score": 0.5,
+  "why": "hash correct, file count not given (guessed 6, gold 7)"
+ },
+ "q7": {
+  "score": 1,
+  "why": "/docx, pandoc forbidden"
+ },
+ "q8": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q9": {
+  "score": 1,
+  "why": "date, laptop, CryptoPro correct"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "closed cabinets correct, how to get data unknown (director brings it)"
+ },
+ "q11": {
+  "score": 1,
+  "why": "matches gold"
+ },
+ "q11b": {
+  "score": 1,
+  "why": "verbatim quote matches"
+ },
+ "q12": {
+  "score": 1,
+  "why": "path and commit match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "rental 19,200/12 mo = 1,600/mo, 211k breakeven, 1% match"
+ },
+ "q14": {
+  "score": 0.5,
+  "why": "3%/day and 33.3 days correct, but cites a different article and not art. 28 p. 5"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "legal entities/IE only and 8 void points correct; consumer-status confirmation and refusal right not stated"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Stars and not shown to mobile users"
+ },
+ "q17": {
+  "score": 1,
+  "why": "matches gold"
+ },
+ "q18": {
+  "score": 1,
+  "why": "matches gold"
+ },
+ "q19": {
+  "score": 1,
+  "why": "IP and kad.arbitr.ru correct"
+ },
+ "q20": {
+  "score": 1,
+  "why": "matches gold"
+ }
+}

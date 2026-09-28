@@ -1,0 +1,24 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run2",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "vps_audit_report.json: real kernel 6.8.0-136-generic, 2386 chars",
+ "seconds": 123,
+ "timed_out": false,
+ "turns": 3,
+ "turns_failed": 0,
+ "tool_calls": 50,
+ "tool_errors": 4,
+ "loop_errors": 0,
+ "in_tokens": 232338,
+ "out_tokens": 6732,
+ "tools_by_name": {
+  "?": 2,
+  "bash": 39,
+  "read": 4,
+  "spawn_worker": 2,
+  "write": 3
+ },
+ "final_text": "Воркера vps_auditor отработал. Файлы перенесены в /workspace/project:\n\n- vps_audit_report.json — структурированный отчёт (ОС Ubuntu 24.04.4 LTS, ядро 6.8.0-136-generic x86_64; uptime ~53 дня, load avg 0.4/0.42/0.42; память: всего 23Gi, доступно 18Gi; диски: корень заполнен на 94% (19G свободно); сеть eth0 158.220.127.161/20, GW 158.220.112.1; слушают TCP 22/80/443/8081/18082/8443 и UDP 53/41641/443; пользователи с «человеческими» именами присутствуют; root последний раз заходил Mon Aug 3 08:57:42 +0200 2026 из 194.87.250.243; SSH порт 22, PermitRootLogin yes, пароль отключён, ключи включены; Fail2ban и unattended-upgrades активны).\n\n- vps_audit_summary.txt — человекочитаемая сводка тех же фактов.\n\nГотов выполнить точечные проверки по запросу (например, детали fail2ban/xray/hysteria или анализ дискового пространства)."
+}

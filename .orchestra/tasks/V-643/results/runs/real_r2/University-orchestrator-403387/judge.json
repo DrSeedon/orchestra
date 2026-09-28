@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "учёба vs ООО/гранты/ВКР-стартап seedon; all key facts present"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 0.5,
+  "why": "ssh kesha@localhost correct, but no 12G/cgroup reason"
+ },
+ "q4": {
+  "score": 1,
+  "why": "с первого раза, следы в комментариях"
+ },
+ "q5": {
+  "score": 1,
+  "why": "293 667, 938 323, guard all present"
+ },
+ "q6": {
+  "score": 1,
+  "why": "738 211, 38, 308 МБ match"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "log scale, no sampling correct; missing five new clustering plots"
+ },
+ "q8": {
+  "score": 1,
+  "why": "applieddasfu and file submission present"
+ },
+ "q9": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q10": {
+  "score": 1,
+  "why": "all dates and regulation match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "exact title, verbatim"
+ },
+ "q12": {
+  "score": 1,
+  "why": "Кустицкая and Антипова correct"
+ },
+ "q13": {
+  "score": 1,
+  "why": "all codes and trap correct"
+ },
+ "q14": {
+  "score": 1,
+  "why": "all three tokens present"
+ },
+ "q15": {
+  "score": 0.5,
+  "why": "email and phone correct; form of study missing"
+ },
+ "q16": {
+  "score": 1,
+  "why": "formatting preserved, text substituted, blanks, scripts"
+ },
+ "q17": {
+  "score": 1,
+  "why": "ментор, рецензенты, смена темы all present"
+ },
+ "q18": {
+  "score": 1,
+  "why": "both prohibitions present"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "01.10 and 02.10 present, but 03.10 and 10.10 missing and ЛЗ-1 overdue missing"
+ },
+ "q20": {
+  "score": 0,
+  "why": "UNKNOWN"
+ }
+}

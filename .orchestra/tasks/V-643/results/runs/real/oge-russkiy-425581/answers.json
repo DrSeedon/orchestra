@@ -1,0 +1,22 @@
+{
+ "q1": "UNKNOWN",
+ "q2": "«Очень мелкий шрифт много текста много цветов нет картинок» (Katya's words rejecting the deck; the summary does not mention a 23-slide deck specifically)",
+ "q3": "Body text ≥24 pt, titles ≥36 pt, key numbers ≥60 pt (source footers may be smaller); one idea per slide, ~25–30 words max; max 2 accent colours plus background and text, taken from her master template",
+ "q4": "/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx, 15 layouts",
+ "q5": "Limit $1 per day for the whole project; spent $0",
+ "q6": "Outputs: artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf (gitignored). Script .orchestra/tasks/V-8/build_deck.py and report .orchestra/tasks/V-8/report.md (committed in git)",
+ "q7": "8 — нормы, 9 — словосочетания (грамматическая синонимия), 10 — смысл текста, 11 — выразительность, 12 — лексика (lexical analysis of a word); 7 tiles is allowed if needed",
+ "q8": "«В двух форматах» means pptx and PDF; no hard split of mini-tasks into two types; they can differ (question with answer on click, task on a demo crop, «найди ошибку», «выбери вариант», etc.), choose the format that suits the block",
+ "q9": "Answer keys only from FIPI demo tables and criteria (or indisputable ones); no disputable classification keys",
+ "q10": "Builder .orchestra/tasks/V-3/build_deck.py (slides 3–14 with element-by-element appearance), report .orchestra/tasks/V-7/report.md; output artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+ "q11": "Animations were verified via XML and LibreOffice, but not run live in PowerPoint or Keynote",
+ "q12": "38 points, 13 tasks, 235 min, ГК 3/2/1/0, СК2 max 4",
+ "q13": "UNKNOWN",
+ "q14": "UNKNOWN",
+ "q15": "Did not make a «куда вставить цитату» mini-task: the 2027 interview has no «пересказ с цитатой» task; task 2 is «Беседа по тексту» with 5 questions, quote only in question 5, and 2027 documents give no key for it",
+ "q16": "1a6a611; 51 slides",
+ "q17": "Text overlapping the circle: slide 7 («Пишем ключевые слова» at step 2) and check slide 19; labels moved out so there is a gap between them and the circle",
+ "q18": "UNKNOWN",
+ "q19": "In the PDF, give the final state of each animated slide as separate pages",
+ "q20": "72 + 66 words: 0 points for grammar; 65-word summary: 0 points"
+}

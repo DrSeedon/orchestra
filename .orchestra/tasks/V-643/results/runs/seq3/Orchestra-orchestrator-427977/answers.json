@@ -1,0 +1,22 @@
+{
+ "q1": "Raw events are kept forever (not deleted — 'пусть лежат, не много данных'); token per tab.",
+ "q2": "46.7 hours (estimate) for 03–23.09; compared with old method 'message + 10 min thinking' = 101.12 h and burst with 30 min gap (V-57 method) = 163.12 h (also burst 5 min 38.79, 10 min 70.12).",
+ "q3": "Krasnoyarsk (+7).",
+ "q4": "Time counts second by second into the open scope (project); owner demanded exact accounting: 'надо четко считать в каком проекте сижу сколько секунд все бесшовно'.",
+ "q5": "Precompact fix: V-627, worker fix-precompact (Luna). TG incoming messages: V-628, worker tg-incoming (Luna).",
+ "q6": "Owner: 'чини механизм все равно сжимать даже с бг' — precompact timer now fires for IDLE/WAITING sessions even with active bg tasks; it skips only during a running turn or an already running compaction.",
+ "q7": "data/orchestra-pre-v626-20260924.db",
+ "q8": "dnd-game-master fails with ORCHESTRA_LAYOUT_PARTIAL; /opt/cog-second-brain fails with ORCHESTRA_LAYOUT_GIT_ERROR (cannot locate migration commit while recovering stash fb3d4dac…). Data-loss check on VPS: cog's dirty file 02-personal/katya/katya-health-2026-07.md is intact (59398 bytes, not zeroed); dnd not stated.",
+ "q9": "Owner decides time accounting directly with me (seedon-orchestrator, 18:18): 'через меня этот вопрос больше не веди. Мне по этой теме не пиши.' — do not write to seedon about it.",
+ "q10": "Sol (both GPT-6 Sol versions) has agents flag OFF (Sol banned since 20.09); Opus 5.5 effort = medium (pipeline.yaml).",
+ "q11": "No Co-Authored-By trailer in commits (owner rule); don't use `git -c user.*`; never use git stash (shared stack) — use WIP commits.",
+ "q12": "Must be in the orchestrator prompts — common prompts/base.md (.orchestra/pipelines/default/prompts/base.md, <keep-going> block); never in CLAUDE.md.",
+ "q13": "merge_worker fails with 'session has no bound task' for a persistent worker; seedon merged V-44 manually. Proposal: allow branch switch to take over an in-progress task held by a dead session or the same worker. Awaiting owner's word.",
+ "q14": "Branch laptop-preserve-rescue; git gc may delete dangling snapshots from about 27.09.",
+ "q15": "comfy: 7cecfd9 (13.09); kesha-tg-bot: ea7f2c2 (04.09).",
+ "q16": "Tests of restart arm a real exit guard on the pytest PID; V-623 (Opus 5) commit 32b982be, full run 115 failed / 3876 passed (V-624 Opus 5.5 found the same cause plus 8 more tests: 127 failed / 3864 passed).",
+ "q17": "UNKNOWN for the skip_reason; precompact skips before the fix: seedon had 10 skips; seedon's last compaction was 23.09 at 92% (emergency).",
+ "q18": "Variant C: branch switch by default releases the binding; complete_previous + acceptance_note closes the previous task as done.",
+ "q19": "Closed: package already went to Koshelева with the 5th slide redrawn by University; my edits in /tmp/vkrs-review2/ weren't needed; nothing more required from me.",
+ "q20": "dev-lead stays on Opus 5 (stuck on an old branch); media-orchestrator stays on Opus 4.6 (owner's order); the other 16/17 laptop orchestrators are on Opus 5.5. Rule: the Orchestra on the laptop must always be running (fix the hang/cycle)."
+}

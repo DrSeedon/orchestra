@@ -324,6 +324,7 @@ async def test_t3_model_authored_round_guard_prefix_survives_history_cleanup(tmp
 
 class _NoMCP:
     def has_tool(self, name): return False
+    def display_name(self, name): return name
     async def call(self, name, args): return "[noop]"
 
 

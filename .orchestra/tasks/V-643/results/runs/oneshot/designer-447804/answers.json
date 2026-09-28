@@ -1,0 +1,22 @@
+{
+ "q1": "Banned: «первые в России», «аналогов нет», «уже пользуются тысячи». Product does not exist yet: present it as a waitlist and the scenario as an example.",
+ "q2": "Director (24.09 18:30): reels 2 and 3 also to be made, and «звук обязательно — все звуки надо и голос, если получится». Reel 1 to be rebuilt with sound.",
+ "q3": "Voice: local TTS (e.g. Silero) or cloud if a key exists in secrets/; no new paid service without the orchestrator's confirmation. Music: only clean rights: CC0, own generation, or a library with explicit commercial license; record source and license in the report.",
+ "q4": "Label it in the report as a draft voice-over (черновая озвучка) until recorded with the director's live voice; it remains to be re-recorded live by the director.",
+ "q5": "Frame 6 («выиграем ли закупку — узнаем 30 сентября») must be kept; link is seedon.ru; do not show the customer's name on screen.",
+ "q6": "Music under voice −20…−24 LUFS; final reel about −14 LUFS.",
+ "q7": "Vosk TTS vosk-model-tts-ru-0.9-multi (Apache 2.0). Piper rejected: model cards list denis as CC0 and irina as unknown. Silero excluded as non-commercial.",
+ "q8": "/mnt/data/Рабочий стол/СИДОН — документы/Рилсы лист ожидания/ on the director's laptop, via tar over ssh (skill laptop-access).",
+ "q9": "A/B/C: commit 08428bb on branch task-V-75/designer (not merged, not pushed). First motion version: 488f938.",
+ "q10": "Final: A 24.37 s (~24.4), B 24.37 s (~24.4), C 15.0 s. Originally planned: A 22.5 s, B 22.5 s, C 15 s.",
+ "q11": "Director: «прикольно, только по тексту надо разобраться, че там мама хотела — непонятно, типа лепить без галочки вещей». Dynamics and format worked but the story was unclear, so the text was to be rewritten.",
+ "q12": "A «Кроссовки, 38-й размер» 22.5 s (recommended); B «Лепить из глины» 22.5 s (matches landing example, ceramics course); C short 15 s version of A.",
+ "q13": "Hook question, quotes held a full bar, long answer 2 bars, about 25 beats instead of 48, loop, CTA «ссылка в профиле» with a large «СКОРО».",
+ "q14": "out/reel1-motion-A.mp4, out/reel1-motion-B.mp4, out/reel1-motion-C.mp4.",
+ "q15": "Top ~220 px, bottom ~380 px.",
+ "q16": "UNKNOWN",
+ "q17": "UNKNOWN",
+ "q18": "Publish nowhere. Do not commit PNG frames or the cache (only final MP4s, contact sheets and report).",
+ "q19": "128 BPM, 11 scenes of one bar (1.875 s) each; hook «МАМА / СКАЗАЛА, / ЧТО ХОЧЕТ / В ПОДАРОК» one word per beat, then story, fast-cut series before the finale, CTA. File size fix: grain gave a 244 MB file; re-encoded to ~29 MB (x264 slow, crf 20, maxrate 10M, bufsize 20M).",
+ "q20": "Cause unknown, because the output was not saved. Change: build logs now go to out/build.log and out/motion-abc.log."
+}

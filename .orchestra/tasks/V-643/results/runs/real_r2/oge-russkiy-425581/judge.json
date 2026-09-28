@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q2": {
+  "score": 0.5,
+  "why": "Says UNKNOWN for second deck; quotes the words but attributes to first deck. Contains all phrases, but hedged/attribution unclear"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24/36/60, 25–30 words, 2 accent colours all present"
+ },
+ "q4": {
+  "score": 1,
+  "why": "Path and 15 layouts match"
+ },
+ "q5": {
+  "score": 1,
+  "why": "$1 per day, $0 spent"
+ },
+ "q6": {
+  "score": 1,
+  "why": "All paths and git status match"
+ },
+ "q7": {
+  "score": 1,
+  "why": "Matches gold tiles"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx and PDF, no rigid split, click-answer variants"
+ },
+ "q9": {
+  "score": 1,
+  "why": "Demo keys only, no disputed keys"
+ },
+ "q10": {
+  "score": 1,
+  "why": "Builder, report and output all match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "XML/LibreOffice only, not PowerPoint or Keynote"
+ },
+ "q12": {
+  "score": 1,
+  "why": "38, 13, 235, ГК scale and СК2 4 present"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN; key numbers 17/10/15–16 missing"
+ },
+ "q15": {
+  "score": 1,
+  "why": "Matches: no such task, Беседа по тексту 5 questions, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Hash and 51 slides match"
+ },
+ "q17": {
+  "score": 1,
+  "why": "Slides 7 and 19, gap between labels and circle"
+ },
+ "q18": {
+  "score": 0,
+  "why": "UNKNOWN; only partial side facts, no rule set"
+ },
+ "q19": {
+  "score": 0.5,
+  "why": "Final-state pages given, XML check missing"
+ },
+ "q20": {
+  "score": 1,
+  "why": "Both 0"
+ }
+}

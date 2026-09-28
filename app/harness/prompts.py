@@ -18,11 +18,28 @@ Prefer read before write/edit. Keep changes minimal and verify with bash when us
 """.strip()
 
 
-def build_system_prompt(base: str, has_own_tools: bool = True) -> str:
+# GigaChat returns at most one function_call per reply, and without an explicit rule
+# GigaChat-2-Max wrote `ls`/`python` and invented their output as text (V-636).
+_SINGLE_CALL_GUIDELINES = """
+Call exactly one function per reply; its result arrives in the next message.
+Never write a command or its output as text: call bash (or read/glob) and report only what it actually returned.
+""".strip()
+
+
+def build_system_prompt(base: str, has_own_tools: bool = True, *, cwd: str = "",
+                        single_call: bool = False) -> str:
     """base = Orchestra role prompt; append concise tool guidelines."""
     parts = [base.strip()] if base and base.strip() else []
     if has_own_tools:
-        parts.append(_TOOL_GUIDELINES)
+        guidelines = _TOOL_GUIDELINES
+        if single_call:
+            guidelines = guidelines.replace(
+                "Independent tool calls (several reads, several greps) go in ONE reply — "
+                "each reply costs one API request.\n", "")
+            guidelines += "\n" + _SINGLE_CALL_GUIDELINES
+        if cwd:
+            guidelines += f"\nWorkspace directory (cwd of every tool): {cwd}"
+        parts.append(guidelines)
     return "\n\n".join(parts)
 
 

@@ -1,0 +1,22 @@
+{
+ "scenario": "S9",
+ "tag": "S9-run2",
+ "user_messages": 2,
+ "ok": true,
+ "detail": "system_audit_summary.txt: real kernel 6.8.0-136-generic, 807 chars",
+ "seconds": 329,
+ "timed_out": false,
+ "turns": 4,
+ "turns_failed": 0,
+ "tool_calls": 21,
+ "tool_errors": 7,
+ "loop_errors": 0,
+ "in_tokens": 92153,
+ "out_tokens": 10197,
+ "tools_by_name": {
+  "bash": 15,
+  "read": 5,
+  "spawn_worker": 1
+ },
+ "final_text": "Готово. В рабочей папке созданы:\n- system_audit_summary.txt — краткое резюме.\n- system_audit_report.json — подробный отчёт (JSON).\n\nКлючевые факты из сводки:\n- ОС: Ubuntu 24.04.4 LTS; ядро: 6.8.0-136-generic; архитектура x86_64; хост vmi3407579; uptime ~7 недель.\n- Текущий пользователь kesha (UID 1001). Пользователи с UID≥1000: nobody, kesha, codexproxy, tailscaleadmin, pbwin.\n- SUID-файлов: 13; SGID-файлов: 7.\n- Топ по памяти: PID 2052793 (~4.7% MEM) — /opt/kesha-bot/.venv/bin/python3 bot.py.\n- systemd: активных служб 35, сбойных нет.\n- Слушающих портов: 47 (включая SSH и веб-порты); точек монтирования в df -h: 8.\n- Нагрузка: load average 1.36/1.26/1.17; процессов/runnable 5/911.\n- Память: Total ≈ 24608 MB, Available ≈ 18340 MB.\n- Cron пользователя: отсутствует; файлов в /etc/cron.d: 6; системных таймеров: 22.\n\nЕсли нужно углубиться (например, показать примеры SUID/SGID или детали сетевых соединений), скажи какие разделы раскрыть подробнее."
+}

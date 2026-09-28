@@ -1,0 +1,23 @@
+{
+ "q1": "UNKNOWN",
+ "q2": "UNKNOWN (only the first deck's rejection is recorded: «Очень мелкий шрифт много текста много цветов нет картинок»)",
+ "q3": "Orchestrator's spec: body text ≥24 pt, titles ≥36 pt, key numbers ≥60 pt (doubled in file on 26.67×15″ canvas: ≥48/80/120); one idea per slide, ~25–30 words max (builder limit ≤30, source footer excluded); max 2 accent colours plus background and text, taken from her master (BORDO 732117, TINT E8D3BE, CREAM FCF9DC, INK 3D2B1F)",
+ "q4": "/home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx, 15 layouts",
+ "q5": "Limit $1 per day for the whole project; spent $0",
+ "q6": "Outputs: artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf (gitignored). Script .orchestra/tasks/V-8/build_deck.py and report .orchestra/tasks/V-8/report.md (committed)",
+ "q7": "8 — нормы, 9 — словосочетания (грамматическая синонимия словосочетаний), 10 — смысл текста, 11 — выразительность (выразительные средства), 12 — лексика (лексический анализ слова); 7 tiles also allowed",
+ "q8": "«В двух форматах» means pptx and PDF; there is no rigid split of mini-tasks into two types — they may be varied (question with click answer, task on a demo crop, find the error, choose an option, etc.), choose the format that fits the block",
+ "q9": "Answer keys only from FIPI demo tables and criteria (or indisputable); no disputed classification keys",
+ "q10": "Builder .orchestra/tasks/V-3/build_deck.py (slides 3–14), report .orchestra/tasks/V-7/report.md; output artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+ "q11": "Animations were checked via XML and LibreOffice (check_anim.py) but not run live in PowerPoint or Keynote",
+ "q12": "38 points, 13 tasks, 235 min, ГК 3/2/1/0, СК2 max 4",
+ "q13": "UNKNOWN",
+ "q14": "UNKNOWN (in summary only: 5 min preparation for tasks 1 and 2, task 2 has 5 questions, monologue min 10 sentences and up to 3 minutes, Ч3 word misread = 0 points)",
+ "q15": "Did not make a 'where to insert the quote' mini-task: the 2027 interview has no 'пересказ с цитатой' task; task 2 is «Беседа по тексту» with 5 questions, the quote only in question 5, and 2027 documents give no key for it",
+ "q16": "1a6a611; 51 slides (PDF 51 pages)",
+ "q17": "Text overlapping the circle: slide 7 («Пишем ключевые слова» at step 2) and check slide 19; move labels out so there is a gap between labels and circle",
+ "q18": "UNKNOWN (only that numbers were already checked against FIPI and must not be changed; all FIPI 2027 documents are drafts «ПРОЕКТ»)",
+ "q19": "In the PDF, give the final state of each slide with appearance animation as separate pages",
+ "q20": "72 + 66 words grammar: 0 points; 65-word summary (изложение): 0 points",
+ "q21": "UNKNOWN"
+}

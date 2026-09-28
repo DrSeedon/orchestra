@@ -1,0 +1,14 @@
+{
+ "scenario": "S1",
+ "attempt": 1,
+ "ok": true,
+ "detail": "bubble_sort_components.py prints the components sorted",
+ "seconds": 45,
+ "user_messages": 1,
+ "turns": 1,
+ "in_tokens": 190805,
+ "out_tokens": 442,
+ "tool_calls": 4,
+ "tool_errors": 0,
+ "final_text": "Готово. Отсортированный по названию список компонентов:\n\nкомпонент;лицензия;страна правообладателя\nFastAPI;MIT;США\nPydantic;MIT;Великобритания\nSQLite;Public Domain;США\nUvicorn;BSD-3-Clause;Великобритания\nМодуль оркестрации;Проприетарная;Россия"
+}

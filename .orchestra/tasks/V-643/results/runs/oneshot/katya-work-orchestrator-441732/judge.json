@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 0.5,
+  "why": "Has сочинение, СК2, 2 примера + пояснения, but says Katya hasn't confirmed; lacks 'Katya was told' framing; roughly matches"
+ },
+ "q2": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q3": {
+  "score": 1,
+  "why": "Replace copy only after Katya's 'да'"
+ },
+ "q4": {
+  "score": 1,
+  "why": "ee35804 and 74 pages"
+ },
+ "q5": {
+  "score": 1,
+  "why": "ID and folder match"
+ },
+ "q6": {
+  "score": 0.5,
+  "why": "Deadline UNKNOWN (gold 12:00); draft plan Oct–May correct"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "Has не очень, 11 класс, тройка; misses карточки replacement"
+ },
+ "q8": {
+  "score": 1,
+  "why": "Both hashes present, correct"
+ },
+ "q9": {
+  "score": 1,
+  "why": "43 slides, 60 pages"
+ },
+ "q10": {
+  "score": 0.5,
+  "why": "Commit correct; folder given as IDs, not 'Старые материалы' but next to presentation"
+ },
+ "q11": {
+  "score": 1,
+  "why": "4 pages instead of 2–3, 43 slides"
+ },
+ "q12": {
+  "score": 1,
+  "why": "403 exportSizeLimitExceeded, rclone"
+ },
+ "q13": {
+  "score": 1,
+  "why": "rclone about iskra:, else 403"
+ },
+ "q14": {
+  "score": 1,
+  "why": "Hook blocks rm -r, trash-put"
+ },
+ "q15": {
+  "score": 1,
+  "why": "All rules match"
+ },
+ "q16": {
+  "score": 1,
+  "why": "Both folders, no publishing, trash"
+ },
+ "q17": {
+  "score": 1,
+  "why": "Branch, hash, plan not shown"
+ },
+ "q18": {
+  "score": 1,
+  "why": "7–10 posts, ВК link, topics offered"
+ },
+ "q19": {
+  "score": 1,
+  "why": "Both IDs match"
+ },
+ "q20": {
+  "score": 1,
+  "why": "Lessons and bf8bbcf present"
+ }
+}

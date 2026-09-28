@@ -1,0 +1,23 @@
+{
+ "scenario": "S6",
+ "tag": "chain-S6-run1",
+ "user_messages": 1,
+ "ok": true,
+ "detail": "both modes correct",
+ "seconds": 20,
+ "timed_out": false,
+ "turns": 1,
+ "turns_failed": 0,
+ "tool_calls": 11,
+ "tool_errors": 0,
+ "loop_errors": 0,
+ "in_tokens": 39280,
+ "out_tokens": 907,
+ "tools_by_name": {
+  "?": 3,
+  "bash": 2,
+  "edit": 4,
+  "read": 2
+ },
+ "final_text": "Готово. проверка_лицензий.py доработана: добавлен флаг --json.\n\nПроверка:\n- Без ключа — печатает построчно и итог (допустимо 5, требует проверки 0).\n- С ключом --json — выводит только {\"допустимо\": 5, \"требует_проверки\": 0}."
+}

@@ -1,0 +1,23 @@
+{
+ "scenario": "S6",
+ "tag": "S6-run6",
+ "user_messages": 1,
+ "ok": false,
+ "detail": "--json output is not JSON: 'FastAPI — MIT — допустима\\nSQLite — Public Domain — допустима\\nUvicorn — BSD-3-Clause — допустима\\nPydantic — MIT — допустима\\nМодуль оркестрации — Проприетарная — допустима\\nИтого: допустимо — 5, требует '",
+ "seconds": 20,
+ "timed_out": false,
+ "turns": 1,
+ "turns_failed": 0,
+ "tool_calls": 10,
+ "tool_errors": 3,
+ "loop_errors": 0,
+ "in_tokens": 9333,
+ "out_tokens": 962,
+ "tools_by_name": {
+  "?": 2,
+  "edit": 5,
+  "glob": 1,
+  "read": 2
+ },
+ "final_text": "<()>\n<tool_call name=\"read\">\n<tool_parameter name=\"path\" string=\"true\">проверка_лицензий.py</tool_parameter>\n</tool_call>"
+}

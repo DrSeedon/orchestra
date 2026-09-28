@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "42, 90+42+10+33+60=235 all present"
+ },
+ "q2": {
+  "score": 1,
+  "why": "exact quote"
+ },
+ "q3": {
+  "score": 1,
+  "why": "24/36/60, 25–30 words, 2 accent colours"
+ },
+ "q4": {
+  "score": 1,
+  "why": "path and 15 layouts match"
+ },
+ "q5": {
+  "score": 1,
+  "why": "$1 limit, $0 spent"
+ },
+ "q6": {
+  "score": 1,
+  "why": "paths, git status correct"
+ },
+ "q7": {
+  "score": 1,
+  "why": "all five tiles correctly mapped"
+ },
+ "q8": {
+  "score": 1,
+  "why": "pptx/PDF, no rigid split, click-reveal variety"
+ },
+ "q9": {
+  "score": 1,
+  "why": "demo keys or indisputable, no disputable keys"
+ },
+ "q10": {
+  "score": 1,
+  "why": "all paths match"
+ },
+ "q11": {
+  "score": 1,
+  "why": "PowerPoint/Keynote unverified, XML/LibreOffice only"
+ },
+ "q12": {
+  "score": 1,
+  "why": "13, 38, 235 plus scales present"
+ },
+ "q13": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q14": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q15": {
+  "score": 1,
+  "why": "Беседа по тексту, five questions, no key"
+ },
+ "q16": {
+  "score": 1,
+  "why": "1a6a611 and 51 slides"
+ },
+ "q17": {
+  "score": 1,
+  "why": "slides 7 and 19, gap between labels and circle"
+ },
+ "q18": {
+  "score": 0.5,
+  "why": "FIPI, ПРОЕКТ, nothing from memory present; missing publish/send nothing rule"
+ },
+ "q19": {
+  "score": 1,
+  "why": "XML check and final-state pages in PDF"
+ },
+ "q20": {
+  "score": 1,
+  "why": "both 0 points"
+ }
+}

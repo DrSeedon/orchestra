@@ -487,7 +487,7 @@ async def test_protocol_unexpected_empty_exception_keeps_class_name(monkeypatch)
 
     monkeypatch.setattr(m, "_api", AsyncMock(side_effect=RuntimeError()))
 
-    result = await _protocol_call(m, "send_message", {"to": "worker", "message": "hi"})
+    result = await _protocol_call(m, "send_message", {"to": "coder", "message": "hi"})
 
     assert result.isError is True
     assert result.structuredContent["error"]["code"] == "tool_error"
@@ -2189,6 +2189,24 @@ async def test_send_message_cross_scope_warning(monkeypatch):
     with patch.object(m, "_api", side_effect=fake_api):
         out = await m.send_message(to="coder", message="hi")
     assert "⚠️" in out or "warning" in out.lower() or "orch-b" in out
+
+
+@pytest.mark.asyncio
+async def test_send_message_to_self_is_refused_before_delivery(monkeypatch):
+    """A self-message wakes a turn that repeats it: endless loop on the stand (V-636)."""
+    import app.mcp_stdio as m
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "orchestrator")
+    api = AsyncMock(return_value={"ok": True})
+    monkeypatch.setattr(m, "_api", api)
+
+    with pytest.raises(m.ApiToolError) as refused:
+        await m.send_message(to="orchestrator", message="сделай сам")
+    assert refused.value.details == {"field": "to"}
+    api.assert_not_awaited()
+
+    await m.send_message(to="helper", message="сделай")
+    api.assert_awaited_once()
 
 
 @pytest.mark.asyncio

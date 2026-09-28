@@ -1,0 +1,9 @@
+{
+ "scenario": "S1",
+ "ok": true,
+ "detail": "bubble_sort.py prints the components sorted",
+ "seconds": 38,
+ "user_messages": 1,
+ "tool_calls": 3,
+ "final_text": "Сортировка пузырьком по названию компонента выполнена. Результат:\n\nкомпонент;лицензия;страна правообладателя\nFastAPI;MIT;США\nPydantic;MIT;Великобритания\nSQLite;Public Domain;США\nUvicorn;BSD-3-Clause;Великобритания\nМодуль оркестрации;Проприетарная;Россия"
+}

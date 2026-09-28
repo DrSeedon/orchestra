@@ -1,0 +1,303 @@
+[
+ {
+  "id": "q1",
+  "category": "owner_decision",
+  "question": "When the owner was asked what scale to build the Slipways simulator at, what did they answer, and which task did that create?",
+  "gold": "«ядро бот»: core simulator plus bot (no technologies, perks, races or events); task V-44",
+  "must_contain": [
+   "ядро",
+   "бот",
+   "V-44"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   417330,
+   417333
+  ]
+ },
+ {
+  "id": "q2",
+  "category": "path",
+  "question": "Where is the report of the first Slipways research (rules from open sources, wiki/Steam), and at which commit was it accepted?",
+  "gold": ".orchestra/tasks/V-42/report.md, commit 3ae93ff",
+  "must_contain": [
+   "V-42/report.md",
+   "3ae93ff"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   415566,
+   415587
+  ]
+ },
+ {
+  "id": "q3",
+  "category": "path",
+  "question": "Which task, branch and commit hold the exact Slipways rules extracted from the installed game (score formula, slipway cost)?",
+  "gold": "V-43, branch task-V-43/slipways-extract, commit c0ac749, report .orchestra/tasks/V-43/report.md",
+  "must_contain": [
+   "V-43",
+   "c0ac749"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   417048,
+   417070
+  ]
+ },
+ {
+  "id": "q4",
+  "category": "number",
+  "question": "What are the base scores for a planet of level 1/2/3/4 in the recovered Slipways formula, and how much is each empire-size level worth?",
+  "gold": "80/160/320/640 per planet; empire_size 400 per level",
+  "must_contain": [
+   "80",
+   "640",
+   "400"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   417093,
+   417071
+  ]
+ },
+ {
+  "id": "q5",
+  "category": "number",
+  "question": "What score levels does the game use for ranks and stars (which score gives the 5th star, what is the maximum)?",
+  "gold": "12 000 = 5th star (gold); then 16 000, 20 000, 24 000, max 30 000; 10 ranks (0–9)",
+  "must_contain": [
+   "12 000",
+   "30 000"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   417093
+  ]
+ },
+ {
+  "id": "q6",
+  "category": "number",
+  "question": "What is the penalty for unfinished council quests in Slipways scoring, and from which year does it apply?",
+  "gold": "−500 per unfinished quest, only from year 20",
+  "must_contain": [
+   "500",
+   "20"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   417093
+  ]
+ },
+ {
+  "id": "q7",
+  "category": "number",
+  "question": "What did the V-43 extraction find that contradicts the V-42 wiki reconstruction? Give the Forgiving trade base_value and the Everted slipway multiplier.",
+  "gold": "Forgiving base_value = 8 (not 7); Everted slipway ×1.6 (not ×2)",
+  "must_contain": [
+   "8",
+   "1.6"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   417048,
+   417093
+  ]
+ },
+ {
+  "id": "q8",
+  "category": "number",
+  "question": "According to V-43, what are the slipway cost base and range constants, and is there a hard limit on the number of ports per planet?",
+  "gold": "base_cost=6, base_distance=1.223×3.8, range=2.82×3.8; no hard port limit, only a geometric crossing check",
+  "must_contain": [
+   "6",
+   "2.82",
+   "нет"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   417048
+  ]
+ },
+ {
+  "id": "q9",
+  "category": "number",
+  "question": "How was the owner's June 13 042 score explained by the recovered formula (pre-multiplier total, happiness multiplier, sector debuff)?",
+  "gold": "13600 × 1.37 (happiness) = 18632, × 0.70 (sector quirk −30%, applied last) = 13042",
+  "must_contain": [
+   "18632",
+   "0.70",
+   "13042"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   417071,
+   417093
+  ]
+ },
+ {
+  "id": "q10",
+  "category": "number",
+  "question": "What are the owner's best Slipways run in the save file (score, stars, seed)?",
+  "gold": "14126, 5 stars, seed JRJ-AWIQZXFKC (11 Sept)",
+  "must_contain": [
+   "14126",
+   "JRJ-AWIQZXFKC"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   416240,
+   416270
+  ]
+ },
+ {
+  "id": "q11",
+  "category": "open_item",
+  "question": "Which part of the Slipways spec did V-43 honestly not finish, and what does it mean for the bot's maps?",
+  "gold": "Deep RNG algorithm seed→map not reverse-engineered; the maps are approximate (our own), not identical to the game's by seed",
+  "must_contain": [
+   "генерац",
+   "карт"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   417048,
+   417359
+  ]
+ },
+ {
+  "id": "q12",
+  "category": "path",
+  "question": "How do you reach the owner's laptop from the VPS to read the Slipways game and saves, and where are the game and saves?",
+  "gold": "ssh -i /home/kesha/.ssh/tunnel_laptop -p 2222 maxim@127.0.0.1 (reverse tunnel); game /mnt/data/Games/Slipways, saves under /home/maxim/.wine_slipways/.../Beetlewing/Slipways/saves/runs",
+  "must_contain": [
+   "2222",
+   "tunnel_laptop",
+   "/mnt/data/Games/Slipways"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   416207,
+   416215,
+   416226
+  ]
+ },
+ {
+  "id": "q13",
+  "category": "path",
+  "question": "Where and how was Slipways published on the VPS (directory scheme and URL path)?",
+  "gold": "/var/www/cog-slipways/releases/<sha> with `current` symlink, via ssh kesha@localhost sudo cp + nginx reload; URL https://photo-158-220-127-161.sslip.io/slipways/",
+  "must_contain": [
+   "/var/www/cog-slipways",
+   "/slipways/"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   421063,
+   421064,
+   421071
+  ]
+ },
+ {
+  "id": "q14",
+  "category": "owner_decision",
+  "question": "What is the open question to the owner about Balatro's joker catalog, and has it been answered?",
+  "gold": "Whether to open money and shop mechanics (25 locked jokers, largest group); no answer",
+  "must_contain": [
+   "деньги",
+   "магазин",
+   "25"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   397443
+  ]
+ },
+ {
+  "id": "q15",
+  "category": "number",
+  "question": "What is the main Balatro result of the day: the best set's blind count versus baseline, on which policy, and the delta with its confidence interval?",
+  "gold": "blueprint+blue+half on policy v9: 13.567 vs baseline 12.95, Δ+0.583, CI [0.450; 0.717]; on greedy v8 only 12.983",
+  "must_contain": [
+   "13.567",
+   "12.95",
+   "0.583"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   397443
+  ]
+ },
+ {
+  "id": "q16",
+  "category": "prohibition",
+  "question": "Why is full brute-force enumeration over 5 joker slots forbidden in Balatro, and what is the proposed narrowed width?",
+  "gold": "C(42,4)+C(42,5)=962 598 sets ≈ 50 days; needs the owner's separate decision; proposed union top-3 survival + top-10 d3 (13 branches); width 200 is unsuitable",
+  "must_contain": [
+   "962 598",
+   "50",
+   "top-3"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   397443
+  ]
+ },
+ {
+  "id": "q17",
+  "category": "open_item",
+  "question": "Which Balatro tasks remain open with no assignee, and what is the next action if the owner says no to opening money/shop?",
+  "gold": "V-33, V-34, V-19 (legacy); if 'no' — V-33 or V-34 (build-up enumeration with union top-3 survival + top-10 d3)",
+  "must_contain": [
+   "V-33",
+   "V-34",
+   "V-19"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   397443
+  ]
+ },
+ {
+  "id": "q18",
+  "category": "prohibition",
+  "question": "What are the durable rules about publishing and who may push or deploy?",
+  "gold": "Only the orchestrator publishes; workers are forbidden git push and deploy; Orchestra restart only by the owner",
+  "must_contain": [
+   "публикую только я",
+   "push"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   397443
+  ]
+ },
+ {
+  "id": "q19",
+  "category": "prohibition",
+  "question": "What constraints apply to nginx vhosts and /var/www/balatro/ and to the content of 02-personal/?",
+  "gold": "Do not edit vhost dnd-duckdns; /var/www/balatro/ belongs to the D&D project; content of 02-personal/ is never given outside",
+  "must_contain": [
+   "dnd-duckdns",
+   "02-personal"
+  ],
+  "importance": 3,
+  "evidence_log_ids": [
+   397443
+  ]
+ },
+ {
+  "id": "q20",
+  "category": "number",
+  "question": "Why must the Balatro run-cache key include slot order, policy and engine fingerprint, and what mutation test proved the protection works?",
+  "gold": "Slot order changes the result (40/40); mutation (loadout.slice().sort(), fingerprint removed) makes tests/run-cache.test.js fail 2 of 3",
+  "must_contain": [
+   "порядок",
+   "2 из 3"
+  ],
+  "importance": 2,
+  "evidence_log_ids": [
+   397443
+  ]
+ }
+]

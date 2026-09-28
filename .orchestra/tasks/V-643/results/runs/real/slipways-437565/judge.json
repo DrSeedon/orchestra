@@ -1,0 +1,82 @@
+{
+ "q1": {
+  "score": 1,
+  "why": "A1 and B1 with correct meaning"
+ },
+ "q2": {
+  "score": 1,
+  "why": "verbatim quote matches"
+ },
+ "q3": {
+  "score": 1,
+  "why": "branch name correct, base main with V-45"
+ },
+ "q4": {
+  "score": 0.5,
+  "why": "path correct (inventory.md), count 16 UNKNOWN"
+ },
+ "q5": {
+  "score": 1,
+  "why": "data/runs-v45 and data/runs correct"
+ },
+ "q6": {
+  "score": 1,
+  "why": "bg id and bots match"
+ },
+ "q7": {
+  "score": 0.5,
+  "why": "rollout width=8 and report present, but 'x8' token expressed as width=8; otherwise covers steps"
+ },
+ "q8": {
+  "score": 1,
+  "why": "no rm -r, use trash"
+ },
+ "q9": {
+  "score": 1,
+  "why": "balatro untouched, atomic deploy like V-45"
+ },
+ "q10": {
+  "score": 1,
+  "why": "opts, Infinity, merges first all present"
+ },
+ "q11": {
+  "score": 1,
+  "why": "numbers match 13.7/122/149.4/1241 s"
+ },
+ "q12": {
+  "score": 1,
+  "why": "all parameters match"
+ },
+ "q13": {
+  "score": 1,
+  "why": "both numbers match"
+ },
+ "q14": {
+  "score": 1,
+  "why": "quadratic upkeep, income>=20, penalty"
+ },
+ "q15": {
+  "score": 1,
+  "why": "5 of 100"
+ },
+ "q16": {
+  "score": 1,
+  "why": "rules=m and rules=mc, identical reruns"
+ },
+ "q17": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q18": {
+  "score": 1,
+  "why": "correct file and topic"
+ },
+ "q19": {
+  "score": 0,
+  "why": "UNKNOWN"
+ },
+ "q20": {
+  "score": 0.5,
+  "why": "launch methods correct, stop caveat UNKNOWN"
+ }
+}

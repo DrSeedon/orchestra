@@ -970,7 +970,7 @@ def _cross_repo_note(scope: str, mapping: dict) -> str:
 
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
-                       model: str = "",
+                       model: str,
                        description: str = "",
                        system_prompt: str = "",
                        task_id: str = "",
@@ -1226,6 +1226,17 @@ async def send_message(
     to: str, message: str, delivery_id: str = "", file_path: str = "",
 ) -> str:
     """Send a message to an agent by name; triggers a turn. file_path optionally appends a local UTF-8 text file (max 64 KiB). delivery_id is an optional UUID for duplicate-safe delivery. QUEUED means accepted, not delivered; resolve an ambiguous outcome with message_delivery_status using the same id, not a fresh send."""
+    # A message to oneself wakes a new turn that repeats the same call: the reestr
+    # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
+    if to.strip() == (WORKER_NAME or ROLE):
+        raise ApiToolError(
+            code="invalid_argument",
+            message=(
+                "send_message cannot target yourself; do the work in this turn "
+                "or answer the user with plain text"
+            ),
+            details={"field": "to"},
+        )
     if file_path:
         attachment, attachment_size = _read_message_file(file_path)
         attachment_header = (
@@ -3069,7 +3080,7 @@ async def bg_create(type: str, message: str = "", target: str = "",
                     command: str = "", host: str = "", cron_expr: str = "",
                     interval_seconds: int = 60,
                     timeout_seconds: int = 3600) -> str:
-    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output. cron types recur, skip missed downtime fires without backfill. idle is a self-only orchestrator watch: wakes when its tree and other jobs are idle, once per activity; recreating replaces the old watch. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command/idle."""
+    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. idle is a self-only orchestrator watch: wakes when its tree and other jobs are idle, once per activity; recreating replaces the old watch. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command/idle."""
     if type == "idle" and (ROLE not in _ORCH_ROLES or (target and target != WORKER_NAME)):
         raise ApiToolError(code="idle_watch_self_only", message="An orchestrator sets an idle watch on itself")
     config = {}

@@ -1,0 +1,14 @@
+{
+ "scenario": "S7",
+ "attempt": 1,
+ "ok": true,
+ "detail": "3 tests pass",
+ "seconds": 54,
+ "user_messages": 1,
+ "turns": 3,
+ "in_tokens": 34986,
+ "out_tokens": 1594,
+ "tool_calls": 7,
+ "tool_errors": 0,
+ "final_text": "Файл test_проверка_лицензий.py перенесён в проект.\n\nРезультат запуска тестов:\ntest_bubble_sort_by_name_case_insensitive ... ok\ntest_license_counting_all_allowed ... ok\ntest_license_counting_mixed ... ok\n\nRan 3 tests in 0.000s — OK"
+}

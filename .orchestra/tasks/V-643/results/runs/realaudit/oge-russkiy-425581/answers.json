@@ -1,0 +1,22 @@
+{
+ "q1": "Tasks 2–7 = 6×7 = 42 min; sum 90+42+10+33+60 = 235",
+ "q2": "UNKNOWN",
+ "q3": "Body ≥24 pt, titles ≥36, key numbers ≥60 (doubled on the 26.67×15″ canvas: ≥48/80/120); ≤~25–30 words per slide (builder limit ≤30, footer excluded); max 2 accent colors + background + text, all from her master (BORDO 732117, TINT E8D3BE, CREAM FCF9DC, INK 3D2B1F)",
+ "q4": "Katya's ISPR master («Мастер-макет ИСПР.pptx», /home/kesha/katya-work/artifacts/task-6/inbox/Мастер-макет ИСПР.pptx), 15 layouts",
+ "q5": "Limit $1/day for the whole project; spent $0",
+ "q6": "Outputs: artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf (outside git, gitignored); script and report in .orchestra/tasks/V-8/ (build_deck.py, report.md; in git)",
+ "q7": "«8 — нормы, 9 — словосочетания, 10 — смысл текста, 11 — выразительность, 12 — лексика» (8 tiles on slide 12)",
+ "q8": "«в двух форматах» = pptx and PDF; no rigid split into two types; mini-tasks can vary: question with click answer, crop task, «найди ошибку», «выбери вариант», etc.",
+ "q9": "Keys only from FIPI demo tables and criteria (or indisputable); no disputable classification keys",
+ "q10": "V-3 build_deck.py slides 3–14, V-7 report; EGE output artifacts/struktura-ege/out/struktura-ege-2027.pptx (source slide 4 of struktura-ege-2025-original.pptx)",
+ "q11": "Animations were checked at XML level and via LibreOffice, but not run live in PowerPoint or Keynote",
+ "q12": "38 points, 13 tasks, 235 min, ГК 3/2/1/0, СК2 max 4",
+ "q13": "UNKNOWN",
+ "q14": "5 minutes preparation for tasks 1 and 2; task 2 is «Беседа по тексту» with 5 questions; monologue min 10 sentences, no longer than 3 minutes; reading criterion Ч3 (distorted word = 0)",
+ "q15": "Did not make it: the 2027 interview has no «пересказ с цитатой» task; task 2 is «Беседа по тексту» with the quote only in question 5, and the 2027 documents give no key",
+ "q16": "1a6a611; 51 slides",
+ "q17": "Text overlapping the circle on the circular algorithm slides (7 and 19 in the original numbering; 10 and 27 after rebuild); labels were moved away from the circle line",
+ "q18": "Only official FIPI OGE-2027 documents; every number, criterion, time and task count with a reference to a document section/table; nothing from memory",
+ "q19": "PDF shows the final state of animated slides (all elements visible)",
+ "q20": "Both 0 points: 72+66 words → 0 for grammar; 65-word summary → 0"
+}
