@@ -72,6 +72,11 @@ class _Backend:
                 if self.mode == "fail":
                     yield AgentEvent(type="error", content="audit exploded")
                     return
+                if self.mode in ("limit_warning", "limit_rejected"):
+                    status = "allowed_warning" if self.mode == "limit_warning" else "rejected"
+                    yield AgentEvent(type="provider_limit", metadata={
+                        "status": status, "rate_limit_type": "seven_day",
+                    })
                 if self.on_audit_end:
                     self.on_audit_end()
                 yield AgentEvent(type="text", content="AUDIT INTERNAL TEXT")
@@ -206,3 +211,14 @@ def test_switch_off_uses_native_draft_without_agentic_passes(tmp_path, monkeypat
     assert not any("pass 1 — AUDIT" in prompt or "last pass — FINALIZE" in prompt
                    for prompt in backend.sent)
     assert session.cost_usd == 0.1
+
+
+def test_limit_warning_during_audit_keeps_final_but_rejection_falls_back(tmp_path, monkeypatch):
+    # The weekly-limit warning arrives on every turn above 75%; only a rejection stops the passes.
+    _session, result, _backend, _logs, ack = _compact(tmp_path / "warn", monkeypatch, mode="limit_warning")
+    assert result["ok"] is True
+    assert "FINAL summary" in ack
+
+    _session, result, _backend, logs, ack = _compact(tmp_path / "rej", monkeypatch, mode="limit_rejected")
+    assert "draft summary" in ack and "FINAL summary" not in ack
+    assert any("provider limit during compact audit" in content for _, content in logs)
