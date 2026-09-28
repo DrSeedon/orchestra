@@ -39,6 +39,7 @@ def test_threshold_and_quota_noise_classification():
     assert noise[0]["count"] == 3
     assert noise[0]["noise"] == "quota/rate limit"
     assert watch.classify_noise(watch.normalize_signature("command exited with code 143")) == "expected command termination"
+    assert watch.classify_noise(watch.normalize_signature("Merge operation x: FAILED — DIFF TOO LARGE: 2720 insertions (limit 2000).")) == "merge gate refusal"
 
 
 def test_normal_listener_end_is_noise_but_running_failure_is_actionable():
