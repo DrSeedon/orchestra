@@ -25,6 +25,7 @@ _NOISE = (
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),
     ("external timeout", re.compile(r"(?:TG |telegram|Anthropic usage fetch).*?(?:TimeoutError|timed? ?out|rate_limited)", re.I)),
     ("expected command termination", re.compile(r"command exited with code", re.I)),
+    ("merge gate refusal", re.compile(r"DIFF TOO LARGE", re.I)),
 )
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
 _LONG_HEX = re.compile(r"\b(?:0x)?[0-9a-f]{12,}\b", re.I)
