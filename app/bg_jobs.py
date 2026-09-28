@@ -891,6 +891,10 @@ class BgJobManager:
             try:
                 stdout, stderr = await _communicate_cron_command(proc)
             except asyncio.TimeoutError:
+                previous = bg_get_job(job_id) or {}
+                already_notified = str(previous.get("last_output") or "").startswith(
+                    "[command timed out after "
+                )
                 output = (
                     f"[command timed out after "
                     f"{_CRON_COMMAND_TIMEOUT_SECONDS} seconds]"
@@ -901,6 +905,23 @@ class BgJobManager:
                     job_id,
                     _CRON_COMMAND_TIMEOUT_SECONDS,
                 )
+                if not already_notified and bg_cron_should_fire(job_id):
+                    session, _failure = await self._load_job_target(job_id, target_name)
+                    if session:
+                        self._restore_report_provenance(session)
+                        body = (
+                            f"[Cron command timed out] bg job {job_id}; command: {command}; "
+                            f"limit: {_CRON_COMMAND_TIMEOUT_SECONDS} seconds. "
+                            "The command was stopped. Check its runtime/output and adjust "
+                            "the command or schedule before the next run."
+                        )
+                        provenance = MessageProvenance(
+                            origin="background_task", senders=(job_id,),
+                            subtype="cron_command_timeout", ref=job_id,
+                        )
+                        await self._session_manager.send(
+                            session.id, body, provenance=provenance,
+                        )
                 return
 
             raw_output = (

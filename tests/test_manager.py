@@ -1677,12 +1677,33 @@ class TestSendAndControl:
         session.send.assert_awaited_once_with("steer", provenance=USER_PROVENANCE)
 
     @pytest.mark.asyncio
-    async def test_stop_and_remove(self, mgr):
+    async def test_remove_cancels_pending_precompact_timer(self, mgr, monkeypatch):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session.loaded = False
+            sleeping = asyncio.Event()
+            release_sleep = asyncio.Event()
+
+            async def wait_until_cancelled(_delay):
+                sleeping.set()
+                await release_sleep.wait()
+
+            monkeypatch.setattr("app.session.asyncio.sleep", wait_until_cancelled)
+            session.compact = AsyncMock()
+            session._fire_precompact_timer = AsyncMock(side_effect=session.compact)
+            session._precompact_timer = {"delay_seconds": 1500}
+            timer_task = session._spawn_bg(session._run_precompact_timer())
+            session._precompact_timer_task = timer_task
+            await sleeping.wait()
             await mgr.remove(session.id)
+            release_sleep.set()
+            await timer_task
         assert mgr.get(session.id) is None
+        assert timer_task.done()
+        session._fire_precompact_timer.assert_not_awaited()
+        session.compact.assert_not_awaited()
+        assert session._precompact_timer is None
 
     @pytest.mark.asyncio
     async def test_remove_deletes_from_dict_and_db(self, mgr):
