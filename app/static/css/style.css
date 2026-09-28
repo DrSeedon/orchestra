@@ -1021,8 +1021,13 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-panel { padding: 12px 0; border-top: 1px solid var(--border-soft); }
 .ql-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 8px; }
 .ql-head h3 { margin: 0; color: var(--ink); font-size: 14px; font-weight: 600; }
+.ql-timeline-head { margin: 10px 0 4px; }
+.ql-timeline-head h4 { margin: 0; color: var(--ink-soft); font-size: 12px; font-weight: 600; }
 .ql-head span { color: var(--ink-faint); font-size: 11px; }
 .ql-chart { display: block; width: 100%; height: auto; max-height: 46vh; }
+.ql-night { fill: #64748b; opacity: .12; }
+.ql-timeline-burn { fill: none; stroke: #8595ab; stroke-width: 1.4; stroke-dasharray: 5 4; opacity: .75; }
+.ql-now { stroke: #f8fafc; stroke-width: 1.5; stroke-dasharray: 4 3; opacity: .85; }
 .ql-axis { fill: var(--ink-faintest); font-size: 11px; font-family: var(--font-mono); }
 .ql-point-label { font-size: 13px; font-weight: 600; }
 .ql-halo { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }

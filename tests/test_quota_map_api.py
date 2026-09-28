@@ -273,6 +273,20 @@ async def test_bucket_trace_points_use_usage_snapshot_history(mapped):
                     ),
                 ),
             )
+        # A sample from before the current 5h window must remain visible in the
+        # real-time timeline even though the legacy current-window trace excludes it.
+        conn.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, 0, 0, '', '', 0, 0, ?)""",
+            (_iso(NOW - 80 * 3600), json.dumps(_providers_snapshot(
+                codex_reset=NOW - 79 * 3600,
+                spark_reset=NOW - 79 * 3600,
+                claude_reset=claude_reset,
+                codex_util=8.0, spark_util=12.0, claude_util=32.0,
+            ), ensure_ascii=False)),
+        )
 
     payload = await mapped(_observation(
         codex=[_window(300, 30.0, window_id="primary", label="5h", progress=codex_progress)],
@@ -289,6 +303,8 @@ async def test_bucket_trace_points_use_usage_snapshot_history(mapped):
     assert len(codex["trace"]["points"]) == 3
     assert len(spark["trace"]["points"]) == 3
     assert len(claude["trace"]["points"]) == 3
+    assert len(codex["timeline"]["points"]) == 4
+    assert codex["timeline"]["points"][0]["utilization"] == 8.0
     assert all(
         0.0 <= point["progress"] <= 1.0
         for point in codex["trace"]["points"]
@@ -421,7 +437,7 @@ async def test_trace_is_downsampled(mapped):
                                         "id": "primary",
                                         "label": "5h",
                                         "window_minutes": 300,
-                                        "utilization": 10.0 + idx / 20,
+                                        "utilization": 1.0 if idx == 260 else 10.0 + idx / 20,
                                         "resets_at": _iso(reset),
                                     }
                                 ],
@@ -438,6 +454,8 @@ async def test_trace_is_downsampled(mapped):
 
     points = _pool(payload, "codex")["trace"]["points"]
     assert 1 <= len(points) <= 200
+    timeline = _pool(payload, "codex")["timeline"]["points"]
+    assert any(point["utilization"] == 1.0 for point in timeline)
 
 
 @pytest.mark.asyncio
