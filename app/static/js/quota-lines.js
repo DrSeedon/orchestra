@@ -253,10 +253,18 @@ function _qlTimelineSvg(panel, rule) {
     }
     const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
     const tickFormat = new Intl.DateTimeFormat(locale, {timeZone: 'Asia/Krasnoyarsk', weekday: 'short', hour: '2-digit', hourCycle: 'h23'});
-    for (let tick = Math.ceil(from / (12 * 3600000)) * 12 * 3600000; tick <= to; tick += 12 * 3600000) {
+    const twoHours = 2 * 3600000;
+    const firstTick = Math.ceil((from + zoneOffset) / twoHours) * twoHours - zoneOffset;
+    for (let tick = firstTick; tick <= to; tick += twoHours) {
         const tx = x(tick), parts = Object.fromEntries(tickFormat.formatToParts(new Date(tick)).map(part => [part.type, part.value]));
-        p.push(`<line class="ql-grid" x1="${tx}" y1="${_QL_MT}" x2="${tx}" y2="${_QL_MT + _QL_PH}"/>`);
-        p.push(`<text class="ql-axis" x="${tx}" y="${_QL_MT + _QL_PH + 16}" text-anchor="middle">${_escHtml(parts.weekday)} ${_escHtml(parts.hour)}</text>`);
+        const hour = Number(parts.hour);
+        const nightBoundary = hour === 0 || hour === 8;
+        p.push(`<line class="ql-grid" data-ql-time-tick="${hour}" x1="${tx}" y1="${_QL_MT}" x2="${tx}" y2="${_QL_MT + _QL_PH}"/>`);
+        if (nightBoundary) {
+            p.push(`<text class="ql-axis ql-time-boundary" data-ql-time-boundary="${hour}" x="${tx}" y="${_QL_MT + _QL_PH + 8}" text-anchor="middle"><tspan x="${tx}">${_escHtml(parts.weekday)}</tspan><tspan x="${tx}" dy="12">${_escHtml(parts.hour)}:00</tspan></text>`);
+        } else if (hour % 4 === 0) {
+            p.push(`<text class="ql-axis" data-ql-time-label="${hour}" x="${tx}" y="${_QL_MT + _QL_PH + 34}" text-anchor="middle">${_escHtml(parts.hour)}</text>`);
+        }
     }
 
     // Quota policy curves restart at each provider window boundary. The prior
@@ -266,24 +274,10 @@ function _qlTimelineSvg(panel, rule) {
         const reset = Date.parse(window?.resets_at);
         const duration = Number(window?.window_minutes) * 60000;
         if (!Number.isFinite(reset) || !(duration > 0)) continue;
-        const cycles = new Map();
-        const addCycle = (end, span) => cycles.set(`${end}:${span}`, {end, span});
-        let foundPastBoundary = false;
-        for (const point of bucket.timeline?.points || []) {
-            const historicalReset = Number(point.resets_at) * 1000;
-            const historicalDuration = Number(point.window_minutes) * 60000;
-            if (Number.isFinite(historicalReset) && historicalReset < now
-                    && historicalReset + historicalDuration > from && historicalDuration > 0) {
-                addCycle(historicalReset, historicalDuration);
-                foundPastBoundary = true;
-            }
-        }
-        if (!foundPastBoundary) {
-            for (let end = reset - duration; end > from; end -= duration) addCycle(end, duration);
-        }
-        addCycle(reset, duration);
-        for (let end = reset + duration; end - duration < to; end += duration) addCycle(end, duration);
-        for (const {end, span} of cycles.values()) {
+        const cycles = [];
+        for (let end = reset; end - duration < to; end += duration) cycles.push({end, span: duration});
+        for (let end = reset - duration; end > from; end -= duration) cycles.push({end, span: duration});
+        for (const {end, span} of cycles) {
             const start = end - span;
             const left = Math.max(from, start), right = Math.min(to, end);
             if (right <= left) continue;
@@ -310,11 +304,13 @@ function _qlTimelineSvg(panel, rule) {
         }
     }
     // Facts stop at now. Add a current sample there; the right half is policy only.
+    let pointIndex = 0;
     for (const lane of _qlLanes(panel)) {
         const point = _qlPoint(lane.bucket);
         if (!point) continue;
         const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
-        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="5.5" fill="var(--bg)" stroke="${color}" stroke-width="2.5"><title>${_escHtml(lane.label || lane.lane)}: ${_qlNum(point.util)}%</title></circle>`);
+        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(lane.label || lane.lane)}: ${_qlNum(point.util)}%</title></circle>`);
+        pointIndex++;
     }
     p.push(`<line class="ql-now" x1="${x(now)}" y1="${_QL_MT}" x2="${x(now)}" y2="${_QL_MT + _QL_PH}"/>`);
     const histories = new Set();

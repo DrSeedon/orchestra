@@ -1,0 +1,2629 @@
+{
+  "generated_at": "2026-09-28T10:12:34.330591+00:00",
+  "observation_max_age_seconds": 300.0,
+  "rule": {
+    "hard_stop_pct": 99.0,
+    "lane_hard_stop_pct": {
+      "sol": 95.0
+    },
+    "tolerance_start_pp": 10.0,
+    "tolerance_end_pp": 1.0,
+    "curve_exponent": 2.5,
+    "curved_lanes": [
+      "sol"
+    ],
+    "gated_lanes": [
+      "claude",
+      "sol"
+    ],
+    "override_seconds_left": 0.0
+  },
+  "buckets": [
+    {
+      "bucket": "anthropic",
+      "label": "anthropic",
+      "observed_at": 1790590293.4207473,
+      "fresh": true,
+      "data_available": true,
+      "window": {
+        "id": "seven_day",
+        "label": "7d",
+        "window_minutes": 10080,
+        "utilization": 75.0,
+        "resets_at": "2026-09-29T07:00:00.323707+00:00",
+        "reset_in_seconds": 74846.09808540344,
+        "starts_at": "2026-09-22T07:00:00.323707+00:00",
+        "progress": 0.5
+      },
+      "reference_windows": [],
+      "tolerance_pp": 2.1137812215089795,
+      "limit_pct": 89.73843431585365,
+      "trace": {
+        "points": []
+      },
+      "lanes": [
+        {
+          "lane": "claude",
+          "label": "claude",
+          "gated": true,
+          "curved": false,
+          "limit_pct": 89.73843431585365,
+          "headroom_pp": -0.2615656841463476,
+          "blocked": true,
+          "release_status": "opens_in",
+          "release_in_seconds": 1738.4057777110993,
+          "reason": "",
+          "models": []
+        }
+      ],
+      "models": [],
+      "timeline": {
+        "points": [
+          {
+            "ts": 1790288076.736032,
+            "utilization": 49.2,
+            "resets_at": 1790665199.575252,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790289885.705751,
+            "utilization": 49.2,
+            "resets_at": 1790665199.694208,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790291693.872433,
+            "utilization": 49.2,
+            "resets_at": 1790665199.585705,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790293503.563887,
+            "utilization": 49.2,
+            "resets_at": 1790665200.356249,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790295311.581348,
+            "utilization": 49.2,
+            "resets_at": 1790665199.536418,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790297121.045853,
+            "utilization": 49.2,
+            "resets_at": 1790665200.099021,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790298929.226998,
+            "utilization": 49.2,
+            "resets_at": 1790665199.947114,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790300738.663202,
+            "utilization": 49.2,
+            "resets_at": 1790665199.711478,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790302547.124075,
+            "utilization": 49.2,
+            "resets_at": 1790665199.892322,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790304355.098954,
+            "utilization": 49.2,
+            "resets_at": 1790665200.112002,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790306162.551347,
+            "utilization": 49.2,
+            "resets_at": 1790665199.5572,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790307971.351577,
+            "utilization": 49.2,
+            "resets_at": 1790665200.404454,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790309779.59395,
+            "utilization": 49.2,
+            "resets_at": 1790665199.628676,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790311588.317654,
+            "utilization": 49.2,
+            "resets_at": 1790665199.508558,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790312700.247303,
+            "utilization": 49.2,
+            "resets_at": 1790665200.393619,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790314507.86654,
+            "utilization": 50.0,
+            "resets_at": 1790665199.837578,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790316316.943924,
+            "utilization": 50.0,
+            "resets_at": 1790665199.671881,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790318023.931854,
+            "utilization": 50.8,
+            "resets_at": 1790665199.947371,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790319832.589051,
+            "utilization": 52.2,
+            "resets_at": 1790665199.59181,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790321641.167171,
+            "utilization": 53.8,
+            "resets_at": 1790665200.087901,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790323449.877659,
+            "utilization": 54.5,
+            "resets_at": 1790665199.736536,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790325260.204473,
+            "utilization": 54.5,
+            "resets_at": 1790665200.101283,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790327069.25303,
+            "utilization": 54.5,
+            "resets_at": 1790665199.952656,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790328878.294915,
+            "utilization": 55.2,
+            "resets_at": 1790665200.33269,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790330686.396148,
+            "utilization": 56.0,
+            "resets_at": 1790665200.441053,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790332494.851901,
+            "utilization": 57.5,
+            "resets_at": 1790665199.913996,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790334302.663735,
+            "utilization": 58.2,
+            "resets_at": 1790665199.714052,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790336111.124109,
+            "utilization": 58.2,
+            "resets_at": 1790665200.16555,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790337919.802297,
+            "utilization": 59.0,
+            "resets_at": 1790665199.788413,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790339728.472476,
+            "utilization": 59.0,
+            "resets_at": 1790665200.360686,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790341536.989187,
+            "utilization": 59.0,
+            "resets_at": 1790665200.019267,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790343345.546522,
+            "utilization": 59.8,
+            "resets_at": 1790665200.359389,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790345154.450187,
+            "utilization": 62.0,
+            "resets_at": 1790665200.3736,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790346962.739263,
+            "utilization": 62.8,
+            "resets_at": 1790665199.670857,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790348771.472068,
+            "utilization": 63.5,
+            "resets_at": 1790665199.673542,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790350580.535293,
+            "utilization": 65.0,
+            "resets_at": 1790665200.377191,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790352388.577931,
+            "utilization": 65.8,
+            "resets_at": 1790665199.595386,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790354197.084019,
+            "utilization": 65.8,
+            "resets_at": 1790665200.058657,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790356005.510144,
+            "utilization": 65.8,
+            "resets_at": 1790665200.451582,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790357814.41916,
+            "utilization": 66.5,
+            "resets_at": 1790665200.351709,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790359625.405289,
+            "utilization": 66.5,
+            "resets_at": 1790665200.315966,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790361435.058583,
+            "utilization": 66.5,
+            "resets_at": 1790665199.837741,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790363244.154084,
+            "utilization": 66.5,
+            "resets_at": 1790665200.12499,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790365053.366475,
+            "utilization": 66.5,
+            "resets_at": 1790665199.796806,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790366862.79872,
+            "utilization": 66.5,
+            "resets_at": 1790665199.549723,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790368678.936936,
+            "utilization": 66.5,
+            "resets_at": 1790665199.674626,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790370488.124115,
+            "utilization": 66.5,
+            "resets_at": 1790665200.111085,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790372297.700971,
+            "utilization": 66.5,
+            "resets_at": 1790665200.388657,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790374106.679895,
+            "utilization": 66.5,
+            "resets_at": 1790665199.68946,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790375915.711686,
+            "utilization": 66.5,
+            "resets_at": 1790665199.788947,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790377724.5793,
+            "utilization": 66.5,
+            "resets_at": 1790665199.599077,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790379533.254125,
+            "utilization": 66.5,
+            "resets_at": 1790665200.144569,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790381341.339067,
+            "utilization": 66.5,
+            "resets_at": 1790665200.339043,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790383151.489046,
+            "utilization": 66.5,
+            "resets_at": 1790665200.392135,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790384959.200218,
+            "utilization": 66.5,
+            "resets_at": 1790665200.276005,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790386786.717177,
+            "utilization": 66.5,
+            "resets_at": 1790665200.49978,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790388594.573338,
+            "utilization": 66.5,
+            "resets_at": 1790665199.606339,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790390403.919788,
+            "utilization": 66.5,
+            "resets_at": 1790665200.152427,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790392211.954858,
+            "utilization": 67.2,
+            "resets_at": 1790665199.772676,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790394020.213726,
+            "utilization": 67.2,
+            "resets_at": 1790665200.257837,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790395828.209088,
+            "utilization": 67.2,
+            "resets_at": 1790665200.346103,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790397636.709878,
+            "utilization": 67.2,
+            "resets_at": 1790665199.677902,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790399444.802469,
+            "utilization": 67.2,
+            "resets_at": 1790665199.74246,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790401254.01658,
+            "utilization": 67.2,
+            "resets_at": 1790665199.971239,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790403063.272043,
+            "utilization": 67.2,
+            "resets_at": 1790665200.258959,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790404874.217244,
+            "utilization": 67.2,
+            "resets_at": 1790665200.025504,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790406683.927281,
+            "utilization": 67.2,
+            "resets_at": 1790665199.915156,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790408492.779335,
+            "utilization": 67.2,
+            "resets_at": 1790665199.641381,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790410301.8535,
+            "utilization": 68.0,
+            "resets_at": 1790665199.727778,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790412111.414196,
+            "utilization": 68.0,
+            "resets_at": 1790665200.281643,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790413920.707562,
+            "utilization": 68.0,
+            "resets_at": 1790665199.583127,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790415735.220022,
+            "utilization": 68.0,
+            "resets_at": 1790665200.030481,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790417544.586411,
+            "utilization": 68.0,
+            "resets_at": 1790665200.122286,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790419354.753087,
+            "utilization": 68.0,
+            "resets_at": 1790665199.915008,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790421165.74543,
+            "utilization": 68.0,
+            "resets_at": 1790665200.045485,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790422807.631986,
+            "utilization": 68.0,
+            "resets_at": 1790665199.762044,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790424616.776038,
+            "utilization": 68.0,
+            "resets_at": 1790665200.377131,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790426425.890772,
+            "utilization": 68.0,
+            "resets_at": 1790665199.749897,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790428235.661535,
+            "utilization": 68.0,
+            "resets_at": 1790665200.309808,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790430046.163488,
+            "utilization": 68.0,
+            "resets_at": 1790665200.315852,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790431856.912288,
+            "utilization": 68.0,
+            "resets_at": 1790665199.547336,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790433668.023298,
+            "utilization": 68.0,
+            "resets_at": 1790665199.726528,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790435479.326862,
+            "utilization": 68.8,
+            "resets_at": 1790665199.99221,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790437290.290297,
+            "utilization": 68.8,
+            "resets_at": 1790665199.720353,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790439100.902526,
+            "utilization": 68.8,
+            "resets_at": 1790665199.757998,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790440910.881544,
+            "utilization": 68.8,
+            "resets_at": 1790665199.548645,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790442721.375613,
+            "utilization": 68.8,
+            "resets_at": 1790665199.591277,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790444537.919302,
+            "utilization": 68.8,
+            "resets_at": 1790665199.969313,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790446347.001587,
+            "utilization": 68.8,
+            "resets_at": 1790665199.796641,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790448157.888178,
+            "utilization": 68.8,
+            "resets_at": 1790665199.754945,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790449969.787099,
+            "utilization": 68.8,
+            "resets_at": 1790665200.366369,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790451779.995532,
+            "utilization": 68.8,
+            "resets_at": 1790665199.801444,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790453592.129132,
+            "utilization": 68.8,
+            "resets_at": 1790665199.579646,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790455402.715153,
+            "utilization": 68.8,
+            "resets_at": 1790665200.190096,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790457212.405522,
+            "utilization": 68.8,
+            "resets_at": 1790665200.330442,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790459022.946804,
+            "utilization": 68.8,
+            "resets_at": 1790665200.501246,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790460832.872326,
+            "utilization": 68.8,
+            "resets_at": 1790665200.389099,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790462647.649881,
+            "utilization": 68.8,
+            "resets_at": 1790665199.858329,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790464460.83526,
+            "utilization": 68.8,
+            "resets_at": 1790665200.369217,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790466275.265041,
+            "utilization": 68.8,
+            "resets_at": 1790665199.650366,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790468091.123777,
+            "utilization": 68.8,
+            "resets_at": 1790665199.820165,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790469904.11012,
+            "utilization": 68.8,
+            "resets_at": 1790665200.17959,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790471717.789071,
+            "utilization": 68.8,
+            "resets_at": 1790665199.978024,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790473531.60229,
+            "utilization": 68.8,
+            "resets_at": 1790665200.399383,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790475340.677321,
+            "utilization": 68.8,
+            "resets_at": 1790665200.447643,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790477152.346559,
+            "utilization": 68.8,
+            "resets_at": 1790665200.058924,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790478962.895083,
+            "utilization": 69.5,
+            "resets_at": 1790665200.501772,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790480773.934347,
+            "utilization": 69.5,
+            "resets_at": 1790665199.635549,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790482582.784155,
+            "utilization": 69.5,
+            "resets_at": 1790665199.67648,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790484392.36646,
+            "utilization": 69.5,
+            "resets_at": 1790665200.270687,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790486067.738502,
+            "utilization": 69.5,
+            "resets_at": 1790665200.46987,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790487878.504368,
+            "utilization": 69.5,
+            "resets_at": 1790665200.330046,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790489688.309506,
+            "utilization": 69.5,
+            "resets_at": 1790665200.162247,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790491499.114174,
+            "utilization": 70.2,
+            "resets_at": 1790665199.67584,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790493312.847897,
+            "utilization": 70.2,
+            "resets_at": 1790665199.573892,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790495126.534002,
+            "utilization": 70.2,
+            "resets_at": 1790665199.665984,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790496939.20561,
+            "utilization": 71.0,
+            "resets_at": 1790665199.886469,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790498751.212734,
+            "utilization": 71.0,
+            "resets_at": 1790665199.710251,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790500560.877516,
+            "utilization": 71.0,
+            "resets_at": 1790665199.687582,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790502373.61354,
+            "utilization": 71.0,
+            "resets_at": 1790665200.507438,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790504184.486014,
+            "utilization": 71.8,
+            "resets_at": 1790665200.202286,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790505995.072971,
+            "utilization": 71.8,
+            "resets_at": 1790665200.196076,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790507804.936636,
+            "utilization": 71.8,
+            "resets_at": 1790665199.601736,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790509615.145359,
+            "utilization": 71.8,
+            "resets_at": 1790665199.799733,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790511426.937517,
+            "utilization": 72.5,
+            "resets_at": 1790665199.951716,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790513235.696502,
+            "utilization": 72.5,
+            "resets_at": 1790665200.507859,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790515046.622722,
+            "utilization": 72.5,
+            "resets_at": 1790665199.956236,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790516856.754097,
+            "utilization": 73.2,
+            "resets_at": 1790665199.514297,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790518667.455149,
+            "utilization": 73.2,
+            "resets_at": 1790665200.06997,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790520477.984721,
+            "utilization": 73.2,
+            "resets_at": 1790665199.704759,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790522289.991457,
+            "utilization": 74.0,
+            "resets_at": 1790665200.338799,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790524100.388958,
+            "utilization": 74.0,
+            "resets_at": 1790665199.764382,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790525910.767792,
+            "utilization": 74.0,
+            "resets_at": 1790665200.208698,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790527720.601923,
+            "utilization": 74.8,
+            "resets_at": 1790665200.131281,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790529531.225246,
+            "utilization": 74.8,
+            "resets_at": 1790665199.746327,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790531342.834127,
+            "utilization": 74.8,
+            "resets_at": 1790665200.001901,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790533153.699914,
+            "utilization": 74.8,
+            "resets_at": 1790665200.251167,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790534964.684068,
+            "utilization": 74.8,
+            "resets_at": 1790665200.27652,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790536777.248171,
+            "utilization": 74.8,
+            "resets_at": 1790665199.833804,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790538589.460414,
+            "utilization": 74.8,
+            "resets_at": 1790665199.705679,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790540402.426794,
+            "utilization": 74.8,
+            "resets_at": 1790665200.00994,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790542218.22253,
+            "utilization": 74.8,
+            "resets_at": 1790665200.255077,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790544030.342692,
+            "utilization": 74.8,
+            "resets_at": 1790665199.56422,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790545839.36402,
+            "utilization": 74.8,
+            "resets_at": 1790665200.108784,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790547648.802618,
+            "utilization": 74.8,
+            "resets_at": 1790665200.295415,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790549459.068727,
+            "utilization": 74.8,
+            "resets_at": 1790665199.653222,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790551270.740619,
+            "utilization": 74.8,
+            "resets_at": 1790665200.014922,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790553081.133687,
+            "utilization": 74.8,
+            "resets_at": 1790665199.507045,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790554891.243244,
+            "utilization": 74.8,
+            "resets_at": 1790665199.835883,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790556701.311481,
+            "utilization": 74.8,
+            "resets_at": 1790665199.91929,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790558511.80261,
+            "utilization": 74.8,
+            "resets_at": 1790665199.527385,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790560322.144072,
+            "utilization": 74.8,
+            "resets_at": 1790665200.499961,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790562133.047937,
+            "utilization": 74.8,
+            "resets_at": 1790665199.693344,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790563943.371016,
+            "utilization": 75.5,
+            "resets_at": 1790665200.457903,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790565753.447296,
+            "utilization": 75.5,
+            "resets_at": 1790665200.151441,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790567563.941975,
+            "utilization": 75.5,
+            "resets_at": 1790665199.729016,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790569374.803896,
+            "utilization": 75.5,
+            "resets_at": 1790665199.580469,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790571186.744296,
+            "utilization": 75.5,
+            "resets_at": 1790665200.26641,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790572999.579875,
+            "utilization": 75.5,
+            "resets_at": 1790665199.71922,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790574815.172756,
+            "utilization": 75.5,
+            "resets_at": 1790665200.280812,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790576626.148398,
+            "utilization": 75.5,
+            "resets_at": 1790665199.986456,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790578436.624517,
+            "utilization": 75.5,
+            "resets_at": 1790665200.350437,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790580249.181741,
+            "utilization": 76.2,
+            "resets_at": 1790665200.431355,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790582059.772162,
+            "utilization": 76.2,
+            "resets_at": 1790665200.145693,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790583905.15505,
+            "utilization": 77.0,
+            "resets_at": 1790665200.1335,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790585720.665698,
+            "utilization": 77.0,
+            "resets_at": 1790665200.483361,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790587532.657931,
+            "utilization": 77.8,
+            "resets_at": 1790665199.847965,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790589346.344591,
+            "utilization": 77.8,
+            "resets_at": 1790665199.645383,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790590295.145982,
+            "utilization": 78.5,
+            "resets_at": 1790665200.323707,
+            "window_minutes": 10080
+          }
+        ]
+      }
+    },
+    {
+      "bucket": "codex",
+      "label": "codex",
+      "observed_at": 1790590293.4833596,
+      "fresh": true,
+      "data_available": true,
+      "window": {
+        "id": "secondary",
+        "label": "7d",
+        "window_minutes": 10080,
+        "utilization": 75.0,
+        "resets_at": "2026-10-04T00:05:55Z",
+        "reset_in_seconds": 482000.7743782997,
+        "starts_at": "2026-09-27T00:05:55+00:00",
+        "progress": 0.5
+      },
+      "reference_windows": [],
+      "tolerance_pp": 8.17263057110565,
+      "limit_pct": 28.476735336598423,
+      "trace": {
+        "points": []
+      },
+      "lanes": [
+        {
+          "lane": "luna",
+          "label": "luna",
+          "gated": false,
+          "curved": false,
+          "limit_pct": null,
+          "headroom_pp": null,
+          "blocked": false,
+          "release_status": "open",
+          "release_in_seconds": null,
+          "reason": "",
+          "models": []
+        },
+        {
+          "lane": "sol",
+          "label": "sol",
+          "gated": true,
+          "curved": true,
+          "limit_pct": 61.02123680804344,
+          "headroom_pp": 28.02123680804344,
+          "blocked": false,
+          "release_status": "open",
+          "release_in_seconds": null,
+          "reason": "",
+          "models": []
+        }
+      ],
+      "models": [],
+      "timeline": {
+        "points": [
+          {
+            "ts": 1790288076.736032,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790289885.705751,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790291693.872433,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790293503.563887,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790295311.581348,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790297121.045853,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790298929.226998,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790300738.663202,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790302547.124075,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790304355.098954,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790306162.551347,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790307971.351577,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790309779.59395,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790311588.317654,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790312700.247303,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790314507.86654,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790316316.943924,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790318023.931854,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790319832.589051,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790321641.167171,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790323449.877659,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790325260.204473,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790327069.25303,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790328878.294915,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790330686.396148,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790332494.851901,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790334302.663735,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790336111.124109,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790337919.802297,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790339728.472476,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790341536.989187,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790343345.546522,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790345154.450187,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790346962.739263,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790348771.472068,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790350580.535293,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790352388.577931,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790354197.084019,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790356005.510144,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790357814.41916,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790359625.405289,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790361435.058583,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790363244.154084,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790365053.366475,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790366862.79872,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790368678.936936,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790370488.124115,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790372297.700971,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790374106.679895,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790375915.711686,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790377724.5793,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790379533.254125,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790381341.339067,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790383151.489046,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790384959.200218,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790386786.717177,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790388594.573338,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790390403.919788,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790392211.954858,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790394020.213726,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790395828.209088,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790397636.709878,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790399444.802469,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790401254.01658,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790403063.272043,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790404874.217244,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790406683.927281,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790408492.779335,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790410301.8535,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790412111.414196,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790413920.707562,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790416036.781989,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790417846.828123,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790419656.339274,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790421297.679283,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790423109.219541,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790424918.201343,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790426727.441579,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790428537.07792,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790430347.915336,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790432158.568159,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790433064.891134,
+            "utilization": 85.2,
+            "resets_at": 1790433275.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790433366.350107,
+            "utilization": 11.0,
+            "resets_at": 1791038166.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790433969.802145,
+            "utilization": 11.0,
+            "resets_at": 1791038769.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790435781.425164,
+            "utilization": 11.0,
+            "resets_at": 1791040581.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790437591.92108,
+            "utilization": 11.0,
+            "resets_at": 1791042391.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790439402.766576,
+            "utilization": 11.0,
+            "resets_at": 1791044202.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790441212.282424,
+            "utilization": 11.0,
+            "resets_at": 1791046012.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790443026.486169,
+            "utilization": 11.0,
+            "resets_at": 1791047826.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790444839.585976,
+            "utilization": 11.0,
+            "resets_at": 1791049639.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790446650.389781,
+            "utilization": 11.0,
+            "resets_at": 1791051450.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790448459.374814,
+            "utilization": 11.0,
+            "resets_at": 1791053259.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790450271.945838,
+            "utilization": 11.0,
+            "resets_at": 1791055071.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790452081.836456,
+            "utilization": 11.0,
+            "resets_at": 1791056881.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790453894.462252,
+            "utilization": 11.0,
+            "resets_at": 1791058694.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790455704.635149,
+            "utilization": 11.0,
+            "resets_at": 1791060504.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790457514.99401,
+            "utilization": 11.0,
+            "resets_at": 1791062314.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790459324.445525,
+            "utilization": 11.0,
+            "resets_at": 1791064124.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790461136.532331,
+            "utilization": 11.0,
+            "resets_at": 1791065936.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790462950.004479,
+            "utilization": 11.0,
+            "resets_at": 1791067749.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790464763.540667,
+            "utilization": 11.0,
+            "resets_at": 1791069563.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790466578.886238,
+            "utilization": 11.0,
+            "resets_at": 1791071378.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790468394.308353,
+            "utilization": 11.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790470207.69738,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790472020.966417,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790473833.202746,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790475642.587829,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790477454.060203,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790479266.050354,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790481075.719936,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790482884.827455,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790484559.086433,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790486370.252142,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790488180.147811,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790489990.69261,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790491800.884296,
+            "utilization": 11.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790493615.071666,
+            "utilization": 12.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790495428.60945,
+            "utilization": 14.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790497241.455686,
+            "utilization": 14.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790499053.130093,
+            "utilization": 14.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790500863.632789,
+            "utilization": 15.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790502675.365179,
+            "utilization": 16.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790504486.541504,
+            "utilization": 17.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790506297.066896,
+            "utilization": 17.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790508106.623516,
+            "utilization": 17.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790509916.648631,
+            "utilization": 18.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790511728.403629,
+            "utilization": 18.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790513537.726225,
+            "utilization": 20.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790515348.483578,
+            "utilization": 22.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790517158.411342,
+            "utilization": 24.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790518969.17294,
+            "utilization": 24.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790520779.982707,
+            "utilization": 25.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790522592.030416,
+            "utilization": 25.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790524402.675937,
+            "utilization": 26.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790526212.587608,
+            "utilization": 26.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790528022.099606,
+            "utilization": 26.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790529832.953602,
+            "utilization": 27.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790531644.90095,
+            "utilization": 27.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790533455.232275,
+            "utilization": 27.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790535266.938285,
+            "utilization": 28.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790537079.977585,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790538891.558093,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790540705.342106,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790542519.961571,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790544331.811261,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790546140.71069,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790547950.861341,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790549760.947232,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790551572.293455,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790553382.605084,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790555192.897427,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790557003.195423,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790558813.837476,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790560623.970942,
+            "utilization": 29.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790562434.556146,
+            "utilization": 29.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790564244.999836,
+            "utilization": 29.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790566055.215308,
+            "utilization": 30.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790567865.626978,
+            "utilization": 31.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790569676.396276,
+            "utilization": 32.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790571488.845012,
+            "utilization": 32.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790573302.494498,
+            "utilization": 32.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790575117.410461,
+            "utilization": 32.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790576927.556549,
+            "utilization": 33.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790578738.347442,
+            "utilization": 33.5,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790580550.976695,
+            "utilization": 34.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790582361.305085,
+            "utilization": 34.2,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790584207.844992,
+            "utilization": 35.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790586022.238468,
+            "utilization": 35.0,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790587835.214021,
+            "utilization": 35.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790589648.494384,
+            "utilization": 35.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          },
+          {
+            "ts": 1790590295.145982,
+            "utilization": 35.8,
+            "resets_at": 1791072355.0,
+            "window_minutes": 10080
+          }
+        ]
+      }
+    },
+    {
+      "bucket": "codex_spark",
+      "label": "codex_spark",
+      "observed_at": 1790590293.4833596,
+      "fresh": true,
+      "data_available": false,
+      "window": null,
+      "reference_windows": [],
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "trace": {
+        "points": []
+      },
+      "lanes": [
+        {
+          "lane": "spark",
+          "label": "spark",
+          "gated": false,
+          "curved": false,
+          "limit_pct": null,
+          "headroom_pp": null,
+          "blocked": false,
+          "release_status": "no_data",
+          "release_in_seconds": null,
+          "reason": "",
+          "models": []
+        }
+      ],
+      "models": [],
+      "timeline": {
+        "points": []
+      }
+    }
+  ],
+  "outside_policy": [
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "grok-4.6",
+      "provider": "grok",
+      "provider_label": "Grok",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "Grok is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "Grok 4.6",
+      "bucket": "grok"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "grok-4.5",
+      "provider": "grok",
+      "provider_label": "Grok",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "Grok is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "Grok 4.5",
+      "bucket": "grok"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "GigaChat-2",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "GigaChat 2",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "GigaChat-2-Max",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "GigaChat 2 Max",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "GigaChat-3-Ultra",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "GigaChat 3 Ultra",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "GigaChat-2-Pro",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "GigaChat 2 Pro",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "GigaChat-3-Lightning",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "GigaChat 3 Lightning",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "GigaChat-3-Pro",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "GigaChat 3 Pro",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "nex-agi/nex-n2.5-pro:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "Nex AGI: Nex-N2.5-Pro (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "inclusionai/ling-3.0-flash-sante:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "inclusionAI: Ling 3.0 Flash Sante (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "inclusionai/ling-3.0-flash-fin:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "inclusionAI: Ling 3.0 Flash Fin (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "dots-studio/dots-3-note-preview:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "Dots Studio: Dots3-Note Preview (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "liquid/lfm-2.5-2.6b:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "LiquidAI: LFM2.5-2.6B (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "nvidia/nemotron-3.5-lightning:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "NVIDIA: Nemotron 3.5 Lightning (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "cohere/north-mini-code:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "Cohere: North Mini Code (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "nvidia/nemotron-3-ultra-550b-a55b:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "NVIDIA: Nemotron 3 Ultra (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "google/gemma-4-26b-a4b-it:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "Google: Gemma 4 26B A4B  (free)",
+      "bucket": "harness"
+    },
+    {
+      "state": "not_applicable",
+      "allowed": true,
+      "model": "nvidia/nemotron-3-super-120b-a12b:free",
+      "provider": "harness",
+      "provider_label": "OpenRouter",
+      "lane": null,
+      "gated": false,
+      "utilization": null,
+      "progress": null,
+      "tolerance_pp": null,
+      "limit_pct": null,
+      "hard_limit_pct": 99.0,
+      "observed_at": null,
+      "valid_until": null,
+      "reset_at": null,
+      "window_starts_at": null,
+      "reason": "OpenRouter is outside the subscription quota policy",
+      "release_status": "not_applicable",
+      "release_in_seconds": null,
+      "override_seconds_left": 0.0,
+      "label": "NVIDIA: Nemotron 3 Super (free)",
+      "bucket": "harness"
+    }
+  ]
+}
