@@ -2761,7 +2761,8 @@ class AgentSession:
                     raise RuntimeError(event.content or "provider error during compact audit")
                 elif event.type == "provider_limit":
                     self._handle_event(event)
-                    raise RuntimeError("provider limit during compact audit")
+                    if event.metadata.get("status") == "rejected":
+                        raise RuntimeError("provider limit during compact audit")
             if end_event.metadata.get("ok") is not True:
                 raise RuntimeError("compact audit turn failed")
 
