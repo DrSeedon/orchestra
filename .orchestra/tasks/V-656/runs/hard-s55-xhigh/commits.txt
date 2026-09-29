@@ -1,0 +1,1 @@
+7e23746a V-620: switch_worker_branch снимает привязку, оставленную merge_worker(continue)
