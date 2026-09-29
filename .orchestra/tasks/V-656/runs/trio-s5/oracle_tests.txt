@@ -1,0 +1,142 @@
+....................F..........................s........................ [ 30%]
+..........................................................F............. [ 60%]
+........................................................................ [ 90%]
+................F......                                                  [100%]
+=================================== FAILURES ===================================
+________ TestCronCommand.test_timeout_wakes_once_until_a_successful_run ________
+
+self = <tests.test_bg_jobs.TestCronCommand object at 0x7166954dca10>
+db = PosixPath('/tmp/pytest-of-kesha/pytest-10559/test_timeout_wakes_once_until_0/test.db')
+mgr_mock = (<MagicMock id='124685360470720'>, <MagicMock id='124685360475232'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x716692972540>
+
+    @pytest.mark.asyncio
+    async def test_timeout_wakes_once_until_a_successful_run(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_active_all, bg_save_job
+    
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("cron-command-timeout", datetime.now(timezone.utc)))
+        procs = [
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+            self._proc(output=b"healthy\n"),
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+        ]
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(side_effect=procs))
+    
+        async def communicate(process):
+            if process.returncode is None:
+                raise asyncio.TimeoutError
+            return process.output, process.error
+    
+        killed = AsyncMock()
+        monkeypatch.setattr(module, "_communicate_cron_command", communicate)
+        monkeypatch.setattr(module, "_kill_proc", killed)
+    
+        for _ in range(4):
+            await mgr._fire_cron_command(
+                "cron-command-timeout",
+                "python monitor.py",
+                "ALERT",
+                "monitor found work",
+                "w1",
+                "/s",
+            )
+    
+        assert manager.ensure_loaded_by_id.await_count == 2
+        assert session.send.await_count == 2
+        notified = session.send.await_args_list[0].args[0]
+        assert "cron-command-timeout" in notified
+        assert "python monitor.py" in notified
+>       assert "600 seconds" in notified
+E       assert '600 seconds' in "[Cron command timed out] job cron-command-timeout: `python monitor.py` did not finish within 600s and was killed. The...keeps retrying on its own; this is the only notice until a run completes — fix the command or raise the job's timeout."
+
+tests/test_bg_jobs.py:508: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.bg_jobs:bg_jobs.py:902 cron_command cron-command-timeout: command timed out after 600s
+WARNING  app.bg_jobs:bg_jobs.py:902 cron_command cron-command-timeout: command timed out after 600s
+WARNING  app.bg_jobs:bg_jobs.py:902 cron_command cron-command-timeout: command timed out after 600s
+_______ TestSendAndControl.test_remove_cancels_pending_precompact_timer ________
+
+self = <tests.test_manager.TestSendAndControl object at 0x716695500950>
+mgr = <app.manager.SessionManager object at 0x716690ff7170>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7166924bc8c0>
+
+    @pytest.mark.asyncio
+    async def test_remove_cancels_pending_precompact_timer(self, mgr, monkeypatch):
+        from tests.conftest import make_backend_mock
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session.loaded = False
+            sleeping = asyncio.Event()
+            release_sleep = asyncio.Event()
+    
+            async def wait_until_cancelled(_delay):
+                sleeping.set()
+                await release_sleep.wait()
+    
+            monkeypatch.setattr("app.session.asyncio.sleep", wait_until_cancelled)
+            session.compact = AsyncMock()
+            session._fire_precompact_timer = AsyncMock(side_effect=session.compact)
+            session._precompact_timer = {"delay_seconds": 1500}
+            timer_task = session._spawn_bg(session._run_precompact_timer())
+            session._precompact_timer_task = timer_task
+            await sleeping.wait()
+            await mgr.remove(session.id)
+            release_sleep.set()
+            await timer_task
+        assert mgr.get(session.id) is None
+        assert timer_task.done()
+>       session._fire_precompact_timer.assert_not_awaited()
+
+tests/test_manager.py:1704: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <AsyncMock id='124685334141920'>
+
+    def assert_not_awaited(self):
+        """
+        Assert that the mock was never awaited.
+        """
+        if self.await_count != 0:
+            msg = (f"Expected {self._mock_name or 'mock'} to not have been awaited."
+                   f" Awaited {self.await_count} times.")
+>           raise AssertionError(msg)
+E           AssertionError: Expected mock to not have been awaited. Awaited 1 times.
+
+/usr/lib/python3.12/unittest/mock.py:2400: AssertionError
+____________ test_v3_database_missing_attention_events_is_repaired _____________
+
+legacy_install = (PosixPath('/tmp/pytest-of-kesha/pytest-10559/test_v3_database_missing_atten0/orchestra.db'), PosixPath('/tmp/pytest-o...paths': [], 'required': False}, 'assignee': '', 'completed_at': None, 'created_at': '2026-09-01T00:00:00+00:00', ...}])
+
+    def test_v3_database_missing_attention_events_is_repaired(legacy_install):
+        database, root, _records = legacy_install
+        migrate_v576(database, root)
+        with sqlite3.connect(database) as connection:
+            connection.execute("DROP TABLE attention_events")
+            connection.commit()
+    
+        result = migrate_v576(database, root)
+    
+>       assert result["state"] == "migrated"
+E       AssertionError: assert 'already' == 'migrated'
+E         
+E         - migrated
+E         + already
+
+tests/test_startup_migration_v576.py:139: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.startup_migration:startup_migration.py:244 V-576 migration: SQLite backup at /tmp/pytest-of-kesha/pytest-10559/test_v3_database_missing_atten0/orchestra-pre-v576-20260929T030610Z.db
+WARNING  app.startup_migration:startup_migration.py:248 V-576 migration complete: store={'state': 'migrated', 'files': 3, 'tagged': 2, 'untagged': 1, 'head': '37c1fee89defdbe29645ffc537faae267d17b319'} database={'state': 'migrated', 'schema_version': 3} backup=/tmp/pytest-of-kesha/pytest-10559/test_v3_database_missing_atten0/orchestra-pre-v576-20260929T030610Z.db
+WARNING  app.startup_migration:startup_migration.py:227 V-576 migration: created missing attention_events table
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestCronCommand::test_timeout_wakes_once_until_a_successful_run
+FAILED tests/test_manager.py::TestSendAndControl::test_remove_cancels_pending_precompact_timer
+FAILED tests/test_startup_migration_v576.py::test_v3_database_missing_attention_events_is_repaired
+3 failed, 235 passed, 1 skipped in 120.54s (0:02:00)

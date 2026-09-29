@@ -8,7 +8,12 @@ out=$repo/.orchestra/tasks/V-656/runs/$label
 wt=$repo/data/v656/$label
 py=/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python
 mkdir -p "$out" "$(dirname "$wt")"
-git -C "$repo" worktree add --detach "$wt" "$base" >"$out/worktree.log" 2>&1 || exit 2
+# Isolated clone that holds only the base commit's ancestry: a linked worktree shares
+# refs, and in the first round Sonnet 5 found the merged reference in `git log main`.
+git -C "$repo" branch -f "v656-base-$label" "$base" >/dev/null
+git clone -q --no-local --single-branch --branch "v656-base-$label" "$repo" "$wt" >"$out/worktree.log" 2>&1 || exit 2
+git -C "$repo" branch -D "v656-base-$label" >/dev/null
+git -C "$wt" remote remove origin
 
 start=$(date +%s)
 ( cd "$wt" && timeout 5400 claude -p --model "$model" --output-format json \

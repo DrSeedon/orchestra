@@ -1,0 +1,1 @@
+0d242ba8 #V-653: precompact timer dies with killed worker, cron_command wakes target on timeout, attention_events ensured on existing DBs
