@@ -1,0 +1,38 @@
+[
+ {
+  "file": "V-665/task-path.html",
+  "frames": 1501,
+  "peak_speed": 485.4,
+  "stop_and_go": 0,
+  "teleports_visible": 2,
+  "speed_jump_max": 0.073,
+  "speed_jump_p99": 0.0096
+ },
+ {
+  "file": "V-668/task-path.html",
+  "frames": 1501,
+  "peak_speed": 664.4,
+  "stop_and_go": 0,
+  "teleports_visible": 0,
+  "speed_jump_max": 0.055,
+  "speed_jump_p99": 0.0335
+ },
+ {
+  "file": "V-665/weekly-limit.html",
+  "frames": 1231,
+  "peak_speed": 165.9,
+  "stop_and_go": 4,
+  "teleports_visible": 0,
+  "speed_jump_max": 0.01,
+  "speed_jump_p99": 0.0096
+ },
+ {
+  "file": "V-668/weekly-limit.html",
+  "frames": 1231,
+  "peak_speed": 95.8,
+  "stop_and_go": 0,
+  "teleports_visible": 0,
+  "speed_jump_max": 0.009,
+  "speed_jump_p99": 0.0079
+ }
+]
