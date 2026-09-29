@@ -1,0 +1,376 @@
+{
+  "source": "V-656 runs/*/result.json, V-620/bench-models.md; current pool coefficients from analysis_post19.json",
+  "formula_note": "V605 is historical aggregate point formula; V660 full point is the unconstrained post-19 aggregate fit (not adopted because input/output/read intervals overlap zero). The only currently supported per-token component is cache creation; its pp range covers that component only and is not a full-run estimate. API-price-trained pp values are model-agnostic hypotheses, not direct turn attribution.",
+  "V656": [
+    {
+      "label": "trio-s5",
+      "runs": [
+        "trio-s5"
+      ],
+      "model": "claude-sonnet-5",
+      "n_runs": 1,
+      "inputTokens": 250,
+      "cacheReadInputTokens": 12521366,
+      "cacheCreationInputTokens": 134193,
+      "outputTokens": 43345,
+      "thinkingTokens": 16415,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 3.4749952000000013,
+      "api_cost_5m_usd": 3.2737057000000003,
+      "api_cost_1h_usd": 3.4749952000000004,
+      "api_cost_1h_without_read_usd": 0.970722,
+      "api_inclusive_read_1h_pp_prediction": 0.12208568881355358,
+      "read_zero_1h_pp_prediction": 0.1033715649382185,
+      "V605_point_pp": 0.23300268132000002,
+      "V660_post19_full_point_pp": 0.30183730258136654,
+      "V660_create_only_point_pp": 0.08102767594908439,
+      "V660_create_only_95pp": [
+        0.026276668564257217,
+        0.16545563024024978
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "quota-s5",
+      "runs": [
+        "quota-s5"
+      ],
+      "model": "claude-sonnet-5",
+      "n_runs": 1,
+      "inputTokens": 190,
+      "cacheReadInputTokens": 18185429,
+      "cacheCreationInputTokens": 267453,
+      "outputTokens": 135548,
+      "thinkingTokens": 100583,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 6.062757800000002,
+      "api_cost_5m_usd": 5.6615783,
+      "api_cost_1h_usd": 6.062757800000001,
+      "api_cost_1h_without_read_usd": 2.425672,
+      "api_inclusive_read_1h_pp_prediction": 0.21300057108647077,
+      "read_zero_1h_pp_prediction": 0.2583082599001757,
+      "V605_point_pp": 0.52750727308,
+      "V660_post19_full_point_pp": 0.32747824442923196,
+      "V660_create_only_point_pp": 0.16149199299226089,
+      "V660_create_only_95pp": [
+        0.052370644053835035,
+        0.32976090164647576
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "trio-s55",
+      "runs": [
+        "trio-s55"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 1,
+      "inputTokens": 72,
+      "cacheReadInputTokens": 2412791,
+      "cacheCreationInputTokens": 79239,
+      "outputTokens": 21647,
+      "thinkingTokens": 4340,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 1.5496982000000001,
+      "api_cost_5m_usd": 0.8972697,
+      "api_cost_1h_usd": 1.0161282,
+      "api_cost_1h_without_read_usd": 0.53357,
+      "api_inclusive_read_1h_pp_prediction": 0.03569924678453551,
+      "read_zero_1h_pp_prediction": 0.05681952804622255,
+      "V605_point_pp": 0.11240996332000001,
+      "V660_post19_full_point_pp": 0.09774974303023913,
+      "V660_create_only_point_pp": 0.0478456552467677,
+      "V660_create_only_95pp": [
+        0.015515987721886967,
+        0.09769912502594884
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "quota-s55",
+      "runs": [
+        "quota-s55"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 1,
+      "inputTokens": 64,
+      "cacheReadInputTokens": 2706008,
+      "cacheCreationInputTokens": 106039,
+      "outputTokens": 38584,
+      "thinkingTokens": 17908,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 2.1614496,
+      "api_cost_5m_usd": 1.1922671,
+      "api_cost_1h_usd": 1.3513256,
+      "api_cost_1h_without_read_usd": 0.810124,
+      "api_inclusive_read_1h_pp_prediction": 0.04747560994829247,
+      "read_zero_1h_pp_prediction": 0.08626958663140355,
+      "V605_point_pp": 0.16578029716,
+      "V660_post19_full_point_pp": 0.10066674954788284,
+      "V660_create_only_point_pp": 0.06402788319781925,
+      "V660_create_only_95pp": [
+        0.020763763071734522,
+        0.1307426585220231
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "Sonnet 5.5 low, both tasks",
+      "runs": [
+        "trio-55-low",
+        "quota-55-low"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 2,
+      "inputTokens": 76,
+      "cacheReadInputTokens": 1918408,
+      "cacheCreationInputTokens": 92144,
+      "outputTokens": 20160,
+      "thinkingTokens": 3062,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 1.5243376,
+      "api_cost_5m_usd": 0.8157936000000001,
+      "api_cost_1h_usd": 0.9540096000000001,
+      "api_cost_1h_without_read_usd": 0.570328,
+      "api_inclusive_read_1h_pp_prediction": 0.03351685756306735,
+      "read_zero_1h_pp_prediction": 0.060733863957017846,
+      "V605_point_pp": 0.11847050015999999,
+      "V660_post19_full_point_pp": 0.10560455463339202,
+      "V660_create_only_point_pp": 0.05563788105677965,
+      "V660_create_only_95pp": [
+        0.018042948202849008,
+        0.1136105727784428
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "Sonnet 5.5 medium, both tasks",
+      "runs": [
+        "trio-55-medium",
+        "quota-55-medium"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 2,
+      "inputTokens": 88,
+      "cacheReadInputTokens": 2426642,
+      "cacheCreationInputTokens": 106569,
+      "outputTokens": 28626,
+      "thinkingTokens": 6702,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 1.9107524000000002,
+      "api_cost_5m_usd": 1.0381869,
+      "api_cost_1h_usd": 1.1980404,
+      "api_cost_1h_without_read_usd": 0.712712,
+      "api_inclusive_read_1h_pp_prediction": 0.04209029913493557,
+      "read_zero_1h_pp_prediction": 0.07589624505290658,
+      "V605_point_pp": 0.14736045884,
+      "V660_post19_full_point_pp": 0.12045304609796877,
+      "V660_create_only_point_pp": 0.06434790486998557,
+      "V660_create_only_95pp": [
+        0.020867543703653152,
+        0.131396131385938
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "Sonnet 5.5 high, both tasks",
+      "runs": [
+        "trio-55-high",
+        "quota-55-high"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 2,
+      "inputTokens": 134,
+      "cacheReadInputTokens": 5223920,
+      "cacheCreationInputTokens": 181287,
+      "outputTokens": 58455,
+      "thinkingTokens": 23564,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 3.6647159999999994,
+      "api_cost_5m_usd": 2.0828195,
+      "api_cost_1h_usd": 2.35475,
+      "api_cost_1h_without_read_usd": 1.309966,
+      "api_inclusive_read_1h_pp_prediction": 0.08272853894408697,
+      "read_zero_1h_pp_prediction": 0.13949744152894272,
+      "V605_point_pp": 0.2720958854,
+      "V660_post19_full_point_pp": 0.19650700291312728,
+      "V660_create_only_point_pp": 0.109463714871727,
+      "V660_create_only_95pp": [
+        0.03549826305402292,
+        0.22352100958592597
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "Sonnet 5.5 xhigh, both tasks",
+      "runs": [
+        "trio-55-xhigh",
+        "quota-55-xhigh"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 2,
+      "inputTokens": 7395,
+      "cacheReadInputTokens": 9376388,
+      "cacheCreationInputTokens": 368711,
+      "outputTokens": 164089,
+      "thinkingTokens": 84885,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 8.131078600000002,
+      "api_cost_5m_usd": 4.4527351,
+      "api_cost_1h_usd": 5.0058016,
+      "api_cost_1h_without_read_usd": 3.130524,
+      "api_inclusive_read_1h_pp_prediction": 0.17586692965791392,
+      "read_zero_1h_pp_prediction": 0.3333674985800791,
+      "V605_point_pp": 0.6776157467600001,
+      "V660_post19_full_point_pp": 4.941850918989592,
+      "V660_create_only_point_pp": 0.22263303918134966,
+      "V660_create_only_95pp": [
+        0.07219822750065832,
+        0.45460874174891935
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "Sonnet 5.5 max, both tasks",
+      "runs": [
+        "trio-55-max",
+        "quota-55-max"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 2,
+      "inputTokens": 17774,
+      "cacheReadInputTokens": 28265678,
+      "cacheCreationInputTokens": 954997,
+      "outputTokens": 470170,
+      "thinkingTokens": 271505,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 22.719373599999997,
+      "api_cost_5m_usd": 12.777876100000002,
+      "api_cost_1h_usd": 14.210371600000002,
+      "api_cost_1h_without_read_usd": 8.557236,
+      "api_inclusive_read_1h_pp_prediction": 0.49924759754561954,
+      "read_zero_1h_pp_prediction": 0.9112545887140304,
+      "V605_point_pp": 1.8417806335600002,
+      "V660_post19_full_point_pp": 11.913377259060768,
+      "V660_create_only_point_pp": 0.5766410129317308,
+      "V660_create_only_95pp": [
+        0.18700036252904362,
+        1.1774804238115835
+      ],
+      "V660_model_specific_not_identified": true
+    },
+    {
+      "label": "Sonnet 5.5 default, both tasks",
+      "runs": [
+        "trio-s55",
+        "quota-s55"
+      ],
+      "model": "claude-sonnet-5-5",
+      "n_runs": 2,
+      "inputTokens": 136,
+      "cacheReadInputTokens": 5118799,
+      "cacheCreationInputTokens": 185278,
+      "outputTokens": 60231,
+      "thinkingTokens": 22248,
+      "thinking_is_subset_of_output": true,
+      "cli_cost_usd": 3.7111478,
+      "api_cost_5m_usd": 2.0895368,
+      "api_cost_1h_usd": 2.3674538,
+      "api_cost_1h_without_read_usd": 1.343694,
+      "api_inclusive_read_1h_pp_prediction": 0.08317485673282797,
+      "read_zero_1h_pp_prediction": 0.1430891146776261,
+      "V605_point_pp": 0.27819026048,
+      "V660_post19_full_point_pp": 0.19841649257812197,
+      "V660_create_only_point_pp": 0.11187353844458695,
+      "V660_create_only_95pp": [
+        0.03627975079362149,
+        0.22844178354797193
+      ],
+      "V660_model_specific_not_identified": true
+    }
+  ],
+  "V656_hard_runs": [],
+  "V656_hard_dirs_found": [],
+  "V620_Claude": [
+    {
+      "model": "Opus 5.5",
+      "key": "claude-opus-5-5[1m]",
+      "inputTokens": 0,
+      "cacheReadInputTokens": 16984093,
+      "cacheCreationInputTokens": 222183,
+      "outputTokens": 74232,
+      "reported_cli_usd": 6.66,
+      "api_1h_usd": 6.6589225999999995,
+      "api_1h_without_read_usd": 3.262104,
+      "api_inclusive_read_1h_pp_prediction": 0.2339454029683664,
+      "read_zero_1h_pp_prediction": 0.34737936862584995,
+      "V605_point_pp": 0.37433434036,
+      "V660_create_only_point_pp": 0.13415731167345105,
+      "V660_create_only_95pp": [
+        0.04350621158787985,
+        0.27394445532680106
+      ]
+    },
+    {
+      "model": "Opus 5",
+      "key": "claude-opus-5[1m]",
+      "inputTokens": 0,
+      "cacheReadInputTokens": 9948605,
+      "cacheCreationInputTokens": 152175,
+      "outputTokens": 45475,
+      "reported_cli_usd": 7.64,
+      "api_1h_usd": 7.6329275,
+      "api_1h_without_read_usd": 2.658625,
+      "api_inclusive_read_1h_pp_prediction": 0.268164747825095,
+      "read_zero_1h_pp_prediction": 0.2831152758811185,
+      "V605_point_pp": 0.2407427646,
+      "V660_create_only_point_pp": 0.09188546785265936,
+      "V660_create_only_95pp": [
+        0.029797769173994487,
+        0.1876268548419814
+      ]
+    }
+  ],
+  "V620_Codex": [
+    {
+      "model": "GPT-5.6 Sol",
+      "key": "gpt-5.6-sol",
+      "uncached_input": 205665,
+      "cached_input": 11995904,
+      "output": 41079,
+      "api_usd": 6.44,
+      "credit_units_by_current_standard_rate": 161.06504,
+      "cache_write_credit_units": 0
+    },
+    {
+      "model": "GPT-6 Sol",
+      "key": "gpt-6-sol",
+      "uncached_input": 203380,
+      "cached_input": 17050112,
+      "output": 50014,
+      "api_usd": 4.32,
+      "credit_units_by_current_standard_rate": 107.92306,
+      "cache_write_credit_units": 0
+    },
+    {
+      "model": "GPT-5.6 Luna",
+      "key": "gpt-5.6-luna",
+      "uncached_input": 301654,
+      "cached_input": 22564096,
+      "output": 47707,
+      "api_usd": 0.57,
+      "credit_units_by_current_standard_rate": 14.221528,
+      "cache_write_credit_units": 0
+    },
+    {
+      "model": "GPT-6 Luna",
+      "key": "gpt-6-luna",
+      "uncached_input": 300225,
+      "cached_input": 19858688,
+      "output": 72720,
+      "api_usd": 0.26,
+      "credit_units_by_current_standard_rate": 6.6242345,
+      "cache_write_credit_units": 0
+    }
+  ]
+}
