@@ -1,0 +1,86 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+________ test_git_confirms_pinned_branch_reconciles_record_and_proceeds ________
+
+env = (<module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/db.py'>, <mo...sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/routes/sessions.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7946800ad190>
+
+    @pytest.mark.asyncio
+    async def test_git_confirms_pinned_branch_reconciles_record_and_proceeds(env, monkeypatch):
+        dbmod, route = env
+        _git(monkeypatch, (PINNED, HEAD))
+        result = await _run(route)
+>       assert result["error"] == STOP, result
+E       AssertionError: {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-42/worker, found adhoc-1800000000-1/worker', ...}
+E       assert 'session bran...0000-1/worker' == 'stop-after-branch-check'
+E         
+E         - stop-after-branch-check
+E         + session branch changed before merge: expected task-42/worker, found adhoc-1800000000-1/worker
+
+tests/test_merge_branch_record_v575.py:64: AssertionError
+_______________ test_third_state_refuses_naming_db_git_and_tool ________________
+
+env = (<module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/db.py'>, <mo...sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/routes/sessions.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x794681ab7c50>
+
+    @pytest.mark.asyncio
+    async def test_third_state_refuses_naming_db_git_and_tool(env, monkeypatch):
+        dbmod, route = env
+        _git(monkeypatch, ("some/other", HEAD))
+        result = await _run(route)
+        assert result["_http_status"] == 409
+        for needle in (ADHOC, PINNED, "some/other", "switch_worker_branch"):
+>           assert needle in result["error"]
+E           AssertionError: assert 'some/other' in 'session branch changed before merge: expected task-42/worker, found adhoc-1800000000-1/worker'
+
+tests/test_merge_branch_record_v575.py:75: AssertionError
+__________________ test_head_moved_refuses_and_leaves_record ___________________
+
+env = (<module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/db.py'>, <mo...sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/routes/sessions.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79467d4a2300>
+
+    @pytest.mark.asyncio
+    async def test_head_moved_refuses_and_leaves_record(env, monkeypatch):
+        dbmod, route = env
+        _git(monkeypatch, (PINNED, "c" * 40))
+        result = await _run(route)
+        assert result["_http_status"] == 409
+>       assert "HEAD moved" in result["error"] and ADHOC in result["error"]
+E       AssertionError: assert ('HEAD moved' in 'session branch changed before merge: expected task-42/worker, found adhoc-1800000000-1/worker')
+
+tests/test_merge_branch_record_v575.py:85: AssertionError
+_______________ test_uninspectable_worktree_is_refusal_not_pass ________________
+
+env = (<module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/db.py'>, <mo...sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-medium/app/routes/sessions.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79467d4a3cb0>
+
+    @pytest.mark.asyncio
+    async def test_uninspectable_worktree_is_refusal_not_pass(env, monkeypatch):
+        dbmod, route = env
+        _git(monkeypatch, RuntimeError("cannot inspect worker branch: boom"))
+        result = await _run(route)
+        assert result["_http_status"] == 409
+>       assert "boom" in result["error"] and ADHOC in result["error"]
+E       AssertionError: assert ('boom' in 'session branch changed before merge: expected task-42/worker, found adhoc-1800000000-1/worker')
+
+tests/test_merge_branch_record_v575.py:95: AssertionError
+______________ test_refusal_next_action_is_not_the_futile_refresh ______________
+
+    def test_refusal_next_action_is_not_the_futile_refresh():
+        import app.merge_operations as ops
+    
+        msg = (f"session branch changed before merge: DB records {ADHOC}, operation pinned "
+               f"{PINNED}, git worktree is on x; none agree — re-bind")
+        code, _details, action = ops._classify_failure({}, msg)
+        assert code == "SESSION_IDENTITY_CHANGED"
+>       assert action["code"] != "REFRESH_WORKER_THEN_NEW_OPERATION"
+E       AssertionError: assert 'REFRESH_WORKER_THEN_NEW_OPERATION' != 'REFRESH_WORKER_THEN_NEW_OPERATION'
+
+tests/test_merge_branch_record_v575.py:106: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record_v575.py::test_git_confirms_pinned_branch_reconciles_record_and_proceeds
+FAILED tests/test_merge_branch_record_v575.py::test_third_state_refuses_naming_db_git_and_tool
+FAILED tests/test_merge_branch_record_v575.py::test_head_moved_refuses_and_leaves_record
+FAILED tests/test_merge_branch_record_v575.py::test_uninspectable_worktree_is_refusal_not_pass
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_next_action_is_not_the_futile_refresh
+5 failed in 8.48s

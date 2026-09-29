@@ -1,0 +1,129 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+____________________ test_normal_end_delivers_nothing_again ____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ac4a39e6f0>
+
+    @pytest.mark.asyncio
+    async def test_normal_end_delivers_nothing_again(db, monkeypatch):
+        s = _session(monkeypatch)
+        await _steer(s, "[from:peer] срочно")
+>       assert s._last_send_disposition == "steered"
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute '_last_send_disposition'
+
+tests/test_steer_turn_loss_v562.py:59: AttributeError
+______________ test_dead_turn_redelivers_all_in_order_once[meta0] ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ac4cf51430>
+meta = {'errors': ['boom'], 'ok': False, 'stop_reason': 'error'}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("meta", [
+        {"ok": False, "stop_reason": "error", "errors": ["boom"]},
+        {"ok": True, "stop_reason": "interrupted"},
+    ])
+    async def test_dead_turn_redelivers_all_in_order_once(db, monkeypatch, meta):
+        s = _session(monkeypatch)
+        await _steer(s, "[from:peer] первое")
+        await _steer(s, "[from:other] второе", MessageProvenance(origin="agent", senders=("other",)))
+        queued = _end(s, **meta)
+>       assert len(queued) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_steer_turn_loss_v562.py:76: AssertionError
+______________ test_dead_turn_redelivers_all_in_order_once[meta1] ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ac4842b530>
+meta = {'ok': True, 'stop_reason': 'interrupted'}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("meta", [
+        {"ok": False, "stop_reason": "error", "errors": ["boom"]},
+        {"ok": True, "stop_reason": "interrupted"},
+    ])
+    async def test_dead_turn_redelivers_all_in_order_once(db, monkeypatch, meta):
+        s = _session(monkeypatch)
+        await _steer(s, "[from:peer] первое")
+        await _steer(s, "[from:other] второе", MessageProvenance(origin="agent", senders=("other",)))
+        queued = _end(s, **meta)
+>       assert len(queued) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_steer_turn_loss_v562.py:76: AssertionError
+_____________________ test_restart_recovers_orphaned_steer _____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ac48406660>
+
+    @pytest.mark.asyncio
+    async def test_restart_recovers_orphaned_steer(db, monkeypatch):
+        s = _session(monkeypatch)
+        await _steer(s, "[from:peer] срочно")
+        # «рестарт»: новый процесс, хода нет, строка осталась в полёте
+        s2 = _session(monkeypatch)
+        s2.status = AgentStatus.IDLE
+        spawned = []
+        s2._spawn_bg = lambda coro: spawned.append(coro)
+>       await s2.recover_steered()
+              ^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute 'recover_steered'
+
+tests/test_steer_turn_loss_v562.py:92: AttributeError
+____________________ test_recover_without_orphans_is_silent ____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ac47d73c50>
+
+    @pytest.mark.asyncio
+    async def test_recover_without_orphans_is_silent(db, monkeypatch):
+        s = _session(monkeypatch)
+        s._spawn_bg = MagicMock()
+>       await s.recover_steered()
+              ^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute 'recover_steered'
+
+tests/test_steer_turn_loss_v562.py:103: AttributeError
+______________________ test_failed_steer_is_not_journaled ______________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71ac48201700>
+
+    @pytest.mark.asyncio
+    async def test_failed_steer_is_not_journaled(db, monkeypatch):
+        s = _session(monkeypatch)
+        s._backend = MagicMock(is_alive=True, send=AsyncMock(side_effect=RuntimeError("x")),
+                               deferred_interrupt_pending=False)
+        s._ensure_backend = AsyncMock(return_value=s._backend)
+        await s.send("hello", provenance=PROV)
+>       assert _rows(db) == [] and s._last_send_disposition == ""
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute '_last_send_disposition'
+
+tests/test_steer_turn_loss_v562.py:114: AttributeError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:1310 [recipient] mid-turn inject failed, queueing: x
+______________ test_inflight_row_is_neither_claimed_nor_cancelled ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-medium/app/db.py'>
+
+    def test_inflight_row_is_neither_claimed_nor_cancelled(db):
+>       mid = mailbox.record_steered("recipient", "/repo", "peer", "b", provenance=PROV)
+              ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_turn_loss_v562.py:118: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_steer_turn_loss_v562.py::test_normal_end_delivers_nothing_again
+FAILED tests/test_steer_turn_loss_v562.py::test_dead_turn_redelivers_all_in_order_once[meta0]
+FAILED tests/test_steer_turn_loss_v562.py::test_dead_turn_redelivers_all_in_order_once[meta1]
+FAILED tests/test_steer_turn_loss_v562.py::test_restart_recovers_orphaned_steer
+FAILED tests/test_steer_turn_loss_v562.py::test_recover_without_orphans_is_silent
+FAILED tests/test_steer_turn_loss_v562.py::test_failed_steer_is_not_journaled
+FAILED tests/test_steer_turn_loss_v562.py::test_inflight_row_is_neither_claimed_nor_cancelled
+7 failed in 10.15s

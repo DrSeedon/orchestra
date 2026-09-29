@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+_____________ ERROR collecting tests/test_cost_baseline_restart.py _____________
+ImportError while importing test module '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-medium/tests/test_cost_baseline_restart.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_cost_baseline_restart.py:12: in <module>
+    from app.session_cost import baseline_key, encode_baseline, restore_baseline
+E   ImportError: cannot import name 'baseline_key' from 'app.session_cost' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-medium/app/session_cost.py)
+=========================== short test summary info ============================
+ERROR tests/test_cost_baseline_restart.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.49s

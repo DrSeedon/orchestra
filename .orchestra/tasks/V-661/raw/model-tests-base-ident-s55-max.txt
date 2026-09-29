@@ -1,0 +1,355 @@
+FFFF.......FFFFFFFFFFF                                                   [100%]
+=================================== FAILURES ===================================
+____ test_git_confirms_pinned_branch_so_merge_passes_and_record_is_aligned _____
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_git_confirms_pinned_branc0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70559378ecc0>
+
+    @pytest.mark.asyncio
+    async def test_git_confirms_pinned_branch_so_merge_passes_and_record_is_aligned(
+        stale_record, monkeypatch,
+    ):
+        env = stale_record
+        assert _recorded_branch(env) == STALE_RECORD != env.git_branch
+        main_before = _git(env.repo, "rev-parse", "main")
+    
+        seen = {}
+        real_merge = env.workspace.merge_worktree_to_main
+    
+        def merge_spy(*args, **kwargs):
+            # К моменту, когда Git начинает мутировать, запись обязана уже совпадать с git.
+            seen["record_when_git_starts"] = _recorded_branch(env)
+            return real_merge(*args, **kwargs)
+    
+        monkeypatch.setattr(env.workspace, "merge_worktree_to_main", merge_spy)
+    
+        result = await _merge(env)
+    
+>       assert result["ok"] is True, result.get("error")
+E       AssertionError: session branch changed before merge: expected task-256/direct-research, found adhoc-1787122924-16/direct-research
+E       assert False is True
+
+tests/test_merge_branch_record_v575.py:137: AssertionError
+____________ test_pin_without_head_is_confirmed_by_the_branch_alone ____________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_pin_without_head_is_confi0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+
+    @pytest.mark.asyncio
+    async def test_pin_without_head_is_confirmed_by_the_branch_alone(stale_record):
+        env = stale_record
+        # Голова не закреплена — сравнивать нечего; ветка совпала, запись выравнивается.
+        result = await _merge(env, expected_head="")
+>       assert result["ok"] is True, result.get("error")
+E       AssertionError: session branch changed before merge: expected task-256/direct-research, found adhoc-1787122924-16/direct-research
+E       assert False is True
+
+tests/test_merge_branch_record_v575.py:149: AssertionError
+_________ test_loaded_session_is_aligned_in_memory_and_in_the_database _________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_loaded_session_is_aligned0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+
+    @pytest.mark.asyncio
+    async def test_loaded_session_is_aligned_in_memory_and_in_the_database(stale_record):
+        """Живая сессия: устаревшая ветка сидит и в памяти, и в БД, а `_persist` пишет память."""
+        env = stale_record
+        live = env.manager.get_by_name(WORKER, str(env.repo))
+        live.loaded = True
+        env.manager.sessions[live.id] = live
+        assert live.branch == STALE_RECORD
+    
+        result = await _merge(env)
+    
+>       assert result["ok"] is True, result.get("error")
+E       AssertionError: session branch changed before merge: expected task-256/direct-research, found adhoc-1787122924-16/direct-research
+E       assert False is True
+
+tests/test_merge_branch_record_v575.py:164: AssertionError
+_________ test_operation_from_the_live_report_merges_on_the_first_try __________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_operation_from_the_live_r0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+
+    @pytest.mark.asyncio
+    async def test_operation_from_the_live_report_merges_on_the_first_try(stale_record):
+        """Тот же путь, что в репорте: приём операции → раннер → `execute_merge_session`."""
+        import app.merge_operations as operations
+    
+        env = stale_record
+        operations._runner_tasks.clear()
+        result, status = await operations.accept_merge_operation(
+            operation_id=str(uuid.uuid4()), name=WORKER, scope=str(env.repo), target="main",
+        )
+        assert status == 202, result
+        # Операция закрепила ветку ИЗ git, а не запись платформы.
+        assert result["git"]["worker_branch"] == env.git_branch
+        await operations._runner_tasks[result["operation_id"]]
+    
+        final = operations.get_operation_result(result["operation_id"])
+>       assert final["operation_state"] == "SUCCEEDED", final
+E       AssertionError: {'acceptance': {'command': '', 'exit_code': 0, 'output': '', 'reason': 'not_required', ...}, 'admission': {'mapped_fil...ge: expected task-256/direct-research, found adhoc-1787122924-16/direct-research', 'outcome_unknown': False, ...}, ...}
+E       assert 'FAILED' == 'SUCCEEDED'
+E         
+E         - SUCCEEDED
+E         + FAILED
+
+tests/test_merge_branch_record_v575.py:185: AssertionError
+________ test_refusal_names_the_record_git_and_the_way_out[third_state] ________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590d49eb0>
+scenario = 'third_state'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+________ test_refusal_names_the_record_git_and_the_way_out[moved_head] _________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_1/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590bbd760>
+scenario = 'moved_head'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+__ test_refusal_names_the_record_git_and_the_way_out[git_agrees_with_record] ___
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_2/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590b9acf0>
+scenario = 'git_agrees_with_record'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+_______ test_refusal_names_the_record_git_and_the_way_out[worktree_gone] _______
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_3/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590b9a720>
+scenario = 'worktree_gone'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+____ test_refusal_names_the_record_git_and_the_way_out[worktree_path_empty] ____
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_4/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590b9e8a0>
+scenario = 'worktree_path_empty'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+_________ test_refusal_names_the_record_git_and_the_way_out[git_fails] _________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_5/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590d4a120>
+scenario = 'git_fails'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+___ test_refusal_names_the_record_git_and_the_way_out[alignment_write_fails] ___
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_names_the_record_6/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590d49dc0>
+scenario = 'alignment_write_fails'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("scenario", list(REFUSAL_SCENARIOS))
+    async def test_refusal_names_the_record_git_and_the_way_out(
+        stale_record, monkeypatch, scenario,
+    ):
+        env = stale_record
+        result, arranged, _main_before = await _refused(env, monkeypatch, scenario)
+    
+>       assert result["code"] == "SESSION_BRANCH_DIVERGED"
+               ^^^^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:358: KeyError
+________________ test_matching_record_starts_no_reconciliation _________________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_matching_record_starts_no0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590bbe360>
+
+    @pytest.mark.asyncio
+    async def test_matching_record_starts_no_reconciliation(stale_record, monkeypatch):
+        """Расхождения нет — ход прежний: запись не трогают и git ради неё не спрашивают."""
+        env = stale_record
+        with env.db._conn() as connection:
+            connection.execute(
+                "UPDATE sessions SET branch=? WHERE id=?", (env.git_branch, env.session_id),
+            )
+        aligned = []
+>       real_align = env.route._align_recorded_branch_with_git
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.routes.sessions' has no attribute '_align_recorded_branch_with_git'
+
+tests/test_merge_branch_record_v575.py:373: AttributeError
+______ test_refusal_keeps_the_public_code_but_stops_prescribing_a_refresh ______
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_keeps_the_public_0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+
+    def test_refusal_keeps_the_public_code_but_stops_prescribing_a_refresh(stale_record):
+>       result = _normalized_refusal(stale_record)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_merge_branch_record_v575.py:407: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_refusal_keeps_the_public_0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+
+    def _normalized_refusal(env) -> dict:
+        import app.merge_operations as operations
+    
+        identity = {
+            "recorded_branch": STALE_RECORD,
+            "pinned_branch": env.git_branch,
+            "pinned_head": env.head,
+            "git_branch": "sidetrack",
+            "git_head": env.head,
+        }
+>       raw = env.route._branch_disagreement_refusal(identity, WORKER)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.routes.sessions' has no attribute '_branch_disagreement_refusal'
+
+tests/test_merge_branch_record_v575.py:400: AttributeError
+_____________ test_generic_identity_refusal_no_longer_says_refresh _____________
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_generic_identity_refusal_0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+
+    def test_generic_identity_refusal_no_longer_says_refresh(stale_record):
+        """Прочие «identity changed» сохраняют код действия, но не советуют бесполезное."""
+        import app.merge_operations as operations
+    
+        raw = {
+            "ok": False, "state": "failed", "commit_point": "not_reached",
+            "error": "session identity changed while waiting to merge", "_http_status": 409,
+        }
+        result = operations.normalize_merge_result(str(uuid.uuid4()), raw, {"name": WORKER})
+    
+        assert result["error"]["code"] == "SESSION_IDENTITY_CHANGED"
+        assert result["next_action"]["code"] == "REFRESH_WORKER_THEN_NEW_OPERATION"
+>       assert "Refresh" not in result["next_action"]["message"]
+E       AssertionError: assert 'Refresh' not in 'Refresh the...w operation.'
+E         
+E         'Refresh' is contained here:
+E           Refresh the worker snapshot, then start a new operation.
+E         ? +++++++
+
+tests/test_merge_branch_record_v575.py:432: AssertionError
+_____ test_new_operation_after_a_refusal_converges_instead_of_repeating_it _____
+
+stale_record = namespace(repo=PosixPath('/tmp/pytest-of-kesha/pytest-11061/test_new_operation_after_a_ref0/repo'), wt=PosixPath('/tmp...le 'app.workspace' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-max/app/workspace.py'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705590bb52b0>
+
+    @pytest.mark.asyncio
+    async def test_new_operation_after_a_refusal_converges_instead_of_repeating_it(
+        stale_record, monkeypatch,
+    ):
+        """Предписанное действие работает: отказ → новая операция → мерж, запись выровнена."""
+        import app.merge_operations as operations
+        import app.merge_test_gate as merge_test_gate
+    
+        env = stale_record
+        operations._runner_tasks.clear()
+        real_gate = merge_test_gate.evaluate_test_gate
+        switched = []
+    
+        def gate_that_lets_the_worker_wander(*args, **kwargs):
+            # Пока идут проверки, воркер уходит на третью ветку: запись, закреплённое и git
+            # теперь все разные — ровно «третье состояние».
+            if not switched:
+                _git(env.wt, "checkout", "-b", "sidetrack")
+                switched.append(True)
+            return real_gate(*args, **kwargs)
+    
+        monkeypatch.setattr(merge_test_gate, "evaluate_test_gate", gate_that_lets_the_worker_wander)
+    
+        first, status = await operations.accept_merge_operation(
+            operation_id=str(uuid.uuid4()), name=WORKER, scope=str(env.repo), target="main",
+        )
+        assert status == 202, first
+        await operations._runner_tasks[first["operation_id"]]
+        refused = operations.get_operation_result(first["operation_id"])
+        assert refused["operation_state"] == "FAILED", refused
+        assert refused["error"]["code"] == "SESSION_IDENTITY_CHANGED"
+>       assert "sidetrack" in refused["error"]["message"]
+E       AssertionError: assert 'sidetrack' in 'session branch changed before merge: expected task-256/direct-research, found adhoc-1787122924-16/direct-research'
+
+tests/test_merge_branch_record_v575.py:467: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record_v575.py::test_git_confirms_pinned_branch_so_merge_passes_and_record_is_aligned
+FAILED tests/test_merge_branch_record_v575.py::test_pin_without_head_is_confirmed_by_the_branch_alone
+FAILED tests/test_merge_branch_record_v575.py::test_loaded_session_is_aligned_in_memory_and_in_the_database
+FAILED tests/test_merge_branch_record_v575.py::test_operation_from_the_live_report_merges_on_the_first_try
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[third_state]
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[moved_head]
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[git_agrees_with_record]
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[worktree_gone]
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[worktree_path_empty]
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[git_fails]
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_names_the_record_git_and_the_way_out[alignment_write_fails]
+FAILED tests/test_merge_branch_record_v575.py::test_matching_record_starts_no_reconciliation
+FAILED tests/test_merge_branch_record_v575.py::test_refusal_keeps_the_public_code_but_stops_prescribing_a_refresh
+FAILED tests/test_merge_branch_record_v575.py::test_generic_identity_refusal_no_longer_says_refresh
+FAILED tests/test_merge_branch_record_v575.py::test_new_operation_after_a_refusal_converges_instead_of_repeating_it
+15 failed, 7 passed in 26.11s

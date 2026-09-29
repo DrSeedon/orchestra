@@ -1,0 +1,106 @@
+....FFFF....FF                                                           [100%]
+=================================== FAILURES ===================================
+________ test_scenario_leaves_no_pidfd[command_watch_cancelled-asyncio] ________
+
+scenario = 'command_watch_cancelled', loop = 'asyncio'
+
+    @pytest.mark.parametrize("loop", _loops())
+    @pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario, loop):
+        result = _probe(scenario, loop)
+>       assert result["after"] == result["before"], (
+            f"{scenario} under {loop} leaked "
+            f"{result['after'] - result['before']} pidfd over {SCENARIOS[scenario]} runs"
+        )
+E       AssertionError: command_watch_cancelled under asyncio leaked 10 pidfd over 5 runs
+E       assert 10 == 0
+
+tests/test_pidfd_leak_v543.py:170: AssertionError
+________ test_scenario_leaves_no_pidfd[command_watch_cancelled-uvloop] _________
+
+scenario = 'command_watch_cancelled', loop = 'uvloop'
+
+    @pytest.mark.parametrize("loop", _loops())
+    @pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario, loop):
+        result = _probe(scenario, loop)
+>       assert result["after"] == result["before"], (
+            f"{scenario} under {loop} leaked "
+            f"{result['after'] - result['before']} pidfd over {SCENARIOS[scenario]} runs"
+        )
+E       AssertionError: command_watch_cancelled under uvloop leaked 5 pidfd over 5 runs
+E       assert 5 == 0
+
+tests/test_pidfd_leak_v543.py:170: AssertionError
+__________ test_scenario_leaves_no_pidfd[command_watch_match-asyncio] __________
+
+scenario = 'command_watch_match', loop = 'asyncio'
+
+    @pytest.mark.parametrize("loop", _loops())
+    @pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario, loop):
+        result = _probe(scenario, loop)
+>       assert result["after"] == result["before"], (
+            f"{scenario} under {loop} leaked "
+            f"{result['after'] - result['before']} pidfd over {SCENARIOS[scenario]} runs"
+        )
+E       AssertionError: command_watch_match under asyncio leaked 15 pidfd over 15 runs
+E       assert 15 == 0
+
+tests/test_pidfd_leak_v543.py:170: AssertionError
+__________ test_scenario_leaves_no_pidfd[command_watch_match-uvloop] ___________
+
+scenario = 'command_watch_match', loop = 'uvloop'
+
+    @pytest.mark.parametrize("loop", _loops())
+    @pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario, loop):
+        result = _probe(scenario, loop)
+>       assert result["after"] == result["before"], (
+            f"{scenario} under {loop} leaked "
+            f"{result['after'] - result['before']} pidfd over {SCENARIOS[scenario]} runs"
+        )
+E       AssertionError: command_watch_match under uvloop leaked 15 pidfd over 15 runs
+E       assert 15 == 0
+
+tests/test_pidfd_leak_v543.py:170: AssertionError
+__________ test_scenario_leaves_no_pidfd[spawn_double_cancel-asyncio] __________
+
+scenario = 'spawn_double_cancel', loop = 'asyncio'
+
+    @pytest.mark.parametrize("loop", _loops())
+    @pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario, loop):
+        result = _probe(scenario, loop)
+>       assert result["after"] == result["before"], (
+            f"{scenario} under {loop} leaked "
+            f"{result['after'] - result['before']} pidfd over {SCENARIOS[scenario]} runs"
+        )
+E       AssertionError: spawn_double_cancel under asyncio leaked 7 pidfd over 5 runs
+E       assert 7 == 0
+
+tests/test_pidfd_leak_v543.py:170: AssertionError
+__________ test_scenario_leaves_no_pidfd[spawn_double_cancel-uvloop] ___________
+
+scenario = 'spawn_double_cancel', loop = 'uvloop'
+
+    @pytest.mark.parametrize("loop", _loops())
+    @pytest.mark.parametrize("scenario", sorted(SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario, loop):
+        result = _probe(scenario, loop)
+>       assert result["after"] == result["before"], (
+            f"{scenario} under {loop} leaked "
+            f"{result['after'] - result['before']} pidfd over {SCENARIOS[scenario]} runs"
+        )
+E       AssertionError: spawn_double_cancel under uvloop leaked 5 pidfd over 5 runs
+E       assert 5 == 0
+
+tests/test_pidfd_leak_v543.py:170: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pidfd_leak_v543.py::test_scenario_leaves_no_pidfd[command_watch_cancelled-asyncio]
+FAILED tests/test_pidfd_leak_v543.py::test_scenario_leaves_no_pidfd[command_watch_cancelled-uvloop]
+FAILED tests/test_pidfd_leak_v543.py::test_scenario_leaves_no_pidfd[command_watch_match-asyncio]
+FAILED tests/test_pidfd_leak_v543.py::test_scenario_leaves_no_pidfd[command_watch_match-uvloop]
+FAILED tests/test_pidfd_leak_v543.py::test_scenario_leaves_no_pidfd[spawn_double_cancel-asyncio]
+FAILED tests/test_pidfd_leak_v543.py::test_scenario_leaves_no_pidfd[spawn_double_cancel-uvloop]
+6 failed, 8 passed in 170.70s (0:02:50)

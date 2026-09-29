@@ -1,0 +1,319 @@
+FF.FFFFFFFFFFFFF                                                         [100%]
+=================================== FAILURES ===================================
+_______ test_first_turn_after_restart_costs_the_turn_not_the_cumulative ________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_first_turn_after_restart_0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_first_turn_after_restart_0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c866066af20>
+
+    @pytest.mark.asyncio
+    async def test_first_turn_after_restart_costs_the_turn_not_the_cumulative(
+        db, tmp_path, mgr_factory,
+    ):
+        sid = _seed_row(tmp_path, native=None)
+        first = await _boot(mgr_factory, sid)
+        await _end_turn(first, "e1", 0.10)
+        await _end_turn(first, "e2", 0.25)   # обычный второй ход: 0.25 - 0.10
+        assert _costs(db) == [0.10, 0.15]
+    
+        # Рестарт: тот же нативный id, новая память. Раньше здесь писалось 0.40.
+        second = await _boot(mgr_factory, sid)
+        assert second.session_id == NATIVE
+        await _end_turn(second, "e3", 0.40)
+        await _end_turn(second, "e4", 0.43)
+    
+>       assert _costs(db) == [0.10, 0.15, 0.15, 0.03]
+E       assert [0.1, 0.15, 0.4, 0.03] == [0.1, 0.15, 0.15, 0.03]
+E         
+E         At index 2 diff: 0.4 != 0.15
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:144: AssertionError
+_______________ test_native_id_change_still_resets_the_baseline ________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_native_id_change_still_re0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_native_id_change_still_re0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c8662b405e0>
+
+    @pytest.mark.asyncio
+    async def test_native_id_change_still_resets_the_baseline(db, tmp_path, mgr_factory):
+        sid = _seed_row(tmp_path, native=None)
+        first = await _boot(mgr_factory, sid)
+        await _end_turn(first, "e1", 0.20)
+    
+        # Компакт подменил нативную сессию: счётчик провайдера стартует с нуля,
+        # промежуточный id сводки ни базы, ни цены не даёт.
+        first.session_id = "summary-S1"
+        await _end_turn(first, "e2", 0.05, native="native-B")
+        assert _costs(db) == [0.20, 0.05]
+    
+        # После рестарта база относится уже к новому нативному id.
+        second = await _boot(mgr_factory, sid)
+        assert second.session_id == "native-B"
+        await _end_turn(second, "e3", 0.09, native="native-B")
+>       assert _costs(db) == [0.20, 0.05, 0.04]
+E       assert [0.2, 0.05, 0.09] == [0.2, 0.05, 0.04]
+E         
+E         At index 2 diff: 0.09 != 0.04
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:164: AssertionError
+_______ test_lost_last_record_never_goes_negative_nor_bloats_the_ledger ________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_lost_last_record_never_go0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_lost_last_record_never_go0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c865fc4dc60>
+
+    @pytest.mark.asyncio
+    async def test_lost_last_record_never_goes_negative_nor_bloats_the_ledger(
+        db, tmp_path, mgr_factory,
+    ):
+        """Процесс упал до записи хода 2: следующая строка забирает и его цену.
+    
+        Ни минуса, ни выдуманного числа: сумма строк всегда равна итогу провайдера.
+        """
+        sid = _seed_row(tmp_path, native=None)
+        first = await _boot(mgr_factory, sid)
+        await _end_turn(first, "e1", 0.10)
+    
+        from app import db as db_module
+    
+        real_add = db_module.turn_usage_add
+    
+        def dying_write(**kwargs):
+            raise RuntimeError("process died before commit")
+    
+        with patch("app.session_turns.turn_usage_add", dying_write):
+            await _end_turn(first, "e2", 0.25)   # запись потеряна вместе с базой 0.25
+        assert _costs(db) == [0.10]
+    
+        second = await _boot(mgr_factory, sid)
+        await _end_turn(second, "e3", 0.40)
+    
+        costs = _costs(db)
+>       assert costs == [0.10, 0.30]
+E       assert [0.1, 0.4] == [0.1, 0.3]
+E         
+E         At index 1 diff: 0.4 != 0.3
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:206: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    app.session:session.py:4122 [w1] telemetry write failed: process died before commit
+___________ test_base_ahead_of_provider_is_unaccounted_not_negative ____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_base_ahead_of_provider_is0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_base_ahead_of_provider_is0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c865fc4e020>
+
+    @pytest.mark.asyncio
+    async def test_base_ahead_of_provider_is_unaccounted_not_negative(
+        db, tmp_path, mgr_factory,
+    ):
+        """База выше итога провайдера (состояние CLI откатилось): цена неизвестна."""
+        sid = _seed_row(tmp_path, native=None)
+        first = await _boot(mgr_factory, sid)
+        await _end_turn(first, "e1", 0.50)
+    
+        second = await _boot(mgr_factory, sid)
+        await _end_turn(second, "e2", 0.10)
+        await _end_turn(second, "e3", 0.16)
+    
+>       assert _costs(db) == [0.50, None, 0.06]
+E       assert [0.5, 0.1, 0.06] == [0.5, None, 0.06]
+E         
+E         At index 1 diff: 0.1 != None
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:226: AssertionError
+_____ test_resumed_session_without_stored_base_is_unaccounted_then_correct _____
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_resumed_session_without_s0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_resumed_session_without_s0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c865fc4f1a0>
+
+    @pytest.mark.asyncio
+    async def test_resumed_session_without_stored_base_is_unaccounted_then_correct(
+        db, tmp_path, mgr_factory,
+    ):
+        """Строки до этой правки: нативный id есть, базы нет — выдумывать цену нельзя."""
+        sid = _seed_row(tmp_path, native=NATIVE)
+        session = await _boot(mgr_factory, sid)
+    
+        await _end_turn(session, "e1", 154.21)   # накопленный итог, цену хода не выделить
+        await _end_turn(session, "e2", 154.31)
+    
+>       assert _costs(db) == [None, 0.10]
+E       assert [154.21, 0.1] == [None, 0.1]
+E         
+E         At index 0 diff: 154.21 != None
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:241: AssertionError
+_____________ test_missing_provider_total_keeps_the_previous_base ______________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_missing_provider_total_ke0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_missing_provider_total_ke0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c865fc4fce0>
+
+    @pytest.mark.asyncio
+    async def test_missing_provider_total_keeps_the_previous_base(db, tmp_path, mgr_factory):
+        sid = _seed_row(tmp_path, native=None)
+        session = await _boot(mgr_factory, sid)
+        await _end_turn(session, "e1", 0.10)
+        await _end_turn(session, "e2", 0, cost_total_missing=True)
+        await _end_turn(session, "e3", 0.25)
+    
+>       assert _costs(db) == [0.10, None, 0.15]
+E       assert [0.1, 0.0, 0.25] == [0.1, None, 0.15]
+E         
+E         At index 1 diff: 0.0 != None
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:253: AssertionError
+_______ test_runtime_without_native_cumulative_keeps_its_own_arithmetic ________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_runtime_without_native_cu0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_runtime_without_native_cu0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c865fccc400>
+
+    @pytest.mark.asyncio
+    async def test_runtime_without_native_cumulative_keeps_its_own_arithmetic(
+        db, tmp_path, mgr_factory,
+    ):
+        """Harness после рестарта считает с нуля вместе с бэкендом: база из БД ему чужая."""
+        sid = _seed_row(tmp_path, native="harness-store-1")
+        session = await _boot(mgr_factory, sid)
+    
+        meta = _meta("e1", 0.05, native="harness-store-1")
+        del meta["cost_native_session"]
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata=meta))
+        if session._log_futures:
+            await asyncio.gather(*tuple(session._log_futures), return_exceptions=True)
+    
+        assert _costs(db) == [0.05]
+>       from app.db import cost_base_get
+E       ImportError: cannot import name 'cost_base_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-high/app/db.py)
+
+tests/test_v609_cost_baseline.py:271: ImportError
+_________ test_foreign_session_id_swap_does_not_discard_matching_base __________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_foreign_session_id_swap_d0/v609.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_foreign_session_id_swap_d0')
+mgr_factory = <function mgr_factory.<locals>.make at 0x7c865fc4fe20>
+
+    @pytest.mark.asyncio
+    async def test_foreign_session_id_swap_does_not_discard_matching_base(
+        db, tmp_path, mgr_factory,
+    ):
+        sid = _seed_row(tmp_path, native=None)
+        session = await _boot(mgr_factory, sid)
+        await _end_turn(session, "e1", 0.20)
+    
+        session.session_id = "someone-else"   # временная подмена id компактом
+        await _end_turn(session, "e2", 0.30)  # результат пришёл от прежней нативной сессии
+    
+>       assert _costs(db) == [0.20, 0.10]
+E       assert [0.2, 0.3] == [0.2, 0.1]
+E         
+E         At index 1 diff: 0.3 != 0.1
+E         Use -v to get more diff
+
+tests/test_v609_cost_baseline.py:287: AssertionError
+_____________ test_restore_ignores_base_of_another_native_session ______________
+
+    def test_restore_ignores_base_of_another_native_session():
+        from app.session import AgentSession
+    
+        session = AgentSession(
+            id="x", name="w", scope="/t", cwd="/tmp", model="claude-sonnet-5[1m]",
+            session_id="native-B", created_at=datetime.now(timezone.utc),
+        )
+>       session._cost.restore_baseline({"sid": "native-A", "total": 9.0, "seq": 7})
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CostTracker' object has no attribute 'restore_baseline'
+
+tests/test_v609_cost_baseline.py:297: AttributeError
+______________ test_base_is_written_atomically_with_the_turn_row _______________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_base_is_written_atomicall0/v609.db')
+
+    def test_base_is_written_atomically_with_the_turn_row(db):
+>       from app.db import _conn, cost_base_get, turn_usage_add
+E       ImportError: cannot import name 'cost_base_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-high/app/db.py)
+
+tests/test_v609_cost_baseline.py:305: ImportError
+________________ test_row_and_base_commit_or_roll_back_together ________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_row_and_base_commit_or_ro0/v609.db')
+
+    def test_row_and_base_commit_or_roll_back_together(db):
+        """Сбой записи базы откатывает и строку хода: цена и её база не расходятся."""
+>       from app.db import _conn, cost_base_get, turn_usage_add
+E       ImportError: cannot import name 'cost_base_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-high/app/db.py)
+
+tests/test_v609_cost_baseline.py:324: ImportError
+________________ test_stale_out_of_order_base_write_is_dropped _________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_stale_out_of_order_base_w0/v609.db')
+
+    def test_stale_out_of_order_base_write_is_dropped(db):
+>       from app.db import _conn, _cost_base_put, cost_base_get
+E       ImportError: cannot import name '_cost_base_put' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-high/app/db.py)
+
+tests/test_v609_cost_baseline.py:341: ImportError
+___________ test_corrupt_base_reads_as_unknown_and_delete_removes_it ___________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11054/test_corrupt_base_reads_as_unk0/v609.db')
+
+    def test_corrupt_base_reads_as_unknown_and_delete_removes_it(db):
+>       from app.db import cost_base_get, delete_session, kv_set, _conn, _cost_base_put
+E       ImportError: cannot import name 'cost_base_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-s55-high/app/db.py)
+
+tests/test_v609_cost_baseline.py:350: ImportError
+_______ test_claude_backend_marks_cli_cumulative_total_and_missing_total _______
+
+    def test_claude_backend_marks_cli_cumulative_total_and_missing_total():
+        from app.backend_claude import ClaudeBackend
+    
+        backend = ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
+        meta = backend._convert(_result(1.5))[-1].metadata
+>       assert meta["cost_native_session"] is True
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'cost_native_session'
+
+tests/test_v609_cost_baseline.py:381: KeyError
+_______ test_claude_backend_token_priced_route_is_not_native_cumulative ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7c865fd342f0>
+
+    def test_claude_backend_token_priced_route_is_not_native_cumulative(monkeypatch):
+        from app import models
+        from app.backend_claude import ClaudeBackend
+    
+        monkeypatch.setitem(models.TOKEN_PRICES, "glm-x", {"input": 1.0, "output": 2.0})
+        backend = ClaudeBackend(model="glm-x", cwd="/tmp")
+        meta = backend._convert(_result(7.0))[-1].metadata
+    
+>       assert meta["cost_native_session"] is False
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'cost_native_session'
+
+tests/test_v609_cost_baseline.py:398: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_v609_cost_baseline.py::test_first_turn_after_restart_costs_the_turn_not_the_cumulative
+FAILED tests/test_v609_cost_baseline.py::test_native_id_change_still_resets_the_baseline
+FAILED tests/test_v609_cost_baseline.py::test_lost_last_record_never_goes_negative_nor_bloats_the_ledger
+FAILED tests/test_v609_cost_baseline.py::test_base_ahead_of_provider_is_unaccounted_not_negative
+FAILED tests/test_v609_cost_baseline.py::test_resumed_session_without_stored_base_is_unaccounted_then_correct
+FAILED tests/test_v609_cost_baseline.py::test_missing_provider_total_keeps_the_previous_base
+FAILED tests/test_v609_cost_baseline.py::test_runtime_without_native_cumulative_keeps_its_own_arithmetic
+FAILED tests/test_v609_cost_baseline.py::test_foreign_session_id_swap_does_not_discard_matching_base
+FAILED tests/test_v609_cost_baseline.py::test_restore_ignores_base_of_another_native_session
+FAILED tests/test_v609_cost_baseline.py::test_base_is_written_atomically_with_the_turn_row
+FAILED tests/test_v609_cost_baseline.py::test_row_and_base_commit_or_roll_back_together
+FAILED tests/test_v609_cost_baseline.py::test_stale_out_of_order_base_write_is_dropped
+FAILED tests/test_v609_cost_baseline.py::test_corrupt_base_reads_as_unknown_and_delete_removes_it
+FAILED tests/test_v609_cost_baseline.py::test_claude_backend_marks_cli_cumulative_total_and_missing_total
+FAILED tests/test_v609_cost_baseline.py::test_claude_backend_token_priced_route_is_not_native_cumulative
+15 failed, 1 passed in 12.79s

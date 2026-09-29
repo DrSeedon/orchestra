@@ -1,0 +1,237 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+______________ test_command_watch_iterations_release_every_pidfd _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11064/test_command_watch_iterations_0')
+
+    @pytest.mark.asyncio
+    async def test_command_watch_iterations_release_every_pidfd(tmp_path):
+        """The periodic `command` watch spawns a checker each interval.
+    
+        The completed path used to drop the process without closing our pidfd: one
+        leaked descriptor per check, forever, for every active watch.
+        """
+        from app.bg_jobs import BgJobManager
+    
+        mgr = BgJobManager()
+        mgr._trigger = AsyncMock()
+        counter = tmp_path / "ticks"
+        baseline = _pidfds()
+    
+        await asyncio.wait_for(mgr._run_command_watch(
+            "bg-leak-watch",
+            f"echo tick >> {counter}; wc -l < {counter}",
+            rf"^{ITERATIONS}$",
+            0,
+            "done", "w1", "/s", None,
+        ), timeout=30)
+    
+        assert counter.read_text().count("tick") == ITERATIONS
+        mgr._trigger.assert_awaited_once()
+        assert mgr._procs == {}
+>       assert await _settled_pidfds(baseline) == baseline
+E       assert 5 == 0
+
+tests/test_pidfd_leak.py:78: AssertionError
+_________ test_cancelled_command_watch_kills_check_and_releases_pidfd __________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11064/test_cancelled_command_watch_k0')
+
+    @pytest.mark.asyncio
+    async def test_cancelled_command_watch_kills_check_and_releases_pidfd(tmp_path):
+        """Replacing a watch (replace_key) cancels its task without touching _procs.
+    
+        The cancelled check then kept running and its pidfd stayed open.
+        """
+        from app.bg_jobs import BgJobManager
+    
+        mgr = BgJobManager()
+        mgr._trigger = AsyncMock()
+        started = tmp_path / "started"
+        baseline = _pidfds()
+    
+        for index in range(ITERATIONS):
+            task = asyncio.create_task(mgr._run_command_watch(
+                f"bg-cancel-{index}",
+                f"touch {started}; exec sleep 30",
+                "never",
+                0,
+                "done", "w1", "/s", None,
+            ))
+            async with asyncio.timeout(5):
+                while not started.exists() or f"bg-cancel-{index}" not in mgr._procs:
+                    await asyncio.sleep(0.01)
+            proc = mgr._procs[f"bg-cancel-{index}"]
+            started.unlink()
+            task.cancel()
+            await asyncio.wait_for(task, timeout=10)
+>           assert proc.returncode is not None, "cancelled check kept running"
+E           AssertionError: cancelled check kept running
+E           assert None is not None
+E            +  where None = <Process 30361>.returncode
+
+tests/test_pidfd_leak.py:109: AssertionError
+_____________ test_double_cancelled_spawn_still_kills_and_releases _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a5741601bb0>
+
+    @pytest.mark.asyncio
+    async def test_double_cancelled_spawn_still_kills_and_releases(monkeypatch):
+        """A second cancel while the owner waits for the shielded spawn.
+    
+        The spawn task finished on its own afterwards and returned a live process
+        with an open pidfd that nobody owned.
+        """
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+    
+        real_spawn = module._spawn_bg_process
+        spawned = []
+    
+        baseline = _pidfds()
+        try:
+            for index in range(ITERATIONS):
+                gate = asyncio.Event()
+                entered = asyncio.Event()
+    
+                async def gated_spawn(*args, **kwargs):
+                    entered.set()
+                    await gate.wait()
+                    proc = await real_spawn(*args, **kwargs)
+                    spawned.append(proc)
+                    return proc
+    
+                monkeypatch.setattr(module, "_spawn_bg_process", gated_spawn)
+                mgr = BgJobManager()
+                owner = asyncio.create_task(mgr._spawn_managed_process(
+                    f"bg-double-{index}", "exec sleep 30", shell=True,
+                    stdout=asyncio.subprocess.DEVNULL, stderr=asyncio.subprocess.DEVNULL,
+                ))
+                await entered.wait()
+                owner.cancel()
+                for _ in range(3):
+                    await asyncio.sleep(0)
+                owner.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await owner
+                gate.set()
+                loop = asyncio.get_running_loop()
+                deadline = loop.time() + 10
+                while (len(spawned) <= index or spawned[index].returncode is None) \
+                        and loop.time() < deadline:
+                    await asyncio.sleep(0.02)
+                assert len(spawned) == index + 1
+>               assert spawned[index].returncode is not None, "abandoned spawn kept running"
+E               AssertionError: abandoned spawn kept running
+E               assert None is not None
+E                +  where None = <Process 30364>.returncode
+
+tests/test_pidfd_leak.py:161: AssertionError
+__________ test_cancel_after_pidfd_arrived_closes_received_descriptor __________
+
+    @pytest.mark.asyncio
+    async def test_cancel_after_pidfd_arrived_closes_received_descriptor():
+        """Cancellation (or the handshake timeout) landing after recvmsg took the fd.
+    
+        The descriptor already sat in the future's result; CancelledError replaced
+        that result and the fd was never closed.
+        """
+        import app.bg_jobs as module
+    
+        baseline = _pidfds()
+        for _ in range(ITERATIONS):
+            parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            owner: asyncio.Task | None = None
+    
+            class CancelOnReceive(socket.socket):
+                def recvmsg(self, *args):
+                    result = super().recvmsg(*args)
+                    # Queue the cancel ahead of the task's wakeup from set_result:
+                    # the same ordering as a timeout that fires in that window.
+                    asyncio.get_running_loop().call_soon(owner.cancel)
+                    return result
+    
+            control = CancelOnReceive(fileno=parent.detach())
+            try:
+                owner = asyncio.create_task(module._recv_pidfd(control))
+                await asyncio.sleep(0)
+                pidfd = pidfd_open_self()
+                try:
+                    _send_pidfd(child, pidfd)
+                finally:
+                    os.close(pidfd)
+                with pytest.raises(asyncio.CancelledError):
+                    await owner
+            finally:
+                control.close()
+                child.close()
+    
+>       assert _pidfds() == baseline
+E       assert 13 == 8
+E        +  where 13 = _pidfds()
+
+tests/test_pidfd_leak.py:209: AssertionError
+___________ test_cancel_before_pidfd_arrived_closes_late_descriptor ____________
+
+    @pytest.mark.asyncio
+    async def test_cancel_before_pidfd_arrived_closes_late_descriptor():
+        """Cancellation queued ahead of the reader callback in the same loop turn.
+    
+        The cancel settles the future first, then `receive()` still pulls the fd off
+        the socket — and without an owner it was dropped on the floor.
+        """
+        import app.bg_jobs as module
+    
+        loop = asyncio.get_running_loop()
+        baseline = _pidfds()
+        for _ in range(ITERATIONS):
+            parent, child = socket.socketpair(socket.AF_UNIX, socket.SOCK_SEQPACKET)
+            try:
+                owner = asyncio.create_task(module._recv_pidfd(parent))
+                await asyncio.sleep(0)
+                pidfd = pidfd_open_self()
+                try:
+                    _send_pidfd(child, pidfd)
+                finally:
+                    os.close(pidfd)
+                # Runs next turn BEFORE the readable socket's callback; the task's
+                # own wakeup lands after it.
+                loop.call_soon(owner.cancel)
+                with pytest.raises(asyncio.CancelledError):
+                    await owner/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7a574474a340>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+    self._close(None)
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+    self._loop.call_soon(self._call_connection_lost, exc)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+    self._check_closed()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+            finally:
+                parent.close()
+                child.close()
+    
+>       assert _pidfds() == baseline
+E       assert 18 == 13
+E        +  where 18 = _pidfds()
+
+tests/test_pidfd_leak.py:242: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pidfd_leak.py::test_command_watch_iterations_release_every_pidfd
+FAILED tests/test_pidfd_leak.py::test_cancelled_command_watch_kills_check_and_releases_pidfd
+FAILED tests/test_pidfd_leak.py::test_double_cancelled_spawn_still_kills_and_releases
+FAILED tests/test_pidfd_leak.py::test_cancel_after_pidfd_arrived_closes_received_descriptor
+FAILED tests/test_pidfd_leak.py::test_cancel_before_pidfd_arrived_closes_late_descriptor
+5 failed in 21.58s

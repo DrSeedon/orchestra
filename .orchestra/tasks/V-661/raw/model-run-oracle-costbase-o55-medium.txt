@@ -1,0 +1,96 @@
+......FFF..                                                              [100%]
+=================================== FAILURES ===================================
+_______________ test_provider_baseline_survives_process_restart ________________
+
+session = AgentSession(id='cost-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', promp...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10914/test_provider_baseline_survive0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7acef370a510>
+
+    def test_provider_baseline_survives_process_restart(session, tmp_path, monkeypatch):
+        """A resumed native session subtracts its persisted provider total."""
+        from app import db as dbmod
+        from app.manager import SessionManager
+    
+        monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "restart.db")
+        dbmod.init_db()
+        _apply(session, {
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": 0.15, "session_id": "native-sid",
+        })
+        dbmod.save_session(session._to_db_dict())
+    
+        resumed = SessionManager._hydrate_row(dbmod.get_session(session.id))
+        _apply(resumed, {
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": 0.17, "session_id": "native-sid",
+        })
+>       assert resumed._turn_cost == pytest.approx(0.02)
+E       assert 0.17 == 0.02 ± 2.0e-08
+E         
+E         comparison failed
+E         Obtained: 0.17
+E         Expected: 0.02 ± 2.0e-08
+
+tests/test_p4_cost.py:118: AssertionError
+___________ test_terminal_usage_keeps_baseline_and_usage_row_atomic ____________
+
+session = AgentSession(id='cost-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', promp...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10914/test_terminal_usage_keeps_base0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7acef3773e90>
+
+    def test_terminal_usage_keeps_baseline_and_usage_row_atomic(session, tmp_path, monkeypatch):
+        from app import db as dbmod
+    
+        monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "atomic.db")
+        dbmod.init_db()
+        session.session_id = "native-sid"
+        session._last_cost = 0.15
+        dbmod.save_session(session._to_db_dict())
+    
+>       assert dbmod.turn_usage_add(
+            event_id="turn-atomic", session_id=session.id, runtime="claude",
+            model=session.model, ok=True, stop_reason="end_turn", cost_usd=0.02,
+            input_tokens=1, output_tokens=1, cache_read_tokens=0,
+            cache_create_tokens=0, native_session_id="native-sid",
+            provider_cost_usd=0.17,
+        )
+E       TypeError: turn_usage_add() got an unexpected keyword argument 'native_session_id'
+
+tests/test_p4_cost.py:131: TypeError
+__________ test_persisted_baseline_after_missing_usage_row_is_bounded __________
+
+session = AgentSession(id='cost-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', promp...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10914/test_persisted_baseline_after_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7acef3773dd0>
+
+    def test_persisted_baseline_after_missing_usage_row_is_bounded(session, tmp_path, monkeypatch):
+        """Losing only the usage projection must not charge the prior cumulative total again."""
+        from app import db as dbmod
+        from app.manager import SessionManager
+    
+        monkeypatch.setattr(dbmod, "DB_PATH", tmp_path / "missing-row.db")
+        dbmod.init_db()
+        _apply(session, {
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": 0.15, "session_id": "native-sid",
+        })
+        dbmod.save_session(session._to_db_dict())
+    
+        resumed = SessionManager._hydrate_row(dbmod.get_session(session.id))
+        _apply(resumed, {
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": 0.16, "session_id": "native-sid",
+        })
+>       assert resumed._turn_cost == pytest.approx(0.01)
+E       assert 0.16 == 0.01 ± 1.0e-08
+E         
+E         comparison failed
+E         Obtained: 0.16
+E         Expected: 0.01 ± 1.0e-08
+
+tests/test_p4_cost.py:160: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_p4_cost.py::test_provider_baseline_survives_process_restart
+FAILED tests/test_p4_cost.py::test_terminal_usage_keeps_baseline_and_usage_row_atomic
+FAILED tests/test_p4_cost.py::test_persisted_baseline_after_missing_usage_row_is_bounded
+3 failed, 8 passed in 9.98s

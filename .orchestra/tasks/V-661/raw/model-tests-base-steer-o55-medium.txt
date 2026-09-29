@@ -1,0 +1,275 @@
+FFFFFFFFFFFF                                                             [100%]
+=================================== FAILURES ===================================
+_____________ test_completed_turn_keeps_old_behaviour_no_duplicate _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eb9e1300>
+
+    @pytest.mark.asyncio
+    async def test_completed_turn_keeps_old_behaviour_no_duplicate(db, agent):
+        """Критерий 1: ход завершился нормально — ни повторной выдачи, ни нового хода."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:118: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='f873606c-c2e7-471c-9357-90e8f77d6695', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+_________________ test_failed_turn_redelivers_once_with_sender _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa75440>
+
+    @pytest.mark.asyncio
+    async def test_failed_turn_redelivers_once_with_sender(db, agent):
+        """Критерий 2: ход упал — сообщение в следующем ходе, ровно один раз, с отправителем."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:134: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='6e508df8-373a-4bdc-8830-9708de049eba', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+________________ test_several_steers_into_dead_turn_keep_order _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa760c0>
+
+    @pytest.mark.asyncio
+    async def test_several_steers_into_dead_turn_keep_order(db, agent):
+        """Критерий 3: все влитые в умерший ход доставлены и в исходном порядке."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='cf59aade-11cb-4797-bb9a-79c1ace2ef60', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+______________________ test_retry_turn_carries_the_steer _______________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa76340>
+
+    @pytest.mark.asyncio
+    async def test_retry_turn_carries_the_steer(db, agent):
+        """Повтор после сбоя апстрима сам начинает следующий ход — влитое едет в нём."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:166: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='931013be-dcce-4287-84d4-9db81df611cc', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+________________ test_listen_death_without_turn_end_redelivers _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa777e0>
+
+    @pytest.mark.asyncio
+    async def test_listen_death_without_turn_end_redelivers(db, agent):
+        """Ход потерян без события конца (смерть слушателя) — тоже не молча."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:185: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='c159db05-bb45-401e-9667-38567894037b', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+___________________ test_restart_between_death_and_next_turn ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa77a60>
+
+    @pytest.mark.asyncio
+    async def test_restart_between_death_and_next_turn(db, agent):
+        """Критерий 4: процесс умер вместе с ходом — первый ход нового процесса получает влитое."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:197: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='7d10933b-8406-469a-a966-26a51e286467', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+______________ test_new_turn_carries_hold_that_never_got_turn_end ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa77740>
+
+    @pytest.mark.asyncio
+    async def test_new_turn_carries_hold_that_never_got_turn_end(db, agent):
+        """Stop без события конца хода: следующий ход сам забирает удержанное."""
+        session, seen = await agent()
+>       await _start_turn(session)
+
+tests/test_steer_survives_turn_death.py:214: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+session = AgentSession(id='78f6b8c4-29a5-4f4f-8c5a-229772e6d5f6', name='worker', scope='/s', cwd='/s', model='claude-sonnet-5[1m...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+text = 'старая тема: ночная выкладка'
+
+    async def _start_turn(session, text="старая тема: ночная выкладка"):
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:90: ImportError
+_____________ test_hold_failure_does_not_block_immediate_delivery ______________
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/mailbox.py'>
+name = 'hold_steered', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.mailbox' has no attribute 'hold_steered'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaa76980>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7164eaad1640>
+
+    @pytest.mark.asyncio
+    async def test_hold_failure_does_not_block_immediate_delivery(db, agent, monkeypatch):
+        """Граница: немедленная доставка важнее страховки."""
+        def boom(*_a, **_k):
+            raise RuntimeError("БД недоступна")
+    
+>       monkeypatch.setattr("app.mailbox.hold_steered", boom)
+
+tests/test_steer_survives_turn_death.py:230: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/mailbox.py'>
+name = 'hold_steered', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.mailbox has no attribute 'hold_steered'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:94: AttributeError
+_____________________ test_failed_inject_is_not_held_twice _____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaabc5e0>
+
+    @pytest.mark.asyncio
+    async def test_failed_inject_is_not_held_twice(db, agent):
+        """Инжект упал → сообщение владеет `_pending_messages`; копия в ящике дала бы дубль."""
+        calls = []
+    
+        async def send(msg):
+            calls.append(msg)
+            if len(calls) == 2:
+                raise RuntimeError("inject refused")
+    
+        from app import mailbox
+>       from app.session import SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:248: ImportError
+_______________ test_delivery_receipt_distinguishes_turn_states ________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_delivery_receipt_distinguishes_turn_states(db):
+        """Критерий 5: квитанция отличает «в текущем ходе» от «ждёт следующего»."""
+        from app import mailbox
+>       from app.message_deliveries import _turn_delivery
+E       ImportError: cannot import name '_turn_delivery' from 'app.message_deliveries' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/message_deliveries.py)
+
+tests/test_steer_survives_turn_death.py:260: ImportError
+___________________ test_http_send_reports_steered_vs_queued ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7164eaabce00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7164eaab2d50>
+
+    @pytest.mark.asyncio
+    async def test_http_send_reports_steered_vs_queued(db, agent, monkeypatch):
+        """Критерий 5 для обычного send: ответ платформы несёт исход."""
+        from app.routes.sessions import SendRequest, send_message
+>       from app.session import AgentStatus, SendOutcome
+E       ImportError: cannot import name 'SendOutcome' from 'app.session' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/session.py)
+
+tests/test_steer_survives_turn_death.py:278: ImportError
+_________________ test_held_rows_are_invisible_to_old_readers __________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-medium/app/db.py'>
+
+    def test_held_rows_are_invisible_to_old_readers(db):
+        """Удержанная строка — уже внутри хода: не «после хода», не отменяемая, не барьер."""
+        from app import mailbox
+    
+>       held = mailbox.hold_steered("worker", "/s", URGENT, provenance=USER)
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'hold_steered'
+
+tests/test_steer_survives_turn_death.py:296: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_steer_survives_turn_death.py::test_completed_turn_keeps_old_behaviour_no_duplicate
+FAILED tests/test_steer_survives_turn_death.py::test_failed_turn_redelivers_once_with_sender
+FAILED tests/test_steer_survives_turn_death.py::test_several_steers_into_dead_turn_keep_order
+FAILED tests/test_steer_survives_turn_death.py::test_retry_turn_carries_the_steer
+FAILED tests/test_steer_survives_turn_death.py::test_listen_death_without_turn_end_redelivers
+FAILED tests/test_steer_survives_turn_death.py::test_restart_between_death_and_next_turn
+FAILED tests/test_steer_survives_turn_death.py::test_new_turn_carries_hold_that_never_got_turn_end
+FAILED tests/test_steer_survives_turn_death.py::test_hold_failure_does_not_block_immediate_delivery
+FAILED tests/test_steer_survives_turn_death.py::test_failed_inject_is_not_held_twice
+FAILED tests/test_steer_survives_turn_death.py::test_delivery_receipt_distinguishes_turn_states
+FAILED tests/test_steer_survives_turn_death.py::test_http_send_reports_steered_vs_queued
+FAILED tests/test_steer_survives_turn_death.py::test_held_rows_are_invisible_to_old_readers
+12 failed in 13.76s

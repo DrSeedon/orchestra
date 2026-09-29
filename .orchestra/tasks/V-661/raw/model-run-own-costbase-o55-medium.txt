@@ -1,0 +1,25 @@
+.......F................................................................ [ 28%]
+........................................................................ [ 56%]
+........................................................................ [ 85%]
+......................................                                   [100%]
+=================================== FAILURES ===================================
+_________ test_claude_result_marks_total_cost_as_native_session_total __________
+
+    def test_claude_result_marks_total_cost_as_native_session_total():
+        from claude_agent_sdk import ResultMessage
+    
+        from app.backend_claude import ClaudeBackend
+    
+        event = ClaudeBackend(model="claude-opus-5[1m]", cwd="/tmp")._convert(ResultMessage(
+            subtype="result", duration_ms=1, duration_api_ms=1, is_error=False,
+            num_turns=1, session_id="native-A", total_cost_usd=154.21,
+            usage={"input_tokens": 6, "output_tokens": 1299},
+        ))[-1]
+        assert event.metadata["cost_usd"] == 154.21
+>       assert event.metadata["cost_is_native_total"] is True
+E       assert False is True
+
+tests/test_provider_cost_baseline.py:167: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_provider_cost_baseline.py::test_claude_result_marks_total_cost_as_native_session_total
+1 failed, 253 passed in 41.03s

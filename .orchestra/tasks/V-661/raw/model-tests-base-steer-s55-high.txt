@@ -1,0 +1,786 @@
+FFFFFFFFFFFFFFFF                                                         [100%]
+=================================== FAILURES ===================================
+___________________ test_normal_turn_end_leaves_no_duplicate ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'aae12a01-5d70-4ad3-b051-c348b16b4886'
+agent = <function agent.<locals>._make at 0x7591b6e15300>
+
+    @pytest.mark.asyncio
+    async def test_normal_turn_end_leaves_no_duplicate(db, session_id, agent):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+>       assert await _steer(session, URGENT) == "current_turn"
+E       AssertionError: assert None == 'current_turn'
+
+tests/test_steer_durability_562.py:127: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+______ test_dead_turn_message_is_delivered_once_in_next_turn[interrupted] ______
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'ef2a4b56-f3dc-4bb9-ab65-00c970fc8e62'
+agent = <function agent.<locals>._make at 0x7591b61bd300>
+stop_reason = 'interrupted'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stop_reason", ["interrupted", "error"])
+    async def test_dead_turn_message_is_delivered_once_in_next_turn(
+        db, session_id, agent, stop_reason,
+    ):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason=stop_reason)
+    
+        new = await _next_turn(session, seen)
+        payload = new[0]
+>       assert payload.count(URGENT) == 1, _payloads(new)
+E       AssertionError: следующая тема
+E       assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0x7591b92ea4f0>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0x7591b92ea4f0> = 'следующая тема'.count
+
+tests/test_steer_durability_562.py:156: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] event loop: backend is None, exiting
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+WARNING  app.session:session.py:2155 [worker] event loop: backend is None, exiting
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_________ test_dead_turn_message_is_delivered_once_in_next_turn[error] _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '65ad8032-12b2-4139-a7d7-8b5d2dab31cd'
+agent = <function agent.<locals>._make at 0x7591b6233740>, stop_reason = 'error'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stop_reason", ["interrupted", "error"])
+    async def test_dead_turn_message_is_delivered_once_in_next_turn(
+        db, session_id, agent, stop_reason,
+    ):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason=stop_reason)
+    
+        new = await _next_turn(session, seen)
+        payload = new[0]
+>       assert payload.count(URGENT) == 1, _payloads(new)
+E       AssertionError: следующая тема
+E       assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0x7591b92ea4f0>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0x7591b92ea4f0> = 'следующая тема'.count
+
+tests/test_steer_durability_562.py:156: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] event loop: backend is None, exiting
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+WARNING  app.session:session.py:2155 [worker] event loop: backend is None, exiting
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_______________ test_catch_up_turn_that_also_dies_delivers_again _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '6603155e-0c92-4335-b29f-d72f87610630'
+agent = <function agent.<locals>._make at 0x7591a6f48ae0>
+
+    @pytest.mark.asyncio
+    async def test_catch_up_turn_that_also_dies_delivers_again(db, session_id, agent):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+        first = await _next_turn(session, seen)
+>       assert URGENT in first[0]
+E       AssertionError: assert 'ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ' in 'следующая тема'
+
+tests/test_steer_durability_562.py:178: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] event loop: backend is None, exiting
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+WARNING  app.session:session.py:2155 [worker] event loop: backend is None, exiting
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+___________ test_manual_stop_is_an_abort_even_if_backend_reports_ok ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '05a64381-a256-42c0-bc5c-d1822192f7ce'
+agent = <function agent.<locals>._make at 0x7591a6f49760>
+
+    @pytest.mark.asyncio
+    async def test_manual_stop_is_an_abort_even_if_backend_reports_ok(db, session_id, agent):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        session._manually_interrupted = True
+        _end_turn(session, ok=True)  # бэкенд отчитался «ок», но ход остановили руками
+        session.status = AgentStatus.IDLE
+    
+        new = await _next_turn(session, seen)
+>       assert URGENT in new[0]
+E       AssertionError: assert 'ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ' in 'следующая тема'
+
+tests/test_steer_durability_562.py:199: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] event loop: backend is None, exiting
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+WARNING  app.session:session.py:2155 [worker] event loop: backend is None, exiting
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_________ test_normal_end_of_another_turn_does_not_swallow_the_orphan __________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '237cb346-bb98-40d3-9d2c-f54854acaec3'
+agent = <function agent.<locals>._make at 0x7591a6f48180>
+
+    @pytest.mark.asyncio
+    async def test_normal_end_of_another_turn_does_not_swallow_the_orphan(db, session_id, agent):
+        """Между обрывом и следующим ходом мог пройти ЧУЖОЙ ход (компакция, ретрай):
+        его нормальный конец не имеет права гасить сообщения оборвавшегося."""
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+        session._start_turn_state(compact_ack=True)  # другой ход: новый turn_gen
+        _end_turn(session, ok=True)
+        session.status = AgentStatus.IDLE
+    
+        new = await _next_turn(session, seen)
+>       assert new[0].count(URGENT) == 1, _payloads(new)
+E       AssertionError: следующая тема
+E       assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0x7591b92ea4f0>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0x7591b92ea4f0> = 'следующая тема'.count
+
+tests/test_steer_durability_562.py:219: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] event loop: backend is None, exiting
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+WARNING  app.session:session.py:2155 [worker] event loop: backend is None, exiting
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+______________ test_several_steers_into_one_dead_turn_keep_order _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'a756fcba-07ff-403b-ab6c-40ae9aea6c5a'
+agent = <function agent.<locals>._make at 0x7591a6f496c0>
+
+    @pytest.mark.asyncio
+    async def test_several_steers_into_one_dead_turn_keep_order(db, session_id, agent):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, "первое", PEER)
+        await _steer(session, "второе", USER)
+        await _steer(session, "третье", PEER)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        new = await _next_turn(session, seen)
+        payload = new[0]
+>       positions = [payload.index(word) for word in ("первое", "второе", "третье")]
+                     ^^^^^^^^^^^^^^^^^^^
+E       ValueError: substring not found
+
+tests/test_steer_durability_562.py:239: ValueError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] event loop: backend is None, exiting
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+WARNING  app.session:session.py:2155 [worker] event loop: backend is None, exiting
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+__________ test_restart_between_death_and_next_turn_keeps_the_message __________
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/mailbox.py'>
+name = 'BOOT_ID', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.mailbox' has no attribute 'BOOT_ID'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'db960270-5b8c-4325-b2ce-e239eae00fdc'
+agent = <function agent.<locals>._make at 0x7591a6f48cc0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7591b48b0830>
+
+    @pytest.mark.asyncio
+    async def test_restart_between_death_and_next_turn_keeps_the_message(
+        db, session_id, agent, monkeypatch,
+    ):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        # «рестарт»: другой boot-токен и совершенно новый объект сессии
+>       monkeypatch.setattr("app.mailbox.BOOT_ID", "afterrestart")
+
+tests/test_steer_durability_562.py:261: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/mailbox.py'>
+name = 'BOOT_ID', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.mailbox has no attribute 'BOOT_ID'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:94: AttributeError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2164 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+______________ test_process_killed_mid_turn_without_any_end_event ______________
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/mailbox.py'>
+name = 'BOOT_ID', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.mailbox' has no attribute 'BOOT_ID'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '68320b80-f22f-4ea7-9df9-885edd23a540'
+agent = <function agent.<locals>._make at 0x7591a6f43ce0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7591a6e1c080>
+
+    @pytest.mark.asyncio
+    async def test_process_killed_mid_turn_without_any_end_event(db, session_id, agent, monkeypatch):
+        """Конца хода не было вообще (kill -9): строка остаётся и довозится."""
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+>       monkeypatch.setattr("app.mailbox.BOOT_ID", "afterkill")
+
+tests/test_steer_durability_562.py:277: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/mailbox.py'>
+name = 'BOOT_ID', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.mailbox has no attribute 'BOOT_ID'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:94: AttributeError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_____________________ test_pending_flush_path_carries_too ______________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '923bbd3a-1ec8-4de8-bae5-7987950f7382'
+agent = <function agent.<locals>._make at 0x7591a6f49440>
+
+    @pytest.mark.asyncio
+    async def test_pending_flush_path_carries_too(db, session_id, agent):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+        session.status = AgentStatus.IDLE
+        session._pending_messages.append("из очереди")
+        await session._flush_pending()
+>       assert seen[-1].count(URGENT) == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0x7591b8f89830>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0x7591b8f89830> = 'из очереди'.count
+
+tests/test_steer_durability_562.py:296: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_______________ test_send_reports_current_turn_only_for_steering _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'c91615f0-86a0-4c11-8d30-710971e7b291'
+agent = <function agent.<locals>._make at 0x7591a6f494e0>
+
+    @pytest.mark.asyncio
+    async def test_send_reports_current_turn_only_for_steering(db, session_id, agent):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        session.status = AgentStatus.IDLE
+        assert await session.send("новый ход", provenance=USER) is None
+        session.status = AgentStatus.RUNNING
+>       assert await session.send(URGENT, provenance=PEER) == "current_turn"
+E       AssertionError: assert None == 'current_turn'
+
+tests/test_steer_durability_562.py:313: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_________________ test_route_answers_current_turn_vs_next_turn _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'f00a2bac-e36b-4539-b92e-aa7ca186b898'
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7591a6e8ef60>
+
+    def test_route_answers_current_turn_vs_next_turn(db, session_id, monkeypatch):
+        from app.routes.sessions import SendRequest, send_message
+    
+        class _Session:
+            id = "sid-x"
+            name = "worker"
+            scope = "/s"
+            parent_name = ""
+            status = "running"
+            last_task_sender = None
+    
+        class _Manager:
+            def __init__(self, disposition):
+                self.sessions = {"sid-x": _Session()}
+                self.disposition = disposition
+    
+            async def ensure_loaded(self, name, scope=None):
+                return _Session()
+    
+            async def ensure_loaded_any(self, name):
+                return _Session()
+    
+            async def send(self, session_id, msg, *, provenance):
+                return self.disposition
+    
+            def _context_warning(self, sender):
+                return ""
+    
+        monkeypatch.setattr("app.routes.sessions.manager", _Manager("current_turn"))
+        steered = asyncio.run(send_message("worker", SendRequest(message=URGENT, scope="/s")))
+>       assert steered["delivery"] == "current_turn"
+               ^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'delivery'
+
+tests/test_steer_durability_562.py:346: KeyError
+__________________ test_steered_row_is_not_a_deferred_message __________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'c24dff78-8507-4e67-a92f-cf1832700ca3'
+agent = <function agent.<locals>._make at 0x7591a6f4a8e0>
+
+    @pytest.mark.asyncio
+    async def test_steered_row_is_not_a_deferred_message(db, session_id, agent):
+        """Влитое не превращается в «после хода»: не видно в очереди, не клеймится, не будит."""
+        from app import mailbox
+    
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        session = await agent(send_impl=capture)
+        await _steer(session, URGENT)
+        assert seen == [URGENT]
+        assert mailbox.pending("worker", "/s") == []
+        assert mailbox.claim("worker", "/s") == []
+>       assert len(mailbox.pending_steers("worker", "/s")) == 1
+                   ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'pending_steers'
+
+tests/test_steer_durability_562.py:380: AttributeError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+__________________ test_rejected_steer_leaves_no_journal_row ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '98588200-2fa8-4991-978e-db3d42354c39'
+agent = <function agent.<locals>._make at 0x7591a6f4bba0>
+
+    @pytest.mark.asyncio
+    async def test_rejected_steer_leaves_no_journal_row(db, session_id, agent):
+        from app import mailbox
+    
+        async def boom(_msg):
+            raise RuntimeError("no active turn to steer")
+    
+        session = await agent(send_impl=boom)
+        session.status = AgentStatus.RUNNING
+        await session.send(URGENT, provenance=PEER)  # inject failed → queued in memory
+>       assert mailbox.pending_steers("worker", "/s") == [], \
+               ^^^^^^^^^^^^^^^^^^^^^^
+            "отвергнутое бэкендом сообщение осталось в журнале → будет дубль"
+E       AttributeError: module 'app.mailbox' has no attribute 'pending_steers'
+
+tests/test_steer_durability_562.py:393: AttributeError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] mid-turn inject failed, queueing: no active turn to steer
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+WARNING  app.session:session.py:1310 [worker] mid-turn inject failed, queueing: no active turn to steer
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+____________ test_journal_failure_does_not_break_immediate_delivery ____________
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/mailbox.py'>
+name = 'record_steer', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.mailbox' has no attribute 'record_steer'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = 'a7185b27-5c5b-4b15-930c-c9705a2cc9f8'
+agent = <function agent.<locals>._make at 0x7591a6e38e00>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7591a6e8faa0>
+
+    @pytest.mark.asyncio
+    async def test_journal_failure_does_not_break_immediate_delivery(
+        db, session_id, agent, monkeypatch,
+    ):
+        seen = []
+    
+        async def capture(msg):
+            seen.append(msg)
+    
+        def broken(*a, **k):
+            raise RuntimeError("mailbox table missing")
+    
+>       monkeypatch.setattr("app.mailbox.record_steer", broken)
+
+tests/test_steer_durability_562.py:410: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/mailbox.py'>
+name = 'record_steer', ann = 'app.mailbox'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.mailbox has no attribute 'record_steer'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:94: AttributeError
+________________________ test_mailbox_helpers_directly _________________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/db.py'>
+session_id = '9c832d47-9071-40f9-b56c-7393d06cab62'
+
+    def test_mailbox_helpers_directly(db, session_id):
+        from app import mailbox
+    
+>       a = mailbox.record_steer("worker", "/s", "peer", "a", provenance=PEER, token="t:1")
+            ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steer'
+
+tests/test_steer_durability_562.py:419: AttributeError
+=============================== warnings summary ===============================
+tests/test_steer_durability_562.py::test_restart_between_death_and_next_turn_keeps_the_message
+tests/test_steer_durability_562.py::test_pending_flush_path_carries_too
+  /home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/session.py:3185: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if usage and usage.get("percentage") is not None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_durability_562.py::test_restart_between_death_and_next_turn_keeps_the_message
+tests/test_steer_durability_562.py::test_pending_flush_path_carries_too
+  /home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-s55-high/app/session.py:3187: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    context = current_context(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_durability_562.py::test_restart_between_death_and_next_turn_keeps_the_message
+tests/test_steer_durability_562.py::test_pending_flush_path_carries_too
+  /usr/lib/python3.12/asyncio/events.py:88: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_steer_durability_562.py::test_normal_turn_end_leaves_no_duplicate
+FAILED tests/test_steer_durability_562.py::test_dead_turn_message_is_delivered_once_in_next_turn[interrupted]
+FAILED tests/test_steer_durability_562.py::test_dead_turn_message_is_delivered_once_in_next_turn[error]
+FAILED tests/test_steer_durability_562.py::test_catch_up_turn_that_also_dies_delivers_again
+FAILED tests/test_steer_durability_562.py::test_manual_stop_is_an_abort_even_if_backend_reports_ok
+FAILED tests/test_steer_durability_562.py::test_normal_end_of_another_turn_does_not_swallow_the_orphan
+FAILED tests/test_steer_durability_562.py::test_several_steers_into_one_dead_turn_keep_order
+FAILED tests/test_steer_durability_562.py::test_restart_between_death_and_next_turn_keeps_the_message
+FAILED tests/test_steer_durability_562.py::test_process_killed_mid_turn_without_any_end_event
+FAILED tests/test_steer_durability_562.py::test_pending_flush_path_carries_too
+FAILED tests/test_steer_durability_562.py::test_send_reports_current_turn_only_for_steering
+FAILED tests/test_steer_durability_562.py::test_route_answers_current_turn_vs_next_turn
+FAILED tests/test_steer_durability_562.py::test_steered_row_is_not_a_deferred_message
+FAILED tests/test_steer_durability_562.py::test_rejected_steer_leaves_no_journal_row
+FAILED tests/test_steer_durability_562.py::test_journal_failure_does_not_break_immediate_delivery
+FAILED tests/test_steer_durability_562.py::test_mailbox_helpers_directly - At...
+16 failed, 6 warnings in 17.41s
