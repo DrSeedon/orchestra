@@ -1,0 +1,381 @@
+diff --git a/.orchestra/tasks/V-653/report.md b/.orchestra/tasks/V-653/report.md
+new file mode 100644
+index 00000000..81089d52
+--- /dev/null
++++ b/.orchestra/tasks/V-653/report.md
+@@ -0,0 +1,17 @@
++# V-653: три дефекта платформы
++
++1. Таймер предкомпакта на убитом воркере. Причина: `AgentManager.remove()` не трогал таймер живой сессии.
++   Исправление: `AgentSession.mark_removed()` (флаг `_removed` + отмена таймера), вызывается из `remove()` до
++   отключения бэкенда; `_fire_precompact_timer` на удалённой сессии выходит без сжатия.
++   Тесты: `tests/test_manager.py::test_remove_cancels_pending_precompact_timer`,
++   `tests/test_session.py::test_removed_session_never_compacts_when_timer_fires`.
++2. `cron_command` при таймауте: `_notify_cron_command_timeout` шлёт цели сообщение (id, команда, лимит, действия);
++   повтор подавлен множеством `_cron_timeout_notified` до успешного запуска. Состояние в памяти (после рестарта
++   возможно одно повторное сообщение). Тест `test_timeout_notifies_target_once_until_success` заменил
++   `test_timeout_never_wakes_even_after_partial_match`. Описание `bg_create` обновлено.
++3. `attention_events`: `migrate_v576` перед проверкой «уже мигрировано» выполняет `CREATE TABLE IF NOT EXISTS`
++   (DDL из `schema.sql`), только если есть таблица `sessions`. Тест
++   `test_startup_creates_missing_attention_events_idempotently` (нет таблицы, повтор, данные сохраняются).
++   TODO.md уточнён.
++
++Рестарт нужен для вступления Python-правок в силу; Orchestra не перезапускалась.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 1d457535..abaff5b7 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -11,7 +11,10 @@
+ - **Read-only детектор повторяющихся ошибок** (`app.error_watch`, V-647). Команда для расписания читает ошибки unit-журнала и строки `logs` через SQLite `mode=ro`, обезличивает динамические значения, отсеивает квотные/лимитные отказы, штатный listener `IDLE`/`WAITING` и парные записи двух logger handlers, затем дедуплицирует новые превышения порога. Подтверждённый listener exit во время `RUNNING` сигналится с порогом 1. Реестр рядом с БД связывает сигнатуру с задачей, коммитом и временем запуска для post-fix наблюдения; включение `cron_command` описано в отчёте V-647. Детектор не меняет код и не создаёт задач.
+ 
+ ### Fixed
+-- **`cron_command` убивал команду через 30 с молча** (`_CRON_COMMAND_TIMEOUT_SECONDS` в `app/bg_jobs.py` 30 → 600, лимит назван в описании `bg_create`). Сборщик закупок seedon 4 дня не собирал ничего, error watch Orchestra (`app.error_watch scan`, ~59 с на базе 2.2 ГБ) не отрабатывал ни разу за последние 12 ч: в `last_output` только `[command timed out after 30 seconds]`, цель не будится. Запуски идут последовательно, поэтому длинный лимит не создаёт наложений. Known tradeoff: таймаут по-прежнему не будит цель и виден только в `bg_list`.
++- **Убитый воркер больше не сжимается по таймеру предкомпакта** (`AgentSession.mark_removed`, `AgentManager.remove`, V-653). `remove()` не отменял таймер живой сессии: через ~25 мин после `kill_worker` он срабатывал и стартовал native Codex compact в удалённом worktree (`connect failed: FileNotFoundError`; nedorosl-lit 28.09, tender-scan 27.09). Теперь `remove` помечает сессию удалённой и отменяет таймер, `_fire_precompact_timer` на удалённой сессии выходит. Живые сессии сжимаются как раньше.
++- **`cron_command` при таймауте будит цель** (`BgJobManager._notify_cron_command_timeout`, V-653). Сообщение содержит id задания, команду, лимит и что делать; повторные таймауты подряд молчат, пока не будет успешного запуска (состояние в памяти: после рестарта первое повторное сообщение возможно). Заменяет прежний known tradeoff «таймаут не будит» из записи о лимите 600 с.
++- **Миграция старта создаёт `attention_events` на существующих базах** (`_ensure_attention_events`, `migrate_v576`, V-653). V-576 v2→v3 таблицу не создавала, `notify_user` падал `no such table` 22–28.09. Теперь `CREATE TABLE IF NOT EXISTS` выполняется при каждом старте, в том числе на базах, где таблицу создали вручную.
++- **`cron_command` убивал команду через 30 с молча** (`_CRON_COMMAND_TIMEOUT_SECONDS` в `app/bg_jobs.py` 30 → 600, лимит назван в описании `bg_create`). Сборщик закупок seedon 4 дня не собирал ничего, error watch Orchestra (`app.error_watch scan`, ~59 с на базе 2.2 ГБ) не отрабатывал ни разу за последние 12 ч: в `last_output` только `[command timed out after 30 seconds]`, цель не будится. Запуски идут последовательно, поэтому длинный лимит не создаёт наложений.
+ - **Ложная тревога «silent death» больше не пишется на штатный конец хода** (`AgentSession._on_task_done`, V-648).
+   Предупреждение `listen task exited without exception (silent death)` печаталось при любом нормальном выходе
+   слушателя: конец потока после `turn_end` и подавленная отмена перед сжатием. За 20–27.09 — 475 событий, из них
+diff --git a/TODO.md b/TODO.md
+index f7fd2c01..105411a4 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -317,5 +317,5 @@
+ 
+ - **37 браузерных тестов и `tests/test_audit0901_sysquota.py::test_lane_label_prints_the_threshold_that_actually_gates_it` красные на ЧИСТОМ main.** Проверено 22.09.2026 отдельным worktree (`git worktree add -d /tmp/... main`): `tests/test_usage_analytics_frontend.py`, `tests/test_t344_quota_lines_browser.py`, `tests/test_usage_history_frontend.py` дают ровно `37 failed, 11 passed` и на main, и на ветке V-576, а sysquota падает с `ReferenceError: QuotaPanel is not defined`. Симптом у всех один: JS дашборда не доезжает до страницы, и тест видит неопределённый глобал. Дополнительно при V-652: отдельные тесты `test_t344_quota_lines_browser.py` на созданной странице получают JS, но ещё 11 проверок расходятся с принудительно английской локалью (`_render` задаёт `__ORCH_LANG__='en'`, проверки ждут русские тексты); воспроизвести обе причины на чистом main и разделить тестовую поломку до её исправления. Подробности измерения V-652: `.orchestra/tasks/V-652/report.md`.
+ - V-643: Codex оставлен на нативном компакте по решению владельца 25.09; вернуться: замер нативный vs handoff+audit на 1–2 Codex-кейсах после сброса пула (26.09 21:34), затем решение. Разбор: нативная сводка невидима Orchestra (аудит ставить не на что), handoff даёт новый thread id на каждый компакт, аудит ~0.5–0.7 млн токенов за компакт из Plus-пула, нужен запускатель аудита через `codex exec` и пересчёт токенов в cost (`.orchestra/tasks/V-643/report.md`).
+-- V-576 миграция v2→v3 (`app/startup_migration.py`) не создаёт `attention_events` (таблица есть только в `schema.sql` для новых баз) → `notify_user` падал `no such table` 22–28.09. 28.09 таблица создана вручную на VPS и на ноутбуке; для новых установок миграции нужен `CREATE TABLE IF NOT EXISTS attention_events`.
++- ~~V-576 миграция v2→v3 не создаёт `attention_events`~~ — исправлено V-653: `migrate_v576` на каждом старте выполняет `CREATE TABLE IF NOT EXISTS attention_events` (существующие базы, в том числе с таблицей, созданной вручную 28.09). Осталось только проверить после ближайшего рестарта, что `notify_user` работает.
+ - **Таймер предкомпакта не отменяется при kill воркера (error watch 28.09, ~25 срабатываний за неделю).** Сценарий: Codex-воркер закончил ход → через 25 мин `precompact timer fired` → `native Codex compact` на уже заархивированном воркере, чей worktree удалён → `connect failed: FileNotFoundError` + `native Codex compact failed`. Примеры: nedorosl-lit 28.09 06:13, tender-scan 27.09 11:04. Вреда нет (воркер уже мёртв), но это шум в error watch и лишний запуск codex. Починка: отменять таймер при kill/archive или проверять статус перед компактом — ждёт слова владельца.
+diff --git a/app/bg_jobs.py b/app/bg_jobs.py
+index b290ca9b..c1636feb 100644
+--- a/app/bg_jobs.py
++++ b/app/bg_jobs.py
+@@ -334,6 +334,7 @@ class BgJobManager:
+     def __init__(self):
+         self._tasks: dict[str, asyncio.Task] = {}
+         self._procs: dict[str, asyncio.subprocess.Process] = {}
++        self._cron_timeout_notified: set[str] = set()
+         self._session_manager = None
+ 
+     def set_session_manager(self, mgr) -> None:
+@@ -873,6 +874,31 @@ class BgJobManager:
+         except Exception as e:
+             logger.error(f"cron {job_id}: fire failed (continuing schedule): {e}")
+ 
++    async def _notify_cron_command_timeout(self, job_id, command, target_name):
++        if job_id in self._cron_timeout_notified:
++            return
++        if not bg_cron_should_fire(job_id):
++            return
++        session, _failure = await self._load_job_target(job_id, target_name)
++        if not session:
++            return
++        self._restore_report_provenance(session)
++        body = (
++            f"[Cron command timed out] job {job_id}: command `{command}` was killed "
++            f"after {_CRON_COMMAND_TIMEOUT_SECONDS} seconds without finishing. "
++            "The job stays scheduled and will keep timing out until the command is fixed; "
++            "this message is sent once until a run succeeds. Check the command, fix or "
++            "speed it up, or cancel the job with bg_cancel and recreate it."
++        )
++        provenance = MessageProvenance(
++            origin="background_task", senders=(job_id,),
++            subtype="cron_command", ref=job_id,
++        )
++        await self._session_manager.send(
++            session.id, body, provenance=provenance,
++        )
++        self._cron_timeout_notified.add(job_id)
++
+     async def _fire_cron_command(
+         self, job_id, command, pattern, message, target_name, target_scope,
+     ):
+@@ -901,7 +927,11 @@ class BgJobManager:
+                     job_id,
+                     _CRON_COMMAND_TIMEOUT_SECONDS,
+                 )
++                await self._notify_cron_command_timeout(
++                    job_id, command, target_name,
++                )
+                 return
++            self._cron_timeout_notified.discard(job_id)
+ 
+             raw_output = (
+                 stdout.decode(errors="replace")
+diff --git a/app/manager.py b/app/manager.py
+index 9dc8b5e3..c1b799fa 100644
+--- a/app/manager.py
++++ b/app/manager.py
+@@ -1190,6 +1190,8 @@ class SessionManager:
+             fan_barrier.on_child_killed(_killed_name)
+         # Процесс CLI есть только у загруженной живой сессии; гасим его до удаления
+         # worktree, в котором он работает. Гидрированная из БД сессия его не имеет.
++        if session is not None:
++            session.mark_removed()
+         if session is not None and session.loaded:
+             await session._disconnect_backend()
+         if session is None:
+diff --git a/app/mcp_stdio.py b/app/mcp_stdio.py
+index 95bf7ab0..b0f7abc0 100644
+--- a/app/mcp_stdio.py
++++ b/app/mcp_stdio.py
+@@ -3080,7 +3080,7 @@ async def bg_create(type: str, message: str = "", target: str = "",
+                     command: str = "", host: str = "", cron_expr: str = "",
+                     interval_seconds: int = 60,
+                     timeout_seconds: int = 3600) -> str:
+-    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s without a wake (timeout shows only in bg_list last_output). cron types recur, skip missed downtime fires without backfill. idle is a self-only orchestrator watch: wakes when its tree and other jobs are idle, once per activity; recreating replaces the old watch. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command/idle."""
++    """Create a durable job and wake its target on trigger; survives hibernate. Returns a job receipt, not command completion. Types: run executes command (optional host); timer uses delay_seconds; file watches path for regex pattern; command checks command output for pattern every interval_seconds; ssh streams host command for pattern; cron uses 5-field UTC cron_expr; cron_command runs on cron_expr and wakes for matching completed output; each run is killed after 600 s and the target gets one timeout message (repeat timeouts stay silent until a run succeeds; also in bg_list last_output). cron types recur, skip missed downtime fires without backfill. idle is a self-only orchestrator watch: wakes when its tree and other jobs are idle, once per activity; recreating replaces the old watch. target defaults to caller. timeout_seconds defaults to 3600, max 86400; 0 means no expiry only for file/command/ssh/cron/cron_command/idle."""
+     if type == "idle" and (ROLE not in _ORCH_ROLES or (target and target != WORKER_NAME)):
+         raise ApiToolError(code="idle_watch_self_only", message="An orchestrator sets an idle watch on itself")
+     config = {}
+diff --git a/app/session.py b/app/session.py
+index 1a99e194..0433021e 100644
+--- a/app/session.py
++++ b/app/session.py
+@@ -524,6 +524,7 @@ class AgentSession:
+     _manually_interrupted: bool = field(default=False, repr=False)
+     _precompact_timer_task: asyncio.Task | None = field(default=None, repr=False)
+     _precompact_timer: dict | None = field(default=None, repr=False)
++    _removed: bool = field(default=False, repr=False)
+     # Одна строка в журнал на сессию: решение принимается каждый ход, а причина не меняется.
+     _auto_compact_off_logged: bool = field(default=False, repr=False)
+     _codex_skill_index_fallback: bool = field(default=False, repr=False)
+@@ -639,6 +640,10 @@ class AgentSession:
+         )
+         return True
+ 
++    def mark_removed(self) -> None:
++        self._removed = True
++        self._cancel_precompact_timer("removed")
++
+     def _cancel_precompact_timer(self, reason: str = "activity") -> None:
+         if self._precompact_timer_task and not self._precompact_timer_task.done():
+             self._precompact_timer_task.cancel()
+@@ -743,6 +748,9 @@ class AgentSession:
+         self._precompact_timer_task = None
+         if not state:
+             return
++        if self._removed:
++            self._precompact_timer = None
++            return
+ 
+         fired_at = datetime.now(timezone.utc)
+         state["fired_at"] = fired_at.isoformat()
+diff --git a/app/startup_migration.py b/app/startup_migration.py
+index a10098b9..c97b2959 100644
+--- a/app/startup_migration.py
++++ b/app/startup_migration.py
+@@ -32,6 +32,7 @@ from pathlib import Path
+ import json
+ import logging
+ import sqlite3
++from contextlib import closing
+ import subprocess
+ 
+ from app.project_catalog import catalog
+@@ -125,6 +126,27 @@ def _migrate_task_store(root: Path) -> dict:
+             "tagged": tagged, "untagged": untagged, "head": _git(root, "rev-parse", "HEAD").strip()}
+ 
+ 
++_ATTENTION_EVENTS_DDL = """CREATE TABLE IF NOT EXISTS attention_events (
++                id TEXT PRIMARY KEY,
++                kind TEXT NOT NULL
++                    CHECK(kind IN ('legacy','incident','reversal','plan_change','waiting')),
++                reason TEXT NOT NULL,
++                source_session_id TEXT NOT NULL REFERENCES sessions(id),
++                created_at TEXT NOT NULL
++            )"""
++
++
++def _ensure_attention_events(connection: sqlite3.Connection) -> None:
++    tables = {
++        str(row[0]) for row in connection.execute(
++            "SELECT name FROM sqlite_master WHERE type='table'"
++        ).fetchall()
++    }
++    if "sessions" in tables:  # свежая установка создаёт всё из schema.sql
++        connection.execute(_ATTENTION_EVENTS_DDL)
++        connection.commit()
++
++
+ def _migrate_database(database: Path) -> dict:
+     connection = sqlite3.connect(str(database))
+     try:
+@@ -188,6 +210,8 @@ def migrate_v576(database: Path, task_repository: Path) -> dict:
+     task_repository = Path(task_repository)
+     if not database.is_file():
+         return {"state": "fresh"}
++    with closing(sqlite3.connect(str(database))) as probe:
++        _ensure_attention_events(probe)
+     with sqlite3.connect(str(database)) as probe:
+         pending_database = _database_needs_migration(probe)
+     marker = task_repository / "task-store.json"
+diff --git a/tests/test_bg_jobs.py b/tests/test_bg_jobs.py
+index fb564459..00eb6d03 100644
+--- a/tests/test_bg_jobs.py
++++ b/tests/test_bg_jobs.py
+@@ -462,7 +462,7 @@ class TestCronCommand:
+         session.send.assert_not_awaited()
+ 
+     @pytest.mark.asyncio
+-    async def test_timeout_never_wakes_even_after_partial_match(
++    async def test_timeout_notifies_target_once_until_success(
+         self, db, mgr_mock, monkeypatch,
+     ):
+         import app.bg_jobs as module
+@@ -483,17 +483,18 @@ class TestCronCommand:
+         monkeypatch.setattr(module, "_communicate_cron_command", timeout)
+         monkeypatch.setattr(module, "_kill_proc", killed)
+ 
+-        await mgr._fire_cron_command(
+-            "cron-command-timeout",
+-            "python monitor.py",
+-            "ALERT",
+-            "monitor found work",
+-            "w1",
+-            "/s",
+-        )
++        async def fire():
++            await mgr._fire_cron_command(
++                "cron-command-timeout", "python monitor.py", "ALERT",
++                "monitor found work", "w1", "/s",
++            )
+ 
+-        manager.ensure_loaded.assert_not_awaited()
+-        session.send.assert_not_awaited()
++        await fire()
++        session.send.assert_awaited_once()
++        body = session.send.await_args.args[0]
++        assert "cron-command-timeout" in body
++        assert "python monitor.py" in body
++        assert "600 seconds" in body
+         killed.assert_awaited_once_with(proc)
+         row = next(
+             job for job in bg_get_active_all()
+@@ -502,6 +503,21 @@ class TestCronCommand:
+         assert row["status"] == "active"
+         assert "timed out after 600 seconds" in row["last_output"]
+ 
++        await fire()
++        session.send.assert_awaited_once()
++
++        async def ok(_process):
++            return b"fine\n", b""
++
++        monkeypatch.setattr(module, "_communicate_cron_command", ok)
++        proc.returncode = 0
++        await fire()
++        assert session.send.await_count == 1
++
++        monkeypatch.setattr(module, "_communicate_cron_command", timeout)
++        await fire()
++        assert session.send.await_count == 2
++
+     @pytest.mark.asyncio
+     async def test_cancellation_while_communicate_blocked_kills_process(
+         self, db, mgr_mock, monkeypatch,
+diff --git a/tests/test_manager.py b/tests/test_manager.py
+index 577de77e..ae3a7ea6 100644
+--- a/tests/test_manager.py
++++ b/tests/test_manager.py
+@@ -1684,6 +1684,23 @@ class TestSendAndControl:
+             await mgr.remove(session.id)
+         assert mgr.get(session.id) is None
+ 
++    @pytest.mark.asyncio
++    async def test_remove_cancels_pending_precompact_timer(self, mgr):
++        from tests.conftest import make_backend_mock
++        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
++            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
++            session.compact = AsyncMock()
++            session._precompact_timer = {
++                "scheduled_at": datetime.now(timezone.utc).isoformat(),
++                "delay_seconds": 0.05,
++                "backend": session.backend_type,
++            }
++            session._precompact_timer_task = asyncio.ensure_future(session._run_precompact_timer())
++            await mgr.remove(session.id)
++            await asyncio.sleep(0.15)
++        session.compact.assert_not_awaited()
++        assert session._precompact_timer is None
++
+     @pytest.mark.asyncio
+     async def test_remove_deletes_from_dict_and_db(self, mgr):
+         from app.db import get_session
+diff --git a/tests/test_session.py b/tests/test_session.py
+index 31587721..c554bbcc 100644
+--- a/tests/test_session.py
++++ b/tests/test_session.py
+@@ -2170,6 +2170,29 @@ class TestPrecompactTimer:
+         assert flags == [False]
+         session._schedule_precompact_timer.assert_not_called()
+ 
++    @pytest.mark.asyncio
++    async def test_removed_session_never_compacts_when_timer_fires(self, session):
++        from app.session import AgentStatus
++
++        session.backend_type = "codex"
++        session.status = AgentStatus.IDLE
++        session._last_context = {
++            "percentage": 95, "total_tokens": 190_000,
++            "max_tokens": 200_000, "known": True,
++        }
++        session._precompact_timer = {
++            "scheduled_at": datetime.now(timezone.utc).isoformat(),
++            "backend": "codex",
++        }
++        session._log = MagicMock()
++        session.compact = AsyncMock()
++        session._removed = True
++
++        await session._fire_precompact_timer()
++
++        session.compact.assert_not_awaited()
++        assert session._precompact_timer is None
++
+     @pytest.mark.asyncio
+     async def test_pending_precompact_rechecks_known_context_before_window(
+         self, session, monkeypatch,
+diff --git a/tests/test_startup_migration_v576.py b/tests/test_startup_migration_v576.py
+index 598c3d7c..22c21e4b 100644
+--- a/tests/test_startup_migration_v576.py
++++ b/tests/test_startup_migration_v576.py
+@@ -127,6 +127,36 @@ def test_second_start_changes_nothing(legacy_install):
+     assert sorted(p.name for p in database.parent.glob("*pre-v576*")) == backups_after_first
+ 
+ 
++def _attention_columns(database):
++    with sqlite3.connect(database) as connection:
++        return [r[1] for r in connection.execute("PRAGMA table_info(attention_events)")]
++
++
++def test_startup_creates_missing_attention_events_idempotently(legacy_install):
++    database, root, _records = legacy_install
++    with sqlite3.connect(database) as connection:
++        connection.execute("DROP TABLE IF EXISTS attention_events")
++    assert _attention_columns(database) == []
++
++    migrate_v576(database, root)
++    expected = ["id", "kind", "reason", "source_session_id", "created_at"]
++    assert _attention_columns(database) == expected
++
++    with sqlite3.connect(database) as connection:
++        connection.execute("DROP TABLE attention_events")
++    assert migrate_v576(database, root) == {"state": "already"}
++    assert _attention_columns(database) == expected
++
++    with sqlite3.connect(database) as connection:
++        connection.execute("PRAGMA foreign_keys=OFF")
++        connection.execute(
++            "INSERT INTO attention_events VALUES('e1','legacy','r','s1','2026-09-28')"
++        )
++    migrate_v576(database, root)
++    with sqlite3.connect(database) as connection:
++        assert connection.execute("SELECT id FROM attention_events").fetchall() == [("e1",)]
++
++
+ def test_a_dirty_task_store_refuses_instead_of_mixing_changes_in(legacy_install):
+     database, root, records = legacy_install
+     stray = root / "projects" / "alpha-vps" / "tasks" / "stray.json"

@@ -1,0 +1,13 @@
+ .orchestra/tasks/V-653/report.md     |  92 ++++++++++++++++
+ CHANGELOG.md                         |   3 +
+ TODO.md                              |   4 +-
+ app/bg_jobs.py                       |  56 ++++++++++
+ app/manager.py                       |   2 +
+ app/mcp_stdio.py                     |   2 +-
+ app/session.py                       |  22 +++-
+ app/startup_migration.py             |  57 +++++++++-
+ tests/test_bg_jobs.py                | 207 +++++++++++++++++++++++++++++++----
+ tests/test_manager.py                |  56 ++++++++++
+ tests/test_session.py                |  63 +++++++++++
+ tests/test_startup_migration_v576.py |  96 ++++++++++++++++
+ 12 files changed, 629 insertions(+), 31 deletions(-)
