@@ -1,0 +1,22 @@
+{
+  "source": {
+    "captured_from": "read-only SQLite query of the orchestra process ORCHESTRA_DB_PATH",
+    "date": "2026-09-29",
+    "session": "seedon-orchestrator",
+    "scope": "/home/kesha/projects/seedon",
+    "window_utc": ["13:44:44", "13:55:00"],
+    "compact_start_context_pct": 95,
+    "legacy_tool_result_rows_without_tool_use_id": 34,
+    "legacy_tool_rows_during_compact": 0,
+    "sample_original_content_lengths": [504, 2641, 12127],
+    "privacy": "All live content, session IDs, paths in tool bodies, and UUIDs are omitted. The representative structured call/result pair below exercises the new compact-event schema; the source journal did not retain its call IDs or phase labels."
+  },
+  "events": [
+    {"id": 1, "event_id": "fixture-compact", "content": {"action": "start", "status": "running", "before_pct": 95, "pre_tokens": 0}},
+    {"id": 2, "event_id": "fixture-compact", "content": {"action": "step_start", "phase": "audit"}},
+    {"id": 3, "event_id": "fixture-compact", "content": {"action": "tool", "phase": "audit", "kind": "tool", "tool_use_id": "fixture-audit-read", "tool_name": "Read", "content": "[call redacted; original was not stored in the legacy journal]"}},
+    {"id": 4, "event_id": "fixture-compact", "content": {"action": "tool", "phase": "audit", "kind": "tool_result", "tool_use_id": "fixture-audit-read", "tool_name": "Read", "content": "[live output redacted; representative source row length: 2,641 characters]"}},
+    {"id": 5, "event_id": "fixture-compact", "content": {"action": "tool", "phase": "audit", "kind": "tool_result", "tool_use_id": "fixture-audit-grep", "tool_name": "Grep", "content": "[live output redacted; representative source row length: 12,127 characters]"}},
+    {"id": 6, "event_id": "fixture-compact", "content": {"action": "step_start", "phase": "final"}}
+  ]
+}

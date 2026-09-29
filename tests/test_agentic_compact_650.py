@@ -63,6 +63,12 @@ class _Backend:
             prompt = self.sent[next_prompt]
             next_prompt += 1
             if "[SYSTEM: Context compaction requested" in prompt:
+                yield AgentEvent(type="tool", content="Read: {\"path\":\"journal\"}", metadata={
+                    "tool_use_id": "draft-read", "tool_name": "Read",
+                })
+                yield AgentEvent(type="tool_result", content="draft journal excerpt", metadata={
+                    "tool_use_id": "draft-read", "tool_name": "Read",
+                })
                 yield AgentEvent(type="text", content=DRAFT)
                 yield AgentEvent(type="turn_end", metadata={
                     "ok": True, "stop_reason": "end_turn", "num_turns": 1,
@@ -79,6 +85,12 @@ class _Backend:
                     })
                 if self.on_audit_end:
                     self.on_audit_end()
+                yield AgentEvent(type="tool", content="Grep: {\"pattern\":\"omission\"}", metadata={
+                    "tool_use_id": "audit-grep", "tool_name": "Grep",
+                })
+                yield AgentEvent(type="tool_result", content="audit findings", metadata={
+                    "tool_use_id": "audit-grep", "tool_name": "Grep",
+                })
                 yield AgentEvent(type="text", content="AUDIT INTERNAL TEXT")
                 yield AgentEvent(type="turn_end", metadata={
                     "ok": True, "stop_reason": "end_turn", "num_turns": 1,
@@ -89,6 +101,12 @@ class _Backend:
                 assert match
                 final = "" if self.mode == "empty" else "x" * 30 if self.mode == "long" else FINAL
                 (self.root / match.group(1)).parent.joinpath("summary.md").write_text(final)
+                yield AgentEvent(type="tool", content="Edit: summary.md", metadata={
+                    "tool_use_id": "final-edit", "tool_name": "Edit",
+                })
+                yield AgentEvent(type="tool_result", content="summary written", metadata={
+                    "tool_use_id": "final-edit", "tool_name": "Edit",
+                })
                 yield AgentEvent(type="text", content="FINAL INTERNAL TEXT")
                 yield AgentEvent(type="turn_end", metadata={
                     "ok": True, "stop_reason": "end_turn", "num_turns": 1,
@@ -117,7 +135,14 @@ def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=Fals
         model="claude-opus-5[1m]", system_prompt="role",
         created_at=datetime.now(timezone.utc),
     )
-    session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+    compact_events = []
+    def capture_log(kind, content, **kwargs):
+        logs.append((kind, content))
+        if kind == "compact_event":
+            compact_events.append({**json.loads(content), "event_id": kwargs.get("event_id"),
+                                   "tool_use_id": kwargs.get("tool_use_id")})
+    session._log = capture_log
+    session._compact_log_events = compact_events
     session._persist = lambda: None
     session._drain_persist = lambda: asyncio.sleep(0)
     session._wake_durable_message_deliveries = lambda: None
@@ -163,6 +188,18 @@ def test_final_replaces_draft_in_ack_and_pass_cost_is_accounted(tmp_path, monkey
     assert any(f"summary {len(DRAFT)} → {len(FINAL)} chars" in content for _, content in logs)
     assert not any(kind == "text" and "FINAL summary" in content for kind, content in logs)
     assert not any(kind == "text" and "INTERNAL TEXT" in content for kind, content in logs)
+    assert not any(kind in {"tool", "tool_result"} for kind, _ in logs)
+    compact_rows = session._compact_log_events
+    assert {row.get("phase") for row in compact_rows if row.get("action") == "tool"} == {
+        "draft", "audit", "final",
+    }
+    tool_rows = [row for row in compact_rows if row.get("action") == "tool"]
+    assert len(tool_rows) == 6
+    assert all(row["event_id"] == compact_rows[0]["event_id"] for row in compact_rows)
+    assert {row["tool_use_id"] for row in tool_rows} == {
+        "draft-read", "audit-grep", "final-edit",
+    }
+    assert next(row for row in compact_rows if row.get("action") == "finish")["status"] == "complete"
     audit_root = tmp_path / "data" / "compact-sandbox"
     assert str(audit_root) in next(p for p in backend.sent if "pass 1 — AUDIT" in p)
     assert list(audit_root.iterdir()) == []

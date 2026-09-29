@@ -1958,6 +1958,7 @@ function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, inser
 function _renderStatusEntry(type, content, ts, anchor, insertAndFollow, payload) {
     if (type !== 'status') return false;
     if (payload?.status_hidden === true) return true;
+    if (/^(?:compact started \(context |compact done:|agentic compact )/i.test(content || '')) return true;
     // A status row may beat the authoritative `text` row through async logging.
     // Never finalize streamBubble here or the later text becomes a duplicate answer.
     if (content?.startsWith('precompact timer')) return true;
@@ -3949,9 +3950,226 @@ function _agentMessageDisplay(text, subtype) {
     return `${head}\n\n${rest}`;
 }
 
+const _compactEventCards = new Map();
+
+function resetCompactEventCards() {
+    _compactEventCards.clear();
+}
+
+function _addCompactFullOutputButton(target, row, compactId, chat) {
+    if (!row.content_truncated_bytes || !row._log_id) return;
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'ml-2 text-xs text-sky-400 hover:text-sky-300';
+    button.textContent = T('load full');
+    button.addEventListener('click', async () => {
+        button.disabled = true;
+        button.textContent = T('loading…');
+        try {
+            const full = await api(`/api/logs/${row._log_id}`);
+            _renderCompactEvent('compact_event', full.content, full.ts, null,
+                element => element, {...full, event_id: compactId}, chat);
+        } catch (error) {
+            button.disabled = false;
+            button.textContent = T('failed ({name}) — try again', {name: error.name});
+        }
+    });
+    target.appendChild(button);
+}
+
+function _renderCompactEvent(type, content, ts, anchor, insertAndFollow, payload, chat) {
+    if (type !== 'compact_event') return false;
+    let event;
+    try { event = JSON.parse(content); } catch { return true; }
+    const compactId = payload?.event_id;
+    if (!compactId || !event || typeof event !== 'object') return true;
+    let state = _compactEventCards.get(compactId);
+    if (!state) {
+        const card = document.createElement('details');
+        card.className = 'compact-event-card mx-2 my-2 rounded-lg border border-violet-500/40 bg-slate-900/70 text-sm';
+        card.dataset.compactId = compactId;
+        const heading = document.createElement('summary');
+        heading.className = 'cursor-pointer list-none px-3 py-2 font-semibold text-violet-200';
+        card.appendChild(heading);
+        const body = document.createElement('div');
+        body.className = 'space-y-2 px-3 pb-3';
+        card.appendChild(body);
+        insertAndFollow(card);
+        state = {card, heading, body, events: new Map(), openPhases: new Set()};
+        _compactEventCards.set(compactId, state);
+    }
+    if (payload?.id != null) {
+        event._log_id = Number(payload.id);
+        state.events.set(Number(payload.id), event);
+    }
+    else state.events.set(`${Date.now()}-${Math.random()}`, event);
+
+    const entries = [...state.events.entries()].sort((a, b) => {
+        if (typeof a[0] === 'number' && typeof b[0] === 'number') return a[0] - b[0];
+        return String(a[0]).localeCompare(String(b[0]));
+    }).map(([, value]) => value);
+    const finish = [...entries].reverse().find(item => item.action === 'finish');
+    const started = entries.find(item => item.action === 'start') || {};
+    const status = finish?.status === 'complete' ? T('Ready')
+        : finish?.status === 'fallback_draft' ? T('Draft restored')
+        : finish ? T('Rolled back') : T('In progress');
+    const percent = started.before_pct == null ? '' : ` · ${started.before_pct}%`;
+    state.heading.textContent = `${T('Context compaction')}: ${status}${percent}`;
+
+    const opened = new Set([...state.body.querySelectorAll('details[open]')]
+        .map(node => node.dataset.phase).filter(Boolean));
+    state.body.replaceChildren();
+    const phases = ['draft', 'audit', 'final'];
+    const labels = {draft: T('Draft summary'), audit: 'AUDIT', final: 'FINAL'};
+    const descriptions = {
+        draft: T('Builds a working summary from the session journal.'),
+        audit: T('Checks the draft against the journal and identifies omissions.'),
+        final: T('Writes the reviewed summary used to continue the session.'),
+    };
+    for (const phase of phases) {
+        const rows = entries.filter(item => item.phase === phase
+            || (phase === 'draft' && item.action === 'start'));
+        if (!rows.length) continue;
+        const details = document.createElement('details');
+        details.dataset.phase = phase;
+        details.open = opened.has(phase) || state.openPhases.has(phase);
+        details.addEventListener('toggle', () => {
+            if (details.open) state.openPhases.add(phase);
+            else state.openPhases.delete(phase);
+        });
+        details.className = 'rounded border border-slate-700 px-2 py-1';
+        const summary = document.createElement('summary');
+        summary.className = 'cursor-pointer font-medium';
+        const done = rows.some(item => item.action === 'step_done');
+        const failed = rows.some(item => item.action === 'step_failed');
+        summary.textContent = `${labels[phase]} · ${failed ? T('Failed') : done ? T('Ready') : T('In progress')}`;
+        details.appendChild(summary);
+        const description = document.createElement('p');
+        description.className = 'my-1 text-xs text-slate-400';
+        description.textContent = descriptions[phase];
+        details.appendChild(description);
+
+        const calls = new Map();
+        for (const row of rows.filter(item => item.action === 'tool')) {
+            const key = row.tool_use_id || `row-${entries.indexOf(row)}`;
+            const pair = calls.get(key) || {call: null, result: null};
+            pair[row.kind === 'tool_result' ? 'result' : 'call'] = row;
+            calls.set(key, pair);
+        }
+        for (const pair of calls.values()) {
+            const tool = document.createElement('details');
+            tool.className = 'ml-2 rounded bg-slate-950/70 px-2 py-1';
+            const toolSummary = document.createElement('summary');
+            toolSummary.className = 'cursor-pointer text-xs';
+            const name = pair.call?.tool_name || pair.result?.tool_name || T('Tool');
+            const marker = pair.call && pair.result ? '✓' : pair.call ? '…' : '↳';
+            toolSummary.textContent = `${marker} ${name}`;
+            tool.appendChild(toolSummary);
+            for (const [label, row] of [[T('Call'), pair.call], [T('Result'), pair.result]]) {
+                if (!row) continue;
+                const title = document.createElement('div');
+                title.className = 'mt-1 text-xs text-slate-400';
+                title.textContent = label;
+                const text = document.createElement('pre');
+                text.className = 'max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs';
+                text.textContent = row.content || '';
+                tool.append(title, text);
+                if (row.content_truncated_bytes) {
+                    const clipped = document.createElement('p');
+                    clipped.className = 'text-xs text-slate-500';
+                    clipped.textContent = T('Output shortened for display ({n} source bytes)', {
+                        n: row.content_truncated_bytes,
+                    });
+                    tool.appendChild(clipped);
+                    _addCompactFullOutputButton(tool, row, compactId, chat);
+                }
+            }
+            details.appendChild(tool);
+        }
+        for (const row of rows.filter(item => ['step_done', 'step_failed'].includes(item.action))) {
+            if (row.summary) {
+                const finalSummary = document.createElement('pre');
+                finalSummary.className = 'max-h-72 overflow-auto whitespace-pre-wrap break-words rounded bg-slate-950/70 p-2 text-xs';
+                finalSummary.textContent = row.summary;
+                details.appendChild(finalSummary);
+                if (row.content_truncated_bytes) {
+                    const clipped = document.createElement('p');
+                    clipped.className = 'text-xs text-slate-500';
+                    clipped.textContent = T('Output shortened for display ({n} source bytes)', {
+                        n: row.content_truncated_bytes,
+                    });
+                    details.appendChild(clipped);
+                    _addCompactFullOutputButton(details, row, compactId, chat);
+                }
+            }
+            if (row.error) {
+                const error = document.createElement('p');
+                error.className = 'text-xs text-amber-300';
+                error.textContent = `${T('Fallback')}: ${row.error}`;
+                details.appendChild(error);
+            }
+            const metrics = [];
+            if (Number.isFinite(row.seconds)) metrics.push(`${row.seconds}s`);
+            if (Number.isFinite(row.cost_usd)) metrics.push(`$${row.cost_usd.toFixed(2)}`);
+            if (metrics.length) {
+                const metricLine = document.createElement('p');
+                metricLine.className = 'text-xs text-slate-400';
+                metricLine.textContent = metrics.join(' · ');
+                details.appendChild(metricLine);
+            }
+        }
+        state.body.appendChild(details);
+    }
+    if (finish) {
+        const metrics = [];
+        if (finish.before_pct != null && finish.after_pct != null)
+            metrics.push(`${T('Context')}: ${finish.before_pct}% → ${finish.after_pct}%`);
+        if (finish.pre_tokens != null && finish.post_tokens != null)
+            metrics.push(`${finish.pre_tokens.toLocaleString()} → ${finish.post_tokens.toLocaleString()} tokens`);
+        if (Number.isFinite(finish.seconds)) metrics.push(`${finish.seconds}s`);
+        if (Number.isFinite(finish.cost_usd)) metrics.push(`$${finish.cost_usd.toFixed(2)}`);
+        if (metrics.length) {
+            const footer = document.createElement('p');
+            footer.className = 'border-t border-slate-700 pt-2 text-xs text-slate-400';
+            footer.textContent = metrics.join(' · ');
+            state.body.appendChild(footer);
+        }
+        if (finish.error) {
+            const error = document.createElement('p');
+            error.className = 'text-xs text-amber-300';
+            error.textContent = finish.error;
+            state.body.appendChild(error);
+        }
+        if (finish.summary) {
+            const final = document.createElement('details');
+            final.className = 'rounded border border-violet-500/30 px-2 py-1';
+            const title = document.createElement('summary');
+            title.className = 'cursor-pointer';
+            title.textContent = T('Final summary');
+            const summaryText = document.createElement('pre');
+            summaryText.className = 'mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words text-xs';
+            summaryText.textContent = finish.summary;
+            final.append(title, summaryText);
+            if (finish.content_truncated_bytes) {
+                const clipped = document.createElement('p');
+                clipped.className = 'text-xs text-slate-500';
+                clipped.textContent = T('Output shortened for display ({n} source bytes)', {
+                    n: finish.content_truncated_bytes,
+                });
+                final.appendChild(clipped);
+                const finishRow = [...state.events.entries()].find(([, row]) => row.action === 'finish')?.[1];
+                _addCompactFullOutputButton(final, finishRow || finish, compactId, chat);
+            }
+            state.body.appendChild(final);
+        }
+    }
+    return true;
+}
+
 function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
     if (type === 'done_gate_verdict') return; // V-614 shadow-only bookkeeping, not a chat event.
+    if (type === 'error' && /^compact attempt \d+\/\d+ failed:/.test(content || '')) return;
     if (_isSilentTurnMarker(type, content)) return;
     if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
@@ -3965,7 +4183,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     const _insert = (el) => {
         _tagChatTimelineNode(el, type, ts);
         _stampChatLogNode(el, payload);
-        if (payload && payload.trunc) _attachTruncNotice(el, payload, type, ts);
+        if (payload && payload.trunc && type !== 'compact_event') _attachTruncNotice(el, payload, type, ts);
         if (anchor) return chat.insertBefore(el, anchor);
         const wasAtBottom = _chatAtBottom(chat);
         let inserted;
@@ -3985,6 +4203,8 @@ function addChatEntry(type, content, ts, anchor, payload) {
         if (!anchor && !_insertedBeforeStream && wasAtBottom) chat.scrollTop = chat.scrollHeight;
         return inserted;
     };
+
+    if (_renderCompactEvent(type, content, ts, anchor, _insertAndFollow, payload, chat)) return;
 
     // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
     const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
