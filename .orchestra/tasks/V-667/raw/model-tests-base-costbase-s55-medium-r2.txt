@@ -1,0 +1,179 @@
+F.FFFFFFFFF                                                              [100%]
+=================================== FAILURES ===================================
+__________ test_first_turn_after_restart_is_turn_cost_not_cumulative ___________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_first_turn_after_restart_0/t.db')
+
+    def test_first_turn_after_restart_is_turn_cost_not_cumulative(db):
+        s = _session()
+        _end(s, 100.0)          # first ever turn: cumulative == turn
+        _end(s, 101.5)
+>       s2 = _restart()
+             ^^^^^^^^^^
+
+tests/test_cost_base_restart.py:70: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _restart():
+        """A new process: fresh session object, baseline restored the way the manager does."""
+>       return _session(base=dbmod.cost_base_load("cost-restart", NATIVE))
+                             ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:63: AttributeError
+___________________ test_new_native_session_resets_baseline ____________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_new_native_session_resets0/t.db')
+
+    def test_new_native_session_resets_baseline(db):
+        s = _session()
+        _end(s, 50.0)
+        _end(s, 2.0, sid="native-bbb")   # e.g. after compact: fresh native session, low total
+        assert _rows() == pytest.approx([50.0, 2.0])
+>       s2 = _session(sid="native-bbb", base=dbmod.cost_base_load("cost-restart", "native-bbb"))
+                                             ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:88: AttributeError
+_______ test_stored_baseline_of_other_native_session_is_ignored_on_load ________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_stored_baseline_of_other_0/t.db')
+
+    def test_stored_baseline_of_other_native_session_is_ignored_on_load(db):
+        s = _session()
+        _end(s, 50.0)
+>       assert dbmod.cost_base_load("cost-restart", NATIVE) == pytest.approx(50.0)
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:96: AttributeError
+__________ test_lost_last_write_is_neither_negative_nor_whole_session __________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_lost_last_write_is_neithe0/t.db')
+
+    def test_lost_last_write_is_neither_negative_nor_whole_session(db):
+        s = _session()
+        _end(s, 10.0)
+        _end(s, 10.4)
+        # crash: the write of turn 3 (cumulative 10.9) never reached the DB
+>       s2 = _restart()
+             ^^^^^^^^^^
+
+tests/test_cost_base_restart.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _restart():
+        """A new process: fresh session object, baseline restored the way the manager does."""
+>       return _session(base=dbmod.cost_base_load("cost-restart", NATIVE))
+                             ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:63: AttributeError
+____________ test_provider_total_below_baseline_is_zero_and_resyncs ____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_provider_total_below_base0/t.db')
+
+    def test_provider_total_below_baseline_is_zero_and_resyncs(db):
+        s = _session()
+        _end(s, 10.0)
+>       s2 = _restart()
+             ^^^^^^^^^^
+
+tests/test_cost_base_restart.py:119: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _restart():
+        """A new process: fresh session object, baseline restored the way the manager does."""
+>       return _session(base=dbmod.cost_base_load("cost-restart", NATIVE))
+                             ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:63: AttributeError
+______________ test_out_of_order_baseline_write_does_not_regress _______________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_out_of_order_baseline_wri0/t.db')
+
+    def test_out_of_order_baseline_write_does_not_regress(db):
+        with dbmod._conn() as c:
+>           dbmod.cost_base_store(c, "cost-restart", NATIVE, 12.0, 200.0)   # newer turn landed first
+            ^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.db' has no attribute 'cost_base_store'
+
+tests/test_cost_base_restart.py:129: AttributeError
+____________________ test_baseline_is_atomic_with_turn_row _____________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_baseline_is_atomic_with_t0/t.db')
+
+    def test_baseline_is_atomic_with_turn_row(db):
+        """A turn_usage failure must not leave a baseline that claims the turn."""
+        with pytest.raises(ValueError):
+>           dbmod.turn_usage_add(
+                event_id="ev-x", session_id="cost-restart", runtime="claude", model="m",
+                ok=True, stop_reason="end_turn", cost_usd=1.0, input_tokens=1,
+                output_tokens=1, cache_read_tokens=0, cache_create_tokens=0,
+                quota_five_hour_pct=500.0, cost_base=(NATIVE, 9.0, 1.0),
+            )
+E           TypeError: turn_usage_add() got an unexpected keyword argument 'cost_base'
+
+tests/test_cost_base_restart.py:137: TypeError
+____________________ test_delta_backends_store_no_baseline _____________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_delta_backends_store_no_b0/t.db')
+
+    def test_delta_backends_store_no_baseline(db):
+        s = _session()
+        s.backend_type = "codex"
+        global _n
+        _n += 1
+        s._turns.handle_turn_end(AgentEvent(type="turn_end", content="", metadata={
+            "ok": True, "stop_reason": "end_turn", "cost_usd": 0.3, "cost_is_delta": True,
+            "session_id": NATIVE, "event_id": f"ev-{_n}",
+        }))
+>       assert dbmod.cost_base_load("cost-restart", NATIVE) == 0.0
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:155: AttributeError
+______________________ test_delete_session_drops_baseline ______________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_delete_session_drops_base0/t.db')
+
+    def test_delete_session_drops_baseline(db):
+        s = _session()
+        _end(s, 5.0)
+        dbmod.delete_session("cost-restart")
+>       assert dbmod.cost_base_load("cost-restart", NATIVE) == 0.0
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_base_restart.py:163: AttributeError
+____________________ test_manager_resume_restores_baseline _____________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_manager_resume_restores_b0/t.db')
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11436/test_manager_resume_restores_b0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x746002416150>
+
+    @pytest.mark.asyncio
+    async def test_manager_resume_restores_baseline(db, tmp_path, monkeypatch):
+        """Wiring: _load_from_db is where the process restart re-creates the session."""
+        from app.manager import SessionManager
+        monkeypatch.setattr("app.workspace.WORKTREE_ROOT", tmp_path)
+        monkeypatch.setattr("app.session.AgentSession.start", AsyncMock())
+        with dbmod._conn() as c:
+>           dbmod.cost_base_store(c, "cost-restart", NATIVE, 77.0, 1.0)
+            ^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.db' has no attribute 'cost_base_store'
+
+tests/test_cost_base_restart.py:173: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_cost_base_restart.py::test_first_turn_after_restart_is_turn_cost_not_cumulative
+FAILED tests/test_cost_base_restart.py::test_new_native_session_resets_baseline
+FAILED tests/test_cost_base_restart.py::test_stored_baseline_of_other_native_session_is_ignored_on_load
+FAILED tests/test_cost_base_restart.py::test_lost_last_write_is_neither_negative_nor_whole_session
+FAILED tests/test_cost_base_restart.py::test_provider_total_below_baseline_is_zero_and_resyncs
+FAILED tests/test_cost_base_restart.py::test_out_of_order_baseline_write_does_not_regress
+FAILED tests/test_cost_base_restart.py::test_baseline_is_atomic_with_turn_row
+FAILED tests/test_cost_base_restart.py::test_delta_backends_store_no_baseline
+FAILED tests/test_cost_base_restart.py::test_delete_session_drops_baseline - ...
+FAILED tests/test_cost_base_restart.py::test_manager_resume_restores_baseline
+10 failed, 1 passed in 7.96s

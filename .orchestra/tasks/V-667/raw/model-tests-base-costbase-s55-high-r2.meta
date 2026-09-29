@@ -1,0 +1,4 @@
+cwd=/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2
+command=nice -n 15 /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest -q tests/test_cost_baseline_restart.py
+changed_tests=tests/test_cost_baseline_restart.py
+pytest_rc=1

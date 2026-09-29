@@ -1,0 +1,28 @@
+........................................................................ [ 32%]
+........................................................................ [ 65%]
+....................................................F................... [ 98%]
+...                                                                      [100%]
+=================================== FAILURES ===================================
+_ TestIdentityRefreshOnRename.test_rebuilds_config_and_defers_restart_to_turn_boundary _
+
+self = <tests.test_manager.TestIdentityRefreshOnRename object at 0x77e2440c65d0>
+mgr = <app.manager.SessionManager object at 0x77e240158e90>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77e233f0bf50>
+
+    def test_rebuilds_config_and_defers_restart_to_turn_boundary(self, mgr, monkeypatch):
+        from tests.conftest import make_backend_mock
+        from app.manager import _make_mcp_config
+        from app.mcp_proof import PROOF_ENV, check_mcp_proof
+    
+        session = self._live_session(monkeypatch, backend=make_backend_mock())
+        session.mcp_servers = _make_mcp_config(
+            session.name, session.scope, session.role, session_id=session.id,
+        )
+>       running_process_proof = session.mcp_servers["orchestra"]["env"][PROOF_ENV]
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'ORCHESTRA_MCP_PROOF'
+
+tests/test_manager.py:3337: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_manager.py::TestIdentityRefreshOnRename::test_rebuilds_config_and_defers_restart_to_turn_boundary
+1 failed, 218 passed in 95.79s (0:01:35)

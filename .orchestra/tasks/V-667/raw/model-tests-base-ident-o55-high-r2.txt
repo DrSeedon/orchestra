@@ -1,0 +1,147 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+_______________ test_git_confirming_pin_merges_and_aligns_record _______________
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_git_confirming_pin_merges0/repo'), ...}
+
+    @pytest.mark.asyncio
+    async def test_git_confirming_pin_merges_and_aligns_record(env):
+        """Разрешающее плечо: seedon-случай целиком через merge_worker-операцию."""
+        operations = env["operations"]
+        main_before = _git(env["repo"], "rev-parse", "main")
+    
+        result, status = await operations.accept_merge_operation(
+            operation_id=str(uuid.uuid4()),
+            name="drift-worker",
+            scope=str(env["repo"]),
+            target="main",
+        )
+        assert status == 202, result
+        await operations._runner_tasks[result["operation_id"]]
+        stored = await asyncio.to_thread(operations.get_operation_result, result["operation_id"])
+    
+>       assert stored["operation_state"] == "SUCCEEDED", stored["error"]
+E       AssertionError: {'code': 'SESSION_IDENTITY_CHANGED', 'details': {'normalization': 'LEGACY_UPSTREAM_ERROR', 'upstream_state': 'failed'}...nged before merge: expected task-256/drift-worker, found adhoc-1757930000/drift-worker', 'outcome_unknown': False, ...}
+E       assert 'FAILED' == 'SUCCEEDED'
+E         
+E         - SUCCEEDED
+E         + FAILED
+
+tests/test_merge_branch_record_v575.py:132: AssertionError
+_____________ test_git_on_third_branch_is_refused_naming_all_sides _____________
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_git_on_third_branch_is_re0/repo'), ...}
+
+    @pytest.mark.asyncio
+    async def test_git_on_third_branch_is_refused_naming_all_sides(env):
+        _git(env["wt"], "checkout", "-b", "sidetrack")
+        main_before = _git(env["repo"], "rev-parse", "main")
+    
+        raw = await _execute(env, expected_branch=TASK_BRANCH, expected_head=env["head"])
+    
+>       _assert_refused_untouched(env, raw, main_before)
+
+tests/test_merge_branch_record_v575.py:150: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_git_on_third_branch_is_re0/repo'), ...}
+raw = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/drift-worker, found adhoc-1757930000/drift-worker', ...}
+main_before = '297bcb1ba2020c4ad631cbdfbddfc8a6abf43736'
+
+    def _assert_refused_untouched(env, raw, main_before):
+        assert raw["ok"] is False
+        assert raw["commit_point"] == "not_reached"
+>       assert raw["code"] == "SESSION_BRANCH_RECORD_DIVERGED"
+               ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:108: KeyError
+_________________ test_head_moved_on_pinned_branch_is_refused __________________
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_head_moved_on_pinned_bran0/repo'), ...}
+
+    @pytest.mark.asyncio
+    async def test_head_moved_on_pinned_branch_is_refused(env):
+        pinned = env["head"]
+        moved = _commit(env["wt"], "later.md", "коммит после приёма\n")
+        main_before = _git(env["repo"], "rev-parse", "main")
+    
+        raw = await _execute(env, expected_branch=TASK_BRANCH, expected_head=pinned)
+    
+>       _assert_refused_untouched(env, raw, main_before)
+
+tests/test_merge_branch_record_v575.py:175: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_head_moved_on_pinned_bran0/repo'), ...}
+raw = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/drift-worker, found adhoc-1757930000/drift-worker', ...}
+main_before = '297bcb1ba2020c4ad631cbdfbddfc8a6abf43736'
+
+    def _assert_refused_untouched(env, raw, main_before):
+        assert raw["ok"] is False
+        assert raw["commit_point"] == "not_reached"
+>       assert raw["code"] == "SESSION_BRANCH_RECORD_DIVERGED"
+               ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:108: KeyError
+_________________ test_unreadable_worktree_is_refusal_not_pass _________________
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_unreadable_worktree_is_re0/repo'), ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f8940ae2a80>
+
+    @pytest.mark.asyncio
+    async def test_unreadable_worktree_is_refusal_not_pass(env, monkeypatch):
+        def broken(_path):
+            raise RuntimeError("cannot inspect worker branch: simulated")
+    
+        monkeypatch.setattr("app.workspace.inspect_worktree_identity", broken)
+        main_before = _git(env["repo"], "rev-parse", "main")
+    
+        raw = await _execute(env, expected_branch=TASK_BRANCH, expected_head=env["head"])
+    
+>       _assert_refused_untouched(env, raw, main_before)
+
+tests/test_merge_branch_record_v575.py:190: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_unreadable_worktree_is_re0/repo'), ...}
+raw = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/drift-worker, found adhoc-1757930000/drift-worker', ...}
+main_before = '297bcb1ba2020c4ad631cbdfbddfc8a6abf43736'
+
+    def _assert_refused_untouched(env, raw, main_before):
+        assert raw["ok"] is False
+        assert raw["commit_point"] == "not_reached"
+>       assert raw["code"] == "SESSION_BRANCH_RECORD_DIVERGED"
+               ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_v575.py:108: KeyError
+____ test_admission_refuses_synchronously_when_git_head_differs_from_caller ____
+
+env = {'db': <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-o55-high-r2/app/db.py...erge_operations.py'>, 'repo': PosixPath('/tmp/pytest-of-kesha/pytest-11437/test_admission_refuses_synchro0/repo'), ...}
+
+    @pytest.mark.asyncio
+    async def test_admission_refuses_synchronously_when_git_head_differs_from_caller(env):
+        operations = env["operations"]
+        stale = _git(env["repo"], "rev-parse", "main")
+    
+        result, status = await operations.accept_merge_operation(
+            operation_id=str(uuid.uuid4()),
+            name="drift-worker",
+            scope=str(env["repo"]),
+            target="main",
+            expected_head=stale,
+        )
+    
+>       assert status == 409
+E       assert 202 == 409
+
+tests/test_merge_branch_record_v575.py:207: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record_v575.py::test_git_confirming_pin_merges_and_aligns_record
+FAILED tests/test_merge_branch_record_v575.py::test_git_on_third_branch_is_refused_naming_all_sides
+FAILED tests/test_merge_branch_record_v575.py::test_head_moved_on_pinned_branch_is_refused
+FAILED tests/test_merge_branch_record_v575.py::test_unreadable_worktree_is_refusal_not_pass
+FAILED tests/test_merge_branch_record_v575.py::test_admission_refuses_synchronously_when_git_head_differs_from_caller
+5 failed in 8.24s

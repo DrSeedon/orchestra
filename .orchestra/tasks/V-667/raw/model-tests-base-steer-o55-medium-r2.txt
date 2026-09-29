@@ -1,0 +1,361 @@
+FFFF.FFFFF                                                               [100%]
+=================================== FAILURES ===================================
+___________________ test_completed_turn_consumes_steer_once ____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c125e5d00>
+
+    @pytest.mark.asyncio
+    async def test_completed_turn_consumes_steer_once(db, codex):
+        session, sent = await codex()
+        _running(session)
+    
+        outcome = await session.send("[from:alice] касания", provenance=ALICE)
+>       assert outcome == "active_turn"
+E       AssertionError: assert None == 'active_turn'
+
+tests/test_steer_redelivery_v562.py:140: AssertionError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.009s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.023s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.002s
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.009s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.023s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.002s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+___________________ test_failed_turn_redelivers_all_in_order ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c11648b80>
+
+    @pytest.mark.asyncio
+    async def test_failed_turn_redelivers_all_in_order(db, codex):
+        session, sent = await codex()
+        _running(session)
+        await session.send("[from:alice] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ", provenance=ALICE)
+        await session.send("[from:bob] и звук пропал", provenance=BOB)
+        await session.send("третье от оператора", provenance=OPERATOR)
+        assert len(sent) == 3
+    
+        _turn_end(session, ok=False)
+        await _settle_background(session)
+    
+>       assert len(sent) == 4, f"оборванный ход унёс вливания с собой: {sent}"
+E       AssertionError: оборванный ход унёс вливания с собой: ['[from:alice] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ', '[from:bob] и звук пропал', 'третье от оператора']
+E       assert 3 == 4
+E        +  where 3 = len(['[from:alice] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ', '[from:bob] и звук пропал', 'третье от оператора'])
+
+tests/test_steer_redelivery_v562.py:169: AssertionError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.002s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.008s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.001s
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.002s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.008s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.001s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+_______________ test_listener_death_redelivers_without_turn_end ________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c116bf060>
+
+    @pytest.mark.asyncio
+    async def test_listener_death_redelivers_without_turn_end(db, codex):
+        """Ход умер мимо `handle_turn_end` (слушатель упал) — вливание всё равно доезжает."""
+        session, sent = await codex()
+        _running(session)
+        await session.send("[from:alice] срочно", provenance=ALICE)
+    
+        session._finish_failed_running_turn("listen task exception: boom")
+        await _settle_background(session)
+    
+>       assert len(sent) == 2 and "срочно" in sent[1], f"вливание не пережило смерть хода: {sent}"
+E       AssertionError: вливание не пережило смерть хода: ['[from:alice] срочно']
+E       assert (1 == 2)
+E        +  where 1 = len(['[from:alice] срочно'])
+
+tests/test_steer_redelivery_v562.py:199: AssertionError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.001s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.009s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.001s
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.001s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.009s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.001s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+__________________ test_failed_steer_submit_is_not_duplicated __________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c116bf1a0>
+
+    @pytest.mark.asyncio
+    async def test_failed_steer_submit_is_not_duplicated(db, codex):
+        """Отказ `turn/steer` уводит сообщение в очередь процесса; ящик его не дублирует."""
+        async def refuse(message):
+            raise RuntimeError("turn/steer rejected")
+    
+        session, _ = await codex(send_impl=refuse)
+        _running(session)
+        outcome = await session.send("[from:alice] раз", provenance=ALICE)
+    
+>       assert outcome == "next_turn"
+E       AssertionError: assert None == 'next_turn'
+
+tests/test_steer_redelivery_v562.py:212: AssertionError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.002s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.006s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.001s
+[painter] mid-turn inject failed, queueing: turn/steer rejected
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.002s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.006s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.001s
+WARNING  app.session:session.py:1310 [painter] mid-turn inject failed, queueing: turn/steer rejected
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+_____________ test_restart_returns_orphaned_steer_to_the_next_turn _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c10598180>
+
+    @pytest.mark.asyncio
+    async def test_restart_returns_orphaned_steer_to_the_next_turn(db, codex):
+        from app import mailbox
+    
+        session, sent = await codex()
+        _running(session)
+        await session.send("[from:alice] до рестарта", provenance=ALICE)
+        # Процесс умер посреди хода: ни конца хода, ни отпуска не было.
+    
+        assert mailbox.claim("painter", "/s") == [], (
+            "удержанное живым ходом вливание не должно выдаваться чужой разгрузкой"
+        )
+>       released = mailbox.release_orphaned_steers()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'release_orphaned_steers'
+
+tests/test_steer_redelivery_v562.py:244: AttributeError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.003s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.041s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.017s
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.003s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.041s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.017s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+_________ test_sender_sees_active_turn_vs_next_turn_for_keyed_delivery _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c116bf9c0>
+
+    @pytest.mark.asyncio
+    async def test_sender_sees_active_turn_vs_next_turn_for_keyed_delivery(db, codex):
+        from app import mailbox, message_deliveries
+    
+        session, _ = await codex()
+        _running(session)
+        delivery_id = str(uuid.uuid4())
+    
+        class _Delivery:
+            allow_running = True
+            history_user_message = ""
+    
+            def __init__(self):
+                self.delivery_id = delivery_id
+    
+            async def before_submit(self):
+                return None
+    
+            async def mark_submitted(self, provider_ref=None):
+                return None
+    
+            async def mark_unknown(self, error):
+                return None
+    
+        await session.send("[from:alice] ключевое", provenance=ALICE, delivery=_Delivery())
+        row = {
+            "delivery_id": delivery_id, "state": "SUBMITTED", "error_json": None,
+            "payload_hash": "x", "accept_seq": 1, "provider_ref": "turn-1",
+            "target_session_id": session.id,
+        }
+>       assert message_deliveries._resource(row)["turn_delivery"] == "in_active_turn"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'turn_delivery'
+
+tests/test_steer_redelivery_v562.py:288: KeyError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.001s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.023s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.000s
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.001s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.023s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.000s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+___________________ test_sender_receipt_text_names_the_state ___________________
+
+    def test_sender_receipt_text_names_the_state():
+        from app.mcp_stdio import _message_delivery_receipt_text
+    
+        base = {"delivery_id": str(uuid.uuid4()), "delivery_state": "SUBMITTED"}
+        active = _message_delivery_receipt_text({**base, "turn_delivery": "in_active_turn"})
+        waiting = _message_delivery_receipt_text({**base, "turn_delivery": "awaiting_next_turn"})
+>       assert "CURRENT turn" in active
+E       AssertionError: assert 'CURRENT turn' in 'Message accepted; delivery_id=6453a480-86e4-4aa8-9b6c-7431dbf5dc3e; state=SUBMITTED.'
+
+tests/test_steer_redelivery_v562.py:310: AssertionError
+_______________________ test_sender_http_outcome_differs _______________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c094b5da0>
+
+    @pytest.mark.asyncio
+    async def test_sender_http_outcome_differs(db, codex):
+        session, _ = await codex()
+        from app.session_state import AgentStatus
+    
+        session.status = AgentStatus.IDLE
+>       assert await session.send("новый ход", provenance=ALICE) == "new_turn"
+E       AssertionError: assert None == 'new_turn'
+
+tests/test_steer_redelivery_v562.py:321: AssertionError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=quota_gate duration=0.000s
+codex_connect_stage worker=painter stage=prompt_assembly duration=0.000s
+codex_connect_stage worker=painter stage=agents_sync duration=0.001s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.014s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.000s
+[painter] heartbeat started
+[painter] codex turn started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=quota_gate duration=0.000s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=prompt_assembly duration=0.000s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.001s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.014s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.000s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+INFO     app.session:session.py:2239 [painter] codex turn started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+[painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+____________ test_dashboard_queue_hides_live_steer_but_shows_orphan ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/db.py'>
+codex = <function codex.<locals>._make at 0x7a9c094b6ca0>
+
+    @pytest.mark.asyncio
+    async def test_dashboard_queue_hides_live_steer_but_shows_orphan(db, codex):
+        from app.routes.sessions import get_queued_messages
+    
+        class _Req:
+            query_params = {"scope": "/s"}
+    
+        session, _ = await codex()
+        _running(session)
+        await session.send("оператор в ход", provenance=OPERATOR)
+        assert (await get_queued_messages("painter", _Req()))["messages"] == [], (
+            "вливание, которое держит живой ход, показано как ждущее"
+        )
+>       session._settle_steers(consumed=False)
+        ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute '_settle_steers'
+
+tests/test_steer_redelivery_v562.py:340: AttributeError
+----------------------------- Captured stderr call -----------------------------
+codex_connect_stage worker=painter stage=agents_sync duration=0.006s
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+codex_connect_stage worker=painter stage=skills_sync duration=0.026s
+codex_connect_stage worker=painter stage=project_doc_sync duration=0.002s
+[painter] heartbeat started
+------------------------------ Captured log call -------------------------------
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=agents_sync duration=0.006s
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=skills_sync duration=0.026s
+INFO     app.session:session.py:905 codex_connect_stage worker=painter stage=project_doc_sync duration=0.002s
+INFO     app.session:session_hibernate.py:120 [painter] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[painter] heartbeat cancelled
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [painter] heartbeat cancelled
+=============================== warnings summary ===============================
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+  /home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/session.py:3185: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if usage and usage.get("percentage") is not None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+  /home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-medium-r2/app/session.py:3187: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    context = current_context(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+  /usr/lib/python3.12/asyncio/events.py:88: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_steer_redelivery_v562.py::test_completed_turn_consumes_steer_once
+FAILED tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+FAILED tests/test_steer_redelivery_v562.py::test_listener_death_redelivers_without_turn_end
+FAILED tests/test_steer_redelivery_v562.py::test_failed_steer_submit_is_not_duplicated
+FAILED tests/test_steer_redelivery_v562.py::test_restart_returns_orphaned_steer_to_the_next_turn
+FAILED tests/test_steer_redelivery_v562.py::test_sender_sees_active_turn_vs_next_turn_for_keyed_delivery
+FAILED tests/test_steer_redelivery_v562.py::test_sender_receipt_text_names_the_state
+FAILED tests/test_steer_redelivery_v562.py::test_sender_http_outcome_differs
+FAILED tests/test_steer_redelivery_v562.py::test_dashboard_queue_hides_live_steer_but_shows_orphan
+9 failed, 1 passed, 3 warnings in 10.30s

@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+_______________ ERROR collecting tests/test_stall_signals_642.py _______________
+ImportError while importing test module '/home/kesha/orchestra/data/v656/stall-s55-high-r2/tests/test_stall_signals_642.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_stall_signals_642.py:11: in <module>
+    from app import db, stall_signals
+E   ImportError: cannot import name 'stall_signals' from 'app' (/home/kesha/orchestra/data/v656/stall-s55-high-r2/app/__init__.py)
+=========================== short test summary info ============================
+ERROR tests/test_stall_signals_642.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.41s

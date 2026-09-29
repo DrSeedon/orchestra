@@ -1,0 +1,80 @@
+..............................................s........FF                [100%]
+=================================== FAILURES ===================================
+____________ test_v543_command_watch_iterations_do_not_leak_pidfds _____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11442/test_v543_command_watch_iterat0/test.db')
+
+    @pytest.mark.asyncio
+    async def test_v543_command_watch_iterations_do_not_leak_pidfds(db):
+        """V-543: every completed poll of a command watch used to keep its pidfd open."""
+        from app.bg_jobs import BgJobManager
+    
+        iterations = 25
+        manager = BgJobManager()
+        done = asyncio.Event()
+        started = 0
+        real_spawn = manager._spawn_managed_process
+    
+        async def counting_spawn(*args, **kwargs):
+            nonlocal started
+            started += 1
+            if started > iterations:
+                done.set()
+                await asyncio.Event().wait()
+            return await real_spawn(*args, **kwargs)
+    
+        manager._spawn_managed_process = counting_spawn
+        before = _open_pidfds()
+        task = asyncio.create_task(manager._run_command_watch(
+            "bg-v543", "true", "never-matches", 0, "msg", "w", "/s", None,
+        ))
+        await asyncio.wait_for(done.wait(), timeout=60)
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    
+        assert started == iterations + 1
+>       assert _open_pidfds() - before == 0
+E       assert (25 - 0) == 0
+E        +  where 25 = _open_pidfds()
+
+tests/test_bg_jobs.py:1566: AssertionError
+______ test_v543_command_watch_task_cancel_kills_process_and_closes_pidfd ______
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11442/test_v543_command_watch_task_c0/test.db')
+
+    @pytest.mark.asyncio
+    async def test_v543_command_watch_task_cancel_kills_process_and_closes_pidfd(db):
+        """Expiry/shutdown cancel only the task; the running poll must not be orphaned."""
+        from app.bg_jobs import BgJobManager
+    
+        manager = BgJobManager()
+        before = _open_pidfds()
+        task = asyncio.create_task(manager._run_command_watch(
+            "bg-v543-cancel", "sleep 30", "never-matches", 5, "msg", "w", "/s", None,
+        ))
+        for _ in range(200):
+            if "bg-v543-cancel" in manager._procs:
+                break
+            await asyncio.sleep(0.02)
+        proc = manager._procs["bg-v543-cancel"]
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+    
+>       assert proc.returncode is not None
+E       assert None is not None
+E        +  where None = <Process 164574>.returncode
+
+tests/test_bg_jobs.py:1587: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::test_v543_command_watch_iterations_do_not_leak_pidfds
+FAILED tests/test_bg_jobs.py::test_v543_command_watch_task_cancel_kills_process_and_closes_pidfd
+2 failed, 54 passed, 1 skipped in 17.76s
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7aa64ffaa520>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

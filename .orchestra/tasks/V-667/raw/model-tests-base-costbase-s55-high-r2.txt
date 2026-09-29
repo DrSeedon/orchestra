@@ -1,0 +1,305 @@
+F.FFFFFFFF.FFFFFFF                                                       [100%]
+=================================== FAILURES ===================================
+_________ test_first_turn_after_restart_books_the_turn_not_the_session _________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_first_turn_after_restart_0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75a986b0>
+
+    @pytest.mark.asyncio
+    async def test_first_turn_after_restart_books_the_turn_not_the_session(db, monkeypatch):
+        s = _new_session(monkeypatch)
+        await _turn(s, 1.00, event_id="e1")
+        await _turn(s, 1.30, event_id="e2")
+    
+>       s2 = _restart(monkeypatch)
+             ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:88: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75a986b0>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+_________________ test_new_native_id_still_resets_the_baseline _________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_new_native_id_still_reset0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75a49340>
+
+    @pytest.mark.asyncio
+    async def test_new_native_id_still_resets_the_baseline(db, monkeypatch):
+        s = _new_session(monkeypatch)
+        await _turn(s, 5.00, event_id="e1")
+        await _turn(s, 0.40, sid="native-2", event_id="e2")  # compact: counter restarts at 0
+        assert [c for c, _ in _costs(db)] == [pytest.approx(5.00), pytest.approx(0.40)]
+    
+        # ...and the new id's baseline is what survives a restart, not the old one's
+>       s2 = _restart(monkeypatch, session_id="native-2",
+                      history=[{"session_id": NATIVE}])
+
+tests/test_cost_baseline_restart.py:115: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75a49340>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+______________ test_compact_that_presets_the_new_id_still_resets _______________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_compact_that_presets_the_0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d736080e0>
+
+    @pytest.mark.asyncio
+    async def test_compact_that_presets_the_new_id_still_resets(db, monkeypatch):
+        """compact() writes the new id into session.session_id BEFORE the next turn_end, so
+        comparing only against session.session_id never saw the change and the old (larger)
+        baseline clamped the first turns of the new native session to zero."""
+        s = _new_session(monkeypatch)
+        await _turn(s, 5.00, event_id="e1")
+        s.session_id = "native-2"
+        await _turn(s, 0.40, sid="native-2", event_id="e2")
+>       assert s._turn_cost == pytest.approx(0.40)
+E       assert 0 == 0.4 ± 4.0e-07
+E         
+E         comparison failed
+E         Obtained: 0
+E         Expected: 0.4 ± 4.0e-07
+
+tests/test_cost_baseline_restart.py:130: AssertionError
+________ test_restart_after_compact_before_first_turn_starts_from_zero _________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_restart_after_compact_bef0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d7355b200>
+
+    @pytest.mark.asyncio
+    async def test_restart_after_compact_before_first_turn_starts_from_zero(db, monkeypatch):
+        s = _new_session(monkeypatch)
+        await _turn(s, 5.00, event_id="e1")
+    
+        # compact made native-2 and it was persisted; the process died before native-2 ran
+>       s2 = _restart(monkeypatch, session_id="native-2", history=[{"session_id": NATIVE}])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:139: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d7355b200>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+__________ test_lost_last_write_gives_no_negative_and_no_double_count __________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_lost_last_write_gives_no_0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d73592c00>
+
+    @pytest.mark.asyncio
+    async def test_lost_last_write_gives_no_negative_and_no_double_count(db, monkeypatch):
+        s = _new_session(monkeypatch)
+        await _turn(s, 1.00, event_id="e1")
+    
+        # Turn 2 (total 1.60) is lost with the process: neither its row nor its baseline landed.
+>       s2 = _restart(monkeypatch)
+             ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:151: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d73592c00>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+_____________ test_baseline_and_row_commit_together_or_not_at_all ______________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_baseline_and_row_commit_t0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d73559d90>
+
+    def test_baseline_and_row_commit_together_or_not_at_all(db, monkeypatch):
+>       from app.db import cost_baseline_get, turn_usage_add
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:163: ImportError
+_______________ test_late_older_write_cannot_lower_the_baseline ________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_late_older_write_cannot_l0/cost.db')
+
+    def test_late_older_write_cannot_lower_the_baseline(db):
+>       from app.db import cost_baseline_get, cost_baseline_put
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:189: ImportError
+_____________________ test_corrupt_record_reads_as_absent ______________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_corrupt_record_reads_as_a0/cost.db')
+
+    def test_corrupt_record_reads_as_absent(db):
+>       from app.db import cost_baseline_get, kv_set
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:198: ImportError
+__________ test_resumed_session_without_a_record_is_unaccounted_once ___________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_resumed_session_without_a0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75aff710>
+
+    @pytest.mark.asyncio
+    async def test_resumed_session_without_a_record_is_unaccounted_once(db, monkeypatch):
+        """Sessions of the pre-fix process left no baseline: their first turn is unknowable
+        from the provider total, so it is flagged, not guessed — and the second is exact."""
+>       s = _restart(monkeypatch)  # no kv record
+            ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:209: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75aff710>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+_______ test_record_ahead_of_the_session_row_is_unaccounted_not_inflated _______
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_record_ahead_of_the_sessi0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75aff020>
+
+    @pytest.mark.asyncio
+    async def test_record_ahead_of_the_session_row_is_unaccounted_not_inflated(db, monkeypatch):
+        """Crash between the turn commit and the debounced session persist: the row still
+        names native-1 while the record already belongs to native-2, and the CLI resumes
+        native-1 whose baseline was overwritten. Unknown -> flagged, never the whole total."""
+        s = _new_session(monkeypatch)
+        await _turn(s, 1.00, sid="native-2", event_id="e1")
+    
+>       s2 = _restart(monkeypatch, session_id=NATIVE, history=[])
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:234: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d75aff020>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+____________ test_result_without_provider_total_keeps_the_baseline _____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_result_without_provider_t0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d74305af0>
+
+    @pytest.mark.asyncio
+    async def test_result_without_provider_total_keeps_the_baseline(db, monkeypatch):
+        s = _new_session(monkeypatch)
+        await _turn(s, 1.00, event_id="e1")
+        await _turn(s, 0, event_id="e2")        # no total_cost_usd in the result frame
+        await _turn(s, 1.25, event_id="e3")
+>       assert [c for c, _ in _costs(db)] == [pytest.approx(1.00), 0.0, pytest.approx(0.25)]
+E       assert [1.0, 0.0, 1.25] == [1.0 ± 1.0e-0....25 ± 2.5e-07]
+E         
+E         At index 2 diff: 1.25 != 0.25 ± 2.5e-07
+E         Use -v to get more diff
+
+tests/test_cost_baseline_restart.py:246: AssertionError
+____________ test_lower_total_within_a_session_never_goes_negative _____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_lower_total_within_a_sess0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d7359b2c0>
+
+    @pytest.mark.asyncio
+    async def test_lower_total_within_a_session_never_goes_negative(db, monkeypatch):
+        s = _new_session(monkeypatch)
+        await _turn(s, 3.00, event_id="e1")
+>       s2 = _restart(monkeypatch)
+             ^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:255: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d7359b2c0>
+
+    def _restart(monkeypatch, *, session_id=NATIVE, backend_type="claude", history=()):
+        """What manager._load_session does: new object, native id from the row, baseline from kv."""
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:54: ImportError
+_____________ test_baseline_is_kept_only_for_claude_native_totals ______________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_baseline_is_kept_only_for0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d73562cc0>
+
+    @pytest.mark.asyncio
+    async def test_baseline_is_kept_only_for_claude_native_totals(db, monkeypatch):
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:263: ImportError
+____________ test_turn_without_event_id_still_records_the_baseline _____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_turn_without_event_id_sti0/cost.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d73604da0>
+
+    @pytest.mark.asyncio
+    async def test_turn_without_event_id_still_records_the_baseline(db, monkeypatch):
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:282: ImportError
+__________________ test_deleting_a_session_drops_its_baseline __________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_deleting_a_session_drops_0/cost.db')
+
+    def test_deleting_a_session_drops_its_baseline(db):
+>       from app.db import cost_baseline_get, cost_baseline_put, delete_session
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:290: ImportError
+________ test_unreadable_store_reads_as_absent_so_session_load_survives ________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11435/test_unreadable_store_reads_as0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777d7360b6e0>
+
+    def test_unreadable_store_reads_as_absent_so_session_load_survives(tmp_path, monkeypatch):
+        monkeypatch.setattr("app.db.DB_PATH", tmp_path / "no-schema.db")  # no kv table
+>       from app.db import cost_baseline_get
+E       ImportError: cannot import name 'cost_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-s55-high-r2/app/db.py)
+
+tests/test_cost_baseline_restart.py:298: ImportError
+=========================== short test summary info ============================
+FAILED tests/test_cost_baseline_restart.py::test_first_turn_after_restart_books_the_turn_not_the_session
+FAILED tests/test_cost_baseline_restart.py::test_new_native_id_still_resets_the_baseline
+FAILED tests/test_cost_baseline_restart.py::test_compact_that_presets_the_new_id_still_resets
+FAILED tests/test_cost_baseline_restart.py::test_restart_after_compact_before_first_turn_starts_from_zero
+FAILED tests/test_cost_baseline_restart.py::test_lost_last_write_gives_no_negative_and_no_double_count
+FAILED tests/test_cost_baseline_restart.py::test_baseline_and_row_commit_together_or_not_at_all
+FAILED tests/test_cost_baseline_restart.py::test_late_older_write_cannot_lower_the_baseline
+FAILED tests/test_cost_baseline_restart.py::test_corrupt_record_reads_as_absent
+FAILED tests/test_cost_baseline_restart.py::test_resumed_session_without_a_record_is_unaccounted_once
+FAILED tests/test_cost_baseline_restart.py::test_record_ahead_of_the_session_row_is_unaccounted_not_inflated
+FAILED tests/test_cost_baseline_restart.py::test_result_without_provider_total_keeps_the_baseline
+FAILED tests/test_cost_baseline_restart.py::test_lower_total_within_a_session_never_goes_negative
+FAILED tests/test_cost_baseline_restart.py::test_baseline_is_kept_only_for_claude_native_totals
+FAILED tests/test_cost_baseline_restart.py::test_turn_without_event_id_still_records_the_baseline
+FAILED tests/test_cost_baseline_restart.py::test_deleting_a_session_drops_its_baseline
+FAILED tests/test_cost_baseline_restart.py::test_unreadable_store_reads_as_absent_so_session_load_survives
+16 failed, 2 passed in 8.93s
