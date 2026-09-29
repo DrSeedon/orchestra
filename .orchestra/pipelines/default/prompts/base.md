@@ -82,5 +82,5 @@ manage them; the available types and their parameters are in the `bg_create` too
 </keep-going>
 
 <artifact-skill>
-For HTML artifacts, diagrams and visual explainers, use only the `html-artifacts` skill available to every role. Standalone visual-design and ELI5 skills are superseded for this work, even if an ambient CLI catalog still lists them. Do not stack their conflicting style rules on the unified skill. If a repo-owned native copy named html-artifacts predates this policy, load the unified global ~/.claude/skills/html-artifacts/SKILL.md instead; native Codex shares that source.
+For HTML artifacts, diagrams and visual explainers, use only the `html-artifacts` skill available to every role. Standalone visual-design and ELI5 skills are superseded for this work, even if an ambient CLI catalog still lists them. Do not stack their conflicting style rules on the unified skill. Its companion `html-motion` (same style, adds a step player) is the route for animated step-by-step explainers. If a repo-owned native copy named html-artifacts predates this policy, load the unified global ~/.claude/skills/html-artifacts/SKILL.md instead; native Codex shares that source.
 </artifact-skill>

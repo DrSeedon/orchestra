@@ -1,0 +1,52 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Недельный лимит Claude, 22–29.09</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M1 14L5 10L9 7L15 2' stroke='%23007aff' stroke-width='2' fill='none'/%3E%3Cpath d='M1 14L15 6' stroke='%2386868b' stroke-dasharray='2 2' fill='none'/%3E%3C/svg%3E">
+<!--STYLE-->
+<style>.mv svg text{font-size:12px;fill:#6e6e73}.mv svg .v{font-size:14px;fill:#1d1d1f;font-weight:600}.note{color:#6e6e73;font-size:12px;margin:10px 0 0}</style>
+</head><body>
+<div class="mv">
+<h1>Недельный лимит Claude: как окно 22–29.09 дошло до 100%</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1000 360" role="img" aria-labelledby="st sd"><title id="st">Недельный лимит Claude, 22–29 сентября 2026</title>
+<desc id="sd">Использование недельного окна Claude в процентах по снимкам usage_snapshots рядом с равномерным расходом 100% за 7 суток.</desc>
+ <defs><clipPath id="cp"><rect id="clip" x="60" y="0" width="0" height="360"/></clipPath></defs>
+ <g id="grid"></g>
+ <path id="pace" fill="none" stroke="#86868b" stroke-width="1.5" stroke-dasharray="5 4"/>
+ <path id="curve" fill="none" stroke="#007aff" stroke-width="2.5" clip-path="url(#cp)"/>
+ <g id="marks" clip-path="url(#cp)"></g>
+ <line id="cur" y1="50" y2="320" stroke="#1d1d1f" stroke-width="1"/>
+ <circle id="curDot" r="5" fill="#007aff" stroke="#fff" stroke-width="2"/>
+ <text id="lab1" x="70" y="30" class="v"></text><text id="lab2" x="70" y="46"></text>
+ <text x="960" y="30" text-anchor="end"><tspan fill="#007aff">━</tspan> факт, % окна  <tspan fill="#86868b">╌</tspan> равномерно 100% за 7 суток</text>
+ <text x="960" y="46" text-anchor="end">время Красноярска · разрыв линии — снимков нет</text>
+</svg></div>
+<!--CONTROLS-->
+<p class="note">Источник: orchestra.db, таблица usage_snapshots (чтение, 29.09.2026), поле seven_day_pct — целые проценты от API; 511 из 2025 снимков после прореживания до 20 мин. Данные и запрос — weekly-limit-data.json рядом.</p>
+</div>
+<script>
+// ── СЦЕНА ──
+const D=/*DATA*/, E=Object.fromEntries(D.events.map(e=>[e.id,e]));
+const T0=Date.parse(D.t0_utc), m0=-60, m1=10140, X=m=>60+(m-m0)*900/(m1-m0), Y=p=>320-p*2.6, NS='http://www.w3.org/2000/svg';
+const el=(tag,a,parent)=>{const e=document.createElementNS(NS,tag);for(const k in a)k=='text'?e.textContent=a[k]:e.setAttribute(k,a[k]);$(parent).append(e);return e};
+const when=m=>new Date(T0+m*6e4).toLocaleString('ru-RU',{timeZone:'Asia/Krasnoyarsk',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','');
+for(const p of [0,25,50,75,100]){el('line',{x1:60,x2:960,y1:Y(p),y2:Y(p),stroke:'#e5e5ea'},'grid');el('text',{x:52,y:Y(p)+4,'text-anchor':'end',text:p+'%'},'grid')}
+for(let m=600;m<m1;m+=1440){const d=new Date(T0+m*6e4);el('line',{x1:X(m),x2:X(m),y1:60,y2:320,stroke:'#e5e5ea'},'grid');
+ el('text',{x:X(m)+4,y:338,text:d.toLocaleDateString('ru-RU',{timeZone:'Asia/Krasnoyarsk',weekday:'short',day:'2-digit',month:'2-digit'})},'grid')}
+$('pace').setAttribute('d',`M${X(0)} ${Y(0)}L${X(10080)} ${Y(100)}`);
+$('curve').setAttribute('d',D.points.map(([m,p],i)=>p==null?'':(i&&D.points[i-1][1]!=null?'L':'M')+X(m).toFixed(1)+' '+Y(p).toFixed(1)).join(''));
+D.events.forEach((e,k)=>el('circle',{id:'ev'+k,cx:X(e.m),cy:Y(e.pct),r:5,fill:'#fff',stroke:'#ff9500','stroke-width':2,'aria-label':when(e.m)+' — '+e.pct+'%'},'marks'));
+const at=m=>{let v=null;for(const[pm,p]of D.points){if(pm>m)break;v=p}return v};
+function draw(){const x=60+ +$('clip').getAttribute('width'),m=m0+(x-60)*(m1-m0)/900,v=at(m),even=Math.min(100,Math.max(0,m/10080*100));
+ $('cur').setAttribute('x1',x);$('cur').setAttribute('x2',x);$('curDot').setAttribute('cx',x);$('curDot').setAttribute('cy',Y(v??0));$('curDot').setAttribute('opacity',v==null?0:1);
+ $('lab1').textContent=when(m)+' · факт '+(v==null?'нет снимка':v+'%');
+ $('lab2').textContent=m<0||m>10080?'вне окна 22.09 14:00 – 29.09 14:00':'равномерно '+even.toFixed(1)+'% · разница '+(v==null?'—':((v-even>=0?'+':'')+(v-even).toFixed(1)+' п.п.'))}
+const W=m=>X(m)-60; // маркеры событий под тем же clip, что и линия: открываются, когда курсор до них дошёл
+const STEPS=[
+ {d:2.5, t:'Окно открылось', x:'22.09 в 14:02 счётчик сброшен: прошлая неделя закончилась на 100%, новая началась с 1%.', set:{clip:{width:W(E.reset.m)}}},
+ {d:3, t:'Первые сутки — уже 25%', x:'23.09 в 15:21 — 25% окна. Равномерный расход (100% за 7 суток) дал бы к этому моменту 15.1%: опережение почти 10 п.п.', set:{clip:{width:W(E['25'].m)}}},
+ {d:3, t:'50% за 2.4 суток', x:'24.09 в 23:47 — 50% при равномерных 34.4%. С таким темпом окно кончилось бы примерно за 4.8 суток, раньше сброса.', set:{clip:{width:W(E['50'].m)}}},
+ {d:3, t:'Пик опережения и 75%', x:'В ночь на 26.09 опережение дошло до максимума недели — +25 п.п. (74% при 49%). В 10:00 26.09 — 75% при равномерных 54.8%.', set:{clip:{width:W(E['75'].m)}}},
+ {d:3.5, t:'Замедление к концу недели', x:'От 75% до 90% прошло 55 ч, а от 50% до 75% — 34 ч. К 90% (28.09 в 17:05) разрыв сократился до 2.4 п.п.', set:{clip:{width:W(E['90'].m)}}},
+ {d:3, t:'100% за 28 минут до сброса', x:'29.09 в 13:31 — 100%. Утром того же дня расход даже отставал от равномерного на 4.5 п.п., но финальный рывок довёл окно до предела.', set:{clip:{width:W(E['100'].m)}}},
+ {d:2.5, t:'Новое окно', x:'29.09 в 14:02 — первый снимок нового окна: 0%. Следующий сброс — 06.10 в 14:00.', set:{clip:{width:W(m1)}}},
+];
+/*PLAYER*/</script></body></html>

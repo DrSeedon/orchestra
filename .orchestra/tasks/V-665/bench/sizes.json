@@ -1,0 +1,57 @@
+[
+ {
+  "file": "a-states.html",
+  "file_bytes": 7082,
+  "scene_bytes": 1983,
+  "scene_lines": 17,
+  "scene_tokens": 668,
+  "player_bytes": 3011,
+  "player_lines": 26,
+  "player_tokens": 1091,
+  "file_tokens": 2445
+ },
+ {
+  "file": "b-waapi.html",
+  "file_bytes": 6627,
+  "scene_bytes": 2608,
+  "scene_lines": 23,
+  "scene_tokens": 893,
+  "player_bytes": 1954,
+  "player_lines": 17,
+  "player_tokens": 671,
+  "file_tokens": 2249
+ },
+ {
+  "file": "c-gsap-cdn.html",
+  "file_bytes": 6095,
+  "scene_bytes": 2311,
+  "scene_lines": 20,
+  "scene_tokens": 784,
+  "player_bytes": 1650,
+  "player_lines": 12,
+  "player_tokens": 582,
+  "file_tokens": 2075
+ },
+ {
+  "file": "c-gsap-inline.html",
+  "file_bytes": 78976,
+  "scene_bytes": 2311,
+  "scene_lines": 20,
+  "scene_tokens": 784,
+  "player_bytes": 1650,
+  "player_lines": 12,
+  "player_tokens": 582,
+  "file_tokens": 30235
+ },
+ {
+  "file": "d-canvas.html",
+  "file_bytes": 5955,
+  "scene_bytes": 2054,
+  "scene_lines": 16,
+  "scene_tokens": 741,
+  "player_bytes": 1671,
+  "player_lines": 13,
+  "player_tokens": 586,
+  "file_tokens": 2055
+ }
+]
