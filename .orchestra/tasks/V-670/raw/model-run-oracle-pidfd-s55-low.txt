@@ -1,0 +1,160 @@
+...FF..FF                                                                [100%]
+=================================== FAILURES ===================================
+___________________ test_pidfd_lifecycle[recv_cancel_before] ___________________
+
+scenario = 'recv_cancel_before'
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11468/test_pidfd_lifecycle_recv_canc0')
+
+    @pytest.mark.parametrize("scenario", ["match", "repeat", "cancel", "recv_cancel_before", "recv_cancel_after", "cleanup", "bash", "managed_spawn_cancel", "bash_spawn_cancel"])
+    def test_pidfd_lifecycle(scenario, tmp_path):
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), scenario],
+            cwd=Path(__file__).resolve().parents[1],
+            env={**os.environ, "ORCHESTRA_DB_PATH": str(tmp_path / "probe.db"),
+                 "PYTHONPATH": str(Path(__file__).resolve().parents[1])},
+            capture_output=True, text=True, timeout=40,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: watcher=PidfdChildWatcher
+E         recv_cancel_before: N=12 before=0 after=12 delta=12
+E         Traceback (most recent call last):
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 149, in <module>
+E             asyncio.run(probe(sys.argv[1]))
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+E             return runner.run(main)
+E                    ^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+E             return self._loop.run_until_complete(task)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+E             return future.result()
+E                    ^^^^^^^^^^^^^^^
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 143, in probe
+E             assert after == before, after
+E                    ^^^^^^^^^^^^^^^
+E         AssertionError: {'8': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '9': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '10': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '11': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '12': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '13': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '14': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '15': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '16': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '17': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '18': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n', '19': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190459\nNSpid:\t190459\n'}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', '/home/kesha/orchestra/dat...9\\n\', \'19\': \'pos:\\t0\\nflags:\\t02000002\\nmnt_id:\\t16\\nino:\\t1062\\nPid:\\t190459\\nNSpid:\\t190459\\n\'}\n').returncode
+
+tests/test_pidfd_leaks.py:20: AssertionError
+___________________ test_pidfd_lifecycle[recv_cancel_after] ____________________
+
+scenario = 'recv_cancel_after'
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11468/test_pidfd_lifecycle_recv_canc1')
+
+    @pytest.mark.parametrize("scenario", ["match", "repeat", "cancel", "recv_cancel_before", "recv_cancel_after", "cleanup", "bash", "managed_spawn_cancel", "bash_spawn_cancel"])
+    def test_pidfd_lifecycle(scenario, tmp_path):
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), scenario],
+            cwd=Path(__file__).resolve().parents[1],
+            env={**os.environ, "ORCHESTRA_DB_PATH": str(tmp_path / "probe.db"),
+                 "PYTHONPATH": str(Path(__file__).resolve().parents[1])},
+            capture_output=True, text=True, timeout=40,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: watcher=PidfdChildWatcher
+E         recv_cancel_after: N=12 before=0 after=12 delta=12
+E         Traceback (most recent call last):
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 149, in <module>
+E             asyncio.run(probe(sys.argv[1]))
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+E             return runner.run(main)
+E                    ^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+E             return self._loop.run_until_complete(task)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+E             return future.result()
+E                    ^^^^^^^^^^^^^^^
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 143, in probe
+E             assert after == before, after
+E                    ^^^^^^^^^^^^^^^
+E         AssertionError: {'8': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '9': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '10': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '11': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '12': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '13': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '14': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '15': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '16': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '17': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '18': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n', '19': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t190512\nNSpid:\t190512\n'}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', '/home/kesha/orchestra/dat...2\\n\', \'19\': \'pos:\\t0\\nflags:\\t02000002\\nmnt_id:\\t16\\nino:\\t1062\\nPid:\\t190512\\nNSpid:\\t190512\\n\'}\n').returncode
+
+tests/test_pidfd_leaks.py:20: AssertionError
+__________________ test_pidfd_lifecycle[managed_spawn_cancel] __________________
+
+scenario = 'managed_spawn_cancel'
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11468/test_pidfd_lifecycle_managed_s0')
+
+    @pytest.mark.parametrize("scenario", ["match", "repeat", "cancel", "recv_cancel_before", "recv_cancel_after", "cleanup", "bash", "managed_spawn_cancel", "bash_spawn_cancel"])
+    def test_pidfd_lifecycle(scenario, tmp_path):
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), scenario],
+            cwd=Path(__file__).resolve().parents[1],
+            env={**os.environ, "ORCHESTRA_DB_PATH": str(tmp_path / "probe.db"),
+                 "PYTHONPATH": str(Path(__file__).resolve().parents[1])},
+            capture_output=True, text=True, timeout=40,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: watcher=PidfdChildWatcher
+E         managed_spawn_cancel: N=12 before=0 after=12 delta=12
+E         Traceback (most recent call last):
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 149, in <module>
+E             asyncio.run(probe(sys.argv[1]))
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+E             return runner.run(main)
+E                    ^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+E             return self._loop.run_until_complete(task)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+E             return future.result()
+E                    ^^^^^^^^^^^^^^^
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 143, in probe
+E             assert after == before, after
+E                    ^^^^^^^^^^^^^^^
+E         AssertionError: {'7': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '8': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '9': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '10': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '11': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '12': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '13': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '14': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '15': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '16': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '17': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '18': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n'}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', '/home/kesha/orchestra/dat...pid:\\t-1\\n\', \'18\': \'pos:\\t0\\nflags:\\t02000002\\nmnt_id:\\t16\\nino:\\t1062\\nPid:\\t-1\\nNSpid:\\t-1\\n\'}\n').returncode
+
+tests/test_pidfd_leaks.py:20: AssertionError
+___________________ test_pidfd_lifecycle[bash_spawn_cancel] ____________________
+
+scenario = 'bash_spawn_cancel'
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11468/test_pidfd_lifecycle_bash_spaw0')
+
+    @pytest.mark.parametrize("scenario", ["match", "repeat", "cancel", "recv_cancel_before", "recv_cancel_after", "cleanup", "bash", "managed_spawn_cancel", "bash_spawn_cancel"])
+    def test_pidfd_lifecycle(scenario, tmp_path):
+        result = subprocess.run(
+            [sys.executable, str(Path(__file__).resolve()), scenario],
+            cwd=Path(__file__).resolve().parents[1],
+            env={**os.environ, "ORCHESTRA_DB_PATH": str(tmp_path / "probe.db"),
+                 "PYTHONPATH": str(Path(__file__).resolve().parents[1])},
+            capture_output=True, text=True, timeout=40,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: watcher=PidfdChildWatcher
+E         bash_spawn_cancel: N=12 before=0 after=12 delta=12
+E         Traceback (most recent call last):
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 149, in <module>
+E             asyncio.run(probe(sys.argv[1]))
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+E             return runner.run(main)
+E                    ^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+E             return self._loop.run_until_complete(task)
+E                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+E             return future.result()
+E                    ^^^^^^^^^^^^^^^
+E           File "/home/kesha/orchestra/data/v656/pidfd-s55-low/tests/test_pidfd_leaks.py", line 143, in probe
+E             assert after == before, after
+E                    ^^^^^^^^^^^^^^^
+E         AssertionError: {'7': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '8': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '9': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '10': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '11': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '12': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '13': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '14': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '15': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '16': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '17': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n', '18': 'pos:\t0\nflags:\t02000002\nmnt_id:\t16\nino:\t1062\nPid:\t-1\nNSpid:\t-1\n'}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', '/home/kesha/orchestra/dat...pid:\\t-1\\n\', \'18\': \'pos:\\t0\\nflags:\\t02000002\\nmnt_id:\\t16\\nino:\\t1062\\nPid:\\t-1\\nNSpid:\\t-1\\n\'}\n').returncode
+
+tests/test_pidfd_leaks.py:20: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pidfd_leaks.py::test_pidfd_lifecycle[recv_cancel_before] - ...
+FAILED tests/test_pidfd_leaks.py::test_pidfd_lifecycle[recv_cancel_after] - A...
+FAILED tests/test_pidfd_leaks.py::test_pidfd_lifecycle[managed_spawn_cancel]
+FAILED tests/test_pidfd_leaks.py::test_pidfd_lifecycle[bash_spawn_cancel] - A...
+4 failed, 5 passed in 32.22s

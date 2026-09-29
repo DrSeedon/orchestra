@@ -1,0 +1,4 @@
+cwd=/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/pidfd-s55-low
+command=nice -n 15 /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest -q tests/test_bg_command_watch_pidfd_leak.py
+changed_tests=tests/test_bg_command_watch_pidfd_leak.py
+pytest_rc=1

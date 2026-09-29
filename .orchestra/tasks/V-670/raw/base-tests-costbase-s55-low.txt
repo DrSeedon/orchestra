@@ -1,0 +1,115 @@
+FF.FFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+_________________ test_first_turn_after_restart_is_turn_price __________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e78a316900>
+
+    def test_first_turn_after_restart_is_turn_price(db, monkeypatch):
+        s = _session(monkeypatch)
+        _turn(s, 100.0)
+        _turn(s, 101.5)
+>       db.cost_base_save("cb-1", "n1", s._last_cost, s._last_cost_cached)
+        ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_save'
+
+tests/test_cost_baseline_restart.py:42: AttributeError
+____________________ test_native_id_change_resets_baseline _____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e78a316960>
+
+    def test_native_id_change_resets_baseline(db, monkeypatch):
+        s = _session(monkeypatch)
+        _turn(s, 100.0)
+>       db.cost_base_save("cb-1", "n1", 100.0, 0.0)
+        ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_save'
+
+tests/test_cost_baseline_restart.py:50: AttributeError
+_______________ test_lost_last_write_never_negative_or_inflated ________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e787f038c0>
+
+    def test_lost_last_write_never_negative_or_inflated(db, monkeypatch):
+        s = _session(monkeypatch)
+        _turn(s, 10.0)
+>       db.cost_base_save("cb-1", "n1", 10.0, 0.0)
+        ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_save'
+
+tests/test_cost_baseline_restart.py:68: AttributeError
+______________ test_out_of_order_writes_keep_max_within_native_id ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+
+    def test_out_of_order_writes_keep_max_within_native_id(db):
+>       db.cost_base_save("cb-1", "n1", 5.0, 1.0)
+        ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_save'
+
+tests/test_cost_baseline_restart.py:80: AttributeError
+_____________________ test_corrupt_stored_value_is_ignored _____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+
+    def test_corrupt_stored_value_is_ignored(db):
+        db.kv_set("cost_base:cb-1", "{not json")
+>       assert db.cost_base_load("cb-1", "n1") is None
+               ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_baseline_restart.py:90: AttributeError
+____________ test_legacy_seed_from_context_cost_when_no_stored_base ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e787f76330>
+
+    def test_legacy_seed_from_context_cost_when_no_stored_base(db, monkeypatch):
+>       s2 = _restart(db, monkeypatch, "n1", ctx_cost=7.0)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_cost_baseline_restart.py:96: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e787f76330>
+sid = 'n1', ctx_cost = 7.0
+
+    def _restart(db, monkeypatch, sid, ctx_cost=0.0):
+        s2 = _session(monkeypatch, sid)
+>       s2._cost.restore_baseline(db.cost_base_load("cb-1", sid), ctx_cost)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CostTracker' object has no attribute 'restore_baseline'
+
+tests/test_cost_baseline_restart.py:34: AttributeError
+_______________________ test_turn_end_persists_baseline ________________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-s55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78e787f75c70>
+
+    @pytest.mark.asyncio
+    async def test_turn_end_persists_baseline(db, monkeypatch):
+        """handle_turn_end wires apply_turn_result -> cost_base_save (Claude, cumulative)."""
+        from app.events import AgentEvent
+        s = _session(monkeypatch)
+        s._submit_db_write = lambda op, *a, **k: op(*a, **k)
+        for cost in (2.0, 2.5):
+            s._turns.handle_turn_end(AgentEvent(
+                type="turn_end", metadata={"cost_usd": cost, "session_id": "n1", "ok": True},
+            ))
+>       assert db.cost_base_load("cb-1", "n1") == (2.5, 0.0)
+               ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'cost_base_load'
+
+tests/test_cost_baseline_restart.py:110: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_cost_baseline_restart.py::test_first_turn_after_restart_is_turn_price
+FAILED tests/test_cost_baseline_restart.py::test_native_id_change_resets_baseline
+FAILED tests/test_cost_baseline_restart.py::test_lost_last_write_never_negative_or_inflated
+FAILED tests/test_cost_baseline_restart.py::test_out_of_order_writes_keep_max_within_native_id
+FAILED tests/test_cost_baseline_restart.py::test_corrupt_stored_value_is_ignored
+FAILED tests/test_cost_baseline_restart.py::test_legacy_seed_from_context_cost_when_no_stored_base
+FAILED tests/test_cost_baseline_restart.py::test_turn_end_persists_baseline
+7 failed, 1 passed in 7.11s

@@ -1,0 +1,222 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+_______________ test_first_turn_after_restart_is_priced_as_turn ________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_first_turn_after_restart_0/baseline.db')
+
+    def test_first_turn_after_restart_is_priced_as_turn(db):
+        s = _session()
+>       _turn(s, "e1", 150.0)
+
+tests/test_provider_cost_baseline.py:72: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = AgentSession(id='orch-1', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', prompt_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+event_id = 'e1', cumulative = 150.0, native = 'n1', cached = None
+
+    def _turn(s, event_id, cumulative, native="n1", cached=None):
+        """One terminal turn as handle_turn_end persists it (row + baseline, one txn)."""
+        from app.db import turn_usage_add
+    
+        s._cost.apply_turn_result({
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": cumulative, "cost_usd_cached": cached or cumulative,
+            "session_id": native,
+        })
+        turn_usage_add(
+            event_id=event_id, session_id=s.id, runtime="claude", model=s.model,
+            ok=True, stop_reason="end_turn", cost_usd=s._turn_cost,
+            input_tokens=1, output_tokens=1, cache_read_tokens=0, cache_create_tokens=0,
+>           provider_baseline=s._provider_baseline,
+                              ^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: 'AgentSession' object has no attribute '_provider_baseline'
+
+tests/test_provider_cost_baseline.py:49: AttributeError
+____________ test_new_native_session_after_restart_resets_baseline _____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_new_native_session_after_0/baseline.db')
+
+    def test_new_native_session_after_restart_resets_baseline(db):
+        s = _session()
+>       _turn(s, "e1", 150.0)
+
+tests/test_provider_cost_baseline.py:83: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = AgentSession(id='orch-1', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', prompt_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+event_id = 'e1', cumulative = 150.0, native = 'n1', cached = None
+
+    def _turn(s, event_id, cumulative, native="n1", cached=None):
+        """One terminal turn as handle_turn_end persists it (row + baseline, one txn)."""
+        from app.db import turn_usage_add
+    
+        s._cost.apply_turn_result({
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": cumulative, "cost_usd_cached": cached or cumulative,
+            "session_id": native,
+        })
+        turn_usage_add(
+            event_id=event_id, session_id=s.id, runtime="claude", model=s.model,
+            ok=True, stop_reason="end_turn", cost_usd=s._turn_cost,
+            input_tokens=1, output_tokens=1, cache_read_tokens=0, cache_create_tokens=0,
+>           provider_baseline=s._provider_baseline,
+                              ^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: 'AgentSession' object has no attribute '_provider_baseline'
+
+tests/test_provider_cost_baseline.py:49: AttributeError
+__________________ test_second_turn_in_same_process_unchanged __________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_second_turn_in_same_proce0/baseline.db')
+
+    def test_second_turn_in_same_process_unchanged(db):
+        s = _session()
+>       assert _turn(s, "e1", 0.10) == pytest.approx(0.10)
+               ^^^^^^^^^^^^^^^^^^^^
+
+tests/test_provider_cost_baseline.py:94: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = AgentSession(id='orch-1', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', prompt_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+event_id = 'e1', cumulative = 0.1, native = 'n1', cached = None
+
+    def _turn(s, event_id, cumulative, native="n1", cached=None):
+        """One terminal turn as handle_turn_end persists it (row + baseline, one txn)."""
+        from app.db import turn_usage_add
+    
+        s._cost.apply_turn_result({
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": cumulative, "cost_usd_cached": cached or cumulative,
+            "session_id": native,
+        })
+        turn_usage_add(
+            event_id=event_id, session_id=s.id, runtime="claude", model=s.model,
+            ok=True, stop_reason="end_turn", cost_usd=s._turn_cost,
+            input_tokens=1, output_tokens=1, cache_read_tokens=0, cache_create_tokens=0,
+>           provider_baseline=s._provider_baseline,
+                              ^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: 'AgentSession' object has no attribute '_provider_baseline'
+
+tests/test_provider_cost_baseline.py:49: AttributeError
+_______ test_crash_losing_last_write_neither_negative_nor_double_counted _______
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_crash_losing_last_write_n0/baseline.db')
+
+    def test_crash_losing_last_write_neither_negative_nor_double_counted(db):
+        s = _session()
+>       _turn(s, "e1", 10.0)
+
+tests/test_provider_cost_baseline.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = AgentSession(id='orch-1', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', prompt_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+event_id = 'e1', cumulative = 10.0, native = 'n1', cached = None
+
+    def _turn(s, event_id, cumulative, native="n1", cached=None):
+        """One terminal turn as handle_turn_end persists it (row + baseline, one txn)."""
+        from app.db import turn_usage_add
+    
+        s._cost.apply_turn_result({
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": cumulative, "cost_usd_cached": cached or cumulative,
+            "session_id": native,
+        })
+        turn_usage_add(
+            event_id=event_id, session_id=s.id, runtime="claude", model=s.model,
+            ok=True, stop_reason="end_turn", cost_usd=s._turn_cost,
+            input_tokens=1, output_tokens=1, cache_read_tokens=0, cache_create_tokens=0,
+>           provider_baseline=s._provider_baseline,
+                              ^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: 'AgentSession' object has no attribute '_provider_baseline'
+
+tests/test_provider_cost_baseline.py:49: AttributeError
+___________ test_stale_out_of_order_write_does_not_regress_baseline ____________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_stale_out_of_order_write_0/baseline.db')
+
+    def test_stale_out_of_order_write_does_not_regress_baseline(db):
+>       from app.db import provider_baseline_get, provider_baseline_set
+E       ImportError: cannot import name 'provider_baseline_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/costbase-o55-low/app/db.py)
+
+tests/test_provider_cost_baseline.py:115: ImportError
+__________________ test_delta_runtime_does_not_store_baseline __________________
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_delta_runtime_does_not_st0/baseline.db')
+
+    def test_delta_runtime_does_not_store_baseline(db):
+        s = _session()
+        s._cost.apply_turn_result({"ok": True, "cost_usd": 0.3, "cost_is_delta": True,
+                                   "session_id": "thread"})
+>       assert s._provider_baseline is None
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute '_provider_baseline'
+
+tests/test_provider_cost_baseline.py:130: AttributeError
+_______ test_turn_end_commits_baseline_with_turn_row_and_restart_uses_it _______
+
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11560/test_turn_end_commits_baseline0/baseline.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x724216bb70b0>
+
+    @pytest.mark.asyncio
+    async def test_turn_end_commits_baseline_with_turn_row_and_restart_uses_it(db, monkeypatch):
+        import asyncio
+    
+        from app.events import AgentEvent
+    
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        monkeypatch.setattr(
+            "app.session_turns._cached_quota_snapshot",
+            lambda runtime, model: {"state": {}, "display": ()},
+        )
+        s = _session()
+        s._log = lambda *_a, **_k: None
+        s._spawn_bg = lambda coro: coro.close()
+        s._hibernate.schedule = MagicMock()
+        for event_id, total in (("e1", 150.0), ("e2", 152.7)):
+            s._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+                "event_id": event_id, "ok": True, "stop_reason": "end_turn",
+                "num_turns": 1, "cost_usd": total, "session_id": "n1",
+            }))
+            await asyncio.gather(*tuple(s._log_futures), return_exceptions=True)
+        await s._drain_persist()
+        assert _costs(db) == pytest.approx([150.0, 2.7])
+>       assert _turn(_restart(), "e3", 154.2) == pytest.approx(1.5)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_provider_cost_baseline.py:156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+s = AgentSession(id='orch-1', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='', prompt_...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+event_id = 'e3', cumulative = 154.2, native = 'n1', cached = None
+
+    def _turn(s, event_id, cumulative, native="n1", cached=None):
+        """One terminal turn as handle_turn_end persists it (row + baseline, one txn)."""
+        from app.db import turn_usage_add
+    
+        s._cost.apply_turn_result({
+            "ok": True, "stop_reason": "end_turn", "num_turns": 1,
+            "cost_usd": cumulative, "cost_usd_cached": cached or cumulative,
+            "session_id": native,
+        })
+        turn_usage_add(
+            event_id=event_id, session_id=s.id, runtime="claude", model=s.model,
+            ok=True, stop_reason="end_turn", cost_usd=s._turn_cost,
+            input_tokens=1, output_tokens=1, cache_read_tokens=0, cache_create_tokens=0,
+>           provider_baseline=s._provider_baseline,
+                              ^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: 'AgentSession' object has no attribute '_provider_baseline'
+
+tests/test_provider_cost_baseline.py:49: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_provider_cost_baseline.py::test_first_turn_after_restart_is_priced_as_turn
+FAILED tests/test_provider_cost_baseline.py::test_new_native_session_after_restart_resets_baseline
+FAILED tests/test_provider_cost_baseline.py::test_second_turn_in_same_process_unchanged
+FAILED tests/test_provider_cost_baseline.py::test_crash_losing_last_write_neither_negative_nor_double_counted
+FAILED tests/test_provider_cost_baseline.py::test_stale_out_of_order_write_does_not_regress_baseline
+FAILED tests/test_provider_cost_baseline.py::test_delta_runtime_does_not_store_baseline
+FAILED tests/test_provider_cost_baseline.py::test_turn_end_commits_baseline_with_turn_row_and_restart_uses_it
+7 failed in 5.95s

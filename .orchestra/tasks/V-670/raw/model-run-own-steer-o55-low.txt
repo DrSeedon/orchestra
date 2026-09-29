@@ -1,0 +1,186 @@
+.F..................FF.................                                  [100%]
+=================================== FAILURES ===================================
+_________ test_t380_r1_http_202_returns_while_manager_send_is_blocked __________
+
+message_db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd85a299d90>
+
+    @pytest.mark.asyncio
+    async def test_t380_r1_http_202_returns_while_manager_send_is_blocked(
+        message_db, monkeypatch,
+    ):
+        """The public opt-in POST returns Orchestra ownership, not manager completion."""
+        from app.mcp_proof import issue_mcp_proof
+        from app.routes import sessions as routes
+    
+        assert "delivery_id" in routes.SendRequest.model_fields, (
+            "#380 missing behavior: SendRequest has no opt-in delivery_id"
+        )
+        assert "request" in inspect.signature(routes.send_message).parameters, (
+            "#380 missing behavior: keyed send route cannot authenticate the Request"
+        )
+        module = _message_module()
+        run_target = _required_callable(module, "run_target_message_deliveries")
+        from app import fan_barrier
+        monkeypatch.setattr(
+            fan_barrier,
+            "peek_summary",
+            MagicMock(side_effect=AssertionError("keyed direct send entered legacy fan path")),
+        )
+        entered = asyncio.Event()
+        release = asyncio.Event()
+        runners = []
+    
+        class BlockingManager:
+            async def send_message_delivery(
+                self, session_id, message, *, delivery, target_generation, provenance,
+            ):
+                assert provenance == PROVENANCE
+                entered.set()
+                await release.wait()
+                await delivery.before_submit()
+                await delivery.mark_submitted(provider_ref="http-turn-380")
+    
+        def schedule(target_session_id):
+            runners.append(asyncio.create_task(
+                run_target(target_session_id, manager=BlockingManager())
+            ))
+    
+        monkeypatch.setattr(module, "ensure_target_runner", schedule)
+        proof = issue_mcp_proof(SOURCE_ID)
+        request = _request_with_proof(SOURCE_ID, proof)
+        req = routes.SendRequest(
+            delivery_id=DELIVERY_ID,
+            message=MESSAGE,
+            sender=SOURCE_NAME,
+            scope=SCOPE,
+        )
+    
+        response = await routes.send_message(TARGET_NAME, req, request=request)
+>       assert getattr(response, "status_code", None) == 202
+E       AssertionError: assert 403 == 202
+E        +  where 403 = getattr(<starlette.responses.JSONResponse object at 0x7fd8583469c0>, 'status_code', None)
+
+tests/test_message_delivery_receipts_380.py:315: AssertionError
+________ test_t401_quota_refusal_is_returned_before_receipt_or_user_log ________
+
+message_db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd8579b3b90>
+
+    @pytest.mark.asyncio
+    async def test_t401_quota_refusal_is_returned_before_receipt_or_user_log(
+        message_db, monkeypatch,
+    ):
+        """A known quota refusal is visible to the MCP caller, not an accepted queue row."""
+        from app.quota_gate import evaluate_worker_admission
+        from app.mcp_proof import issue_mcp_proof
+        from app.routes import sessions as routes
+    
+        target = routes.manager.get_by_name(TARGET_NAME, SCOPE)
+        assert target is not None
+        target.model = "claude-sonnet-5[1m]"
+        now = datetime.now(timezone.utc).timestamp()
+        reset_at = datetime.fromtimestamp(
+            now + 10080 * 60 / 2, timezone.utc,
+        ).isoformat()
+        blocked = evaluate_worker_admission(
+            target.model,
+            {"anthropic": {"label": "Claude", "windows": [{
+                "id": "seven_day",
+                "window_minutes": 10080,
+                "utilization": 95,
+                "resets_at": reset_at,
+            }]}},
+            {"anthropic": now},
+            now=now,
+        )
+        target._admission_service = AsyncMock(return_value=blocked)
+        monkeypatch.setitem(routes.manager.sessions, TARGET_ID, target)
+        request = _request_with_proof(SOURCE_ID, issue_mcp_proof(SOURCE_ID))
+        response = await routes.send_message(
+            TARGET_NAME,
+            routes.SendRequest(
+                delivery_id=DELIVERY_ID,
+                message=MESSAGE,
+                sender=SOURCE_NAME,
+                scope=SCOPE,
+            ),
+            request=request,
+        )
+    
+>       assert getattr(response, "status_code", None) == 429
+E       AssertionError: assert 403 == 429
+E        +  where 403 = getattr(<starlette.responses.JSONResponse object at 0x7fd8579ba5a0>, 'status_code', None)
+
+tests/test_message_delivery_receipts_380.py:1168: AssertionError
+____ test_t380_r6_http_auth_conflict_rollback_and_name_ambiguity_are_known _____
+
+message_db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fd8579b3da0>
+
+    @pytest.mark.asyncio
+    async def test_t380_r6_http_auth_conflict_rollback_and_name_ambiguity_are_known(
+        message_db, monkeypatch,
+    ):
+        """Keyed REST derives identity from MCP proof and rejects every pre-accept spoof."""
+        from app import db
+        from app.mcp_proof import issue_mcp_proof
+        from app.routes import sessions as routes
+    
+        assert "delivery_id" in routes.SendRequest.model_fields, (
+            "#380 missing behavior: SendRequest has no opt-in delivery_id"
+        )
+        assert "request" in inspect.signature(routes.send_message).parameters, (
+            "#380 missing behavior: keyed send route cannot authenticate the Request"
+        )
+        module = _message_module()
+        monkeypatch.setattr(module, "ensure_target_runner", lambda _target_id: None)
+        proof = issue_mcp_proof(SOURCE_ID)
+        request = _request_with_proof(SOURCE_ID, proof)
+    
+        async def post(*, delivery_id, message=MESSAGE, sender=SOURCE_NAME, scope=SCOPE, name=TARGET_NAME):
+            req = routes.SendRequest(
+                delivery_id=delivery_id,
+                message=message,
+                sender=sender,
+                scope=scope,
+            )
+            return await routes.send_message(name, req, request=request)
+    
+        accepted = await post(delivery_id=DELIVERY_ID)
+>       assert getattr(accepted, "status_code", None) == 202
+E       AssertionError: assert 403 == 202
+E        +  where 403 = getattr(<starlette.responses.JSONResponse object at 0x7fd8579c0fe0>, 'status_code', None)
+
+tests/test_message_delivery_receipts_380.py:1210: AssertionError
+=============================== warnings summary ===============================
+tests/test_steer_retention_v562.py::test_normal_turn_end_changes_nothing_and_no_duplicate
+tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+  /home/kesha/orchestra/data/v656/steer-o55-low/app/session.py:3249: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if usage and usage.get("percentage") is not None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_retention_v562.py::test_normal_turn_end_changes_nothing_and_no_duplicate
+tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+  /home/kesha/orchestra/data/v656/steer-o55-low/app/session.py:3251: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    context = current_context(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_retention_v562.py::test_normal_turn_end_changes_nothing_and_no_duplicate
+tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+  /usr/lib/python3.12/asyncio/events.py:88: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_message_delivery_receipts_380.py::test_t380_r1_http_202_returns_while_manager_send_is_blocked
+FAILED tests/test_message_delivery_receipts_380.py::test_t401_quota_refusal_is_returned_before_receipt_or_user_log
+FAILED tests/test_message_delivery_receipts_380.py::test_t380_r6_http_auth_conflict_rollback_and_name_ambiguity_are_known
+3 failed, 36 passed, 9 warnings in 18.07s

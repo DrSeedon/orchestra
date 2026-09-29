@@ -1,0 +1,89 @@
+..............................................s........FFF               [100%]
+=================================== FAILURES ===================================
+____ TestCommandWatchPidfdLifecycle.test_completed_polls_do_not_leak_pidfd _____
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLifecycle object at 0x793693ef6b70>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x793691c1e6f0>
+
+    def test_completed_polls_do_not_leak_pidfd(self, monkeypatch):
+        mgr, spawned = self._counting_manager(monkeypatch)
+    
+        async def scenario():
+            before = _open_pidfds()
+            await mgr._run_command_watch(
+                "cw-1", "echo nomatch", "NEVER_MATCHES", 0,
+                "m", "t", "worker", 1.5,
+            )
+            await asyncio.sleep(0.1)
+            return before, _open_pidfds()
+    
+        before, after = asyncio.run(scenario())
+        assert len(spawned) >= 3
+>       assert all(p._orchestra_pidfd is None for p in spawned)
+E       assert False
+E        +  where False = all(<generator object TestCommandWatchPidfdLifecycle.test_completed_polls_do_not_leak_pidfd.<locals>.<genexpr> at 0x79369030f780>)
+
+tests/test_bg_jobs.py:1572: AssertionError
+____ TestCommandWatchPidfdLifecycle.test_matching_poll_does_not_leak_pidfd _____
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLifecycle object at 0x793693ef4380>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x793691c1ec30>
+
+    def test_matching_poll_does_not_leak_pidfd(self, monkeypatch):
+        mgr, spawned = self._counting_manager(monkeypatch)
+    
+        async def scenario():
+            before = _open_pidfds()
+            await mgr._run_command_watch(
+                "cw-2", "echo HIT", "HIT", 0, "m", "t", "worker", 5,
+            )
+            return before, _open_pidfds()
+    
+        before, after = asyncio.run(scenario())
+        mgr._trigger.assert_awaited_once()
+>       assert len(spawned) == 1 and spawned[0]._orchestra_pidfd is None
+E       assert (1 == 1 and 42 is None)
+E        +  where 1 = len([<Process 244916>])
+E        +  and   42 = <Process 244916>._orchestra_pidfd
+
+tests/test_bg_jobs.py:1587: AssertionError
+_ TestCommandWatchPidfdLifecycle.test_cancelled_poll_kills_group_and_releases_pidfd _
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLifecycle object at 0x793693ef48f0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x793691c1dc10>
+
+    def test_cancelled_poll_kills_group_and_releases_pidfd(self, monkeypatch):
+        mgr, spawned = self._counting_manager(monkeypatch)
+    
+        async def scenario():
+            before = _open_pidfds()
+            task = asyncio.create_task(mgr._run_command_watch(
+                "cw-3", "sleep 30", "x", 0, "m", "t", "worker", 60,
+            ))
+            while not spawned:
+                await asyncio.sleep(0.05)
+            await asyncio.sleep(0.1)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+            return before, _open_pidfds()
+    
+        before, after = asyncio.run(scenario())
+>       assert spawned[0].returncode is not None
+E       assert None is not None
+E        +  where None = <Process 244917>.returncode
+
+tests/test_bg_jobs.py:1606: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLifecycle::test_completed_polls_do_not_leak_pidfd
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLifecycle::test_matching_poll_does_not_leak_pidfd
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLifecycle::test_cancelled_poll_kills_group_and_releases_pidfd
+3 failed, 54 passed, 1 skipped in 23.38s
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x79369533e340>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

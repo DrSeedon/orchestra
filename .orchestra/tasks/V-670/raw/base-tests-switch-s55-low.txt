@@ -1,0 +1,94 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+________________ test_switch_releases_previous_task_by_default _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79af45c9aed0>
+
+    @pytest.mark.asyncio
+    async def test_switch_releases_previous_task_by_default(monkeypatch):
+        route, old, new = _setup(monkeypatch, CLEAN)
+        result = await route.switch_branch("w", {"scope": "/scope", "task_id": "6"})
+>       assert result["ok"] is True
+E       assert False is True
+
+tests/test_switch_releases_stale_binding_620.py:55: AssertionError
+______________ test_switch_closes_previous_task_done_with_reason _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79af455d2480>
+
+    @pytest.mark.asyncio
+    async def test_switch_closes_previous_task_done_with_reason(monkeypatch):
+        route, old, new = _setup(monkeypatch, CLEAN)
+        result = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "previous_task_done_reason": "merged in abc"})
+>       assert result["ok"] is True
+E       assert False is True
+
+tests/test_switch_releases_stale_binding_620.py:67: AssertionError
+______________________ test_switch_blank_reason_rejected _______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79af45c9b530>
+
+    @pytest.mark.asyncio
+    async def test_switch_blank_reason_rejected(monkeypatch):
+        route, old, _ = _setup(monkeypatch, CLEAN)
+        r = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "previous_task_done_reason": "  "})
+>       assert r.status_code == 400
+               ^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_releases_stale_binding_620.py:76: AttributeError
+__________________ test_dirty_or_unmerged_keeps_binding[wip0] __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79af43122f00>
+wip = {'uncommitted': ['a.py'], 'unmerged_commits': []}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("wip", [
+        {"uncommitted": ["a.py"], "unmerged_commits": []},
+        {"uncommitted": [], "unmerged_commits": ["work"]},
+    ])
+    async def test_dirty_or_unmerged_keeps_binding(monkeypatch, wip):
+        route, old, _ = _setup(monkeypatch, wip)
+        result = await route.switch_branch("w", {"scope": "/scope", "task_id": "6"})
+        assert not (result["ok"] if isinstance(result, dict) else False)
+        assert _task(old)["status"] == "in_progress"
+        assert _task(old)["worker_session_id"] == "w"
+        done = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "previous_task_done_reason": "x"})
+>       assert done.status_code == 409
+               ^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_releases_stale_binding_620.py:93: AttributeError
+__________________ test_dirty_or_unmerged_keeps_binding[wip1] __________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79af43123860>
+wip = {'uncommitted': [], 'unmerged_commits': ['work']}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("wip", [
+        {"uncommitted": ["a.py"], "unmerged_commits": []},
+        {"uncommitted": [], "unmerged_commits": ["work"]},
+    ])
+    async def test_dirty_or_unmerged_keeps_binding(monkeypatch, wip):
+        route, old, _ = _setup(monkeypatch, wip)
+        result = await route.switch_branch("w", {"scope": "/scope", "task_id": "6"})
+        assert not (result["ok"] if isinstance(result, dict) else False)
+        assert _task(old)["status"] == "in_progress"
+        assert _task(old)["worker_session_id"] == "w"
+        done = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "previous_task_done_reason": "x"})
+>       assert done.status_code == 409
+               ^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_releases_stale_binding_620.py:93: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_switch_releases_stale_binding_620.py::test_switch_releases_previous_task_by_default
+FAILED tests/test_switch_releases_stale_binding_620.py::test_switch_closes_previous_task_done_with_reason
+FAILED tests/test_switch_releases_stale_binding_620.py::test_switch_blank_reason_rejected
+FAILED tests/test_switch_releases_stale_binding_620.py::test_dirty_or_unmerged_keeps_binding[wip0]
+FAILED tests/test_switch_releases_stale_binding_620.py::test_dirty_or_unmerged_keeps_binding[wip1]
+5 failed in 9.79s

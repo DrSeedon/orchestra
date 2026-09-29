@@ -1,0 +1,280 @@
+....F.........................FFF.FFFFF                                  [100%]
+=================================== FAILURES ===================================
+__ test_t380_r1_legacy_blank_key_and_unsupported_keyed_ingress_split_cleanly ___
+
+message_db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x705cf99fff80>
+
+    @pytest.mark.asyncio
+    async def test_t380_r1_legacy_blank_key_and_unsupported_keyed_ingress_split_cleanly(
+        message_db, monkeypatch,
+    ):
+        """Blank key keeps old synchronous behavior; keyed mailbox/fan shapes are rejected."""
+        from app.routes import sessions as routes
+    
+        assert "delivery_id" in routes.SendRequest.model_fields, (
+            "#380 missing behavior: SendRequest has no opt-in delivery_id"
+        )
+        assert "request" in inspect.signature(routes.send_message).parameters, (
+            "#380 missing behavior: keyed send route cannot authenticate the Request"
+        )
+        target = SimpleNamespace(
+            id=TARGET_ID,
+            name=TARGET_NAME,
+            scope=SCOPE,
+            parent_name="",
+            last_task_sender="",
+        )
+        monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=target))
+        monkeypatch.setattr(routes.manager, "ensure_loaded_any", AsyncMock(return_value=None))
+        legacy_send = AsyncMock()
+        monkeypatch.setattr(routes.manager, "send", legacy_send)
+        monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
+        request = SimpleNamespace(headers={}, cookies={"session": "operator-test"})
+    
+        legacy = await routes.send_message(
+            TARGET_NAME,
+            routes.SendRequest(message="legacy", scope=SCOPE),
+            request=request,
+        )
+>       assert legacy == {"ok": True, "parent_name": "", "delivery": "new_turn"}
+E       AssertionError: assert {'ok': True, ...ent_name': ''} == {'delivery': ...ent_name': ''}
+E         
+E         Omitting 2 identical items, use -vv to show
+E         Right contains 1 more item:
+E         {'delivery': 'new_turn'}
+E         Use -v to get more diff
+
+tests/test_message_delivery_receipts_380.py:431: AssertionError
+____________ test_normal_turn_end_changes_nothing_and_no_duplicate _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+session_id = 'e1a89b4a-3f64-43bc-a21b-286dbef4e28f'
+agent = <function agent.<locals>._make at 0x705cf318e200>
+
+    @pytest.mark.asyncio
+    async def test_normal_turn_end_changes_nothing_and_no_duplicate(db, session_id, agent):
+        """Приёмка 1: ход завершился нормально — ровно одна доставка, в ящике пусто."""
+        seen = []
+        session = await _running(agent, seen)
+        outcome = await session.send(URGENT, provenance=PEER)
+>       assert outcome == "current_turn"
+E       AssertionError: assert None == 'current_turn'
+
+tests/test_steer_retention_v562.py:57: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+_________________ test_failed_turn_redelivers_once_with_sender _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+session_id = 'bacccb4b-e14a-4d31-a93b-3a31beead7fb'
+agent = <function agent.<locals>._make at 0x705cf2edec00>
+
+    @pytest.mark.asyncio
+    async def test_failed_turn_redelivers_once_with_sender(db, session_id, agent):
+        """Приёмка 2: ход упал — сообщение в следующем ходе, один раз, с отправителем."""
+        seen = []
+        session = await _running(agent, seen)
+        await session.send(URGENT, provenance=PEER)
+    
+        _end_turn(session, ok=False)
+        await _settle(seen, 2)
+        redelivered = [m for m in seen[1:] if "ЭКСПОНАТ" in m]
+>       assert len(redelivered) == 1, f"ожидалась ровно одна повторная выдача: {seen}"
+E       AssertionError: ожидалась ровно одна повторная выдача: ['[from:peer] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ']
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_steer_retention_v562.py:76: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2164 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+________________ test_several_steers_into_dead_turn_keep_order _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+session_id = '0e759a07-e24e-43ae-8e6d-1bd6b6672ff7'
+agent = <function agent.<locals>._make at 0x705cf2f37920>
+
+    @pytest.mark.asyncio
+    async def test_several_steers_into_dead_turn_keep_order(db, session_id, agent):
+        """Приёмка 3: все вливания умершего хода, в исходном порядке."""
+        seen = []
+        session = await _running(agent, seen)
+        for text in ("первое", "второе", "третье"):
+            await session.send(f"[from:peer] {text}", provenance=PEER)
+    
+        _end_turn(session, ok=False)
+        await _settle(seen, 4)
+        tail = "\n".join(seen[3:])
+        positions = [tail.find(t) for t in ("первое", "второе", "третье")]
+>       assert -1 not in positions, f"потеряно вливание: {seen[3:]}"
+E       AssertionError: потеряно вливание: []
+E       assert -1 not in [-1, -1, -1]
+
+tests/test_steer_retention_v562.py:94: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2164 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+______________________ test_listen_task_death_redelivers _______________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+session_id = 'ccc5a43d-9d33-4837-b4be-f92dbf3eb4a3'
+agent = <function agent.<locals>._make at 0x705cf2f37240>
+
+    @pytest.mark.asyncio
+    async def test_listen_task_death_redelivers(db, session_id, agent):
+        """Ход умер без turn_end (смерть слушателя) — вливание всё равно доезжает."""
+        seen = []
+        session = await _running(agent, seen)
+        await session.send(URGENT, provenance=PEER)
+        session._finish_failed_running_turn("listen task exited unexpectedly while RUNNING")
+        await _settle(seen, 2)
+>       assert sum("ЭКСПОНАТ" in m for m in seen[1:]) == 1, seen
+E       AssertionError: ['[from:peer] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ']
+E       assert 0 == 1
+E        +  where 0 = sum(<generator object test_listen_task_death_redelivers.<locals>.<genexpr> at 0x705cf814ec20>)
+
+tests/test_steer_retention_v562.py:121: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2164 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+___________________ test_restart_releases_the_dead_turn_hold ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+
+    def test_restart_releases_the_dead_turn_hold(db):
+        """Приёмка 4: рестарт между обрывом и следующим ходом не съедает сообщение."""
+        from app import mailbox
+    
+>       mailbox.hold("w", "/repo", "peer", URGENT, provenance=PEER)
+        ^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'hold'
+
+tests/test_steer_retention_v562.py:128: AttributeError
+_____________ test_release_on_start_spares_current_process_claims ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+
+    def test_release_on_start_spares_current_process_claims(db):
+        """Обратное плечо: аренда, взятая уже новым процессом, не освобождается."""
+        from app import mailbox
+    
+>       mailbox.hold("w", "/repo", "peer", URGENT, provenance=PEER)
+        ^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'hold'
+
+tests/test_steer_retention_v562.py:140: AttributeError
+____________________ test_sender_sees_current_vs_next_turn _____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/db.py'>
+
+    def test_sender_sees_current_vs_next_turn(db):
+        """Приёмка 5: «в текущем ходе» и «ждёт следующего хода» — разные состояния."""
+        from dataclasses import replace
+        from app import mailbox
+    
+        ref = "steer:00000000-0000-0000-0000-000000000001"
+>       assert mailbox.steer_state(ref) is None
+               ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'steer_state'
+
+tests/test_steer_retention_v562.py:150: AttributeError
+____________________ test_receipt_text_distinguishes_states ____________________
+
+    def test_receipt_text_distinguishes_states():
+        from app.mcp_stdio import _message_delivery_receipt_text
+    
+        base = {"delivery_id": "d", "delivery_state": "SUBMITTED"}
+        now = _message_delivery_receipt_text({**base, "turn_delivery": "current_turn"})
+        later = _message_delivery_receipt_text({**base, "turn_delivery": "waiting_next_turn"})
+>       assert "running turn" in now and "next turn" not in now
+E       AssertionError: assert ('running turn' in 'Message accepted; delivery_id=d; state=SUBMITTED.')
+
+tests/test_steer_retention_v562.py:168: AssertionError
+=============================== warnings summary ===============================
+tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+  /home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/session.py:3185: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if usage and usage.get("percentage") is not None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+  /home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-o55-low/app/session.py:3187: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    context = current_context(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+  /usr/lib/python3.12/asyncio/events.py:88: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_message_delivery_receipts_380.py::test_t380_r1_legacy_blank_key_and_unsupported_keyed_ingress_split_cleanly
+FAILED tests/test_steer_retention_v562.py::test_normal_turn_end_changes_nothing_and_no_duplicate
+FAILED tests/test_steer_retention_v562.py::test_failed_turn_redelivers_once_with_sender
+FAILED tests/test_steer_retention_v562.py::test_several_steers_into_dead_turn_keep_order
+FAILED tests/test_steer_retention_v562.py::test_listen_task_death_redelivers
+FAILED tests/test_steer_retention_v562.py::test_restart_releases_the_dead_turn_hold
+FAILED tests/test_steer_retention_v562.py::test_release_on_start_spares_current_process_claims
+FAILED tests/test_steer_retention_v562.py::test_sender_sees_current_vs_next_turn
+FAILED tests/test_steer_retention_v562.py::test_receipt_text_distinguishes_states
+9 failed, 30 passed, 6 warnings in 38.74s

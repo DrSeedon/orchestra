@@ -1,0 +1,37 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+_________________________ test_normal_end_no_duplicate _________________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-s55-low/app/db.py'>
+
+    def test_normal_end_no_duplicate(db):
+>       mailbox.record_steered("w", "/r", "boss", "срочно", provenance=P1)
+        ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_ledger_v562.py:20: AttributeError
+___________________ test_dead_turn_redelivers_once_in_order ____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-s55-low/app/db.py'>
+
+    def test_dead_turn_redelivers_once_in_order(db):
+>       mailbox.record_steered("w", "/r", "boss", "первое", provenance=P1)
+        ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_ledger_v562.py:28: AttributeError
+______________ test_restart_recovery_and_other_session_untouched _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/steer-s55-low/app/db.py'>
+
+    def test_restart_recovery_and_other_session_untouched(db):
+>       mailbox.record_steered("w", "/r", "boss", "пережило", provenance=P1)
+        ^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_ledger_v562.py:40: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_steer_ledger_v562.py::test_normal_end_no_duplicate - Attrib...
+FAILED tests/test_steer_ledger_v562.py::test_dead_turn_redelivers_once_in_order
+FAILED tests/test_steer_ledger_v562.py::test_restart_recovery_and_other_session_untouched
+3 failed in 5.26s
