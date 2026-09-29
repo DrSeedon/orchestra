@@ -1377,6 +1377,35 @@ def _cap_content(row: dict, cap: int) -> dict:
     raw = (row.get("content") or "").encode()
     if len(raw) <= cap:
         return row
+    if row.get("type") == "compact_event":
+        try:
+            event = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            event = None
+        content_field = (
+            "content" if isinstance(event, dict) and isinstance(event.get("content"), str)
+            else "summary" if isinstance(event, dict) and isinstance(event.get("summary"), str)
+            else ""
+        )
+        if isinstance(event, dict) and content_field:
+            source = event[content_field].encode()
+            event["content_truncated_bytes"] = len(source)
+            keep = max(
+                0,
+                cap - len(json.dumps({**event, content_field: ""}, ensure_ascii=False).encode()) - 8,
+            )
+            while True:
+                event[content_field] = source[:keep].decode(errors="ignore") + "…"
+                encoded = json.dumps(event, ensure_ascii=False).encode()
+                if len(encoded) <= cap or keep == 0:
+                    break
+                keep //= 2
+            event["content_truncated_bytes"] = max(
+                0, len(source) - len(event[content_field].encode()),
+            )
+            encoded = json.dumps(event, ensure_ascii=False).encode()
+            row["content"] = encoded.decode()
+            return row
     row["content"] = raw[:cap].decode(errors="ignore")
     row["trunc"] = len(raw)  # исходная длина в байтах — её показывает кнопка «загрузить целиком»
     return row

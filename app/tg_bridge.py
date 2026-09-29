@@ -3472,6 +3472,16 @@ async def stream_logs(orch_name: str, thread_id: int):
                     current_log_previous_id = last_id
                     last_id = log["id"]
                     t, c = log["type"], log["content"]
+                    if t == "compact_event" or (
+                        t == "status" and c.startswith((
+                            "compact started (context ",
+                            "compact done:",
+                            "agentic compact ",
+                        ))
+                    ) or (
+                        t == "error" and c.startswith("compact attempt ")
+                    ):
+                        continue
                     is_anchor = False
                     if t in ("text", "tool"):
                         _schedule_topic_status(orch_name, True)

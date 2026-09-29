@@ -2507,6 +2507,7 @@ async function onOrchestratorChange() {
         localStorage.setItem('lastOrchScope', currentScope);
         localStorage.setItem('lastOrchName', selectedAgent);
     }
+    resetCompactEventCards();
     $('#chat').innerHTML = '';
     $('#agent-list')?.replaceChildren();
     _prepareChatAnchorRestore(restoreUnreadAnchor);
@@ -2533,6 +2534,7 @@ async function selectAgent(name) {
     selectedAgent = name;
     _hideRateLimitBanner();
     _showChatDropError('');
+    resetCompactEventCards();
     $('#chat').innerHTML = '';
     _prepareChatAnchorRestore(false);
     updateInputState();

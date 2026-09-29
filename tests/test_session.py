@@ -1802,7 +1802,7 @@ class TestCompactGuards:
 
         logged = []
 
-        def fake_log(log_type, content, *, provenance=None):
+        def fake_log(log_type, content, *, provenance=None, **kwargs):
             if log_type == "user_message":
                 assert provenance.origin == "platform"
             else:

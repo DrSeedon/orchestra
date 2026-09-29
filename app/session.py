@@ -2714,19 +2714,38 @@ class AgentSession:
                 self._hibernate.schedule()
             self._wake_durable_message_deliveries()
 
-    async def _agentic_audit_summary(self, draft: str, stop_gen: int, backend) -> str:
+    def _log_compact_event(self, compact_id: str, **event) -> None:
+        tool_use_id = str(event.get("tool_use_id") or "")
+        content = event.pop("content", None)
+        if content is not None:
+            event["content"] = content
+        self._log(
+            "compact_event",
+            json.dumps(event, ensure_ascii=False),
+            event_id=compact_id,
+            tool_use_id=tool_use_id or None,
+            tool_name=str(event.get("tool_name") or "") or None,
+            tool_is_error=bool(event.get("is_error")) if event.get("kind") == "tool_result" else None,
+        )
+
+    async def _agentic_audit_summary(
+        self, draft: str, stop_gen: int, backend, compact_id: str,
+    ) -> tuple[str, bool, float]:
         """Run AUDIT and FINAL as subsequent turns in the draft's Claude session."""
         if self.backend_type != "claude" or not agentic_compact.enabled():
-            return draft
+            return draft, False, 0.0
         started = time.monotonic()
         cost = 0.0
         directory = None
         events = backend.events().__aiter__()
 
-        async def run_pass(prompt: str, deadline: float) -> None:
+        async def run_pass(phase: str, prompt: str, deadline: float) -> None:
             nonlocal cost
             if self._turn_start_cancel_gen != stop_gen:
                 raise RuntimeError("stopped")
+            pass_started = time.monotonic()
+            pass_cost = cost
+            self._log_compact_event(compact_id, action="step_start", phase=phase)
             await backend.send(prompt)
             end_event = None
             next_event = None
@@ -2756,7 +2775,16 @@ class AgentSession:
                     self._cost.apply_turn_result(event.metadata, event.usage)
                     cost += self._turn_cost
                 elif event.type in {"tool", "tool_result"}:
-                    self._log(event.type, event.content)
+                    self._log_compact_event(
+                        compact_id,
+                        action="tool",
+                        phase=phase,
+                        kind=event.type,
+                        content=event.content,
+                        tool_use_id=event.metadata.get("tool_use_id", ""),
+                        tool_name=event.metadata.get("tool_name", ""),
+                        is_error=bool(event.metadata.get("is_error")),
+                    )
                 elif event.type == "error":
                     raise RuntimeError(event.content or "provider error during compact audit")
                 elif event.type == "provider_limit":
@@ -2765,6 +2793,13 @@ class AgentSession:
                         raise RuntimeError("provider limit during compact audit")
             if end_event.metadata.get("ok") is not True:
                 raise RuntimeError("compact audit turn failed")
+            self._log_compact_event(
+                compact_id,
+                action="step_done",
+                phase=phase,
+                seconds=round(time.monotonic() - pass_started, 1),
+                **({"cost_usd": round(cost - pass_cost, 6)} if cost > pass_cost else {}),
+            )
 
         try:
             sandbox_root = agentic_compact.sandbox_root()
@@ -2774,11 +2809,13 @@ class AgentSession:
             summary_path = directory / "summary.md"
             summary_path.write_text(draft)
             deadline = started + float(os.getenv("AGENTIC_COMPACT_TIMEOUT", "900"))
-            for prompt in (
-                agentic_compact.audit_prompt(journal_dir, summary_path),
-                agentic_compact.final_prompt(journal_dir, summary_path),
+            current_phase = "audit"
+            for phase, prompt in (
+                ("audit", agentic_compact.audit_prompt(journal_dir, summary_path)),
+                ("final", agentic_compact.final_prompt(journal_dir, summary_path)),
             ):
-                await run_pass(prompt, deadline)
+                current_phase = phase
+                await run_pass(phase, prompt, deadline)
             result = summary_path.read_text().strip() if summary_path.exists() else ""
             if not result:
                 raise RuntimeError("audit produced empty summary")
@@ -2792,15 +2829,22 @@ class AgentSession:
                 f"agentic compact audit: summary {len(draft)} → {len(result)} chars, "
                 f"${cost:.2f}, {time.monotonic() - started:.0f}s",
             )
-            return result
+            return result, False, cost
         except Exception as error:
             reason = f"{type(error).__name__}: {error}"[:400]
+            self._log_compact_event(
+                compact_id,
+                action="step_failed",
+                phase=locals().get("current_phase", "audit"),
+                error=reason,
+                **({"cost_usd": round(cost, 6)} if cost else {}),
+            )
             self._log(
                 "status",
                 f"agentic compact audit skipped, original summary kept: {reason} "
                 f"(${cost:.2f}, {time.monotonic() - started:.0f}s)",
             )
-            return draft
+            return draft, True, cost
         finally:
             if directory is not None:
                 shutil.rmtree(directory, ignore_errors=True)
@@ -2840,11 +2884,30 @@ class AgentSession:
         pre_tokens = self._last_context.get("total_tokens", 0) or 0
         max_tokens = self._last_context.get("max_tokens", 0) or 0
         pre_compact_session_id = self.session_id
+        compact_id = str(uuid.uuid4())
+        compact_started = time.monotonic()
+        compact_cost = 0.0
+        self._log_compact_event(
+            compact_id,
+            action="start",
+            status="running",
+            before_pct=before_pct,
+            pre_tokens=pre_tokens,
+        )
         self._log("status", f"compact started (context {before_pct}%, pre_session={pre_compact_session_id})")
 
         def abort_compact(error: str, *, flush_pending: bool = True) -> dict:
             self.session_id = pre_compact_session_id
             self._compacting = False
+            self._log_compact_event(
+                compact_id,
+                action="finish",
+                status="rolled_back",
+                error=error[:400],
+                before_pct=before_pct,
+                seconds=round(time.monotonic() - compact_started, 1),
+                **({"cost_usd": round(compact_cost, 6)} if compact_cost else {}),
+            )
             if flush_pending and self._pending_messages:
                 self._spawn_bg(self._flush_pending())
             if self._compact_ack_event is None:
@@ -2898,7 +2961,16 @@ class AgentSession:
                     if event.type == "text":
                         summary_parts.append(event.content)
                     elif event.type in {"tool", "tool_result"}:
-                        self._log(event.type, event.content)
+                        self._log_compact_event(
+                            compact_id,
+                            action="tool",
+                            phase="draft",
+                            kind=event.type,
+                            content=event.content,
+                            tool_use_id=event.metadata.get("tool_use_id", ""),
+                            tool_name=event.metadata.get("tool_name", ""),
+                            is_error=bool(event.metadata.get("is_error")),
+                        )
                     elif event.type == "provider_limit":
                         terminal_limit |= event.metadata.get("status") == "rejected"
                         self._handle_event(event)
@@ -2909,6 +2981,7 @@ class AgentSession:
                         if event.metadata.get("session_id"):
                             self.session_id = event.metadata["session_id"]
                         self._cost.apply_turn_result(event.metadata, event.usage)
+                        compact_cost += self._turn_cost
                         self._last_turn_api_calls = max(
                             1, int(event.metadata.get("num_turns") or 1),
                         )
@@ -2984,13 +3057,25 @@ class AgentSession:
                     continue
                 return abort_compact(last_error)
 
+            self._log_compact_event(
+                compact_id,
+                action="step_done",
+                phase="draft",
+                summary=summary,
+                **({"cost_usd": round(compact_cost, 6)} if compact_cost else {}),
+            )
+
             if attempt > 1:
                 self._log("status", f"compact succeeded on attempt {attempt}")
             break
 
+        audit_fallback = False
         if keep_backend_open:
             try:
-                summary = await self._agentic_audit_summary(summary, compact_stop_gen, backend)
+                summary, audit_fallback, audit_cost = await self._agentic_audit_summary(
+                    summary, compact_stop_gen, backend, compact_id,
+                )
+                compact_cost += audit_cost
             finally:
                 try:
                     await backend.disconnect()
@@ -3135,6 +3220,19 @@ class AgentSession:
         else:
             after_pct = self._last_context.get("percentage", 0)
         dropped = max(0, pre_tokens - post_tokens)
+        self._log_compact_event(
+            compact_id,
+            action="finish",
+            status="fallback_draft" if keep_backend_open and audit_fallback else "complete",
+            before_pct=before_pct,
+            after_pct=after_pct,
+            pre_tokens=pre_tokens,
+            post_tokens=post_tokens,
+            dropped_tokens=dropped,
+            summary=summary,
+            seconds=round(time.monotonic() - compact_started, 1),
+            **({"cost_usd": round(compact_cost, 6)} if compact_cost else {}),
+        )
         self._log(
             "status",
             f"compact done: {before_pct}% → {after_pct}% "
