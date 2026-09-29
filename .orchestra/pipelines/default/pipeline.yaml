@@ -87,7 +87,7 @@ roles:
     kind: worker
     label: Worker
     order: 2
-    model: claude-sonnet-5-5[1m]
+    model: claude-opus-5-5[1m]
     effort: *effort_policy
     # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
     # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
@@ -105,7 +105,7 @@ roles:
     kind: worker
     label: Full-Cycle
     order: 3
-    model: claude-sonnet-5-5[1m]
+    model: claude-opus-5-5[1m]
     # xhigh → high (#207). Anthropic для Opus 5 велит начинать с high и НЕ переносить настройки
     # прошлого поколения — унаследованный xhigh оттуда и пришёл; на девяти чужих бенчмарках
     # high→xhigh даёт +47% цены без значимого прироста, наш #199 на Sol — ×2.04 при том же вердикте.
