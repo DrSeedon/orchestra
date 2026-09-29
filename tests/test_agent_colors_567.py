@@ -23,7 +23,7 @@ def _session(session_id, *, scope="/project", color="", is_orchestrator=False):
         "name": session_id,
         "scope": scope,
         "cwd": scope,
-        "model": "claude-sonnet-5[1m]",
+        "model": "claude-sonnet-5-5[1m]",
         "system_prompt": "",
         "status": "idle",
         "session_id": None,

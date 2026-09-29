@@ -19,7 +19,7 @@ from app.backend_claude import ClaudeBackend
 
 
 def _backend() -> ClaudeBackend:
-    return ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
+    return ClaudeBackend(model="claude-sonnet-5-5[1m]", cwd="/tmp")
 
 
 def test_rate_limit_event_preserves_exact_raw_utilization_and_all_fields():
@@ -70,7 +70,7 @@ def test_missing_rate_limit_event_class_does_not_break_import_or_dispatch():
         assert backend_claude.RateLimitEvent is None
         events = _backend()._convert(AssistantMessage(
             content=[TextBlock("ordinary message")],
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
         ))
         assert events[0].content == "ordinary message"
     finally:

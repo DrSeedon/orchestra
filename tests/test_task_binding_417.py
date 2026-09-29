@@ -29,7 +29,7 @@ def _save_worker(*, session_id: str, task_id: str, branch: str = "") -> None:
             "name": session_id,
             "scope": "/scope",
             "cwd": "/worktree",
-            "model": "claude-sonnet-5[1m]",
+            "model": "claude-sonnet-5-5[1m]",
             "system_prompt": "",
             "status": "idle",
             "session_id": None,

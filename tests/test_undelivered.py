@@ -41,7 +41,7 @@ def env(tmp_path, monkeypatch):
     sid = str(uuid.uuid4())
     save_session({
         "id": sid, "name": "worker", "scope": str(repo), "cwd": str(repo),
-        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": wt.path,
         "branch": wt.branch, "base_branch": "main", "is_orchestrator": False, "color": "",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -154,7 +154,7 @@ class TestNotifyHasNoInventedRecipient:
 
         save_session({
             "id": "orch-1", "name": "boss", "scope": env["repo"], "cwd": env["repo"],
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
             "base_branch": "main", "is_orchestrator": True, "color": "",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -200,7 +200,7 @@ async def test_bg_job_failure_reaches_the_orchestrator(env, monkeypatch):
 
     save_session({
         "id": "orch-2", "name": "boss", "scope": env["repo"], "cwd": env["repo"],
-        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
         "base_branch": "main", "is_orchestrator": True, "color": "",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,

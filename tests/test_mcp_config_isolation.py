@@ -25,7 +25,7 @@ def isolate_managed_codex_home(tmp_path, monkeypatch):
 def _claude_backend(**kw):
     from app.backend_claude import ClaudeBackend
     params = dict(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/home/kesha/orchestra",
         mcp_servers={"orchestra": {"command": "python", "args": ["/x/mcp_stdio.py"],
                                    "env": {"INTERNAL_TOKEN": SECRET}}},

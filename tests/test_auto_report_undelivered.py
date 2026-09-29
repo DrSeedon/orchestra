@@ -37,7 +37,7 @@ def env(tmp_path, monkeypatch):
     def row(sid, name, worktree, branch, *, orch=False, needs_switch=0, parent=""):
         return {
             "id": sid, "name": name, "scope": str(repo), "cwd": str(repo),
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": worktree,
             "branch": branch, "base_branch": "main", "is_orchestrator": orch, "color": "",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,

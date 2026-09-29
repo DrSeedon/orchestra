@@ -85,7 +85,7 @@ def _save_worker(*, name: str, scope: str, owned: list[str], status: str = "idle
     prompt, overlay = _prompt_for(owned)
     save_session({
         "id": f"sid-{name}", "name": name, "scope": scope, "cwd": "/tmp",
-        "model": "claude-sonnet-5[1m]", "system_prompt": prompt,
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": prompt,
         "prompt_overlay": overlay, "status": status, "session_id": "native",
         "cost_usd": 0.0, "worktree_path": None, "branch": "", "is_orchestrator": False,
         "color": "#fff", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -350,7 +350,7 @@ def test_quoted_ownership_heading_does_not_divert_the_rewrite(db, tmp_path):
     prompt = "ROLE BASE" + overlay
     save_session({
         "id": "sid-quoted", "name": "quoted", "scope": str(repo), "cwd": "/tmp",
-        "model": "claude-sonnet-5[1m]", "system_prompt": prompt, "prompt_overlay": overlay,
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": prompt, "prompt_overlay": overlay,
         "status": "idle", "session_id": "native", "cost_usd": 0.0, "worktree_path": None,
         "branch": "", "is_orchestrator": False, "color": "#fff",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -377,7 +377,7 @@ def test_prompt_without_a_generated_block_is_reported_not_half_migrated(db, tmp_
     layout.migrate_project_layout(repo, repair=False)
     save_session({
         "id": "sid-drift", "name": "drifted", "scope": str(repo), "cwd": "/tmp",
-        "model": "claude-sonnet-5[1m]", "system_prompt": "FREEFORM OPERATOR PROMPT",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "FREEFORM OPERATOR PROMPT",
         "prompt_overlay": None, "status": "idle", "session_id": "native", "cost_usd": 0.0,
         "worktree_path": None, "branch": "", "is_orchestrator": False, "color": "#fff",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -405,7 +405,7 @@ def test_authoritative_overlay_must_carry_the_repair(db, tmp_path):
     owned = ["docs/tasks/88"]
     save_session({
         "id": "sid-split", "name": "split-owner", "scope": str(repo), "cwd": "/tmp",
-        "model": "claude-sonnet-5[1m]",
+        "model": "claude-sonnet-5-5[1m]",
         "system_prompt": "ROLE BASE" + ownership_block(owned),
         # The authoritative owner has NO generated block: repairing system_prompt alone
         # would leave the worker with no ownership at all.
@@ -764,7 +764,7 @@ def worker(mgr):
                 "app.session.AgentSession._make_backend", return_value=make_backend_mock()
             ):
                 return await mgr.create_session(
-                    name=name, scope=scope, cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name=name, scope=scope, cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     role="worker", owned_dirs=owned,
                 )
     return _make
@@ -986,7 +986,7 @@ def test_route_refuses_a_running_worker_and_changes_nothing(tmp_path, monkeypatc
         with TestClient(app) as client:
             created = client.post("/api/sessions", json={
                 "name": "painter-canvas", "scope": "/s", "cwd": "/tmp",
-                "model": "claude-sonnet-5[1m]", "role": "worker",
+                "model": "claude-sonnet-5-5[1m]", "role": "worker",
                 "owned_dirs": ["oil-paint"],
             })
             assert created.status_code == 201, created.text

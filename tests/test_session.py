@@ -44,7 +44,7 @@ def session(mock_db):
     from app.session import AgentSession
     return AgentSession(
         id="test-001", name="w1", scope="/test", cwd="/tmp",
-        model="claude-sonnet-5[1m]", system_prompt="test",
+        model="claude-sonnet-5-5[1m]", system_prompt="test",
         created_at=datetime.now(timezone.utc),
     )
 
@@ -121,7 +121,7 @@ class _OversizedResumeBackend(_MockBackend):
         self.has_owned_processes = False
 
 
-def _quota_decision(state="available", model="claude-sonnet-5[1m]", *, valid_for=60):
+def _quota_decision(state="available", model="claude-sonnet-5-5[1m]", *, valid_for=60):
     import time
     from app.quota_gate import QuotaDecision
 
@@ -917,7 +917,7 @@ class TestClaudeTurnLifecycle:
         db_path = tmp_path / "listener-reconnect.db"
         monkeypatch.setattr(dbmod, "DB_PATH", db_path)
         dbmod.init_db()
-        session.model = "claude-sonnet-5[1m]"
+        session.model = "claude-sonnet-5-5[1m]"
         session.backend_type = "claude"
         session.session_id = "11111111-2222-4333-8444-555555555555"
         session.history_import_source = CLAUDE_HISTORY_SOURCE
@@ -3063,7 +3063,7 @@ class TestRateLimitClassification:
             session_id="test-001",
             scope="/test",
             runtime="claude",
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
             task_id="",
             ok=True,
             stop_reason="end_turn",
@@ -3754,12 +3754,12 @@ class TestManifestEffortAtTurnBoundary:
             "name: eff\n"
             "roles:\n"
             "  hand: {kind: worker, label: Hand, "
-            "effort: {\"claude-sonnet-5[1m]\": medium, gpt-5.6-sol: xhigh, default: low}}\n"
+            "effort: {\"claude-sonnet-5-5[1m]\": medium, gpt-5.6-sol: xhigh, default: low}}\n"
         )
         yield write
         P.load_pipeline.cache_clear()
 
-    def _session(self, effort="medium", role="hand", model="claude-sonnet-5[1m]"):
+    def _session(self, effort="medium", role="hand", model="claude-sonnet-5-5[1m]"):
         from app.session import AgentSession
         s = AgentSession(
             id="eff-001", name="w-eff", scope="/test", cwd="/tmp",
@@ -3830,7 +3830,7 @@ class TestManifestEffortAtTurnBoundary:
                 "name: eff\n"
                 "roles:\n"
                 "  hand: {kind: worker, label: Hand, "
-                "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
+                "effort: {\"claude-sonnet-5-5[1m]\": high, default: low}}\n"
             )
 
             await self._turn(session, backend, "second")
@@ -3867,7 +3867,7 @@ class TestManifestEffortAtTurnBoundary:
                 "name: eff\n"
                 "roles:\n"
                 "  hand: {kind: worker, label: Hand, "
-                "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
+                "effort: {\"claude-sonnet-5-5[1m]\": high, default: low}}\n"
             )
             # сообщение в живой ход: инжект, а не смена эффорта и не дисконнект
             await session.send("steer", provenance=USER_PROVENANCE)
@@ -3926,7 +3926,7 @@ class TestManifestEffortAtTurnBoundary:
         session._disconnect_backend = counting_disconnect
         manifest(
             "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
-            "effort: {\"claude-sonnet-5[1m]\": hgih, default: high}}\n"
+            "effort: {\"claude-sonnet-5-5[1m]\": hgih, default: high}}\n"
         )
         with patch.object(session, "_make_backend", return_value=backend):
             await self._turn(session, backend, "first")
@@ -3965,7 +3965,7 @@ class TestManifestEffortAtTurnBoundary:
         backend = _MockBackend()
         manifest(
             "name: eff\nroles:\n  hand: {kind: worker, label: Hand, "
-            "effort: {\"claude-sonnet-5[1m]\": high, default: low}}\n"
+            "effort: {\"claude-sonnet-5-5[1m]\": high, default: low}}\n"
         )
         attempts = 0
         orig_disconnect = session._disconnect_backend
@@ -4681,7 +4681,7 @@ class TestRuntimeCapabilities:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
-        ("claude", "claude-sonnet-5[1m]", "claude-opus-5[1m]"),
+        ("claude", "claude-sonnet-5-5[1m]", "claude-opus-5[1m]"),
         ("grok", "grok-4.5", "grok-4.6"),
         ("harness", "vendor/from:free", "vendor/to:free"),
     ])
@@ -4775,7 +4775,7 @@ class TestRuntimeCapabilities:
             self, session, monkeypatch):
         from app.session import AgentStatus
 
-        session.model = "claude-sonnet-5[1m]"
+        session.model = "claude-sonnet-5-5[1m]"
         session.backend_type = "claude"
         session.session_id = "claude-native-session"
         session.status = AgentStatus.IDLE
@@ -4797,7 +4797,7 @@ class TestRuntimeCapabilities:
 
         assert result["ok"] is False
         assert result["error_code"] == "claude_in_place_switch_failed"
-        assert session.model == "claude-sonnet-5[1m]"
+        assert session.model == "claude-sonnet-5-5[1m]"
         assert session._backend is source
         assert session._handoff_recovery_required is False
         save.assert_not_called()
@@ -4808,7 +4808,7 @@ class TestRuntimeCapabilities:
             self, session, monkeypatch):
         from app.session import AgentStatus
 
-        session.model = "claude-sonnet-5[1m]"
+        session.model = "claude-sonnet-5-5[1m]"
         session.backend_type = "claude"
         session.session_id = "claude-native-session"
         session.status = AgentStatus.IDLE
@@ -4830,12 +4830,12 @@ class TestRuntimeCapabilities:
 
         assert result["ok"] is False
         assert result["error_code"] == "claude_in_place_switch_persistence_failed"
-        assert session.model == "claude-sonnet-5[1m]"
+        assert session.model == "claude-sonnet-5-5[1m]"
         assert session._backend is source
         assert session._handoff_recovery_required is False
         assert source.retarget_model.await_args_list == [
             (("claude-opus-5[1m]",), {}),
-            (("claude-sonnet-5[1m]",), {}),
+            (("claude-sonnet-5-5[1m]",), {}),
         ]
 
     @pytest.mark.asyncio
@@ -5036,7 +5036,7 @@ class TestWeeklyQuotaAdmission:
 
         await session.send("new work", provenance=USER_PROVENANCE)
 
-        session._admission_service.assert_awaited_once_with("claude-sonnet-5[1m]")
+        session._admission_service.assert_awaited_once_with("claude-sonnet-5-5[1m]")
         backend.send.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -5122,7 +5122,7 @@ class TestWeeklyQuotaAdmission:
 
         await task
 
-        assert calls == ["claude-sonnet-5[1m]", "gpt-5.6-sol"]
+        assert calls == ["claude-sonnet-5-5[1m]", "gpt-5.6-sol"]
         backend.send.assert_awaited_once()
 
     @pytest.mark.asyncio
@@ -5155,7 +5155,7 @@ class TestWeeklyQuotaAdmission:
         from app.quota_gate import QuotaGateError
         with pytest.raises(QuotaGateError):
             await task
-        assert calls == ["claude-sonnet-5[1m]", "claude-sonnet-5[1m]"]
+        assert calls == ["claude-sonnet-5-5[1m]", "claude-sonnet-5-5[1m]"]
         session._ensure_backend.assert_not_awaited()
 
     @pytest.mark.asyncio
@@ -5292,7 +5292,7 @@ class TestQuotaGatedDeferredTurns:
         assert session._compacting is False
 
 
-def _history_for_switch(session_id, model="claude-sonnet-5[1m]"):
+def _history_for_switch(session_id, model="claude-sonnet-5-5[1m]"):
     from app.runtime_history import render_claude_history
 
     return render_claude_history(
@@ -5432,7 +5432,7 @@ async def test_idempotent_handoff_reuses_frozen_project_bytes(
     dbmod.init_db()
     session.id = "frozen-project-docs"
     session.backend_type = "claude"
-    session.model = "claude-sonnet-5[1m]"
+    session.model = "claude-sonnet-5-5[1m]"
     session.session_id = "source-session"
     dbmod.save_session(session._to_db_dict())
     dbmod.add_log(

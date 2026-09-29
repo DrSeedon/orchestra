@@ -49,7 +49,7 @@ def session(monkeypatch):
     monkeypatch.setattr("app.bg_jobs.bg_manager", None)
     return AgentSession(
         id="handoff-effects", name="effects-canary", scope="/test", cwd="/tmp",
-        model="claude-sonnet-5[1m]", system_prompt="test",
+        model="claude-sonnet-5-5[1m]", system_prompt="test",
         created_at=datetime.now(timezone.utc),
     )
 
@@ -278,7 +278,7 @@ async def test_native_resume_refusal_names_the_blocking_call_not_only_its_code(s
         },),
     ))
 
-    result = await session.change_model("claude-sonnet-5[1m]")
+    result = await session.change_model("claude-sonnet-5-5[1m]")
 
     assert result["ok"] is False
     assert result["error_code"] == "handoff_pending_effect"

@@ -2246,7 +2246,7 @@ class TestBrokenWorktreeIsVisible:
     def _session(self, worktree_path: str):
         from app.session import AgentSession
         return AgentSession(
-            id="s1", name="w", scope="/tmp", cwd=worktree_path, model="claude-sonnet-5[1m]",
+            id="s1", name="w", scope="/tmp", cwd=worktree_path, model="claude-sonnet-5-5[1m]",
             system_prompt="", worktree_path=worktree_path,
         )
 

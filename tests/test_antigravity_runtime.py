@@ -77,7 +77,7 @@ def test_t1_namespaced_model_surface_and_runtime_capabilities_are_exact():
     assert resolve_model("agy-opus") == "antigravity/claude-opus-4-6-thinking"
     assert resolve_model("agy-gptoss") == "antigravity/gpt-oss-120b-medium"
     # The new surface must not steal the existing Claude upgrade alias.
-    assert resolve_model("claude-sonnet-4-6") == "claude-sonnet-5[1m]"
+    assert resolve_model("claude-sonnet-4-6") == "claude-sonnet-5-5[1m]"
     assert backend_for_model(resolve_model("claude-sonnet-4-6")) == "claude"
 
     assert runtime.capabilities.to_dict() == {

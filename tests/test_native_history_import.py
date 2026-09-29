@@ -130,7 +130,7 @@ def test_long_fixture_matches_measured_shape_and_both_renderers(tmp_path):
         snapshot_id=SOURCE_ROWS,
         session_id=str(uuid.uuid4()),
         cwd=str(tmp_path),
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
     )
     codex = render_codex_history(
         rows,
@@ -219,10 +219,10 @@ async def test_pinned_runtime_semantically_recalls_long_native_history(
             snapshot_id=SOURCE_ROWS,
             session_id=str(uuid.uuid4()),
             cwd=str(tmp_path),
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
         )
         backend = ClaudeBackend(
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
             cwd=str(tmp_path),
             system_prompt=system_prompt,
             config_dir=str(config_root),

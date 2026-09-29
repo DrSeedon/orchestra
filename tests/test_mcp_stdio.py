@@ -70,7 +70,7 @@ async def test_change_worker_model_preserves_history_by_default(monkeypatch):
         return {
             "ok": True,
             "changed": True,
-            "old_model": "claude-sonnet-5[1m]",
+            "old_model": "claude-sonnet-5-5[1m]",
             "model": "claude-opus-5[1m]",
             "history_transfer": {"mode": "native_in_place"},
         }
@@ -775,7 +775,7 @@ def _register_session_scope(scope: str) -> None:
                 "scope-authority",
                 scope,
                 scope,
-                "claude-sonnet-5[1m]",
+                "claude-sonnet-5-5[1m]",
                 "idle",
                 datetime.now(timezone.utc).isoformat(),
             ),
@@ -1010,7 +1010,7 @@ async def test_spawn_passes_base_branch(monkeypatch):
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
         await m.spawn_worker(name="w-step1", task="do it", repo_path="/s",
-                             model="claude-sonnet-5[1m]", base_branch="feature/auth")
+                             model="claude-sonnet-5-5[1m]", base_branch="feature/auth")
     assert captured["base_branch"] == "feature/auth"
     assert captured["use_worktree"] is True
 
@@ -1034,7 +1034,7 @@ async def test_spawn_base_branch_default_empty(monkeypatch):
             }
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
-        await m.spawn_worker(name="w", task="t", repo_path="/s", model="claude-sonnet-5[1m]")
+        await m.spawn_worker(name="w", task="t", repo_path="/s", model="claude-sonnet-5-5[1m]")
     assert captured["base_branch"] == ""
 
 

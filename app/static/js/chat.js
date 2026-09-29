@@ -1075,7 +1075,7 @@ function buildCompactToolLine(type, content, ts, payload) {
                 icon = '👶';
                 const role = parsed.role ? ` · ${T(parsed.role)}` : '';
                 const task = parsed.task_id ? ` · #${taskNum(parsed.task_id)}` : '';
-                preview = `→ ${parsed.name || '?'} · ${_modelLabel(parsed.model || 'claude-sonnet-4-6')}${role}${task}`;
+                preview = `→ ${parsed.name || '?'} · ${_modelLabel(parsed.model || 'claude-sonnet-5-5[1m]')}${role}${task}`;
             }
             else if (rawName === 'mcp__orchestra__send_message') {
                 icon = '✉️';
@@ -2259,7 +2259,7 @@ function _renderFullToolCall(content, payload, div) {
             const d = JSON.parse(body);
             const workerName = d.name || '?';
             const task = d.task || '';
-            const model = d.model || 'claude-sonnet-4-6';
+            const model = d.model || 'claude-sonnet-5-5[1m]';
             const sysPrompt = d.system_prompt || '';
             const repoPath = d.repo_path || '';
 

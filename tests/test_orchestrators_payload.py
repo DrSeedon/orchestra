@@ -38,7 +38,7 @@ def _orch(dbmod, name, sid=None):
     sid = sid or str(uuid.uuid4())
     dbmod.save_session({
         "id": sid, "name": name, "scope": f"/p/{name}", "cwd": f"/p/{name}",
-        "model": "claude-sonnet-5[1m]", "system_prompt": BIG_PROMPT, "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": BIG_PROMPT, "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
         "base_branch": "main", "is_orchestrator": True, "color": "", "role": "orchestrator",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,

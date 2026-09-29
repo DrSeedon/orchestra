@@ -32,7 +32,7 @@ def _save(dbmod, name, *, orch: bool, scope=SCOPE, sid=None, role="orchestrator"
     sid = sid or str(uuid.uuid4())
     dbmod.save_session({
         "id": sid, "name": name, "scope": scope, "cwd": scope,
-        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
         "base_branch": "main", "is_orchestrator": orch, "color": "", "role": role,
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,

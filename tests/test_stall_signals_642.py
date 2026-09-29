@@ -162,7 +162,7 @@ async def test_pending_delivery_never_starts_the_stall_watch(monkeypatch):
     watch = MagicMock()
     monkeypatch.setattr("app.session.watch_turn_start", watch)
     session = AgentSession(
-        id="w-642", name="worker-642", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        id="w-642", name="worker-642", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         system_prompt="", created_at=datetime.now(timezone.utc),
     )
     session._compacting = True
@@ -189,7 +189,7 @@ async def test_idle_delivery_starts_the_stall_watch(monkeypatch):
     watch = MagicMock(return_value=asyncio.sleep(0))
     monkeypatch.setattr("app.session.watch_turn_start", watch)
     session = AgentSession(
-        id="w-642", name="worker-642", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+        id="w-642", name="worker-642", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         system_prompt="", created_at=datetime.now(timezone.utc),
     )
     backend = SimpleNamespace(send=AsyncMock(), active_turn_id=None)

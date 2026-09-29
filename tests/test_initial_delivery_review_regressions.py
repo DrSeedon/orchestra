@@ -77,7 +77,7 @@ async def test_masked_initial_delivery_excludes_the_persisted_history_row(monkey
         name="worker-311",
         scope="/scope-311",
         cwd="/tmp/worker-311",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         system_prompt="",
         created_at=datetime.now(timezone.utc),
         is_orchestrator=True,
