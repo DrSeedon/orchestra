@@ -88,7 +88,7 @@ roles:
     label: Worker
     order: 2
     model: claude-opus-5-5[1m]
-    effort: *effort_policy
+    effort: &worker_effort_policy {"claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, "claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
     # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
     skills: [laptop-access]
@@ -113,7 +113,7 @@ roles:
     # короче наших сессий. Правка обратимая и наблюдаемая: пошли разваливающиеся длинные ходы →
     # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol и Astra
     # ступени свои (#214, #373 и основания в комментарии над `roles:`).
-    effort: *effort_policy
+    effort: *worker_effort_policy
     # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
     # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
     skills: [laptop-access]
