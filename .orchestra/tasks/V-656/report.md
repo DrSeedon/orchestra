@@ -100,3 +100,19 @@ quota $2.16/36 против $2.14/38): CLI 2.1.280 по умолчанию да�
 Вывод на этих двух задачах: качество выходит на плато уже на low; high стоит ×2.4, xhigh ×5.3,
 max ×14.8 без измеримого прироста. Один прогон на уровень — разброс не измерен; задачи
 ограниченные, с ясным критерием, на открытых задачах плато может сдвинуться.
+
+## Внешние замеры effort (поиск 29.09, после этапа 2)
+
+- Artificial Analysis Intelligence Index v4.3.2: low 36 ($0.41/задача), medium 41 (29M выходных токенов
+  на весь индекс), high 47 (50M), max 56 (410M, $7.60/задача, ~193K выхода на задачу — больше всех
+  измеренных ими моделей). https://artificialanalysis.ai/articles/claude-sonnet-5-5 ,
+  https://artificialanalysis.ai/models/releases/claude-sonnet-5-5
+- CursorBench по effort (пересказ vellum.ai): medium 39.2, high 47.8, xhigh 53.1, max 55.5.
+  FrontierCode: xhigh 52.1 > max 46.2 (субагенты code-review → таймауты/выход за scope).
+  HealthBench: все пять уровней в пределах 0.7 п. https://www.vellum.ai/blog/claude-sonnet-5-5-benchmarks-explained
+- ComputingForGeeks (ручные задачи): max дал те же результаты за ~20× денег; low единственный
+  выпустил нерабочие манифесты для инфраструктуры. https://computingforgeeks.com/claude-sonnet-5-5-released-features-benchmarks/
+
+Расхождение с нашим этапом 2: на открытых/трудных наборах балл растёт до max (AA +20 п. от low
+до max), на наших двух ограниченных задачах плато уже на low. Это согласуется: прирост от effort
+приходится на трудные задачи, которые по нашей маршрутизации и так идут в Opus.
