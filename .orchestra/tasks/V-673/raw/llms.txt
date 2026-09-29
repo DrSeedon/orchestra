@@ -1,0 +1,53 @@
+# OpenAI Developers
+
+> Complete documentation hub for OpenAI API, Ads, Sign in with ChatGPT, Plugins, Workspace Agents, Codex, Agentic Commerce, the developer blog, Cookbook, learning resources, and learning tracks.
+
+Start with the product index that matches your task. Product indexes route to detailed pages; documentation indexes also provide Markdown pages and full-document exports.
+
+## Documentation sets
+- [OpenAI API guides and reference](https://developers.openai.com/api/llms.txt): Quickstart, Responses API, text and image generation, audio, Realtime and WebRTC, tools and function calling, evals, fine-tuning, models, and endpoint reference.
+- [Ads API and campaign documentation](https://developers.openai.com/ads/llms.txt): Partner setup, campaigns, targeting, creatives, product feeds, conversions, measurement, and Ads API reference.
+- [Sign in with ChatGPT](https://developers.openai.com/siwc/llms.txt): Quickstart, website and ChatGPT plugin integration, token sharing for open-source clients, and client ID registration.
+- [ChatGPT plugins and Apps SDK](https://developers.openai.com/plugins/llms.txt): Build plugins with MCP servers, tools, UI components, authentication, metadata, testing, deployment, review, and submission.
+- [Workspace Agents API](https://developers.openai.com/workspace-agents/llms.txt): Authenticate API calls, trigger published workspace agent runs, and inspect run results.
+- [Codex developer tools](https://developers.openai.com/codex/llms.txt): Codex CLI, IDE, cloud, config.toml, authentication, customization, automation, and security.
+- [ChatGPT product documentation](https://learn.chatgpt.com/llms.txt): ChatGPT Work, administration, collaboration, and product guidance.
+- [Agentic Commerce Protocol](https://developers.openai.com/commerce/llms.txt): Merchant onboarding, product feeds, checkout sessions, delegated payments, and production guidance.
+- [OpenAI developer blog](https://developers.openai.com/blog/llms.txt): Engineering articles, product launches, technical deep dives, and developer announcements.
+- [OpenAI Cookbook examples](https://developers.openai.com/cookbook/llms.txt): Practical code examples and patterns for APIs, agents, evals, multimodal applications, and integrations.
+- [Learning resources](https://developers.openai.com/learn/llms.txt): Videos, guides, and conceptual learning material for OpenAI developers.
+- [OpenAI developer showcase](https://developers.openai.com/showcase/llms.txt): Projects, demos, games, and applications built with OpenAI APIs and Codex.
+
+## Common tasks
+- [OpenAI API quickstart](https://developers.openai.com/api/docs/quickstart.md): Make your first API request with the OpenAI SDK and Responses API.
+- [Sign in with ChatGPT quickstart](https://developers.openai.com/siwc/quickstart.md): Add ChatGPT sign-in to your application.
+- [Plugin submission guide](https://developers.openai.com/plugins/deploy/submission.md): Prepare, review, submit, and publish a ChatGPT plugin.
+- [Image generation guide](https://developers.openai.com/api/docs/guides/image-generation.md): Generate and edit images with OpenAI image models and the API.
+- [Create a response API reference](https://developers.openai.com/api/reference/resources/responses/methods/create.md): Parameters and response schema for the Responses API create method.
+- [Evals guide](https://developers.openai.com/api/docs/guides/evals.md): Measure and improve model and application quality with OpenAI evals.
+- [Function calling guide](https://developers.openai.com/api/docs/guides/function-calling.md): Define tools and handle model requests to call application functions.
+- [Cookbook image evals](https://developers.openai.com/cookbook/examples/multimodal/image_evals.md): Build evals for image generation and editing applications.
+- [Realtime API with WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc.md): Connect browser and client applications to the Realtime API.
+- [Plugins and Apps SDK quickstart](https://developers.openai.com/plugins/build/app-quickstart.md): Build an MCP server with tools and an optional ChatGPT interface.
+- [Trigger workspace agent runs](https://developers.openai.com/workspace-agents/trigger-runs.md): Start ChatGPT workspace agents from backend systems and automations.
+- [Ads API quickstart](https://developers.openai.com/ads/api-quickstart.md): Launch your first Ads API workflow.
+- [Agentic checkout specification](https://developers.openai.com/commerce/specs/checkout.md): Implement the Agentic Commerce checkout flow.
+- [Codex configuration reference](https://developers.openai.com/codex/config-file/config-reference.md): Look up Codex config.toml and requirements.toml settings.
+- [Codex CLI customization](https://developers.openai.com/codex/cli-customization.md): Customize the terminal interface, editor, completions, and shortcuts.
+
+## Site navigation
+- [OpenAI Developers](https://developers.openai.com/): Developer documentation and resources from OpenAI.
+- [ChatGPT developer resources](https://developers.openai.com/chatgpt)
+- [Learning tracks](https://developers.openai.com/tracks.md)
+- [Showcase](https://developers.openai.com/showcase): Examples built with OpenAI APIs and Codex.
+- [Community](https://developers.openai.com/community): Programs, meetups, and support for OpenAI developers.
+- [Codex Ambassadors](https://developers.openai.com/community/codex-ambassadors)
+- [Codex for Open Source](https://developers.openai.com/community/codex-for-oss)
+- [Community hackathons](https://developers.openai.com/community/hackathons)
+- [Community events on Luma](https://luma.com/codex-community?utm_source=oaidevs)
+- [Codex for Students](https://developers.openai.com/community/students)
+
+## Learning tracks
+- [AI app development: Concept to production](https://developers.openai.com/tracks/ai-application-development.md): Build, deploy, and optimize AI apps.
+- [Building agents](https://developers.openai.com/tracks/building-agents.md): Learn how to build agents: Foundational concepts to practical implementation
+- [Model optimization](https://developers.openai.com/tracks/model-optimization.md): Fine-tune, distill, and optimize models for the best performance and cost.
