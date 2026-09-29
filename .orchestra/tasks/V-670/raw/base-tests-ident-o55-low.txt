@@ -1,0 +1,127 @@
+............FFFF                                                         [100%]
+=================================== FAILURES ===================================
+________ test_stale_branch_record_is_repaired_when_git_confirms_the_pin ________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_stale_branch_record_is_re0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_stale_branch_record_is_re0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/ident-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71d311ac2ae0>
+
+    @pytest.mark.asyncio
+    async def test_stale_branch_record_is_repaired_when_git_confirms_the_pin(
+        git_repo, wt_root, db, monkeypatch,
+    ):
+        """Git на закреплённой ветке и на закреплённом HEAD → мерж идёт, запись чинится."""
+        from app.workspace import create_worktree
+    
+        wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+        _commit(wt.path, "#V-575: готовая работа воркера")
+        pinned = _head(wt.path)
+        sid = str(uuid.uuid4())
+        db.save_session(_row(sid, str(git_repo), wt.path, _STALE))
+    
+        res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+    
+>       assert res.get("ok") is True, res.get("error")
+E       AssertionError: session branch changed before merge: expected task-17/worker, found adhoc-20260915T101900/worker
+E       assert False is True
+E        +  where False = <built-in method get of dict object at 0x71d311961d40>('ok')
+E        +    where <built-in method get of dict object at 0x71d311961d40> = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-17/worker, found adhoc-20260915T101900/worker', ...}.get
+
+tests/test_identity_drift.py:327: AssertionError
+__________ test_third_branch_state_is_refused_and_names_both_records ___________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_third_branch_state_is_ref0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_third_branch_state_is_ref0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/ident-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71d311ac7a40>
+
+    @pytest.mark.asyncio
+    async def test_third_branch_state_is_refused_and_names_both_records(
+        git_repo, wt_root, db, monkeypatch,
+    ):
+        """Git показывает ТРЕТЬЮ ветку: отказ, и в тексте обе записи, git и рабочий инструмент."""
+        from app.workspace import create_worktree
+    
+        wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+        _commit(wt.path, "#V-575: работа")
+        pinned = _head(wt.path)
+        subprocess.run(["git", "checkout", "-b", "sidetrack"], cwd=wt.path,
+                       capture_output=True, check=True)
+        sid = str(uuid.uuid4())
+        db.save_session(_row(sid, str(git_repo), wt.path, _STALE))
+        target_before = _head(git_repo)
+    
+        res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+    
+        assert res.get("ok") is False
+        assert res["commit_point"] == "not_reached"
+        for side in (_STALE, wt.branch, "sidetrack", "worker_wip"):
+>           assert side in res["error"], res["error"]
+E           AssertionError: session branch changed before merge: expected task-17/worker, found adhoc-20260915T101900/worker
+E           assert 'sidetrack' in 'session branch changed before merge: expected task-17/worker, found adhoc-20260915T101900/worker'
+
+tests/test_identity_drift.py:355: AssertionError
+_______________ test_advanced_head_with_stale_record_is_refused ________________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_advanced_head_with_stale_0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_advanced_head_with_stale_0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/ident-o55-low/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71d311ac5730>
+
+    @pytest.mark.asyncio
+    async def test_advanced_head_with_stale_record_is_refused(
+        git_repo, wt_root, db, monkeypatch,
+    ):
+        """Ветка та, а HEAD уехал: запись платформы чинится только под полным подтверждением."""
+        from app.workspace import create_worktree
+    
+        wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+        _commit(wt.path, "#V-575: принятая работа")
+        pinned = _head(wt.path)
+        _commit(wt.path, "#V-575: коммит после приёма")
+        sid = str(uuid.uuid4())
+        db.save_session(_row(sid, str(git_repo), wt.path, _STALE))
+        target_before = _head(git_repo)
+    
+        res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+    
+        assert res.get("ok") is False
+>       assert pinned in res["error"] and _head(wt.path) in res["error"]
+E       AssertionError: assert ('30b29fc3325c2db7a7f2ba70d351c35b96aa140a' in 'session branch changed before merge: expected task-17/worker, found adhoc-20260915T101900/worker')
+
+tests/test_identity_drift.py:378: AssertionError
+____________ test_unreadable_worktree_with_stale_record_is_refused _____________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_unreadable_worktree_with_0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_unreadable_worktree_with_0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/ident-o55-low/app/db.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11562/test_unreadable_worktree_with_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71d311acede0>
+
+    @pytest.mark.asyncio
+    async def test_unreadable_worktree_with_stale_record_is_refused(
+        git_repo, wt_root, db, tmp_path, monkeypatch,
+    ):
+        """Fail-closed: «не смог опросить worktree» — это отказ, а не проход."""
+        from app.workspace import create_worktree
+    
+        wt = create_worktree(str(git_repo), "worker", "17", base_branch="main")
+        pinned = _head(wt.path)
+        sid = str(uuid.uuid4())
+        db.save_session(_row(sid, str(git_repo), str(tmp_path / "gone"), _STALE))
+        target_before = _head(git_repo)
+    
+        res = await _merge_pinned(monkeypatch, git_repo, sid, wt.branch, pinned)
+    
+        assert res.get("ok") is False
+>       assert "could not be inspected" in res["error"]
+E       AssertionError: assert 'could not be inspected' in 'session branch changed before merge: expected task-17/worker, found adhoc-20260915T101900/worker'
+
+tests/test_identity_drift.py:399: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_identity_drift.py::test_stale_branch_record_is_repaired_when_git_confirms_the_pin
+FAILED tests/test_identity_drift.py::test_third_branch_state_is_refused_and_names_both_records
+FAILED tests/test_identity_drift.py::test_advanced_head_with_stale_record_is_refused
+FAILED tests/test_identity_drift.py::test_unreadable_worktree_with_stale_record_is_refused
+4 failed, 12 passed in 10.58s

@@ -1,0 +1,42 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________________ test_command_watch_polls_do_not_leak_pidfd __________________
+
+    @pytest.mark.asyncio
+    async def test_command_watch_polls_do_not_leak_pidfd():
+        mgr = BgJobManager()
+        base = _pidfd_count()
+        polls = 0
+    
+        async def fake_trigger(*a, **k):
+            pass
+    
+        mgr._trigger = fake_trigger
+        real_sleep = asyncio.sleep
+    
+        async def counting_sleep(_):
+            nonlocal polls
+            polls += 1
+            await real_sleep(0)
+    
+        task = asyncio.create_task(
+            mgr._run_command_watch("j", "true", "never-matches", 0, "m", "t", "s", 3600)
+        )
+        orig = asyncio.sleep
+        asyncio.sleep = counting_sleep
+        try:
+            while polls < 12:
+                await orig(0.01)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        finally:
+            asyncio.sleep = orig
+        await orig(0.1)
+>       assert _pidfd_count() - base <= 0
+E       assert (12 - 0) <= 0
+E        +  where 12 = _pidfd_count()
+
+tests/test_bg_command_watch_pidfd_leak.py:51: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_command_watch_pidfd_leak.py::test_command_watch_polls_do_not_leak_pidfd
+1 failed in 6.47s

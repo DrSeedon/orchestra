@@ -1,0 +1,16 @@
+
+==================================== ERRORS ====================================
+___________ ERROR collecting tests/test_worker_stall_signals_642.py ____________
+ImportError while importing test module '/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/stall-o55-low/tests/test_worker_stall_signals_642.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_worker_stall_signals_642.py:13: in <module>
+    from app.session_hibernate import SILENCE_SIGNAL_SECONDS, HibernateManager
+E   ImportError: cannot import name 'SILENCE_SIGNAL_SECONDS' from 'app.session_hibernate' (/home/kesha/orchestra/data/v656-bench/work-V-670/model-tests/stall-o55-low/app/session_hibernate.py)
+=========================== short test summary info ============================
+ERROR tests/test_worker_stall_signals_642.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.48s

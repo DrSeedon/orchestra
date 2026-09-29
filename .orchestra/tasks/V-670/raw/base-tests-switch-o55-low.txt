@@ -1,0 +1,113 @@
+FFFFF                                                                    [100%]
+=================================== FAILURES ===================================
+________________ test_idle_clean_switch_releases_previous_task _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11568/test_idle_clean_switch_release0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76c83662e5d0>
+
+    @pytest.mark.asyncio
+    async def test_idle_clean_switch_releases_previous_task(tmp_path, monkeypatch):
+        route, tm, _repo_path, old, new = _setup(tmp_path, monkeypatch)
+    
+        result = await route.switch_branch("w", {"scope": "/scope", "task_id": "6"})
+    
+>       assert result["ok"] is True, result
+E       AssertionError: {'branch': 'task-6/w', 'error': 'branch switch rolled back after task assignment failed: ValueError: open task run conflicts with current assignment provenance', 'ok': False, 'rollback': {'branch': 'task-5/w', 'ok': True}, ...}
+E       assert False is True
+
+tests/test_switch_release_v620.py:89: AssertionError
+___________ test_switch_can_close_previous_task_as_done_with_reason ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11568/test_switch_can_close_previous0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76c836837560>
+
+    @pytest.mark.asyncio
+    async def test_switch_can_close_previous_task_as_done_with_reason(tmp_path, monkeypatch):
+        route, tm, _repo_path, old, _new = _setup(tmp_path, monkeypatch)
+    
+        result = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "previous_task_done": "merged in abc"},
+        )
+    
+>       assert result["ok"] is True, result
+E       AssertionError: {'branch': 'task-6/w', 'error': 'branch switch rolled back after task assignment failed: ValueError: open task run conflicts with current assignment provenance', 'ok': False, 'rollback': {'branch': 'task-5/w', 'ok': True}, ...}
+E       assert False is True
+
+tests/test_switch_release_v620.py:107: AssertionError
+_____________________ test_done_requires_non_empty_reason ______________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11568/test_done_requires_non_empty_r0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76c833c2ee10>
+
+    @pytest.mark.asyncio
+    async def test_done_requires_non_empty_reason(tmp_path, monkeypatch):
+        route, tm, _repo_path, old, _new = _setup(tmp_path, monkeypatch)
+    
+        result = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "previous_task_done": "  "},
+        )
+    
+>       assert result.status_code == 400
+               ^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_release_v620.py:122: AttributeError
+____________ test_dirty_or_unmerged_tree_keeps_binding[uncommitted] ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11568/test_dirty_or_unmerged_tree_ke0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76c833c2e9c0>
+dirty = 'uncommitted'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("dirty", ["uncommitted", "unmerged"])
+    async def test_dirty_or_unmerged_tree_keeps_binding(tmp_path, monkeypatch, dirty):
+        route, tm, repo, old, _new = _setup(tmp_path, monkeypatch)
+        (repo / "b.txt").write_text("b\n")
+        if dirty == "unmerged":
+            _git(repo, "add", "b.txt")
+            _git(repo, "commit", "-qm", "work")
+    
+        result = await route.switch_branch("w", {"scope": "/scope", "task_id": "6"})
+        assert result["ok"] is False
+        explicit = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "force": True,
+                  "previous_task_done": "x"},
+        )
+>       assert explicit.status_code == 409
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_release_v620.py:141: AttributeError
+_____________ test_dirty_or_unmerged_tree_keeps_binding[unmerged] ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11568/test_dirty_or_unmerged_tree_ke1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76c833a637a0>
+dirty = 'unmerged'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("dirty", ["uncommitted", "unmerged"])
+    async def test_dirty_or_unmerged_tree_keeps_binding(tmp_path, monkeypatch, dirty):
+        route, tm, repo, old, _new = _setup(tmp_path, monkeypatch)
+        (repo / "b.txt").write_text("b\n")
+        if dirty == "unmerged":
+            _git(repo, "add", "b.txt")
+            _git(repo, "commit", "-qm", "work")
+    
+        result = await route.switch_branch("w", {"scope": "/scope", "task_id": "6"})
+        assert result["ok"] is False
+        explicit = await route.switch_branch(
+            "w", {"scope": "/scope", "task_id": "6", "force": True,
+                  "previous_task_done": "x"},
+        )
+>       assert explicit.status_code == 409
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_release_v620.py:141: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_switch_release_v620.py::test_idle_clean_switch_releases_previous_task
+FAILED tests/test_switch_release_v620.py::test_switch_can_close_previous_task_as_done_with_reason
+FAILED tests/test_switch_release_v620.py::test_done_requires_non_empty_reason
+FAILED tests/test_switch_release_v620.py::test_dirty_or_unmerged_tree_keeps_binding[uncommitted]
+FAILED tests/test_switch_release_v620.py::test_dirty_or_unmerged_tree_keeps_binding[unmerged]
+5 failed in 9.47s

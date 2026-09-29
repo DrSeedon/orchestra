@@ -1,0 +1,58 @@
+FF.F                                                                     [100%]
+=================================== FAILURES ===================================
+________ test_git_confirms_pinned_branch_merge_passes_and_record_synced ________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11563/test_git_confirms_pinned_branc0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72609c8c8b90>
+
+    async def test_git_confirms_pinned_branch_merge_passes_and_record_synced(tmp_path, monkeypatch):
+        import app.routes.sessions as route
+        db, repo, scope, tree, head, worker = await _setup(tmp_path, monkeypatch, "adhoc-1/rec-worker")
+        worker.branch = "adhoc-1/rec-worker"
+        result = await _call(route, worker, scope, tree.branch, head)
+>       assert result["ok"] is True, result
+E       AssertionError: {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-42/rec-worker, found adhoc-1/rec-worker', ...}
+E       assert False is True
+
+tests/test_merge_branch_record.py:47: AssertionError
+__________________ test_third_state_refuses_naming_both_sides __________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11563/test_third_state_refuses_namin0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x72609e9b18b0>
+
+    async def test_third_state_refuses_naming_both_sides(tmp_path, monkeypatch):
+        import app.routes.sessions as route
+        db, repo, scope, tree, head, worker = await _setup(tmp_path, monkeypatch, "adhoc-1/rec-worker")
+        before = subprocess.check_output(["git", "rev-parse", "main"], cwd=repo, text=True).strip()
+        result = await _call(route, worker, scope, "task-99/other", head)
+        assert result["ok"] is False and result["commit_point"] == "not_reached"
+        msg = result["error"]
+>       assert "adhoc-1/rec-worker" in msg and tree.branch in msg and "switch-branch" in msg
+E       AssertionError: assert ('adhoc-1/rec-worker' in 'session branch changed before merge: expected task-99/other, found adhoc-1/rec-worker' and 'task-42/rec-worker' in 'session branch changed before merge: expected task-99/other, found adhoc-1/rec-worker')
+E        +  where 'task-42/rec-worker' = Worktree(path='/tmp/pytest-of-kesha/pytest-11563/test_third_state_refuses_namin0/worktrees/tmp-pytest-of-kesha-pytest-...rec-worker', branch='task-42/rec-worker', branch_created=True, initial_head='4494361868d56550cb6e49d9715504fa61037f52').branch
+
+tests/test_merge_branch_record.py:58: AssertionError
+___________________ test_uninspectable_worktree_fails_closed ___________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11563/test_uninspectable_worktree_fa0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x726099c99b20>
+
+    async def test_uninspectable_worktree_fails_closed(tmp_path, monkeypatch):
+        import app.routes.sessions as route
+        db, repo, scope, tree, head, worker = await _setup(tmp_path, monkeypatch, "adhoc-1/rec-worker")
+    
+        def boom(_path):
+            raise RuntimeError("cannot inspect worker branch: boom")
+    
+        monkeypatch.setattr("app.workspace.inspect_worktree_identity", boom)
+        result = await _call(route, worker, scope, tree.branch, head)
+        assert result["ok"] is False
+>       assert "cannot be inspected" in result["error"]
+E       AssertionError: assert 'cannot be inspected' in 'session branch changed before merge: expected task-42/rec-worker, found adhoc-1/rec-worker'
+
+tests/test_merge_branch_record.py:81: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record.py::test_git_confirms_pinned_branch_merge_passes_and_record_synced
+FAILED tests/test_merge_branch_record.py::test_third_state_refuses_naming_both_sides
+FAILED tests/test_merge_branch_record.py::test_uninspectable_worktree_fails_closed
+3 failed, 1 passed in 10.20s
