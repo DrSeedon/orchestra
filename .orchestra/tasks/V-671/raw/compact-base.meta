@@ -1,0 +1,5 @@
+revision=12feb777
+command=/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest tests/test_agentic_compact_650.py -q
+worktree=/home/kesha/orchestra/data/v671-wt/compact-base
+copied oracle test from 44362f25 into base worktree; py312-rag-v2 python -m pytest; imports from /home/kesha/orchestra/data/v671-wt/compact-base
+returncode=1

@@ -1,0 +1,352 @@
+F.FFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+________________ test_prepare_journal_writes_python_grep_source ________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_prepare_journal_writes_py0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f56e6840>
+
+    def test_prepare_journal_writes_python_grep_source(tmp_path, monkeypatch):
+        rows = [{
+            "id": 7, "ts": "2026-09-28T10:00:00Z", "type": "user_message",
+            "content": "do not push commit abc123", "tool_name": None, "tool_is_error": False,
+        }]
+        monkeypatch.setattr("app.agentic_compact.db.get_compact_segment", lambda session_id: rows)
+    
+>       journal = asyncio.run(agentic_compact.prepare_journal("s-650", tmp_path / "audit"))
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.agentic_compact' has no attribute 'prepare_journal'. Did you mean: 'write_journal'?
+
+tests/test_agentic_compact_650.py:22: AttributeError
+_________ test_final_replaces_draft_in_ack_and_pass_cost_is_accounted __________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_final_replaces_draft_in_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f5179850>
+
+    def test_final_replaces_draft_in_ack_and_pass_cost_is_accounted(tmp_path, monkeypatch):
+>       session, result, backend, logs, ack = _compact(tmp_path, monkeypatch)
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agentic_compact_650.py:154: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_final_replaces_draft_in_a0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f5179850>
+
+    def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=False):
+        from app.session import AgentSession
+    
+        monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", enabled)
+        monkeypatch.setenv("AGENTIC_COMPACT_TIMEOUT", "0" if mode == "timeout" else "5")
+        monkeypatch.setenv("AGENTIC_COMPACT_MAX_CHARS", "10" if mode == "long" else "25000")
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        monkeypatch.setattr("app.session._preserved_tail", lambda *a, **k: "")
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        audit_root = tmp_path / "data" / "compact-sandbox"
+        monkeypatch.setattr(agentic_compact, "sandbox_root", lambda: audit_root)
+        logs = []
+        session = AgentSession(
+            id="s-650", name="w650", scope=str(tmp_path), cwd=str(tmp_path),
+            model="claude-opus-5[1m]", system_prompt="role",
+            created_at=datetime.now(timezone.utc),
+        )
+        session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+        session._persist = lambda: None
+        session._drain_persist = lambda: asyncio.sleep(0)
+        session._wake_durable_message_deliveries = lambda: None
+        backend = _Backend(
+            tmp_path, mode=mode,
+            on_audit_end=(lambda: setattr(session, "_turn_start_cancel_gen", 1))
+            if stop_between else None,
+        )
+    
+        async def prepare_journal(session_id, directory):
+            journal = directory / "journal"
+            journal.mkdir()
+            return journal
+    
+>       monkeypatch.setattr(agentic_compact, "prepare_journal", prepare_journal)
+E       AttributeError: <module 'app.agentic_compact' from '/home/kesha/orchestra/data/v671-wt/compact-base/app/agentic_compact.py'> has no attribute 'prepare_journal'
+
+tests/test_agentic_compact_650.py:135: AttributeError
+________________ test_audit_failure_uses_draft_and_logs_reason _________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_audit_failure_uses_draft_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f56e5b80>
+
+    def test_audit_failure_uses_draft_and_logs_reason(tmp_path, monkeypatch):
+>       session, result, backend, logs, ack = _compact(tmp_path, monkeypatch, mode="fail")
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agentic_compact_650.py:172: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_audit_failure_uses_draft_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f56e5b80>
+
+    def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=False):
+        from app.session import AgentSession
+    
+        monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", enabled)
+        monkeypatch.setenv("AGENTIC_COMPACT_TIMEOUT", "0" if mode == "timeout" else "5")
+        monkeypatch.setenv("AGENTIC_COMPACT_MAX_CHARS", "10" if mode == "long" else "25000")
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        monkeypatch.setattr("app.session._preserved_tail", lambda *a, **k: "")
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        audit_root = tmp_path / "data" / "compact-sandbox"
+        monkeypatch.setattr(agentic_compact, "sandbox_root", lambda: audit_root)
+        logs = []
+        session = AgentSession(
+            id="s-650", name="w650", scope=str(tmp_path), cwd=str(tmp_path),
+            model="claude-opus-5[1m]", system_prompt="role",
+            created_at=datetime.now(timezone.utc),
+        )
+        session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+        session._persist = lambda: None
+        session._drain_persist = lambda: asyncio.sleep(0)
+        session._wake_durable_message_deliveries = lambda: None
+        backend = _Backend(
+            tmp_path, mode=mode,
+            on_audit_end=(lambda: setattr(session, "_turn_start_cancel_gen", 1))
+            if stop_between else None,
+        )
+    
+        async def prepare_journal(session_id, directory):
+            journal = directory / "journal"
+            journal.mkdir()
+            return journal
+    
+>       monkeypatch.setattr(agentic_compact, "prepare_journal", prepare_journal)
+E       AttributeError: <module 'app.agentic_compact' from '/home/kesha/orchestra/data/v671-wt/compact-base/app/agentic_compact.py'> has no attribute 'prepare_journal'
+
+tests/test_agentic_compact_650.py:135: AttributeError
+__________ test_timeout_empty_and_oversized_final_fall_back_to_draft ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_timeout_empty_and_oversiz0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f315cad0>
+
+    def test_timeout_empty_and_oversized_final_fall_back_to_draft(tmp_path, monkeypatch):
+        for mode, reason in (("timeout", "timeout"), ("empty", "empty summary"), ("long", "too long")):
+            case_dir = tmp_path / mode
+            case_dir.mkdir()
+>           _, result, _, logs, ack = _compact(case_dir, monkeypatch, mode=mode)
+                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agentic_compact_650.py:186: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_timeout_empty_and_oversiz0/timeout')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f315cad0>
+
+    def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=False):
+        from app.session import AgentSession
+    
+        monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", enabled)
+        monkeypatch.setenv("AGENTIC_COMPACT_TIMEOUT", "0" if mode == "timeout" else "5")
+        monkeypatch.setenv("AGENTIC_COMPACT_MAX_CHARS", "10" if mode == "long" else "25000")
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        monkeypatch.setattr("app.session._preserved_tail", lambda *a, **k: "")
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        audit_root = tmp_path / "data" / "compact-sandbox"
+        monkeypatch.setattr(agentic_compact, "sandbox_root", lambda: audit_root)
+        logs = []
+        session = AgentSession(
+            id="s-650", name="w650", scope=str(tmp_path), cwd=str(tmp_path),
+            model="claude-opus-5[1m]", system_prompt="role",
+            created_at=datetime.now(timezone.utc),
+        )
+        session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+        session._persist = lambda: None
+        session._drain_persist = lambda: asyncio.sleep(0)
+        session._wake_durable_message_deliveries = lambda: None
+        backend = _Backend(
+            tmp_path, mode=mode,
+            on_audit_end=(lambda: setattr(session, "_turn_start_cancel_gen", 1))
+            if stop_between else None,
+        )
+    
+        async def prepare_journal(session_id, directory):
+            journal = directory / "journal"
+            journal.mkdir()
+            return journal
+    
+>       monkeypatch.setattr(agentic_compact, "prepare_journal", prepare_journal)
+E       AttributeError: <module 'app.agentic_compact' from '/home/kesha/orchestra/data/v671-wt/compact-base/app/agentic_compact.py'> has no attribute 'prepare_journal'
+
+tests/test_agentic_compact_650.py:135: AttributeError
+__________ test_stop_after_audit_prevents_final_and_aborts_compaction __________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_stop_after_audit_prevents0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f311a810>
+
+    def test_stop_after_audit_prevents_final_and_aborts_compaction(tmp_path, monkeypatch):
+>       _, result, backend, logs, ack = _compact(
+            tmp_path, monkeypatch, stop_between=True,
+        )
+
+tests/test_agentic_compact_650.py:194: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_stop_after_audit_prevents0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f311a810>
+
+    def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=False):
+        from app.session import AgentSession
+    
+        monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", enabled)
+        monkeypatch.setenv("AGENTIC_COMPACT_TIMEOUT", "0" if mode == "timeout" else "5")
+        monkeypatch.setenv("AGENTIC_COMPACT_MAX_CHARS", "10" if mode == "long" else "25000")
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        monkeypatch.setattr("app.session._preserved_tail", lambda *a, **k: "")
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        audit_root = tmp_path / "data" / "compact-sandbox"
+        monkeypatch.setattr(agentic_compact, "sandbox_root", lambda: audit_root)
+        logs = []
+        session = AgentSession(
+            id="s-650", name="w650", scope=str(tmp_path), cwd=str(tmp_path),
+            model="claude-opus-5[1m]", system_prompt="role",
+            created_at=datetime.now(timezone.utc),
+        )
+        session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+        session._persist = lambda: None
+        session._drain_persist = lambda: asyncio.sleep(0)
+        session._wake_durable_message_deliveries = lambda: None
+        backend = _Backend(
+            tmp_path, mode=mode,
+            on_audit_end=(lambda: setattr(session, "_turn_start_cancel_gen", 1))
+            if stop_between else None,
+        )
+    
+        async def prepare_journal(session_id, directory):
+            journal = directory / "journal"
+            journal.mkdir()
+            return journal
+    
+>       monkeypatch.setattr(agentic_compact, "prepare_journal", prepare_journal)
+E       AttributeError: <module 'app.agentic_compact' from '/home/kesha/orchestra/data/v671-wt/compact-base/app/agentic_compact.py'> has no attribute 'prepare_journal'
+
+tests/test_agentic_compact_650.py:135: AttributeError
+___________ test_switch_off_uses_native_draft_without_agentic_passes ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_switch_off_uses_native_dr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f31d2720>
+
+    def test_switch_off_uses_native_draft_without_agentic_passes(tmp_path, monkeypatch):
+>       session, result, backend, logs, ack = _compact(
+            tmp_path, monkeypatch, enabled="0",
+        )
+
+tests/test_agentic_compact_650.py:205: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_switch_off_uses_native_dr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f31d2720>
+
+    def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=False):
+        from app.session import AgentSession
+    
+        monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", enabled)
+        monkeypatch.setenv("AGENTIC_COMPACT_TIMEOUT", "0" if mode == "timeout" else "5")
+        monkeypatch.setenv("AGENTIC_COMPACT_MAX_CHARS", "10" if mode == "long" else "25000")
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        monkeypatch.setattr("app.session._preserved_tail", lambda *a, **k: "")
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        audit_root = tmp_path / "data" / "compact-sandbox"
+        monkeypatch.setattr(agentic_compact, "sandbox_root", lambda: audit_root)
+        logs = []
+        session = AgentSession(
+            id="s-650", name="w650", scope=str(tmp_path), cwd=str(tmp_path),
+            model="claude-opus-5[1m]", system_prompt="role",
+            created_at=datetime.now(timezone.utc),
+        )
+        session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+        session._persist = lambda: None
+        session._drain_persist = lambda: asyncio.sleep(0)
+        session._wake_durable_message_deliveries = lambda: None
+        backend = _Backend(
+            tmp_path, mode=mode,
+            on_audit_end=(lambda: setattr(session, "_turn_start_cancel_gen", 1))
+            if stop_between else None,
+        )
+    
+        async def prepare_journal(session_id, directory):
+            journal = directory / "journal"
+            journal.mkdir()
+            return journal
+    
+>       monkeypatch.setattr(agentic_compact, "prepare_journal", prepare_journal)
+E       AttributeError: <module 'app.agentic_compact' from '/home/kesha/orchestra/data/v671-wt/compact-base/app/agentic_compact.py'> has no attribute 'prepare_journal'
+
+tests/test_agentic_compact_650.py:135: AttributeError
+_____ test_limit_warning_during_audit_keeps_final_but_rejection_falls_back _____
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_limit_warning_during_audi0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f32759a0>
+
+    def test_limit_warning_during_audit_keeps_final_but_rejection_falls_back(tmp_path, monkeypatch):
+        # The weekly-limit warning arrives on every turn above 75%; only a rejection stops the passes.
+>       _session, result, _backend, _logs, ack = _compact(tmp_path / "warn", monkeypatch, mode="limit_warning")
+                                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_agentic_compact_650.py:218: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11804/test_limit_warning_during_audi0/warn')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e59f32759a0>
+
+    def _compact(tmp_path, monkeypatch, *, mode="ok", enabled="1", stop_between=False):
+        from app.session import AgentSession
+    
+        monkeypatch.setenv("AGENTIC_COMPACT_ENABLED", enabled)
+        monkeypatch.setenv("AGENTIC_COMPACT_TIMEOUT", "0" if mode == "timeout" else "5")
+        monkeypatch.setenv("AGENTIC_COMPACT_MAX_CHARS", "10" if mode == "long" else "25000")
+        monkeypatch.setattr("app.session.save_session", MagicMock())
+        monkeypatch.setattr("app.session._claude_subscription_limit_active", lambda: False)
+        monkeypatch.setattr("app.session._preserved_tail", lambda *a, **k: "")
+        monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        audit_root = tmp_path / "data" / "compact-sandbox"
+        monkeypatch.setattr(agentic_compact, "sandbox_root", lambda: audit_root)
+        logs = []
+        session = AgentSession(
+            id="s-650", name="w650", scope=str(tmp_path), cwd=str(tmp_path),
+            model="claude-opus-5[1m]", system_prompt="role",
+            created_at=datetime.now(timezone.utc),
+        )
+        session._log = lambda kind, content, **kwargs: logs.append((kind, content))
+        session._persist = lambda: None
+        session._drain_persist = lambda: asyncio.sleep(0)
+        session._wake_durable_message_deliveries = lambda: None
+        backend = _Backend(
+            tmp_path, mode=mode,
+            on_audit_end=(lambda: setattr(session, "_turn_start_cancel_gen", 1))
+            if stop_between else None,
+        )
+    
+        async def prepare_journal(session_id, directory):
+            journal = directory / "journal"
+            journal.mkdir()
+            return journal
+    
+>       monkeypatch.setattr(agentic_compact, "prepare_journal", prepare_journal)
+E       AttributeError: <module 'app.agentic_compact' from '/home/kesha/orchestra/data/v671-wt/compact-base/app/agentic_compact.py'> has no attribute 'prepare_journal'
+
+tests/test_agentic_compact_650.py:135: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_agentic_compact_650.py::test_prepare_journal_writes_python_grep_source
+FAILED tests/test_agentic_compact_650.py::test_final_replaces_draft_in_ack_and_pass_cost_is_accounted
+FAILED tests/test_agentic_compact_650.py::test_audit_failure_uses_draft_and_logs_reason
+FAILED tests/test_agentic_compact_650.py::test_timeout_empty_and_oversized_final_fall_back_to_draft
+FAILED tests/test_agentic_compact_650.py::test_stop_after_audit_prevents_final_and_aborts_compaction
+FAILED tests/test_agentic_compact_650.py::test_switch_off_uses_native_draft_without_agentic_passes
+FAILED tests/test_agentic_compact_650.py::test_limit_warning_during_audit_keeps_final_but_rejection_falls_back
+7 failed, 1 passed in 5.16s
