@@ -136,16 +136,15 @@ class TestDefaultRolesResolve:
         assert "sub-orchestrator" not in rr.can_spawn
         assert rr.allow_unrouted_workers is True
 
-    def test_effort_policy_is_consistent_across_roles(self):
-        """Карта модель→ступень одна на все роли. Содержимое НЕ фиксируем: значения
-        меняются по замерам (#208, #373), и тест на их список краснел бы на каждом
-        новом маршруте. Ловится расхождение между ролями и потеря карты."""
+    def test_every_role_has_an_effort_policy(self):
+        """У каждой роли есть карта модель→ступень с default. Содержимое и равенство карт
+        между ролями НЕ фиксируем: с 29.09 оркестраторы и воркеры намеренно на разных
+        ступенях Opus (решение владельца, V-670), а значения меняются по замерам.
+        Ловится потеря карты или default."""
         cfg = P.load_pipeline(PIPELINE)
-        specs = [spec.effort for spec in cfg.roles.values()]
-
-        assert all(isinstance(spec, dict) and spec for spec in specs)
-        assert all(spec == specs[0] for spec in specs), "роли разъехались по ступеням"
-        assert "default" in specs[0], "без default новая модель останется без ступени"
+        for name, spec in cfg.roles.items():
+            assert isinstance(spec.effort, dict) and spec.effort, name
+            assert "default" in spec.effort, f"{name}: без default новая модель останется без ступени"
 
     def test_modules_resolve_from_manifest(self):
         import yaml
