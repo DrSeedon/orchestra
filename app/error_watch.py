@@ -32,6 +32,10 @@ _NOISE = (
     ("agent shell syntax", re.compile(r"-c: line (?:\d+|<N>): syntax error", re.I)),
     ("agent missing python package", re.compile(r"File \"<stdin>\".*ModuleNotFoundError", re.I)),
     ("Bash hook fail-open under load", re.compile(r"PreToolUse failed open \(TimeoutError\): classifier deadline", re.I)),
+    # uvicorn cuts open SSE connections on every service restart; the chained-traceback
+    # line carries no cause of its own — the real exception is logged as a separate line.
+    ("restart graceful-shutdown timeout", re.compile(r"Cancel (?:\d+|<N>) running task\(s\), timeout graceful shutdown exceeded", re.I)),
+    ("traceback chaining line", re.compile(r"^During handling of the above exception, another exception occurred:$", re.I)),
 )
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
 _LONG_HEX = re.compile(r"\b(?:0x)?[0-9a-f]{12,}\b", re.I)
