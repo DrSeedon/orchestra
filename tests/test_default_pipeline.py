@@ -66,7 +66,7 @@ class TestDefaultManifestLoads:
         cfg = P.load_pipeline(PIPELINE)
         d = cfg.defaults
         assert d.model == "opus"
-        assert d.skills == ["html-artifacts"]  # unified visuals are available to every role
+        assert d.skills == ["html-artifacts", "html-motion"]  # unified visuals + animation companion for every role
         assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
         assert d.base_branch_strategy == "main"  # все worktree от main
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
@@ -96,17 +96,24 @@ class TestDefaultManifestLoads:
 
 # ── resolve_role: локальные модели и kind ──────────────────────────────────
 
+def _manifest_model(role: str) -> str:
+    """Модель роли прямо из pipeline.yaml: тест проверяет, что resolve отдаёт значение манифеста,
+    а не конкретный литерал, который устаревает с каждой сменой модели."""
+    raw = yaml.safe_load((Path(__file__).parents[1] / ".orchestra/pipelines/default/pipeline.yaml").read_text())
+    return raw["roles"][role]["model"]
+
+
 class TestDefaultRolesResolve:
     def test_worker_model_resolves_to_opus5(self):
         rr = P.get_role(PIPELINE, "worker")
         assert rr is not None
-        assert rr.model == "claude-opus-5[1m]"
+        assert rr.model == _manifest_model("worker")
 
     def test_orchestrator_is_orchestrator(self):
         rr = P.get_role(PIPELINE, "orchestrator")
         assert rr is not None
         assert rr.is_orchestrator is True
-        assert rr.model == "claude-opus-5[1m]"
+        assert rr.model == _manifest_model("orchestrator")
 
     def test_worker_and_full_cycle_are_not_orchestrators(self):
         """worker И full-cycle — воркеры (оркестратор спавнит их как исполнителей)."""
@@ -118,14 +125,14 @@ class TestDefaultRolesResolve:
     def test_full_cycle_model_opus5(self):
         rr = P.get_role(PIPELINE, "full-cycle")
         assert rr is not None
-        assert rr.model == "claude-opus-5[1m]"
+        assert rr.model == _manifest_model("full-cycle")
 
     def test_sub_orchestrator_is_orchestrator_opus5(self):
         """sub-orchestrator — kind:orchestrator, Opus 5, can_spawn=['*']."""
         rr = P.get_role(PIPELINE, "sub-orchestrator")
         assert rr is not None
         assert rr.is_orchestrator is True
-        assert rr.model == "claude-opus-5[1m]"
+        assert rr.model == _manifest_model("sub-orchestrator")
         assert "sub-orchestrator" not in rr.can_spawn
         assert rr.allow_unrouted_workers is True
 
@@ -211,7 +218,7 @@ class TestDefaultRolesResolve:
     def test_orchestrator_skills_from_manifest(self):
         rr = P.get_role(PIPELINE, "orchestrator")
         assert set(rr.skills) == {
-            "html-artifacts", "vps-deploy", "grill-me", "orchestra-agents", "laptop-access",
+            "html-artifacts", "html-motion", "vps-deploy", "grill-me", "orchestra-agents", "laptop-access",
         }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):

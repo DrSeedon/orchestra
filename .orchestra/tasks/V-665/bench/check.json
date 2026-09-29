@@ -1,0 +1,72 @@
+{
+ "chromium": [
+  {
+   "file": "a-states.html",
+   "errors": [],
+   "works": true,
+   "seek_back_diff_px": 0,
+   "pause_t": 2.3,
+   "pause_vs_seek_diff_px": 0,
+   "end_t": 8,
+   "end_vs_seek_diff_px": 0,
+   "space_play_then_pause": true,
+   "arrow_right_t": 2,
+   "arrow_right2_t": 4,
+   "arrow_left_t": 2,
+   "caption_at_end_of_step1": "1. Владелец ставит задачу"
+  },
+  {
+   "file": "b-waapi.html",
+   "errors": [],
+   "works": true,
+   "seek_back_diff_px": 0,
+   "pause_t": 2.383,
+   "pause_vs_seek_diff_px": 0,
+   "end_t": 8,
+   "end_vs_seek_diff_px": 1684,
+   "space_play_then_pause": true,
+   "arrow_right_t": 2,
+   "arrow_right2_t": 4,
+   "arrow_left_t": 2,
+   "caption_at_end_of_step1": "1. Владелец ставит задачу"
+  },
+  {
+   "file": "c-gsap-cdn.html",
+   "errors": [
+    "Failed to load resource: net::ERR_INTERNET_DISCONNECTED",
+    "gsap is not defined"
+   ],
+   "works": false
+  },
+  {
+   "file": "c-gsap-inline.html",
+   "errors": [],
+   "works": true,
+   "seek_back_diff_px": 0,
+   "pause_t": 2.356,
+   "pause_vs_seek_diff_px": 0,
+   "end_t": 8,
+   "end_vs_seek_diff_px": 0,
+   "space_play_then_pause": true,
+   "arrow_right_t": 2,
+   "arrow_right2_t": 4,
+   "arrow_left_t": 2,
+   "caption_at_end_of_step1": "1. Владелец ставит задачу"
+  },
+  {
+   "file": "d-canvas.html",
+   "errors": [],
+   "works": true,
+   "seek_back_diff_px": 0,
+   "pause_t": 2.317,
+   "pause_vs_seek_diff_px": 0,
+   "end_t": 8,
+   "end_vs_seek_diff_px": 0,
+   "space_play_then_pause": true,
+   "arrow_right_t": 2,
+   "arrow_right2_t": 4,
+   "arrow_left_t": 2,
+   "caption_at_end_of_step1": "1. Владелец ставит задачу"
+  }
+ ]
+}

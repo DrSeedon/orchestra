@@ -1,0 +1,59 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C · GSAP (CDN)</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+.mv{max-width:980px;margin:16px auto;background:#fff;border-radius:12px;padding:14px 16px}
+.mv h1{font-size:21px;margin:0 0 8px}.mv svg{width:100%;height:auto;display:block}
+.cap{min-height:3.4em;margin:8px 0}.cap b{display:block;font-size:16px}
+.bar{display:flex;gap:6px;align-items:center}.bar input{flex:1}
+.bar button,.bar select{border:1px solid #d2d2d7;background:#fff;border-radius:8px;padding:4px 10px;font:inherit;cursor:pointer}
+#clock{font-variant-numeric:tabular-nums;min-width:92px;text-align:right;color:#6e6e73}
+.ch{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 0;padding:0;list-style:none}
+.ch li{padding:3px 9px;border-radius:8px;background:#f5f5f7;cursor:pointer}.ch li.on{background:#007aff;color:#fff}
+@media print{.bar{display:none}}
+</style></head><body>
+<div class="mv">
+<h1>Путь задачи (бенч: одинаковая сцена для всех техник)</h1>
+<svg id="stage" viewBox="0 0 900 220" role="img" aria-labelledby="st"><title id="st">Задача идёт от владельца к воркеру</title>
+ <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#86868b"/></marker></defs>
+ <path id="e1" d="M190 110H350" stroke="#86868b" stroke-width="2" marker-end="url(#ar)" fill="none"/>
+ <path id="e2" d="M550 110H710" stroke="#86868b" stroke-width="2" marker-end="url(#ar)" fill="none"/>
+ <rect id="n1" x="40" y="75" width="150" height="70" rx="12" fill="#ffffff" stroke="#007aff" stroke-width="2"/>
+ <rect id="n2" x="350" y="75" width="200" height="70" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <rect id="n3" x="710" y="75" width="150" height="70" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <text x="115" y="115" text-anchor="middle">Владелец</text><text x="450" y="115" text-anchor="middle">Оркестратор</text><text x="785" y="115" text-anchor="middle">Воркер</text>
+ <circle id="dot" r="9" fill="#007aff" opacity="0"/>
+ <text id="st3" x="785" y="170" text-anchor="middle" fill="#6e6e73">ожидает</text>
+</svg>
+<div class="cap" aria-live="polite"><b id="capT"></b><span id="capX"></span></div>
+<div class="bar"><button id="bPrev" aria-label="Предыдущий шаг">⏮</button><button id="bPlay" aria-label="Пуск или пауза">▶</button><button id="bNext" aria-label="Следующий шаг">⏭</button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Время"><span id="clock"></span>
+ <select id="rate" aria-label="Скорость"><option>0.5</option><option selected>1</option><option>2</option></select></div>
+<ol class="ch" id="chap"></ol>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3/dist/gsap.min.js"></script>
+<script>
+// ── СЦЕНА ──
+const STEPS=[{d:2,t:'Владелец ставит задачу',x:'Задача появляется у владельца.'},{d:2,t:'Задача уходит оркестратору',x:'Оркестратор получает постановку.'},
+ {d:2,t:'Оркестратор назначает воркера',x:'Воркер берёт задачу в работу.'},{d:2,t:'Воркер сделал',x:'Результат готов к мержу.'}];
+const $=id=>document.getElementById(id),tl=gsap.timeline({paused:true,defaults:{ease:'power1.inOut',duration:2}});
+gsap.set('#dot',{x:190,y:110});
+tl.fromTo('#dot',{attr:{opacity:0}},{attr:{opacity:1}},0)
+ .to('#dot',{x:350},2).to('#n2',{attr:{stroke:'#007aff'}},2)
+ .set('#dot',{x:550},4).to('#dot',{x:710},4).to('#n3',{attr:{stroke:'#007aff'}},4)
+ .to('#dot',{attr:{opacity:0}},6).to('#n3',{attr:{fill:'#e8f7ec',stroke:'#34c759'}},6);
+const sync=t=>{$('st3').textContent=t>6?'готово':'ожидает';$('st3').setAttribute('fill',t>6?'#248a3d':'#6e6e73')}; // текст — вручную
+// ── ПЛЕЕР ──
+const P=(()=>{const S=[];let T=0,ci=-1;for(const s of STEPS){S.push(T);T+=s.d}
+ const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
+ function ui(){const t=tl.time(),i=at(t);sync(t);$('seek').value=t;$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' с';
+  if(i!==ci){ci=i;$('capT').textContent=(i+1)+'. '+STEPS[i].t;$('capX').textContent=STEPS[i].x;[...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}}
+ tl.eventCallback('onUpdate',ui);tl.eventCallback('onComplete',()=>{tl.pause();$('bPlay').textContent='▶'});
+ const seek=v=>{tl.pause(Math.min(T,Math.max(0,v)));$('bPlay').textContent='▶';ui()},play=()=>{if(tl.time()>=T)tl.time(0);tl.play();$('bPlay').textContent='⏸'},pause=()=>{tl.pause();$('bPlay').textContent='▶'};
+ const toggle=()=>tl.paused()?play():pause(),next=()=>{const t=tl.time(),i=at(t);seek(t<end(i)-1e-3?end(i):end(Math.min(i+1,S.length-1)))},prev=()=>{const i=at(tl.time());seek(i?end(i-1):0)};
+ $('seek').max=T;$('seek').oninput=e=>seek(+e.target.value);$('bPlay').onclick=toggle;$('bNext').onclick=next;$('bPrev').onclick=prev;$('rate').onchange=()=>tl.timeScale(+$('rate').value);
+ STEPS.forEach((s,k)=>{const li=document.createElement('li');li.textContent=(k+1)+'. '+s.t;li.onclick=()=>{seek(S[k]);play()};$('chap').append(li)});
+ addEventListener('keydown',e=>{const f={' ':toggle,ArrowRight:next,ArrowLeft:prev,Home:()=>seek(0),End:()=>seek(T)}[e.key];if(f&&e.target.tagName!='SELECT'){e.preventDefault();f()}});
+ seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return tl.time()},T,S}})();
+</script></body></html>

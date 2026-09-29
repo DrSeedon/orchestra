@@ -1,0 +1,60 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Путь задачи в Orchestra</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='5' width='4' height='6' rx='1' fill='%23007aff'/%3E%3Crect x='11' y='5' width='4' height='6' rx='1' fill='%2334c759'/%3E%3Cpath d='M5 8h6' stroke='%2386868b' stroke-width='1.5'/%3E%3C/svg%3E">
+<!--STYLE-->
+<style>.mv svg text{font-size:14px}.mv svg .sub{font-size:12px;fill:#6e6e73}.mv svg .tk{font-size:12px;fill:#fff;font-weight:600}.note{color:#6e6e73;font-size:12px;margin:10px 0 0}</style>
+</head><body>
+<div class="mv">
+<h1>Путь задачи: владелец → оркестратор → воркер → мерж → рестарт</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1000 300" role="img" aria-labelledby="st sd"><title id="st">Путь задачи в Orchestra</title>
+<desc id="sd">Задача от владельца проходит через оркестратора к воркеру в отдельном worktree, возвращается отчётом DONE, сжимается в один коммит в main и начинает работать после рестарта по команде владельца.</desc>
+ <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#86868b"/></marker></defs>
+ <path id="e1" d="M170 82H230" stroke="#86868b" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+ <path id="e2" d="M400 82H460" stroke="#86868b" stroke-width="2" fill="none" marker-end="url(#ar)"/>
+ <path id="ret" d="M500 114C500 150 350 150 350 116" stroke="#d2d2d7" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+ <path id="m1" d="M640 220H740V116" stroke="#d2d2d7" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+ <path id="r1" d="M95 50V26H920V48" stroke="#d2d2d7" stroke-width="2" fill="none" stroke-dasharray="4 4" marker-end="url(#ar)"/>
+ <text x="508" y="20" text-anchor="middle" class="sub">команда рестарта — только от владельца</text>
+ <rect id="nOwn" x="20" y="50" width="150" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <text x="95" y="78" text-anchor="middle">Владелец</text><text x="95" y="98" text-anchor="middle" class="sub">чат / Telegram</text>
+ <rect id="nOrc" x="230" y="50" width="170" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <text x="315" y="78" text-anchor="middle">Оркестратор</text><text id="orcSub" x="315" y="98" text-anchor="middle" class="sub">ведёт задачи</text>
+ <rect id="nWrk" x="460" y="50" width="150" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <text x="535" y="78" text-anchor="middle">Воркер</text><text id="wrkSub" x="535" y="98" text-anchor="middle" class="sub">свободен</text>
+ <rect id="nMain" x="670" y="50" width="140" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <text x="740" y="78" text-anchor="middle">main</text><text id="mainSub" x="740" y="98" text-anchor="middle" class="sub">общая ветка</text>
+ <rect id="nLive" x="845" y="50" width="140" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/>
+ <text x="915" y="78" text-anchor="middle">Живой процесс</text><text id="liveSub" x="915" y="98" text-anchor="middle" class="sub">старый код</text>
+ <g id="wt" opacity="0">
+  <rect x="420" y="170" width="220" height="100" rx="10" fill="#f5f5f7" stroke="#d2d2d7"/>
+  <text x="432" y="192" class="sub">git worktree · ветка</text><text x="432" y="212">task-V-665/impl-…</text>
+  <text id="c1" x="432" y="240" style="font-size:12px" fill="#248a3d" opacity="0">● #V-665: каркас плеера</text>
+  <text id="c2" x="432" y="258" style="font-size:12px" fill="#248a3d" opacity="0">● #V-665: примеры, отчёт</text>
+ </g>
+ <g id="tok" opacity="0"><rect x="-38" y="-12" width="76" height="24" rx="12" fill="#007aff"/><text id="tokT" y="4" text-anchor="middle" class="tk">задача</text></g>
+</svg></div>
+<!--CONTROLS-->
+<p class="note">Схема процесса по правилам Orchestra (AGENTS.md, модули worker-lifecycle и git-workflow); это объяснение порядка, а не запись реальных событий.</p>
+</div>
+<script>
+// ── СЦЕНА ──
+const B='#007aff',G='#34c759',GF='#e8f7ec',A='#ff9500',AF='#fff4e0';
+const STEPS = [
+ {d:3, t:'Владелец ставит задачу', x:'Пишет оркестратору в чат. Реализацию запускает только его слово; исследование агент может начать сам.',
+  set:{tok:{opacity:[0,1], along:'e1', at:0}, nOwn:{stroke:B}}},
+ {d:3, t:'Оркестратор заводит задачу', x:'task_create выдаёт номер V-665 — он дальше стоит в ветке, в каждом коммите и в папке .orchestra/tasks/V-665/.',
+  set:{tok:{at:[0,1]}, tokT:{text:'V-665'}, nOrc:{stroke:B}, orcSub:{text:'задача V-665'}}, w:{nOrc:[.75,1], orcSub:[.75,1]}},
+ {d:3, t:'Воркер получает свой worktree', x:'spawn_worker запускает воркера в отдельном git worktree на ветке task-V-665/<имя>: его правки изолированы от main и от соседних воркеров.',
+  set:{tok:{along:'e2', at:[0,1]}, nWrk:{stroke:B}, wrkSub:{text:'в работе'}, wt:{opacity:1}}, w:{nWrk:[.75,1], wrkSub:[.75,1], wt:[.6,1]}},
+ {d:3.5, t:'Работа и коммиты', x:'Воркер исследует, пишет код и тесты и коммитит «#V-665: …» только в свою ветку. В main он сам не пишет.',
+  set:{tok:{opacity:0}, c1:{opacity:1}, c2:{opacity:1}}, w:{tok:[0,.3], c1:[.2,.5], c2:[.6,.9]}},
+ {d:3, t:'DONE оркестратору', x:'Отчёт уходит явным send_message. Оркестратор смотрит diff и проверки: зелёный тест ещё не доказывает, что требование выполнено.',
+  set:{tok:{opacity:1, along:'ret', at:[0,1]}, tokT:{text:'DONE'}, ret:{stroke:B}, wrkSub:{text:'сдал работу'}, nWrk:{stroke:G}}},
+ {d:3, t:'Мерж одним коммитом', x:'merge_worker сжимает ветку воркера в один коммит в main и закрывает задачу. Мерж ещё не выкладка: живой процесс этот код пока не выполняет.',
+  set:{tok:{along:'m1', at:[0,1]}, tokT:{text:'squash'}, m1:{stroke:B}, nMain:{stroke:G, fill:GF}, mainSub:{text:'+1 коммит #V-665'}, wt:{opacity:.35}}, w:{nMain:[.75,1], mainSub:[.75,1]}},
+ {d:3, t:'Нужен рестарт', x:'Python из main не работает, пока процесс не перезапущен (JS/CSS подхватываются сразу). Воркер пишет об этом одной строкой и ждёт.',
+  set:{tok:{opacity:0}, nLive:{stroke:A, fill:AF}, liveSub:{text:'ждёт рестарта'}}},
+ {d:3.5, t:'Рестарт по слову владельца', x:'Рестарт инициирует только владелец. После рестарта проверяют cut_names и восстанавливают воркеров, у которых оборвался ход.',
+  set:{tok:{opacity:1, along:'r1', at:[0,1]}, tokT:{text:'рестарт'}, r1:{stroke:B}, nLive:{stroke:G, fill:GF}, liveSub:{text:'новый код работает'}}, w:{nLive:[.75,1], liveSub:[.75,1]}},
+];
+/*PLAYER*/</script></body></html>
