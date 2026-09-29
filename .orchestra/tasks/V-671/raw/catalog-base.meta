@@ -1,0 +1,5 @@
+revision=c31aa1ec
+command=/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest tests/test_project_catalog_v621.py tests/test_catalog_migration_v621.py -q
+worktree=/home/kesha/orchestra/data/v671-wt/catalog-base
+copied oracle tests from adf620a0 into base worktree; py312-rag-v2 python -m pytest; imports from /home/kesha/orchestra/data/v671-wt/catalog-base
+returncode=2

@@ -1,0 +1,5 @@
+revision=12feb777+runs/compact-s55-low/diff.patch
+command=PYTHONDONTWRITEBYTECODE=1 /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest -p no:cacheprovider tests/test_agentic_compact_650.py -q
+worktree=/home/kesha/orchestra/data/v671-wt/compact-s55-low
+patch=/home/kesha/orchestra/data/v656-bench/runs/compact-s55-low/diff.patch
+returncode=0

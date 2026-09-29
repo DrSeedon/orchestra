@@ -1,0 +1,5 @@
+revision=c31aa1ec+runs/catalog-s55-medium/diff.patch
+command=PYTHONDONTWRITEBYTECODE=1 /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m pytest -p no:cacheprovider tests/test_scope_catalog_v621.py -q
+worktree=/home/kesha/orchestra/data/v671-wt/catalog-s55-medium
+patch=/home/kesha/orchestra/data/v656-bench/runs/catalog-s55-medium/diff.patch
+returncode=0

@@ -1,0 +1,27 @@
+
+==================================== ERRORS ====================================
+_____________ ERROR collecting tests/test_project_catalog_v621.py ______________
+ImportError while importing test module '/home/kesha/orchestra/data/v671-wt/catalog-base/tests/test_project_catalog_v621.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_project_catalog_v621.py:16: in <module>
+    from app.project_catalog import CatalogError, catalog, own_catalog, own_catalog_path
+E   ImportError: cannot import name 'own_catalog' from 'app.project_catalog' (/home/kesha/orchestra/data/v671-wt/catalog-base/app/project_catalog.py)
+____________ ERROR collecting tests/test_catalog_migration_v621.py _____________
+ImportError while importing test module '/home/kesha/orchestra/data/v671-wt/catalog-base/tests/test_catalog_migration_v621.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_catalog_migration_v621.py:18: in <module>
+    from app.catalog_migration_v621 import CatalogMigrationError, migrate_v621
+E   ModuleNotFoundError: No module named 'app.catalog_migration_v621'
+=========================== short test summary info ============================
+ERROR tests/test_project_catalog_v621.py
+ERROR tests/test_catalog_migration_v621.py
+!!!!!!!!!!!!!!!!!!! Interrupted: 2 errors during collection !!!!!!!!!!!!!!!!!!!!
+2 errors in 0.42s
