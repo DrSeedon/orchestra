@@ -1,0 +1,14 @@
+ .orchestra/tasks/V-653/report.md | 25 +++++++++++++
+ CHANGELOG.md                     |  5 ++-
+ TODO.md                          |  3 +-
+ app/bg_jobs.py                   | 37 ++++++++++++++++++-
+ app/db.py                        | 39 +++++++++++++++++++++
+ app/main.py                      |  1 +
+ app/manager.py                   | 19 +++++++---
+ app/mcp_stdio.py                 |  2 +-
+ app/session.py                   | 17 ++++++++-
+ tests/test_attention_v576.py     | 55 +++++++++++++++++++++++++++++
+ tests/test_bg_jobs.py            | 76 ++++++++++++++++++++++++++++++++--------
+ tests/test_manager.py            | 67 +++++++++++++++++++++++++++++++++++
+ tests/test_session.py            | 36 +++++++++++++++++++
+ 13 files changed, 357 insertions(+), 25 deletions(-)

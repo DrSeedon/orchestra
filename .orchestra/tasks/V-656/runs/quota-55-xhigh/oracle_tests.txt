@@ -1,0 +1,242 @@
+...F...F.FFF.FFFFFFF.F.                                                  [100%]
+=================================== FAILURES ===================================
+_______________ test_live_quota_map_history_and_two_hour_labels ________________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_live_quota_map_history_and_two_hour_labels(browser):
+        payload = json.loads((ROOT / "tests/fixtures/v654_quota_map_live_shape.json").read_text())
+        page, errors = _render(browser, payload)
+        timeline = page.locator("[data-ql-timeline='all']")
+        histories = {el.get_attribute("data-ql-timeline-history"): el for el in timeline.locator("[data-ql-timeline-history]").all()}
+        assert set(histories) == {"codex", "anthropic"}
+        for bucket, expected_points in (("codex", 171), ("anthropic", 169)):
+            coords = histories[bucket].get_attribute("points").split()
+>           assert len(coords) == expected_points + 1  # historical samples plus the current sample at now
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AssertionError: assert 174 == (171 + 1)
+E            +  where 174 = len(['54.17931836034462,78.38400000000001', '56.82936328598749,78.38400000000001', '59.47823180475386,78.38400000000001', '62.12933403414206,78.38400000000001', '64.77798395211599,78.38400000000001', '67.42875371290661,78.38400000000001', ...])
+
+tests/test_t344_quota_lines_browser.py:253: AssertionError
+______ test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate ______
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate(browser):
+        """Живое состояние с `QUOTA_GATED_LANES=`: диагональ снята со ВСЕХ полос.
+    
+        Именно здесь панель была неотличима от работающего правила, поэтому проверяется
+        не наличие слова, а расхождение с включённым гейтом: состояние, оформление и текст.
+        """
+        lifted = _payload(codex_util=20.0, claude_util=20.0)
+        lifted["rule"]["gated_lanes"] = []
+        for bucket in lifted["buckets"]:
+            for lane in bucket["lanes"]:
+                lane["gated"] = False
+        off_page, errors = _render(browser, lifted)
+        off = _gate_node(off_page)
+        # Снятая диагональ рисуется призраком: сплошная линия означала бы живой порог.
+        assert off_page.locator("[data-ql-threshold='sol'].ql-gated-off").count() == 1
+        assert off_page.locator("[data-ql-threshold='claude'].ql-gated-off").count() == 1
+>       assert "порог Sol — снят" in off_page.locator("[data-ql-chart='all']").text_content()
+E       assert 'порог Sol — снят' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — liftedClaude threshold — lift...% · diagonal not applied — only hard 99%Claude-воркерыactual 20% · expected 50% · diagonal not applied — only hard 99%'
+E        +  where '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — liftedClaude threshold — lift...% · diagonal not applied — only hard 99%Claude-воркерыactual 20% · expected 50% · diagonal not applied — only hard 99%' = text_content()
+E        +    where text_content = <Locator frame=<Frame name= url='http://harness.local/'> selector="[data-ql-chart='all']">.text_content
+E        +      where <Locator frame=<Frame name= url='http://harness.local/'> selector="[data-ql-chart='all']"> = locator("[data-ql-chart='all']")
+E        +        where locator = <Page url='http://harness.local/'>.locator
+
+tests/test_t344_quota_lines_browser.py:368: AssertionError
+_____________________ test_calm_window_says_everyone_works _____________________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_calm_window_says_everyone_works(browser):
+        page, _ = _render(browser, _payload(codex_util=20.0, claude_util=20.0))
+        verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+>       assert "работают" in verdict
+E       AssertionError: assert 'работают' in 'Sol, Luna, Spark, Claude-воркеры — running'
+
+tests/test_t344_quota_lines_browser.py:398: AssertionError
+____________ test_above_the_curve_stops_sol_but_not_luna_and_spark _____________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_above_the_curve_stops_sol_but_not_luna_and_spark(browser):
+        """Порог гейтит Sol; Luna и Spark живут до жёстких 99%.
+    
+        90% в середине окна: порог Sol там 81.3% (парабола), то есть выше порога. Прежние
+        80% лежали НИЖЕ кривой и после #b757e834 перестали блокировать хоть кого-нибудь —
+        тест проверял бы пустоту.
+        """
+        payload = _payload(codex_util=90.0, codex_progress=0.5, spark_util=39.0)
+        page, _ = _render(browser, payload)
+        verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+>       assert "Sol" in verdict and "стоят" in verdict
+E       AssertionError: assert ('Sol' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running' and 'стоят' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running')
+
+tests/test_t344_quota_lines_browser.py:425: AssertionError
+___________ test_hard_99_stops_everyone_and_orchestrator_still_works ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_hard_99_stops_everyone_and_orchestrator_still_works(browser):
+        page, _ = _render(browser, _payload(codex_util=99.5, spark_util=99.5))
+        assert _badge_is_blocked(page, "sol")
+        assert _badge_is_blocked(page, "luna")
+        assert _badge_is_blocked(page, "spark")
+        # Причина жёсткого стопа обязана дойти до юзера: сам бейдж говорит только «когда
+        # откроется», поэтому число 99 ищется в списке причин панели.
+        reasons = page.locator("[data-ql-panel='all'] .ql-reasons").inner_text()
+        assert "99" in reasons and "Luna" in reasons and "Spark" in reasons, reasons
+        orch = page.locator("[data-ql-panel='all'] [data-ql-lane='orchestrator']").inner_text()
+>       assert "всегда работает" in orch
+E       AssertionError: assert 'всегда работает' in 'Orchestrator: always runs'
+
+tests/test_t344_quota_lines_browser.py:444: AssertionError
+____ test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it _____
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it(browser):
+        """У Spark диагонали нет — печатать ей «порог N%» значит выдумать ограничение.
+    
+        Найдено на скриншоте: подпись Spark показывала «допуск 4.4 п.п. · порог 66.4%»,
+        хотя единственный стоп Spark — жёсткие 99%.
+        """
+        page, _ = _render(browser, _payload(spark_util=39.0, spark_progress=0.62))
+        chart = page.locator("[data-ql-chart='all']").text_content()
+>       assert "диагональ не применяется" in chart
+E       AssertionError: assert 'диагональ не применяется' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — burning pool earlyClaude thre...actual 39% · expected 62% · diagonal not applied — only hard 99%Claude-воркерыactual 30% · expected 50% · no threshold'
+
+tests/test_t344_quota_lines_browser.py:469: AssertionError
+________________ test_missing_telemetry_says_no_data_not_works _________________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_missing_telemetry_says_no_data_not_works(browser):
+        """`data_available=false` — это «данных нет», а не «всё хорошо».
+    
+        Гейт на неизвестной квоте пропускает (fail-open), поэтому тихое «работает»
+        здесь было бы прямой ложью оператору.
+        """
+        payload = _payload()
+        for bucket in payload["buckets"]:
+            if bucket["bucket"] in ("codex", "codex_spark"):
+                bucket["data_available"] = False
+                bucket["window"] = None
+                bucket["limit_pct"] = None
+                bucket["tolerance_pp"] = None
+        page, _ = _render(browser, payload)
+        verdict = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+>       assert "нет данных" in verdict
+E       AssertionError: assert 'нет данных' in 'no data — some lanes missing telemetry'
+
+tests/test_t344_quota_lines_browser.py:494: AssertionError
+________ test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop ________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop(browser):
+        """`progress=null` при известном utilization: диагонали нет, 99% остаются."""
+        page, _ = _render(browser, _payload(codex_progress=None, codex_util=40.0))
+        assert page.locator("[data-ql-flat='codex']").count() == 1
+        assert page.locator("[data-ql-point='sol']").count() == 0
+        # SVG-узел не HTMLElement — inner_text() на нём падает, нужен text_content().
+        chart = page.locator("[data-ql-chart='all']").text_content()
+>       assert "срок сброса неизвестен" in chart
+E       AssertionError: assert 'срок сброса неизвестен' in '0%20%40%60%80%100%0%10%20%30%40%50%60%70%80%90%100%window progress shareSol threshold — burning pool earlyClaude thre...actual 39% · expected 50% · diagonal not applied — only hard 99%Claude-воркерыactual 30% · expected 50% · no threshold'
+
+tests/test_t344_quota_lines_browser.py:507: AssertionError
+_______________ test_old_payload_without_rule_block_says_no_data _______________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_old_payload_without_rule_block_says_no_data(browser):
+        """Реальное состояние до мержа #343: роут `/api/usage/quota-map` уже есть,
+        а блока `rule` в нём ещё нет. Панель обязана честно сказать «нет данных»,
+        а не нарисовать линию по выдуманным константам."""
+        payload = _payload()
+        del payload["rule"]
+        page, _ = _render(browser, payload)
+        text = page.locator("#quota-lines").inner_text()
+>       assert "нет данных" in text
+E       AssertionError: assert 'нет данных' in '▾ allowance rule\ngate: no data\nno data — server did not send rule constants\nPool quotas\nsingle scale: window progress share, 0–100%\n\nno data — server did not send rule constants'
+
+tests/test_t344_quota_lines_browser.py:519: AssertionError
+____________ test_summary_without_rule_block_says_no_data_not_works ____________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_summary_without_rule_block_says_no_data_not_works(browser):
+        """Свёрнутая сводка на живом ответе без `rule` (сейчас так отвечает прод).
+    
+        Ловится именно расхождение сводки с телом: тело говорило «нет данных», а
+        сводка при Codex 100% печатала «Sol, Luna Fast, Spark — работают», потому что
+        считала вердикт своей веткой. Вердикт один — источник один.
+        """
+        payload = _payload(codex_util=100.0, spark_util=100.0, claude_util=20.0)
+        del payload["rule"]
+        page, _ = _render(browser, payload)
+        summary = page.locator("#quota-lines .ql-sum").inner_text()
+>       assert "нет данных" in summary, summary
+E       AssertionError: no data — server did not send rule constants
+E       assert 'нет данных' in 'no data — server did not send rule constants'
+
+tests/test_t344_quota_lines_browser.py:535: AssertionError
+_________ test_summary_repeats_the_body_verdict_when_the_rule_arrives __________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_summary_repeats_the_body_verdict_when_the_rule_arrives(browser):
+        """Обратная сторона того же: `rule` пришёл (состояние после мержа #343) —
+        сводка обязана печатать ДОСЛОВНО вердикт тела, а не свой пересчёт."""
+        # 90%, а не 80%: после #b757e834 порог Sol в середине окна 81.3%, и на 80%
+        # вердикт «стоят» не появился бы вовсе — сводке было бы нечего повторять.
+        page, _ = _render(browser, _payload(codex_util=90.0, codex_progress=0.5, claude_util=20.0))
+        summary = page.locator("#quota-lines .ql-sum").inner_text()
+        body = page.locator("[data-ql-panel='all'] [data-ql-verdict]").inner_text()
+        assert body and body in summary, (body, summary)
+>       assert "Sol" in summary and "стоят" in summary, summary
+E       AssertionError: Sol — blocked · Luna, Spark, Claude-воркеры — running
+E       assert ('Sol' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running' and 'стоят' in 'Sol — blocked · Luna, Spark, Claude-воркеры — running')
+
+tests/test_t344_quota_lines_browser.py:550: AssertionError
+__________ test_unified_panel_renders_trace_and_history_empty_notice ___________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_unified_panel_renders_trace_and_history_empty_notice(browser):
+        payload = _payload(codex_progress=0.46, spark_progress=0.37, claude_progress=0.17)
+        page, _ = _render(browser, payload)
+        body_text = page.locator("[data-ql-panel='all']").inner_text()
+>       assert isinstance(body_text, str) and "истории за это окно нет" in body_text
+E       AssertionError: assert (True and 'истории за это окно нет' in 'Pool quotas\nsingle scale: window progress share, 0–100%\nQuota timeline\n±3.5 days · current time centered · Krasnoy...ning no diagonal\nSpark: running no diagonal\nClaude-воркеры: opens at reset, in 4d 15h 40m\nOrchestrator: always runs')
+E        +  where True = isinstance('Pool quotas\nsingle scale: window progress share, 0–100%\nQuota timeline\n±3.5 days · current time centered · Krasnoy...ning no diagonal\nSpark: running no diagonal\nClaude-воркеры: opens at reset, in 4d 15h 40m\nOrchestrator: always runs', str)
+
+tests/test_t344_quota_lines_browser.py:558: AssertionError
+________ test_failed_request_says_no_data_and_does_not_pretend_to_work _________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_failed_request_says_no_data_and_does_not_pretend_to_work(browser):
+        page, _ = _render(browser, None)
+        text = page.locator("#quota-lines").inner_text()
+>       assert "нет данных" in text
+E       AssertionError: assert 'нет данных' in '▾ allowance rule\ngate: no data\nno data — boom\nPool quotas\nsingle scale: window progress share, 0–100%\n\nno data — boom'
+
+tests/test_t344_quota_lines_browser.py:582: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_t344_quota_lines_browser.py::test_live_quota_map_history_and_two_hour_labels
+FAILED tests/test_t344_quota_lines_browser.py::test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate
+FAILED tests/test_t344_quota_lines_browser.py::test_calm_window_says_everyone_works
+FAILED tests/test_t344_quota_lines_browser.py::test_above_the_curve_stops_sol_but_not_luna_and_spark
+FAILED tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works
+FAILED tests/test_t344_quota_lines_browser.py::test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it
+FAILED tests/test_t344_quota_lines_browser.py::test_missing_telemetry_says_no_data_not_works
+FAILED tests/test_t344_quota_lines_browser.py::test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop
+FAILED tests/test_t344_quota_lines_browser.py::test_old_payload_without_rule_block_says_no_data
+FAILED tests/test_t344_quota_lines_browser.py::test_summary_without_rule_block_says_no_data_not_works
+FAILED tests/test_t344_quota_lines_browser.py::test_summary_repeats_the_body_verdict_when_the_rule_arrives
+FAILED tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_and_history_empty_notice
+FAILED tests/test_t344_quota_lines_browser.py::test_failed_request_says_no_data_and_does_not_pretend_to_work
+13 failed, 10 passed in 63.89s (0:01:03)

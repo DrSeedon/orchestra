@@ -1,0 +1,11 @@
+ .orchestra/tasks/V-654/quota-panel-live.png    | Bin 0 -> 210031 bytes
+ .orchestra/tasks/V-654/quota-timeline-live.png | Bin 0 -> 63266 bytes
+ .orchestra/tasks/V-654/report.md               |  66 ++++
+ CHANGELOG.md                                   |   1 +
+ app/static/css/style.css                       |  10 +
+ app/static/js/i18n.js                          |   3 +
+ app/static/js/quota-lines.js                   | 146 +++++++--
+ tests/fixtures/quota_map_live_v654.json        |   1 +
+ tests/test_t344_quota_lines_browser.py         |  11 -
+ tests/test_v654_quota_timeline_browser.py      | 404 +++++++++++++++++++++++++
+ 10 files changed, 603 insertions(+), 39 deletions(-)

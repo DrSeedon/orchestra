@@ -1,0 +1,92 @@
+....................F..........................s........................ [ 30%]
+........................................................................ [ 60%]
+........................................................................ [ 90%]
+................F......                                                  [100%]
+=================================== FAILURES ===================================
+________ TestCronCommand.test_timeout_wakes_once_until_a_successful_run ________
+
+self = <tests.test_bg_jobs.TestCronCommand object at 0x789588782ea0>
+db = PosixPath('/tmp/pytest-of-kesha/pytest-10617/test_timeout_wakes_once_until_0/test.db')
+mgr_mock = (<MagicMock id='132583596711072'>, <MagicMock id='132583596715152'>)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7895862dd0d0>
+
+    @pytest.mark.asyncio
+    async def test_timeout_wakes_once_until_a_successful_run(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        import app.bg_jobs as module
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_active_all, bg_save_job
+    
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("cron-command-timeout", datetime.now(timezone.utc)))
+        procs = [
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+            self._proc(output=b"healthy\n"),
+            self._proc(output=b"ALERT: partial\n", returncode=None),
+        ]
+        monkeypatch.setattr(module, "_spawn_bg_process", AsyncMock(side_effect=procs))
+    
+        async def communicate(process):
+            if process.returncode is None:
+                raise asyncio.TimeoutError
+            return process.output, process.error
+    
+        killed = AsyncMock()
+        monkeypatch.setattr(module, "_communicate_cron_command", communicate)
+        monkeypatch.setattr(module, "_kill_proc", killed)
+    
+        for _ in range(4):
+            await mgr._fire_cron_command(
+                "cron-command-timeout",
+                "python monitor.py",
+                "ALERT",
+                "monitor found work",
+                "w1",
+                "/s",
+            )
+    
+        assert manager.ensure_loaded_by_id.await_count == 2
+        assert session.send.await_count == 2
+        notified = session.send.await_args_list[0].args[0]
+        assert "cron-command-timeout" in notified
+        assert "python monitor.py" in notified
+        assert "600 seconds" in notified
+>       assert "Check its runtime/output" in notified
+E       AssertionError: assert 'Check its runtime/output' in '[Cron command timed out] job cron-command-timeout: command `python monitor.py` was killed after 600 seconds without f...nt once until a run succeeds. Check the command, fix or speed it up, or cancel the job with bg_cancel and recreate it.'
+
+tests/test_bg_jobs.py:509: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.bg_jobs:bg_jobs.py:925 cron_command cron-command-timeout: command timed out after 600s
+WARNING  app.bg_jobs:bg_jobs.py:925 cron_command cron-command-timeout: command timed out after 600s
+WARNING  app.bg_jobs:bg_jobs.py:925 cron_command cron-command-timeout: command timed out after 600s
+____________ test_v3_database_missing_attention_events_is_repaired _____________
+
+legacy_install = (PosixPath('/tmp/pytest-of-kesha/pytest-10617/test_v3_database_missing_atten0/orchestra.db'), PosixPath('/tmp/pytest-o...paths': [], 'required': False}, 'assignee': '', 'completed_at': None, 'created_at': '2026-09-01T00:00:00+00:00', ...}])
+
+    def test_v3_database_missing_attention_events_is_repaired(legacy_install):
+        database, root, _records = legacy_install
+        migrate_v576(database, root)
+        with sqlite3.connect(database) as connection:
+            connection.execute("DROP TABLE attention_events")
+            connection.commit()
+    
+        result = migrate_v576(database, root)
+    
+>       assert result["state"] == "migrated"
+E       AssertionError: assert 'already' == 'migrated'
+E         
+E         - migrated
+E         + already
+
+tests/test_startup_migration_v576.py:139: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.startup_migration:startup_migration.py:231 V-576 migration: SQLite backup at /tmp/pytest-of-kesha/pytest-10617/test_v3_database_missing_atten0/orchestra-pre-v576-20260929T041721Z.db
+WARNING  app.startup_migration:startup_migration.py:235 V-576 migration complete: store={'state': 'migrated', 'files': 3, 'tagged': 2, 'untagged': 1, 'head': '8b085d747b763557b787aa0c34ccaa5f64493ad3'} database={'state': 'migrated', 'schema_version': 3} backup=/tmp/pytest-of-kesha/pytest-10617/test_v3_database_missing_atten0/orchestra-pre-v576-20260929T041721Z.db
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestCronCommand::test_timeout_wakes_once_until_a_successful_run
+FAILED tests/test_startup_migration_v576.py::test_v3_database_missing_attention_events_is_repaired
+2 failed, 236 passed, 1 skipped in 135.91s (0:02:15)
