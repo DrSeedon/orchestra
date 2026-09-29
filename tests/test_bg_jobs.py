@@ -106,6 +106,22 @@ class TestCronCreate:
         assert result["expires_at"]
 
     @pytest.mark.asyncio
+    async def test_long_timer_expires_after_it_fires(self, db, monkeypatch):
+        """Таймер на 30 суток обязан дожить до срабатывания (раньше срок обрезался до 8 суток)."""
+        from datetime import datetime
+        from app.bg_jobs import BgJobManager
+
+        mgr = BgJobManager()
+        monkeypatch.setattr(mgr, "_start_task", lambda *a, **k: None)
+        result = await mgr.create(
+            "timer", {"delay_seconds": 30 * 86400}, "wake",
+            "s-1", "worker", "/scope", "orchestrator",
+        )
+
+        assert datetime.fromisoformat(result["expires_at"]) > datetime.fromisoformat(result["trigger_at"])
+        assert result["timeout_seconds"] >= 30 * 86400
+
+    @pytest.mark.asyncio
     async def test_no_timeout_means_forever(self, db, monkeypatch):
         from app.bg_jobs import BgJobManager
         from app.db import bg_get_active_all

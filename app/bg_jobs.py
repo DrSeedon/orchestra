@@ -33,7 +33,6 @@ logger = logging.getLogger(__name__)
 
 MAX_JOBS_PER_SCOPE = 50
 MAX_TIMEOUT = 86400
-MAX_TIMER_TIMEOUT = 8 * 86400
 DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
 _CRON_COMMAND_TIMEOUT_SECONDS = 600
@@ -384,13 +383,15 @@ class BgJobManager:
             config = {**config, "no_expiry": True}
             expires_at = (now + timedelta(days=36500)).isoformat()
         else:
-            max_timeout = MAX_TIMER_TIMEOUT if job_type == "timer" else MAX_TIMEOUT
             if job_type == "timer":
+                # A timer lives until it fires: any delay is allowed, and its expiry must
+                # never precede trigger_at (an 8-day cap made long timers silently dead).
                 timeout_seconds = max(
-                    timeout_seconds,
+                    min(max(timeout_seconds, 1), MAX_TIMEOUT),
                     int(config["delay_seconds"]) + 3600,
                 )
-            timeout_seconds = max(1, min(timeout_seconds, max_timeout))
+            else:
+                timeout_seconds = max(1, min(timeout_seconds, MAX_TIMEOUT))
             expires_at = (now + timedelta(seconds=timeout_seconds)).isoformat()
 
         job_id = f"bg-{uuid4().hex[:10]}"
