@@ -1,0 +1,31 @@
+..........                                                               [100%]
+=============================== warnings summary ===============================
+tests/test_steer_redelivery_v562.py::test_completed_turn_consumes_steer_once
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+tests/test_steer_redelivery_v562.py::test_restart_returns_orphaned_steer_to_the_next_turn
+  /home/kesha/orchestra/data/v656/steer-o55-medium-r2/app/session.py:3272: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if usage and usage.get("percentage") is not None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_redelivery_v562.py::test_completed_turn_consumes_steer_once
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+tests/test_steer_redelivery_v562.py::test_restart_returns_orphaned_steer_to_the_next_turn
+  /home/kesha/orchestra/data/v656/steer-o55-medium-r2/app/session.py:3274: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    context = current_context(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_redelivery_v562.py::test_completed_turn_consumes_steer_once
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+tests/test_steer_redelivery_v562.py::test_failed_turn_redelivers_all_in_order
+tests/test_steer_redelivery_v562.py::test_restart_returns_orphaned_steer_to_the_next_turn
+  /usr/lib/python3.12/asyncio/events.py:88: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+10 passed, 12 warnings in 17.12s

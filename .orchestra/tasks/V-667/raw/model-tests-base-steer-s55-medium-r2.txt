@@ -1,0 +1,218 @@
+FFFFFFFFF                                                                [100%]
+=================================== FAILURES ===================================
+_______________ test_normal_end_consumes_steer_without_duplicate _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_normal_end_consumes_steer_without_duplicate(db):
+>       s = _session()
+            ^^^^^^^^^^
+
+tests/test_steer_survives_turn_loss_v562.py:42: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _session():
+        s = types.SimpleNamespace(
+            name="painter", scope="/repo", _steered_mailbox_ids=[], logs=[],
+        )
+        s._log = lambda kind, text, **kw: s.logs.append((kind, text))
+        for fn in ("_record_steer", "_forget_steer", "_release_steered_mailbox"):
+>           setattr(s, fn, types.MethodType(getattr(AgentSession, fn), s))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: type object 'AgentSession' has no attribute '_record_steer'
+
+tests/test_steer_survives_turn_loss_v562.py:29: AttributeError
+____________ test_failed_turn_redelivers_once_with_sender_and_text _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_failed_turn_redelivers_once_with_sender_and_text(db):
+>       s = _session()
+            ^^^^^^^^^^
+
+tests/test_steer_survives_turn_loss_v562.py:50: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _session():
+        s = types.SimpleNamespace(
+            name="painter", scope="/repo", _steered_mailbox_ids=[], logs=[],
+        )
+        s._log = lambda kind, text, **kw: s.logs.append((kind, text))
+        for fn in ("_record_steer", "_forget_steer", "_release_steered_mailbox"):
+>           setattr(s, fn, types.MethodType(getattr(AgentSession, fn), s))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: type object 'AgentSession' has no attribute '_record_steer'
+
+tests/test_steer_survives_turn_loss_v562.py:29: AttributeError
+________________________ test_several_steers_keep_order ________________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_several_steers_keep_order(db):
+>       s = _session()
+            ^^^^^^^^^^
+
+tests/test_steer_survives_turn_loss_v562.py:61: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _session():
+        s = types.SimpleNamespace(
+            name="painter", scope="/repo", _steered_mailbox_ids=[], logs=[],
+        )
+        s._log = lambda kind, text, **kw: s.logs.append((kind, text))
+        for fn in ("_record_steer", "_forget_steer", "_release_steered_mailbox"):
+>           setattr(s, fn, types.MethodType(getattr(AgentSession, fn), s))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: type object 'AgentSession' has no attribute '_record_steer'
+
+tests/test_steer_survives_turn_loss_v562.py:29: AttributeError
+_________________ test_steer_in_flight_is_not_listed_as_queued _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_steer_in_flight_is_not_listed_as_queued(db):
+>       s = _session()
+            ^^^^^^^^^^
+
+tests/test_steer_survives_turn_loss_v562.py:69: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _session():
+        s = types.SimpleNamespace(
+            name="painter", scope="/repo", _steered_mailbox_ids=[], logs=[],
+        )
+        s._log = lambda kind, text, **kw: s.logs.append((kind, text))
+        for fn in ("_record_steer", "_forget_steer", "_release_steered_mailbox"):
+>           setattr(s, fn, types.MethodType(getattr(AgentSession, fn), s))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: type object 'AgentSession' has no attribute '_record_steer'
+
+tests/test_steer_survives_turn_loss_v562.py:29: AttributeError
+__________________ test_orphan_from_dead_process_is_recovered __________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_orphan_from_dead_process_is_recovered(db):
+        # «Процесс умер»: строка осталась с отметкой вливания, in-memory списка нет.
+>       mailbox.enqueue_steered("painter", "/repo", "peer", "orphan", provenance=PEER)
+        ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'enqueue_steered'
+
+tests/test_steer_survives_turn_loss_v562.py:78: AttributeError
+______________ test_failed_provider_send_does_not_leave_duplicate ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_failed_provider_send_does_not_leave_duplicate(db):
+>       s = _session()
+            ^^^^^^^^^^
+
+tests/test_steer_survives_turn_loss_v562.py:86: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _session():
+        s = types.SimpleNamespace(
+            name="painter", scope="/repo", _steered_mailbox_ids=[], logs=[],
+        )
+        s._log = lambda kind, text, **kw: s.logs.append((kind, text))
+        for fn in ("_record_steer", "_forget_steer", "_release_steered_mailbox"):
+>           setattr(s, fn, types.MethodType(getattr(AgentSession, fn), s))
+                                            ^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: type object 'AgentSession' has no attribute '_record_steer'
+
+tests/test_steer_survives_turn_loss_v562.py:29: AttributeError
+________________________ test_other_recipient_untouched ________________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+
+    def test_other_recipient_untouched(db):
+>       mailbox.enqueue_steered("other", "/repo", "", "theirs", provenance=USER)
+        ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'enqueue_steered'
+
+tests/test_steer_survives_turn_loss_v562.py:94: AttributeError
+_________ test_send_into_running_turn_records_steer_and_reports_state __________
+
+db_live = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+session_id = '2f301b0e-2a92-4e1a-91d7-52fa9235a249'
+agent = <function agent.<locals>._make at 0x76a3ab6b6340>
+
+    @pytest.mark.asyncio
+    async def test_send_into_running_turn_records_steer_and_reports_state(db_live, session_id, agent):
+        from app.session_state import AgentStatus
+    
+        async def ok(msg):
+            return None
+    
+        session = await agent(send_impl=ok)
+        session.status = AgentStatus.RUNNING
+        state = await session.send("срочно", provenance=USER)
+>       assert state == "steered"
+E       AssertionError: assert None == 'steered'
+
+tests/test_steer_survives_turn_loss_v562.py:121: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+________ test_provider_send_failure_reports_queued_and_leaves_no_ghost _________
+
+db_live = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-medium-r2/app/db.py'>
+session_id = '5ce25921-4ee4-4d7c-9826-9726c82fc075'
+agent = <function agent.<locals>._make at 0x76a3aaae0fe0>
+
+    @pytest.mark.asyncio
+    async def test_provider_send_failure_reports_queued_and_leaves_no_ghost(db_live, session_id, agent):
+        from app.session_state import AgentStatus
+    
+        async def boom(msg):
+            raise RuntimeError("no")
+    
+        session = await agent(send_impl=boom)
+        session.status = AgentStatus.RUNNING
+        state = await session.send("срочно", provenance=USER)
+>       assert state == "queued"
+E       AssertionError: assert None == 'queued'
+
+tests/test_steer_survives_turn_loss_v562.py:138: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] mid-turn inject failed, queueing: no
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+WARNING  app.session:session.py:1310 [worker] mid-turn inject failed, queueing: no
+INFO     app.session:session.py:2150 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2177 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2565 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+=========================== short test summary info ============================
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_normal_end_consumes_steer_without_duplicate
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_failed_turn_redelivers_once_with_sender_and_text
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_several_steers_keep_order
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_steer_in_flight_is_not_listed_as_queued
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_orphan_from_dead_process_is_recovered
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_failed_provider_send_does_not_leave_duplicate
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_other_recipient_untouched
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_send_into_running_turn_records_steer_and_reports_state
+FAILED tests/test_steer_survives_turn_loss_v562.py::test_provider_send_failure_reports_queued_and_leaves_no_ghost
+9 failed in 8.66s

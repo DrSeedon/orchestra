@@ -1,0 +1,115 @@
+F.FFFFFF                                                                 [100%]
+=================================== FAILURES ===================================
+______ test_first_turn_after_restart_on_same_native_session_is_turn_price ______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11434/test_first_turn_after_restart_0')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'>
+
+    def test_first_turn_after_restart_on_same_native_session_is_turn_price(tmp_path, db):
+        before = _process(tmp_path)
+        assert _turn(before, tmp_path, db, "X", 1.0)["cost_usd"] == pytest.approx(1.0)
+        second = _turn(before, tmp_path, db, "X", 1.5)
+        assert second["cost_usd"] == pytest.approx(0.5)  # обычный второй ход
+    
+        after = _process(tmp_path, native_sid="X")
+        row = _turn(after, tmp_path, db, "X", 1.8)
+        assert row["cost_unaccounted"] == 0
+>       assert row["cost_usd"] == pytest.approx(0.3)  # не 1.8 — накопленная сумма
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 1.8 == 0.3 ± 3.0e-07
+E         
+E         comparison failed
+E         Obtained: 1.8
+E         Expected: 0.3 ± 3.0e-07
+
+tests/test_claude_cost_baseline_restart.py:96: AssertionError
+_____ test_crash_after_billing_without_record_is_unaccounted_not_inflated ______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11434/test_crash_after_billing_witho0')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'>
+
+    def test_crash_after_billing_without_record_is_unaccounted_not_inflated(tmp_path, db):
+        before = _process(tmp_path)
+        _turn(before, tmp_path, db, "X", 1.0)
+        # Ход начался (CLI тратит), процесс умер до записи результата.
+>       before._cost.note_provider_activity("stream")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'CostTracker' object has no attribute 'note_provider_activity'
+
+tests/test_claude_cost_baseline_restart.py:117: AttributeError
+_____________ test_restart_without_stored_baseline_is_unaccounted ______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11434/test_restart_without_stored_ba0')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'>
+
+    def test_restart_without_stored_baseline_is_unaccounted(tmp_path, db):
+        # Сессии, писавшие ходы до #V-609, базы в БД не имеют.
+        after = _process(tmp_path, native_sid="X")
+        row = _turn(after, tmp_path, db, "X", 154.21)
+>       assert row["cost_unaccounted"] == 1
+E       assert 0 == 1
+
+tests/test_claude_cost_baseline_restart.py:132: AssertionError
+__________ test_provider_total_going_back_is_unaccounted_not_negative __________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11434/test_provider_total_going_back0')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'>
+
+    def test_provider_total_going_back_is_unaccounted_not_negative(tmp_path, db):
+        before = _process(tmp_path)
+        _turn(before, tmp_path, db, "X", 1.5)
+    
+        after = _process(tmp_path, native_sid="X")
+        # CLI убит жёстко и поднял старый cost-state: итог меньше записанного.
+        row = _turn(after, tmp_path, db, "X", 0.4)
+>       assert row["cost_unaccounted"] == 1
+E       assert 0 == 1
+
+tests/test_claude_cost_baseline_restart.py:144: AssertionError
+________ test_late_open_marker_does_not_override_newer_closed_baseline _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'>
+
+    def test_late_open_marker_does_not_override_newer_closed_baseline(db):
+        closed = {"native_session_id": "X", "total_cost_usd": 1.5, "open": False, "seq": 2}
+        stale_open = {"native_session_id": "X", "total_cost_usd": 1.0, "open": True, "seq": 1}
+>       db.provider_cost_baseline_put("sess-v609", closed)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'provider_cost_baseline_put'
+
+tests/test_claude_cost_baseline_restart.py:152: AttributeError
+__________________ test_turn_row_and_baseline_commit_together __________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73274ff454f0>
+
+    def test_turn_row_and_baseline_commit_together(db, monkeypatch):
+        def broken(*_args):
+            raise RuntimeError("baseline write failed")
+    
+>       monkeypatch.setattr(db, "_provider_cost_baseline_upsert", broken)
+E       AttributeError: <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/db.py'> has no attribute '_provider_cost_baseline_upsert'
+
+tests/test_claude_cost_baseline_restart.py:161: AttributeError
+_______ test_totals_without_native_scope_keep_old_arithmetic_without_db ________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11434/test_totals_without_native_sco0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73274fefda60>
+
+    def test_totals_without_native_scope_keep_old_arithmetic_without_db(tmp_path, monkeypatch):
+        import app.session_cost as session_cost
+    
+        reads = MagicMock(return_value=None)
+>       monkeypatch.setattr(session_cost, "provider_cost_baseline_get", reads)
+E       AttributeError: <module 'app.session_cost' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/costbase-o55-high-r2/app/session_cost.py'> has no attribute 'provider_cost_baseline_get'
+
+tests/test_claude_cost_baseline_restart.py:178: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_claude_cost_baseline_restart.py::test_first_turn_after_restart_on_same_native_session_is_turn_price
+FAILED tests/test_claude_cost_baseline_restart.py::test_crash_after_billing_without_record_is_unaccounted_not_inflated
+FAILED tests/test_claude_cost_baseline_restart.py::test_restart_without_stored_baseline_is_unaccounted
+FAILED tests/test_claude_cost_baseline_restart.py::test_provider_total_going_back_is_unaccounted_not_negative
+FAILED tests/test_claude_cost_baseline_restart.py::test_late_open_marker_does_not_override_newer_closed_baseline
+FAILED tests/test_claude_cost_baseline_restart.py::test_turn_row_and_baseline_commit_together
+FAILED tests/test_claude_cost_baseline_restart.py::test_totals_without_native_scope_keep_old_arithmetic_without_db
+7 failed, 1 passed in 7.30s

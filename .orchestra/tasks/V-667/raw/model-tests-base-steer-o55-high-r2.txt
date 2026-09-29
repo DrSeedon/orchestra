@@ -1,0 +1,201 @@
+.F.FFFFFF.F                                                              [100%]
+=================================== FAILURES ===================================
+_______________ test_dead_turn_carries_steer_into_next_turn_once _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_dead_turn_carries_steer_into_next_turn_once(db):
+        backend = _CodexLike()
+        session = _session(backend)
+        await _start_turn_and_steer(session, backend, URGENT)
+    
+        backend.emit(_turn_end(ok=False))
+        await _settle(session)
+    
+>       assert len(backend.turn_inputs) == 2, (
+            f"влитое в умерший ход не открыло следующий ход: {backend.turn_inputs}"
+        )
+E       AssertionError: влитое в умерший ход не открыло следующий ход: ['[from:orchestrator] ночная выкладка']
+E       assert 1 == 2
+E        +  where 1 = len(['[from:orchestrator] ночная выкладка'])
+E        +    where ['[from:orchestrator] ночная выкладка'] = <tests.test_steer_carryover_v562._CodexLike object at 0x721f4a7b88c0>.turn_inputs
+
+tests/test_steer_carryover_v562.py:184: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+____________ test_several_steers_into_dead_turn_arrive_all_in_order ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_several_steers_into_dead_turn_arrive_all_in_order(db):
+        backend = _CodexLike()
+        session = _session(backend)
+        steers = [f"[from:orchestrator] шаг {n}" for n in (1, 2, 3)]
+        await _start_turn_and_steer(session, backend, *steers)
+    
+        # Модель успела прочесть только второе — оно уже в истории треда.
+        backend.emit(AgentEvent("input_accepted", steers[1]))
+        backend.emit(_turn_end(ok=False))
+        await _settle(session)
+    
+>       carried = backend.turn_inputs[1]
+                  ^^^^^^^^^^^^^^^^^^^^^^
+E       IndexError: list index out of range
+
+tests/test_steer_carryover_v562.py:233: IndexError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+___________ test_restart_between_cut_turn_and_next_turn_keeps_steer ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_restart_between_cut_turn_and_next_turn_keeps_steer(db):
+        from app import mailbox
+        from tests.test_message_delivery_receipts_380 import _session_record
+    
+        db.save_session(_session_record(session_id="sid-v562", name="painter", scope="/repo"))
+        backend = _CodexLike()
+        session = _session(backend)
+        later = "[from:orchestrator] и откати баннер"
+        await _start_turn_and_steer(session, backend, URGENT, later)
+        # Процесс умер посреди хода: turn_end не пришёл, память сессии пропала.
+        del session
+    
+>       assert mailbox.recover_steered() == 2
+               ^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'recover_steered'
+
+tests/test_steer_carryover_v562.py:255: AttributeError
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+______________ test_failed_next_turn_start_returns_carried_steer _______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_failed_next_turn_start_returns_carried_steer(db):
+        """Начало следующего хода упало — забранное влитое возвращается в ящик."""
+        from app import mailbox
+    
+        backend = _CodexLike()
+        session = _session(backend)
+        await _start_turn_and_steer(session, backend, URGENT)
+        session._steered_inflight = []   # как после рестарта: память хода потеряна
+>       mailbox.release_all_steered()
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'release_all_steered'
+
+tests/test_steer_carryover_v562.py:287: AttributeError
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+________ test_sender_receipt_distinguishes_current_turn_from_next_turn _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_sender_receipt_distinguishes_current_turn_from_next_turn(db):
+        from app import message_deliveries
+        from app.mcp_stdio import _message_delivery_receipt_text
+    
+        delivery_id = str(uuid.uuid4())
+        provenance = MessageProvenance(
+            origin="agent", senders=("orchestrator",),
+            subtype="direct_message", ref=delivery_id,
+        )
+        receipt_row = {
+            "state": "SUBMITTED", "delivery_id": delivery_id, "payload_hash": "h",
+            "accept_seq": 1, "provider_ref": "turn-1", "error_json": None,
+            "target_name": "painter", "target_scope": "/repo",
+            "target_session_id": "sid-v562",
+        }
+    
+        backend = _CodexLike()
+        session = _session(backend)
+        await session.send("[from:orchestrator] ночная выкладка", provenance=ORCH)
+        outcome = await session.send(
+            URGENT, provenance=provenance, delivery=_Delivery(delivery_id),
+        )
+>       assert outcome == "steered_into_active_turn"
+E       AssertionError: assert None == 'steered_into_active_turn'
+
+tests/test_steer_carryover_v562.py:345: AssertionError
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+________________ test_plain_new_turn_receipt_has_no_steer_state ________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_plain_new_turn_receipt_has_no_steer_state(db):
+        """Обратное плечо: сообщение, открывшее ход, квитанцию не меняет."""
+        from app import message_deliveries
+    
+        delivery_id = str(uuid.uuid4())
+        provenance = MessageProvenance(
+            origin="agent", senders=("orchestrator",),
+            subtype="direct_message", ref=delivery_id,
+        )
+        backend = _CodexLike()
+        session = _session(backend)
+        outcome = await session.send(
+            URGENT, provenance=provenance, delivery=_Delivery(delivery_id),
+        )
+>       assert outcome == "started_turn"
+E       AssertionError: assert None == 'started_turn'
+
+tests/test_steer_carryover_v562.py:375: AssertionError
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+____________ test_failed_steer_leaves_no_carry_row_and_no_duplicate ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-o55-high-r2/app/db.py'>
+
+    @pytest.mark.asyncio
+    async def test_failed_steer_leaves_no_carry_row_and_no_duplicate(db):
+        """Вливание не состоялось — сообщение уходит в очередь сессии, как и раньше.
+        Строка ящика при этом дала бы второй экземпляр в следующем ходу."""
+        backend = _CodexLike()
+        session = _session(backend)
+        await session.send("[from:orchestrator] ночная выкладка", provenance=ORCH)
+        backend.fail_steer = True
+    
+        outcome = await session.send(URGENT, provenance=ORCH)
+    
+>       assert outcome == "queued_for_next_turn"
+E       AssertionError: assert None == 'queued_for_next_turn'
+
+tests/test_steer_carryover_v562.py:399: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:1310 [painter] mid-turn inject failed, queueing: turn/steer rejected: no active turn
+---------------------------- Captured log teardown -----------------------------
+WARNING  app.session:session.py:2565 [painter] listen task exited without exception (silent death), status=AgentStatus.IDLE
+__________ test_codex_user_message_item_is_reported_as_accepted_input __________
+
+    def test_codex_user_message_item_is_reported_as_accepted_input():
+        from app.backend_codex import CodexBackend
+    
+        backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+        events = backend._item_completed({
+            "type": "userMessage", "id": "u1",
+            "content": [{"type": "text", "text": URGENT, "text_elements": []}],
+        })
+>       assert [(e.type, e.content) for e in events] == [("input_accepted", URGENT)]
+E       AssertionError: assert [] == [('input_acce... НА КАСАНИЯ')]
+E         
+E         Right contains one more item: ('input_accepted', '[from:orchestrator] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E         Use -v to get more diff
+
+tests/test_steer_carryover_v562.py:425: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_steer_carryover_v562.py::test_dead_turn_carries_steer_into_next_turn_once
+FAILED tests/test_steer_carryover_v562.py::test_several_steers_into_dead_turn_arrive_all_in_order
+FAILED tests/test_steer_carryover_v562.py::test_restart_between_cut_turn_and_next_turn_keeps_steer
+FAILED tests/test_steer_carryover_v562.py::test_failed_next_turn_start_returns_carried_steer
+FAILED tests/test_steer_carryover_v562.py::test_sender_receipt_distinguishes_current_turn_from_next_turn
+FAILED tests/test_steer_carryover_v562.py::test_plain_new_turn_receipt_has_no_steer_state
+FAILED tests/test_steer_carryover_v562.py::test_failed_steer_leaves_no_carry_row_and_no_duplicate
+FAILED tests/test_steer_carryover_v562.py::test_codex_user_message_item_is_reported_as_accepted_input
+8 failed, 3 passed in 8.87s

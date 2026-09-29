@@ -1,0 +1,73 @@
+..............................................s........FF                [100%]/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x742e5b352520>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+    self._close(None)
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+    self._loop.call_soon(self._call_connection_lost, exc)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+    self._check_closed()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+=================================== FAILURES ===================================
+__ TestCommandWatchPidfdLeak.test_command_watch_iterations_do_not_leak_pidfds __
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLeak object at 0x742e5a4cc680>
+db = PosixPath('/tmp/pytest-of-kesha/pytest-11444/test_command_watch_iterations_0/test.db')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x742e5829a480>
+
+    @pytest.mark.asyncio
+    async def test_command_watch_iterations_do_not_leak_pidfds(self, db, monkeypatch):
+        import app.bg_jobs as module
+    
+        mgr = module.BgJobManager()
+        monkeypatch.setattr(mgr, "_trigger", AsyncMock())
+        before = _count_pidfds()
+        task = asyncio.create_task(mgr._run_command_watch(
+            "bg-leak", "true", "never-matches", 0, "m", "n", "s", 1.0,
+        ))
+        await task
+        await asyncio.sleep(0.05)
+>       assert _count_pidfds() - before <= 0
+E       assert (19 - 0) <= 0
+E        +  where 19 = _count_pidfds()
+
+tests/test_bg_jobs.py:1552: AssertionError
+__ TestCommandWatchPidfdLeak.test_cancelled_command_watch_does_not_leak_pidfd __
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLeak object at 0x742e5a4cce60>
+
+    @pytest.mark.asyncio
+    async def test_cancelled_command_watch_does_not_leak_pidfd(self):
+        import app.bg_jobs as module
+    
+        mgr = module.BgJobManager()
+        before = _count_pidfds()
+        task = asyncio.create_task(mgr._run_command_watch(
+            "bg-leak2", "sleep 30", "x", 5, "m", "n", "s", None,
+        ))
+        for _ in range(200):
+            if "bg-leak2" in mgr._procs:
+                break
+            await asyncio.sleep(0.01)
+        task.cancel()
+        await task
+>       assert _count_pidfds() - before <= 0
+E       assert (21 - 19) <= 0
+E        +  where 21 = _count_pidfds()
+
+tests/test_bg_jobs.py:1569: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLeak::test_command_watch_iterations_do_not_leak_pidfds
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLeak::test_cancelled_command_watch_does_not_leak_pidfd
+2 failed, 54 passed, 1 skipped in 18.18s

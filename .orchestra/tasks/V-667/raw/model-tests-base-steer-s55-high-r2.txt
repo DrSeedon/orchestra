@@ -1,0 +1,408 @@
+F.FFFFFFFFFF.FFFFFFF                                                     [100%]
+=================================== FAILURES ===================================
+_______________ test_normal_end_steers_once_and_never_redelivers _______________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f14553ad0>
+
+    @pytest.mark.asyncio
+    async def test_normal_end_steers_once_and_never_redelivers(session, monkeypatch):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+    
+        outcome = await session.send(URGENT, provenance=AGENT)
+    
+>       assert outcome == "steered"
+E       AssertionError: assert None == 'steered'
+
+tests/test_steer_durability_v562.py:158: AssertionError
+__________ test_lost_turn_redelivers_once_with_next_turn[interrupted] __________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f14553c50>
+stop_reason = 'interrupted'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stop_reason", ["interrupted", "error"])
+    async def test_lost_turn_redelivers_once_with_next_turn(session, monkeypatch, stop_reason):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+        session._manually_interrupted = True  # человек остановил: новый ход сам не стартует
+        _end_turn(session, ok=False, stop_reason=stop_reason)
+    
+        later = await _next_turn(session, backend)
+    
+        assert len(later) == 1
+>       assert later[0].count("ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ") == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0xb42fe8>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0xb42fe8> = 'next'.count
+
+tests/test_steer_durability_v562.py:192: AssertionError
+_____________ test_lost_turn_redelivers_once_with_next_turn[error] _____________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f16d1d910>
+stop_reason = 'error'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("stop_reason", ["interrupted", "error"])
+    async def test_lost_turn_redelivers_once_with_next_turn(session, monkeypatch, stop_reason):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+        session._manually_interrupted = True  # человек остановил: новый ход сам не стартует
+        _end_turn(session, ok=False, stop_reason=stop_reason)
+    
+        later = await _next_turn(session, backend)
+    
+        assert len(later) == 1
+>       assert later[0].count("ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ") == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0xb42fe8>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0xb42fe8> = 'next'.count
+
+tests/test_steer_durability_v562.py:192: AssertionError
+___________________ test_lost_turn_keeps_operator_as_sender ____________________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f11a3d520>
+
+    @pytest.mark.asyncio
+    async def test_lost_turn_keeps_operator_as_sender(session, monkeypatch):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send("срочно проверь касания", provenance=OPERATOR)
+        session._manually_interrupted = True
+        _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        later = await _next_turn(session, backend)
+    
+>       assert "[from:user] срочно проверь касания" in later[0]
+E       AssertionError: assert '[from:user] срочно проверь касания' in 'next'
+
+tests/test_steer_durability_v562.py:213: AssertionError
+__________ test_lost_turn_delivers_by_itself_when_not_stopped_by_hand __________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f11c47050>
+
+    @pytest.mark.asyncio
+    async def test_lost_turn_delivers_by_itself_when_not_stopped_by_hand(session, monkeypatch):
+        """Ход УПАЛ (не Stop): срочное не ждёт человека — конец хода запускает его сам."""
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+    
+        # реальный after_turn_idle_actions (в фикстуре только его хвосты подменены)
+        session._manually_interrupted = False
+        delivered = []
+    
+        async def fake_send(text, *, provenance):
+            delivered.append((text, provenance))
+    
+        monkeypatch.setattr(session, "send", fake_send)
+        _end_turn(session, ok=False, stop_reason="error")
+        for coro in session.spawned:
+            if asyncio.iscoroutine(coro) and coro.cr_code.co_name == "_deliver_mailbox":
+                await coro
+            else:
+                coro.close()
+    
+>       assert len(delivered) == 1
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_steer_durability_v562.py:238: AssertionError
+______________ test_manual_stop_does_not_launch_a_turn_on_its_own ______________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f1192a930>
+
+    @pytest.mark.asyncio
+    async def test_manual_stop_does_not_launch_a_turn_on_its_own(session, monkeypatch):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+        session._manually_interrupted = True
+        _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        assert not any(
+            getattr(c, "cr_code", None) and c.cr_code.co_name == "_deliver_mailbox"
+            for c in session.spawned
+        ), "Stop не должен сам запускать ход"
+>       assert len(_mailbox().pending("painter", "/repo")) == 1, "сообщение ждёт в ящике"
+E       AssertionError: сообщение ждёт в ящике
+E       assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <function pending at 0x744f1167ce00>('painter', '/repo')
+E        +      where <function pending at 0x744f1167ce00> = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/mailbox.py'>.pending
+E        +        where <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/mailbox.py'> = _mailbox()
+
+tests/test_steer_durability_v562.py:256: AssertionError
+_____ test_interrupt_returns_steered_message_without_waiting_for_turn_end ______
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f11928500>
+
+    @pytest.mark.asyncio
+    async def test_interrupt_returns_steered_message_without_waiting_for_turn_end(
+        session, monkeypatch,
+    ):
+        """Бэкенд завис и события конца хода не будет — interrupt() сам отдаёт вливание."""
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+        assert _mailbox().pending("painter", "/repo") == [], "пока ход идёт — не очередь"
+    
+        await session.interrupt()
+    
+>       assert len(_mailbox().pending("painter", "/repo")) == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = len([])
+E        +    where [] = <function pending at 0x744f1167ce00>('painter', '/repo')
+E        +      where <function pending at 0x744f1167ce00> = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/mailbox.py'>.pending
+E        +        where <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/mailbox.py'> = _mailbox()
+
+tests/test_steer_durability_v562.py:273: AssertionError
+_______ test_turn_that_died_without_end_event_is_recovered_by_next_turn ________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f119191c0>
+
+    @pytest.mark.asyncio
+    async def test_turn_that_died_without_end_event_is_recovered_by_next_turn(
+        session, monkeypatch,
+    ):
+        """Ход исчез без turn_end (упал слушатель): статус сброшен, события конца нет."""
+        from app.session import AgentStatus
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+        session.status = AgentStatus.IDLE  # как после сбоя слушателя
+    
+        later = await _next_turn(session, backend)
+    
+>       assert later[0].count("ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ") == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <built-in method count of str object at 0xb42fe8>('ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+E        +    where <built-in method count of str object at 0xb42fe8> = 'next'.count
+
+tests/test_steer_durability_v562.py:291: AssertionError
+__________ test_several_steers_into_dead_turn_arrive_all_and_in_order __________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f11919970>
+
+    @pytest.mark.asyncio
+    async def test_several_steers_into_dead_turn_arrive_all_and_in_order(session, monkeypatch):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        for n in (1, 2, 3):
+            await session.send(f"[from:orch] сообщение-{n}", provenance=AGENT)
+        session._manually_interrupted = True
+        _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        later = await _next_turn(session, backend)
+    
+        text = later[0]
+>       positions = [text.index(f"сообщение-{n}") for n in (1, 2, 3)]
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ValueError: substring not found
+
+tests/test_steer_durability_v562.py:308: ValueError
+_______ test_restart_between_loss_and_next_turn_does_not_eat_the_message _______
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f119192b0>
+
+    @pytest.mark.asyncio
+    async def test_restart_between_loss_and_next_turn_does_not_eat_the_message(
+        session, monkeypatch,
+    ):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        await session.send(URGENT, provenance=AGENT)
+        # процесс умер вместе с ходом: события конца не было, аренда хода осталась в БД
+>       assert [r["claimed_at"] for r in _open_rows()] == [_mailbox().STEERED_LEASE]
+                                                           ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'STEERED_LEASE'
+
+tests/test_steer_durability_v562.py:323: AttributeError
+_________ test_restart_recovery_leaves_settled_and_ordinary_rows_alone _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/db.py'>
+
+    def test_restart_recovery_leaves_settled_and_ordinary_rows_alone(db):
+        mb = _mailbox()
+>       live = mb.record_steered("w", "/repo", "orch", "живое", provenance=AGENT)
+               ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_durability_v562.py:345: AttributeError
+________ test_failed_steer_leaves_no_ghost_row_and_falls_back_to_queue _________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f11704d10>
+
+    @pytest.mark.asyncio
+    async def test_failed_steer_leaves_no_ghost_row_and_falls_back_to_queue(
+        session, monkeypatch,
+    ):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        backend.fail_next = True
+    
+        outcome = await session.send(URGENT, provenance=AGENT)
+    
+>       assert outcome == "queued"
+E       AssertionError: assert None == 'queued'
+
+tests/test_steer_durability_v562.py:380: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  app.session:session.py:1310 [painter] mid-turn inject failed, queueing: provider refused
+___________ test_delivery_path_records_and_discards_like_direct_path ___________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f117072f0>
+
+    @pytest.mark.asyncio
+    async def test_delivery_path_records_and_discards_like_direct_path(session, monkeypatch):
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        delivery = _Delivery()
+    
+        outcome = await session.send(URGENT, provenance=AGENT, delivery=delivery)
+    
+>       assert outcome == "steered"
+E       AssertionError: assert None == 'steered'
+
+tests/test_steer_durability_v562.py:397: AssertionError
+_________________ test_platform_continuations_are_not_insured __________________
+
+session = AgentSession(id='sid-1', name='painter', scope='/repo', cwd='/tmp', model='claude-sonnet-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f11705af0>
+
+    @pytest.mark.asyncio
+    async def test_platform_continuations_are_not_insured(session, monkeypatch):
+        """Служебное «продолжи» после смерти хода — шум, а не потерянное сообщение."""
+        backend = _Backend()
+        _running(session, backend, monkeypatch)
+        cont = MessageProvenance(origin="platform", senders=("Orchestra",),
+                                 subtype="turn_limit_continue")
+>       session._record_steer("continue", cont)
+        ^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'AgentSession' object has no attribute '_record_steer'
+
+tests/test_steer_durability_v562.py:423: AttributeError
+_____________ test_sender_sees_steered_vs_queued_in_route_response _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x744f117046b0>
+
+    def test_sender_sees_steered_vs_queued_in_route_response(db, monkeypatch):
+        from app.routes import sessions as routes
+        from tests.test_message_delivery_receipts_380 import _session_record
+    
+        db.save_session(_session_record(
+            session_id="sid-1", name="painter", scope="/repo",
+            task_id="steer", branch="task-steer/painter",
+        ))
+    
+        class _Target:
+            id = "sid-1"
+            name = "painter"
+            scope = "/repo"
+            parent_name = "parent"
+            last_task_sender = None
+            worktree_path = None
+    
+        class _Manager:
+            outcome = "steered"
+            sessions = {}
+    
+            async def ensure_loaded(self, name, scope=None):
+                return _Target()
+    
+            async def send(self, session_id, msg, *, provenance):
+                return self.outcome
+    
+            def _context_warning(self, sender):
+                return ""
+    
+        mgr = _Manager()
+        monkeypatch.setattr(routes, "manager", mgr)
+    
+        def call(outcome):
+            mgr.outcome = outcome
+            return asyncio.run(routes.send_message("painter", routes.SendRequest(
+                message="hi", scope="/repo", sender="parent",
+            )))
+    
+        steered, waits, started = call("steered"), call("queued"), call("started")
+    
+>       assert steered["delivery_mode"] == "steered_into_active_turn"
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'delivery_mode'
+
+tests/test_steer_durability_v562.py:470: KeyError
+________ test_sender_status_tells_in_current_turn_from_waiting_for_next ________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/db.py'>
+
+    def test_sender_status_tells_in_current_turn_from_waiting_for_next(db):
+        from app import message_deliveries as md
+        mb = _mailbox()
+        ref = "9b0e2a5e-0000-4000-8000-000000000001"
+        prov = MessageProvenance(origin="agent", senders=("orch",),
+                                 subtype="direct_message", ref=ref)
+        resource = {"delivery_id": ref, "delivery_state": "SUBMITTED"}
+    
+>       assert "steer" not in md.with_steer_state(resource), "не вливалось — нечего сообщать"
+                              ^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.message_deliveries' has no attribute 'with_steer_state'
+
+tests/test_steer_durability_v562.py:487: AttributeError
+________ test_steered_rows_are_invisible_to_dashboard_queue_and_cancel _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/db.py'>
+
+    def test_steered_rows_are_invisible_to_dashboard_queue_and_cancel(db):
+        mb = _mailbox()
+>       mid = mb.record_steered("painter", "/repo", "user", "влито", provenance=OPERATOR)
+              ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_durability_v562.py:506: AttributeError
+____________ test_live_lease_is_not_reclaimed_by_stale_lease_logic _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/steer-s55-high-r2/app/db.py'>
+
+    def test_live_lease_is_not_reclaimed_by_stale_lease_logic(db):
+        mb = _mailbox()
+>       mb.record_steered("painter", "/repo", "orch", "живое", provenance=AGENT)
+        ^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'record_steered'
+
+tests/test_steer_durability_v562.py:517: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_steer_durability_v562.py::test_normal_end_steers_once_and_never_redelivers
+FAILED tests/test_steer_durability_v562.py::test_lost_turn_redelivers_once_with_next_turn[interrupted]
+FAILED tests/test_steer_durability_v562.py::test_lost_turn_redelivers_once_with_next_turn[error]
+FAILED tests/test_steer_durability_v562.py::test_lost_turn_keeps_operator_as_sender
+FAILED tests/test_steer_durability_v562.py::test_lost_turn_delivers_by_itself_when_not_stopped_by_hand
+FAILED tests/test_steer_durability_v562.py::test_manual_stop_does_not_launch_a_turn_on_its_own
+FAILED tests/test_steer_durability_v562.py::test_interrupt_returns_steered_message_without_waiting_for_turn_end
+FAILED tests/test_steer_durability_v562.py::test_turn_that_died_without_end_event_is_recovered_by_next_turn
+FAILED tests/test_steer_durability_v562.py::test_several_steers_into_dead_turn_arrive_all_and_in_order
+FAILED tests/test_steer_durability_v562.py::test_restart_between_loss_and_next_turn_does_not_eat_the_message
+FAILED tests/test_steer_durability_v562.py::test_restart_recovery_leaves_settled_and_ordinary_rows_alone
+FAILED tests/test_steer_durability_v562.py::test_failed_steer_leaves_no_ghost_row_and_falls_back_to_queue
+FAILED tests/test_steer_durability_v562.py::test_delivery_path_records_and_discards_like_direct_path
+FAILED tests/test_steer_durability_v562.py::test_platform_continuations_are_not_insured
+FAILED tests/test_steer_durability_v562.py::test_sender_sees_steered_vs_queued_in_route_response
+FAILED tests/test_steer_durability_v562.py::test_sender_status_tells_in_current_turn_from_waiting_for_next
+FAILED tests/test_steer_durability_v562.py::test_steered_rows_are_invisible_to_dashboard_queue_and_cancel
+FAILED tests/test_steer_durability_v562.py::test_live_lease_is_not_reclaimed_by_stale_lease_logic
+18 failed, 2 passed in 8.56s

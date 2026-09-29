@@ -1,0 +1,152 @@
+FFFFFFF                                                                  [100%]
+=================================== FAILURES ===================================
+________ test_git_confirms_pin_then_merge_passes_and_record_is_repaired ________
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': 'a70320f8712bd6ce334cbf6e46f610a20599d42a', 'merge': <function env.<locals>.merge at 0x7ad90308dee0>, ...}
+
+    @pytest.mark.asyncio
+    async def test_git_confirms_pin_then_merge_passes_and_record_is_repaired(env):
+        """Разрешающее плечо: запись — adhoc-…, git — на закреплённой ветке, HEAD совпал."""
+        env["save"]("adhoc-1758000000/worker")
+        target_before = _git(env["repo"], "rev-parse", "main")
+    
+        res = await env["merge"](env["wt"].branch, env["head"])
+    
+>       assert res.get("ok") is True, res.get("error")
+E       AssertionError: session branch changed before merge: expected task-17/worker, found adhoc-1758000000/worker
+E       assert False is True
+E        +  where False = <built-in method get of dict object at 0x7ad9032361c0>('ok')
+E        +    where <built-in method get of dict object at 0x7ad9032361c0> = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-17/worker, found adhoc-1758000000/worker', ...}.get
+
+tests/test_merge_branch_record_reconcile.py:89: AssertionError
+______ test_third_state_refuses_naming_db_git_and_tool_and_writes_nothing ______
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': 'caa8e70c8672d71aba95cd1ee496bb7d2910d161', 'merge': <function env.<locals>.merge at 0x7ad90308e980>, ...}
+
+    @pytest.mark.asyncio
+    async def test_third_state_refuses_naming_db_git_and_tool_and_writes_nothing(env):
+        env["save"]("adhoc-1758000000/worker")
+        _git(env["wt"].path, "checkout", "-b", "sidetrack")
+        target_before = _git(env["repo"], "rev-parse", "main")
+    
+        res = await env["merge"](env["wt"].branch, env["head"])
+    
+        assert res["ok"] is False and res["commit_point"] == "not_reached"
+>       assert res["_http_status"] == 409 and res["code"] == "SESSION_RECORD_MISMATCH"
+                                              ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record_reconcile.py:103: KeyError
+_______________ test_head_moved_refuses_and_leaves_record_alone ________________
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': 'caa8e70c8672d71aba95cd1ee496bb7d2910d161', 'merge': <function env.<locals>.merge at 0x7ad9030fa520>, ...}
+
+    @pytest.mark.asyncio
+    async def test_head_moved_refuses_and_leaves_record_alone(env):
+        env["save"]("adhoc-1758000000/worker")
+        _commit(env["wt"].path, "later")
+    
+        res = await env["merge"](env["wt"].branch, env["head"])
+    
+        assert res["ok"] is False and res["commit_point"] == "not_reached"
+>       assert res["record_mismatch"]["kind"] == "head_moved"
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'record_mismatch'
+
+tests/test_merge_branch_record_reconcile.py:121: KeyError
+_________________ test_unreadable_worktree_is_refusal_not_pass _________________
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': '6f21c71c7dbcea53c3a0ed57fe09934c76e6c52d', 'merge': <function env.<locals>.merge at 0x7ad9030fab60>, ...}
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11439/test_unreadable_worktree_is_re0')
+
+    @pytest.mark.asyncio
+    async def test_unreadable_worktree_is_refusal_not_pass(env, tmp_path):
+        env["save"]("adhoc-1758000000/worker", worktree=str(tmp_path / "gone"))
+    
+        res = await env["merge"](env["wt"].branch, env["head"])
+    
+        assert res["ok"] is False and res["commit_point"] == "not_reached"
+>       assert res["record_mismatch"]["kind"] == "inspect_failed"
+               ^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'record_mismatch'
+
+tests/test_merge_branch_record_reconcile.py:133: KeyError
+_____________ test_record_changed_concurrently_is_not_overwritten ______________
+
+obj = <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-r2/app/routes/sessions.py'>
+name = 'reconcile_session_branch', ann = 'app.routes.sessions'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+>           obj = getattr(obj, name)
+                  ^^^^^^^^^^^^^^^^^^
+E           AttributeError: module 'app.routes.sessions' has no attribute 'reconcile_session_branch'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:92: AttributeError
+
+The above exception was the direct cause of the following exception:
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': '66632d20e746c7e33bdebe52241cf3836b30844e', 'merge': <function env.<locals>.merge at 0x7ad9030fa660>, ...}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ad90329a3f0>
+
+    @pytest.mark.asyncio
+    async def test_record_changed_concurrently_is_not_overwritten(env, monkeypatch):
+        env["save"]("adhoc-1758000000/worker")
+>       monkeypatch.setattr(
+            "app.routes.sessions.reconcile_session_branch", lambda *a: False,
+        )
+
+tests/test_merge_branch_record_reconcile.py:140: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:106: in derive_importpath
+    annotated_getattr(target, attr, ann=module)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+obj = <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-r2/app/routes/sessions.py'>
+name = 'reconcile_session_branch', ann = 'app.routes.sessions'
+
+    def annotated_getattr(obj: object, name: str, ann: str) -> object:
+        try:
+            obj = getattr(obj, name)
+        except AttributeError as e:
+>           raise AttributeError(
+                f"{type(obj).__name__!r} object at {ann} has no attribute {name!r}"
+            ) from e
+E           AttributeError: 'module' object at app.routes.sessions has no attribute 'reconcile_session_branch'
+
+/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/monkeypatch.py:94: AttributeError
+______________________ test_reconcile_is_compare_and_swap ______________________
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': '538387539578fdd89734ff3a4d353e1e7761cf45', 'merge': <function env.<locals>.merge at 0x7ad9030fb560>, ...}
+
+    def test_reconcile_is_compare_and_swap(env):
+        env["save"]("old")
+>       assert env["db"].reconcile_session_branch(env["sid"], "other", "new") is False
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'reconcile_session_branch'
+
+tests/test_merge_branch_record_reconcile.py:152: AttributeError
+___________ test_refusal_prescribes_inspect_not_a_fruitless_refresh ____________
+
+env = {'S': <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/ident-s55-high-...y'>, 'head': '1cef5213cb46441e5f01513d4e70f8bbe1bd39a0', 'merge': <function env.<locals>.merge at 0x7ad9030fb740>, ...}
+
+    def test_refusal_prescribes_inspect_not_a_fruitless_refresh(env):
+        from app import merge_operations as ops
+    
+>       refusal = env["S"]._branch_record_refusal(
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            kind="third_state", db_branch="adhoc-1/w", pinned_branch="task-1/w",
+            pinned_head="a" * 40, git_branch="x", git_head="b" * 40,
+        )
+E       AttributeError: module 'app.routes.sessions' has no attribute '_branch_record_refusal'
+
+tests/test_merge_branch_record_reconcile.py:161: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record_reconcile.py::test_git_confirms_pin_then_merge_passes_and_record_is_repaired
+FAILED tests/test_merge_branch_record_reconcile.py::test_third_state_refuses_naming_db_git_and_tool_and_writes_nothing
+FAILED tests/test_merge_branch_record_reconcile.py::test_head_moved_refuses_and_leaves_record_alone
+FAILED tests/test_merge_branch_record_reconcile.py::test_unreadable_worktree_is_refusal_not_pass
+FAILED tests/test_merge_branch_record_reconcile.py::test_record_changed_concurrently_is_not_overwritten
+FAILED tests/test_merge_branch_record_reconcile.py::test_reconcile_is_compare_and_swap
+FAILED tests/test_merge_branch_record_reconcile.py::test_refusal_prescribes_inspect_not_a_fruitless_refresh
+7 failed in 10.04s

@@ -1,0 +1,97 @@
+.........................................FF.....s........                [100%]
+=================================== FAILURES ===================================
+______ TestCommandWatchPidfdLeak.test_polling_does_not_accumulate_pidfds _______
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLeak object at 0x77d959cf2750>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77d957657bf0>
+
+    @pytest.mark.asyncio
+    async def test_polling_does_not_accumulate_pidfds(self, monkeypatch):
+        import app.bg_jobs as module
+    
+        mgr = module.BgJobManager()
+        real_spawn = mgr._spawn_managed_process
+        spawned = 0
+    
+        async def limited_spawn(*args, **kwargs):
+            nonlocal spawned
+            if spawned == self.ITERATIONS:
+                raise RuntimeError("enough iterations")
+            spawned += 1
+            return await real_spawn(*args, **kwargs)
+    
+        monkeypatch.setattr(mgr, "_spawn_managed_process", limited_spawn)
+        monkeypatch.setattr(module, "bg_fail_job", lambda *_a, **_k: None)
+        before = _open_pidfds()
+    
+        await mgr._run_command_watch(
+            "bg-pidfd", "true", "never-matches", 0, "msg", "agent", "session", 60,
+        )
+    
+        assert spawned == self.ITERATIONS
+>       assert _open_pidfds() - before == 0
+E       assert (12 - 0) == 0
+E        +  where 12 = _open_pidfds()
+
+tests/test_bg_jobs.py:989: AssertionError
+____ TestCommandWatchPidfdLeak.test_cancelled_poll_releases_pidfd_and_group ____
+
+self = <tests.test_bg_jobs.TestCommandWatchPidfdLeak object at 0x77d959cf2e40>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77d957662c30>
+
+    @pytest.mark.asyncio
+    async def test_cancelled_poll_releases_pidfd_and_group(self, monkeypatch):
+        import app.bg_jobs as module
+    
+        mgr = module.BgJobManager()
+        started = asyncio.Event()
+        real_spawn = mgr._spawn_managed_process
+    
+        async def spawn(*args, **kwargs):
+            proc = await real_spawn(*args, **kwargs)
+            started.set()
+            return proc
+    
+        monkeypatch.setattr(mgr, "_spawn_managed_process", spawn)
+        before = _open_pidfds()
+        task = asyncio.create_task(mgr._run_command_watch(
+            "bg-pidfd-cancel", "sleep 30", "x", 60, "msg", "agent", "session", 60,
+        ))
+        await asyncio.wait_for(started.wait(), timeout=10)
+        proc = mgr._procs["bg-pidfd-cancel"]
+        task.cancel()
+        await asyncio.wait_for(task, timeout=15)
+    
+>       assert _open_pidfds() - before == 0
+E       assert (14 - 12) == 0
+E        +  where 14 = _open_pidfds()
+
+tests/test_bg_jobs.py:1014: AssertionError
+=============================== warnings summary ===============================
+tests/test_bg_jobs.py::TestWakeByImmutableId::test_archived_session_is_not_woken_even_though_row_exists
+  /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x77d95afa6520>
+  
+  Traceback (most recent call last):
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+      self.close()
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+      proto.pipe.close()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+      self._close(None)
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+      self._loop.call_soon(self._call_connection_lost, exc)
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+      self._check_closed()
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLeak::test_polling_does_not_accumulate_pidfds
+FAILED tests/test_bg_jobs.py::TestCommandWatchPidfdLeak::test_cancelled_poll_releases_pidfd_and_group
+2 failed, 54 passed, 1 skipped, 1 warning in 14.98s

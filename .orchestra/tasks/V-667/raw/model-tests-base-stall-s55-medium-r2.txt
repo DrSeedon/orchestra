@@ -1,0 +1,208 @@
+FFFFFFFFFFFFF                                                            [100%]
+=================================== FAILURES ===================================
+__________ test_twenty_minutes_of_silence_signals_parent_exactly_once __________
+
+mgr = namespace(ensure_loaded=<AsyncMock id='129776775705280'>, send=<AsyncMock id='129776775415184'>)
+
+    @pytest.mark.asyncio
+    async def test_twenty_minutes_of_silence_signals_parent_exactly_once(mgr):
+        s = _worker()
+        hm = HibernateManager(s)
+>       assert await hm.check_silence(100.0 + 19 * MIN) is False
+                     ^^^^^^^^^^^^^^^^
+E       AttributeError: 'HibernateManager' object has no attribute 'check_silence'
+
+tests/test_v642_silence_and_stall.py:46: AttributeError
+________________ test_new_event_rearms_signal_after_new_silence ________________
+
+mgr = namespace(ensure_loaded=<AsyncMock id='129776772338304'>, send=<AsyncMock id='129776772343344'>)
+
+    @pytest.mark.asyncio
+    async def test_new_event_rearms_signal_after_new_silence(mgr):
+        s = _worker()
+        hm = HibernateManager(s)
+>       assert await hm.check_silence(100.0 + 20 * MIN) is True
+                     ^^^^^^^^^^^^^^^^
+E       AttributeError: 'HibernateManager' object has no attribute 'check_silence'
+
+tests/test_v642_silence_and_stall.py:60: AttributeError
+____________________ test_flowing_events_produce_no_signal _____________________
+
+mgr = namespace(ensure_loaded=<AsyncMock id='129776772639120'>, send=<AsyncMock id='129776772643488'>)
+
+    @pytest.mark.asyncio
+    async def test_flowing_events_produce_no_signal(mgr):
+        s = _worker()
+        hm = HibernateManager(s)
+        for step in range(1, 10):
+            s._last_msg_time = 100.0 + step * 5 * MIN  # событие каждые 5 минут
+            s._event_seq += 1
+>           assert await hm.check_silence(s._last_msg_time + 5 * MIN) is False
+                         ^^^^^^^^^^^^^^^^
+E           AttributeError: 'HibernateManager' object has no attribute 'check_silence'
+
+tests/test_v642_silence_and_stall.py:75: AttributeError
+_________ test_no_signal_without_running_backend_or_parent[override0] __________
+
+mgr = namespace(ensure_loaded=<AsyncMock id='129776772518000'>, send=<AsyncMock id='129776772523184'>)
+override = {'status': <AgentStatus.IDLE: 'idle'>}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("override", [
+        {"status": AgentStatus.IDLE}, {"_backend": None}, {"parent_name": ""},
+    ])
+    async def test_no_signal_without_running_backend_or_parent(mgr, override):
+        hm = HibernateManager(_worker(**override))
+>       assert await hm.check_silence(100.0 + 60 * MIN) is False
+                     ^^^^^^^^^^^^^^^^
+E       AttributeError: 'HibernateManager' object has no attribute 'check_silence'
+
+tests/test_v642_silence_and_stall.py:85: AttributeError
+_________ test_no_signal_without_running_backend_or_parent[override1] __________
+
+mgr = namespace(ensure_loaded=<AsyncMock id='129776769091536'>, send=<AsyncMock id='129776769097536'>)
+override = {'_backend': None}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("override", [
+        {"status": AgentStatus.IDLE}, {"_backend": None}, {"parent_name": ""},
+    ])
+    async def test_no_signal_without_running_backend_or_parent(mgr, override):
+        hm = HibernateManager(_worker(**override))
+>       assert await hm.check_silence(100.0 + 60 * MIN) is False
+                     ^^^^^^^^^^^^^^^^
+E       AttributeError: 'HibernateManager' object has no attribute 'check_silence'
+
+tests/test_v642_silence_and_stall.py:85: AttributeError
+_________ test_no_signal_without_running_backend_or_parent[override2] __________
+
+mgr = namespace(ensure_loaded=<AsyncMock id='129776769683712'>, send=<AsyncMock id='129776769687936'>)
+override = {'parent_name': ''}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("override", [
+        {"status": AgentStatus.IDLE}, {"_backend": None}, {"parent_name": ""},
+    ])
+    async def test_no_signal_without_running_backend_or_parent(mgr, override):
+        hm = HibernateManager(_worker(**override))
+>       assert await hm.check_silence(100.0 + 60 * MIN) is False
+                     ^^^^^^^^^^^^^^^^
+E       AttributeError: 'HibernateManager' object has no attribute 'check_silence'
+
+tests/test_v642_silence_and_stall.py:85: AttributeError
+_______________________ test_threshold_is_twenty_minutes _______________________
+
+    @pytest.mark.asyncio
+    async def test_threshold_is_twenty_minutes():
+>       assert sh.SILENCE_SIGNAL_SECONDS == 20 * 60
+               ^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.session_hibernate' has no attribute 'SILENCE_SIGNAL_SECONDS'
+
+tests/test_v642_silence_and_stall.py:91: AttributeError
+_____ test_delivery_without_turn_start_becomes_stalled_and_sender_is_told ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76080241f3b0>
+mgr = namespace(ensure_loaded=<AsyncMock id='129776769713264'>, send=<AsyncMock id='129776769717728'>)
+
+    @pytest.mark.asyncio
+    async def test_delivery_without_turn_start_becomes_stalled_and_sender_is_told(monkeypatch, mgr):
+        c = _db(monkeypatch)
+>       assert await md.watch_turn_start(
+                     ^^^^^^^^^^^^^^^^^^^
+            "d1", _target(), AgentStatus.IDLE, sleep=_no_sleep, manager=mgr,
+        ) is True
+E       AttributeError: module 'app.message_deliveries' has no attribute 'watch_turn_start'
+
+tests/test_v642_silence_and_stall.py:139: AttributeError
+________________ test_turn_started_within_window_is_not_stalled ________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x760802423230>
+mgr = namespace(ensure_loaded=<AsyncMock id='129776767660112'>, send=<AsyncMock id='129776767664096'>)
+
+    @pytest.mark.asyncio
+    async def test_turn_started_within_window_is_not_stalled(monkeypatch, mgr):
+        c = _db(monkeypatch)
+        t = _target()
+    
+        async def _event_arrives(_):
+            t._event_seq += 1
+    
+>       assert await md.watch_turn_start(
+                     ^^^^^^^^^^^^^^^^^^^
+            "d1", t, AgentStatus.IDLE, sleep=_event_arrives, manager=mgr,
+        ) is False
+E       AttributeError: module 'app.message_deliveries' has no attribute 'watch_turn_start'
+
+tests/test_v642_silence_and_stall.py:164: AttributeError
+________ test_message_pending_behind_running_turn_is_not_stalled[busy0] ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7608024263f0>
+mgr = namespace(ensure_loaded=<AsyncMock id='129776769726992'>, send=<AsyncMock id='129776769711376'>)
+busy = {'_pending_messages': ['m']}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("busy", [{"_pending_messages": ["m"]}, {"_compacting": True}])
+    async def test_message_pending_behind_running_turn_is_not_stalled(monkeypatch, mgr, busy):
+        c = _db(monkeypatch)
+>       assert await md.watch_turn_start(
+                     ^^^^^^^^^^^^^^^^^^^
+            "d1", _target(**busy), AgentStatus.IDLE, sleep=_no_sleep, manager=mgr,
+        ) is False
+E       AttributeError: module 'app.message_deliveries' has no attribute 'watch_turn_start'
+
+tests/test_v642_silence_and_stall.py:175: AttributeError
+________ test_message_pending_behind_running_turn_is_not_stalled[busy1] ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7608024266f0>
+mgr = namespace(ensure_loaded=<AsyncMock id='129776769121408'>, send=<AsyncMock id='129776769691440'>)
+busy = {'_compacting': True}
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("busy", [{"_pending_messages": ["m"]}, {"_compacting": True}])
+    async def test_message_pending_behind_running_turn_is_not_stalled(monkeypatch, mgr, busy):
+        c = _db(monkeypatch)
+>       assert await md.watch_turn_start(
+                     ^^^^^^^^^^^^^^^^^^^
+            "d1", _target(**busy), AgentStatus.IDLE, sleep=_no_sleep, manager=mgr,
+        ) is False
+E       AttributeError: module 'app.message_deliveries' has no attribute 'watch_turn_start'
+
+tests/test_v642_silence_and_stall.py:175: AttributeError
+_____________________ test_running_target_is_never_watched _____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7608024229f0>
+
+    @pytest.mark.asyncio
+    async def test_running_target_is_never_watched(monkeypatch):
+        ctx = md.MessageDeliveryContext(
+            "5f0c1e0a-0000-4000-8000-000000000001", history_user_message="x",
+            provenance=None,
+        )
+        started = []
+>       monkeypatch.setattr(md, "watch_turn_start", lambda *a, **k: started.append(a))
+E       AttributeError: <module 'app.message_deliveries' from '/home/kesha/orchestra/data/v656-bench/work-V-667/model-tests/stall-s55-medium-r2/app/message_deliveries.py'> has no attribute 'watch_turn_start'
+
+tests/test_v642_silence_and_stall.py:189: AttributeError
+____________________ test_stalled_is_terminal_for_the_queue ____________________
+
+    def test_stalled_is_terminal_for_the_queue():
+>       assert "STALLED" in md._TERMINAL_DELIVERY_STATES
+E       AssertionError: assert 'STALLED' in ('SUBMITTED', 'FAILED_BEFORE_SUBMIT', 'DELIVERY_UNKNOWN_ORPHANED')
+E        +  where ('SUBMITTED', 'FAILED_BEFORE_SUBMIT', 'DELIVERY_UNKNOWN_ORPHANED') = md._TERMINAL_DELIVERY_STATES
+
+tests/test_v642_silence_and_stall.py:195: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_v642_silence_and_stall.py::test_twenty_minutes_of_silence_signals_parent_exactly_once
+FAILED tests/test_v642_silence_and_stall.py::test_new_event_rearms_signal_after_new_silence
+FAILED tests/test_v642_silence_and_stall.py::test_flowing_events_produce_no_signal
+FAILED tests/test_v642_silence_and_stall.py::test_no_signal_without_running_backend_or_parent[override0]
+FAILED tests/test_v642_silence_and_stall.py::test_no_signal_without_running_backend_or_parent[override1]
+FAILED tests/test_v642_silence_and_stall.py::test_no_signal_without_running_backend_or_parent[override2]
+FAILED tests/test_v642_silence_and_stall.py::test_threshold_is_twenty_minutes
+FAILED tests/test_v642_silence_and_stall.py::test_delivery_without_turn_start_becomes_stalled_and_sender_is_told
+FAILED tests/test_v642_silence_and_stall.py::test_turn_started_within_window_is_not_stalled
+FAILED tests/test_v642_silence_and_stall.py::test_message_pending_behind_running_turn_is_not_stalled[busy0]
+FAILED tests/test_v642_silence_and_stall.py::test_message_pending_behind_running_turn_is_not_stalled[busy1]
+FAILED tests/test_v642_silence_and_stall.py::test_running_target_is_never_watched
+FAILED tests/test_v642_silence_and_stall.py::test_stalled_is_terminal_for_the_queue
+13 failed in 5.81s

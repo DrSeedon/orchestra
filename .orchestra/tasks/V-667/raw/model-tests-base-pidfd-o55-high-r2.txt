@@ -1,0 +1,76 @@
+FF..                                                                     [100%]/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x72078c34a520>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+    self._close(None)
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+    self._loop.call_soon(self._call_connection_lost, exc)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+    self._check_closed()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+=================================== FAILURES ===================================
+______________ test_command_watch_polls_do_not_accumulate_pidfds _______________
+
+mgr = <app.bg_jobs.BgJobManager object at 0x720789461c70>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11441/test_command_watch_polls_do_no0')
+
+    @pytest.mark.asyncio
+    async def test_command_watch_polls_do_not_accumulate_pidfds(mgr, tmp_path):
+        counter = tmp_path / "polls"
+        command = (
+            f"n=$(cat {counter} 2>/dev/null || echo 0); n=$((n+1)); echo $n > {counter}; "
+            f"[ $n -ge {N} ] && echo DONE; true"
+        )
+        before = _pidfd_count()
+    
+        await mgr._run_command_watch("cw", command, "DONE", 0, "m", "w", "/s", 60)
+    
+        assert counter.read_text().strip() == str(N)
+        mgr._trigger.assert_awaited_once()
+>       assert await _settled_leak(before) == 0
+E       assert 10 == 0
+
+tests/test_pidfd_accounting.py:64: AssertionError
+______ test_command_watch_cancelled_without_manager_cancel_kills_its_poll ______
+
+mgr = <app.bg_jobs.BgJobManager object at 0x720789142db0>
+
+    @pytest.mark.asyncio
+    async def test_command_watch_cancelled_without_manager_cancel_kills_its_poll(mgr):
+        """replace_key and restore expiry cancel the task but never call cancel()."""
+        before = _pidfd_count()
+        procs = []
+        for index in range(3):
+            job_id = f"cw-cancel-{index}"
+            task = asyncio.create_task(
+                mgr._run_command_watch(job_id, "sleep 30", "never", 0, "m", "w", "/s", 60)
+            )
+            for _ in range(250):
+                if job_id in mgr._procs:
+                    break
+                await asyncio.sleep(0.02)
+            proc = mgr._procs[job_id]
+            procs.append(proc)
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+    
+>       assert all(proc.returncode is not None for proc in procs)
+E       assert False
+E        +  where False = all(<generator object test_command_watch_cancelled_without_manager_cancel_kills_its_poll.<locals>.<genexpr> at 0x7207891a4520>)
+
+tests/test_pidfd_accounting.py:86: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pidfd_accounting.py::test_command_watch_polls_do_not_accumulate_pidfds
+FAILED tests/test_pidfd_accounting.py::test_command_watch_cancelled_without_manager_cancel_kills_its_poll
+2 failed, 2 passed in 13.52s
