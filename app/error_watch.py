@@ -31,6 +31,7 @@ _NOISE = (
     ("TG polling cut by shutdown", re.compile(r"Failed to fetch updates.*ServerDisconnectedError", re.I)),
     ("agent shell syntax", re.compile(r"-c: line (?:\d+|<N>): syntax error", re.I)),
     ("agent missing python package", re.compile(r"File \"<stdin>\".*ModuleNotFoundError", re.I)),
+    ("Bash hook fail-open under load", re.compile(r"PreToolUse failed open \(TimeoutError\): classifier deadline", re.I)),
 )
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
 _LONG_HEX = re.compile(r"\b(?:0x)?[0-9a-f]{12,}\b", re.I)
