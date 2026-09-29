@@ -1,0 +1,4 @@
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/impl-motion-smooth/.orchestra/tasks/V-668/video/task-path.mp4 846974 байт, 1500 кадров проигрывания
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/impl-motion-smooth/.orchestra/tasks/V-668/video/weekly-limit.mp4 792889 байт, 1230 кадров проигрывания
+{"file": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/impl-motion-smooth/.orchestra/tasks/V-668/video/task-path.mp4", "fps": 60.0, "frames": 1590, "hitch_frames": 2, "moving_frames": 720, "median_speed_px_s": 181.7, "stops_inside_motion": 7, "speed_jump_p95": 1.535, "speed_jump_max": 4.818}
+{"file": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/impl-motion-smooth/.orchestra/tasks/V-668/video/weekly-limit.mp4", "fps": 60.0, "frames": 1320, "hitch_frames": 2, "moving_frames": 1095, "median_speed_px_s": 56.0, "stops_inside_motion": 42, "speed_jump_p95": 0.326, "speed_jump_max": 0.71}
