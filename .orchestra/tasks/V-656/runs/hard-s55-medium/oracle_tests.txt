@@ -1,0 +1,141 @@
+FF....FF                                                                 [100%]
+=================================== FAILURES ===================================
+_________ test_switch_releases_clean_worker_and_requeues_previous_task _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f32b13f5130>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10739/test_switch_releases_clean_wor0')
+
+    @pytest.mark.asyncio
+    async def test_switch_releases_clean_worker_and_requeues_previous_task(monkeypatch, tmp_path):
+        from app import tm
+        from app.db import get_session
+    
+        name = "release-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        current_ref, next_ref = tm.public_task_ref(current), tm.public_task_ref(following)
+    
+        result = await _switch(name, repo, next_ref)
+    
+        assert result.get("ok") is True, result
+        released = _task(current["id"])
+        assert (released["status"], released["worker_session_id"]) == ("new", None)
+        runs = _runs(name)
+        assert (runs[current_ref]["status"], runs[current_ref]["failure_code"]) == (
+            "interrupted", "binding_released",
+        )
+        assert runs[next_ref]["status"] == "requested"
+        assigned = _task(following["id"])
+        assert (assigned["status"], assigned["worker_session_id"]) == ("in_progress", name)
+        lifecycle = get_session(name)
+        assert (lifecycle["task_id"], lifecycle["branch"]) == (next_ref, f"task-{next_ref}/{name}")
+>       assert result["task_status"]["previous_tasks"] == [
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            {"task": current_ref, "outcome": "released"},
+        ]
+E       KeyError: 'previous_tasks'
+
+tests/test_switch_after_continue_620.py:132: KeyError
+_______ test_switch_with_complete_previous_closes_task_as_done_with_note _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f32b47354f0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10739/test_switch_with_complete_prev0')
+
+    @pytest.mark.asyncio
+    async def test_switch_with_complete_previous_closes_task_as_done_with_note(
+        monkeypatch, tmp_path,
+    ):
+        from app import tm
+    
+        name = "done-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        current_ref, next_ref = tm.public_task_ref(current), tm.public_task_ref(following)
+        head = _rev(worktree.path)
+    
+        missing_note = await _switch(name, repo, next_ref, complete_previous=True)
+>       assert missing_note.status_code == 400
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_after_continue_620.py:151: AttributeError
+_ test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-uncommitted] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f32af3eb9b0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10739/test_switch_keeps_binding_whil4')
+held = 'uncommitted', mode = 'complete_previous'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("held", ["uncommitted", "unmerged_commit"])
+    @pytest.mark.parametrize("mode", ["plain", "force", "complete_previous"])
+    async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
+        monkeypatch, tmp_path, held, mode,
+    ):
+        from app import tm
+    
+        name = "holding-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        if held == "uncommitted":
+            (Path(worktree.path) / "pending.txt").write_text("pending")
+        else:
+            _commit_file(worktree.path, "later.txt", "second phase")
+        extra = {
+            "plain": {},
+            "force": {"force": True},
+            "complete_previous": {"complete_previous": True, "acceptance_note": "claimed done"},
+        }[mode]
+    
+        result = await _switch(name, repo, tm.public_task_ref(following), **extra)
+    
+        if mode == "complete_previous":
+>           assert result.status_code == 409
+                   ^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_after_continue_620.py:195: AttributeError
+_ test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-unmerged_commit] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7f32af32d9a0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10739/test_switch_keeps_binding_whil5')
+held = 'unmerged_commit', mode = 'complete_previous'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("held", ["uncommitted", "unmerged_commit"])
+    @pytest.mark.parametrize("mode", ["plain", "force", "complete_previous"])
+    async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
+        monkeypatch, tmp_path, held, mode,
+    ):
+        from app import tm
+    
+        name = "holding-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        if held == "uncommitted":
+            (Path(worktree.path) / "pending.txt").write_text("pending")
+        else:
+            _commit_file(worktree.path, "later.txt", "second phase")
+        extra = {
+            "plain": {},
+            "force": {"force": True},
+            "complete_previous": {"complete_previous": True, "acceptance_note": "claimed done"},
+        }[mode]
+    
+        result = await _switch(name, repo, tm.public_task_ref(following), **extra)
+    
+        if mode == "complete_previous":
+>           assert result.status_code == 409
+                   ^^^^^^^^^^^^^^^^^^
+E           AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_after_continue_620.py:195: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_switch_after_continue_620.py::test_switch_releases_clean_worker_and_requeues_previous_task
+FAILED tests/test_switch_after_continue_620.py::test_switch_with_complete_previous_closes_task_as_done_with_note
+FAILED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-uncommitted]
+FAILED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-unmerged_commit]
+4 failed, 4 passed in 44.16s

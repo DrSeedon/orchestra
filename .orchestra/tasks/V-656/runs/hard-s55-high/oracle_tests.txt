@@ -1,0 +1,217 @@
+FFFFFF..                                                                 [100%]
+=================================== FAILURES ===================================
+_________ test_switch_releases_clean_worker_and_requeues_previous_task _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73be653c5580>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10752/test_switch_releases_clean_wor0')
+
+    @pytest.mark.asyncio
+    async def test_switch_releases_clean_worker_and_requeues_previous_task(monkeypatch, tmp_path):
+        from app import tm
+        from app.db import get_session
+    
+        name = "release-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        current_ref, next_ref = tm.public_task_ref(current), tm.public_task_ref(following)
+    
+        result = await _switch(name, repo, next_ref)
+    
+        assert result.get("ok") is True, result
+        released = _task(current["id"])
+        assert (released["status"], released["worker_session_id"]) == ("new", None)
+        runs = _runs(name)
+>       assert (runs[current_ref]["status"], runs[current_ref]["failure_code"]) == (
+            "interrupted", "binding_released",
+        )
+E       AssertionError: assert ('interrupted...ed_by_switch') == ('interrupted...ing_released')
+E         
+E         At index 1 diff: 'released_by_switch' != 'binding_released'
+E         Use -v to get more diff
+
+tests/test_switch_after_continue_620.py:124: AssertionError
+_______ test_switch_with_complete_previous_closes_task_as_done_with_note _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73be653c5310>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10752/test_switch_with_complete_prev0')
+
+    @pytest.mark.asyncio
+    async def test_switch_with_complete_previous_closes_task_as_done_with_note(
+        monkeypatch, tmp_path,
+    ):
+        from app import tm
+    
+        name = "done-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        current_ref, next_ref = tm.public_task_ref(current), tm.public_task_ref(following)
+        head = _rev(worktree.path)
+    
+        missing_note = await _switch(name, repo, next_ref, complete_previous=True)
+>       assert missing_note.status_code == 400
+               ^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: 'dict' object has no attribute 'status_code'
+
+tests/test_switch_after_continue_620.py:151: AttributeError
+_ test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-uncommitted] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73be64a91640>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10752/test_switch_keeps_binding_whil0')
+held = 'uncommitted', mode = 'plain'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("held", ["uncommitted", "unmerged_commit"])
+    @pytest.mark.parametrize("mode", ["plain", "force", "complete_previous"])
+    async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
+        monkeypatch, tmp_path, held, mode,
+    ):
+        from app import tm
+    
+        name = "holding-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        if held == "uncommitted":
+            (Path(worktree.path) / "pending.txt").write_text("pending")
+        else:
+            _commit_file(worktree.path, "later.txt", "second phase")
+        extra = {
+            "plain": {},
+            "force": {"force": True},
+            "complete_previous": {"complete_previous": True, "acceptance_note": "claimed done"},
+        }[mode]
+    
+        result = await _switch(name, repo, tm.public_task_ref(following), **extra)
+    
+        if mode == "complete_previous":
+            assert result.status_code == 409
+        else:
+>           assert result.get("ok") is not True, result
+                   ^^^^^^^^^^
+E           AttributeError: 'JSONResponse' object has no attribute 'get'
+
+tests/test_switch_after_continue_620.py:197: AttributeError
+_ test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-unmerged_commit] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73be63920950>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10752/test_switch_keeps_binding_whil1')
+held = 'unmerged_commit', mode = 'plain'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("held", ["uncommitted", "unmerged_commit"])
+    @pytest.mark.parametrize("mode", ["plain", "force", "complete_previous"])
+    async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
+        monkeypatch, tmp_path, held, mode,
+    ):
+        from app import tm
+    
+        name = "holding-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        if held == "uncommitted":
+            (Path(worktree.path) / "pending.txt").write_text("pending")
+        else:
+            _commit_file(worktree.path, "later.txt", "second phase")
+        extra = {
+            "plain": {},
+            "force": {"force": True},
+            "complete_previous": {"complete_previous": True, "acceptance_note": "claimed done"},
+        }[mode]
+    
+        result = await _switch(name, repo, tm.public_task_ref(following), **extra)
+    
+        if mode == "complete_previous":
+            assert result.status_code == 409
+        else:
+>           assert result.get("ok") is not True, result
+                   ^^^^^^^^^^
+E           AttributeError: 'JSONResponse' object has no attribute 'get'
+
+tests/test_switch_after_continue_620.py:197: AttributeError
+_ test_switch_keeps_binding_while_worker_holds_unlanded_work[force-uncommitted] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73be63920e00>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10752/test_switch_keeps_binding_whil2')
+held = 'uncommitted', mode = 'force'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("held", ["uncommitted", "unmerged_commit"])
+    @pytest.mark.parametrize("mode", ["plain", "force", "complete_previous"])
+    async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
+        monkeypatch, tmp_path, held, mode,
+    ):
+        from app import tm
+    
+        name = "holding-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        if held == "uncommitted":
+            (Path(worktree.path) / "pending.txt").write_text("pending")
+        else:
+            _commit_file(worktree.path, "later.txt", "second phase")
+        extra = {
+            "plain": {},
+            "force": {"force": True},
+            "complete_previous": {"complete_previous": True, "acceptance_note": "claimed done"},
+        }[mode]
+    
+        result = await _switch(name, repo, tm.public_task_ref(following), **extra)
+    
+        if mode == "complete_previous":
+            assert result.status_code == 409
+        else:
+>           assert result.get("ok") is not True, result
+                   ^^^^^^^^^^
+E           AttributeError: 'JSONResponse' object has no attribute 'get'
+
+tests/test_switch_after_continue_620.py:197: AttributeError
+_ test_switch_keeps_binding_while_worker_holds_unlanded_work[force-unmerged_commit] _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73be6339b890>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-10752/test_switch_keeps_binding_whil3')
+held = 'unmerged_commit', mode = 'force'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("held", ["uncommitted", "unmerged_commit"])
+    @pytest.mark.parametrize("mode", ["plain", "force", "complete_previous"])
+    async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
+        monkeypatch, tmp_path, held, mode,
+    ):
+        from app import tm
+    
+        name = "holding-worker"
+        repo, worktree, current, following = await _worker_after_continue(
+            monkeypatch, tmp_path, name,
+        )
+        if held == "uncommitted":
+            (Path(worktree.path) / "pending.txt").write_text("pending")
+        else:
+            _commit_file(worktree.path, "later.txt", "second phase")
+        extra = {
+            "plain": {},
+            "force": {"force": True},
+            "complete_previous": {"complete_previous": True, "acceptance_note": "claimed done"},
+        }[mode]
+    
+        result = await _switch(name, repo, tm.public_task_ref(following), **extra)
+    
+        if mode == "complete_previous":
+            assert result.status_code == 409
+        else:
+>           assert result.get("ok") is not True, result
+                   ^^^^^^^^^^
+E           AttributeError: 'JSONResponse' object has no attribute 'get'
+
+tests/test_switch_after_continue_620.py:197: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_switch_after_continue_620.py::test_switch_releases_clean_worker_and_requeues_previous_task
+FAILED tests/test_switch_after_continue_620.py::test_switch_with_complete_previous_closes_task_as_done_with_note
+FAILED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-uncommitted]
+FAILED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-unmerged_commit]
+FAILED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-uncommitted]
+FAILED tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-unmerged_commit]
+6 failed, 2 passed in 25.18s
