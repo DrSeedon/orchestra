@@ -15,6 +15,17 @@ Prefer the simplest complete solution; challenge a faulty premise with evidence.
   does the codebase already do it; does the standard library/platform do it; can it be one line?
   This simplicity check never removes the protections in the safety module.
 
+**Collect everything, filter on display (owner's decision 29.09.2026, verbatim: «в нашу базу
+данных надо все собирать абсолютно все данные а потом уже фильтровать … на показе»).** "Minimum
+code" never means minimum data. When code pulls data from an external source (API, site search,
+registry, feed), store every record and every field the source gives into our own storage, and
+apply business filters (price, keywords, region, relevance) at query/display time, where they can
+be changed without re-collecting. Narrowing at the source request is allowed only when the source
+cannot return the rest, the volume does not fit memory/disk (measure first), or the source forbids
+it — and then name exactly what is cut off. Measured cost of not doing this (seedon, 29.09): the
+EIS search filter dropped every tender above 2 mln at request time, so the database held none of
+them and nobody saw the gap.
+
 **Surgical changes.** Touch ONLY what the task requires.
 - Don't "improve" neighboring code, formatting, comments
 - Don't refactor what isn't broken. Follow existing style
