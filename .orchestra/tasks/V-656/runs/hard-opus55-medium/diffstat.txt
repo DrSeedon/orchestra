@@ -1,0 +1,7 @@
+ .orchestra/tasks/V-620/report.md  |  83 +++++++++++
+ CHANGELOG.md                      |   9 ++
+ app/mcp_stdio.py                  |  14 ++
+ app/routes/sessions.py            | 116 +++++++++++++++
+ app/tm.py                         |  86 ++++++++++-
+ tests/test_switch_release_v620.py | 293 ++++++++++++++++++++++++++++++++++++++
+ 6 files changed, 600 insertions(+), 1 deletion(-)

@@ -1,0 +1,728 @@
+diff --git a/.orchestra/tasks/V-620/report.md b/.orchestra/tasks/V-620/report.md
+new file mode 100644
+index 00000000..3ef1aba0
+--- /dev/null
++++ b/.orchestra/tasks/V-620/report.md
+@@ -0,0 +1,83 @@
++# V-620 — воркер навсегда привязан к задаче после merge_worker(continue)
++
++## Причина
++
++`merge_worker(task_outcome="continue")` оставляет задачу `in_progress`, привязанной к
++сессии, с ОТКРЫТЫМ прогоном (`review_receipts`, `subject_kind='task_run'`,
++`status='requested'`). Дальше оба выхода закрыты:
++
++- `switch_worker_branch` переключает git и lifecycle, затем
++  `tm.api_update_task_if_current(new, in_progress)` открывает прогон новой задачи;
++  `db.task_run_receipt_open` видит открытый прогон прежней задачи той же сессии →
++  `ValueError: open task run conflicts with current assignment provenance` → откат ветки.
++  `force` на этот путь не влияет — он только про git.
++- `merge_worker(complete)` законно отказывает: ветка воркера равна `main`.
++
++## Решение (вариант C владельца)
++
++Чинится только со стороны `switch_worker_branch`; `merge_worker`, его отказ и типы квитанций
++не менялись.
++
++- `tm.open_switch_release_binding` — привязка, которую switch вправе снять: прежняя задача
++  `in_progress`, `worker_session_id` = эта сессия, и у неё есть открытый прогон.
++- `routes/sessions._switch_release_blocker` — до любого git: ничего незакоммиченного и нет
++  коммитов вне сохранённой базы воркера (сквош-мерж считается смерженным только по нашей
++  записи `find_merge_proof` для текущей головы). Иначе 409 `previous_task_bound`, и `force`
++  этого не обходит.
++- `tm._release_switched_task` выполняется ВНУТРИ транзакции `api_update_task_if_current`
++  (новый kwarg `release_previous`), до назначения новой задачи. Провал назначения
++  откатывает и освобождение, и ветку (существующий компенсирующий путь).
++  - по умолчанию: прогон → `interrupted`, `failure_code=binding_released` (существующий код
++    из `release_session_task_binding`), задача → `new`, `worker_session_id=NULL`;
++  - `previous_task_done=True` + непустой `previous_task_reason`: прогон → `completed`,
++    задача → `done` (`completed_at`), основание — строкой `system` в журнал воркера и в
++    ответе (`previous_task`).
++- Флаг `previous_task_done` без открытой привязки → 409; без основания → 400; вместе с
++  `promote_current` → 400.
++- MCP `switch_worker_branch` получил `previous_task_done`/`previous_task_reason` и
++  сообщает исход прежней задачи.
++
++Легаси-привязки без открытого прогона (данные до квитанций) идут прежним путём: там
++конфликта не было, и поведение не менялось.
++
++## Проверка
++
++Тесты: `tests/test_switch_release_v620.py` (11 случаев, настоящий git во временном репо,
++изолированная БД и хранилище задач из `tests/conftest.py`).
++
++- Клинч: на коде без правки (`git stash push app/`) тест падает ровно с
++  `branch switch rolled back after task assignment failed: ValueError: open task run
++  conflicts with current assignment provenance`; с правкой — зелёный. Без правки падают 10
++  из 11 (не падает только тест атомарности, который на старом коде тривиально верен).
++- Освобождение; закрытие как done с основанием; done без основания (`""`, `"   "`);
++  грязное дерево и несмерженный коммит (каждый с `force=False/True`) — привязка, ветка,
++  файл/голова не тронуты; done без открытой привязки; сбой назначения новой задачи
++  откатывает и освобождение прежней; проброс аргументов в MCP.
++- Обычный complete с реальными коммитами: существующие
++  `test_t3_real_complete_merge_transfers_commits_before_closing_task`,
++  `test_t3_complete_merge_atomically_links_and_closes_current_task`,
++  `test_t3_continue_merge_keeps_task_bound_on_fresh_branch` — зелёные.
++
++Прогон затронутых модулей (`python -m pytest`, nice 15):
++`test_switch_release_v620 test_adhoc_switch test_api test_identity_drift
++test_lifecycle_quarantine_499 test_mcp_stdio test_merge_* test_review_receipt_* test_task_*
++test_tm test_tasks_pm_pipeline test_work_review` → 560 passed, 7 skipped, 2 failed.
++Упавшие `test_api.py::test_merge_waits_for_running_worker_to_finish_turn` и
++`test_switch_waits_for_running_worker_to_finish_turn` проходят отдельно и с правкой, и на
++базе, а `tests/test_api.py` целиком с правкой — 127 passed. Это нестабильность тестов
++ожидания хода под нагрузкой длинного прогона, не связанная с правкой; первопричину не
++искал.
++
++Импортированный модуль: `/home/kesha/orchestra/data/v656/hard-opus55-medium/app/__init__.py`
++(`app/tm.py` оттуда же).
++
++## Остаточный риск
++
++- Код на диске ≠ живой процесс: правка Python, для боевого эффекта нужен рестарт Orchestra
++  (инициирует владелец). MCP-сервер воркеров тоже подхватит новые аргументы только после
++  перезапуска своих процессов.
++- Застрявшая привязка katya-work (V-5) после рестарта снимается вызовом
++  `switch_worker_branch(name=..., task_id=<следующая>)` или с
++  `previous_task_done=True, previous_task_reason=...`. Боевую БД в рамках задачи не трогал.
++- Журнальная запись основания — best-effort после коммита транзакции: при сбое записи
++  задача уже закрыта, основание остаётся в ответе и в warning-логе.
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 33dfd006..5c8024ea 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -105,6 +105,15 @@
+   его ожидания остались дословно прежними.
+ 
+ ### Fixed
++- 🔓 **V-620: воркер больше не застревает на задаче после `merge_worker(continue)`**
++  (`app/routes/sessions.py`, `app/tm.py`, `app/mcp_stdio.py`). `switch_worker_branch` у
++  простаивающего воркера с чистым и полностью смерженным деревом сам закрывает открытую
++  привязку в одной транзакции с назначением новой задачи: по умолчанию прогон завершается
++  `interrupted/binding_released`, задача возвращается в `new`; `previous_task_done=True`
++  с обязательным `previous_task_reason` закрывает её как `done`, основание пишется в журнал
++  воркера. Незакоммиченное или несмерженное привязку не снимает (и `force` этого не
++  обходит). *Triggered case:* 23.09 в katya-work switch падал на «open task run conflicts
++  with current assignment provenance», а complete — на «ветка равна main».
+ - 🇷🇺 **GigaChat provider for the Harness** (`app/harness/llm.py`, `app/backend_harness.py`):
+   direct OAuth and chat requests use Sber endpoints, refresh the 30-minute token (including
+   one retry after HTTP 401), and translate the Harness OpenAI tool history to GigaChat's
+diff --git a/app/mcp_stdio.py b/app/mcp_stdio.py
+index 6161f255..478a863d 100644
+--- a/app/mcp_stdio.py
++++ b/app/mcp_stdio.py
+@@ -2629,6 +2629,8 @@ async def switch_worker_branch(
+     force: bool = False,
+     promote_current: bool = False,
+     owned_dirs: str = "",
++    previous_task_done: bool = False,
++    previous_task_reason: str = "",
+ ) -> str:
+     """After merge, switch worker to a new branch for a new task.
+     from_ref — optional local base override; empty uses the worker's persisted base.
+@@ -2636,6 +2638,9 @@ async def switch_worker_branch(
+     promote_current=True preserves and assigns committed taskless adhoc work.
+     owned_dirs — optional JSON array replacing the worker's ownership on a new task;
+     omitted or [] clears it.
++    A task still bound after merge_worker(continue) is released back to the queue
++    when the tree is clean and fully merged; previous_task_done=True closes it as
++    done instead and requires a non-empty previous_task_reason.
+     Worker must be idle with clean working tree."""
+     payload = {
+         "scope": SCOPE,
+@@ -2644,6 +2649,9 @@ async def switch_worker_branch(
+         "force": force,
+         "promote_current": promote_current,
+     }
++    if previous_task_done or previous_task_reason:
++        payload["previous_task_done"] = previous_task_done
++        payload["previous_task_reason"] = previous_task_reason
+     if owned_dirs:
+         try:
+             parsed_owned_dirs = json.loads(owned_dirs)
+@@ -2677,6 +2685,12 @@ async def switch_worker_branch(
+             f"No-op: worker is already on healthy branch {result.get('branch', '?')}"
+         )
+     if isinstance(result, dict) and result.get("ok"):
++        previous = result.get("previous_task")
++        if isinstance(previous, dict):
++            return (
++                f"Switched to branch {result.get('branch', '?')}; previous task "
++                f"{previous.get('par', '?')} {previous.get('outcome', '?')}"
++            )
+         return f"Switched to branch {result.get('branch', '?')}"
+     if isinstance(result, dict) and result.get("conflicts"):
+         return f"Merge conflict with base branch on: {', '.join(result['conflicts'])}"
+diff --git a/app/routes/sessions.py b/app/routes/sessions.py
+index 55941b3d..87502497 100644
+--- a/app/routes/sessions.py
++++ b/app/routes/sessions.py
+@@ -159,6 +159,54 @@ def _existing_branch_verdict(worktree_path: str, branch: str, scope: str,
+     }
+ 
+ 
++def _switch_release_blocker(session, worktree_path: str, scope: str) -> str:
++    """Why the previous binding must stay (#V-620); empty means the tree is clean.
++
++    Clean = nothing uncommitted and no commit outside the worker's persisted base.
++    Squash-merged commits count as merged only by our own merge record for this head.
++    """
++    from app.db import find_merge_proof
++    from app.workspace import branch_wip_status, inspect_worktree_identity
++
++    try:
++        wip = branch_wip_status(worktree_path, base_ref=_session_base_branch(session))
++    except Exception as error:
++        return f"worker tree cannot be verified ({err_text(error)})"
++    if wip.get("error"):
++        return f"worker tree cannot be verified ({wip['error']})"
++    if wip["uncommitted"]:
++        return f"{len(wip['uncommitted'])} uncommitted file(s)"
++    if wip["unmerged_commits"]:
++        try:
++            branch, head = inspect_worktree_identity(worktree_path)
++        except RuntimeError:
++            branch, head = "", ""
++        proof = find_merge_proof(scope, branch) if branch else None
++        if not (proof and head in proof["heads"]):
++            return (
++                f"{len(wip['unmerged_commits'])} commit(s) not merged into "
++                f"{wip['base_ref']}"
++            )
++    return ""
++
++
++def _record_switch_release(session_id: str, previous: dict, reason: str) -> None:
++    """Leave the released/closed previous task and its reason in the worker journal."""
++    from datetime import datetime, timezone
++    from app.db import add_log
++
++    text = (
++        f"[switch] прежняя задача {previous['par']} закрыта как done: {reason}"
++        if previous.get("outcome") == "done"
++        else f"[switch] прежняя задача {previous['par']} освобождена и вернулась в очередь"
++        + (f": {reason}" if reason else "")
++    )
++    try:
++        add_log(session_id, datetime.now(timezone.utc), "system", text)
++    except Exception as error:
++        logger.warning("switch release not journaled for %s: %s", session_id, err_text(error))
++
++
+ def _session_base_branch(session, requested: str = "") -> str:
+     """Resolve an explicit or persisted lifecycle base against the actual repository."""
+     from app.workspace import resolve_base_branch
+@@ -2900,6 +2948,20 @@ async def switch_branch(name: str, req: dict):
+         return JSONResponse(
+             {"error": "promote_current cannot be combined with force"}, status_code=400,
+         )
++    previous_task_done = req.get("previous_task_done", False)
++    previous_task_reason = str(req.get("previous_task_reason", "") or "").strip()
++    if not isinstance(previous_task_done, bool):
++        return JSONResponse({"error": "previous_task_done must be a boolean"}, status_code=400)
++    if previous_task_done and not previous_task_reason:
++        return JSONResponse(
++            {"error": "previous_task_done requires a non-empty previous_task_reason"},
++            status_code=400,
++        )
++    if previous_task_done and promote_current:
++        return JSONResponse(
++            {"error": "previous_task_done cannot be combined with promote_current"},
++            status_code=400,
++        )
+     found = manager.get_by_name(name, scope)
+     if not found:
+         return JSONResponse({"error": "not found"}, status_code=404)
+@@ -3044,6 +3106,50 @@ async def switch_branch(name: str, req: dict):
+                         "waited_seconds": round(waited_seconds, 2),
+                         "message": "task/branch binding repaired",
+                     }
++                # #V-620: после merge_worker(continue) прогон прежней задачи открыт, и
++                # назначение новой упиралось в него навсегда. Простаивающий воркер с чистым
++                # деревом отпускает прежнюю задачу здесь же, в транзакции назначения.
++                release_previous = None
++                open_binding = (
++                    await asyncio.to_thread(
++                        _tm.open_switch_release_binding, scope, session_id, previous_task_id,
++                    )
++                    if new_task else None
++                )
++                if open_binding:
++                    blocker = await asyncio.to_thread(
++                        _switch_release_blocker, found, worktree_path, scope,
++                    )
++                    if blocker:
++                        return JSONResponse(
++                            {
++                                "error": (
++                                    f"previous task {open_binding['task_ref']} stays bound: "
++                                    f"{blocker}; merge or discard that work before switching"
++                                ),
++                                "state": "previous_task_bound",
++                                "waited_seconds": round(waited_seconds, 2),
++                            },
++                            status_code=409,
++                        )
++                    release_previous = {
++                        "scope": scope,
++                        "session_id": session_id,
++                        "task_ref": open_binding["task_ref"],
++                        "done": previous_task_done,
++                        "reason": previous_task_reason,
++                    }
++                elif previous_task_done:
++                    return JSONResponse(
++                        {
++                            "error": (
++                                "previous_task_done refused: worker has no open previous "
++                                "task binding to close"
++                            ),
++                            "waited_seconds": round(waited_seconds, 2),
++                        },
++                        status_code=409,
++                    )
+                 try:
+                     verdict = await asyncio.to_thread(
+                         _existing_branch_verdict, worktree_path, new_branch,
+@@ -3105,6 +3211,10 @@ async def switch_branch(name: str, req: dict):
+                                 _tm.api_update_task_if_current,
+                                 task_identity,
+                                 status="in_progress",
++                                **(
++                                    {"release_previous": release_previous}
++                                    if release_previous else {}
++                                ),
+                             )
+                         except Exception as task_error:
+                             task_assignment_raised = True
+@@ -3175,6 +3285,12 @@ async def switch_branch(name: str, req: dict):
+                                     f"{result['task_status']['error']}"
+                                 ),
+                             )
++                        elif result["task_status"].get("previous_task"):
++                            result["previous_task"] = result["task_status"]["previous_task"]
++                            await asyncio.to_thread(
++                                _record_switch_release,
++                                session_id, result["previous_task"], previous_task_reason,
++                            )
+                     elif result.get("state") == "rollback_failed":
+                         quarantine_status = await _persist_lifecycle_quarantine(
+                             found,
+diff --git a/app/tm.py b/app/tm.py
+index ed29075d..bc7c4fac 100644
+--- a/app/tm.py
++++ b/app/tm.py
+@@ -1516,6 +1516,81 @@ def validate_task_binding_repair(
+         return task_dto(task)
+ 
+ 
++def open_switch_release_binding(scope: str, session_id: str, task_ref: str) -> dict | None:
++    """The open binding a branch switch may release, or None when there is none (#V-620).
++
++    Only a task that is still in_progress, owned by this session and has an open task
++    run counts: that is exactly the state `merge_worker(continue)` leaves behind, and
++    the one the next assignment would otherwise collide with forever.
++    """
++    if not str(task_ref or ""):
++        return None
++    with active_runtime().operation(), _conn() as conn:
++        project = get_project_by_scope(conn, scope.rstrip("/"))
++        task = resolve_task_ref(conn, task_ref, project["id"]) if project else None
++        if (
++            not task
++            or task["status"] != "in_progress"
++            or str(task.get("worker_session_id") or "") != session_id
++        ):
++            return None
++        run = conn.execute(
++            "SELECT receipt_id FROM review_receipts WHERE subject_kind='task_run' "
++            "AND session_id=? AND task_id=? AND status='requested'",
++            (session_id, public_task_ref(task)),
++        ).fetchone()
++        if run is None:
++            return None
++        return {"task_ref": public_task_ref(task), "task_id": task["id"]}
++
++
++def _release_switched_task(conn: sqlite3.Connection, release: dict) -> dict:
++    """Close the previous binding inside the caller's assignment transaction.
++
++    Default is release: the run ends interrupted and the task goes back to the queue.
++    `done` is the orchestrator's explicit word that the previous task is finished.
++    """
++    session_id = str(release["session_id"])
++    done = bool(release.get("done"))
++    if done and not str(release.get("reason") or "").strip():
++        raise ValueError("closing the previous task as done requires a reason")
++    project = get_project_by_scope(conn, str(release["scope"]).rstrip("/"))
++    task = resolve_task_ref(conn, str(release["task_ref"]), project["id"]) if project else None
++    if (
++        not task
++        or task["status"] != "in_progress"
++        or str(task.get("worker_session_id") or "") != session_id
++    ):
++        raise ValueError(
++            f"previous task '{release['task_ref']}' binding changed before switch"
++        )
++    run = _finish_task_run_for_task(
++        conn,
++        task,
++        session_id,
++        status="completed" if done else "interrupted",
++        failure_code="" if done else "binding_released",
++    )
++    if run is None:
++        raise ValueError(
++            f"previous task '{release['task_ref']}' has no open task run to close"
++        )
++    new_status = "done" if done else "new"
++    update_task(conn, task["id"], status=new_status)
++    conn.execute(
++        "UPDATE tm_tasks SET worker_session_id=NULL, sync_revision=sync_revision+1, "
++        "updated_at=? WHERE id=?",
++        (_now(), task["id"]),
++    )
++    active_runtime().publish(conn, task["id"])
++    return {
++        "par": public_task_ref(task),
++        "outcome": "done" if done else "released",
++        "new_status": new_status,
++        "task_run": run["status"],
++    }
++
++
+ def api_update_task_if_current(
+     identity: TaskIdentity,
+     *,
+@@ -1523,8 +1598,12 @@ def api_update_task_if_current(
+     worker_session_id: str | None = None,
+     expected_status: str = "",
+     require_unreserved: bool = False,
++    release_previous: dict | None = None,
+ ) -> dict:
+-    """Update a prevalidated task only while its immutable identity/version matches."""
++    """Update a prevalidated task only while its immutable identity/version matches.
++
++    release_previous — the switch's previous binding to close in the same transaction.
++    """
+     with active_runtime().operation():
+         if status not in VALID_STATUSES:
+             raise ValueError(f"Invalid status: {status}")
+@@ -1578,6 +1657,10 @@ def api_update_task_if_current(
+                     return {"ok": False, "task_id": task_id, "error": claim_error}
+                 if binding_inferred and worker_session_id:
+                     _validate_inferred_task_worker(conn, task, worker_session_id)
++                previous = (
++                    _release_switched_task(conn, release_previous)
++                    if release_previous else None
++                )
+                 result = update_task(
+                     conn,
+                     task_id,
+@@ -1608,6 +1691,7 @@ def api_update_task_if_current(
+             "updated": result["changed"],
+             "new_status": updated["status"],
+             "sync_revision": updated["sync_revision"],
++            **({"previous_task": previous} if previous else {}),
+         }
+ 
+ 
+diff --git a/tests/test_switch_release_v620.py b/tests/test_switch_release_v620.py
+new file mode 100644
+index 00000000..8641c0e9
+--- /dev/null
++++ b/tests/test_switch_release_v620.py
+@@ -0,0 +1,293 @@
++"""#V-620: after merge_worker(continue) a clean idle worker must not stay bound forever.
++
++switch_worker_branch releases the previous task (default) or closes it as done with an
++explicit reason; dirty trees and unmerged commits keep the binding.
++"""
++
++from tests.task_seeds import create_task as seed_task
++
++import subprocess
++from pathlib import Path
++from unittest.mock import patch
++
++import pytest
++from fastapi.responses import JSONResponse
++
++from tests.test_task_tracker_integration import (
++    _commit_file,
++    _init_db,
++    _make_git_scope,
++    _save_worker,
++)
++
++
++def _clinch(monkeypatch, tmp_path: Path, name: str):
++    """The 23.09 state: task in_progress with an open run, worker branch == main."""
++    import app.routes.sessions as sessions_route
++    import app.workspace as workspace
++    from app import tm
++    from app.manager import SessionManager
++
++    _init_db()
++    repo = _make_git_scope(monkeypatch, tmp_path)
++    scope = str(repo)
++    with tm._conn() as connection:
++        tm.ensure_project(connection, "project", scope=scope)
++        previous = seed_task(
++            connection, "project", "Research phase", par_number=42, status="in_progress",
++        )
++        target = seed_task(connection, "project", "Next task", par_number=43)
++    worktree = workspace.create_worktree(scope, name)
++    branch = f"task-42/{name}"
++    subprocess.run(
++        ["git", "checkout", "-B", branch, "main"],
++        cwd=worktree.path, check=True, capture_output=True,
++    )
++    _save_worker(
++        session_id=name, task_id="42", scope=scope,
++        worktree_path=worktree.path, branch=branch,
++    )
++    with tm._conn() as connection:
++        connection.execute(
++            "UPDATE tm_tasks SET worker_session_id=? WHERE id=?", (name, previous["id"]),
++        )
++        tm._open_task_run_for_task(
++            connection, tm.get_task_by_id(connection, previous["id"]), name,
++        )
++        connection.commit()
++    local_manager = SessionManager()
++    monkeypatch.setattr(sessions_route, "manager", local_manager)
++    found = local_manager.get_by_name(name, scope)
++    return scope, worktree, found, previous, target
++
++
++def _runs(session_id: str) -> dict[str, dict]:
++    from app import tm
++
++    with tm._conn() as connection:
++        rows = connection.execute(
++            "SELECT task_id, status, failure_code FROM review_receipts "
++            "WHERE subject_kind='task_run' AND session_id=?",
++            (session_id,),
++        ).fetchall()
++    return {row["task_id"]: dict(row) for row in rows}
++
++
++def _task(task_id: int) -> dict:
++    from app import tm
++
++    with tm._conn() as connection:
++        return tm.get_task_by_id(connection, task_id)
++
++
++def _branch(worktree_path: str) -> str:
++    return subprocess.run(
++        ["git", "branch", "--show-current"], cwd=worktree_path,
++        check=True, capture_output=True, text=True,
++    ).stdout.strip()
++
++
++def _system_logs(session_id: str) -> list[str]:
++    from app import tm
++
++    with tm._conn() as connection:
++        rows = connection.execute(
++            "SELECT content FROM logs WHERE session_id=? AND type='system'", (session_id,),
++        ).fetchall()
++    return [row["content"] for row in rows]
++
++
++def _assert_still_bound(name: str, worktree, previous: dict, target: dict) -> None:
++    from app.db import get_session
++
++    assert _branch(worktree.path) == f"task-42/{name}"
++    assert get_session(name)["task_id"] == "42"
++    kept = _task(previous["id"])
++    assert (kept["status"], kept["worker_session_id"]) == ("in_progress", name)
++    assert _runs(name)["42"]["status"] == "requested"
++    untouched = _task(target["id"])
++    assert (untouched["status"], untouched["worker_session_id"]) == ("new", None)
++
++
++@pytest.mark.asyncio
++async def test_v620_clean_switch_releases_previous_task_back_to_queue(monkeypatch, tmp_path):
++    """Reproduces the clinch: before the fix this failed with an assignment-provenance conflict."""
++    import app.routes.sessions as sessions_route
++    from app.db import get_session
++
++    scope, worktree, found, previous, target = _clinch(monkeypatch, tmp_path, "clinch")
++
++    result = await sessions_route.switch_branch("clinch", {"scope": scope, "task_id": "43"})
++
++    assert not isinstance(result, JSONResponse), result.body
++    assert result["ok"] is True, result
++    assert result["previous_task"]["outcome"] == "released"
++    assert _branch(worktree.path) == "task-43/clinch"
++    assert get_session(found.id)["task_id"] == "43"
++    released = _task(previous["id"])
++    assert (released["status"], released["worker_session_id"]) == ("new", None)
++    assert released["completed_at"] is None
++    assigned = _task(target["id"])
++    assert (assigned["status"], assigned["worker_session_id"]) == ("in_progress", "clinch")
++    runs = _runs("clinch")
++    assert (runs["42"]["status"], runs["42"]["failure_code"]) == (
++        "interrupted", "binding_released",
++    )
++    assert runs["43"]["status"] == "requested"
++    assert any("42" in line and "освобождена" in line for line in _system_logs("clinch"))
++
++
++@pytest.mark.asyncio
++async def test_v620_explicit_done_closes_previous_task_with_reason(monkeypatch, tmp_path):
++    import app.routes.sessions as sessions_route
++
++    scope, worktree, _found, previous, target = _clinch(monkeypatch, tmp_path, "closer")
++
++    result = await sessions_route.switch_branch("closer", {
++        "scope": scope, "task_id": "43",
++        "previous_task_done": True,
++        "previous_task_reason": "research delivered in merge abc123",
++    })
++
++    assert result["ok"] is True, result
++    assert result["previous_task"]["outcome"] == "done"
++    closed = _task(previous["id"])
++    assert (closed["status"], closed["worker_session_id"]) == ("done", None)
++    assert closed["completed_at"]
++    assert _runs("closer")["42"]["status"] == "completed"
++    assert _task(target["id"])["status"] == "in_progress"
++    assert any(
++        "done" in line and "research delivered in merge abc123" in line
++        for line in _system_logs("closer")
++    )
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("reason", ["", "   "])
++async def test_v620_done_without_reason_is_refused_before_any_change(
++    monkeypatch, tmp_path, reason,
++):
++    import app.routes.sessions as sessions_route
++
++    scope, worktree, _found, previous, target = _clinch(monkeypatch, tmp_path, "noreason")
++
++    result = await sessions_route.switch_branch("noreason", {
++        "scope": scope, "task_id": "43",
++        "previous_task_done": True, "previous_task_reason": reason,
++    })
++
++    assert isinstance(result, JSONResponse) and result.status_code == 400
++    _assert_still_bound("noreason", worktree, previous, target)
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("force", [False, True])
++async def test_v620_dirty_tree_keeps_binding(monkeypatch, tmp_path, force):
++    import app.routes.sessions as sessions_route
++
++    scope, worktree, _found, previous, target = _clinch(monkeypatch, tmp_path, "dirty")
++    (Path(worktree.path) / "draft.md").write_text("unsaved work")
++
++    result = await sessions_route.switch_branch(
++        "dirty", {"scope": scope, "task_id": "43", "force": force},
++    )
++
++    assert isinstance(result, JSONResponse) and result.status_code == 409
++    assert b"previous_task_bound" in result.body and b"uncommitted" in result.body
++    _assert_still_bound("dirty", worktree, previous, target)
++    assert (Path(worktree.path) / "draft.md").read_text() == "unsaved work"
++
++
++@pytest.mark.asyncio
++@pytest.mark.parametrize("force", [False, True])
++async def test_v620_unmerged_commits_keep_binding(monkeypatch, tmp_path, force):
++    import app.routes.sessions as sessions_route
++
++    scope, worktree, _found, previous, target = _clinch(monkeypatch, tmp_path, "ahead")
++    head = _commit_file(worktree.path, "work.txt", "#42: not merged yet")
++
++    result = await sessions_route.switch_branch("ahead", {
++        "scope": scope, "task_id": "43", "force": force,
++        "previous_task_done": True, "previous_task_reason": "claims done",
++    })
++
++    assert isinstance(result, JSONResponse) and result.status_code == 409
++    assert b"not merged" in result.body
++    _assert_still_bound("ahead", worktree, previous, target)
++    assert subprocess.run(
++        ["git", "rev-parse", "HEAD"], cwd=worktree.path,
++        check=True, capture_output=True, text=True,
++    ).stdout.strip() == head
++
++
++@pytest.mark.asyncio
++async def test_v620_done_flag_without_open_binding_is_refused(monkeypatch, tmp_path):
++    """The done argument cannot close a task the worker does not hold."""
++    import app.routes.sessions as sessions_route
++    from app import tm
++
++    scope, worktree, _found, previous, target = _clinch(monkeypatch, tmp_path, "free")
++    with tm._conn() as connection:
++        tm._finish_task_run_for_task(
++            connection, tm.get_task_by_id(connection, previous["id"]), "free",
++            status="interrupted", failure_code="binding_released",
++        )
++        connection.commit()
++
++    result = await sessions_route.switch_branch("free", {
++        "scope": scope, "task_id": "43",
++        "previous_task_done": True, "previous_task_reason": "done",
++    })
++
++    assert isinstance(result, JSONResponse) and result.status_code == 409
++    assert _branch(worktree.path) == "task-42/free"
++    assert _task(previous["id"])["status"] == "in_progress"
++    assert _task(target["id"])["status"] == "new"
++
++
++@pytest.mark.asyncio
++async def test_v620_new_assignment_failure_keeps_previous_binding(monkeypatch, tmp_path):
++    """Release and new assignment are one transaction: a failed claim rolls both back."""
++    import app.routes.sessions as sessions_route
++    from app import tm
++
++    scope, worktree, _found, previous, target = _clinch(monkeypatch, tmp_path, "atomic")
++    real_update = tm.update_task
++
++    def fail_new_claim(connection, task_id, **kwargs):
++        if task_id == target["id"]:
++            raise RuntimeError("injected claim failure")
++        return real_update(connection, task_id, **kwargs)
++
++    monkeypatch.setattr(tm, "update_task", fail_new_claim)
++
++    result = await sessions_route.switch_branch("atomic", {"scope": scope, "task_id": "43"})
++
++    assert result["ok"] is False
++    assert result["state"] == "task_assignment_failed"
++    _assert_still_bound("atomic", worktree, previous, target)
++
++
++@pytest.mark.asyncio
++async def test_v620_mcp_switch_forwards_previous_task_done(monkeypatch):
++    import app.mcp_stdio as m
++
++    monkeypatch.setattr(m, "SCOPE", "/s")
++    captured = {}
++
++    async def fake_api(_method, _path, **kwargs):
++        captured.update(kwargs["json"])
++        return {
++            "ok": True, "branch": "task-43/coder",
++            "previous_task": {"par": "42", "outcome": "done"},
++        }
++
++    with patch.object(m, "_api", side_effect=fake_api):
++        output = await m.switch_worker_branch(
++            name="coder", task_id="43",
++            previous_task_done=True, previous_task_reason="shipped",
++        )
++
++    assert captured["previous_task_done"] is True
++    assert captured["previous_task_reason"] == "shipped"
++    assert output == "Switched to branch task-43/coder; previous task 42 done"
