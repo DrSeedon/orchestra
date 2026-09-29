@@ -1,0 +1,174 @@
+.FFFF...........FFFF..........                                           [100%]
+=================================== FAILURES ===================================
+_______ test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_poll] _______
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': ...nix_events._UnixSelectorEventLoop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_poll'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+        assert result["error"] is None, f"{where} did not run: {result['error']}"
+        assert result["spawns"] >= SCENARIOS[scenario], (
+            f"{where} spawned {result['spawns']} process(es), expected >= {SCENARIOS[scenario]}"
+        )
+>       assert result["leaked"] == 0, (
+            f"{where}: {result['leaked']} pidfd(s) still open after {result['spawns']} spawn(s); "
+            f"fdinfo Pid of each: {result['leaked_targets']} (-1 = process already gone)"
+        )
+E       AssertionError: command_watch_poll on asyncio: 9 pidfd(s) still open after 9 spawn(s); fdinfo Pid of each: [-1, -1, -1, -1, -1, -1, -1, -1, -1] (-1 = process already gone)
+E       assert 9 == 0
+
+tests/test_pidfd_leak.py:87: AssertionError
+______ test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_match] _______
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': ...nix_events._UnixSelectorEventLoop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_match'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+        assert result["error"] is None, f"{where} did not run: {result['error']}"
+        assert result["spawns"] >= SCENARIOS[scenario], (
+            f"{where} spawned {result['spawns']} process(es), expected >= {SCENARIOS[scenario]}"
+        )
+>       assert result["leaked"] == 0, (
+            f"{where}: {result['leaked']} pidfd(s) still open after {result['spawns']} spawn(s); "
+            f"fdinfo Pid of each: {result['leaked_targets']} (-1 = process already gone)"
+        )
+E       AssertionError: command_watch_match on asyncio: 1 pidfd(s) still open after 1 spawn(s); fdinfo Pid of each: [-1] (-1 = process already gone)
+E       assert 1 == 0
+
+tests/test_pidfd_leak.py:87: AssertionError
+____ test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_cancelled] _____
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': ...nix_events._UnixSelectorEventLoop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_cancelled'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+        assert result["error"] is None, f"{where} did not run: {result['error']}"
+        assert result["spawns"] >= SCENARIOS[scenario], (
+            f"{where} spawned {result['spawns']} process(es), expected >= {SCENARIOS[scenario]}"
+        )
+>       assert result["leaked"] == 0, (
+            f"{where}: {result['leaked']} pidfd(s) still open after {result['spawns']} spawn(s); "
+            f"fdinfo Pid of each: {result['leaked_targets']} (-1 = process already gone)"
+        )
+E       AssertionError: command_watch_cancelled on asyncio: 2 pidfd(s) still open after 1 spawn(s); fdinfo Pid of each: [43689, 43689] (-1 = process already gone)
+E       assert 2 == 0
+
+tests/test_pidfd_leak.py:87: AssertionError
+_ test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_command_times_out] _
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': ...nix_events._UnixSelectorEventLoop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_command_times_out'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+>       assert result["error"] is None, f"{where} did not run: {result['error']}"
+E       AssertionError: command_watch_command_times_out on asyncio did not run: AttributeError: module 'app.bg_jobs' has no attribute '_COMMAND_WATCH_TIMEOUT_SECONDS'
+E       assert "AttributeError: module 'app.bg_jobs' has no attribute '_COMMAND_WATCH_TIMEOUT_SECONDS'" is None
+
+tests/test_pidfd_leak.py:83: AssertionError
+_______ test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_poll] ________
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': 'uvloop', 'loop_class': 'uvloop.Loop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_poll'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+        assert result["error"] is None, f"{where} did not run: {result['error']}"
+        assert result["spawns"] >= SCENARIOS[scenario], (
+            f"{where} spawned {result['spawns']} process(es), expected >= {SCENARIOS[scenario]}"
+        )
+>       assert result["leaked"] == 0, (
+            f"{where}: {result['leaked']} pidfd(s) still open after {result['spawns']} spawn(s); "
+            f"fdinfo Pid of each: {result['leaked_targets']} (-1 = process already gone)"
+        )
+E       AssertionError: command_watch_poll on uvloop: 9 pidfd(s) still open after 9 spawn(s); fdinfo Pid of each: [-1, -1, -1, -1, -1, -1, -1, -1, -1] (-1 = process already gone)
+E       assert 9 == 0
+
+tests/test_pidfd_leak.py:87: AssertionError
+_______ test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_match] _______
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': 'uvloop', 'loop_class': 'uvloop.Loop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_match'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+        assert result["error"] is None, f"{where} did not run: {result['error']}"
+        assert result["spawns"] >= SCENARIOS[scenario], (
+            f"{where} spawned {result['spawns']} process(es), expected >= {SCENARIOS[scenario]}"
+        )
+>       assert result["leaked"] == 0, (
+            f"{where}: {result['leaked']} pidfd(s) still open after {result['spawns']} spawn(s); "
+            f"fdinfo Pid of each: {result['leaked_targets']} (-1 = process already gone)"
+        )
+E       AssertionError: command_watch_match on uvloop: 1 pidfd(s) still open after 1 spawn(s); fdinfo Pid of each: [-1] (-1 = process already gone)
+E       assert 1 == 0
+
+tests/test_pidfd_leak.py:87: AssertionError
+_____ test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_cancelled] _____
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': 'uvloop', 'loop_class': 'uvloop.Loop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_cancelled'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+        assert result["error"] is None, f"{where} did not run: {result['error']}"
+        assert result["spawns"] >= SCENARIOS[scenario], (
+            f"{where} spawned {result['spawns']} process(es), expected >= {SCENARIOS[scenario]}"
+        )
+>       assert result["leaked"] == 0, (
+            f"{where}: {result['leaked']} pidfd(s) still open after {result['spawns']} spawn(s); "
+            f"fdinfo Pid of each: {result['leaked_targets']} (-1 = process already gone)"
+        )
+E       AssertionError: command_watch_cancelled on uvloop: 1 pidfd(s) still open after 1 spawn(s); fdinfo Pid of each: [45053] (-1 = process already gone)
+E       assert 1 == 0
+
+tests/test_pidfd_leak.py:87: AssertionError
+_ test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_command_times_out] _
+
+census = {'bg_jobs_file': '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/pidfd-s55-max/app/bg_jobs.py', 'loop': 'uvloop', 'loop_class': 'uvloop.Loop', 'python': '/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python', ...}
+scenario = 'command_watch_command_times_out'
+
+    @pytest.mark.parametrize("scenario", SCENARIOS)
+    def test_scenario_leaves_no_pidfd_behind(census, scenario):
+        result = census["scenarios"][scenario]
+        where = f"{scenario} on {census['loop']}"
+    
+>       assert result["error"] is None, f"{where} did not run: {result['error']}"
+E       AssertionError: command_watch_command_times_out on uvloop did not run: AttributeError: module 'app.bg_jobs' has no attribute '_COMMAND_WATCH_TIMEOUT_SECONDS'
+E       assert "AttributeError: module 'app.bg_jobs' has no attribute '_COMMAND_WATCH_TIMEOUT_SECONDS'" is None
+
+tests/test_pidfd_leak.py:83: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_poll]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_match]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_cancelled]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[asyncio-command_watch_command_times_out]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_poll]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_match]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_cancelled]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd_behind[uvloop-command_watch_command_times_out]
+8 failed, 22 passed in 60.17s (0:01:00)

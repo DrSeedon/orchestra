@@ -1,0 +1,140 @@
+FF.F.F.FFF                                                               [100%]
+=================================== FAILURES ===================================
+_____ test_git_confirms_pinned_branch_merge_passes_and_record_is_realigned _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c329d9ba10>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11058/test_git_confirms_pinned_branc0')
+
+    @pytest.mark.asyncio
+    async def test_git_confirms_pinned_branch_merge_passes_and_record_is_realigned(
+        monkeypatch, tmp_path,
+    ):
+        repo, worktree, found, head = _stale_record_worker(monkeypatch, tmp_path)
+    
+        result = await _merge(found, head=head)
+    
+>       assert result["ok"] is True, result
+E       AssertionError: {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-7/stale-worker, found adhoc-1800000000-1/stale-worker', ...}
+E       assert False is True
+
+tests/test_merge_branch_record.py:79: AssertionError
+___________ test_git_confirms_pinned_branch_when_head_is_not_pinned ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c329d29c10>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11058/test_git_confirms_pinned_branc1')
+
+    @pytest.mark.asyncio
+    async def test_git_confirms_pinned_branch_when_head_is_not_pinned(monkeypatch, tmp_path):
+        repo, _worktree, found, _head = _stale_record_worker(monkeypatch, tmp_path)
+    
+        result = await _merge(found, head="")
+    
+>       assert result["ok"] is True, result
+E       AssertionError: {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-7/stale-worker, found adhoc-1800000000-1/stale-worker', ...}
+E       assert False is True
+
+tests/test_merge_branch_record.py:95: AssertionError
+____________ test_third_state_message_names_db_git_pin_and_the_tool ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c32797a7b0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11058/test_third_state_message_names0')
+
+    @pytest.mark.asyncio
+    async def test_third_state_message_names_db_git_pin_and_the_tool(monkeypatch, tmp_path):
+        _repo, worktree, found, head = _stale_record_worker(monkeypatch, tmp_path)
+        _git(worktree.path, "branch", "-m", "someone-else/elsewhere")
+    
+        error = (await _merge(found, head=head))["error"]
+    
+        assert STALE_BRANCH in error, "what the DB holds"
+        assert PINNED_BRANCH in error, "what the operation pinned"
+>       assert "someone-else/elsewhere" in error, "what Git shows"
+E       AssertionError: what Git shows
+E       assert 'someone-else/elsewhere' in 'session branch changed before merge: expected task-7/stale-worker, found adhoc-1800000000-1/stale-worker'
+
+tests/test_merge_branch_record.py:127: AssertionError
+________ test_diverged_head_message_names_both_heads_and_the_db_record _________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c327d2b890>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11058/test_diverged_head_message_nam0')
+
+    @pytest.mark.asyncio
+    async def test_diverged_head_message_names_both_heads_and_the_db_record(
+        monkeypatch, tmp_path,
+    ):
+        _repo, worktree, found, head = _stale_record_worker(monkeypatch, tmp_path)
+        newer = _commit_file(worktree.path, "later.txt", "committed after acceptance")
+    
+        error = (await _merge(found, head=head))["error"]
+    
+>       assert head in error and newer in error and STALE_BRANCH in error
+E       AssertionError: assert ('4ae81c25b298daa3c6021976ae6fe0913db41587' in 'session branch changed before merge: expected task-7/stale-worker, found adhoc-1800000000-1/stale-worker')
+
+tests/test_merge_branch_record.py:155: AssertionError
+______ test_unreadable_worktree_message_names_the_db_record_and_the_cause ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c327979f10>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11058/test_unreadable_worktree_messa0')
+
+    @pytest.mark.asyncio
+    async def test_unreadable_worktree_message_names_the_db_record_and_the_cause(
+        monkeypatch, tmp_path,
+    ):
+        _repo, _worktree, found, head = _stale_record_worker(monkeypatch, tmp_path)
+    
+        def cannot_ask(_path):
+            raise RuntimeError("cannot inspect worker branch: boom")
+    
+        monkeypatch.setattr("app.workspace.inspect_worktree_identity", cannot_ask)
+    
+        error = (await _merge(found, head=head))["error"]
+    
+>       assert "boom" in error and STALE_BRANCH in error
+E       AssertionError: assert ('boom' in 'session branch changed before merge: expected task-7/stale-worker, found adhoc-1800000000-1/stale-worker')
+
+tests/test_merge_branch_record.py:190: AssertionError
+________ test_matching_record_never_needs_git_for_the_branch_comparison ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77c327d2a750>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11058/test_matching_record_never_nee0')
+
+    @pytest.mark.asyncio
+    async def test_matching_record_never_needs_git_for_the_branch_comparison(
+        monkeypatch, tmp_path,
+    ):
+        """Плечо без расхождения не изменилось: запись совпала с закреплением — git не зовём."""
+        import app.routes.sessions as sessions_route
+    
+        _repo, _worktree, found, head = _stale_record_worker(monkeypatch, tmp_path)
+        _save_worker(
+            session_id="stale-worker", task_id="", scope=found.scope,
+            worktree_path=found.worktree_path, branch=PINNED_BRANCH,
+        )
+        asked = MagicMock()
+>       monkeypatch.setattr(sessions_route, "_confirm_pinned_branch_in_git", asked)
+E       AttributeError: <module 'app.routes.sessions' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-s55-high/app/routes/sessions.py'> has no attribute '_confirm_pinned_branch_in_git'
+
+tests/test_merge_branch_record.py:206: AttributeError
+________ test_operation_next_action_is_not_the_refresh_that_cannot_work ________
+
+    def test_operation_next_action_is_not_the_refresh_that_cannot_work():
+        from app.merge_operations import normalize_merge_result
+        import app.routes.sessions as sessions_route
+    
+        raw = sessions_route._merge_not_reached(
+            "session branch record disagrees with Git and with the operation pin",
+>           http_status=409, code=sessions_route.BRANCH_RECORD_MISMATCH,
+                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        )
+E       AttributeError: module 'app.routes.sessions' has no attribute 'BRANCH_RECORD_MISMATCH'
+
+tests/test_merge_branch_record.py:220: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record.py::test_git_confirms_pinned_branch_merge_passes_and_record_is_realigned
+FAILED tests/test_merge_branch_record.py::test_git_confirms_pinned_branch_when_head_is_not_pinned
+FAILED tests/test_merge_branch_record.py::test_third_state_message_names_db_git_pin_and_the_tool
+FAILED tests/test_merge_branch_record.py::test_diverged_head_message_names_both_heads_and_the_db_record
+FAILED tests/test_merge_branch_record.py::test_unreadable_worktree_message_names_the_db_record_and_the_cause
+FAILED tests/test_merge_branch_record.py::test_matching_record_never_needs_git_for_the_branch_comparison
+FAILED tests/test_merge_branch_record.py::test_operation_next_action_is_not_the_refresh_that_cannot_work
+7 failed, 3 passed in 11.67s

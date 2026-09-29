@@ -1,0 +1,163 @@
+FFFFFF                                                                   [100%]
+=================================== FAILURES ===================================
+_______________ test_git_confirms_pin_merges_and_repairs_record ________________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_git_confirms_pin_merges_a0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_git_confirms_pin_merges_a0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+idle = None
+
+    @pytest.mark.asyncio
+    async def test_git_confirms_pin_merges_and_repairs_record(git_repo, wt_root, db, idle):
+        wt, sid, pinned = _stand(git_repo, db)
+        target_before = _head(git_repo)
+    
+        res = await _merge(git_repo, sid, wt.branch, pinned)
+    
+>       assert res.get("ok") is True, res.get("error")
+E       AssertionError: session branch changed before merge: expected task-256/worker, found adhoc-20260915T101900/worker
+E       assert False is True
+E        +  where False = <built-in method get of dict object at 0x780f87003340>('ok')
+E        +    where <built-in method get of dict object at 0x780f87003340> = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/worker, found adhoc-20260915T101900/worker', ...}.get
+
+tests/test_merge_branch_record.py:109: AssertionError
+____________ test_git_on_third_branch_is_refused_naming_both_sides _____________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_git_on_third_branch_is_re0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_git_on_third_branch_is_re0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+idle = None
+
+    @pytest.mark.asyncio
+    async def test_git_on_third_branch_is_refused_naming_both_sides(git_repo, wt_root, db, idle):
+        wt, sid, pinned = _stand(git_repo, db)
+        subprocess.run(["git", "checkout", "-b", "sidetrack"], cwd=wt.path,
+                       capture_output=True, check=True)
+        target_before = _head(git_repo)
+    
+        res = await _merge(git_repo, sid, wt.branch, pinned)
+    
+>       _assert_refused_untouched(res, db, sid, git_repo, target_before)
+
+tests/test_merge_branch_record.py:139: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+res = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/worker, found adhoc-20260915T101900/worker', ...}
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+sid = 'fa237ce3-010d-4ec7-8914-74d9ed56bc60'
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_git_on_third_branch_is_re0/repo')
+target_before = '2d65464b0e8a58bd3205a162e94fbe7f411d5784'
+
+    def _assert_refused_untouched(res, db, sid, git_repo, target_before):
+        assert res.get("ok") is False
+        assert res["commit_point"] == "not_reached"
+        assert res["_http_status"] == 409
+>       assert res["code"] == "SESSION_BRANCH_RECORD_DIVERGED"
+               ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record.py:122: KeyError
+____________________ test_head_diverged_from_pin_is_refused ____________________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_head_diverged_from_pin_is0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_head_diverged_from_pin_is0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+idle = None
+
+    @pytest.mark.asyncio
+    async def test_head_diverged_from_pin_is_refused(git_repo, wt_root, db, idle):
+        wt, sid, pinned = _stand(git_repo, db)
+        _commit(wt.path, "#256: ещё коммит после приёма")
+        target_before = _head(git_repo)
+    
+        res = await _merge(git_repo, sid, wt.branch, pinned)
+    
+>       _assert_refused_untouched(res, db, sid, git_repo, target_before)
+
+tests/test_merge_branch_record.py:156: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+res = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/worker, found adhoc-20260915T101900/worker', ...}
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+sid = '448d2c05-ce76-442f-8a62-29cd05dbad22'
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_head_diverged_from_pin_is0/repo')
+target_before = '2d65464b0e8a58bd3205a162e94fbe7f411d5784'
+
+    def _assert_refused_untouched(res, db, sid, git_repo, target_before):
+        assert res.get("ok") is False
+        assert res["commit_point"] == "not_reached"
+        assert res["_http_status"] == 409
+>       assert res["code"] == "SESSION_BRANCH_RECORD_DIVERGED"
+               ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record.py:122: KeyError
+_________________ test_unreadable_worktree_is_refusal_not_pass _________________
+
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_unreadable_worktree_is_re0/repo')
+wt_root = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_unreadable_worktree_is_re0/worktrees')
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+idle = None
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_unreadable_worktree_is_re0')
+
+    @pytest.mark.asyncio
+    async def test_unreadable_worktree_is_refusal_not_pass(git_repo, wt_root, db, idle, tmp_path):
+        wt, sid, pinned = _stand(git_repo, db)
+        not_git = tmp_path / "not-a-worktree"
+        not_git.mkdir()
+        row = db.get_session(sid)
+        row["worktree_path"] = str(not_git)
+        db.save_session(row)
+        target_before = _head(git_repo)
+    
+        res = await _merge(git_repo, sid, wt.branch, pinned)
+    
+>       _assert_refused_untouched(res, db, sid, git_repo, target_before)
+
+tests/test_merge_branch_record.py:172: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+res = {'_http_status': 409, 'commit_point': 'not_reached', 'conflicts': [], 'error': 'session branch changed before merge: expected task-256/worker, found adhoc-20260915T101900/worker', ...}
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+sid = '6e073be6-e459-4bb1-87a0-404e2ce9b593'
+git_repo = PosixPath('/tmp/pytest-of-kesha/pytest-11056/test_unreadable_worktree_is_re0/repo')
+target_before = '7da7257cb64aa6663695bb6d3795418f74c92c26'
+
+    def _assert_refused_untouched(res, db, sid, git_repo, target_before):
+        assert res.get("ok") is False
+        assert res["commit_point"] == "not_reached"
+        assert res["_http_status"] == 409
+>       assert res["code"] == "SESSION_BRANCH_RECORD_DIVERGED"
+               ^^^^^^^^^^^
+E       KeyError: 'code'
+
+tests/test_merge_branch_record.py:122: KeyError
+_____________________ test_record_swap_is_compare_and_swap _____________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/db.py'>
+
+    def test_record_swap_is_compare_and_swap(db):
+        sid = str(uuid.uuid4())
+        db.save_session(_row(sid, "/s", "/w", ADHOC))
+>       assert db.reconcile_session_branch(sid, recorded="someone-else", actual="task-1/w") is False
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.db' has no attribute 'reconcile_session_branch'
+
+tests/test_merge_branch_record.py:179: AttributeError
+___________ test_operation_refusal_prescribes_a_repair_that_can_work ___________
+
+    def test_operation_refusal_prescribes_a_repair_that_can_work():
+        """Старый next_action REFRESH_WORKER_THEN_NEW_OPERATION не писал запись — цикл без выхода."""
+        from app.merge_operations import normalize_merge_result
+>       from app.routes.sessions import _branch_record_refusal
+E       ImportError: cannot import name '_branch_record_refusal' from 'app.routes.sessions' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/ident-o55-medium/app/routes/sessions.py)
+
+tests/test_merge_branch_record.py:188: ImportError
+=========================== short test summary info ============================
+FAILED tests/test_merge_branch_record.py::test_git_confirms_pin_merges_and_repairs_record
+FAILED tests/test_merge_branch_record.py::test_git_on_third_branch_is_refused_naming_both_sides
+FAILED tests/test_merge_branch_record.py::test_head_diverged_from_pin_is_refused
+FAILED tests/test_merge_branch_record.py::test_unreadable_worktree_is_refusal_not_pass
+FAILED tests/test_merge_branch_record.py::test_record_swap_is_compare_and_swap
+FAILED tests/test_merge_branch_record.py::test_operation_refusal_prescribes_a_repair_that_can_work
+6 failed in 9.23s

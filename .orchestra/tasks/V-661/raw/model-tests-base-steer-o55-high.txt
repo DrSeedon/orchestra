@@ -1,0 +1,272 @@
+.F.FFFFFFFFFFF                                                           [100%]
+=================================== FAILURES ===================================
+__________ test_dead_turn_carries_message_into_next_turn_exactly_once __________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_dead_turn_carries_message_into_next_turn_exactly_once(db):
+        from app import mailbox
+>       from app.session_turns import STEER_CARRIED_NOTE, STEER_CARRIED_STATUS
+E       ImportError: cannot import name 'STEER_CARRIED_NOTE' from 'app.session_turns' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/session_turns.py)
+
+tests/test_steer_carry_v562.py:151: ImportError
+_____________ test_consumed_signal_for_other_text_does_not_confirm _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_consumed_signal_for_other_text_does_not_confirm(db):
+        session = _session()
+        _steer(session, URGENT)
+        session._handle_event(AgentEvent("input_consumed", metadata={"texts": ["[00:01] ау"]}))
+        _end_turn(session, ok=False, stop_reason="interrupted")
+>       assert [URGENT in text for text, _p in _redeliveries(session)] == [True]
+E       assert [] == [True]
+E         
+E         Right contains one more item: True
+E         Use -v to get more diff
+
+tests/test_steer_carry_v562.py:193: AssertionError
+____________ test_all_steers_of_dead_turn_arrive_in_original_order _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_all_steers_of_dead_turn_arrive_in_original_order(db):
+        session = _session()
+        texts = [f"[from:orch] сообщение {i}" for i in range(1, 4)]
+        for text in texts:
+            _steer(session, text)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        delivered = _redeliveries(session)
+>       assert len(delivered) == 1, "перенос пошёл несколькими ходами вместо одного"
+E       AssertionError: перенос пошёл несколькими ходами вместо одного
+E       assert 0 == 1
+E        +  where 0 = len([])
+
+tests/test_steer_carry_v562.py:206: AssertionError
+____________ test_restart_mid_turn_does_not_silently_eat_the_steer _____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_restart_mid_turn_does_not_silently_eat_the_steer(db):
+        """Ход умер вместе с процессом: в памяти ничего, квитанция только в БД."""
+        from app import mailbox
+    
+        _steer(_session(), URGENT)
+    
+>       carried, _released = mailbox.recover_after_restart()
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'recover_after_restart'
+
+tests/test_steer_carry_v562.py:221: AttributeError
+____________ test_restart_during_redelivery_releases_the_dead_claim ____________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_restart_during_redelivery_releases_the_dead_claim(db):
+        """Процесс умер, успев забрать перенесённую строку под аренду, но не выдав её."""
+        from app import mailbox
+    
+        session = _session()
+        _steer(session, URGENT)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+        for coro in session.spawned:
+            coro.close()                           # выдача так и не исполнилась
+        assert mailbox.claim(NAME, SCOPE) == [], "строка должна быть под арендой умершей выдачи"
+    
+>       _carried, released = mailbox.recover_after_restart()
+                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'recover_after_restart'
+
+tests/test_steer_carry_v562.py:241: AttributeError
+________________ test_turn_lost_without_turn_end_still_carries _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_turn_lost_without_turn_end_still_carries(db):
+        session = _session()
+        _steer(session, URGENT)
+        session._finish_failed_running_turn("listener died")
+>       assert [URGENT in text for text, _p in _redeliveries(session)] == [True]
+E       assert [] == [True]
+E         
+E         Right contains one more item: True
+E         Use -v to get more diff
+
+tests/test_steer_carry_v562.py:254: AssertionError
+______ test_unobserved_turn_end_does_not_let_next_turn_confirm_its_steers ______
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_unobserved_turn_end_does_not_let_next_turn_confirm_its_steers(db):
+        """Слушатель отменён без `turn_end`. Штатный конец СЛЕДУЮЩЕГО хода не должен
+        погасить чужие квитанции, которых модель не видела."""
+        session = _session()
+        _steer(session, URGENT)
+    
+        async def _new_turn():
+            session._start_turn_state()            # новый ход, исход прошлого не пришёл
+    
+        asyncio.run(_new_turn())
+        _end_turn(session, ok=True)
+>       assert [URGENT in text for text, _p in _redeliveries(session)] == [True]
+E       assert [] == [True]
+E         
+E         Right contains one more item: True
+E         Use -v to get more diff
+
+tests/test_steer_carry_v562.py:268: AssertionError
+_________ test_receipt_write_failure_does_not_break_immediate_delivery _________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ca33ecc170>
+
+    def test_receipt_write_failure_does_not_break_immediate_delivery(db, monkeypatch):
+        from app import mailbox
+    
+        def _broken(*_a, **_k):
+            raise RuntimeError("disk full")
+    
+>       monkeypatch.setattr(mailbox, "hold_steered", _broken)
+E       AttributeError: <module 'app.mailbox' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/mailbox.py'> has no attribute 'hold_steered'
+
+tests/test_steer_carry_v562.py:277: AttributeError
+____ test_carried_user_message_stays_cancellable_and_unclaimed_on_dashboard ____
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_carried_user_message_stays_cancellable_and_unclaimed_on_dashboard(db):
+        from app import mailbox
+        from app.routes.sessions import get_queued_messages
+        from types import SimpleNamespace
+    
+        user = MessageProvenance(origin="user", senders=("user",), subtype="dashboard")
+        session = _session()
+        _steer(session, "[00:01] ау", provenance=user)
+        _end_turn(session, ok=False, stop_reason="interrupted")
+        for coro in session.spawned:
+            coro.close()
+>       mailbox.recover_after_restart()            # снять аренду несостоявшейся выдачи
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'recover_after_restart'
+
+tests/test_steer_carry_v562.py:297: AttributeError
+____________ test_delivery_status_tells_current_turn_from_next_turn ____________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-11074/test_delivery_status_tells_cur0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76ca33e911c0>
+
+    @pytest.mark.asyncio
+    async def test_delivery_status_tells_current_turn_from_next_turn(tmp_path, monkeypatch):
+        import app.db as _db
+        from tests.test_message_delivery_receipts_380 import (
+            DELIVERY_ID, PROVENANCE, RENDERED, SCOPE as S380, TARGET_GENERATION,
+            TARGET_ID, TARGET_NAME, _accept, _session_record,
+        )
+        from app import message_deliveries as md
+        from app.manager import SessionManager
+        from app.session import AgentSession, AgentStatus
+    
+        monkeypatch.setattr(_db, "DB_PATH", tmp_path / "status.db")
+        _db.init_db()
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        _db.save_session(_session_record(
+            session_id=TARGET_ID, name=TARGET_NAME, scope=S380, task_id="380",
+            branch="task-380/target-380",
+        ))
+        monkeypatch.setattr(md, "ensure_target_runner", lambda _t: None)
+        await _accept(md)
+    
+        backend = _Backend()
+        session = AgentSession(
+            id=TARGET_ID, name=TARGET_NAME, scope=S380, cwd="/tmp", model="gpt-5.6-sol",
+            system_prompt="", created_at=datetime.now(timezone.utc), task_id="380",
+            branch="task-380/target-380",
+        )
+        session.backend_type = "codex"
+        session.status = AgentStatus.RUNNING
+        session._backend = backend
+        session._ensure_backend = AsyncMock(return_value=backend)
+        session._note_next_precompact_activity = MagicMock()
+        session._attach_pending_facts = lambda message: (message, [])
+        session._ack_pending_facts = MagicMock()
+        session._persist = MagicMock()
+        session._log = MagicMock()
+        spawned = []
+        session._spawn_bg = spawned.append
+        session._hibernate.schedule = MagicMock()
+        session._cost.update_context_from_turn = lambda *_a, **_k: (True, None)
+        manager = SessionManager()
+        manager.sessions[TARGET_ID] = session
+    
+        prepared = md.prepare_message_delivery(DELIVERY_ID)
+        context = md.MessageDeliveryContext(
+            DELIVERY_ID, history_user_message=prepared["history_user_message"],
+            provenance=prepared["provenance"],
+        )
+        await manager.send_message_delivery(
+            TARGET_ID, RENDERED, delivery=context,
+            target_generation=TARGET_GENERATION, provenance=PROVENANCE,
+        )
+    
+        def status():
+            return md.get_message_delivery(DELIVERY_ID, "source-session-380")
+    
+        now = status()
+        assert now["delivery_state"] == "SUBMITTED"
+>       assert now["turn_delivery"]["state"] == "IN_ACTIVE_TURN"
+               ^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'turn_delivery'
+
+tests/test_steer_carry_v562.py:365: KeyError
+___________ test_status_of_a_completed_steer_has_no_turn_level_claim ___________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/steer-o55-high/app/db.py'>
+
+    def test_status_of_a_completed_steer_has_no_turn_level_claim(db):
+        from app import mailbox
+    
+        session = _session()
+        ref = "00000000-0000-4000-8000-000000000562"
+        _steer(session, URGENT, provenance=MessageProvenance(
+            origin="agent", senders=("orch",), subtype="direct_message", ref=ref,
+        ))
+>       assert mailbox.steer_status(NAME, SCOPE, ref) == "IN_ACTIVE_TURN"
+               ^^^^^^^^^^^^^^^^^^^^
+E       AttributeError: module 'app.mailbox' has no attribute 'steer_status'
+
+tests/test_steer_carry_v562.py:404: AttributeError
+__________ test_codex_user_message_item_becomes_input_consumed_event ___________
+
+    def test_codex_user_message_item_becomes_input_consumed_event():
+        from app.backend_codex import CodexBackend
+    
+        backend = CodexBackend.__new__(CodexBackend)
+        backend._started_items = set()
+        events = backend._item_completed({
+            "type": "userMessage", "id": "item-1",
+            "content": [{"type": "text", "text": URGENT, "text_elements": []}],
+        })
+>       assert [(e.type, e.metadata) for e in events] == [
+            ("input_consumed", {"texts": [URGENT]}),
+        ]
+E       AssertionError: assert [] == [('input_cons...А КАСАНИЯ']})]
+E         
+E         Right contains one more item: ('input_consumed', {'texts': ['[from:orch] Current: СРОЧНО, ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ']})
+E         Use -v to get more diff
+
+tests/test_steer_carry_v562.py:420: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_steer_carry_v562.py::test_dead_turn_carries_message_into_next_turn_exactly_once
+FAILED tests/test_steer_carry_v562.py::test_consumed_signal_for_other_text_does_not_confirm
+FAILED tests/test_steer_carry_v562.py::test_all_steers_of_dead_turn_arrive_in_original_order
+FAILED tests/test_steer_carry_v562.py::test_restart_mid_turn_does_not_silently_eat_the_steer
+FAILED tests/test_steer_carry_v562.py::test_restart_during_redelivery_releases_the_dead_claim
+FAILED tests/test_steer_carry_v562.py::test_turn_lost_without_turn_end_still_carries
+FAILED tests/test_steer_carry_v562.py::test_unobserved_turn_end_does_not_let_next_turn_confirm_its_steers
+FAILED tests/test_steer_carry_v562.py::test_receipt_write_failure_does_not_break_immediate_delivery
+FAILED tests/test_steer_carry_v562.py::test_carried_user_message_stays_cancellable_and_unclaimed_on_dashboard
+FAILED tests/test_steer_carry_v562.py::test_delivery_status_tells_current_turn_from_next_turn
+FAILED tests/test_steer_carry_v562.py::test_status_of_a_completed_steer_has_no_turn_level_claim
+FAILED tests/test_steer_carry_v562.py::test_codex_user_message_item_becomes_input_consumed_event
+12 failed, 2 passed in 9.82s

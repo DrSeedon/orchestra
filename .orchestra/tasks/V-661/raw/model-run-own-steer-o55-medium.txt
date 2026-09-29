@@ -1,0 +1,257 @@
+.FFFFFF.....                                                             [100%]
+=================================== FAILURES ===================================
+_________________ test_failed_turn_redelivers_once_with_sender _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7520b8701440>
+
+    @pytest.mark.asyncio
+    async def test_failed_turn_redelivers_once_with_sender(db, agent):
+        """Критерий 2: ход упал — сообщение в следующем ходе, ровно один раз, с отправителем."""
+        session, seen = await agent()
+        await _start_turn(session)
+        await _steer(session)
+        await _end_turn(session, ok=False, stop_reason="interrupted")
+    
+>       assert _count(seen, URGENT) == 2, seen
+E       AssertionError: ['старая тема: ночная выкладка', 'ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ']
+E       assert 1 == 2
+E        +  where 1 = _count(['старая тема: ночная выкладка', 'ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ'], 'ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+
+tests/test_steer_survives_turn_death.py:138: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2228 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2242 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2643 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+________________ test_several_steers_into_dead_turn_keep_order _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7520b877f1a0>
+
+    @pytest.mark.asyncio
+    async def test_several_steers_into_dead_turn_keep_order(db, agent):
+        """Критерий 3: все влитые в умерший ход доставлены и в исходном порядке."""
+        session, seen = await agent()
+        await _start_turn(session)
+        for text in ("первое", "второе", "третье"):
+            await _steer(session, text)
+        await _end_turn(session, ok=False, stop_reason="interrupted")
+    
+        last = seen[-1]
+>       assert last.index("[from:orch] первое") < last.index("[from:orch] второе") \
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            < last.index("[from:orch] третье")
+E       ValueError: substring not found
+
+tests/test_steer_survives_turn_death.py:156: ValueError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2228 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2242 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2643 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+______________________ test_retry_turn_carries_the_steer _______________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7520b8701620>
+
+    @pytest.mark.asyncio
+    async def test_retry_turn_carries_the_steer(db, agent):
+        """Повтор после сбоя апстрима сам начинает следующий ход — влитое едет в нём."""
+        session, seen = await agent()
+        await _start_turn(session)
+        await _steer(session)
+        session._retry_after_server_error = lambda *a, **k: asyncio.sleep(0)
+        session._turns.handle_turn_end(AgentEvent("turn_end", metadata={
+            "ok": False, "stop_reason": "error", "num_turns": 0, "cost_usd": 0,
+            "model_error": "server_error",
+        }))
+        await asyncio.sleep(0.05)
+        assert _count(seen, URGENT) == 1, "повтор не должен обгонять ящик вторым ходом"
+    
+        await session.send("[system] Retrying", provenance=USER)
+>       assert f"[from:orch] {URGENT}" in seen[-1]
+E       AssertionError: assert '[from:orch] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ' in '[system] Retrying'
+
+tests/test_steer_survives_turn_death.py:177: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2228 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2255 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2643 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+________________ test_listen_death_without_turn_end_redelivers _________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7520b877f880>
+
+    @pytest.mark.asyncio
+    async def test_listen_death_without_turn_end_redelivers(db, agent):
+        """Ход потерян без события конца (смерть слушателя) — тоже не молча."""
+        session, seen = await agent()
+        await _start_turn(session)
+        await _steer(session)
+        session._finish_failed_running_turn("listen task exited unexpectedly while RUNNING")
+        for _ in range(20):
+            await asyncio.sleep(0.01)
+>       assert _count(seen, f"[from:orch] {URGENT}") == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = _count(['старая тема: ночная выкладка', 'ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ'], '[from:orch] ЭКСПОНАТ НЕ РЕАГИРУЕТ НА КАСАНИЯ')
+
+tests/test_steer_survives_turn_death.py:190: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2228 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] listener stream ended (agent idle/stopped — normal on restart)
+[worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+INFO     app.session:session.py:2242 [worker] listener stream ended (agent idle/stopped — normal on restart)
+WARNING  app.session:session.py:2643 [worker] listen task exited without exception (silent death), status=AgentStatus.IDLE
+___________________ test_restart_between_death_and_next_turn ___________________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7520b85bc5e0>
+
+    @pytest.mark.asyncio
+    async def test_restart_between_death_and_next_turn(db, agent):
+        """Критерий 4: процесс умер вместе с ходом — первый ход нового процесса получает влитое."""
+        session, seen = await agent()
+        await _start_turn(session)
+        await _steer(session)
+        # «рестарт»: состояние процесса потеряно, в БД осталась удержанная строка
+        from app import mailbox
+>       assert mailbox.release_held() == 1
+E       AssertionError: assert 0 == 1
+E        +  where 0 = <function release_held at 0x7520bb871300>()
+E        +    where <function release_held at 0x7520bb871300> = <module 'app.mailbox' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/mailbox.py'>.release_held
+
+tests/test_steer_survives_turn_death.py:201: AssertionError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2228 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2255 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2643 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+______________ test_new_turn_carries_hold_that_never_got_turn_end ______________
+
+db = <module 'app.db' from '/home/kesha/orchestra/data/v656/steer-o55-medium/app/db.py'>
+agent = <function agent.<locals>._make at 0x7520b85bcd60>
+
+    @pytest.mark.asyncio
+    async def test_new_turn_carries_hold_that_never_got_turn_end(db, agent):
+        """Stop без события конца хода: следующий ход сам забирает удержанное."""
+        session, seen = await agent()
+        await _start_turn(session)
+        await _steer(session)
+        await _steer(session, "и ещё одно")
+        await session.interrupt()
+        await session.send("стоп, что там?", provenance=USER)
+        last = seen[-1]
+>       assert last.index(f"[from:orch] {URGENT}") < last.index("[from:orch] и ещё одно")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       ValueError: substring not found
+
+tests/test_steer_survives_turn_death.py:220: ValueError
+----------------------------- Captured stderr call -----------------------------
+git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+[worker] claude persistent event loop started
+[worker] heartbeat started
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:270 git ls-files failed in /s: fatal: cannot change to '/s': No such file or directory — skill injection skipped for /s
+INFO     app.session:session.py:2228 [worker] claude persistent event loop started
+INFO     app.session:session_hibernate.py:120 [worker] heartbeat started
+--------------------------- Captured stderr teardown ---------------------------
+[worker] heartbeat cancelled
+[worker] events() exhausted normally (attempt 1/5)
+[worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+---------------------------- Captured log teardown -----------------------------
+INFO     app.session:session_hibernate.py:192 [worker] heartbeat cancelled
+WARNING  app.session:session.py:2255 [worker] events() exhausted normally (attempt 1/5)
+WARNING  app.session:session.py:2643 [worker] listen task exited without exception (silent death), status=AgentStatus.RUNNING
+=============================== warnings summary ===============================
+tests/test_steer_survives_turn_death.py::test_completed_turn_keeps_old_behaviour_no_duplicate
+tests/test_steer_survives_turn_death.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_survives_turn_death.py::test_several_steers_into_dead_turn_keep_order
+tests/test_steer_survives_turn_death.py::test_retry_turn_carries_the_steer
+  /home/kesha/orchestra/data/v656/steer-o55-medium/app/session.py:3263: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if usage and usage.get("percentage") is not None:
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_survives_turn_death.py::test_completed_turn_keeps_old_behaviour_no_duplicate
+tests/test_steer_survives_turn_death.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_survives_turn_death.py::test_several_steers_into_dead_turn_keep_order
+tests/test_steer_survives_turn_death.py::test_retry_turn_carries_the_steer
+  /home/kesha/orchestra/data/v656/steer-o55-medium/app/session.py:3265: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    context = current_context(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_steer_survives_turn_death.py::test_completed_turn_keeps_old_behaviour_no_duplicate
+tests/test_steer_survives_turn_death.py::test_failed_turn_redelivers_once_with_sender
+tests/test_steer_survives_turn_death.py::test_several_steers_into_dead_turn_keep_order
+tests/test_steer_survives_turn_death.py::test_retry_turn_carries_the_steer
+  /usr/lib/python3.12/asyncio/events.py:88: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_steer_survives_turn_death.py::test_failed_turn_redelivers_once_with_sender
+FAILED tests/test_steer_survives_turn_death.py::test_several_steers_into_dead_turn_keep_order
+FAILED tests/test_steer_survives_turn_death.py::test_retry_turn_carries_the_steer
+FAILED tests/test_steer_survives_turn_death.py::test_listen_death_without_turn_end_redelivers
+FAILED tests/test_steer_survives_turn_death.py::test_restart_between_death_and_next_turn
+FAILED tests/test_steer_survives_turn_death.py::test_new_turn_carries_hold_that_never_got_turn_end
+6 failed, 6 passed, 12 warnings in 19.62s

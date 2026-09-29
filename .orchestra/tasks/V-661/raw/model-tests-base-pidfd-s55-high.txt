@@ -1,0 +1,40 @@
+FF..                                                                     [100%]
+=================================== FAILURES ===================================
+____________ test_scenario_leaves_no_pidfd[command_watch_cancelled] ____________
+
+scenario = 'command_watch_cancelled'
+
+    @pytest.mark.skipif(not hasattr(os, "pidfd_open"), reason="needs pidfd support")
+    @pytest.mark.parametrize("scenario", sorted(_SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario):
+        stats = _run_scenario(scenario)
+        assert stats["spawned"] >= 1
+        leaked = stats["after"] - stats["before"]
+>       assert leaked == 0, (
+            f"{scenario}: {leaked} pidfd leaked over {stats['spawned']} spawned processes"
+        )
+E       AssertionError: command_watch_cancelled: 2 pidfd leaked over 1 spawned processes
+E       assert 2 == 0
+
+tests/test_pidfd_leak.py:136: AssertionError
+____________ test_scenario_leaves_no_pidfd[command_watch_completes] ____________
+
+scenario = 'command_watch_completes'
+
+    @pytest.mark.skipif(not hasattr(os, "pidfd_open"), reason="needs pidfd support")
+    @pytest.mark.parametrize("scenario", sorted(_SCENARIOS))
+    def test_scenario_leaves_no_pidfd(scenario):
+        stats = _run_scenario(scenario)
+        assert stats["spawned"] >= 1
+        leaked = stats["after"] - stats["before"]
+>       assert leaked == 0, (
+            f"{scenario}: {leaked} pidfd leaked over {stats['spawned']} spawned processes"
+        )
+E       AssertionError: command_watch_completes: 5 pidfd leaked over 6 spawned processes
+E       assert 5 == 0
+
+tests/test_pidfd_leak.py:136: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd[command_watch_cancelled]
+FAILED tests/test_pidfd_leak.py::test_scenario_leaves_no_pidfd[command_watch_completes]
+2 failed, 2 passed in 11.78s

@@ -1,0 +1,11 @@
+
+==================================== ERRORS ====================================
+__________ ERROR collecting tests/test_silence_and_turn_start_v642.py __________
+tests/test_silence_and_turn_start_v642.py:17: in <module>
+    SILENCE = session_hibernate.SILENCE_REPORT_AFTER
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: module 'app.session_hibernate' has no attribute 'SILENCE_REPORT_AFTER'
+=========================== short test summary info ============================
+ERROR tests/test_silence_and_turn_start_v642.py - AttributeError: module 'app...
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.82s

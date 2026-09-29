@@ -1,0 +1,278 @@
+FF.FFFFFFFFFFF                                                           [100%]
+=================================== FAILURES ===================================
+______ test_first_turn_after_restart_on_same_native_session_is_turn_price ______
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8d5b7e0>
+
+    @pytest.mark.asyncio
+    async def test_first_turn_after_restart_on_same_native_session_is_turn_price(make_session):
+        before = make_session()
+        await _turn(before, "t1", 0.10)
+        await _turn(before, "t2", 0.25)
+    
+        after = make_session(session_id="native-A")  # restart: native id restored from DB
+        await _turn(after, "t3", 0.40)
+    
+        assert _row("t1") == (pytest.approx(0.10), 0)
+        assert _row("t2") == (pytest.approx(0.15), 0)
+>       assert _row("t3") == (pytest.approx(0.15), 0)  # not the 0.40 cumulative
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert (0.4, 0) == (0.15 ± 1.5e-07, 0)
+E         
+E         At index 0 diff: 0.4 != 0.15 ± 1.5e-07
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:100: AssertionError
+______ test_native_id_change_resets_baseline_in_process_and_after_restart ______
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8be09a0>
+
+    @pytest.mark.asyncio
+    async def test_native_id_change_resets_baseline_in_process_and_after_restart(make_session):
+        session = make_session()
+        await _turn(session, "t1", 0.30, native="native-A")
+        await _turn(session, "t2", 0.05, native="native-B")  # compact / fresh switch
+    
+        assert _row("t2") == (pytest.approx(0.05), 0)
+        assert session._context_cost == pytest.approx(0.05)
+    
+        after = make_session(session_id="native-B")
+        await _turn(after, "t3", 0.08, native="native-B")
+>       assert _row("t3") == (pytest.approx(0.03), 0)
+E       assert (0.08, 0) == (0.03 ± 3.0e-08, 0)
+E         
+E         At index 0 diff: 0.08 != 0.03 ± 3.0e-08
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:116: AssertionError
+____ test_lost_last_record_is_carried_by_next_turn_not_negative_or_inflated ____
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8b06ca0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b8ab8c1b2f0>
+
+    @pytest.mark.asyncio
+    async def test_lost_last_record_is_carried_by_next_turn_not_negative_or_inflated(
+        make_session, monkeypatch,
+    ):
+        from app import db, session_turns
+    
+        session = make_session()
+        await _turn(session, "t1", 0.10)
+        real_add = db.turn_usage_add
+    
+        def crash_before_commit(**kwargs):
+            if kwargs["event_id"] == "t2":
+                raise RuntimeError("process died before the write committed")
+            return real_add(**kwargs)
+    
+        monkeypatch.setattr(session_turns, "turn_usage_add", crash_before_commit)
+        await _turn(session, "t2", 0.25)
+        monkeypatch.setattr(session_turns, "turn_usage_add", real_add)
+        assert _row("t2") is None
+    
+        after = make_session(session_id="native-A")
+        await _turn(after, "t3", 0.40)
+    
+        cost, unaccounted = _row("t3")
+        assert unaccounted == 0
+        # t2 has no row, so its spend lands on t3 exactly once: rows add up to the provider total.
+>       assert cost == pytest.approx(0.30)
+E       assert 0.4 == 0.3 ± 3.0e-07
+E         
+E         comparison failed
+E         Obtained: 0.4
+E         Expected: 0.3 ± 3.0e-07
+
+tests/test_session_cost_baseline.py:156: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    app.session:session.py:4122 [w1] telemetry write failed: process died before the write committed
+___ test_resumed_session_without_recorded_baseline_is_unaccounted_then_exact ___
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8be0680>
+
+    @pytest.mark.asyncio
+    async def test_resumed_session_without_recorded_baseline_is_unaccounted_then_exact(
+        make_session,
+    ):
+        # Native session from before V-609: no durable baseline exists for it.
+        session = make_session(session_id="native-A")
+        await _turn(session, "t1", 154.21)
+>       assert _row("t1") == (None, 1)  # never the whole history as one turn
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert (154.21, 0) == (None, 1)
+E         
+E         At index 0 diff: 154.21 != None
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:167: AssertionError
+____ test_switching_back_to_an_unrecorded_old_native_session_is_unaccounted ____
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8b06fc0>
+
+    @pytest.mark.asyncio
+    async def test_switching_back_to_an_unrecorded_old_native_session_is_unaccounted(
+        make_session,
+    ):
+        session = make_session(
+            session_id="native-B",
+            history=[{"session_id": "native-A", "runtime": "claude"}],
+        )
+        await _turn(session, "t1", 40.0, native="native-A")  # restored from session history
+    
+>       assert _row("t1") == (None, 1)
+E       assert (40.0, 0) == (None, 1)
+E         
+E         At index 0 diff: 40.0 != None
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:184: AssertionError
+______ test_switching_back_to_a_recorded_native_session_uses_its_baseline ______
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8b06700>
+
+    @pytest.mark.asyncio
+    async def test_switching_back_to_a_recorded_native_session_uses_its_baseline(make_session):
+        session = make_session()
+        await _turn(session, "t1", 0.10, native="native-A")
+        await _turn(session, "t2", 0.05, native="native-B")
+        session.session_id = "native-A"  # history restore route
+        await _turn(session, "t3", 0.18, native="native-A")
+    
+>       assert _row("t3") == (pytest.approx(0.08), 0)
+E       assert (0.13, 0) == (0.08 ± 8.0e-08, 0)
+E         
+E         At index 0 diff: 0.13 != 0.08 ± 8.0e-08
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:195: AssertionError
+_ test_external_session_id_change_never_leaves_a_zero_baseline_for_the_cached_id _
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8b07100>
+
+    @pytest.mark.asyncio
+    async def test_external_session_id_change_never_leaves_a_zero_baseline_for_the_cached_id(
+        make_session,
+    ):
+        session = make_session()
+        await _turn(session, "t1", 0.10, native="native-A")
+        session.session_id = ""  # cleared elsewhere, then the CLI reports native-A again
+        await _turn(session, "t2", 0.12, native="native-A")
+    
+>       assert _row("t2") == (pytest.approx(0.02), 0)
+E       assert (0.12, 0) == (0.02 ± 2.0e-08, 0)
+E         
+E         At index 0 diff: 0.12 != 0.02 ± 2.0e-08
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:207: AssertionError
+_______ test_counter_going_backwards_is_unaccounted_not_zero_or_negative _______
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8b07920>
+
+    @pytest.mark.asyncio
+    async def test_counter_going_backwards_is_unaccounted_not_zero_or_negative(make_session):
+        session = make_session()
+        await _turn(session, "t1", 0.30)
+        await _turn(session, "t2", 0.10)
+        await _turn(session, "t3", 0.15)
+    
+>       assert _row("t2") == (None, 1)
+E       assert (0.0, 0) == (None, 1)
+E         
+E         At index 0 diff: 0.0 != None
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:217: AssertionError
+_________________ test_frame_without_total_keeps_the_baseline __________________
+
+make_session = <function make_session.<locals>.build at 0x7b8ab88d4180>
+
+    @pytest.mark.asyncio
+    async def test_frame_without_total_keeps_the_baseline(make_session):
+        session = make_session()
+        await _turn(session, "t1", 0.10)
+        await _turn(session, "t2", 0)  # error frame: CLI reported no total
+        await _turn(session, "t3", 0.30)
+    
+        assert _row("t2") == (0.0, 0)
+>       assert _row("t3") == (pytest.approx(0.20), 0)
+E       assert (0.3, 0) == (0.2 ± 2.0e-07, 0)
+E         
+E         At index 0 diff: 0.3 != 0.2 ± 2.0e-07
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:229: AssertionError
+____ test_resummed_total_within_float_noise_is_a_free_turn_not_unaccounted _____
+
+make_session = <function make_session.<locals>.build at 0x7b8ab8b07ec0>
+
+    @pytest.mark.asyncio
+    async def test_resummed_total_within_float_noise_is_a_free_turn_not_unaccounted(
+        make_session,
+    ):
+        session = make_session()
+        await _turn(session, "t1", 0.1 + 0.2)  # 0.30000000000000004
+    
+        after = make_session(session_id="native-A")
+        await _turn(after, "t2", 0.3)  # same history summed in another order
+    
+>       assert _row("t2") == (0.0, 0)
+E       assert (0.3, 0) == (0.0, 0)
+E         
+E         At index 0 diff: 0.3 != 0.0
+E         Use -v to get more diff
+
+tests/test_session_cost_baseline.py:242: AssertionError
+____________ test_out_of_order_baseline_writes_keep_the_later_total ____________
+
+usage_db = PosixPath('/tmp/pytest-of-kesha/pytest-11052/test_out_of_order_baseline_wri0/cost-baseline.db')
+
+    def test_out_of_order_baseline_writes_keep_the_later_total(usage_db):
+>       from app.db import provider_cost_total_get, turn_usage_add
+E       ImportError: cannot import name 'provider_cost_total_get' from 'app.db' (/home/kesha/orchestra/data/v656-bench/work-V-661/model-tests/costbase-o55-high/app/db.py)
+
+tests/test_session_cost_baseline.py:246: ImportError
+_______ test_claude_result_marks_cli_total_as_native_session_cumulative ________
+
+    def test_claude_result_marks_cli_total_as_native_session_cumulative():
+        from app.backend_claude import ClaudeBackend
+    
+        event = ClaudeBackend(model="claude-opus-5[1m]", cwd="/tmp")._convert(_result(1.5))[-1]
+    
+        assert event.metadata["cost_usd"] == 1.5
+>       assert event.metadata["cost_scope"] == "native_session"
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'cost_scope'
+
+tests/test_session_cost_baseline.py:277: KeyError
+_____ test_locally_priced_non_claude_model_is_not_marked_native_cumulative _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7b8ab8ab3a40>
+
+    def test_locally_priced_non_claude_model_is_not_marked_native_cumulative(monkeypatch):
+        from app import models
+        from app.backend_claude import ClaudeBackend
+    
+        monkeypatch.setitem(models.TOKEN_PRICES, "glm-test", {"input": 1.0, "output": 2.0})
+        event = ClaudeBackend(model="glm-test", cwd="/tmp")._convert(_result(1.5))[-1]
+    
+>       assert event.metadata["cost_scope"] == ""
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       KeyError: 'cost_scope'
+
+tests/test_session_cost_baseline.py:287: KeyError
+=========================== short test summary info ============================
+FAILED tests/test_session_cost_baseline.py::test_first_turn_after_restart_on_same_native_session_is_turn_price
+FAILED tests/test_session_cost_baseline.py::test_native_id_change_resets_baseline_in_process_and_after_restart
+FAILED tests/test_session_cost_baseline.py::test_lost_last_record_is_carried_by_next_turn_not_negative_or_inflated
+FAILED tests/test_session_cost_baseline.py::test_resumed_session_without_recorded_baseline_is_unaccounted_then_exact
+FAILED tests/test_session_cost_baseline.py::test_switching_back_to_an_unrecorded_old_native_session_is_unaccounted
+FAILED tests/test_session_cost_baseline.py::test_switching_back_to_a_recorded_native_session_uses_its_baseline
+FAILED tests/test_session_cost_baseline.py::test_external_session_id_change_never_leaves_a_zero_baseline_for_the_cached_id
+FAILED tests/test_session_cost_baseline.py::test_counter_going_backwards_is_unaccounted_not_zero_or_negative
+FAILED tests/test_session_cost_baseline.py::test_frame_without_total_keeps_the_baseline
+FAILED tests/test_session_cost_baseline.py::test_resummed_total_within_float_noise_is_a_free_turn_not_unaccounted
+FAILED tests/test_session_cost_baseline.py::test_out_of_order_baseline_writes_keep_the_later_total
+FAILED tests/test_session_cost_baseline.py::test_claude_result_marks_cli_total_as_native_session_cumulative
+FAILED tests/test_session_cost_baseline.py::test_locally_priced_non_claude_model_is_not_marked_native_cumulative
+13 failed, 1 passed in 12.03s
