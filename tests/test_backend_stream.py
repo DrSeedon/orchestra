@@ -16,7 +16,7 @@ from app.events import AgentEvent
 
 
 def _backend():
-    return ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
+    return ClaudeBackend(model="claude-sonnet-5-5[1m]", cwd="/tmp")
 
 
 def _stream(event, parent_tool_use_id=None):

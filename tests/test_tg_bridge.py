@@ -4889,7 +4889,7 @@ class TestTurnFoldStream:
         persisted = []
         session = AgentSession(
             id="sid", name="orch", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]", system_prompt="test",
+            model="claude-sonnet-5-5[1m]", system_prompt="test",
         )
         monkeypatch.setattr(
             session, "_log",

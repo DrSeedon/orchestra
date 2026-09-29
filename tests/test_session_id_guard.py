@@ -23,7 +23,7 @@ def db(tmp_path, monkeypatch):
 
 def _row(sid="", name="worker"):
     return {
-        "id": sid, "name": name, "scope": "/s", "cwd": "/s", "model": "claude-sonnet-5[1m]",
+        "id": sid, "name": name, "scope": "/s", "cwd": "/s", "model": "claude-sonnet-5-5[1m]",
         "system_prompt": "", "status": "idle", "session_id": None, "cost_usd": 0.0,
         "worktree_path": "", "branch": "", "base_branch": "main",
         "is_orchestrator": False, "color": "",

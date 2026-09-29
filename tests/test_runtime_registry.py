@@ -195,7 +195,7 @@ def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monke
     monkeypatch.setattr("app.pipeline.get_role", lambda *_args: None)
     ctx = BackendBuildContext(
         model={
-            "claude": "claude-sonnet-5[1m]",
+            "claude": "claude-sonnet-5-5[1m]",
             "codex": "gpt-5.6-sol",
             "grok": "grok-4.5",
             "harness": "nvidia/nemotron-3-ultra-550b-a55b:free",

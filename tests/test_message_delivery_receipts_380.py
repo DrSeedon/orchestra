@@ -1135,7 +1135,7 @@ async def test_t401_quota_refusal_is_returned_before_receipt_or_user_log(
 
     target = routes.manager.get_by_name(TARGET_NAME, SCOPE)
     assert target is not None
-    target.model = "claude-sonnet-5[1m]"
+    target.model = "claude-sonnet-5-5[1m]"
     now = datetime.now(timezone.utc).timestamp()
     reset_at = datetime.fromtimestamp(
         now + 10080 * 60 / 2, timezone.utc,
@@ -1815,7 +1815,7 @@ async def test_t380_r7_claude_compact_completion_wakes_durable_receipt(
         name=TARGET_NAME,
         scope=SCOPE,
         cwd=f"/tmp/{TARGET_NAME}",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         system_prompt="",
         created_at=datetime.now(timezone.utc),
         task_id=TARGET_TASK_ID,

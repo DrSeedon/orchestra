@@ -56,7 +56,7 @@ def env(tmp_path, monkeypatch):
     sid = str(uuid.uuid4())
     dbmod.save_session({
         "id": sid, "name": "worker", "scope": str(repo), "cwd": str(repo),
-        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": wt.path,
         "branch": "adhoc-1-1/worker", "base_branch": "main", "is_orchestrator": False,
         "color": "", "created_at": datetime.now(timezone.utc).isoformat(),

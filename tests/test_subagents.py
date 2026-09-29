@@ -13,7 +13,7 @@ def db(tmp_path, monkeypatch):
     init_db()
     save_session({
         "id": "sess-1", "name": "w", "scope": "/s", "cwd": "/c",
-        "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
         "status": "running", "session_id": "550e8400-e29b-41d4-a716-446655440000",
         "cost_usd": 0.0, "worktree_path": "/w", "branch": "b",
         "is_orchestrator": False, "color": "#fff",

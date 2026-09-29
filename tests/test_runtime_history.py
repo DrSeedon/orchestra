@@ -49,7 +49,7 @@ def _render(rows, *, exclude=()):
         snapshot_id=max((row["id"] for row in rows), default=0),
         session_id="11111111-2222-4333-8444-555555555555",
         cwd="/tmp/project",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         branch="task-174/test",
         exclude_user_messages=exclude,
     )
@@ -394,7 +394,7 @@ def test_render_redacts_secrets_and_bounds_tool_payload(monkeypatch):
         snapshot_id=3,
         session_id=str(uuid.uuid4()),
         cwd="/tmp/project",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
     )
     payload = repr(rendered.entries)
     assert "abc123" not in payload
@@ -442,7 +442,7 @@ def test_history_log_snapshot_excludes_row_inserted_after_boundary(tmp_path, mon
         conn.execute(
             """INSERT INTO sessions (id, name, scope, cwd, model, created_at)
                VALUES (?, ?, ?, ?, ?, ?)""",
-            ("s1", "w", "/s", "/s", "claude-sonnet-5[1m]", datetime.now(timezone.utc).isoformat()),
+            ("s1", "w", "/s", "/s", "claude-sonnet-5-5[1m]", datetime.now(timezone.utc).isoformat()),
         )
     dbmod.add_log(
         "s1", datetime.now(timezone.utc), "user_message", "before",
@@ -490,7 +490,7 @@ def test_history_columns_are_nullable_additive_and_marker_round_trips(tmp_path, 
                                       history_import_source)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
             (
-                "s1", "w", "/s", "/s", "claude-sonnet-5[1m]",
+                "s1", "w", "/s", "/s", "claude-sonnet-5-5[1m]",
                 datetime.now(timezone.utc).isoformat(), "logs:claude",
             ),
         )

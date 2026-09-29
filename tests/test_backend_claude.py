@@ -25,7 +25,7 @@ from app.runtime_history import (
 
 
 def _backend():
-    return ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
+    return ClaudeBackend(model="claude-sonnet-5-5[1m]", cwd="/tmp")
 
 
 def _history():
@@ -39,14 +39,14 @@ def _history():
         snapshot_id=1,
         session_id="11111111-2222-4333-8444-555555555555",
         cwd="/tmp",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
     )
 
 
 def test_imported_resume_uses_session_store_and_current_system_prompt():
     history = _history()
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         system_prompt="CURRENT ROLE",
         resume_session_id=history.session_id,
@@ -64,7 +64,7 @@ def test_imported_resume_uses_session_store_and_current_system_prompt():
 
 def test_ordinary_resume_options_are_unchanged_without_import_marker():
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         system_prompt="CURRENT ROLE",
         resume_session_id="ordinary-session",
@@ -80,13 +80,13 @@ def test_ordinary_resume_options_are_unchanged_without_import_marker():
 @pytest.mark.asyncio
 async def test_retarget_model_uses_sdk_control_protocol_without_replacing_session():
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id="native-claude-session",
     )
     client = SimpleNamespace(
         set_model=AsyncMock(),
-        options=SimpleNamespace(model="claude-sonnet-5[1m]"),
+        options=SimpleNamespace(model="claude-sonnet-5-5[1m]"),
     )
     backend._client = client
 
@@ -101,7 +101,7 @@ async def test_retarget_model_uses_sdk_control_protocol_without_replacing_sessio
 def test_wrong_history_import_type_fails_loud():
     with pytest.raises(TypeError, match="ClaudeHistoryImport"):
         ClaudeBackend(
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
             cwd="/tmp",
             history_import={"entries": []},
         )
@@ -110,7 +110,7 @@ def test_wrong_history_import_type_fails_loud():
 @pytest.mark.asyncio
 async def test_history_import_rejects_unpinned_sdk_before_cli_spawn():
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id=_history().session_id,
         history_import=_history(),
@@ -129,7 +129,7 @@ async def test_history_import_rejects_unpinned_sdk_before_cli_spawn():
 @pytest.mark.asyncio
 async def test_history_import_requires_exact_cli_version():
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id=_history().session_id,
         history_import=_history(),
@@ -156,7 +156,7 @@ async def test_history_schema_rejection_does_not_take_stale_resume_fallback():
     failed.disconnect = AsyncMock()
     history = _history()
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id=history.session_id,
         history_import=history,
@@ -185,7 +185,7 @@ async def test_history_auth_failure_is_not_misreported_as_schema_fallback():
     failed.disconnect = AsyncMock()
     history = _history()
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id=history.session_id,
         history_import=history,
@@ -292,7 +292,7 @@ async def test_reconnect_timeout_disconnects_client():
 async def test_reconnect_version_failure_disconnects_owned_client():
     history = _history()
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id=history.session_id,
         history_import=history,
@@ -313,7 +313,7 @@ async def test_reconnect_version_failure_disconnects_owned_client():
 @pytest.mark.asyncio
 async def test_disconnect_failure_propagates_after_local_cleanup(tmp_path):
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]", cwd=str(tmp_path), system_prompt="test",
+        model="claude-sonnet-5-5[1m]", cwd=str(tmp_path), system_prompt="test",
     )
     client = AsyncMock()
     client.disconnect.side_effect = RuntimeError("transport still owned")
@@ -351,10 +351,10 @@ async def test_reconnect_materializes_replaced_db_history_store(monkeypatch):
         snapshot_id=2,
         session_id=initial.session_id,
         cwd="/tmp",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
     )
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         cwd="/tmp",
         resume_session_id=initial.session_id,
         history_import=initial,
@@ -497,7 +497,7 @@ def test_tool_failure_preserves_stable_use_id_and_explicit_error():
     backend = _backend()
     started = backend._convert(AssistantMessage(
         content=[ToolUseBlock(id="tool-1", name="Read", input={"file_path": "/x"})],
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
     ))
     completed = backend._convert(UserMessage(
         content=[ToolResultBlock(
@@ -525,7 +525,7 @@ def _warnings(caplog, tool_input, name="mcp__yandex-direct__update_text_ad"):
     with caplog.at_level(logging.WARNING, logger="app.backend_claude"):
         _backend()._convert(AssistantMessage(
             content=[ToolUseBlock(id="t-1", name=name, input=tool_input)],
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
         ))
     return [r.getMessage() for r in caplog.records if "big-int tool arg" in r.getMessage()]
 
@@ -572,7 +572,7 @@ async def test_connected_normal_handoff_receipt_uses_live_complete_context(
 ):
     monkeypatch.delenv("CLAUDE_BASH_HOOK_ENABLED", raising=False)
     backend = ClaudeBackend(
-        model="claude-sonnet-5[1m]", cwd="/tmp", system_prompt="current",
+        model="claude-sonnet-5-5[1m]", cwd="/tmp", system_prompt="current",
         resume_session_id="validated-session",
     )
     prepared = SimpleNamespace(

@@ -2737,7 +2737,7 @@ def _tg_tool_short(name: str) -> str:
 
 _MODEL_SHORT = {
     'claude-opus-5[1m]': 'opus-5-1M',
-    'claude-sonnet-5[1m]': 'sonnet-5-1M', 'claude-sonnet-4-6': 'sonnet-4.6', 'claude-haiku-4-5': 'haiku-4.5',
+    'claude-sonnet-5-5[1m]': 'sonnet-5.5-1M', 'claude-sonnet-4-6': 'sonnet-5.5-1M', 'claude-haiku-4-5': 'haiku-4.5',
     'claude-haiku-4-6': 'haiku-4.6', 'gpt-5.5': 'gpt-5.5',
 }
 

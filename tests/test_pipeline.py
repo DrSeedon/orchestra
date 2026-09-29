@@ -210,11 +210,11 @@ class TestSchemaValidation:
             name: demo
             defaults: {model: claude-opus-5}
             roles:
-              r: {kind: worker, label: R, model: "claude-sonnet-5[1m]"}
+              r: {kind: worker, label: R, model: "claude-sonnet-5-5[1m]"}
         """)
         cfg = P.load_pipeline("demo")
         assert cfg.defaults.model == "claude-opus-5"
-        assert cfg.roles["r"].model == "claude-sonnet-5[1m]"
+        assert cfg.roles["r"].model == "claude-sonnet-5-5[1m]"
 
     def test_can_spawn_unknown_role_rejected(self, pipelines_root):
         _write_pipeline(pipelines_root, "demo", """\

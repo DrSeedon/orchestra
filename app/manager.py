@@ -1966,7 +1966,8 @@ class SessionManager:
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
-        expected_bt = backend_for_model(db_row["model"])
+        model = resolve_model(db_row["model"])
+        expected_bt = backend_for_model(model)
         stored_bt = db_row.get("backend_type") or expected_bt
         if stored_bt != expected_bt:
             logger.warning(f"backend mismatch for {db_row['name']}: stored={stored_bt}, model implies={expected_bt}. Using {expected_bt}.")
@@ -1999,7 +2000,7 @@ class SessionManager:
         custom_mcp = _parse_custom_mcp(db_row.get("mcp_servers_custom"))
         session = AgentSession(
             id=db_row["id"], name=db_row["name"], scope=db_row["scope"], cwd=cwd,
-            model=db_row["model"], system_prompt=current_prompt,
+            model=model, system_prompt=current_prompt,
             prompt_overlay=prompt_overlay,
             session_id=db_row.get("session_id"), cost_usd=db_row.get("cost_usd", 0),
             cost_usd_cached=db_row.get("cost_usd_cached", 0),
@@ -2050,7 +2051,7 @@ class SessionManager:
         pct = db_row.get("context_pct", 0) or 0
         tokens = db_row.get("context_tokens", 0) or 0
         if pct or tokens:
-            max_t = get_model_spec(db_row["model"]).context_length
+            max_t = get_model_spec(model).context_length
             session._last_context = {"percentage": pct, "total_tokens": tokens, "max_tokens": max_t}
         session._current_prompt = current_prompt
         session._template_hash = db_row.get("template_hash") or prompt_template_hash(role)

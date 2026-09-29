@@ -73,7 +73,7 @@ def _save_owned_switch_record(*, session_id="owned-switch", task_id="90",
 
     save_session({
         "id": session_id, "name": "w", "scope": "/s", "cwd": "/wt",
-        "model": "claude-sonnet-5[1m]", "system_prompt": system_prompt,
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": system_prompt,
         "prompt_overlay": prompt_overlay, "status": "idle", "session_id": None,
         "cost_usd": 0.0, "worktree_path": "/wt", "branch": "task-90/w",
         "base_branch": "main", "needs_switch": 0, "task_id": task_id,
@@ -93,7 +93,7 @@ def _save_merge_session_record(session) -> None:
         "name": session.name,
         "scope": session.scope,
         "cwd": session.worktree_path,
-        "model": "claude-sonnet-5[1m]",
+        "model": "claude-sonnet-5-5[1m]",
         "system_prompt": "",
         "status": session.status.value,
         "session_id": None,
@@ -367,7 +367,7 @@ class TestCreateSession:
             "name": "worker-1",
             "scope": "/tmp",
             "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]",
+            "model": "claude-sonnet-5-5[1m]",
         })
         assert r.status_code == 201
         data = r.json()
@@ -379,7 +379,7 @@ class TestCreateSession:
             "name": "worker/bad",
             "scope": "/tmp",
             "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]",
+            "model": "claude-sonnet-5-5[1m]",
         })
         assert r.status_code == 422
 
@@ -388,12 +388,12 @@ class TestCreateSession:
             "name": "",
             "scope": "/tmp",
             "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]",
+            "model": "claude-sonnet-5-5[1m]",
         })
         assert r.status_code == 422
 
     def test_409_duplicate(self, client):
-        body = {"name": "w1", "scope": "/tmp", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"}
+        body = {"name": "w1", "scope": "/tmp", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"}
         r1 = client.post("/api/sessions", json=body)
         assert r1.status_code == 201
         r2 = client.post("/api/sessions", json=body)
@@ -404,7 +404,7 @@ class TestCreateSession:
             "name": "w1",
             "scope": "/tmp",
             "cwd": "/nonexistent/path",
-            "model": "claude-sonnet-5[1m]",
+            "model": "claude-sonnet-5-5[1m]",
         })
         assert r.status_code == 422
 
@@ -417,8 +417,8 @@ class TestGetSessions:
         assert isinstance(r.json(), list)
 
     def test_list_with_scope(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/a", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
-        client.post("/api/sessions", json={"name": "w2", "scope": "/b", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/a", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
+        client.post("/api/sessions", json={"name": "w2", "scope": "/b", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
         r = client.get("/api/sessions", params={"scope": "/a"})
         assert r.status_code == 200
         data = r.json()
@@ -426,7 +426,7 @@ class TestGetSessions:
         assert data[0]["name"] == "w1"
 
     def test_get_by_name(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
         r = client.get("/api/sessions/w1", params={"scope": "/s"})
         assert r.status_code == 200
         assert r.json()["name"] == "w1"
@@ -805,7 +805,7 @@ class TestBugReports:
 class TestSendMessage:
     def test_send(self, client, monkeypatch):
         monkeypatch.setattr("app.auth.validate_session", lambda _cookie: True)
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
         r = client.post("/api/sessions/w1/send", json={"message": "hello", "scope": "/s"})
         assert r.status_code == 200
 
@@ -817,14 +817,14 @@ class TestSendMessage:
 
 class TestInterrupt:
     def test_interrupt(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
         r = client.post("/api/sessions/w1/interrupt", json={"scope": "/s"})
         assert r.status_code == 200
 
 
 class TestDeleteSession:
     def test_delete(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
         r = client.delete("/api/sessions/w1", params={"scope": "/s"})
         assert r.status_code == 200
         r2 = client.get("/api/sessions/w1", params={"scope": "/s"})
@@ -837,7 +837,7 @@ class TestDeleteSession:
 
 class TestLogs:
     def test_logs_empty(self, client):
-        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5[1m]"})
+        client.post("/api/sessions", json={"name": "w1", "scope": "/s", "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]"})
         r = client.get("/api/sessions/w1/logs", params={"scope": "/s"})
         assert r.status_code == 200
         assert isinstance(r.json(), list)
@@ -919,7 +919,7 @@ class TestOrchestrators:
 
 def test_create_request_accepts_base_branch():
     from app.routes.sessions import CreateSessionRequest
-    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-5[1m]",
+    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                                use_worktree=True, repo_path="/tmp",
                                base_branch="feature/auth")
     assert req.base_branch == "feature/auth"
@@ -929,7 +929,7 @@ def test_create_request_base_branch_default_empty():
     # Sentinel "" = авто-резолв базовой ветки по стратегии пайплайна (DESIGN §10).
     # Резолв в "main" происходит в manager/workspace, а не в дефолте запроса.
     from app.routes.sessions import CreateSessionRequest
-    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-5[1m]")
+    req = CreateSessionRequest(name="w1", cwd="/tmp", model="claude-sonnet-5-5[1m]")
     assert req.base_branch == ""
 
 
@@ -981,7 +981,7 @@ async def test_merge_persists_actual_branch_and_base_for_loaded_or_detached(
 
     save_session({
         "id": f"merge-{loaded}", "name": f"merge-{loaded}", "scope": "/s",
-        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "cwd": "/wt", "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "/wt",
         "branch": "task-90/w", "base_branch": "master", "needs_switch": 0,
         "task_id": "90", "is_orchestrator": False, "color": "",
@@ -2099,7 +2099,7 @@ async def test_switch_owned_dirs_overlap_does_not_block_git(db, monkeypatch):
     _save_owned_switch_record(owned_dirs=["old/path"], prompt_overlay="OLD")
     save_session({
         "id": "other-owned", "name": "other", "scope": "/s", "cwd": "/wt2",
-        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "/wt2",
         "branch": "task-88/other", "base_branch": "main", "needs_switch": 0,
         "task_id": "88", "is_orchestrator": False, "color": "",
@@ -2266,7 +2266,7 @@ async def test_switch_persistence_failure_quarantines_and_does_not_update_task(
 
     save_session({
         "id": "switch-persist-failure", "name": "w", "scope": "/s",
-        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "cwd": "/wt", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
         "status": "idle", "session_id": None, "cost_usd": 0.0,
         "worktree_path": "/wt", "branch": "task-90/w", "base_branch": "main",
         "needs_switch": 0, "task_id": "90", "is_orchestrator": False,
@@ -2323,7 +2323,7 @@ async def test_switch_task_cas_failure_requarantines_new_branch(db, monkeypatch)
 
     save_session({
         "id": "switch-task-cas-failure", "name": "w", "scope": "/s",
-        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "cwd": "/wt", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
         "status": "idle", "session_id": None, "cost_usd": 0.0,
         "worktree_path": "/wt", "branch": "task-90/w", "base_branch": "main",
         "needs_switch": 0, "task_id": "90", "is_orchestrator": False,
@@ -2382,7 +2382,7 @@ async def test_switch_failure_restores_previous_lifecycle_and_does_not_update_ta
 
     save_session({
         "id": "switch-normal-failure", "name": "w", "scope": "/s",
-        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "cwd": "/wt", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
         "status": "idle", "session_id": None, "cost_usd": 0.0,
         "worktree_path": "/wt", "branch": "task-90/w",
         "base_branch": stored_base_branch,
@@ -2434,7 +2434,7 @@ async def test_switch_rollback_failure_persists_quarantine_for_detached_reload(
 
     save_session({
         "id": "switch-rollback-failure", "name": "w", "scope": "/s",
-        "cwd": "/wt", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+        "cwd": "/wt", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
         "status": "idle", "session_id": None, "cost_usd": 0.0,
         "worktree_path": "/wt", "branch": "task-90/w", "base_branch": "master",
         "needs_switch": 0, "task_id": "90", "is_orchestrator": False,
@@ -2918,7 +2918,7 @@ async def test_create_session_passes_pipeline_and_profile(monkeypatch):
     monkeypatch.setattr(sysmod, "_is_safe_path", lambda p: True)
 
     req = sessmod.CreateSessionRequest(
-        name="w1", cwd="/tmp", model="claude-sonnet-5[1m]",
+        name="w1", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         pipeline="default", profile="work",
     )
     await sessmod.create_session(req)
@@ -3035,7 +3035,7 @@ class TestDeleteOrphanGuard:
 
     def _mk(self, client, name, parent_name="", role="full-cycle"):
         body = {"name": name, "scope": "/tmp", "cwd": "/tmp",
-                "model": "claude-sonnet-5[1m]", "role": role}
+                "model": "claude-sonnet-5-5[1m]", "role": role}
         if parent_name:
             # `worker` is terminal (can_spawn: []), so the parent must be a
             # fan-out role; the orphan guard itself is role-agnostic.

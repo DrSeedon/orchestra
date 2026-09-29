@@ -192,7 +192,7 @@ def _unlanded_work(session, worktree_path: str) -> dict:
 class CreateSessionRequest(BaseModel):
     name: str
     cwd: str
-    model: str = "claude-sonnet-5[1m]"
+    model: str = "claude-sonnet-5-5[1m]"
     scope: Optional[str] = None
     system_prompt: str = ""
     use_worktree: bool = False

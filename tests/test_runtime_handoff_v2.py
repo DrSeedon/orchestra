@@ -23,7 +23,7 @@ def session(monkeypatch, tmp_path):
     monkeypatch.setattr("app.bg_jobs.bg_manager", None)
     return AgentSession(
         id="test-290", name="handoff-canary", scope="/test", cwd="/tmp",
-        model="claude-sonnet-5[1m]", system_prompt="test",
+        model="claude-sonnet-5-5[1m]", system_prompt="test",
         created_at=datetime.now(timezone.utc),
     )
 
@@ -205,7 +205,7 @@ def test_t1_packet_ledger_is_additive_deterministic_and_cannot_launder_authority
         "handoff_id": "h1", "session_id": "s1", "idempotency_key": "request-1",
         "status": "prepared", "source_runtime": "codex",
         "source_model": "gpt-5.6-sol", "source_session_id": "old-thread",
-        "target_runtime": "claude", "target_model": "claude-sonnet-5[1m]",
+        "target_runtime": "claude", "target_model": "claude-sonnet-5-5[1m]",
         "snapshot_log_id": 5, "snapshot_sha256": "a" * 64,
         "packet_json": json.dumps(first, sort_keys=True),
         "packet_sha256": first["integrity"]["canonical_sha256"],
@@ -336,7 +336,7 @@ def test_t2_attempt_ledger_allows_one_fallback_and_retains_cleanup_locators(
                 created_at, updated_at)
                VALUES ('h1', 's1', 'request-1', 'prepared', 'codex',
                        'gpt-5.6-sol', 'old-thread', 'claude',
-                       'claude-sonnet-5[1m]', 0, ?, '{}', ?, 'packet_delta', ?, ?)""",
+                       'claude-sonnet-5-5[1m]', 0, ?, '{}', ?, 'packet_delta', ?, ?)""",
             ("a" * 64, "b" * 64, created_at, created_at),
         )
 
@@ -413,7 +413,7 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
                 created_at, updated_at)
                VALUES ('h1', 's1', 'request-1', 'source_released', 'codex',
                        'gpt-5.6-sol', 'old-thread', 'claude',
-                       'claude-sonnet-5[1m]', 1, ?, ?, ?, 'packet_delta', ?, ?)""",
+                       'claude-sonnet-5-5[1m]', 1, ?, ?, ?, 'packet_delta', ?, ?)""",
             (
                 ledger_packet["integrity"]["snapshot_sha256"], packet_json,
                 packet_sha256, created_at, created_at,
@@ -456,7 +456,7 @@ def test_t2_confirmation_updates_session_and_ledger_in_one_transaction(
     with sqlite3.connect(db_path) as conn:
         assert conn.execute(
             "SELECT model, session_id, backend_type FROM sessions WHERE id='s1'"
-        ).fetchone() == ("claude-sonnet-5[1m]", "target-session", "claude")
+        ).fetchone() == ("claude-sonnet-5-5[1m]", "target-session", "claude")
         assert conn.execute(
             "SELECT status, confirmed_attempt_no FROM runtime_handoffs WHERE handoff_id='h1'"
         ).fetchone() == ("confirmed", 1)

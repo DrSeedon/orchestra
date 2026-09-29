@@ -50,7 +50,7 @@ def session_row(db):
         "name": "worker-1",
         "scope": "/home/kesha/orchestra",
         "cwd": "/home/kesha/orchestra",
-        "model": "claude-sonnet-5[1m]",
+        "model": "claude-sonnet-5-5[1m]",
         "system_prompt": "",
         "status": "starting",
         "session_id": None,

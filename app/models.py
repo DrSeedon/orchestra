@@ -68,7 +68,7 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         context_length=1000000, price_input=5.0, price_output=25.0,
     ),
     ModelSpec(
-        id="claude-sonnet-5[1m]", name="Sonnet 5 (1M)",
+        id="claude-sonnet-5-5[1m]", name="Sonnet 5.5 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=2.0, price_output=10.0,
     ),
@@ -199,11 +199,14 @@ ALIASES = {
     "claude-opus-4-6[1m]": "claude-opus-4-6[1m]",
     "claude-opus-4-6": "claude-opus-4-6",
     "opus4.6": "claude-opus-4-6",
-    "sonnet": "claude-sonnet-5[1m]",
-    "sonnet5": "claude-sonnet-5[1m]",
-    "claude-sonnet-5-1m": "claude-sonnet-5[1m]",
-    "claude-sonnet-4-6": "claude-sonnet-5[1m]",
-    "claude-sonnet-4-5": "claude-sonnet-5[1m]",
+    "sonnet": "claude-sonnet-5-5[1m]",
+    "sonnet5.5": "claude-sonnet-5-5[1m]",
+    "claude-sonnet-5-5": "claude-sonnet-5-5[1m]",
+    "claude-sonnet-5[1m]": "claude-sonnet-5-5[1m]",
+    "claude-sonnet-5-1m": "claude-sonnet-5-5[1m]",
+    "sonnet5": "claude-sonnet-5-5[1m]",
+    "claude-sonnet-4-6": "claude-sonnet-5-5[1m]",
+    "claude-sonnet-4-5": "claude-sonnet-5-5[1m]",
     "haiku": "claude-haiku-4-5",
     "spark": "gpt-5.3-codex-spark",
     "codexspark": "gpt-5.3-codex-spark",
@@ -307,7 +310,7 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
 # this view, and their prices live in backend_codex.py / backend_grok.py.
 TOKEN_PRICES: dict[str, dict[str, float]] = {}
 
-DEFAULT_MODEL = "claude-sonnet-5[1m]"
+DEFAULT_MODEL = "claude-sonnet-5-5[1m]"
 MODEL_SPECS: dict[str, ModelSpec] = {}
 
 # These exact ids occur in persisted sessions but are no longer selectable.

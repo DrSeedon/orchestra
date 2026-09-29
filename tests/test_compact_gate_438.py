@@ -15,7 +15,7 @@ from app.session_turns import TurnManager, _auto_compact_threshold_pct
 
 
 def _backend() -> ClaudeBackend:
-    return ClaudeBackend(model="claude-sonnet-5[1m]", cwd="/tmp")
+    return ClaudeBackend(model="claude-sonnet-5-5[1m]", cwd="/tmp")
 
 
 def _orchestrator() -> AgentSession:
@@ -25,7 +25,7 @@ def _orchestrator() -> AgentSession:
         scope="/compact-438",
         cwd="/tmp",
         role="orchestrator",
-        model="claude-sonnet-5[1m]",
+        model="claude-sonnet-5-5[1m]",
         created_at=datetime.now(timezone.utc),
     )
 

@@ -56,7 +56,7 @@ def test_opus5_registry_and_aliases():
     assert spec.provider == "anthropic"
     assert spec.context_length == 1_000_000
     assert TOKEN_PRICES[model_id] == {"input": 5.0, "output": 25.0}
-    assert resolve_model("opus") == model_id
+    assert resolve_model("opus") == "claude-opus-5-5[1m]"
     assert resolve_model("opus5") == model_id
     assert resolve_model("claude-opus-5") == model_id
     # Retired ids upgrade to Opus 5; 4.6 is selectable again and resolves to itself.
@@ -67,8 +67,9 @@ def test_opus5_registry_and_aliases():
 
 
 def test_backend_for_model_registered_wins():
-    assert "claude-sonnet-5[1m]" in BACKENDS
-    assert backend_for_model("claude-sonnet-5[1m]") == "claude"
+    model_id = "claude-sonnet-5-5[1m]"
+    assert model_id in BACKENDS
+    assert backend_for_model(model_id) == "claude"
 
 
 @pytest.mark.parametrize("model_id", [

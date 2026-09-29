@@ -73,7 +73,7 @@ def spy(monkeypatch, db):
     for name in ("parent", "c1", "c2"):
         db_module.save_session({
             "id": f"sid-{name}", "name": name, "scope": "/repo", "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]", "system_prompt": "test", "status": "idle",
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "test", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": "/tmp",
             "branch": "b", "is_orchestrator": False, "color": "#818cf8",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,

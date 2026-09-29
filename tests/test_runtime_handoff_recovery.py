@@ -26,7 +26,7 @@ def _insert_source_and_handoff(dbmod, *, status: str, locator: str) -> dict:
                 snapshot_sha256, packet_json, packet_sha256, preferred_mode,
                 created_at, updated_at)
                VALUES ('h1', 's1', 'request-1', ?, 'codex', 'gpt-5.6-sol',
-                       'old-thread', 'claude', 'claude-sonnet-5[1m]', 0,
+                       'old-thread', 'claude', 'claude-sonnet-5-5[1m]', 0,
                        ?, '{}', ?, 'packet_delta', ?, ?)""",
             (status, "a" * 64, "b" * 64, now, now),
         )
@@ -225,7 +225,7 @@ async def test_completed_failed_log_write_blocks_handoff_after_callback_cleanup(
     assert not session._log_futures
     assert session._log_write_failure_generation == 1
     prepared = await session._prepare_runtime_handoff(
-        "claude-sonnet-5[1m]",
+        "claude-sonnet-5-5[1m]",
         idempotency_key="must-not-freeze",
         project_docs=[],
     )

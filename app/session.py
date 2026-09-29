@@ -403,7 +403,7 @@ class AgentSession:
     name: str
     scope: str
     cwd: str
-    model: str = "claude-sonnet-5[1m]"
+    model: str = "claude-sonnet-5-5[1m]"
     system_prompt: str = ""
     prompt_overlay: str | None = None
     status: AgentStatus = AgentStatus.IDLE

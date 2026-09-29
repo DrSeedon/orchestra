@@ -63,7 +63,7 @@ class TestCreateSession:
         async def blocked(_model, observation_loader=None):
             now = datetime.now(timezone.utc).timestamp()
             return QuotaDecision(
-                state="blocked", model="claude-sonnet-5[1m]",
+                state="blocked", model="claude-sonnet-5-5[1m]",
                 provider="anthropic", provider_label="Claude", lane="claude",
                 gated=True, utilization=95, progress=0.5, tolerance_pp=5.5,
                 limit_pct=55.5, observed_at=now, valid_until=now + 60,
@@ -74,7 +74,7 @@ class TestCreateSession:
         with pytest.raises(QuotaGateError):
             await mgr.create_session(
                 name="blocked-worker", scope="/s", cwd="/tmp",
-                model="claude-sonnet-5[1m]", planned_initial_turn=True,
+                model="claude-sonnet-5-5[1m]", planned_initial_turn=True,
             )
 
         assert mgr.sessions == {}
@@ -88,7 +88,7 @@ class TestCreateSession:
 
         session = await mgr.create_session(
             name="idle-worker", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]", planned_initial_turn=False,
+            model="claude-sonnet-5-5[1m]", planned_initial_turn=False,
         )
 
         assert session.name == "idle-worker"
@@ -103,7 +103,7 @@ class TestCreateSession:
 
         session = await mgr.create_session(
             name="root-orchestrator", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]", role="orchestrator",
+            model="claude-sonnet-5-5[1m]", role="orchestrator",
             is_orchestrator=True, planned_initial_turn=True,
         )
 
@@ -117,7 +117,7 @@ class TestCreateSession:
 
         parent = AgentSession(
             id="parent-id", name="exact-parent", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]", role="orchestrator",
+            model="claude-sonnet-5-5[1m]", role="orchestrator",
         )
         parent.is_orchestrator = True
         worker = AgentSession(
@@ -178,7 +178,7 @@ class TestCreateSession:
                 name="worker-1",
                 scope="/test/scope",
                 cwd="/tmp",
-                model="claude-sonnet-5[1m]",
+                model="claude-sonnet-5-5[1m]",
             )
         assert session.name == "worker-1"
         assert session.id is not None
@@ -188,8 +188,8 @@ class TestCreateSession:
     async def test_generates_uuid(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            s1 = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
-            s2 = await mgr.create_session(name="w2", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            s1 = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
+            s2 = await mgr.create_session(name="w2", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
         assert s1.id != s2.id
 
     @pytest.mark.asyncio
@@ -211,23 +211,23 @@ class TestCreateSession:
     async def test_validates_cwd(self, mgr):
         with pytest.raises(ValueError, match="does not exist"):
             await mgr.create_session(
-                name="w", scope="/s", cwd="/nonexistent/path", model="claude-sonnet-5[1m]"
+                name="w", scope="/s", cwd="/nonexistent/path", model="claude-sonnet-5-5[1m]"
             )
 
     @pytest.mark.asyncio
     async def test_duplicate_name_scope_raises(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
             with pytest.raises(ValueError, match="already exists"):
-                await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+                await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
 
     @pytest.mark.asyncio
     async def test_persists_to_db(self, mgr):
         from app.db import get_session_by_name
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
         db_row = get_session_by_name("w1", "/s")
         assert db_row is not None
         assert db_row["id"] == session.id
@@ -249,7 +249,7 @@ class TestCreateSession:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
                 name="w1", scope="/s", cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True, repo_path=str(repo),
+                model="claude-sonnet-5-5[1m]", use_worktree=True, repo_path=str(repo),
             )
         assert session.worktree_path is not None
         assert session.branch is not None
@@ -276,7 +276,7 @@ class TestCreateSession:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
                 name="w1", scope=str(tmp_path), cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True,
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
                 repo_path=str(repo),
             )
 
@@ -296,7 +296,7 @@ class TestCreateSession:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
                 name="root-worker", scope=str(scope), cwd=str(scope),
-                model="claude-sonnet-5[1m]",
+                model="claude-sonnet-5-5[1m]",
             )
 
         assert marker in session.system_prompt
@@ -316,7 +316,7 @@ class TestCreateSession:
         ) as publish:
             with pytest.raises(ValueError, match="must be the Git repository root"):
                 await mgr.create_session(
-                    name="w1", scope="/s", cwd=str(nested), model="claude-sonnet-5[1m]",
+                    name="w1", scope="/s", cwd=str(nested), model="claude-sonnet-5-5[1m]",
                     use_worktree=True, repo_path=str(nested),
                 )
 
@@ -333,7 +333,7 @@ class TestCreateSession:
                 ValueError, match="repo_path required when use_worktree=True",
             ):
                 await mgr.create_session(
-                    name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     use_worktree=True, repo_path=repo_path,
                 )
 
@@ -361,7 +361,7 @@ class TestAtomicSpawnLifecycle:
         monkeypatch.setattr(manager_module, "create_worktree", blocked_create)
         spawn = asyncio.create_task(mgr.create_session(
             name="hidden", scope="/s", cwd=str(repo),
-            model="claude-sonnet-5[1m]", use_worktree=True,
+            model="claude-sonnet-5-5[1m]", use_worktree=True,
             repo_path=str(repo),
         ))
         assert await asyncio.to_thread(entered.wait, 2)
@@ -408,7 +408,7 @@ class TestAtomicSpawnLifecycle:
         )
         spawn = asyncio.create_task(mgr.create_session(
             name="cancelled", scope="/s", cwd=str(repo),
-            model="claude-sonnet-5[1m]", use_worktree=True,
+            model="claude-sonnet-5-5[1m]", use_worktree=True,
             repo_path=str(repo),
         ))
         assert await asyncio.to_thread(entered.wait, 2)
@@ -460,7 +460,7 @@ class TestAtomicSpawnLifecycle:
         monkeypatch.setattr(manager_module, "publish_ready_session", blocked_publish)
         spawn = asyncio.create_task(mgr.create_session(
             name="finalized", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
         ))
         assert await asyncio.to_thread(entered.wait, 2)
         spawn.cancel()
@@ -494,7 +494,7 @@ class TestAtomicSpawnLifecycle:
         with pytest.raises(asyncio.CancelledError):
             await mgr.create_session(
                 name="internally-cancelled", scope="/s", cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True,
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
                 repo_path=str(repo),
             )
 
@@ -554,7 +554,7 @@ class TestAtomicSpawnLifecycle:
         with pytest.raises(RuntimeError, match="final publish failed"):
             await mgr.create_session(
                 name="publish-failure", scope="/s", cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True,
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
                 repo_path=str(repo),
             )
 
@@ -589,13 +589,13 @@ class TestAtomicSpawnLifecycle:
         monkeypatch.setattr(manager_module, "create_worktree", blocked_create)
         first = asyncio.create_task(mgr.create_session(
             name="same", scope="/s", cwd=str(repo),
-            model="claude-sonnet-5[1m]", use_worktree=True,
+            model="claude-sonnet-5-5[1m]", use_worktree=True,
             repo_path=str(repo),
         ))
         assert await asyncio.to_thread(entered.wait, 2)
         second = asyncio.create_task(mgr.create_session(
             name="same", scope="/s", cwd=str(repo),
-            model="claude-sonnet-5[1m]", use_worktree=True,
+            model="claude-sonnet-5-5[1m]", use_worktree=True,
             repo_path=str(repo),
         ))
         await asyncio.sleep(0)
@@ -623,12 +623,12 @@ class TestAtomicSpawnLifecycle:
         results = await asyncio.gather(
             mgr.create_session(
                 name="repo-shared", scope="/a", cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True,
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
                 repo_path=str(repo), task_id="1",
             ),
             mgr.create_session(
                 name="repo-shared", scope="/b", cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True,
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
                 repo_path=str(repo), task_id="2",
             ),
             return_exceptions=True,
@@ -653,7 +653,7 @@ class TestAtomicSpawnLifecycle:
             tm.ensure_project(conn, "project", scope="/s")
         archived = {
             "id": "archived-worker", "name": "history", "scope": "/s",
-            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None, "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -666,7 +666,7 @@ class TestAtomicSpawnLifecycle:
         with pytest.raises(ValueError, match="not found in session project"):
             await mgr.create_session(
                 name="history", scope="/s", cwd="/tmp",
-                model="claude-sonnet-5[1m]", task_id="999",
+                model="claude-sonnet-5-5[1m]", task_id="999",
             )
 
         assert get_session("archived-worker")["status"] == "archived"
@@ -678,7 +678,7 @@ class TestAtomicSpawnLifecycle:
 
         archived = {
             "id": "old-worker", "name": "respawn", "scope": "/s",
-            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None, "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -690,7 +690,7 @@ class TestAtomicSpawnLifecycle:
 
         session = await mgr.create_session(
             name="respawn", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
         )
 
         assert get_session("old-worker") is None
@@ -717,7 +717,7 @@ class TestAtomicSpawnLifecycle:
 
         session = await mgr.create_session(
             name="scoped-task", scope="/lower", cwd="/tmp",
-            model="claude-sonnet-5[1m]", task_id="93",
+            model="claude-sonnet-5-5[1m]", task_id="93",
         )
 
         with tm._conn() as conn:
@@ -739,7 +739,7 @@ class TestAtomicSpawnLifecycle:
             task = seed_task(conn, "project", "next", par_number=93)
         session = await mgr.create_session(
             name="warning", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]", task_id="93",
+            model="claude-sonnet-5-5[1m]", task_id="93",
         )
 
         assert session._spawn_warning == ""
@@ -792,7 +792,7 @@ class TestAtomicSpawnLifecycle:
         with pytest.raises(RuntimeError, match=failure_stage):
             await mgr.create_session(
                 name=f"fail-{failure_stage}", scope="/s", cwd=str(repo),
-                model="claude-sonnet-5[1m]", use_worktree=True,
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
                 repo_path=str(repo), task_id="93",
             )
 
@@ -833,7 +833,7 @@ class TestWorktreeBaseBranch:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="w1", scope="/s", cwd=str(repo), model="claude-sonnet-5[1m]",
+                name="w1", scope="/s", cwd=str(repo), model="claude-sonnet-5-5[1m]",
                 use_worktree=True, repo_path=str(repo), base_branch="feature/auth",
             )
         head = subprocess.run(["git", "rev-parse", "feature/auth"], cwd=repo,
@@ -854,7 +854,7 @@ class TestWorktreeBaseBranch:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="master-worker", scope="/s", cwd=str(repo), model="claude-sonnet-5[1m]",
+                name="master-worker", scope="/s", cwd=str(repo), model="claude-sonnet-5-5[1m]",
                 use_worktree=True, repo_path=str(repo),
             )
 
@@ -1263,7 +1263,7 @@ class TestPersistLifecycle:
 
         save_session({
             "id": f"life-{loaded}", "name": f"life-{loaded}", "scope": "/s",
-            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": "/tmp/wt",
             "branch": "task-90/w", "base_branch": "master", "needs_switch": 0,
             "task_id": "90", "is_orchestrator": False, "color": "",
@@ -1327,7 +1327,7 @@ class TestSendAndControl:
     async def test_send_routes(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
             session.send = AsyncMock()
             await mgr.send(session.id, "hello", provenance=USER_PROVENANCE)
         session.send.assert_awaited_once_with("hello", provenance=USER_PROVENANCE)
@@ -1344,7 +1344,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.branch = "task-90/w"
@@ -1389,7 +1389,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.branch = "task-90/w"
@@ -1435,7 +1435,7 @@ class TestSendAndControl:
         from app.session import AgentStatus
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.needs_switch = True
@@ -1458,7 +1458,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.base_branch = "main"
@@ -1488,7 +1488,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.branch = "task-90/w"
@@ -1527,7 +1527,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.branch = "task-90/w"
@@ -1568,7 +1568,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.base_branch = "main"
@@ -1605,7 +1605,7 @@ class TestSendAndControl:
         import app.manager as manager_module
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.worktree_path = "/wt"
         session.branch = "task-90/w"
@@ -1666,7 +1666,7 @@ class TestSendAndControl:
         from app.session import AgentStatus
 
         session = await mgr.create_session(
-            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+            name="w", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
         )
         session.status = AgentStatus.RUNNING
         session.needs_switch = False
@@ -1680,7 +1680,7 @@ class TestSendAndControl:
     async def test_remove_cancels_pending_precompact_timer(self, mgr, monkeypatch):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
             session.loaded = False
             sleeping = asyncio.Event()
             release_sleep = asyncio.Event()
@@ -1710,7 +1710,7 @@ class TestSendAndControl:
         from app.db import get_session
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
             await mgr.remove(session.id)
         # v2.16: remove() — мягкое удаление (archive), а не DELETE. Сессия уходит
         # из runtime-словаря, а в БД помечается status='archived' (история жива).
@@ -1733,7 +1733,7 @@ class TestSendAndControl:
                 name="loaded-stuck",
                 scope=str(tmp_path),
                 cwd=str(tmp_path),
-                model="claude-sonnet-5[1m]",
+                model="claude-sonnet-5-5[1m]",
             )
         wt = tmp_path / "loaded-stuck-worktree"
         wt.mkdir()
@@ -1761,7 +1761,7 @@ class TestSendAndControl:
         wt.mkdir()
         save_session({
             "id": "detached", "name": "detached", "scope": str(tmp_path),
-            "cwd": str(wt), "model": "claude-sonnet-5[1m]",
+            "cwd": str(wt), "model": "claude-sonnet-5-5[1m]",
             "system_prompt": "", "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": str(wt), "branch": "task-92/detached",
             "is_orchestrator": False, "color": "#818cf8",
@@ -1792,7 +1792,7 @@ class TestSendAndControl:
         wt.mkdir()
         save_session({
             "id": "stuck", "name": "stuck", "scope": str(tmp_path),
-            "cwd": str(wt), "model": "claude-sonnet-5[1m]",
+            "cwd": str(wt), "model": "claude-sonnet-5-5[1m]",
             "system_prompt": "", "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": str(wt), "branch": "task-92/stuck",
             "is_orchestrator": False, "color": "#818cf8",
@@ -1820,7 +1820,7 @@ class TestSendAndControl:
         missing_wt = tmp_path / "already-gone"
         save_session({
             "id": "gone", "name": "gone", "scope": str(tmp_path),
-            "cwd": str(missing_wt), "model": "claude-sonnet-5[1m]",
+            "cwd": str(missing_wt), "model": "claude-sonnet-5-5[1m]",
             "system_prompt": "", "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": str(missing_wt),
             "branch": "task-92/gone", "is_orchestrator": False,
@@ -1845,7 +1845,7 @@ class TestRemoveCliHome:
     async def create(self, mgr, home_root):
         session = await mgr.create_session(
             name="home-owner", scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]",
+            model="claude-sonnet-5-5[1m]",
         )
         home = home_root / session.id
         home.mkdir()
@@ -1983,7 +1983,7 @@ class TestListSessions:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 system_prompt=self._realistic_prompt(1),
             )
         session.last_summary = self._realistic_prompt(2)
@@ -2006,7 +2006,7 @@ class TestListSessions:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             for i in range(self.AGENTS_THAT_MUST_FIT):
                 await mgr.create_session(
-                    name=f"w{i}", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name=f"w{i}", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     system_prompt=self._realistic_prompt(i),
                 )
         mgr.sessions.clear()          # теперь список соберётся из строк БД
@@ -2040,8 +2040,8 @@ class TestListSessions:
     async def test_scope_filter(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            await mgr.create_session(name="w1", scope="/a", cwd="/tmp", model="claude-sonnet-5[1m]")
-            await mgr.create_session(name="w2", scope="/b", cwd="/tmp", model="claude-sonnet-5[1m]")
+            await mgr.create_session(name="w1", scope="/a", cwd="/tmp", model="claude-sonnet-5-5[1m]")
+            await mgr.create_session(name="w2", scope="/b", cwd="/tmp", model="claude-sonnet-5-5[1m]")
         result = mgr.list_sessions(scope="/a")
         assert len(result) == 1
         assert result[0]["name"] == "w1"
@@ -2050,7 +2050,7 @@ class TestListSessions:
     async def test_merges_active_and_db(self, mgr):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]")
+            session = await mgr.create_session(name="w1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]")
         result = mgr.list_sessions()
         assert len(result) >= 1
 
@@ -2060,7 +2060,7 @@ class TestListSessions:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             claude = await mgr.create_session(
                 name="claude-cache", scope="/s", cwd="/tmp",
-                model="claude-sonnet-5[1m]",
+                model="claude-sonnet-5-5[1m]",
             )
             codex = await mgr.create_session(
                 name="codex-cache", scope="/s", cwd="/tmp",
@@ -2140,7 +2140,7 @@ class TestRemoveScope:
         save_session({
             "id": "scope-detached", "name": "scope-detached",
             "scope": "/scope-detached", "cwd": str(wt),
-            "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None, "cost_usd": 0.0,
             "worktree_path": str(wt), "branch": "task-92/scope-detached",
             "is_orchestrator": False, "color": "#818cf8",
@@ -2200,7 +2200,7 @@ class TestAutoResume:
         from tests.conftest import make_backend_mock
         save_session({
             "id": "old-empty-pipe", "name": "oldw", "scope": "/tmp", "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": False, "role": "worker", "pipeline": "",
             "color": "#fff", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -2216,6 +2216,26 @@ class TestAutoResume:
         # is empty» и агент работал без ВСЕХ скиллов своей роли.
         assert session.pipeline == DEFAULT_PIPELINE
         assert get_role(session.pipeline, session.role) is not None
+
+    @pytest.mark.asyncio
+    async def test_resume_upgrades_retired_sonnet_model_id(self, mgr):
+        from app.db import get_session_by_name, save_session
+        from tests.conftest import make_backend_mock
+
+        save_session({
+            "id": "old-sonnet", "name": "old-sonnet", "scope": "/tmp", "cwd": "/tmp",
+            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": None,
+            "is_orchestrator": False, "role": "worker", "pipeline": "default",
+            "color": "#fff", "created_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+        })
+        row = get_session_by_name("old-sonnet", "/tmp")
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr._load_from_db(row)
+
+        assert session.model == "claude-sonnet-5-5[1m]"
+        assert session.backend_type == "claude"
 
     @pytest.mark.asyncio
     async def test_resume_prefers_worktree_memory_over_parent_scope(
@@ -2248,7 +2268,7 @@ class TestAutoResume:
     def _reload_row(tmp_path, *, system_prompt, prompt_overlay):
         return {
             "id": "prompt-reload", "name": "w1", "scope": str(tmp_path),
-            "cwd": str(tmp_path), "model": "claude-sonnet-5[1m]",
+            "cwd": str(tmp_path), "model": "claude-sonnet-5-5[1m]",
             "system_prompt": system_prompt, "prompt_overlay": prompt_overlay,
             "status": "idle", "session_id": "native-1", "cost_usd": 0.0,
             "worktree_path": None, "branch": "task-173/w1", "base_branch": "main",
@@ -2487,7 +2507,7 @@ class TestCanSpawn:
         from tests.conftest import make_backend_mock
         save_session({
             "id": "ghost-1", "name": "ghost-parent", "scope": "/s", "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -2496,7 +2516,7 @@ class TestCanSpawn:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             with pytest.raises(ValueError, match="unknown parent role 'phantom'"):
                 await mgr.create_session(
-                    name="child", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name="child", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     role="worker", parent_name="ghost-parent",
                 )
 
@@ -2548,7 +2568,7 @@ class TestCustomMcp:
         custom = {"playwright": {"command": "npx", "args": ["-y", "@playwright/mcp"]}}
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="w24a", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="w24a", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 role="worker", mcp_servers=custom,
             )
         assert session.mcp_servers_custom == custom
@@ -2563,7 +2583,7 @@ class TestCustomMcp:
         custom = {"playwright": {"command": "npx"}}
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             await mgr.create_session(
-                name="w24b", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="w24b", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 role="worker", mcp_servers=custom,
             )
         row = get_session_by_name("w24b", "/s")
@@ -2577,7 +2597,7 @@ class TestCustomMcp:
         custom = {"playwright": {"command": "npx"}}
         save_session({
             "id": "r-24", "name": "w24c", "scope": "/s", "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle", "session_id": None,
+            "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": False, "color": "#fff",
             "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
@@ -2872,7 +2892,7 @@ class TestIsOrchestratorDenormalization:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="orch-fb", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="orch-fb", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 role="orchestrator", is_orchestrator=True,
             )
         assert session.is_orchestrator is True
@@ -2908,7 +2928,7 @@ class TestPipelineInheritance:
         from app.pipeline import DEFAULT_PIPELINE
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="root-orch", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="root-orch", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 role="orchestrator", is_orchestrator=True,
             )
         assert session.pipeline == DEFAULT_PIPELINE
@@ -2946,7 +2966,7 @@ class TestProfileInheritance:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="root-orch", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="root-orch", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 role="orchestrator", is_orchestrator=True, profile="work",
             )
         assert session.profile == "work"
@@ -3000,7 +3020,7 @@ class TestProfileInheritance:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="w-noprof", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                name="w-noprof", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                 role="orchestrator", is_orchestrator=True,
             )
         assert session.profile == ""
@@ -3029,7 +3049,7 @@ class TestSystemPromptAppend:
         with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
             with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
                 session = await mgr.create_session(
-                    name="w-sp1", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name="w-sp1", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     role="worker", system_prompt="CUSTOM", owned_dirs=["app/prompting"],
                 )
         expected_overlay = "\n\nCUSTOM" + SessionManager._ownership_prompt(["app/prompting"])
@@ -3045,7 +3065,7 @@ class TestSystemPromptAppend:
         with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
             with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
                 session = await mgr.create_session(
-                    name="w-sp2", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name="w-sp2", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     role="orchestrator", system_prompt="CUSTOM",
                 )
         assert "ROLE_BASE" in session.system_prompt
@@ -3058,7 +3078,7 @@ class TestSystemPromptAppend:
         with patch("app.manager.ROLE_SYSTEM_PROMPT", return_value="ROLE_BASE"):
             with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
                 session = await mgr.create_session(
-                    name="w-sp3", scope="/s", cwd="/tmp", model="claude-sonnet-5[1m]",
+                    name="w-sp3", scope="/s", cwd="/tmp", model="claude-sonnet-5-5[1m]",
                     role="orchestrator",
                 )
         assert session.system_prompt == "ROLE_BASE"
@@ -3080,7 +3100,7 @@ class TestChangeOrchestratorScope:
     async def _make_worker(self, mgr, name="w1", scope="/old/proj"):
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
-            s = await mgr.create_session(name=name, scope=scope, cwd="/tmp", model="claude-sonnet-5[1m]")
+            s = await mgr.create_session(name=name, scope=scope, cwd="/tmp", model="claude-sonnet-5-5[1m]")
         from app.session import AgentStatus
         s.status = AgentStatus.IDLE
         return s
@@ -3205,7 +3225,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         # Worker row exists in DB only (not loaded into manager.sessions)
         save_session({
             "id": "ghost-worker-id", "name": "ghostw", "scope": "/old/proj",
-            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": "x", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -3231,7 +3251,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         orch.status = AgentStatus.IDLE
         save_session({
             "id": "dead-worker-id", "name": "deadw", "scope": "/old/proj",
-            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
             "status": "archived", "session_id": "x", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -3262,7 +3282,7 @@ class TestLiveChildren:
         from datetime import datetime, timezone
         return {
             "id": f"id-{name}", "name": name, "scope": scope,
-            "cwd": "/tmp", "model": "claude-sonnet-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-sonnet-5-5[1m]", "system_prompt": "",
             "status": status, "session_id": "x", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -3312,7 +3332,7 @@ class TestIdentityRefreshOnRename:
         monkeypatch.setattr("app.session.add_log", MagicMock(return_value=1))
         session = AgentSession(
             id="rn-1", name=name, scope="/s", cwd="/tmp",
-            model="claude-sonnet-5[1m]", system_prompt="p", role="worker",
+            model="claude-sonnet-5-5[1m]", system_prompt="p", role="worker",
         )
         session.loaded = True
         session._backend = backend
@@ -3551,7 +3571,7 @@ class TestPromptSourceStability:
             create_task(c, 'p', 'new assignment', status='in_progress')
         for name, is_orch, project in [('worker-a', False, scope), ('other-orch', True, '/other')]:
             with storage._conn() as c:
-                c.execute("INSERT INTO sessions(id,name,scope,cwd,model,status,is_orchestrator,context_pct,created_at) VALUES (?,?,?,?,'claude-sonnet-5[1m]','idle',?,2,'2026-09-09')",
+                c.execute("INSERT INTO sessions(id,name,scope,cwd,model,status,is_orchestrator,context_pct,created_at) VALUES (?,?,?,?,'claude-sonnet-5-5[1m]','idle',?,2,'2026-09-09')",
                           (name, name, project, project, is_orch))
         storage.kv_set(MODEL_FLAGS_KV_KEY, json.dumps({m: {'agents': False} for m in MODELS}))
         populated, _ = manager.assemble_prompt(**args)

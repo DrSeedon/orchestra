@@ -20,7 +20,7 @@ def _make_session(name="w1"):
 
     return AgentSession(
         id=f"audit-{name}", name=name, scope="/test", cwd="/tmp",
-        model="claude-sonnet-5[1m]", system_prompt="test",
+        model="claude-sonnet-5-5[1m]", system_prompt="test",
         created_at=datetime.now(timezone.utc),
     )
 

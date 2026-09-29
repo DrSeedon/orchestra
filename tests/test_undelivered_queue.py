@@ -28,7 +28,7 @@ def session_id(db):
     sid = str(uuid.uuid4())
     db.save_session({
         "id": sid, "name": "worker", "scope": "/s", "cwd": "/s",
-        "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
         "session_id": None, "cost_usd": 0.0, "worktree_path": "", "branch": "",
         "base_branch": "main", "is_orchestrator": False, "color": "",
         "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
