@@ -4168,7 +4168,7 @@ function _renderCompactEvent(type, content, ts, anchor, insertAndFollow, payload
 
 function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
-    if (type === 'done_gate_verdict') return; // V-614 shadow-only bookkeeping, not a chat event.
+    if (type === 'done_gate_verdict') return; // V-614 (removed 30.09): old rows stay in logs, never render them.
     if (type === 'error' && /^compact attempt \d+\/\d+ failed:/.test(content || '')) return;
     if (_isSilentTurnMarker(type, content)) return;
     if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
