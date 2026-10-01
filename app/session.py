@@ -535,6 +535,13 @@ class AgentSession:
     RATE_LIMIT_DELAY = 30
     SERVER_ERROR_MAX_RETRIES = 3
     SERVER_ERROR_RETRY_DELAY = 5
+    # Ack-ход после сжатия идёт в СВЕЖЕЙ сессии без префикс-кеша: системный промпт
+    # перечитывается целиком по полной цене. Harness-модели (OpenRouter) медленные —
+    # DeepSeek V4.1 Flash не укладывался в прежние 60 с и откатывал компакт (V-676).
+    # Claude/Codex успевают за минуту; остальным даём больше. Переопределяется
+    # COMPACT_ACK_TIMEOUT_SECONDS без правки кода.
+    COMPACT_ACK_TIMEOUT_SECONDS = 60
+    COMPACT_ACK_TIMEOUT_HARNESS = 240
     PRECOMPACT_DELAY_SECONDS = 55 * 60
     PRECOMPACT_CONTEXT_THRESHOLD = 20
     CODEX_PRECOMPACT_DELAY_SECONDS = 25 * 60
@@ -1097,6 +1104,17 @@ class AgentSession:
             finally:
                 self._lifecycle_lock.release()
             return
+
+    def _compact_ack_timeout(self) -> float:
+        env = os.environ.get("COMPACT_ACK_TIMEOUT_SECONDS")
+        if env:
+            try:
+                return max(1.0, float(env))
+            except ValueError:
+                pass
+        if self.backend_type in ("claude", "codex"):
+            return float(self.COMPACT_ACK_TIMEOUT_SECONDS)
+        return float(self.COMPACT_ACK_TIMEOUT_HARNESS)
 
     def _start_turn_state(self, *, compact_ack: bool = False) -> None:
         """Publish the single in-memory/DB transition into a running turn."""
@@ -3141,10 +3159,11 @@ class AgentSession:
 
             await self._run_compaction_start(permit, start_ack_turn)
 
+            ack_timeout = self._compact_ack_timeout()
             try:
-                await asyncio.wait_for(ack_event.wait(), timeout=60)
+                await asyncio.wait_for(ack_event.wait(), timeout=ack_timeout)
             except asyncio.TimeoutError:
-                self._log("error", "compact ack turn did not complete (60s)")
+                self._log("error", f"compact ack turn did not complete ({ack_timeout:.0f}s)")
                 # stop the still-running ack turn so it can't interleave with the next send
                 await self._disconnect_backend()
                 self.session_id = pre_compact_session_id
