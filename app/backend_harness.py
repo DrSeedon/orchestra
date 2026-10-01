@@ -60,6 +60,7 @@ class HarnessBackend:
         self._history: list[dict] = []
         self._tool_schemas: list[dict] = []
         self._full_system_prompt: str = ""
+        self._single_call = False
 
         self._pending_msg: Optional[str] = None
         self._turn_active = False
@@ -186,8 +187,9 @@ class HarnessBackend:
             with contextlib.suppress(Exception):
                 await self._mcp.disconnect()
             self._tool_schemas = prompts.merge_tool_schemas(builtin.tool_schemas(), [])
+        self._single_call = spec.provider == "gigachat"
         self._full_system_prompt = prompts.build_system_prompt(
-            self.system_prompt, cwd=self.cwd, single_call=spec.provider == "gigachat")
+            self.system_prompt, cwd=self.cwd, single_call=self._single_call)
 
         # Alongside the DB, not /tmp: a reboot must not erase agent history.
         session_dir = str(Path(__file__).parent.parent / "data" / "harness-sessions")
@@ -212,6 +214,16 @@ class HarnessBackend:
     def _disabled_tools(self) -> set[str]:
         env = (self._mcp_servers.get("orchestra") or {}).get("env") or {}
         return set(parse_disabled_tools(env.get("ORCHESTRA_DISABLED_TOOLS", "[]")))
+
+    def _refresh_system_prompt(self) -> None:
+        # Правила проекта перечитываются на каждом ходу: правка AGENTS.md доходит со
+        # следующего хода, а не после переподключения. Без изменений системное
+        # сообщение остаётся байт-в-байт тем же и не сбивает кеш провайдера.
+        fresh = prompts.build_system_prompt(
+            self.system_prompt, cwd=self.cwd, single_call=self._single_call)
+        if fresh != self._full_system_prompt:
+            self._full_system_prompt = fresh
+            self._reset_system_message()
 
     def _reset_system_message(self) -> None:
         sys_msg = {"role": "system", "content": self._full_system_prompt}
@@ -243,6 +255,7 @@ class HarnessBackend:
 
         user_msg = self._pending_msg
         self._pending_msg = None
+        self._refresh_system_prompt()
         self._usage_baseline = (self._cumulative_input, self._cumulative_output)
         # Leftovers are steering the previous turn never drained (it ended or aborted past
         # its last drain point) — session.py already marked them SUBMITTED, so dropping them
