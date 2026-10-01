@@ -593,3 +593,38 @@ def test_edit_escapes_line_breaks_that_break_a_python_string(tmp_path):
     # a genuine multi-line edit is left alone
     out = builtin.edit("t.py", 'data = "a;MIT\\nb;GPL\\n"', 'x = 1\ny = 2', str(tmp_path))
     assert out.startswith("replaced") and "y = 2" in (tmp_path / "t.py").read_text()
+
+
+def test_project_rules_reach_the_harness_like_managed_codex(tmp_path):
+    """Harness agents never saw the project's AGENTS.md/CLAUDE.md (01.10, openrouter-lab)."""
+    from app.harness.prompts import build_system_prompt
+
+    (tmp_path / "AGENTS.md").write_text("outside the repo")
+    repo = tmp_path / "repo"
+    (repo / ".git").mkdir(parents=True)
+    (repo / "AGENTS.md").write_text("root rule")
+    (repo / "CLAUDE.md").symlink_to("AGENTS.md")
+    sub = repo / "pkg"
+    sub.mkdir()
+    (sub / "CLAUDE.md").write_text("pkg rule")
+
+    prompt = build_system_prompt("role", cwd=str(sub))
+    assert prompt.index("root rule") < prompt.index("pkg rule")
+    assert prompt.count("root rule") == 1
+    assert "outside the repo" not in prompt
+
+
+def test_edited_project_rules_apply_on_the_next_turn(tmp_path):
+    (tmp_path / ".git").mkdir()
+    rules = tmp_path / "AGENTS.md"
+    rules.write_text("old rule")
+    backend = HarnessBackend("z-ai/glm-5.2:free", str(tmp_path), system_prompt="role")
+    backend._refresh_system_prompt()
+    backend._history.append({"role": "user", "content": "hi"})
+
+    rules.write_text("new rule")
+    backend._refresh_system_prompt()
+
+    assert "new rule" in backend._history[0]["content"]
+    assert "old rule" not in backend._history[0]["content"]
+    assert [m["role"] for m in backend._history] == ["system", "user"]
