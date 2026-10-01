@@ -425,6 +425,16 @@ BLOCKED_HARNESS_ROUTES: dict[str, str] = {
 }
 
 
+# Платные маршруты OpenRouter, открытые владельцем поимённо: деньги за них списываются с
+# баланса OpenRouter, а не с подписки. Каждый новый маршрут — только по его слову
+# («да эту модель отпусти», 01.10.2026: DeepSeek V4.1 Flash для экспериментов с оркестраторами).
+PAID_HARNESS_ROUTES: frozenset[str] = frozenset({"deepseek/deepseek-v4.1-flash"})
+
+
+def harness_route_allowed(model_id: str) -> bool:
+    return model_id.endswith(":free") or model_id in PAID_HARNESS_ROUTES
+
+
 def validate_harness_model_spec(spec: ModelSpec) -> None:
     """Production admission for Orchestra's OpenRouter runtime.
 
@@ -446,10 +456,11 @@ def validate_harness_model_spec(spec: ModelSpec) -> None:
             f"harness model '{spec.id}' заблокирован по результатам нашей пробы: "
             f"{BLOCKED_HARNESS_ROUTES[spec.id]}"
         )
-    if not spec.id.endswith(":free"):
+    if not harness_route_allowed(spec.id):
         raise ValueError(
             f"harness model '{spec.id}' is not an exact :free route; "
-            "unsuffixed previews and paid routes are blocked"
+            "unsuffixed previews and paid routes are blocked unless the owner listed them "
+            "in PAID_HARNESS_ROUTES"
         )
     from app.model_catalog import harness_capable, live_catalog_entry
 

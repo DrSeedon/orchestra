@@ -350,7 +350,9 @@ class OpenRouterClient:
     def _validate_route(self) -> None:
         # Provider-side atomic zero-spend does not exist for an unsuffixed preview.
         # The explicit suffix is therefore the last-line guard immediately before POST.
-        if not self.model.endswith(":free"):
+        from app.models import harness_route_allowed
+
+        if not harness_route_allowed(self.model):
             raise ValueError(
                 f"OpenRouter Harness accepts exact :free routes only, got '{self.model}'"
             )
@@ -531,7 +533,7 @@ class OpenRouterClient:
                 raise RuntimeError(
                     f"OpenRouter returned invalid usage.cost: {reported_cost!r}"
                 ) from exc
-            if billed != 0:
+            if billed != 0 and self.model.endswith(":free"):
                 raise RuntimeError(
                     f"OpenRouter zero-spend contract violated: usage.cost={billed}"
                 )

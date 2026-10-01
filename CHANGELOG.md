@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Added
+- **Платные маршруты OpenRouter по белому списку владельца** (`PAID_HARNESS_ROUTES` и `harness_route_allowed` в `app/models.py`; допуск в `validate_harness_model_spec`, `normalize_catalog_model`, `OpenRouterClient._validate_route`). Раньше Harness пускал только точные `:free` маршруты, и оркестратор на DeepSeek V4.1 Flash (бесплатного варианта нет) создать было нельзя. В списке один маршрут, `deepseek/deepseek-v4.1-flash`: владелец открыл его 01.10 для экспериментов с оркестраторами на OpenRouter. Остальные платные маршруты по-прежнему отклоняются. Требование нулевой стоимости `usage.cost` сохранено для `:free`; у платного маршрута стоимость идёт в учёт сессии. Тесты: `test_owner_listed_paid_route_is_billed_and_others_stay_blocked`, `test_catalog_admits_only_free_or_owner_listed_paid_routes`.
+
 ### Fixed
 - **Долгие таймеры `bg_create(type="timer")` больше не умирают молча** (`app/bg_jobs.py`). Срок жизни таймера (`delay + 1 ч`) обрезался потолком 8 суток, поэтому таймер дольше ~8 суток принимался с «OK», но истекал раньше своего срабатывания (баг-репорт seedon 29.09: bg-a0c0992639, срабатывание 27.10, истечение 07.10). Потолок для таймеров снят по решению владельца («без ограничений»): срок всегда позже `trigger_at`. Тест `test_long_timer_expires_after_it_fires`.
 
