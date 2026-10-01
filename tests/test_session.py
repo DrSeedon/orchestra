@@ -5685,3 +5685,19 @@ async def test_t1_385_message_during_deferred_interrupt_queues_until_native_term
         if not listener.done():
             listener.cancel()
         await asyncio.gather(listener, return_exceptions=True)
+
+
+def test_compact_ack_timeout_is_longer_for_harness(session, monkeypatch):
+    """V-676: DeepSeek on OpenRouter couldn't finish the ack turn in 60s and rolled back."""
+    monkeypatch.delenv("COMPACT_ACK_TIMEOUT_SECONDS", raising=False)
+    session.backend_type = "claude"
+    assert session._compact_ack_timeout() == 60
+    session.backend_type = "codex"
+    assert session._compact_ack_timeout() == 60
+    session.backend_type = "harness"
+    assert session._compact_ack_timeout() == 240
+
+    monkeypatch.setenv("COMPACT_ACK_TIMEOUT_SECONDS", "123")
+    assert session._compact_ack_timeout() == 123
+    session.backend_type = "claude"
+    assert session._compact_ack_timeout() == 123

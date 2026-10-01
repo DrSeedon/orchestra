@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Сжатие контекста (компакт) срывалось у агентов OpenRouter: ack-ход не укладывался в 60 с** (`_compact_ack_timeout`, `COMPACT_ACK_TIMEOUT_SECONDS`/`_HARNESS` в `app/session.py`). После сжатия платформа поднимает свежую сессию без префикс-кеша и шлёт «Acknowledge briefly», ожидая завершения хода `asyncio.wait_for(..., timeout=60)`. DeepSeek V4.1 Flash на OpenRouter (7–83 tps у разных провайдеров) не отвечал за минуту на полном перечитывании системного промпта → таймаут → откат к несжатой сессии, агент залипал у потолка контекста. Триггер: `openrouter-lab-orchestrator`, компакт с 59% контекста — «compact ack turn did not complete (60s)». Лимит для Claude/Codex оставлен 60 с, для Harness поднят до 240 с; переопределяется `COMPACT_ACK_TIMEOUT_SECONDS`. Тест `test_compact_ack_timeout_is_longer_for_harness`.
+
 ### Added
 - **Закрепление провайдера OpenRouter по цене кеша** (`_provider_order` в `app/harness/llm.py`, поле `provider` в `_build_body`). Без пина OpenRouter сам маршрутизировал на дорогого Together ($0.006/1М чтения кеша, $1.20/1М выход). Теперь запрос несёт `provider.order = [DeepInfra, StreamLake, GMICloud]` с `allow_fallbacks: true`: порядок по стоимости чтения кеша (главная статья расхода при перечитывании контекста), откат не даёт агенту зависнуть, если провайдер не обслуживает модель (GLM у этих нет — уходит к дефолтным). Переопределяется `HARNESS_PROVIDER_ORDER` без правки кода; пустая строка возвращает авторутинг. На нашем профиле (99% кеша, ~1.7 млрд читаемых токенов/день) это ~$11/день против ~$19 на Together. Тест `test_provider_order_pins_cheap_providers_with_fallback`.
 
