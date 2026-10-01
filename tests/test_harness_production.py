@@ -658,3 +658,17 @@ async def test_turn_end_reports_cache_read_tokens_not_zero():
     assert ev.metadata["cache_read"] == 55168
     assert ev.metadata["input_tokens"] == 55652 - 55168
     assert ev.metadata["cache_hit"] == 99.13
+
+
+def test_provider_order_pins_cheap_providers_with_fallback(monkeypatch):
+    monkeypatch.delenv("HARNESS_PROVIDER_ORDER", raising=False)
+    body = _client()._build_body([{"role": "user", "content": "hi"}], TOOLS)
+    assert body["provider"] == {"order": ["DeepInfra", "StreamLake", "GMICloud"],
+                                "allow_fallbacks": True}
+
+    monkeypatch.setenv("HARNESS_PROVIDER_ORDER", "")
+    assert "provider" not in _client()._build_body([{"role": "user", "content": "hi"}], TOOLS)
+
+    monkeypatch.setenv("HARNESS_PROVIDER_ORDER", "Together")
+    body = _client()._build_body([{"role": "user", "content": "hi"}], TOOLS)
+    assert body["provider"]["order"] == ["Together"]

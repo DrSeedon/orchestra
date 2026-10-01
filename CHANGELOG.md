@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Added
+- **Закрепление провайдера OpenRouter по цене кеша** (`_provider_order` в `app/harness/llm.py`, поле `provider` в `_build_body`). Без пина OpenRouter сам маршрутизировал на дорогого Together ($0.006/1М чтения кеша, $1.20/1М выход). Теперь запрос несёт `provider.order = [DeepInfra, StreamLake, GMICloud]` с `allow_fallbacks: true`: порядок по стоимости чтения кеша (главная статья расхода при перечитывании контекста), откат не даёт агенту зависнуть, если провайдер не обслуживает модель (GLM у этих нет — уходит к дефолтным). Переопределяется `HARNESS_PROVIDER_ORDER` без правки кода; пустая строка возвращает авторутинг. На нашем профиле (99% кеша, ~1.7 млрд читаемых токенов/день) это ~$11/день против ~$19 на Together. Тест `test_provider_order_pins_cheap_providers_with_fallback`.
+
 ### Fixed
 - **Дашборд показывал «кеш 0.00%» у агентов OpenRouter, хотя провайдер кешировал до 99%** (`_cached_prompt_tokens`, `_cache_hit_pct` в `app/backend_harness.py`; `_accumulate`, `_turn_end`, `_error_turn_end`). OpenRouter возвращает `usage.prompt_tokens_details.cached_tokens`, но backend выбрасывал это число и жёстко писал `cache_hit: 0`, а весь `prompt_tokens` (включая кеш) шёл в `input_tokens`. Теперь кешированная часть вычитается из входа в `cache_read`, а `cache_hit` считается как её доля от промпта. Деньги не пересчитываются — стоимость берётся из ответа провайдера, где скидка за кеш уже применена. Триггер: `openrouter-lab-orchestrator` на DeepSeek V4.1 Flash, ход с 55 652 токенами промпта, 55 168 из них кеш (99.1%), в дашборде «кеш 0.00%». Тесты: `test_openrouter_cached_prompt_tokens_split_into_cache_read_and_hit_pct`, `test_turn_end_reports_cache_read_tokens_not_zero`.
 

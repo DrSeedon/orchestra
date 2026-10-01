@@ -27,6 +27,16 @@ import httpx
 
 from app import openrouter_counter as _counter
 
+
+def _provider_order() -> list[str]:
+    """Preferred OpenRouter providers, cheapest cache-read first (V-676).
+
+    Overridable via HARNESS_PROVIDER_ORDER (comma-separated) without a code change;
+    empty string disables pinning and returns to OpenRouter's own routing.
+    """
+    raw = os.environ.get("HARNESS_PROVIDER_ORDER", "DeepInfra,StreamLake,GMICloud")
+    return [p.strip() for p in raw.split(",") if p.strip()]
+
 logger = logging.getLogger(__name__)
 
 GIGACHAT_AUTH_URL = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
@@ -366,6 +376,13 @@ class OpenRouterClient:
             "stream": True,
             "usage": {"include": True},   # OpenRouter: emit usage in the final chunk
         }
+        order = _provider_order()
+        if order:
+            # Без пина OpenRouter сам выбирает провайдера (у нас выходил дорогой Together,
+            # $0.006/1М кеш). Закрепляем дешёвых по цене чтения кеша — она и есть основная
+            # статья расхода. allow_fallbacks=True: провайдера, не обслуживающего модель
+            # (GLM у этих нет), OpenRouter пропускает, и агент не зависает.
+            body["provider"] = {"order": order, "allow_fallbacks": True}
         if tools:
             if "tools" not in self.supported_parameters:
                 raise ValueError(f"OpenRouter model '{self.model}' does not support tools")
