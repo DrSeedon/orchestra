@@ -628,3 +628,33 @@ def test_edited_project_rules_apply_on_the_next_turn(tmp_path):
     assert "new rule" in backend._history[0]["content"]
     assert "old rule" not in backend._history[0]["content"]
     assert [m["role"] for m in backend._history] == ["system", "user"]
+
+
+def test_openrouter_cached_prompt_tokens_split_into_cache_read_and_hit_pct():
+    """Dashboard showed 'cache 0.00%' though OpenRouter cached 99% (01.10, DeepSeek)."""
+    from app.backend_harness import _cached_prompt_tokens, _cache_hit_pct
+
+    usage = {"prompt_tokens": 55652, "completion_tokens": 60, "cost": 0.00054,
+             "prompt_tokens_details": {"cached_tokens": 55168}}
+    assert _cached_prompt_tokens(usage) == 55168
+    assert _cache_hit_pct(usage["prompt_tokens"], 55168) == 99.13
+    assert _cached_prompt_tokens({"prompt_tokens": 100}) == 0
+    assert _cache_hit_pct(0, 0) == 0.0
+
+
+@pytest.mark.asyncio
+async def test_turn_end_reports_cache_read_tokens_not_zero():
+    backend = HarnessBackend("deepseek/deepseek-v4.1-flash", "/tmp")
+    backend._usage_baseline = (0, 0, 0)
+    backend._accumulate({"prompt_tokens": 55652, "completion_tokens": 60, "cost": 0.00054,
+                         "prompt_tokens_details": {"cached_tokens": 55168}})
+
+    class _Loop:
+        last_usage = {"prompt_tokens": 55652}
+        ok = True
+        stop_reason = "end_turn"
+        error_detail = ""
+    ev = backend._turn_end(_Loop(), ok=True, stop_reason="end_turn")
+    assert ev.metadata["cache_read"] == 55168
+    assert ev.metadata["input_tokens"] == 55652 - 55168
+    assert ev.metadata["cache_hit"] == 99.13

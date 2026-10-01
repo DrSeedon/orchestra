@@ -40,6 +40,27 @@ logger = logging.getLogger(__name__)
 DEFAULT_CONTEXT = 200000
 
 
+def _cached_prompt_tokens(usage: dict) -> int:
+    """Cached prompt tokens OpenRouter reports in prompt_tokens_details.cached_tokens.
+
+    They are a SUBSET of prompt_tokens, not additional. Absent → 0 (provider/route
+    without prefix caching), which keeps cache_read at 0 rather than guessing.
+    """
+    details = usage.get("prompt_tokens_details") or {}
+    if not isinstance(details, dict):
+        return 0
+    try:
+        return max(0, int(details.get("cached_tokens", 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def _cache_hit_pct(prompt_tokens: int, cached_tokens: int) -> float:
+    if prompt_tokens <= 0:
+        return 0.0
+    return round(100 * min(cached_tokens, prompt_tokens) / prompt_tokens, 2)
+
+
 class HarnessBackend:
     def __init__(self, model: str, cwd: str, system_prompt: str = "",
                  resume_session_id: str | None = None,
@@ -69,11 +90,12 @@ class HarnessBackend:
 
         self._cumulative_cost: float = 0.0
         self._cumulative_input: int = 0
+        self._cumulative_cached: int = 0
         self._cumulative_output: int = 0
         # Cost stays cumulative (session_cost takes its own delta), tokens do NOT: they are
         # added verbatim to the session totals and to the per-turn turn_usage row. Same
         # normalization CodexBackend does with _usage_baseline.
-        self._usage_baseline: tuple[int, int] = (0, 0)
+        self._usage_baseline: tuple[int, int, int] = (0, 0, 0)
 
         # Gated planning (#125) — a per-session todo list; the todo_write tool is hard-gated onto
         # complex (effort=="high") turns only (_turn_tool_schemas). Simple turns never see it.
@@ -256,7 +278,8 @@ class HarnessBackend:
         user_msg = self._pending_msg
         self._pending_msg = None
         self._refresh_system_prompt()
-        self._usage_baseline = (self._cumulative_input, self._cumulative_output)
+        self._usage_baseline = (self._cumulative_input, self._cumulative_output,
+                                self._cumulative_cached)
         # Leftovers are steering the previous turn never drained (it ended or aborted past
         # its last drain point) — session.py already marked them SUBMITTED, so dropping them
         # loses the text silently. They predate `user_msg`, so the loop puts them AHEAD of it
@@ -333,6 +356,7 @@ class HarnessBackend:
         out_tok = int(usage.get("completion_tokens", 0) or 0)
         self._cumulative_input += in_tok
         self._cumulative_output += out_tok
+        self._cumulative_cached += _cached_prompt_tokens(usage)
         cost = usage.get("cost")
         if cost is not None:
             self._cumulative_cost += float(cost)
@@ -347,12 +371,18 @@ class HarnessBackend:
         usage = loop.last_usage or {}
         turn_input = int(usage.get("prompt_tokens", 0) or 0)
         max_tokens = self._max_context()
+        prompt_turn = self._cumulative_input - self._usage_baseline[0]
+        cached_turn = self._cumulative_cached - self._usage_baseline[2]
+        # OpenRouter's prompt_tokens INCLUDES cached reads; split them so input stays the
+        # fresh portion and cache_read carries the discount, like every other runtime.
+        # The provider already billed cost with the cache discount applied.
         # The last round's prompt_tokens IS the live context: the loop re-sends the whole
         # history each round, so the final prompt carries everything the model still holds.
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
-                input_tokens=self._cumulative_input - self._usage_baseline[0],
+                input_tokens=prompt_turn - cached_turn,
                 output_tokens=self._cumulative_output - self._usage_baseline[1],
+                cache_read_tokens=cached_turn,
             ),
             current_context(
                 turn_input or None,
@@ -368,18 +398,21 @@ class HarnessBackend:
             "stop_reason": stop_reason,
             "num_turns": 1,
             "cost_usd": self._cumulative_cost,
-            "cost_usd_cached": self._cumulative_cost,   # no prompt-cache on MVP
-            "cache_hit": 0,
+            "cost_usd_cached": self._cumulative_cost,   # provider cost already cache-discounted
+            "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
             **turn_usage.metadata(),
         }, usage=turn_usage)
 
     def _error_turn_end(self, reason: str) -> AgentEvent:
         # Even on error, cost is the AUTHORITATIVE cumulative — NOT 0 (plan B5), so
         # session_cost's delta does not overcount the next turn. Tokens are this turn's.
+        prompt_turn = self._cumulative_input - self._usage_baseline[0]
+        cached_turn = self._cumulative_cached - self._usage_baseline[2]
         turn_usage = TurnUsage(
             AggregateUsage.normalized(
-                input_tokens=self._cumulative_input - self._usage_baseline[0],
+                input_tokens=prompt_turn - cached_turn,
                 output_tokens=self._cumulative_output - self._usage_baseline[1],
+                cache_read_tokens=cached_turn,
             ),
             current_context(
                 None, self._max_context(),
@@ -394,7 +427,7 @@ class HarnessBackend:
             "num_turns": 1,
             "cost_usd": self._cumulative_cost,
             "cost_usd_cached": self._cumulative_cost,
-            "cache_hit": 0,
+            "cache_hit": _cache_hit_pct(prompt_turn, cached_turn),
             **turn_usage.metadata(),
         }, usage=turn_usage)
 
