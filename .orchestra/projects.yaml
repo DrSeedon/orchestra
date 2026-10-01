@@ -1,6 +1,7 @@
 version: 1
 include_scopes:
 - /home/kesha/katya-work
+- /home/kesha/openrouter-lab
 - /home/kesha/projects/University
 - /home/kesha/projects/VPN-Service
 - /home/kesha/projects/comfy-image-pipeline

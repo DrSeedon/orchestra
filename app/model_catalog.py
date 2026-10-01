@@ -50,10 +50,12 @@ def normalize_catalog_model(raw: dict) -> dict | None:
     params = sorted({str(p) for p in (raw.get("supported_parameters") or []) if p})
     input_modalities = [str(m) for m in (arch.get("input_modalities") or [])]
     output_modalities = [str(m) for m in (arch.get("output_modalities") or [])]
+    from app.models import harness_route_allowed
+
     is_free = model_id.endswith(":free")
     supports_tools = "tools" in params
     harness_eligible = (
-        is_free
+        harness_route_allowed(model_id)
         and supports_tools
         and "text" in input_modalities
         and "text" in output_modalities

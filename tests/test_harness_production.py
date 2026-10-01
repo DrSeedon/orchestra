@@ -122,6 +122,42 @@ async def test_nonzero_provider_cost_blocks_the_round_before_tools_can_run():
     await http.aclose()
 
 
+@pytest.mark.asyncio
+async def test_owner_listed_paid_route_is_billed_and_others_stay_blocked():
+    from app.models import PAID_HARNESS_ROUTES
+
+    paid = next(iter(PAID_HARNESS_ROUTES))
+    with pytest.raises(ValueError, match=":free"):
+        _client(model="deepseek/deepseek-v4-pro")._build_body(
+            [{"role": "user", "content": "hi"}], TOOLS)
+
+    payload = (
+        b'data: {"choices":[{"delta":{"content":"answer"},"finish_reason":"stop"}]}\n\n'
+        b'data: {"choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1,"cost":0.01}}\n\n'
+        b'data: [DONE]\n\n'
+    )
+    http = httpx.AsyncClient(transport=httpx.MockTransport(
+        lambda request: httpx.Response(
+            200, headers={"content-type": "text/event-stream"}, content=payload)))
+    client = OpenRouterClient("test", paid, supported_parameters=("tools",), http=http)
+    events = [ev async for ev in client.stream([{"role": "user", "content": "hi"}], TOOLS)]
+    assert events[-1].kind == "final"
+    await http.aclose()
+
+
+def test_catalog_admits_only_free_or_owner_listed_paid_routes():
+    from app.model_catalog import normalize_catalog_model
+    from app.models import PAID_HARNESS_ROUTES
+
+    def raw(model_id):
+        return {"id": model_id, "supported_parameters": ["tools"],
+                "architecture": {"input_modalities": ["text"], "output_modalities": ["text"]}}
+
+    assert normalize_catalog_model(raw(next(iter(PAID_HARNESS_ROUTES))))["harness_eligible"]
+    assert normalize_catalog_model(raw("z-ai/glm-5.2:free"))["harness_eligible"]
+    assert not normalize_catalog_model(raw("deepseek/deepseek-v4-pro"))["harness_eligible"]
+
+
 def test_invalid_sse_json_is_a_loud_protocol_failure():
     from app.harness.llm import _parse_sse
 
