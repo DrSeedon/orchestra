@@ -428,7 +428,11 @@ BLOCKED_HARNESS_ROUTES: dict[str, str] = {
 # Платные маршруты OpenRouter, открытые владельцем поимённо: деньги за них списываются с
 # баланса OpenRouter, а не с подписки. Каждый новый маршрут — только по его слову
 # («да эту модель отпусти», 01.10.2026: DeepSeek V4.1 Flash для экспериментов с оркестраторами).
-PAID_HARNESS_ROUTES: frozenset[str] = frozenset({"deepseek/deepseek-v4.1-flash"})
+PAID_HARNESS_ROUTES: frozenset[str] = frozenset({
+    "deepseek/deepseek-v4.1-flash",
+    "z-ai/glm-5.3",
+    "z-ai/glm-5.3-flash",
+})
 
 
 def harness_route_allowed(model_id: str) -> bool:
