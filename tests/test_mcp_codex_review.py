@@ -19,7 +19,7 @@ PROJECT_CONTEXT = """PROJECT CONTEXT (calibrate review severity):
 # (or falls back to the server-owned default); the readiness endpoint reports a model
 # of its own and must never decide it. Keeping READINESS_MODEL distinct from both the
 # default and the explicit lane is what makes these assertions falsifiable.
-DEFAULT_MODEL = "gpt-5.6-luna"
+DEFAULT_MODEL = "gpt-6-luna"
 EXPLICIT_MODEL = "gpt-5.6-terra"
 READINESS_MODEL = "gpt-5.6-sol"
 
