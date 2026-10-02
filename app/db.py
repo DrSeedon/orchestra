@@ -2038,6 +2038,16 @@ def bg_cancel_job(job_id: str) -> bool:
         return cur.rowcount > 0
 
 
+def bg_cancel_removed_idle() -> int:
+    """The `idle` job type no longer exists; stop its leftover rows from waking anyone."""
+    with _conn() as conn:
+        return conn.execute(
+            "UPDATE bg_jobs SET status='cancelled', "
+            "error='job type idle was removed; the platform reports worker turn ends itself' "
+            "WHERE type='idle' AND status IN ('active','triggering')"
+        ).rowcount
+
+
 def bg_expire_job(job_id: str) -> bool:
     with _conn() as c:
         cur = c.execute(

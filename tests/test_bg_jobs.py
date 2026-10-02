@@ -878,6 +878,35 @@ class TestRestartProcessSafety:
         }
 
     @pytest.mark.asyncio
+    async def test_idle_type_is_rejected_on_create(self, db):
+        from app.bg_jobs import BgJobManager
+
+        result = await BgJobManager().create(
+            "idle", {}, "m", "s-1", "orch", "/s", "orch", timeout_seconds=0,
+        )
+        assert "removed" in result["error"]
+
+    @pytest.mark.asyncio
+    async def test_legacy_idle_rows_are_cancelled_and_never_started(self, db, monkeypatch):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+
+        mgr = BgJobManager()
+        bg_save_job(self._job("legacy-idle", "idle", {}))
+        bg_save_job(self._job("timer-ok", "timer", {"delay_seconds": 10}))
+        started = MagicMock()
+        monkeypatch.setattr(mgr, "_start_task", started)
+
+        await mgr.restore_from_db()
+
+        rows = {j["id"]: j for j in bg_get_jobs(scope="/s")}
+        assert rows["legacy-idle"]["status"] == "cancelled"
+        assert "idle" in rows["legacy-idle"]["error"]
+        assert rows["timer-ok"]["status"] == "active"
+        started.assert_called_once()
+        assert started.call_args.args[1] == "timer"
+
+    @pytest.mark.asyncio
     async def test_restore_marks_active_run_interrupted_without_restarting(
         self, db, mgr_mock, monkeypatch,
     ):

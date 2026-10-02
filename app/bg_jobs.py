@@ -18,7 +18,7 @@ from croniter import croniter
 
 from app.db import (
     bg_save_job, bg_claim_trigger, bg_finish_trigger, bg_fail_job,
-    bg_cancel_job, bg_expire_job, bg_update_output, bg_get_active_all,
+    bg_cancel_job, bg_cancel_removed_idle, bg_expire_job, bg_update_output, bg_get_active_all,
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
     bg_reset_stale_triggering, bg_cleanup_old,
     bg_cron_should_fire, bg_cron_record_fire,
@@ -36,7 +36,7 @@ MAX_TIMEOUT = 86400
 DEFAULT_TIMEOUT = 3600
 OUTPUT_PROGRESS_INTERVAL = 30
 _CRON_COMMAND_TIMEOUT_SECONDS = 600
-_NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command", "idle"})
+_NO_EXPIRY_TYPES = frozenset({"file", "command", "ssh", "cron", "cron_command"})
 _PIDFD_EXEC = str(Path(__file__).with_name("pidfd_exec.py"))
 _PIDFD_HANDSHAKE_TIMEOUT = 5
 _PIDFD_TERM_GRACE = 3
@@ -67,8 +67,6 @@ def _validate_regex(
 
 
 def _validate_config(job_type: str, config: dict) -> str | None:
-    if job_type == "idle":
-        return None
     if job_type == "timer":
         delay = config.get("delay_seconds")
         if not isinstance(delay, (int, float)) or delay <= 0:
@@ -109,6 +107,9 @@ def _validate_config(job_type: str, config: dict) -> str | None:
             if not config.get("command"):
                 return "command is required"
             return _validate_regex(config)
+    elif job_type == "idle":
+        return ("job type 'idle' was removed: the platform itself tells the parent when a "
+                "worker's turn ends without a report")
     else:
         return f"unknown job type: {job_type}"
     return None
@@ -354,13 +355,6 @@ class BgJobManager:
         err = _validate_config(job_type, config)
         if err:
             return {"error": err}
-        if job_type == "idle":
-            from app.db import get_session
-            target = get_session(target_session_id)
-            if not target or not (target.get('is_orchestrator') or target.get('role') in {'orchestrator','sub-orchestrator'}):
-                return {"error": "idle watches require an orchestrator target"}
-            config = {}
-            replace_key = f"idle-watch:{target_session_id}"
         if job_type == "merge":
             from app.merge_operations import get_operation_record
 
@@ -436,9 +430,7 @@ class BgJobManager:
     def _start_task(self, job_id, job_type, config, message, target_session_id,
                     target_name, target_scope, timeout, trigger_at=None):
         watch_timeout = None if config.get("no_expiry") else timeout
-        if job_type == "idle":
-            coro = self._run_idle(job_id, watch_timeout)
-        elif job_type == "timer":
+        if job_type == "timer":
             delay = config["delay_seconds"]
             if trigger_at:
                 remaining = (datetime.fromisoformat(trigger_at) - datetime.now(timezone.utc)).total_seconds()
@@ -516,6 +508,9 @@ class BgJobManager:
             logger.info(f"bg_jobs: cancelled {cancelled_count} jobs for session {session_id}")
 
     async def restore_from_db(self) -> None:
+        legacy_idle = bg_cancel_removed_idle()
+        if legacy_idle:
+            logger.info("bg_jobs: cancelled %s legacy idle watches (type removed)", legacy_idle)
         cleaned = bg_cleanup_old(24)
         if cleaned:
             logger.info(f"bg_jobs: cleaned up {cleaned} old terminated jobs")
@@ -583,7 +578,7 @@ class BgJobManager:
         self._procs.clear()
 
     def has_active_jobs(self, session_id: str) -> bool:
-        return any(job["type"] != "idle" for job in bg_get_jobs(session_id=session_id, active_only=True))
+        return bool(bg_get_jobs(session_id=session_id, active_only=True))
 
     # ── Trigger ──
 
@@ -788,23 +783,6 @@ class BgJobManager:
                                       f"Merge {operation_id} may still be running; check the same operation.")
         except Exception as exc:
             await self._fail_notify(job_id, message, target_name, target_scope, str(exc))
-
-    async def _run_idle(self, job_id, timeout):
-        from app.idle_watch import check
-        deadline = time.monotonic() + timeout if timeout else None
-        try:
-            while deadline is None or time.monotonic() < deadline:
-                row = bg_get_job(job_id)
-                if not row or row['status'] != 'active':
-                    return
-                try:
-                    await check(job_id, self._session_manager)
-                except Exception:
-                    logger.exception('idle watch %s could not deliver its notification', job_id)
-                await asyncio.sleep(2)
-            self._expire(job_id)
-        except asyncio.CancelledError:
-            pass
 
     async def _run_timer(self, job_id, delay, message, target_name, target_scope):
         try:
