@@ -333,6 +333,10 @@ async def _shutdown_runtime(
         )
         if task is not None and not task.done()
     }
+    from app import turn_signals
+    sweeper = turn_signals.sweeper_task()
+    if sweeper is not None:
+        startup_tasks.add(sweeper)
     for task in startup_tasks:
         task.cancel()
     if startup_tasks:
@@ -452,6 +456,8 @@ async def lifespan(app: FastAPI):
         # #269: messages accepted while the previous process was restarting. In the background —
         # a delivery runs the agent's turn, and startup must not wait for it.
         schedule_restart_inbox_drain()
+        from app import turn_signals
+        turn_signals.start_sweeper(manager)
         from app.bg_jobs import bg_manager
         bg_manager.set_session_manager(manager)
         await bg_manager.restore_from_db()
