@@ -148,20 +148,6 @@ async def wait_for_session_lock(lock, *, what: str, worker: str, limit: float | 
         lock.release()
 
 
-def _auto_report_key(worker_session, worker_name: str) -> str:
-    """Ключ дедупликации автоотчёта (#50).
-
-    Стабильного id хода в системе нет: `_turn_gen` — счётчик в памяти сессии, он
-    обнуляется рестартом. Поэтому ключ строится из id сессии и номера хода, а когда
-    сессия недоступна — из имени и времени, и это ВИДНО в самом ключе (`notrack`).
-    Два быстрых автоотчёта тогда дадут две записи; это лучше, чем невидимо склеить
-    два разных события в одно.
-    """
-    if worker_session is not None:
-        return f"autoreport:{worker_session.id}:{getattr(worker_session, '_turn_gen', 0)}"
-    return f"autoreport:{worker_name}:notrack:{datetime.now(timezone.utc).isoformat()}"
-
-
 def next_adhoc_branch(worker_name: str) -> str:
     """Имя ветки для авто-переключения перед доставкой сообщения.
 
@@ -2090,39 +2076,31 @@ class SessionManager:
                 last_texts: list[str],
                 stop_reason: str = "",
                 turn_ok: bool = True):
+            """Record the unreported end of a turn durably, then try to deliver it now.
+
+            Delivery retries and restart recovery belong to `turn_signals`; nothing here
+            may drop the fact on a failed send.
+            """
+            from app import turn_signals
+
             worker_session = next((s for s in self.sessions.values() if s.name == worker_name), None)
-            parent = worker_session.parent_name if worker_session else None
-            orch = parent or self._find_orchestrator_name(scope)
-            if not orch:
+            worker_id = worker_session.id if worker_session else ""
+            if not worker_id:
+                row = get_session_by_name(worker_name, (worker_scope or scope).rstrip("/"))
+                worker_id = row["id"] if row else ""
+            if not worker_id:
                 return
-            orch_session = next((s for s in self.sessions.values() if s.name == orch), None)
-            if not orch_session:
+            signal_id = turn_signals.record(
+                key=turn_signals.make_key(worker_session, worker_name),
+                worker_session_id=worker_id, worker_name=worker_name,
+                scope=(worker_scope or scope), turn_ok=turn_ok,
+                stop_reason=stop_reason,
+                summary="\n".join(last_texts[-3:]) if last_texts else "(no output)",
+            )
+            if signal_id is None:
                 return
-            summary = "\n".join(last_texts[-3:]) if last_texts else "(no output)"
-            ctx = self._context_warning(worker_name)
-            sr = f" (stop_reason={stop_reason})" if stop_reason else ""
-            outcome = (
-                "Finished without explicit report"
-                if turn_ok
-                else "Turn failed before an explicit report"
-            )
-            msg = (
-                f"[from:{worker_name}] [auto-report]{sr} {outcome}. "
-                f"Last output:\n{summary}{ctx}"
-            )
-            logger.info(f"Auto-report: {worker_name} → {orch}")
-            try:
-                provenance = MessageProvenance(
-                    origin="agent", senders=(worker_name,), subtype="auto_report",
-                )
-                await self.send(
-                    orch_session.id, msg, provenance=provenance,
-                )
-            except Exception as error:
-                await self._record_undelivered_auto_report(
-                    worker_name, worker_scope or scope, worker_session,
-                    orch_session, error,
-                )
+            logger.info(f"Auto-report: {worker_name} recorded as turn signal {signal_id}")
+            await turn_signals.deliver_due(self, [signal_id])
         return _on_worker_idle
 
     def _make_quota_blocked_callback(self, scope: str):
@@ -2165,54 +2143,6 @@ class SessionManager:
             )
 
         return _on_turn_blocked
-
-    async def _record_undelivered_auto_report(
-        self, worker_name: str, worker_scope: str, worker_session,
-        orch_session, error: Exception,
-    ) -> None:
-        """Автоотчёт не дошёл — оставить след, не зависящий от сломанного канала (#47).
-
-        Автоотчёт существует ровно для того, чтобы ждущий оркестратор не остался без
-        сигнала. Поэтому запись идёт в историю ОБЕИХ сессий: в дашборде видно и со стороны
-        воркера («я отчитался, но не дошло»), и со стороны того, кто ждёт.
-
-        Попытка уведомить оркестратора отдельным сообщением делается, но её исход попадает
-        в ту же запись: тихая попытка была бы тем же дефектом, который мы чиним.
-        Повтора нет — по решению #30 ретраи не вводим.
-        """
-        from app.db import add_log
-        from app.notify import report_undelivered
-
-        detail = f"{type(error).__name__}: {error}"
-        attempt = await report_undelivered(
-            self,
-            scope=worker_scope,
-            worker=worker_name,
-            what="автоотчёт",
-            reason=detail,
-            dedupe_key=_auto_report_key(worker_session, worker_name),
-        )
-        # Причина не дублируется: в исходе попытки она чаще всего та же самая, и запись
-        # раздувается вдвое ровно там, где её будет читать человек.
-        if detail in attempt:
-            attempt = attempt.replace(detail, "та же причина")
-        text = (
-            f"[доставка] автоотчёт воркера «{worker_name}» не доставлен "
-            f"оркестратору «{orch_session.name}»: {detail}. "
-            f"Попытка уведомить отдельным сообщением: {attempt}. "
-            f"Автоматического повтора нет — воркер ждёт продолжения."
-        )
-        logger.warning(text)
-        now = datetime.now(timezone.utc)
-        # Сессия воркера может быть уже выгружена — тогда пишем только тому, кто ждёт.
-        for session in (s for s in (worker_session, orch_session) if s is not None):
-            try:
-                await asyncio.to_thread(add_log, session.id, now, "system", text)
-            except Exception as log_error:
-                logger.warning(
-                    "could not record undelivered auto-report for %s: %s: %s",
-                    session.name, type(log_error).__name__, log_error,
-                )
 
     # ── Listings ──
 
@@ -2371,9 +2301,10 @@ class SessionManager:
             # 'running' — не успел (SIGKILL/OOM). Оба означают одно: ход прерван
             # рестартом. Читать только 'running' значило будить лишь тех, кого
             # застал аварийный путь (#160).
-            was_running = {r["id"] for r in c.execute(
-                "SELECT id FROM sessions WHERE status IN ('running', 'interrupted')"
-            ).fetchall()}
+            was_running_rows = [dict(r) for r in c.execute(
+                "SELECT * FROM sessions WHERE status IN ('running', 'interrupted')"
+            ).fetchall()]
+            was_running = {r["id"] for r in was_running_rows}
             was_waiting = {r["id"] for r in c.execute(
                 "SELECT id FROM sessions WHERE status = 'waiting'"
             ).fetchall()}
@@ -2383,6 +2314,14 @@ class SessionManager:
             ).fetchall()]
             c.execute("UPDATE sessions SET status='idle' "
                       "WHERE status IN ('running', 'interrupted', 'waiting')")
+
+        # V-680: the parent learns that these turns ended, durably and before any load can fail.
+        from app import turn_signals
+        try:
+            turn_signals.record_interrupted_by_restart(was_running_rows)
+        except Exception as error:
+            logger.error("turn signals for restart-interrupted turns failed: %s: %s",
+                         type(error).__name__, error)
 
         # R1: load orchestrators first — workers need their parent_name resolved,
         # and the orchestrator's on_idle callback registered before workers resume

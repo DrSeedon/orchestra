@@ -2128,6 +2128,7 @@ class AgentSession:
         self._log("error", reason)
         self._persist()
         self._turns.publish_turn_finished()
+        self._turns.report_abnormal_end(reason)
         if self._pending_messages:
             self._spawn_bg(self._flush_pending())
         else:
@@ -2248,6 +2249,7 @@ class AgentSession:
     async def _turn_event_loop(self) -> None:
         logger.info(f"[{self.name}] {self.backend_type} turn started")
         backend = self._backend
+        cancelled = False
         try:
             async for event in backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
@@ -2269,6 +2271,7 @@ class AgentSession:
                     )
                 self._handle_event(event)
         except asyncio.CancelledError:
+            cancelled = True
             return
         except Exception as e:
             logger.error(f"[{self.name}] {self.backend_type} turn error: {e}")
@@ -2287,6 +2290,8 @@ class AgentSession:
                 else:
                     self.status = AgentStatus.IDLE
                     self._persist()
+                    if not cancelled:
+                        self._turns.report_abnormal_end("event stream ended without turn end")
                     if self._pending_messages:
                         self._spawn_bg(self._flush_pending())
                     else:
@@ -3309,6 +3314,7 @@ class AgentSession:
         self.status = AgentStatus.IDLE
         self._persist()
         self._turns.publish_turn_finished()
+        self._turns.report_abnormal_end("automatic continuation failed")
         return True
 
     async def _rate_limit_retry(self, delay: int, expected_turn_gen: int) -> None:

@@ -1,0 +1,137 @@
+........................................................................ [  8%]
+........................................................................ [ 16%]
+........................................................................ [ 25%]
+......................................F................................. [ 33%]
+........................................................................ [ 42%]
+........................................................................ [ 50%]
+........................................................................ [ 58%]
+........................................................................ [ 67%]
+........................................................................ [ 75%]
+........................................................................ [ 84%]
+...................................F.................................... [ 92%]
+.................................................................        [100%]
+=================================== FAILURES ===================================
+_____________________ test_kill_path_produces_killed_token _____________________
+
+fanned = <module 'app.fan_barrier' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-done-delivery/app/fan_barrier.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777b4709cbf0>
+
+    def test_kill_path_produces_killed_token(fanned, monkeypatch):
+        """AC-2 проверяется через РЕАЛЬНЫЙ путь удаления, а не вызовом примитива.
+    
+        Первая редакция этого теста звала `fb.on_child_killed` напрямую и была
+        зелёной, ничего не доказывая: она проверяла примитив, а не проводку.
+        Гейт на `fire_auto_report` породить `killed` не может — тот выходит раньше
+        `on_idle` для `_manually_interrupted` (`session_turns.py:266`).
+        """
+        import app.fan_barrier as fb
+        from app.manager import SessionManager
+    
+        fb.record_terminal("c1", "done")
+    
+        mgr = SessionManager.__new__(SessionManager)
+        mgr.sessions = {"sid-c2": _FakeSession("c2", "sid-c2")}
+    
+        class _NoJobs:
+            async def cancel_by_session(self, _sid):
+                return None
+    
+        monkeypatch.setattr("app.bg_jobs.bg_manager", _NoJobs(), raising=False)
+        monkeypatch.setattr("app.manager.archive_session", lambda _sid: None)
+>       asyncio.run(SessionManager.remove(mgr, "sid-c2"))
+
+tests/test_fan_barrier_gates.py:176: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/runners.py:194: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/asyncio/base_events.py:687: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <app.manager.SessionManager object at 0x777b46fb55b0>
+session_id = 'sid-c2'
+
+    async def remove(self, session_id: str) -> None:
+        from app.bg_jobs import bg_manager
+        await bg_manager.cancel_by_session(session_id)
+        session = self.sessions.get(session_id)
+        # #219 T1b, AC-2: убитый ребёнок обязан породить ПОЛОЖИТЕЛЬНЫЙ терминальный
+        # токен. Гейт на `fire_auto_report` его породить не может — тот выходит
+        # раньше `on_idle` для `_manually_interrupted` (`session_turns.py:266`).
+        # Без этого веер висит до дедлайна при уже известном исходе.
+        _killed_name = session.name if session else (get_session(session_id) or {}).get("name")
+        if _killed_name:
+            from app import fan_barrier
+            fan_barrier.on_child_killed(_killed_name)
+        if session is not None:
+>           session._cancel_precompact_timer("removed")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           AttributeError: '_FakeSession' object has no attribute '_cancel_precompact_timer'
+
+app/manager.py:1178: AttributeError
+_______________ test_installed_codex_history_version_matches_pin _______________
+
+    def test_installed_codex_history_version_matches_pin():
+        cli = shutil.which("codex")
+        if cli is None:
+            pytest.skip("Codex CLI is not installed")
+        result = subprocess.run(
+            [cli, "--version"], capture_output=True, text=True, check=True, timeout=10
+        )
+>       assert result.stdout.strip() == f"codex-cli {CODEX_CLI_HISTORY_VERSION}"
+E       AssertionError: assert 'codex-cli 0.156.1' == 'codex-cli 0.153.4'
+E         
+E         - codex-cli 0.153.4
+E         ?               ^ ^
+E         + codex-cli 0.156.1
+E         ?               ^ ^
+
+tests/test_backend_codex.py:83: AssertionError
+=============================== warnings summary ===============================
+tests/test_mailbox.py::test_t3_failed_injection_keeps_message
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_tg_bridge.py::TestLimitsCommand::test_limits_sends_explicit_error_when_image_delivery_fails
+  /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x777b631559e0>
+  
+  Traceback (most recent call last):
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+      self.close()
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+      proto.pipe.close()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+      self.write_eof()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+      self._loop.call_soon(self._call_connection_lost, None)
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+      self._check_closed()
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_fan_barrier_gates.py::test_kill_path_produces_killed_token
+FAILED tests/test_backend_codex.py::test_installed_codex_history_version_matches_pin
+2 failed, 855 passed, 2 warnings in 162.75s (0:02:42)
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x777b631559e0>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

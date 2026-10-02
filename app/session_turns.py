@@ -184,10 +184,10 @@ class TurnManager:
         s._auto_report_task = None
 
     def bump_turn_gen(self) -> None:
-        """Новый ход начался — инвалидируем отложенный авто-репорт прошлого хода."""
+        """Новый ход начался. Авто-отчёт прошлого хода НЕ отменяется: это уже факт, он
+        записывается и доставляется durable (`turn_signals`), новый ход его не стирает."""
         self.s._turn_gen += 1
         self.s._turn_finished_event.clear()
-        self.cancel_auto_report()
 
     def publish_turn_finished(self) -> None:
         self.s._turn_finished_event.set()
@@ -279,6 +279,14 @@ class TurnManager:
                 logger.error(f"Auto-report failed for {s.name}: {e}")
 
         s._auto_report_task = asyncio.create_task(_do_report())
+
+    def report_abnormal_end(self, reason: str) -> None:
+        """Ход закончился не событием turn_end (умер слушатель, оборван поток): родитель
+        всё равно должен узнать, как и после обычного неуспешного хода."""
+        s = self.s
+        s._last_turn_ok = False
+        s._last_stop_reason = reason
+        self.fire_auto_report()
 
     def handle_turn_end(self, event: AgentEvent) -> None:
         s = self.s
