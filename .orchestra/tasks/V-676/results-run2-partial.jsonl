@@ -1,0 +1,5 @@
+{"model": "deepseek/deepseek-v4.1-flash", "pin_provider": "Together", "delay_min": 1, "marker": "fd3b3679c3794940a0ef8f09181a3aef", "exception": "ReadError('')", "ts": "2026-10-01T07:09:49Z"}
+{"model": "deepseek/deepseek-v4.1-flash", "pin_provider": "StreamLake", "delay_min": 1, "marker": "f07258f0acdd4b26a92b01c1eb391a2a", "exception": "ReadError('')", "ts": "2026-10-01T07:09:49Z"}
+{"model": "deepseek/deepseek-v4.1-flash", "pin_provider": "DeepInfra", "delay_min": 2, "marker": "6a6dc05c5a474fcb9636f01f33310ffa", "exception": "ReadError('')", "ts": "2026-10-01T07:09:49Z"}
+{"model": "deepseek/deepseek-v4.1-flash", "pin_provider": "Together", "delay_min": 10, "marker": "c32e6cb606664e68817ca00ddc8c994d", "exception": "ConnectError('')", "ts": "2026-10-01T07:09:49Z"}
+{"model": "deepseek/deepseek-v4.1-flash", "pin_provider": "Together", "delay_min": 45, "marker": "69d3a8d268454a0786896283e426d563", "exception": "ReadError('')", "ts": "2026-10-01T07:09:49Z"}
