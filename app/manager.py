@@ -692,27 +692,9 @@ class SessionManager:
         parent_role = self._resolve_role(parent_name, scope) if parent_name else ""
         validate_spawn(pipeline, parent_role, role if explicit_role else "")
 
-        if planned_initial_turn and not is_orch:
-            from app.quota_gate import get_worker_admission, require_worker_admission
-
-            # Неизвестная квота пропускает — и здесь, и на последующем `/send`.
-            # Иначе спавн создавал бы сессию, которую первый же обязательный
-            # `/send` отбивал 429: мёртвую (#227).
-            try:
-                quota_decision = await get_worker_admission(model)
-            except Exception as error:
-                logger.error(
-                    "worker quota admission check failed; allowing model=%s: %s: %s",
-                    model, type(error).__name__, err_text(error),
-                )
-            else:
-                if quota_decision.state == "unknown":
-                    logger.error(
-                        "worker quota admission telemetry unavailable; allowing model=%s "
-                        "provider=%s reason=%s",
-                        model, quota_decision.provider, quota_decision.reason,
-                    )
-                require_worker_admission(quota_decision)
+        # Гейт квот здесь НЕ отказывает (V-678): первое задание принимается durable-доставкой и,
+        # если гейт закрыт, ждёт его в `WAITING_QUOTA` (app/quota_queue.py). Раньше спавн
+        # отбивался 429, и оркестратор ставил таймер «повтори спавн».
 
         # Резолв базовой ветки worktree по стратегии манифеста (DESIGN §10, B3).
         # Делаем ДО create_worktree, когда pipeline/role/parent_name уже определены.

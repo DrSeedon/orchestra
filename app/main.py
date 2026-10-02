@@ -463,6 +463,8 @@ async def lifespan(app: FastAPI):
         bridge_task = asyncio.create_task(_start_bridge_background(manager))
         from app.routes.system import _usage_snapshot_loop
         snapshot_task = asyncio.create_task(_usage_snapshot_loop())
+        from app.quota_queue import quota_release_loop
+        quota_release_task = asyncio.create_task(quota_release_loop())
         from app.runaway_guard import ensure_task as ensure_runaway_guard
         ensure_runaway_guard(app)
         from app.merge_operations import restore_merge_operations
@@ -470,6 +472,8 @@ async def lifespan(app: FastAPI):
         if _fdstore.notify_ready():
             logger.info("systemd readiness published after application startup gates")
         yield
+    quota_release_task.cancel()
+    await asyncio.gather(quota_release_task, return_exceptions=True)
     await _shutdown_runtime(
         _restart_inbox_drain,
         snapshot_task,

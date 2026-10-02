@@ -98,13 +98,13 @@ async def _spawn(mgr, name, model, **over):
     ("sol", "gpt-5.6-sol"),
     ("claude", "claude-opus-5[1m]"),
 ])
-async def test_gated_worker_is_refused_above_the_line(mgr, monkeypatch, name, model):
+async def test_gated_worker_is_still_created_above_the_line(mgr, monkeypatch, name, model):
+    """V-678: спавн не отбивается гейтом — его первое задание ждёт в WAITING_QUOTA."""
     monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(ABOVE[name]))
 
-    with pytest.raises(QuotaGateError):
-        await _spawn(mgr, f"{name}-above", model)
+    session = await _spawn(mgr, f"{name}-above", model)
 
-    assert mgr.sessions == {}
+    assert session.name == f"{name}-above"
 
 
 @pytest.mark.asyncio
@@ -141,13 +141,12 @@ async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
     ("luna", "gpt-5.6-luna"),
     ("spark", "gpt-5.3-codex-spark"),
 ])
-async def test_luna_and_spark_are_refused_at_the_hard_stop(mgr, monkeypatch, name, model):
+async def test_luna_and_spark_are_still_created_at_the_hard_stop(mgr, monkeypatch, name, model):
     monkeypatch.setattr("app.quota_gate.get_worker_admission", _admission(99.0))
 
-    with pytest.raises(QuotaGateError):
-        await _spawn(mgr, f"{name}-hard", model)
+    session = await _spawn(mgr, f"{name}-hard", model)
 
-    assert mgr.sessions == {}
+    assert session.name == f"{name}-hard"
 
 
 @pytest.mark.asyncio

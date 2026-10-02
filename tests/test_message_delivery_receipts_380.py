@@ -1125,10 +1125,11 @@ def _request_with_proof(session_id, proof):
 
 
 @pytest.mark.asyncio
-async def test_t401_quota_refusal_is_returned_before_receipt_or_user_log(
+async def test_t401_quota_refusal_is_accepted_into_the_durable_wait_without_user_log(
     message_db, monkeypatch,
 ):
-    """A known quota refusal is visible to the MCP caller, not an accepted queue row."""
+    """V-678: a closed quota gate no longer bounces the sender: the message is accepted as
+    WAITING_QUOTA (durable), carries an ETA, shows no user turn yet and is idempotent."""
     from app.quota_gate import evaluate_worker_admission
     from app.mcp_proof import issue_mcp_proof
     from app.routes import sessions as routes
@@ -1154,27 +1155,37 @@ async def test_t401_quota_refusal_is_returned_before_receipt_or_user_log(
     target._admission_service = AsyncMock(return_value=blocked)
     monkeypatch.setitem(routes.manager.sessions, TARGET_ID, target)
     request = _request_with_proof(SOURCE_ID, issue_mcp_proof(SOURCE_ID))
-    response = await routes.send_message(
-        TARGET_NAME,
-        routes.SendRequest(
-            delivery_id=DELIVERY_ID,
-            message=MESSAGE,
-            sender=SOURCE_NAME,
-            scope=SCOPE,
-        ),
-        request=request,
-    )
+    monkeypatch.setattr(_message_module(), "ensure_target_runner", lambda _target_id: None)
 
-    assert getattr(response, "status_code", None) == 429
+    async def send():
+        return await routes.send_message(
+            TARGET_NAME,
+            routes.SendRequest(
+                delivery_id=DELIVERY_ID,
+                message=MESSAGE,
+                sender=SOURCE_NAME,
+                scope=SCOPE,
+            ),
+            request=request,
+        )
+
+    response = await send()
+
+    assert getattr(response, "status_code", None) == 202
     payload = _response_payload(response)
-    error = payload["error"]
-    assert error["code"] == "weekly_quota_blocked"
-    assert "Claude" in error["message"]
-    assert "95%" in error["message"]
-    assert "line limit" in error["message"]
-    assert "55.5" in error["message"]
-    assert _delivery_row(message_db) is None
+    assert payload["delivery_state"] == "WAITING_QUOTA"
+    assert payload["next_action"]["code"] == "WAITING_QUOTA"
+    assert payload["next_action"]["eta_at"] is not None
+    row = _delivery_row(message_db)
+    assert row["state"] == "WAITING_QUOTA"
     assert _user_messages(message_db) == []
+
+    again = await send()
+    assert _response_payload(again)["delivery_id"] == DELIVERY_ID
+    with message_db._conn() as connection:
+        assert connection.execute(
+            "SELECT COUNT(*) FROM message_deliveries"
+        ).fetchone()[0] == 1
 
 
 @pytest.mark.asyncio

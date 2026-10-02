@@ -685,6 +685,13 @@ def _delivery_receipt_text(
             "Task was NOT delivered — the worker has no task yet. Resend the SAME task "
             f"text with retry_initial_delivery(name='{name}', delivery_id='{delivery_id}')."
         )
+    elif state == "WAITING_QUOTA":
+        action = delivery.get("next_action") if isinstance(delivery.get("next_action"), dict) else {}
+        headline = (
+            "Task accepted and QUEUED — the worker exists but the quota gate is closed, so "
+            "its task goes out automatically when the gate opens (no retry, no timer needed). "
+            f"{_safe_response_text(str(action.get('message') or ''))}"
+        )
     elif state in {"DELIVERY_UNKNOWN", "UNKNOWN"}:
         # Та же сверка может вернуть запись, чей исход у провайдера неизвестен, — или
         # ответ вовсе без состояния (`_normalize_delivery_receipt` подставляет UNKNOWN).
@@ -981,7 +988,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        tg_topic: bool = False,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None) -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id preserves initial-delivery identity: after an ambiguous outcome follow the receipt/status recovery instructions; do not spawn or resend blindly."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id preserves initial-delivery identity: after an ambiguous outcome follow the receipt/status recovery instructions; do not spawn or resend blindly. If the quota gate is closed the worker is still created and its task is held durably, then delivered automatically when the gate opens — no retry or timer."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1225,7 +1232,7 @@ def _read_message_file(file_path: str) -> tuple[str, int]:
 async def send_message(
     to: str, message: str, delivery_id: str = "", file_path: str = "",
 ) -> str:
-    """Send a message to an agent by name; triggers a turn. file_path optionally appends a local UTF-8 text file (max 64 KiB). delivery_id is an optional UUID for duplicate-safe delivery. QUEUED means accepted, not delivered; resolve an ambiguous outcome with message_delivery_status using the same id, not a fresh send."""
+    """Send a message to an agent by name; triggers a turn. file_path optionally appends a local UTF-8 text file (max 64 KiB). delivery_id is an optional UUID for duplicate-safe delivery. QUEUED means accepted, not delivered; resolve an ambiguous outcome with message_delivery_status using the same id, not a fresh send. A closed quota gate does not refuse the message: it is held durably (WAITING_QUOTA) and goes out by itself, in order, when the gate opens — never resend or set a timer; cancel_message_delivery withdraws it."""
     # A message to oneself wakes a new turn that repeats the same call: the reestr
     # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
     if to.strip() == (WORKER_NAME or ROLE):
@@ -1319,6 +1326,16 @@ def _message_delivery_receipt_text(
             f"Message NOT delivered{target}; delivery_id={delivery_id}; state={state}.\n"
             f"{_safe_response_text(str(action.get('message') or ''))}"
         )
+    elif state == "WAITING_QUOTA" or action.get("code") == "BEHIND_QUOTA_WAIT":
+        # Не отказ и не «доставлено»: платформа сама держит сообщение за гейтом квот.
+        output = (
+            f"Message accepted and QUEUED{target}; delivery_id={delivery_id}; state={state}.\n"
+            f"{_safe_response_text(str(action.get('message') or ''))}\n"
+            f"Status: message_delivery_status; withdraw it: "
+            f"cancel_message_delivery(delivery_id=\"{delivery_id}\")."
+        )
+    elif state == "CANCELLED":
+        output = f"Message cancelled{target}; delivery_id={delivery_id}; it was not sent."
     elif state == "WAITING_NEXT_TURN":
         output = (
             f"Message is waiting for the target's next turn{target}; "
@@ -1440,6 +1457,29 @@ async def message_delivery_status(delivery_id: str) -> dict[str, Any]:
         raise ApiToolError(
             code="invalid_response",
             message="Message delivery status API returned a non-object response",
+            status=200,
+            details={"response_type": type(result).__name__},
+        )
+    return result
+
+
+@mcp.tool()
+async def cancel_message_delivery(delivery_id: str) -> dict[str, Any]:
+    """Withdraw your direct message that has not reached the target yet (state WAITING_QUOTA or QUEUED). A message already dispatched cannot be cancelled."""
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    try:
+        delivery_id = str(uuid.UUID(delivery_id))
+    except ValueError as error:
+        raise ApiToolError(
+            code="invalid_argument",
+            message="delivery_id must be a UUID",
+            details={"field": "delivery_id"},
+        ) from error
+    result = await _api("POST", f"{_message_delivery_status_path(delivery_id)}/cancel")
+    if not isinstance(result, dict):
+        raise ApiToolError(
+            code="invalid_response",
+            message="Cancel API returned a non-object response",
             status=200,
             details={"response_type": type(result).__name__},
         )

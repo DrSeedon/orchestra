@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from app import db
 from app.errtext import err_text
 from app.events import MessageProvenance
+from app.quota_queue import quota_wait_action, was_parked, wait_error
 
 logger = logging.getLogger("orchestra.message_deliveries")
 SCHEMA_VERSION = 2
@@ -107,11 +108,37 @@ def _next_action(row: sqlite3.Row | dict) -> dict:
                 "durably queued for the target's next turn. Do not resend."
             ),
         }
+    if row["state"] == "WAITING_QUOTA":
+        return quota_wait_action(row)
+    if row["state"] == "CANCELLED":
+        return {
+            "code": "CANCELLED",
+            "retryable": False,
+            "message": "The sender cancelled this delivery; it was never sent to the target.",
+        }
     # Блокировка очереди едет в `next_action`, а не отдельным ключом: это единственное
     # поле receipt'а, которое читают потребители остальных доставок и мержей, — второй
     # носитель той же мысли просто никто бы не открыл.
     if row["state"] == "QUEUED":
-        return _queue_block(row)
+        block = _queue_block(row)
+        if block:
+            return block
+        head = _next_target_delivery(row["target_session_id"])
+        if (
+            head is not None
+            and head["state"] == "WAITING_QUOTA"
+            and head["delivery_id"] != row["delivery_id"]
+        ):
+            return {
+                "code": "BEHIND_QUOTA_WAIT",
+                "retryable": False,
+                "message": (
+                    "Accepted and durably queued behind an earlier message to the same "
+                    "target that waits for the quota gate; it goes out in order once the "
+                    "gate opens. Do not resend and do not set a timer."
+                ),
+            }
+        return {}
     if row["state"] in {"DISPATCHING", "DELIVERY_UNKNOWN"}:
         return {
             "code": "CHECK_DELIVERY_STATUS",
@@ -198,8 +225,13 @@ async def accept_message_delivery(
     message_kind: str | None = None,
     wake: bool = True,
     provenance: MessageProvenance,
+    quota_wait=None,
 ) -> tuple[dict, int]:
-    """Commit one receipt, then best-effort wake its target runner."""
+    """Commit one receipt, then best-effort wake its target runner.
+
+    `quota_wait` — решение гейта квот, отбившее приёмку: сообщение всё равно принимается,
+    но сразу в `WAITING_QUOTA`, и runner его не трогает, пока `quota_queue` не отпустит.
+    """
     delivery_id = _validate_id(delivery_id)
     origin, origin_detail = provenance.to_storage()
     payload_hash = _payload_hash(
@@ -236,9 +268,14 @@ async def accept_message_delivery(
             if existing["state"] == "FAILED_BEFORE_SUBMIT":
                 connection.execute(
                     """UPDATE message_deliveries
-                       SET state='PREPARING', error_json=NULL, updated_at=?
+                       SET state=?, error_json=?, updated_at=?
                        WHERE delivery_id=? AND state='FAILED_BEFORE_SUBMIT'""",
-                    (now, delivery_id),
+                    (
+                        "WAITING_QUOTA" if quota_wait is not None else "PREPARING",
+                        json.dumps(wait_error(quota_wait), ensure_ascii=False)
+                        if quota_wait is not None else None,
+                        now, delivery_id,
+                    ),
                 )
                 existing = connection.execute(
                     "SELECT * FROM message_deliveries WHERE delivery_id=?",
@@ -257,14 +294,17 @@ async def accept_message_delivery(
                     target_name, target_scope, target_task_id, target_generation,
                     message, rendered_message, message_kind, wake, payload_hash,
                     origin, origin_detail,
-                    state, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
+                    state, error_json, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     delivery_id, SCHEMA_VERSION, source_session_id, source_principal,
                     source_name, source_scope, source_task_id, target_session_id,
                     target_name, target_scope, target_task_id, target_generation,
                     message, rendered_message, message_kind, int(bool(wake)), payload_hash,
                     origin, origin_detail,
+                    "WAITING_QUOTA" if quota_wait is not None else "QUEUED",
+                    json.dumps(wait_error(quota_wait), ensure_ascii=False)
+                    if quota_wait is not None else None,
                     now, now,
                 ),
             )
@@ -274,7 +314,7 @@ async def accept_message_delivery(
             resource = _resource(inserted_row)
             inserted = True
         connection.commit()
-        wake_runner = inserted or retrying
+        wake_runner = (inserted or retrying) and quota_wait is None
     except Exception:
         try:
             connection.rollback()
@@ -290,7 +330,7 @@ async def accept_message_delivery(
                 wake_runner = committed["state"] == "PREPARING"
             else:
                 inserted = True
-                wake_runner = True
+                wake_runner = committed["state"] != "WAITING_QUOTA"
         else:
             raise
     finally:
@@ -454,6 +494,88 @@ def mark_message_delivery_failed_before_submit(delivery_id: str, error: BaseExce
     )
 
 
+def mark_message_delivery_waiting_quota(delivery_id: str, decision) -> dict:
+    """Отказ гейта известен ДО провайдера: сообщение не теряется, а ждёт снятия гейта.
+
+    Пользовательскую строку лога убираем — иначе панель показала бы доставленным то, что
+    ещё не ушло; при выпуске `prepare_message_delivery` заведёт её заново.
+    """
+    delivery_id = _validate_id(delivery_id)
+    row = _row(delivery_id)
+    if row is None or row["state"] != "PREPARING":
+        return _resource(row) if row is not None else {}
+    return _update_state(
+        delivery_id, "WAITING_QUOTA", error=wait_error(decision), clear_user_log=True,
+    )
+
+
+def cancel_message_delivery(delivery_id: str, source_session_id: str | None) -> tuple[dict, int]:
+    """Отправитель снимает ещё не отправленную доставку (ждущую квоту или стоящую в очереди).
+
+    Переход условный: `PREPARING`/`DISPATCHING` уже у провайдера, их отменять нельзя — тот же
+    `UPDATE ... WHERE state IN` не даст гонке с runner'ом отменить уходящее сообщение.
+    """
+    delivery_id = _validate_id(delivery_id)
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,),
+        ).fetchone()
+        if row is None:
+            return {"ok": False, "error": {"code": "NOT_FOUND"}}, 404
+        if source_session_id is not None and row["source_session_id"] != source_session_id:
+            return {"ok": False, "error": {"code": "NOT_FOUND"}}, 404
+        connection.execute(
+            """UPDATE message_deliveries SET state='CANCELLED', error_json=NULL, updated_at=?
+               WHERE delivery_id=? AND state IN ('WAITING_QUOTA','QUEUED')""",
+            (_now(), delivery_id),
+        )
+        row = connection.execute(
+            "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,),
+        ).fetchone()
+    if row["state"] != "CANCELLED":
+        return {
+            "ok": False,
+            "delivery_id": delivery_id,
+            "delivery_state": row["state"],
+            "error": {
+                "code": "NOT_CANCELLABLE",
+                "message": (
+                    f"delivery is {row['state']}: only a delivery that has not reached the "
+                    "provider yet (WAITING_QUOTA or QUEUED) can be cancelled"
+                ),
+            },
+        }, 409
+    try:
+        ensure_target_runner(row["target_session_id"])  # снятое с головы не держит остальных
+    except Exception as error:
+        logger.warning("runner wake after cancel failed: %s", err_text(error))
+    return _resource(row), 200
+
+
+def list_waiting_deliveries(source_session_id: str | None = None) -> list[dict]:
+    """Ждущие квоту доставки (для отправителя и панели): что, кому, когда ориентировочно."""
+    sql = (
+        "SELECT * FROM message_deliveries WHERE state='WAITING_QUOTA'"
+        + (" AND source_session_id=?" if source_session_id is not None else "")
+        + " ORDER BY accept_seq"
+    )
+    with db._conn() as connection:
+        rows = connection.execute(
+            sql, (source_session_id,) if source_session_id is not None else (),
+        ).fetchall()
+    return [
+        {
+            **_resource(row),
+            "target_name": row["target_name"],
+            "target_scope": row["target_scope"],
+            "created_at": row["created_at"],
+            "message_preview": row["message"][:200],
+        }
+        for row in rows
+    ]
+
+
 def mark_message_delivery_unknown(delivery_id: str, error: BaseException, *, orphaned: bool = False) -> dict:
     error_json = json.dumps(
         {
@@ -544,8 +666,13 @@ class MessageDeliveryContext:
 # который мог дослать сообщение, мёртв, поэтому переставить порядок оно уже не может —
 # а именно перестановки и дубля барьер и не допускает. Исход так и остался неизвестным,
 # и запись об этом хранит состояние; блокировать очередь ему больше незачем.
+#
+# `WAITING_QUOTA` тоже НЕ терминальна и тоже во главе очереди: сообщение отбито гейтом квот
+# и ждёт его снятия (см. `app/quota_queue.py`). Именно поэтому всё принятое после него стоит
+# за ним и уходит в порядке принятия — а не обгоняет его после открытия гейта.
+# `CANCELLED` — отмена отправителем; она снимает сообщение с головы, как любой терминал.
 _TERMINAL_DELIVERY_STATES = (
-    "SUBMITTED", "FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED",
+    "SUBMITTED", "FAILED_BEFORE_SUBMIT", "DELIVERY_UNKNOWN_ORPHANED", "CANCELLED",
 )
 
 
@@ -688,13 +815,47 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
                 fan_barrier.rearm_wake(intercepted["fan_id"])
         raise
     except Exception as error:
+        from app.quota_gate import QuotaGateError
+
         if context.dispatched:
             mark_message_delivery_unknown(delivery_id, error)
+        elif isinstance(error, QuotaGateError):
+            mark_message_delivery_waiting_quota(delivery_id, error.decision)
+            if intercepted and intercepted["released"]:
+                fan_barrier.rearm_wake(intercepted["fan_id"])
+            return
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
             if intercepted and intercepted["released"]:
                 fan_barrier.rearm_wake(intercepted["fan_id"])
+            if was_parked(row["error_json"]):
+                await _tell_sender_parked_failed(row, error)
         raise
+
+
+async def _tell_sender_parked_failed(row, error: BaseException) -> None:
+    """Отправитель получил «принято, уйдёт сама» — об отказе после ожидания он не узнает иначе."""
+    if not row["source_session_id"]:
+        return
+    text = (
+        f"Delivery {row['delivery_id']} to '{row['target_name']}' was queued for the quota "
+        f"gate but could NOT be delivered after it opened: {err_text(error)}. "
+        "Send a new message (new delivery_id) to the target's current task if it is still needed."
+    )
+    try:
+        from app.deps import manager
+
+        await manager.send(
+            row["source_session_id"], text,
+            provenance=MessageProvenance(
+                origin="platform", senders=("Orchestra",), subtype="quota_wait_failed",
+            ),
+        )
+    except Exception as notify_error:
+        logger.warning(
+            "parked-delivery failure notice to %s failed: %s",
+            row["source_name"], err_text(notify_error),
+        )
 
 
 async def run_target_message_deliveries(target_session_id: str, manager=None) -> bool:
