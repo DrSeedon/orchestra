@@ -1,0 +1,25 @@
+<svg id="stage" viewBox="0 0 1200 520" role="img" aria-labelledby="st"><title id="st">Сколько живёт prefix-кеш DeepSeek у трёх провайдеров OpenRouter: замер V-676</title>
+ <!-- замер: запрос → пауза → тот же префикс -->
+ <g id="g1" opacity="0"><rect x="40" y="18" width="220" height="74" rx="12" fill="#151a24" stroke="#58c4dd" stroke-width="2"/>
+  <text x="150" y="50" text-anchor="middle" font-size="20" font-weight="700">запрос 1</text><text x="150" y="76" text-anchor="middle" font-size="15" fill="#8b93a7">прогрев · ~7 700 ток.</text></g>
+ <path id="tl" d="M260 55H760" stroke="#58c4dd" stroke-width="3" fill="none" stroke-dasharray="500" stroke-dashoffset="500"/>
+ <g id="plG" opacity="0"><text id="pl" x="510" y="40" text-anchor="middle" font-size="17" fill="#f0ac5f">пауза</text></g>
+ <g id="g2" opacity="0"><rect id="r2" x="760" y="18" width="240" height="74" rx="12" fill="#151a24" stroke="#58c4dd" stroke-width="2"/>
+  <text x="880" y="50" text-anchor="middle" font-size="20" font-weight="700">запрос 2</text><text id="r2s" x="880" y="76" text-anchor="middle" font-size="15" fill="#8b93a7">тот же префикс · из кеша?</text></g>
+ <circle id="dot" r="8" fill="#f0ac5f" opacity="0" along="tl"/>
+ <g id="hook" opacity="0"><text x="600" y="270" text-anchor="middle" font-size="44" font-weight="700">кеш ещё тёплый?</text>
+  <text x="600" y="320" text-anchor="middle" font-size="20" fill="#8b93a7">если нет — весь префикс считается заново</text></g>
+ <!-- цена промаха -->
+ <g id="cost" opacity="0">
+  <text x="60" y="210" font-size="18" fill="#8b93a7">повтор из кеша</text>
+  <rect id="cb1" x="60" y="222" width="0" height="44" rx="6" fill="#83c167"/>
+  <text id="cv1" x="100" y="252" font-size="20" font-family="JetBrains Mono" fill="#83c167" opacity="0">$0.000057</text>
+  <text x="60" y="320" font-size="18" fill="#8b93a7">тот же повтор без кеша</text>
+  <rect id="cb2" x="60" y="332" width="0" height="44" rx="6" fill="#fc6255"/>
+  <g id="cv2G" opacity="0"><text x="1080" y="410" text-anchor="end" font-size="20" font-family="JetBrains Mono" fill="#fc6255">$0.0023 — в 40 раз дороже</text></g>
+  <text x="60" y="460" font-size="15" fill="#6b7385">Together, DeepSeek V4.1 Flash, префикс 7 706 токенов</text>
+ </g>
+ <!-- таблица: три провайдера × десять пауз -->
+ <g id="grid" opacity="0"></g>
+ <g id="note" opacity="0"><text x="600" y="508" text-anchor="middle" font-size="16" fill="#8b93a7">1 замер на ячейку · 1 день (01.10.2026) · префикс 7.7К, у живого агента до 200К</text></g>
+</svg>

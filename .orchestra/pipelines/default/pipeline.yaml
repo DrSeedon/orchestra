@@ -3,7 +3,7 @@ description: Upstream-derived v2.18 pipeline with local models and runtime modul
 validation: fail-open
 defaults:
   model: opus
-  skills: [html-artifacts, html-motion]
+  skills: [html-artifacts, html-motion, explainer-video]
   mcp_servers: []
   inherit_claude_md: true
   prompt_layers:

@@ -25,7 +25,7 @@ from app.tg_bridge import (
     file_submit_timeout,
     is_provider_rejection,
 )
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo, send_as_video
 
 logger = logging.getLogger("orchestra.tg_file_deliveries")
 
@@ -335,7 +335,11 @@ def _payload_hash(
 
 
 def _batch_kind(path: str, size_bytes: int, as_document: bool) -> str:
-    return "photo" if send_as_photo(path, size_bytes, as_document) else "document"
+    if send_as_photo(path, size_bytes, as_document):
+        return "photo"
+    if send_as_video(path, as_document):
+        return "video"
+    return "document"
 
 
 def _plan_batch(prepared: list[dict[str, Any]], as_document: bool) -> None:
@@ -1497,20 +1501,22 @@ async def run_chat_deliveries(chat_id: int) -> None:
             try:
                 if len(ready) == 1:
                     candidate = ready[0]
+                    kind = (
+                        candidate["batch_kind"]
+                        if candidate["batch_id"]
+                        else _batch_kind(
+                            candidate["original_name"],
+                            candidate["size_bytes"],
+                            bool(candidate["as_document"]),
+                        )
+                    )
                     result = await _submit_file_snapshot_once(
                         candidate["chat_id"],
                         candidate["snapshot_path"],
                         candidate["outbound_caption"],
                         candidate["thread_id"],
-                        is_photo=(
-                            candidate["batch_kind"] == "photo"
-                            if candidate["batch_id"]
-                            else send_as_photo(
-                                candidate["original_name"],
-                                candidate["size_bytes"],
-                                bool(candidate["as_document"]),
-                            )
-                        ),
+                        is_photo=kind == "photo",
+                        is_video=kind == "video",
                     )
                     results = [result]
                 else:

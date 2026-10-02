@@ -1,0 +1,5 @@
+.tts-cache/
+frames/
+*.voice.wav
+.*.part*.mp4
+.*.parts.txt

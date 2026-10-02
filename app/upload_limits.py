@@ -20,6 +20,8 @@ MAX_UPLOAD_MB = 2000
 MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024
 MAX_PHOTO_BYTES = 10 * 1024 * 1024
 PHOTO_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"})
+# Клиенты Telegram проигрывают в ленте только MPEG4; прочее Bot API велит слать документом.
+VIDEO_EXTENSIONS = frozenset({".mp4", ".m4v"})
 
 
 def send_as_photo(name: str, size_bytes: int, as_document: bool) -> bool:
@@ -27,3 +29,15 @@ def send_as_photo(name: str, size_bytes: int, as_document: bool) -> bool:
     if as_document or size_bytes > MAX_PHOTO_BYTES:
         return False
     return Path(name).suffix.lower() in PHOTO_EXTENSIONS
+
+
+def send_as_video(name: str, as_document: bool) -> bool:
+    """Отправлять ли вложение видео (проигрывается в ленте), а не документом.
+
+    Отдельного потолка размера здесь нет: локальный Bot API принимает видео до
+    общего `MAX_UPLOAD_BYTES`, а отказ Telegram откатывается в документ
+    (`app/tg_video.py`).
+    """
+    if as_document:
+        return False
+    return Path(name).suffix.lower() in VIDEO_EXTENSIONS

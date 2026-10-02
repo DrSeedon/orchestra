@@ -1,0 +1,10 @@
+/* Кадр ролика 16:9 поверх каркаса html-motion: тёмная сцена, без кнопок, подпись = закадровый текст. */
+:root{color-scheme:dark}
+html,body{background:#0b0e14;color:#e6e6e6;font-family:Manrope,system-ui,sans-serif}
+.mv{max-width:none;margin:0;height:100vh;box-sizing:border-box;padding:28px 56px 22px;border-radius:0;box-shadow:none;background:#0b0e14;display:flex;flex-direction:column}
+.mv h1{font-size:30px;font-weight:700;color:#fff;margin:0 0 4px;letter-spacing:-.01em}
+.stg{flex:1;min-height:0;overflow:hidden}.stg>svg{min-width:0;width:100%;height:100%}
+#stage{fill:#e6e6e6;font-family:Manrope,system-ui,sans-serif}
+.cap{min-height:4.6em;margin:4px 0 0;font-size:22px;line-height:1.38;color:#d5d8df}
+.cap b{font-size:14px;font-weight:700;color:#58c4dd;text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px}
+.bar,.ch{display:none!important}

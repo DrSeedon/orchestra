@@ -1945,7 +1945,7 @@ async def send_file(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept a local file for durable Telegram delivery; returns a status id, not delivery confirmation. Local Bot API: documents up to 2000 MB (200 MB verified); do not substitute cloud's 50 MB cap. Images above 10 485 760 bytes automatically become documents; as_document forces this for smaller images. event_id is an optional UUID; use file_delivery_status after ambiguous delivery, not a new id."""
+    """Accept a local file for durable Telegram delivery; returns a status id, not delivery confirmation. Local Bot API: documents up to 2000 MB (200 MB verified); do not substitute cloud's 50 MB cap. Images above 10 485 760 bytes automatically become documents; MP4 goes as playable video, falling back to a document if Telegram rejects it; as_document forces a document. event_id is an optional UUID; use file_delivery_status after ambiguous delivery, not a new id."""
     event_id = event_id.strip() if isinstance(event_id, str) else ""
     if event_id:
         try:
@@ -2015,7 +2015,7 @@ async def send_files(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept an ordered batch for durable Telegram album delivery; returns receipt, not completion. Local Bot API: documents up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents. Albums hold at most 10 files of one kind; longer/mixed batches split automatically. as_document forces documents. event_id is an optional UUID; resolve ambiguous delivery with file_delivery_status, not a new id."""
+    """Accept an ordered batch for durable Telegram album delivery; returns receipt, not completion. Local Bot API: documents up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 goes as video. Albums hold at most 10 files of one kind; longer/mixed batches split automatically. as_document forces documents. event_id is an optional UUID; resolve ambiguous delivery with file_delivery_status, not a new id."""
 
     if (
         not isinstance(paths, list)

@@ -42,7 +42,8 @@ from app.user_message_display import (
     user_message_display_content,
 )
 from app.transcription import transcribe_audio as _transcribe_audio
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo
+from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo, send_as_video
+from app.tg_video import send_group_with_video_fallback, send_video_or_document, video_kwargs
 
 logger = logging.getLogger("tg-bridge")
 logger.setLevel(logging.DEBUG)
@@ -2569,7 +2570,7 @@ async def _tg_send_isolated_photo(
 async def _tg_send_file_safe(
     chat_id: int, path: str, caption: str | None, thread_id: int | None,
     *, is_photo: bool, important: bool, placeholder_text: str | None = None,
-    isolated_preview: bool = False,
+    isolated_preview: bool = False, is_video: bool = False,
 ):
     if is_photo and (not important or isolated_preview):
         return await _tg_send_isolated_photo(
@@ -2589,11 +2590,16 @@ async def _tg_send_file_safe(
             return await bot.send_photo(
                 chat_id, tg_file, caption=caption, message_thread_id=thread_id,
             )
+        if is_video:
+            return await send_video_or_document(
+                bot, chat_id, path, filename=Path(path).name,
+                caption=caption, thread_id=thread_id,
+            )
         return await bot.send_document(
             chat_id, tg_file, caption=caption, message_thread_id=thread_id,
         )
 
-    label = "send_photo" if is_photo else "send_document"
+    label = "send_photo" if is_photo else "send_video" if is_video else "send_document"
     return await _tg_call_safe(
         chat_id,
         _send,
@@ -2627,6 +2633,7 @@ async def _submit_file_snapshot_once(
     thread_id: int | None,
     *,
     is_photo: bool,
+    is_video: bool = False,
 ):
     """Cross the Bot API boundary once for a durable file-delivery receipt."""
     if bot is None:
@@ -2641,6 +2648,11 @@ async def _submit_file_snapshot_once(
                 tg_file,
                 caption=caption,
                 message_thread_id=thread_id,
+            )
+        if is_video:
+            return await send_video_or_document(
+                bot, chat_id, snapshot_path, filename=Path(snapshot_path).name,
+                caption=caption, thread_id=thread_id,
             )
         return await bot.send_document(
             chat_id,
@@ -2660,28 +2672,33 @@ async def _submit_file_group_once(
         raise RuntimeError("TG bridge not active")
     if not 2 <= len(items) <= 10:
         raise ValueError("Telegram media group must contain 2-10 files")
-    from aiogram.types import FSInputFile, InputMediaDocument, InputMediaPhoto
+    from aiogram.types import (
+        FSInputFile, InputMediaDocument, InputMediaPhoto, InputMediaVideo,
+    )
 
-    media = []
-    for item in items:
+    def _media(item: dict, video_meta):
         tg_file = FSInputFile(
             item["snapshot_path"], filename=item["original_name"],
         )
-        media_type = InputMediaPhoto if item["kind"] == "photo" else InputMediaDocument
-        media.append(media_type(
-            media=tg_file,
-            caption=item.get("caption") or None,
-            parse_mode=None,
-        ))
-    timeout = file_submit_timeout(
-        _snapshot_bytes([item["snapshot_path"] for item in items])
-    )
-    async with asyncio.timeout(timeout):
+        common = {"media": tg_file, "caption": item.get("caption") or None, "parse_mode": None}
+        if item["kind"] == "photo":
+            return InputMediaPhoto(**common)
+        if item["kind"] == "video" and video_meta is not None:
+            return InputMediaVideo(**common, **video_kwargs(video_meta))
+        return InputMediaDocument(**common)
+
+    async def _send_group(media: list):
         return await bot.send_media_group(
             chat_id=chat_id,
             media=media,
             message_thread_id=thread_id,
         )
+
+    timeout = file_submit_timeout(
+        _snapshot_bytes([item["snapshot_path"] for item in items])
+    )
+    async with asyncio.timeout(timeout):
+        return await send_group_with_video_fallback(_send_group, items, _media)
 
 
 def is_provider_rejection(exc: BaseException) -> bool:
@@ -2868,7 +2885,9 @@ def _find_orch_for_scope(scope: str) -> str | None:
     return top_level or any_orch
 
 
-async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: bool):
+async def _mirror_send_file(
+    orch_name: str, path: str, caption: str, is_photo: bool, is_video: bool = False,
+):
     mirror = config.get("mirrors", {}).get(orch_name)
     if not mirror or not bot:
         return False
@@ -2884,6 +2903,7 @@ async def _mirror_send_file(orch_name: str, path: str, caption: str, is_photo: b
             path=path,
             caption=caption,
             is_photo=is_photo,
+            is_video=is_video,
         ),
     )
 
@@ -2949,15 +2969,16 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
     label = label[:1024]
     is_photo = send_as_photo(fp.name, file_size, as_document)
+    is_video = send_as_video(fp.name, as_document)
     msg = await _tg_send_file_safe(
         config["group_id"], path, label, thread_id,
-        is_photo=is_photo, important=True,
+        is_photo=is_photo, important=True, is_video=is_video,
     )
     if msg is None:
         return {"error": "TG file delivery failed; see tg-bridge logs"}
     logger.info(f"send_file: delivered msg_id={msg.message_id} chat_id={msg.chat.id} thread={getattr(msg, 'message_thread_id', None)}")
     if orch_name:
-        await _mirror_send_file(orch_name, path, label, is_photo)
+        await _mirror_send_file(orch_name, path, label, is_photo, is_video)
     return {"ok": True, "message_id": msg.message_id, "chat_id": msg.chat.id}
 
 
@@ -3219,6 +3240,7 @@ class _MirrorItem:
     path: str | None = None
     caption: str | None = None
     is_photo: bool = False
+    is_video: bool = False
     important: bool = False
 
 
@@ -3234,6 +3256,7 @@ async def _mirror_worker(orch_name: str, outbox: asyncio.Queue) -> None:
                     item.topic_id,
                     is_photo=item.is_photo,
                     important=False,
+                    is_video=item.is_video,
                 )
             else:
                 completion = await _tg_send_safe(
