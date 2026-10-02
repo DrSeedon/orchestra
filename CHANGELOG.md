@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- **Иконка простоя TG-топика появлялась через 5 минут после конца хода** (`_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS` в `app/tg_bridge.py`: 300 → 60 с). Пауза из #99 защищает от мигания иконки между частыми ходами, но 5 минут владелец воспринимал как «иконки запаздывают». Успешная смена иконки теперь пишется в журнал (`TG topic_status <orch> -> running|idle (edit Ns)`); раньше логировались только отказы, и реальную задержку нельзя было измерить.
 - **Сжатие контекста (компакт) срывалось у агентов OpenRouter: ack-ход не укладывался в 60 с** (`_compact_ack_timeout`, `COMPACT_ACK_TIMEOUT_SECONDS`/`_HARNESS` в `app/session.py`). После сжатия платформа поднимает свежую сессию без префикс-кеша и шлёт «Acknowledge briefly», ожидая завершения хода `asyncio.wait_for(..., timeout=60)`. DeepSeek V4.1 Flash на OpenRouter (7–83 tps у разных провайдеров) не отвечал за минуту на полном перечитывании системного промпта → таймаут → откат к несжатой сессии, агент залипал у потолка контекста. Триггер: `openrouter-lab-orchestrator`, компакт с 59% контекста — «compact ack turn did not complete (60s)». Лимит для Claude/Codex оставлен 60 с, для Harness поднят до 240 с; переопределяется `COMPACT_ACK_TIMEOUT_SECONDS`. Тест `test_compact_ack_timeout_is_longer_for_harness`.
 
 ### Added
