@@ -4170,7 +4170,19 @@ function addChatEntry(type, content, ts, anchor, payload) {
     if (type === 'provider_limit') return; // Runtime telemetry; the status/error row carries the user notice.
     if (type === 'done_gate_verdict') return; // V-614 (removed 30.09): old rows stay in logs, never render them.
     if (type === 'error' && /^compact attempt \d+\/\d+ failed:/.test(content || '')) return;
-    if (_isSilentTurnMarker(type, content)) return;
+    if (_isSilentTurnMarker(type, content)) {
+        // The marker already streamed into a live bubble; without this it stays with a cursor.
+        if (streamBubble) {
+            _streamFlush();
+            streamBubble.remove();
+            streamBubble = null;
+            streamContent = '';
+            streamPending = '';
+            _streamDeferredFinal = null;
+            if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
+        }
+        return;
+    }
     if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
     if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {
