@@ -1564,7 +1564,11 @@ async def quota_override(req: dict):
             {"error": str(error), "max_minutes": MAX_GATE_OVERRIDE_SECONDS / 60.0},
             status_code=400,
         )
-    return {"override_seconds_left": gate_override_remaining()}
+    # Доставки, ждавшие гейт, уходят сразу, а не на следующем минутном проходе.
+    from app.quota_queue import release_waiting
+
+    released = await release_waiting()
+    return {"override_seconds_left": gate_override_remaining(), "released_deliveries": released}
 
 
 async def build_quota_map() -> dict:

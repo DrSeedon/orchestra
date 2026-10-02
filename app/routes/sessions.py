@@ -776,6 +776,18 @@ async def mark_fan_member_terminal(req: FanMemberTerminalRequest):
     return {"ok": True, "fan_id": req.fan_id, "released": released}
 
 
+async def _preflight_or_quota_wait(session_id: str):
+    """Гейт квот закрыт → не отказ, а решение для приёмки в `WAITING_QUOTA` (V-678).
+
+    Любая другая ошибка предполётной проверки по-прежнему отказывает приёмку.
+    """
+    try:
+        await manager.preflight_message_delivery(session_id)
+    except QuotaGateError as error:
+        return error.decision
+    return None
+
+
 @router.post("/api/sessions/{name}/send")
 async def send_message(name: str, req: SendRequest, request: Request = None):
     try:
@@ -860,7 +872,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     return JSONResponse(conflict, status_code=conflict_status)
                 if existing["state"] == "FAILED_BEFORE_SUBMIT":
                     async with manager.get_session_lock(existing["target_session_id"]):
-                        await manager.preflight_message_delivery(
+                        quota_wait = await _preflight_or_quota_wait(
                             existing["target_session_id"],
                         )
                         resource, status_code = (
@@ -881,6 +893,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                                 message_kind=req.message_kind,
                                 wake=req.wake,
                                 provenance=provenance,
+                                quota_wait=quota_wait,
                             )
                         )
                 else:
@@ -965,7 +978,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     status_code=404,
                 )
             async with manager.get_session_lock(target.id):
-                await manager.preflight_message_delivery(target.id)
+                quota_wait = await _preflight_or_quota_wait(target.id)
                 target_generation = (
                     f"session={target.id}|task={getattr(target, 'task_id', '')}|"
                     f"branch={getattr(target, 'branch', '')}|"
@@ -988,6 +1001,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     message_kind=req.message_kind,
                     wake=req.wake,
                     provenance=provenance,
+                    quota_wait=quota_wait,
                 )
             return JSONResponse(resource, status_code=status_code)
         if req.sender:
@@ -1369,6 +1383,52 @@ async def get_message_delivery_status(delivery_id: str, request: Request = None)
     if resource is None:
         return JSONResponse({"error": "not found"}, status_code=404)
     return resource
+
+
+def _delivery_caller(request: Request | None) -> tuple[bool, str] | None:
+    """(оператор?, id сессии-отправителя) либо None, если вызывающий не подтверждён."""
+    from app.auth import validate_session
+    from app.mcp_proof import check_mcp_proof
+
+    if request is None:
+        return None
+    if validate_session(request.cookies.get("session", "")):
+        return True, ""
+    source_id = request.headers.get("x-orchestra-session-id", "").strip()
+    proof = request.headers.get("x-orchestra-mcp-proof", "")
+    if source_id and get_session_row(source_id) and check_mcp_proof(source_id, proof):
+        return False, source_id
+    return None
+
+
+@router.get("/api/message-deliveries")
+async def list_waiting_message_deliveries(request: Request = None):
+    """Доставки, ждущие снятия гейта квот: свои — для агента, все — для оператора."""
+    from app import message_deliveries
+
+    caller = _delivery_caller(request)
+    if caller is None:
+        return keyed_auth_required()
+    operator, source_id = caller
+    return {"waiting": message_deliveries.list_waiting_deliveries(None if operator else source_id)}
+
+
+@router.post("/api/message-deliveries/{delivery_id}/cancel")
+async def cancel_message_delivery(delivery_id: str, request: Request = None):
+    """Отменить ещё не ушедшую доставку (ждущую квоту или стоящую в очереди)."""
+    from app import message_deliveries
+
+    caller = _delivery_caller(request)
+    if caller is None:
+        return keyed_auth_required()
+    operator, source_id = caller
+    try:
+        resource, status = message_deliveries.cancel_message_delivery(
+            delivery_id, None if operator else source_id,
+        )
+    except ValueError as exc:
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    return JSONResponse(resource, status_code=status)
 
 
 @router.post("/api/sessions/{name}/compact")

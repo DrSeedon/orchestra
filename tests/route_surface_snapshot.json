@@ -139,9 +139,21 @@
   ]
  ],
  [
+  "/api/message-deliveries",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/message-deliveries/{delivery_id}",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/message-deliveries/{delivery_id}/cancel",
+  [
+   "POST"
   ]
  ],
  [

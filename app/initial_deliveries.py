@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from app import db
 from app.errtext import err_text
 from app.events import MessageProvenance
+from app.quota_queue import quota_wait_action, wait_error
 
 
 SCHEMA_VERSION = 2
@@ -33,6 +34,8 @@ def _next_action(row: sqlite3.Row | dict) -> dict | None:
             "retryable": False,
             "message": "Wait for this accepted delivery and check the same delivery_id.",
         }
+    if state == "WAITING_QUOTA":
+        return quota_wait_action(row)
     if state == "FAILED_BEFORE_SUBMIT":
         return {
             "code": "RETRY_SAME_DELIVERY",
@@ -394,6 +397,44 @@ def _not_submitted_error(error: BaseException) -> dict:
     }
 
 
+def mark_initial_delivery_waiting_quota(delivery_id: str, decision) -> dict:
+    """Гейт квот отбил первое задание до провайдера: оно ждёт его снятия, а не пропадает.
+
+    Строку пользовательского лога убираем (панель не должна показывать недоставленное
+    доставленным); при выпуске `prepare_initial_delivery` заведёт её заново.
+    """
+    delivery_id = _validate_delivery_id(delivery_id)
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
+        ).fetchone()
+        if row is None:
+            raise KeyError(f"initial delivery not found: {delivery_id}")
+        if row["state"] != "PREPARING":
+            return _resource(row)
+        connection.execute(
+            """UPDATE initial_deliveries
+               SET state='WAITING_QUOTA', error_json=?, updated_at=?
+               WHERE delivery_id=? AND state='PREPARING'""",
+            (json.dumps(wait_error(decision), ensure_ascii=False), _now(), delivery_id),
+        )
+        if row["user_log_id"] is not None:
+            # Сначала отвязать: внешний ключ user_log_id не даёт удалить лог под ссылкой.
+            connection.execute(
+                "UPDATE initial_deliveries SET user_log_id=NULL WHERE delivery_id=?",
+                (delivery_id,),
+            )
+            connection.execute(
+                "DELETE FROM logs WHERE id=? AND session_id=? AND type='user_message'",
+                (row["user_log_id"], row["session_id"]),
+            )
+        row = connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
+        ).fetchone()
+        return _resource(row)
+
+
 def mark_initial_delivery_failed_before_submit(
     delivery_id: str, error: BaseException,
 ) -> dict:
@@ -524,8 +565,13 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
             mark_initial_delivery_failed_before_submit(delivery_id, error)
         raise
     except Exception as error:
+        from app.quota_gate import QuotaGateError
+
         if context.dispatched:
             mark_initial_delivery_unknown(delivery_id, error)
+        elif isinstance(error, QuotaGateError):
+            mark_initial_delivery_waiting_quota(delivery_id, error.decision)
+            return
         else:
             mark_initial_delivery_failed_before_submit(delivery_id, error)
         raise

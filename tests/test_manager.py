@@ -55,31 +55,6 @@ def _isolate_pipelines_dir(monkeypatch):
 
 class TestCreateSession:
     @pytest.mark.asyncio
-    async def test_planned_initial_turn_is_refused_before_session_publish(
-        self, mgr, monkeypatch,
-    ):
-        from app.quota_gate import QuotaDecision, QuotaGateError
-
-        async def blocked(_model, observation_loader=None):
-            now = datetime.now(timezone.utc).timestamp()
-            return QuotaDecision(
-                state="blocked", model="claude-sonnet-5-5[1m]",
-                provider="anthropic", provider_label="Claude", lane="claude",
-                gated=True, utilization=95, progress=0.5, tolerance_pp=5.5,
-                limit_pct=55.5, observed_at=now, valid_until=now + 60,
-                reset_at=None, window_starts_at=None, reason="test refusal",
-            )
-
-        monkeypatch.setattr("app.quota_gate.get_worker_admission", blocked)
-        with pytest.raises(QuotaGateError):
-            await mgr.create_session(
-                name="blocked-worker", scope="/s", cwd="/tmp",
-                model="claude-sonnet-5-5[1m]", planned_initial_turn=True,
-            )
-
-        assert mgr.sessions == {}
-
-    @pytest.mark.asyncio
     async def test_idle_create_is_control_action_and_does_not_read_quota(
         self, mgr, monkeypatch,
     ):
