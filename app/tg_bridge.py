@@ -3039,7 +3039,7 @@ _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 _TG_TOPIC_STATUS_TIMEOUT = 5
 _TG_TOPIC_CREATE_TIMEOUT = 5
-_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS = 5 * 60
+_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS = 60
 
 
 def _pick_unique_topic_name(orch_name: str) -> str:
@@ -3131,7 +3131,13 @@ async def _update_topic_status(orch_name: str, is_running: bool):
     thread_id = config["topics"].get(orch_name)
     primary_updated = False
     if thread_id and bot:
+        started = time.monotonic()
         primary_updated = await _do_edit(config["group_id"], thread_id) is not None
+        if primary_updated:
+            logger.info(
+                "TG topic_status %s -> %s (edit %.1fs)",
+                orch_name, "running" if is_running else "idle", time.monotonic() - started,
+            )
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
         await _do_edit(mirror["chat_id"], mirror["topic_id"])
