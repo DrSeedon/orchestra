@@ -46,6 +46,8 @@ def delivery_db(tmp_path, monkeypatch):
 
     db_path = tmp_path / "delivery.db"
     monkeypatch.setattr(db, "DB_PATH", db_path)
+    # lifespan пересчитывает db.DB_PATH из окружения; без этого TestClient уходит в другую базу.
+    monkeypatch.setenv("ORCHESTRA_DB_PATH", str(db_path))
     db.init_db()
     db.save_session({
         "id": SESSION_ID,
