@@ -5242,3 +5242,167 @@ class TestSendMessageOwnBubble:
         await tb._update_progress(state, 42, "orch", force=True)
         head, body = shown[0]
         assert head.startswith("⚙️ 1 ") and len(body.splitlines()) == 1
+
+
+# ── V-681: MP4 уходит видео (проигрывается в ленте), отказ → документ ───────
+
+
+@pytest.fixture
+def mp4_file(tmp_path):
+    import shutil
+    import subprocess
+
+    if not (shutil.which("ffmpeg") and shutil.which("ffprobe")):
+        pytest.skip("ffmpeg/ffprobe not installed")
+    path = tmp_path / "explainer.mp4"
+    subprocess.run(
+        ["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "testsrc=size=64x48:rate=10",
+         "-t", "3", "-pix_fmt", "yuv420p", str(path)],
+        check=True,
+    )
+    return path
+
+
+def _video_bot(send_video_error=None):
+    from aiogram.methods import SendVideo
+
+    message = SimpleNamespace(message_id=681, chat=SimpleNamespace(id=-100123456))
+    calls = []
+
+    class _Bot:
+        async def send_video(self, chat_id, video, **kwargs):
+            calls.append(("video", chat_id, video, kwargs))
+            if send_video_error == "reject":
+                raise TelegramBadRequest(
+                    method=SendVideo(chat_id=chat_id, video="x"),
+                    message="VIDEO_CONTENT_TYPE_INVALID",
+                )
+            if send_video_error == "network":
+                raise TelegramNetworkError(
+                    method=SendVideo(chat_id=chat_id, video="x"), message="timeout",
+                )
+            return message
+
+        async def send_document(self, chat_id, document, **kwargs):
+            calls.append(("document", chat_id, document, kwargs))
+            return message
+
+    return _Bot(), calls, message
+
+
+def test_v681_mp4_is_video_and_as_document_overrides():
+    from app.upload_limits import send_as_photo, send_as_video
+    from app.tg_file_deliveries import _batch_kind
+
+    assert send_as_video("clip.MP4", as_document=False) is True
+    assert send_as_video("clip.mp4", as_document=True) is False
+    assert send_as_video("clip.webm", as_document=False) is False
+    assert send_as_photo("clip.mp4", 100, False) is False
+    assert _batch_kind("clip.mp4", 100, False) == "video"
+    assert _batch_kind("clip.mp4", 100, True) == "document"
+    assert _batch_kind("shot.png", 100, False) == "photo"
+
+
+@pytest.mark.asyncio
+async def test_v681_video_sent_with_streaming_metadata_and_thumbnail(tb, mp4_file):
+    bot, calls, message = _video_bot()
+    tb.bot = bot
+
+    result = await tb._submit_file_snapshot_once(
+        -100123456, str(mp4_file), "cap", 42, is_photo=False, is_video=True,
+    )
+
+    assert result is message
+    assert [call[0] for call in calls] == ["video"]
+    kwargs = calls[0][3]
+    assert kwargs["supports_streaming"] is True
+    assert (kwargs["width"], kwargs["height"], kwargs["duration"]) == (64, 48, 3)
+    assert kwargs["thumbnail"] is not None
+    assert kwargs["message_thread_id"] == 42 and kwargs["caption"] == "cap"
+
+
+@pytest.mark.asyncio
+async def test_v681_rejected_video_falls_back_to_document(tb, mp4_file):
+    bot, calls, message = _video_bot(send_video_error="reject")
+    tb.bot = bot
+
+    result = await tb._submit_file_snapshot_once(
+        -100123456, str(mp4_file), "cap", 42, is_photo=False, is_video=True,
+    )
+
+    assert result is message
+    assert [call[0] for call in calls] == ["video", "document"]
+    assert calls[1][3]["message_thread_id"] == 42
+
+
+@pytest.mark.asyncio
+async def test_v681_unknown_video_outcome_is_not_resent_as_document(tb, mp4_file):
+    """Сетевой сбой — исход неизвестен: повтор документом мог бы задвоить файл."""
+    bot, calls, _message = _video_bot(send_video_error="network")
+    tb.bot = bot
+
+    with pytest.raises(TelegramNetworkError):
+        await tb._submit_file_snapshot_once(
+            -100123456, str(mp4_file), "cap", 42, is_photo=False, is_video=True,
+        )
+    assert [call[0] for call in calls] == ["video"]
+
+
+@pytest.mark.asyncio
+async def test_v681_send_file_to_tg_routes_mp4_as_video_to_topic_and_mirror(
+    tb, mp4_file, monkeypatch,
+):
+    bot, calls, _message = _video_bot()
+    tb.bot = bot
+    monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    tb.config["topics"] = {"boss": 100}
+    tb.config["mirrors"] = {"boss": {"chat_id": -100999, "topic_id": 7}}
+    monkeypatch.setattr(tb, "_find_orch_for_scope", lambda s: "boss")
+    mirrored = []
+    monkeypatch.setattr(tb, "_mirror_submit", lambda orch, item: mirrored.append(item) or True)
+
+    result = await tb.send_file_to_tg(str(mp4_file), "ролик", "/s", "boss")
+
+    assert result["ok"] is True
+    assert [call[0] for call in calls] == ["video"]
+    assert mirrored[0].is_video is True and mirrored[0].is_photo is False
+
+    completion = await tb._tg_send_file_safe(
+        mirrored[0].chat_id, mirrored[0].path, mirrored[0].caption, mirrored[0].topic_id,
+        is_photo=False, important=False, is_video=True,
+    )
+    if isinstance(completion, (asyncio.Future, asyncio.Task)):
+        await completion
+    assert [call[0] for call in calls] == ["video", "video"]
+    assert calls[1][1] == -100999
+
+
+@pytest.mark.asyncio
+async def test_v681_rejected_video_album_is_resent_as_documents(tb, mp4_file):
+    from aiogram.methods import SendMediaGroup
+
+    sent = []
+
+    class _Bot:
+        async def send_media_group(self, chat_id, media, message_thread_id=None):
+            types_ = [type(item).__name__ for item in media]
+            sent.append(types_)
+            if "InputMediaVideo" in types_:
+                raise TelegramBadRequest(
+                    method=SendMediaGroup(chat_id=chat_id, media=[]), message="rejected",
+                )
+            return [SimpleNamespace(message_id=i) for i, _ in enumerate(media)]
+
+    tb.bot = _Bot()
+    items = [
+        {"snapshot_path": str(mp4_file), "original_name": "a.mp4", "kind": "video"},
+        {"snapshot_path": str(mp4_file), "original_name": "b.mp4", "kind": "video"},
+    ]
+
+    result = await tb._submit_file_group_once(-100123456, items, 42)
+
+    assert len(result) == 2
+    assert sent == [
+        ["InputMediaVideo", "InputMediaVideo"],
+        ["InputMediaDocument", "InputMediaDocument"],
+    ]

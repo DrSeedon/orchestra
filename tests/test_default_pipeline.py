@@ -66,7 +66,7 @@ class TestDefaultManifestLoads:
         cfg = P.load_pipeline(PIPELINE)
         d = cfg.defaults
         assert d.model == "opus"
-        assert d.skills == ["html-artifacts", "html-motion"]  # unified visuals + animation companion for every role
+        assert d.skills == ["html-artifacts", "html-motion", "explainer-video"]  # visuals, animation, narrated video for every role
         assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
         assert d.base_branch_strategy == "main"  # все worktree от main
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
@@ -217,7 +217,8 @@ class TestDefaultRolesResolve:
     def test_orchestrator_skills_from_manifest(self):
         rr = P.get_role(PIPELINE, "orchestrator")
         assert set(rr.skills) == {
-            "html-artifacts", "html-motion", "grill-me", "orchestra-agents", "laptop-access",
+            "html-artifacts", "html-motion", "explainer-video", "grill-me", "orchestra-agents",
+            "laptop-access",
         }
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
@@ -425,7 +426,7 @@ class TestUpstreamCharacterization:
     def test_skill_files_keep_frontmatter(self):
         """skills/*.md портированы С frontmatter (это skill-метаданные name/description,
         их читает inject_skills_to_worktree)."""
-        for skill in ("html-artifacts", "html-motion"):
+        for skill in ("html-artifacts", "html-motion", "explainer-video"):
             text = P.prompt_path(PIPELINE, f"skills/{skill}.md").read_text()
             assert text.lstrip().startswith("---"), f"{skill}.md must keep frontmatter"
             assert f"name: {skill}" in text
