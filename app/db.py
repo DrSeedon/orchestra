@@ -2076,7 +2076,7 @@ def bg_get_jobs(scope: str | None = None, session_id: str | None = None,
             clauses.append("status IN ('active','triggering')")
         where = "WHERE " + " AND ".join(clauses) if clauses else ""
         rows = c.execute(
-            f"SELECT * FROM bg_jobs {where} ORDER BY created_at DESC LIMIT 50", params
+            f"SELECT * FROM bg_jobs {where} ORDER BY (status IN ('active','triggering')) DESC, created_at DESC LIMIT 200", params
         ).fetchall()
         return [dict(r) for r in rows]
 

@@ -1097,3 +1097,37 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   flex-shrink: 0; color: #64748b; font: 600 9px/1.4 var(--font-mono);
   border: 1px solid #334155; border-radius: 3px; padding: 0 4px;
 }
+
+/* Панель JOBS: карточки заданий агентов и лента во времени */
+.job-bar { white-space:nowrap; gap:6px; display:flex; justify-content:space-between; align-items:center; padding:4px 6px; font-size:10px; color:#94a3b8; position:sticky; top:0; background:#0b1120; z-index:2; }
+.job-switch button { padding:1px 6px; border:1px solid #334155; color:#94a3b8; font-size:10px; }
+.job-switch button:first-child { border-radius:4px 0 0 4px; }
+.job-switch button:last-child { border-radius:0 4px 4px 0; border-left:0; }
+.job-switch button.on { background:#3730a3; color:#fff; border-color:#4f46e5; }
+.job-group-h { padding:6px 6px 2px; font-size:11px; font-weight:700; color:#e2e8f0; }
+.job-group-h span { font-weight:400; color:#64748b; font-size:10px; margin-left:4px; }
+.job-card { margin:3px 4px; padding:5px 7px; border:1px solid #1e293b; border-left:3px solid #334155; border-radius:6px; background:rgba(15,23,42,.6); font-size:11px; line-height:1.45; }
+.job-card.job-done { opacity:.6; }
+.job-card-stale { border-left-color:#f87171; background:rgba(127,29,29,.15); }
+.job-head { display:flex; align-items:center; gap:6px; cursor:pointer; }
+.job-kind { font-weight:700; }
+.job-state { font-size:10px; margin-left:auto; }
+.job-cancel-btn { color:#64748b; padding:0 4px; } .job-cancel-btn:hover { color:#f87171; }
+.job-msg { color:#cbd5e1; cursor:pointer; margin:2px 0; white-space:pre-wrap; word-break:break-word; }
+.job-clamp { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+.job-who { color:#64748b; font-size:10px; }
+.job-line { font-size:10px; color:#94a3b8; } .job-next { color:#7dd3fc; } .job-past { color:#a1a1aa; }
+.job-stale { border-radius:4px; padding:0 4px; font-weight:700; }
+.job-stale-1 { background:rgba(245,158,11,.2); color:#fbbf24; }
+.job-stale-2 { background:rgba(248,113,113,.25); color:#fca5a5; }
+.job-detail { margin-top:4px; padding-top:4px; border-top:1px dashed #334155; font-size:10px; color:#94a3b8; }
+.job-full { color:#e2e8f0; white-space:pre-wrap; word-break:break-word; margin-bottom:4px; max-height:220px; overflow-y:auto; }
+.job-k { color:#475569; }
+.job-out { margin:3px 0; padding:3px 6px; background:#0d1117; border-radius:4px; white-space:pre-wrap; word-break:break-all; max-height:80px; overflow-y:auto; color:#cbd5e1; }
+.job-day { padding:6px 6px 0; font-size:10px; font-weight:700; color:#64748b; text-transform:uppercase; }
+.job-now { margin:6px 4px; padding:1px 6px; font-size:10px; font-weight:700; color:#fff; background:#4f46e5; border-radius:4px; }
+.job-ev { display:flex; gap:4px; }
+.job-ev-t { width:46px; flex:none; text-align:right; padding-top:6px; font-size:11px; font-weight:700; color:#cbd5e1; }
+.job-ev-t span { font-weight:400; font-size:9px; color:#64748b; }
+.job-ev.is-future .job-ev-t { color:#7dd3fc; }
+.job-ev-c { flex:1; min-width:0; }
