@@ -3694,6 +3694,9 @@ function switchLeftTab(tab) {
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
+    // Карточки заданий с текстом «зачем» и временем в 250px нечитаемы.
+    const filePanel = document.getElementById('file-panel');
+    if (filePanel) filePanel.style.width = tab === 'jobs' ? '380px' : '';
     if (tab === 'files') initFilePanel();
     else _pollStop('files');
     if (_tasksTabActive) {
@@ -4264,7 +4267,7 @@ async function showTaskDetail(par, projectSelector = '') {
 }
 
 // === Jobs Panel ===
-const _JOB_ICONS = { timer: '⏰', file: '📄', command: '🖥️', ssh: '🔗', run: '▶️' };
+const _JOB_ICONS = { timer: '⏰', cron: '🔁', cron_command: '🔎', idle: '💤', file: '📄', command: '🖥️', ssh: '🔗', run: '▶️', merge: '🔀' };
 const _JOB_STATUS = { active: '🟢', triggered: '✅', expired: '⏰', cancelled: '❌', failed: '❌' };
 
 async function _loadJobsNow() {
@@ -4281,130 +4284,6 @@ async function _loadJobsNow() {
 
 function loadJobs() {
     return _pollCoalesce('jobs-request', _loadJobsNow);
-}
-
-function _timeLeft(expiresAt) {
-    if (!expiresAt) return '';
-    const diff = new Date(expiresAt) - Date.now();
-    if (diff <= 0) return 'expired';
-    const h = Math.floor(diff / 3600000);
-    const m = Math.floor((diff % 3600000) / 60000);
-    const s = Math.floor((diff % 60000) / 1000);
-    if (h > 0) return `${h}h ${m}m`;
-    if (m > 0) return `${m}m ${s}s`;
-    return `${s}s`;
-}
-
-let _jobsTimerInterval = null;
-const _expandedJobs = new Set();
-function renderJobsPanel(panel, jobs) {
-    if (_jobsTimerInterval) { clearInterval(_jobsTimerInterval); _jobsTimerInterval = null; }
-    if (jobs.length === 0) {
-        panel.innerHTML = `<div class="p-4 text-center text-slate-600 italic">${T('No background jobs')}</div>`;
-        return;
-    }
-    const active = jobs.filter(j => j.status === 'active');
-    const done = jobs.filter(j => j.status !== 'active');
-    panel.innerHTML = '';
-    if (active.length > 0) {
-        const hdr = document.createElement('div');
-        hdr.className = 'px-2 py-1 text-slate-400 font-bold text-[10px]';
-        hdr.textContent = `ACTIVE (${active.length})`;
-        panel.appendChild(hdr);
-        for (const j of active) panel.appendChild(_createJobItem(j));
-    }
-    if (done.length > 0) {
-        const hdr = document.createElement('div');
-        hdr.className = 'px-2 py-1 mt-1 text-slate-500 font-bold text-[10px]';
-        hdr.textContent = T('COMPLETED');
-        panel.appendChild(hdr);
-        for (const j of done.slice(0, 10)) panel.appendChild(_createJobItem(j));
-    }
-    if (active.length > 0) {
-        _jobsTimerInterval = setInterval(() => {
-            panel.querySelectorAll('[data-job-elapsed]').forEach(el => {
-                const created = el.dataset.jobElapsed;
-                if (created) el.textContent = _elapsed(created);
-            });
-            panel.querySelectorAll('[data-job-expires]').forEach(el => {
-                const exp = el.dataset.jobExpires;
-                if (exp) el.textContent = _timeLeft(exp);
-            });
-        }, 1000);
-    }
-}
-
-function _elapsed(isoStr) {
-    const ms = Date.now() - new Date(isoStr).getTime();
-    if (ms < 0) return '0s';
-    const s = Math.floor(ms / 1000), m = Math.floor(s / 60), h = Math.floor(m / 60);
-    if (h > 0) return `${h}h ${m % 60}m`;
-    if (m > 0) return `${m}m ${s % 60}s`;
-    return `${s}s`;
-}
-
-function _createJobItem(j) {
-    const icon = _JOB_ICONS[j.type] || '⚙️';
-    const statusIcon = _JOB_STATUS[j.status] || '⚪';
-    const target = j.target_name || '';
-    const msg = j.message ? j.message.slice(0, 50) : '';
-    let cfg = {};
-    try { cfg = JSON.parse(j.config || '{}'); } catch {}
-
-    const wrap = document.createElement('div');
-    const row = document.createElement('div');
-    row.className = 'flex items-center gap-1.5 px-2 py-1 hover:bg-slate-800/50 rounded text-xs cursor-pointer';
-    row.style.position = 'relative';
-
-    let timerHtml = '';
-    if (j.status === 'active' && j.created_at) {
-        timerHtml = `<span data-job-elapsed="${j.created_at}" style="color:#38bdf8;font-size:10px;font-family:monospace">${_elapsed(j.created_at)}</span>`;
-    }
-    if (j.status === 'active' && j.expires_at) {
-        timerHtml += `<span data-job-expires="${j.expires_at}" style="color:#64748b;font-size:10px;font-family:monospace">${_timeLeft(j.expires_at)}</span>`;
-    }
-    const cancelBtn = j.status === 'active' ? `<span class="job-cancel-btn" title="${T('Cancel job')}">✕</span>` : '';
-
-    row.innerHTML = `<span>${icon}</span><span class="flex-1 truncate"><span style="color:#e2e8f0">${escHtml(target)}</span>${msg ? ' <span style="color:#64748b">'+escHtml(msg)+'</span>' : ''}</span>${timerHtml}<span>${statusIcon}</span>${cancelBtn}`;
-
-    const cancelEl = row.querySelector('.job-cancel-btn');
-    if (cancelEl) cancelEl.addEventListener('click', (e) => { e.stopPropagation(); cancelJob(j.id); });
-
-    const detail = document.createElement('div');
-    detail.style.cssText = 'display:none;padding:4px 8px 6px 24px;font-size:10px;color:#64748b;line-height:1.6';
-    const _dr = (k, v) => v ? `<div><span style="color:#475569">${k}:</span> <span style="color:#94a3b8">${escHtml(String(v))}</span></div>` : '';
-    let dh = _dr(T('Type'), j.type);
-    dh += _dr(T('Target'), target);
-    dh += _dr(T('Status'), T(j.status));
-    if (cfg.command) dh += `<div><span style="color:#475569">Command:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:60px;overflow-y:auto">${escHtml(cfg.command)}</pre></div>`;
-    if (cfg.pattern) dh += _dr(T('Pattern'), cfg.pattern);
-    if (cfg.path) dh += _dr(T('Path'), cfg.path);
-    if (cfg.host) dh += _dr(T('Host'), cfg.host);
-    if (cfg.interval_seconds) dh += _dr(T('Interval'), `${cfg.interval_seconds} ${T('s')}`);
-    dh += _dr(T('Message'), j.message);
-    if (j.created_at) dh += _dr(T('Created'), new Date(j.created_at).toLocaleString());
-    if (j.expires_at) dh += _dr(T('Expires'), new Date(j.expires_at).toLocaleString());
-    if (j.output) dh += `<div><span style="color:#475569">Output:</span> <pre style="margin:2px 0;padding:3px 6px;background:#0d1117;border-radius:4px;font-size:10px;color:#cbd5e1;white-space:pre-wrap;word-break:break-all;max-height:80px;overflow-y:auto">${escHtml(String(j.output).slice(0, 500))}</pre></div>`;
-    detail.innerHTML = dh;
-
-    const isExpanded = _expandedJobs.has(j.id);
-    detail.style.display = isExpanded ? 'block' : 'none';
-    row.addEventListener('click', () => {
-        const show = detail.style.display === 'none';
-        detail.style.display = show ? 'block' : 'none';
-        if (show) _expandedJobs.add(j.id); else _expandedJobs.delete(j.id);
-    });
-
-    wrap.appendChild(row);
-    wrap.appendChild(detail);
-    return wrap;
-}
-
-async function cancelJob(id) {
-    try {
-        await fetch(`/api/bg/jobs/${id}`, { method: 'DELETE' });
-        loadJobs();
-    } catch (e) { console.warn('Cancel job failed:', e); }
 }
 
 // ── Profiles Manager (редактор реестра профилей Claude) ──
