@@ -1,0 +1,619 @@
+синтез 9 фраз (загрузка модели ~2 мин)…
+tts: video/.tts-cache/0fc49d6ac670f063.raw.wav
+tts: video/.tts-cache/4981b5b7d562a45c.raw.wav
+tts: video/.tts-cache/4698808a036658df.raw.wav
+tts: video/.tts-cache/0e1c389fae35eb48.raw.wav
+tts: video/.tts-cache/dffc761282d695fb.raw.wav
+tts: video/.tts-cache/b7ae0889cabc3d8e.raw.wav
+tts: video/.tts-cache/b282145574fdb3e1.raw.wav
+tts: video/.tts-cache/ad284f2c5572cbc2.raw.wav
+tts: video/.tts-cache/fe1530a6c17791ff.raw.wav
+Manim Community v0.20.1
+
+[10/03/26 16:34:07] INFO     Animation 0 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1338929920_350658975                         
+                             2_631829896.mp4'                                   
+Animation 1: FadeIn(Text('разговор агента')):   0%|          | 0/20 [00:00<?, ?it/s]Animation 1: FadeIn(Text('разговор агента')):  35%|███▌      | 7/20 [00:00<00:00, 62.49it/s]Animation 1: FadeIn(Text('разговор агента')):  70%|███████   | 14/20 [00:00<00:00, 66.07it/s]                                                                                             [10/03/26 16:34:10] INFO     Animation 1 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1338929920_308679620                         
+                             4_3324827781.mp4'                                  
+Animation 2: LaggedStart(Group):   0%|          | 0/72 [00:00<?, ?it/s]Animation 2: LaggedStart(Group):  11%|█         | 8/72 [00:00<00:00, 79.36it/s]Animation 2: LaggedStart(Group):  28%|██▊       | 20/72 [00:00<00:00, 95.95it/s]Animation 2: LaggedStart(Group):  42%|████▏     | 30/72 [00:00<00:00, 92.46it/s]Animation 2: LaggedStart(Group):  56%|█████▌    | 40/72 [00:00<00:00, 76.22it/s]Animation 2: LaggedStart(Group):  67%|██████▋   | 48/72 [00:00<00:00, 76.45it/s]Animation 2: LaggedStart(Group):  78%|███████▊  | 56/72 [00:00<00:00, 75.89it/s]Animation 2: LaggedStart(Group):  89%|████████▉ | 64/72 [00:00<00:00, 68.52it/s]Animation 2: LaggedStart(Group): 100%|██████████| 72/72 [00:00<00:00, 69.54it/s]                                                                                [10/03/26 16:34:14] INFO     Animation 2 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_308860964                         
+                             2_1926446633.mp4'                                  
+Animation 3: FadeIn(Text('362 тыс. токенов')):   0%|          | 0/16 [00:00<?, ?it/s]Animation 3: FadeIn(Text('362 тыс. токенов')):  44%|████▍     | 7/16 [00:00<00:00, 63.87it/s]Animation 3: FadeIn(Text('362 тыс. токенов')):  88%|████████▊ | 14/16 [00:00<00:00, 61.36it/s]                                                                                              [10/03/26 16:34:16] INFO     Animation 3 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_108096476                         
+                             2_1556889668.mp4'                                  
+Animation 4: _MethodAnimation(Rectangle):   0%|          | 0/73 [00:00<?, ?it/s]Animation 4: _MethodAnimation(Rectangle):  10%|▉         | 7/73 [00:00<00:00, 67.93it/s]Animation 4: _MethodAnimation(Rectangle):  27%|██▋       | 20/73 [00:00<00:00, 102.20it/s]Animation 4: _MethodAnimation(Rectangle):  45%|████▌     | 33/73 [00:00<00:00, 111.66it/s]Animation 4: _MethodAnimation(Rectangle):  62%|██████▏   | 45/73 [00:00<00:00, 93.83it/s] Animation 4: _MethodAnimation(Rectangle):  77%|███████▋  | 56/73 [00:00<00:00, 98.68it/s]Animation 4: _MethodAnimation(Rectangle):  92%|█████████▏| 67/73 [00:00<00:00, 58.90it/s]                                                                                         [10/03/26 16:34:24] INFO     Animation 4 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_145032668                         
+                             7_1858480921.mp4'                                  
+[10/03/26 16:34:26] INFO     Animation 5 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_328008929                         
+                             1_120616934.mp4'                                   
+Animation 6: Create(Line), etc.:   0%|          | 0/47 [00:00<?, ?it/s]Animation 6: Create(Line), etc.:  13%|█▎        | 6/47 [00:00<00:00, 42.15it/s]Animation 6: Create(Line), etc.:  30%|██▉       | 14/47 [00:00<00:00, 52.60it/s]Animation 6: Create(Line), etc.:  45%|████▍     | 21/47 [00:00<00:00, 52.27it/s]Animation 6: Create(Line), etc.:  57%|█████▋    | 27/47 [00:00<00:00, 29.59it/s]Animation 6: Create(Line), etc.:  70%|███████   | 33/47 [00:00<00:00, 34.89it/s]Animation 6: Create(Line), etc.:  81%|████████  | 38/47 [00:01<00:00, 25.19it/s]Animation 6: Create(Line), etc.:  91%|█████████▏| 43/47 [00:01<00:00, 28.96it/s]Animation 6: Create(Line), etc.: 100%|██████████| 47/47 [00:01<00:00, 29.34it/s]                                                                                [10/03/26 16:34:32] INFO     Animation 6 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_231656701                         
+                             5_3312476238.mp4'                                  
+Animation 7: GrowFromEdge(Rectangle):   0%|          | 0/38 [00:00<?, ?it/s]Animation 7: GrowFromEdge(Rectangle):  34%|███▍      | 13/38 [00:00<00:00, 125.73it/s]Animation 7: GrowFromEdge(Rectangle):  68%|██████▊   | 26/38 [00:00<00:00, 125.95it/s]                                                                                      [10/03/26 16:34:35] INFO     Animation 7 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_285354291                         
+                             9_1619694293.mp4'                                  
+Animation 8: FadeIn(Text('кеш горячий')), etc.:   0%|          | 0/21 [00:00<?, ?it/s]Animation 8: FadeIn(Text('кеш горячий')), etc.:  24%|██▍       | 5/21 [00:00<00:00, 25.29it/s]Animation 8: FadeIn(Text('кеш горячий')), etc.:  38%|███▊      | 8/21 [00:00<00:00, 19.15it/s]Animation 8: FadeIn(Text('кеш горячий')), etc.:  67%|██████▋   | 14/21 [00:00<00:00, 29.95it/s]Animation 8: FadeIn(Text('кеш горячий')), etc.:  86%|████████▌ | 18/21 [00:00<00:00, 26.63it/s]Animation 8: FadeIn(Text('кеш горячий')), etc.: 100%|██████████| 21/21 [00:00<00:00, 26.01it/s]                                                                                               [10/03/26 16:34:37] INFO     Animation 8 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_264528684                         
+                             7_4016727318.mp4'                                  
+[10/03/26 16:34:41] INFO     Animation 9 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_120110434                         
+                             3_1383877927.mp4'                                  
+                    INFO     Writing                     tex_file_writing.py:110
+                             \special{dvisvgm:raw <g                            
+                             id='unique000'>}\Delta q                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique001'>}\approx                         
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique002'>}0{,}6                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique003'>}\cdot                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique004'>}W                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique005'>}+                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique006'>}0                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique007'>}\cdot                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g                                                 
+                             id='unique008'>}R\special{d                        
+                             visvgm:raw </g>} to                                
+                             video/.manim/Tex/dccb5c7cb9                        
+                             f1891b.tex                                         
+Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):   0%|          | 0/66 [00:00<?, ?it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  14%|█▎        | 9/66 [00:00<00:00, 80.87it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  27%|██▋       | 18/66 [00:00<00:01, 39.94it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  41%|████      | 27/66 [00:00<00:00, 51.49it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  52%|█████▏    | 34/66 [00:00<00:00, 52.09it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  61%|██████    | 40/66 [00:00<00:00, 48.21it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  70%|██████▉   | 46/66 [00:00<00:00, 50.37it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  79%|███████▉  | 52/66 [00:01<00:00, 47.59it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  88%|████████▊ | 58/66 [00:01<00:00, 44.20it/s]Animation 10: Write(MathTex('\\Delta q \\approx 0{,}6 \\cdot W + 0 \\cdot R')):  97%|█████████▋| 64/66 [00:01<00:00, 41.81it/s]                                                                                                                               [10/03/26 16:34:49] INFO     Animation 10 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_169588169                         
+                             9_2627318382.mp4'                                  
+Animation 11: FadeIn(Text('% недельного лимита')), etc.:   0%|          | 0/31 [00:00<?, ?it/s]Animation 11: FadeIn(Text('% недельного лимита')), etc.:  23%|██▎       | 7/31 [00:00<00:00, 42.56it/s]Animation 11: FadeIn(Text('% недельного лимита')), etc.:  39%|███▊      | 12/31 [00:00<00:00, 39.84it/s]Animation 11: FadeIn(Text('% недельного лимита')), etc.:  52%|█████▏    | 16/31 [00:00<00:00, 35.19it/s]Animation 11: FadeIn(Text('% недельного лимита')), etc.:  68%|██████▊   | 21/31 [00:00<00:00, 39.27it/s]Animation 11: FadeIn(Text('% недельного лимита')), etc.:  84%|████████▍ | 26/31 [00:00<00:00, 42.10it/s]Animation 11: FadeIn(Text('% недельного лимита')), etc.: 100%|██████████| 31/31 [00:00<00:00, 40.16it/s]                                                                                                        [10/03/26 16:34:53] INFO     Animation 11 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_273528682                         
+                             0_3742839534.mp4'                                  
+Animation 12: GrowFromCenter(Brace), etc.:   0%|          | 0/25 [00:00<?, ?it/s]Animation 12: GrowFromCenter(Brace), etc.:  32%|███▏      | 8/25 [00:00<00:00, 71.42it/s]Animation 12: GrowFromCenter(Brace), etc.:  64%|██████▍   | 16/25 [00:00<00:00, 57.44it/s]Animation 12: GrowFromCenter(Brace), etc.:  92%|█████████▏| 23/25 [00:00<00:00, 59.88it/s]                                                                                          [10/03/26 16:34:56] INFO     Animation 12 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_411834779                         
+                             2_2940510609.mp4'                                  
+Animation 13: Indicate(VGroup of 3 submobjects):   0%|          | 0/78 [00:00<?, ?it/s]Animation 13: Indicate(VGroup of 3 submobjects):  12%|█▏        | 9/78 [00:00<00:00, 71.42it/s]Animation 13: Indicate(VGroup of 3 submobjects):  23%|██▎       | 18/78 [00:00<00:00, 74.67it/s]Animation 13: Indicate(VGroup of 3 submobjects):  41%|████      | 32/78 [00:00<00:00, 98.11it/s]Animation 13: Indicate(VGroup of 3 submobjects):  54%|█████▍    | 42/78 [00:00<00:00, 94.19it/s]Animation 13: Indicate(VGroup of 3 submobjects):  67%|██████▋   | 52/78 [00:00<00:00, 63.09it/s]Animation 13: Indicate(VGroup of 3 submobjects):  77%|███████▋  | 60/78 [00:00<00:00, 61.94it/s]Animation 13: Indicate(VGroup of 3 submobjects):  86%|████████▌ | 67/78 [00:00<00:00, 62.41it/s]Animation 13: Indicate(VGroup of 3 submobjects):  95%|█████████▍| 74/78 [00:01<00:00, 57.46it/s]                                                                                                [10/03/26 16:35:05] INFO     Animation 13 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_252290795                         
+                             9_1683784262.mp4'                                  
+[10/03/26 16:35:09] INFO     Animation 14 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_214336394                         
+                             4_2712558879.mp4'                                  
+Animation 15: _MethodAnimation(ValueTracker):   0%|          | 0/70 [00:00<?, ?it/s]Animation 15: _MethodAnimation(ValueTracker):   3%|▎         | 2/70 [00:00<00:03, 18.77it/s]Animation 15: _MethodAnimation(ValueTracker):  13%|█▎        | 9/70 [00:00<00:01, 46.90it/s]Animation 15: _MethodAnimation(ValueTracker):  20%|██        | 14/70 [00:00<00:01, 39.54it/s]Animation 15: _MethodAnimation(ValueTracker):  27%|██▋       | 19/70 [00:00<00:01, 36.78it/s]Animation 15: _MethodAnimation(ValueTracker):  33%|███▎      | 23/70 [00:00<00:01, 31.84it/s]Animation 15: _MethodAnimation(ValueTracker):  44%|████▍     | 31/70 [00:00<00:00, 40.95it/s]Animation 15: _MethodAnimation(ValueTracker):  51%|█████▏    | 36/70 [00:01<00:01, 31.50it/s]Animation 15: _MethodAnimation(ValueTracker):  57%|█████▋    | 40/70 [00:01<00:01, 28.84it/s]Animation 15: _MethodAnimation(ValueTracker):  63%|██████▎   | 44/70 [00:01<00:01, 24.64it/s]Animation 15: _MethodAnimation(ValueTracker):  73%|███████▎  | 51/70 [00:01<00:00, 33.00it/s]Animation 15: _MethodAnimation(ValueTracker):  80%|████████  | 56/70 [00:01<00:00, 36.60it/s]Animation 15: _MethodAnimation(ValueTracker):  90%|█████████ | 63/70 [00:01<00:00, 43.69it/s]Animation 15: _MethodAnimation(ValueTracker):  99%|█████████▊| 69/70 [00:01<00:00, 47.41it/s]                                                                                             [10/03/26 16:35:17] INFO     Animation 15 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_238695946                         
+                             1_308613551.mp4'                                   
+Animation 16: FadeIn(Text('вернулся')):   0%|          | 0/9 [00:00<?, ?it/s]Animation 16: FadeIn(Text('вернулся')):  44%|████▍     | 4/9 [00:00<00:00, 39.45it/s]Animation 16: FadeIn(Text('вернулся')):  89%|████████▉ | 8/9 [00:00<00:00, 36.55it/s]                                                                                     [10/03/26 16:35:20] INFO     Animation 16 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_343073858                         
+                             _2124651142.mp4'                                   
+Animation 17: _MethodAnimation(VGroup of 18 submobjects):   0%|          | 0/23 [00:00<?, ?it/s]Animation 17: _MethodAnimation(VGroup of 18 submobjects):  35%|███▍      | 8/23 [00:00<00:00, 75.98it/s]Animation 17: _MethodAnimation(VGroup of 18 submobjects):  70%|██████▉   | 16/23 [00:00<00:00, 57.09it/s]Animation 17: _MethodAnimation(VGroup of 18 submobjects):  96%|█████████▌| 22/23 [00:00<00:00, 29.36it/s]                                                                                                         [10/03/26 16:35:25] INFO     Animation 17 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_367121156                         
+                             _452661737.mp4'                                    
+Animation 18: LaggedStart(Group):   0%|          | 0/48 [00:00<?, ?it/s]Animation 18: LaggedStart(Group):  17%|█▋        | 8/48 [00:00<00:00, 63.66it/s]Animation 18: LaggedStart(Group):  31%|███▏      | 15/48 [00:00<00:00, 52.87it/s]Animation 18: LaggedStart(Group):  44%|████▍     | 21/48 [00:00<00:00, 27.80it/s]Animation 18: LaggedStart(Group):  56%|█████▋    | 27/48 [00:00<00:00, 33.42it/s]Animation 18: LaggedStart(Group):  67%|██████▋   | 32/48 [00:00<00:00, 32.96it/s]Animation 18: LaggedStart(Group):  81%|████████▏ | 39/48 [00:01<00:00, 38.15it/s]Animation 18: LaggedStart(Group):  92%|█████████▏| 44/48 [00:01<00:00, 34.49it/s]Animation 18: LaggedStart(Group): 100%|██████████| 48/48 [00:01<00:00, 30.22it/s]                                                                                 [10/03/26 16:35:30] INFO     Animation 18 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_270251007                         
+                             4_437583684.mp4'                                   
+[10/03/26 16:35:33] INFO     Animation 19 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_567112252                         
+                             _3128818949.mp4'                                   
+                    INFO     Writing                     tex_file_writing.py:110
+                             \special{dvisvgm:raw <g                            
+                             id='unique000'>}\Delta q                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique001'>}\approx                         
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique002'>}0{,}6                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique003'>}\cdot                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique004'>}0{,}362                         
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique005'>}\approx                         
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g                                                 
+                             id='unique006'>}0{,}22\spec                        
+                             ial{dvisvgm:raw </g>} to                           
+                             video/.manim/Tex/9d64a369d2                        
+                             2bd7ed.tex                                         
+Animation 20: FadeOut(VGroup of 4 submobjects):   0%|          | 0/19 [00:00<?, ?it/s]Animation 20: FadeOut(VGroup of 4 submobjects):  21%|██        | 4/19 [00:00<00:00, 39.12it/s]Animation 20: FadeOut(VGroup of 4 submobjects):  42%|████▏     | 8/19 [00:00<00:00, 36.95it/s]Animation 20: FadeOut(VGroup of 4 submobjects):  63%|██████▎   | 12/19 [00:00<00:00, 31.54it/s]Animation 20: FadeOut(VGroup of 4 submobjects):  89%|████████▉ | 17/19 [00:00<00:00, 36.19it/s]                                                                                               [10/03/26 16:35:36] INFO     Animation 20 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_204086254                         
+                             1_589121136.mp4'                                   
+Animation 21: TransformMatchingTex(Group):   0%|          | 0/48 [00:00<?, ?it/s]Animation 21: TransformMatchingTex(Group):  17%|█▋        | 8/48 [00:00<00:00, 71.54it/s]Animation 21: TransformMatchingTex(Group):  33%|███▎      | 16/48 [00:00<00:00, 50.02it/s]Animation 21: TransformMatchingTex(Group):  46%|████▌     | 22/48 [00:00<00:00, 50.33it/s]Animation 21: TransformMatchingTex(Group):  58%|█████▊    | 28/48 [00:00<00:00, 40.40it/s]Animation 21: TransformMatchingTex(Group):  69%|██████▉   | 33/48 [00:00<00:00, 33.55it/s]Animation 21: TransformMatchingTex(Group):  81%|████████▏ | 39/48 [00:00<00:00, 38.22it/s]Animation 21: TransformMatchingTex(Group):  92%|█████████▏| 44/48 [00:01<00:00, 38.92it/s]                                                                                          [10/03/26 16:35:40] INFO     Animation 21 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_208212647                         
+                             4_781847184.mp4'                                   
+Animation 22: Circumscribe(Group):   0%|          | 0/41 [00:00<?, ?it/s]Animation 22: Circumscribe(Group):  20%|█▉        | 8/41 [00:00<00:00, 79.82it/s]Animation 22: Circumscribe(Group):  59%|█████▊    | 24/41 [00:00<00:00, 125.91it/s]                                                                                   [10/03/26 16:35:44] INFO     Animation 22 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_216871376                         
+                             2_2428375108.mp4'                                  
+[10/03/26 16:35:47] INFO     Animation 23 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_759465758                         
+                             _765964956.mp4'                                    
+Animation 24: FadeOut(Text('вернулся')), etc.:   0%|          | 0/33 [00:00<?, ?it/s]Animation 24: FadeOut(Text('вернулся')), etc.:   6%|▌         | 2/33 [00:00<00:05,  5.30it/s]Animation 24: FadeOut(Text('вернулся')), etc.:   9%|▉         | 3/33 [00:00<00:04,  6.19it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  18%|█▊        | 6/33 [00:00<00:02, 11.66it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  27%|██▋       | 9/33 [00:00<00:01, 15.07it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  33%|███▎      | 11/33 [00:00<00:01, 13.36it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  39%|███▉      | 13/33 [00:01<00:01, 13.12it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  45%|████▌     | 15/33 [00:01<00:01, 11.77it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  52%|█████▏    | 17/33 [00:01<00:01, 10.91it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  58%|█████▊    | 19/33 [00:01<00:01, 12.64it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  64%|██████▎   | 21/33 [00:01<00:00, 13.76it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  70%|██████▉   | 23/33 [00:01<00:00, 13.34it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  76%|███████▌  | 25/33 [00:02<00:00, 13.74it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  82%|████████▏ | 27/33 [00:02<00:00, 14.36it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  88%|████████▊ | 29/33 [00:02<00:00, 14.14it/s]Animation 24: FadeOut(Text('вернулся')), etc.:  94%|█████████▍| 31/33 [00:02<00:00,  9.15it/s]Animation 24: FadeOut(Text('вернулся')), etc.: 100%|██████████| 33/33 [00:03<00:00,  7.00it/s]                                                                                              [10/03/26 16:35:53] INFO     Animation 24 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_939491988                         
+                             _901196200.mp4'                                    
+Animation 25: Create(Line), etc.:   0%|          | 0/28 [00:00<?, ?it/s]Animation 25: Create(Line), etc.:  21%|██▏       | 6/28 [00:00<00:00, 58.08it/s]Animation 25: Create(Line), etc.:  64%|██████▍   | 18/28 [00:00<00:00, 93.39it/s]                                                                                 [10/03/26 16:35:56] INFO     Animation 25 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_316276617                         
+                             4_1343222001.mp4'                                  
+Animation 26: Indicate(Rectangle):   0%|          | 0/31 [00:00<?, ?it/s]Animation 26: Indicate(Rectangle):  10%|▉         | 3/31 [00:00<00:01, 20.74it/s]Animation 26: Indicate(Rectangle):  19%|█▉        | 6/31 [00:00<00:01, 18.84it/s]Animation 26: Indicate(Rectangle):  26%|██▌       | 8/31 [00:00<00:01, 16.81it/s]Animation 26: Indicate(Rectangle):  32%|███▏      | 10/31 [00:00<00:01, 13.89it/s]Animation 26: Indicate(Rectangle):  39%|███▊      | 12/31 [00:00<00:01, 15.33it/s]Animation 26: Indicate(Rectangle):  45%|████▌     | 14/31 [00:00<00:01, 13.57it/s]Animation 26: Indicate(Rectangle):  52%|█████▏    | 16/31 [00:01<00:01, 13.79it/s]Animation 26: Indicate(Rectangle):  58%|█████▊    | 18/31 [00:01<00:01, 11.16it/s]Animation 26: Indicate(Rectangle):  65%|██████▍   | 20/31 [00:01<00:00, 11.06it/s]Animation 26: Indicate(Rectangle):  71%|███████   | 22/31 [00:01<00:00, 12.50it/s]Animation 26: Indicate(Rectangle):  77%|███████▋  | 24/31 [00:01<00:00,  9.67it/s]Animation 26: Indicate(Rectangle):  87%|████████▋ | 27/31 [00:02<00:00, 11.98it/s]Animation 26: Indicate(Rectangle):  94%|█████████▎| 29/31 [00:02<00:00, 12.95it/s]Animation 26: Indicate(Rectangle): 100%|██████████| 31/31 [00:02<00:00, 13.33it/s]                                                                                  [10/03/26 16:36:03] INFO     Animation 26 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_332761336                         
+                             1_3849983853.mp4'                                  
+Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:   0%|          | 0/62 [00:00<?, ?it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:   3%|▎         | 2/62 [00:00<00:06,  9.95it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:   6%|▋         | 4/62 [00:00<00:05, 11.14it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  10%|▉         | 6/62 [00:00<00:04, 11.95it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  13%|█▎        | 8/62 [00:00<00:04, 11.07it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  16%|█▌        | 10/62 [00:00<00:04, 11.72it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  19%|█▉        | 12/62 [00:01<00:04, 11.79it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  23%|██▎       | 14/62 [00:01<00:03, 12.73it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  26%|██▌       | 16/62 [00:01<00:03, 12.10it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  29%|██▉       | 18/62 [00:01<00:03, 12.56it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  32%|███▏      | 20/62 [00:01<00:03, 12.95it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  35%|███▌      | 22/62 [00:01<00:03, 12.38it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  39%|███▊      | 24/62 [00:01<00:03, 12.62it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  42%|████▏     | 26/62 [00:02<00:03, 11.50it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  45%|████▌     | 28/62 [00:02<00:03, 10.05it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  48%|████▊     | 30/62 [00:02<00:02, 11.04it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  52%|█████▏    | 32/62 [00:02<00:02, 11.60it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  55%|█████▍    | 34/62 [00:03<00:02,  9.57it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  58%|█████▊    | 36/62 [00:03<00:02, 11.08it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  61%|██████▏   | 38/62 [00:03<00:01, 12.38it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  65%|██████▍   | 40/62 [00:03<00:01, 13.59it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  68%|██████▊   | 42/62 [00:03<00:01, 13.26it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  71%|███████   | 44/62 [00:03<00:01, 13.63it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  74%|███████▍  | 46/62 [00:03<00:01, 14.72it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  77%|███████▋  | 48/62 [00:03<00:00, 14.23it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  81%|████████  | 50/62 [00:04<00:00, 14.16it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  84%|████████▍ | 52/62 [00:04<00:00, 11.41it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  87%|████████▋ | 54/62 [00:04<00:00, 10.23it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  90%|█████████ | 56/62 [00:04<00:00, 10.91it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  94%|█████████▎| 58/62 [00:04<00:00, 10.90it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.:  97%|█████████▋| 60/62 [00:05<00:00, 11.22it/s]Animation 27: ReplacementTransform(VGroup of 18 submobjects), etc.: 100%|██████████| 62/62 [00:05<00:00, 11.95it/s]                                                                                                                   [10/03/26 16:36:14] INFO     Animation 27 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_937812380                         
+                             _202044053.mp4'                                    
+[10/03/26 16:36:18] INFO     Animation 28 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_236529986                         
+                             4_3212022804.mp4'                                  
+                    INFO     Writing                     tex_file_writing.py:110
+                             \special{dvisvgm:raw <g                            
+                             id='unique000'>}2                                  
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique001'>}\cdot                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique002'>}0{,}6                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique003'>}\cdot                           
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique004'>}0{,}084                         
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique005'>}\approx                         
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g                                                 
+                             id='unique006'>}0{,}10\spec                        
+                             ial{dvisvgm:raw </g>} to                           
+                             video/.manim/Tex/c25aed6310                        
+                             db93b6.tex                                         
+                    INFO     Writing                     tex_file_writing.py:110
+                             \special{dvisvgm:raw <g                            
+                             id='unique000'>}<\special{d                        
+                             visvgm:raw </g>} to                                
+                             video/.manim/Tex/414010f905                        
+                             28ec3b.tex                                         
+Animation 29: FadeOut(Text('% недельного лимита')), etc.:   0%|          | 0/44 [00:00<?, ?it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:   5%|▍         | 2/44 [00:00<00:03, 13.12it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:   9%|▉         | 4/44 [00:00<00:03, 12.03it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  16%|█▌        | 7/44 [00:00<00:02, 16.88it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  20%|██        | 9/44 [00:00<00:02, 16.89it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  25%|██▌       | 11/44 [00:00<00:01, 17.73it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  30%|██▉       | 13/44 [00:00<00:01, 16.51it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  34%|███▍      | 15/44 [00:01<00:02, 12.32it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  39%|███▊      | 17/44 [00:01<00:02, 11.37it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  43%|████▎     | 19/44 [00:01<00:02, 11.38it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  48%|████▊     | 21/44 [00:01<00:01, 13.08it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  52%|█████▏    | 23/44 [00:01<00:01, 13.98it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  57%|█████▋    | 25/44 [00:01<00:01, 14.49it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  61%|██████▏   | 27/44 [00:01<00:01, 13.01it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  68%|██████▊   | 30/44 [00:02<00:00, 15.42it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  73%|███████▎  | 32/44 [00:02<00:00, 15.86it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  77%|███████▋  | 34/44 [00:02<00:00, 15.77it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  82%|████████▏ | 36/44 [00:02<00:00, 14.03it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  86%|████████▋ | 38/44 [00:02<00:00, 14.18it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  91%|█████████ | 40/44 [00:02<00:00, 11.38it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.:  95%|█████████▌| 42/44 [00:03<00:00,  9.04it/s]Animation 29: FadeOut(Text('% недельного лимита')), etc.: 100%|██████████| 44/44 [00:03<00:00,  8.81it/s]                                                                                                         [10/03/26 16:36:25] INFO     Animation 29 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_542961223                         
+                             _2722250102.mp4'                                   
+Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')):   0%|          | 0/47 [00:00<?, ?it/s]Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')):  26%|██▌       | 12/47 [00:00<00:00, 105.02it/s]Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')):  49%|████▉     | 23/47 [00:00<00:00, 68.13it/s] Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')):  66%|██████▌   | 31/47 [00:00<00:00, 44.08it/s]Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')):  79%|███████▊  | 37/47 [00:00<00:00, 42.26it/s]Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')):  89%|████████▉ | 42/47 [00:00<00:00, 43.68it/s]Animation 30: Write(MathTex('2 \\cdot 0{,}6 \\cdot 0{,}084 \\approx 0{,}10')): 100%|██████████| 47/47 [00:01<00:00, 40.85it/s]                                                                                                                              [10/03/26 16:36:29] INFO     Animation 30 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_279096175                         
+                             9_2954079427.mp4'                                  
+Animation 31: FadeIn(MathTex('<')):   0%|          | 0/13 [00:00<?, ?it/s]                                                                          [10/03/26 16:36:32] INFO     Animation 31 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_199684379                         
+                             7_3507690075.mp4'                                  
+Animation 32: Circumscribe(Group):   0%|          | 0/58 [00:00<?, ?it/s]Animation 32: Circumscribe(Group):  34%|███▍      | 20/58 [00:00<00:00, 163.61it/s]Animation 32: Circumscribe(Group):  64%|██████▍   | 37/58 [00:00<00:00, 133.05it/s]Animation 32: Circumscribe(Group):  88%|████████▊ | 51/58 [00:00<00:00, 60.96it/s]                                                                                   [10/03/26 16:36:37] INFO     Animation 32 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_417060771                         
+                             7_1857638685.mp4'                                  
+[10/03/26 16:36:39] INFO     Animation 33 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_328274096                         
+                             9_3846599805.mp4'                                  
+Animation 34: FadeOut(VGroup of 14 submobjects):   0%|          | 0/36 [00:00<?, ?it/s]Animation 34: FadeOut(VGroup of 14 submobjects):   8%|▊         | 3/36 [00:00<00:01, 20.83it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  17%|█▋        | 6/36 [00:00<00:03,  7.91it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  22%|██▏       | 8/36 [00:00<00:02,  9.46it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  33%|███▎      | 12/36 [00:00<00:01, 13.75it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  39%|███▉      | 14/36 [00:01<00:01, 13.39it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  47%|████▋     | 17/36 [00:01<00:01, 15.57it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  53%|█████▎    | 19/36 [00:01<00:01, 16.46it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  61%|██████    | 22/36 [00:01<00:00, 17.54it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  69%|██████▉   | 25/36 [00:01<00:00, 19.00it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  78%|███████▊  | 28/36 [00:01<00:00, 20.40it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  86%|████████▌ | 31/36 [00:01<00:00, 21.29it/s]Animation 34: FadeOut(VGroup of 14 submobjects):  94%|█████████▍| 34/36 [00:02<00:00, 13.33it/s]Animation 34: FadeOut(VGroup of 14 submobjects): 100%|██████████| 36/36 [00:02<00:00, 13.56it/s]                                                                                                [10/03/26 16:36:45] INFO     Animation 34 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_187597038                         
+                             8_2531351193.mp4'                                  
+Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:   0%|          | 0/61 [00:00<?, ?it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:   8%|▊         | 5/61 [00:00<00:01, 38.35it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  15%|█▍        | 9/61 [00:00<00:01, 35.12it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  21%|██▏       | 13/61 [00:00<00:01, 31.24it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  28%|██▊       | 17/61 [00:00<00:02, 21.99it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  36%|███▌      | 22/61 [00:00<00:01, 27.61it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  44%|████▍     | 27/61 [00:00<00:01, 32.17it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  52%|█████▏    | 32/61 [00:01<00:00, 34.87it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  59%|█████▉    | 36/61 [00:01<00:00, 36.08it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  66%|██████▌   | 40/61 [00:01<00:00, 33.46it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  72%|███████▏  | 44/61 [00:01<00:00, 32.23it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  79%|███████▊  | 48/61 [00:01<00:00, 29.45it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  85%|████████▌ | 52/61 [00:01<00:00, 29.98it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.:  93%|█████████▎| 57/61 [00:01<00:00, 32.86it/s]Animation 35: FadeIn(Text('70 сжатий, 20.09–03.10, % недельного лимита')), etc.: 100%|██████████| 61/61 [00:01<00:00, 29.85it/s]                                                                                                                                [10/03/26 16:36:52] INFO     Animation 35 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_382234937                         
+                             8_396629666.mp4'                                   
+Animation 36: FadeIn(Text('14,8 %')):   0%|          | 0/15 [00:00<?, ?it/s]Animation 36: FadeIn(Text('14,8 %')):  87%|████████▋ | 13/15 [00:00<00:00, 108.99it/s]                                                                                      [10/03/26 16:36:54] INFO     Animation 36 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_265233815                         
+                             2_2814107108.mp4'                                  
+Animation 37: FadeIn(Text('со сжатием')), etc.:   0%|          | 0/51 [00:00<?, ?it/s]Animation 37: FadeIn(Text('со сжатием')), etc.:   8%|▊         | 4/51 [00:00<00:01, 38.31it/s]Animation 37: FadeIn(Text('со сжатием')), etc.:  24%|██▎       | 12/51 [00:00<00:00, 59.07it/s]Animation 37: FadeIn(Text('со сжатием')), etc.:  35%|███▌      | 18/51 [00:00<00:00, 47.23it/s]Animation 37: FadeIn(Text('со сжатием')), etc.:  51%|█████     | 26/51 [00:00<00:00, 57.95it/s]Animation 37: FadeIn(Text('со сжатием')), etc.:  67%|██████▋   | 34/51 [00:00<00:00, 64.83it/s]Animation 37: FadeIn(Text('со сжатием')), etc.:  80%|████████  | 41/51 [00:00<00:00, 58.99it/s]Animation 37: FadeIn(Text('со сжатием')), etc.: 100%|██████████| 51/51 [00:00<00:00, 68.54it/s]                                                                                               [10/03/26 16:36:58] INFO     Animation 37 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_143594300                         
+                             9_1789720948.mp4'                                  
+Animation 38: FadeIn(Text('7,1 %')):   0%|          | 0/46 [00:00<?, ?it/s]Animation 38: FadeIn(Text('7,1 %')):   9%|▊         | 4/46 [00:00<00:01, 33.72it/s]Animation 38: FadeIn(Text('7,1 %')):  33%|███▎      | 15/46 [00:00<00:00, 73.57it/s]Animation 38: FadeIn(Text('7,1 %')):  63%|██████▎   | 29/46 [00:00<00:00, 101.25it/s]Animation 38: FadeIn(Text('7,1 %')):  87%|████████▋ | 40/46 [00:00<00:00, 104.07it/s]                                                                                     [10/03/26 16:37:03] INFO     Animation 38 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_159949747                         
+                             1_3713579229.mp4'                                  
+[10/03/26 16:37:06] INFO     Animation 39 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_155141476                         
+                             8_341173574.mp4'                                   
+                    INFO     Writing                     tex_file_writing.py:110
+                             \special{dvisvgm:raw <g                            
+                             id='unique000'>}t_{\text{сж                        
+                             атия}} \special{dvisvgm:raw                        
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique001'>}=                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique002'>}60                              
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique003'>}-                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique004'>}5                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique005'>}=                               
+                             \special{dvisvgm:raw                               
+                             </g>}\special{dvisvgm:raw                          
+                             <g id='unique006'>}55\                             
+                             \text{мин}\special{dvisvgm:                        
+                             raw </g>} to                                       
+                             video/.manim/Tex/201dbcf1ce                        
+                             166315.tex                                         
+Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):   0%|          | 0/77 [00:00<?, ?it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):   4%|▍         | 3/77 [00:00<00:02, 25.61it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):   8%|▊         | 6/77 [00:00<00:03, 23.40it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  16%|█▌        | 12/77 [00:00<00:01, 36.18it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  21%|██        | 16/77 [00:00<00:01, 31.95it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  26%|██▌       | 20/77 [00:00<00:02, 21.09it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  30%|██▉       | 23/77 [00:00<00:02, 22.88it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  35%|███▌      | 27/77 [00:01<00:01, 26.23it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  43%|████▎     | 33/77 [00:01<00:01, 32.60it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  48%|████▊     | 37/77 [00:01<00:01, 31.96it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  56%|█████▌    | 43/77 [00:01<00:00, 34.51it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  62%|██████▏   | 48/77 [00:01<00:00, 35.95it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  68%|██████▊   | 52/77 [00:01<00:00, 30.35it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  75%|███████▌  | 58/77 [00:01<00:00, 35.48it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  81%|████████  | 62/77 [00:02<00:00, 34.40it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  87%|████████▋ | 67/77 [00:02<00:00, 37.16it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')):  94%|█████████▎| 72/77 [00:02<00:00, 39.76it/s]Animation 40: Write(MathTex('t_{\\text{сжатия}} = 60 - 5 = 55\\ \\text{мин}')): 100%|██████████| 77/77 [00:02<00:00, 42.16it/s]                                                                                                                               [10/03/26 16:37:15] INFO     Animation 40 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_104346740                         
+                             _4152827158.mp4'                                   
+Animation 41: FadeIn(Text('жизнь кеша')), etc.:   0%|          | 0/27 [00:00<?, ?it/s]Animation 41: FadeIn(Text('жизнь кеша')), etc.:  33%|███▎      | 9/27 [00:00<00:00, 88.64it/s]Animation 41: FadeIn(Text('жизнь кеша')), etc.:  67%|██████▋   | 18/27 [00:00<00:00, 78.81it/s]Animation 41: FadeIn(Text('жизнь кеша')), etc.:  96%|█████████▋| 26/27 [00:00<00:00, 70.52it/s]                                                                                               [10/03/26 16:37:17] INFO     Animation 41 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_150691997                         
+                             2_3140702075.mp4'                                  
+Animation 42: Circumscribe(Group):   0%|          | 0/54 [00:00<?, ?it/s]Animation 42: Circumscribe(Group):  35%|███▌      | 19/54 [00:00<00:00, 180.89it/s]Animation 42: Circumscribe(Group):  70%|███████   | 38/54 [00:00<00:00, 143.49it/s]Animation 42: Circumscribe(Group):  98%|█████████▊| 53/54 [00:00<00:00, 116.06it/s]                                                                                   [10/03/26 16:37:22] INFO     Animation 42 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_856928212                         
+                             _3706686256.mp4'                                   
+[10/03/26 16:37:27] INFO     Animation 43 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_129119937                         
+                             8_3117506392.mp4'                                  
+[10/03/26 16:37:30] INFO     Animation 44 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/partial_movie_files/Comp                         
+                             act55/1584702162_339013992                         
+                             7_3346551510.mp4'                                  
+                    INFO     Combining to Movie file.   scene_file_writer.py:753
+[10/03/26 16:37:31] INFO                                scene_file_writer.py:904
+                             File ready at                                      
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-latex-video/.orches                         
+                             tra/tasks/V-685/video/.man                         
+                             im/videos/compact55/1080p3                         
+                             0/compact55.mp4'                                   
+                                                                                
+                    INFO     Rendered Compact55                     scene.py:278
+                             Played 45 animations                               
+You are using manim version v0.20.1, but version v0.21.0 is available.
+You should consider upgrading via pip install -U manim
+    0.28–  6.16  шаг  6.60 с  У агента в памяти длинный разговор, обычно триста шестьдесят тысяч токенов. Каждый ход модель перечитывает его целиком.
+    6.88– 11.33  шаг  5.16 с  Чтобы это было дёшево, разговор лежит в кеше. Кеш живёт час после последнего хода.
+   12.05– 18.59  шаг  7.27 с  По нашим замерам чтение из кеша почти бесплатно. Платим за запись: шесть десятых процента недельного лимита за миллион токенов.
+   19.31– 23.72  шаг  5.13 с  Владелец вернулся через два часа. Кеш уже остыл, и весь разговор записывается заново.
+   24.44– 27.87  шаг  4.15 с  Одно такое возвращение съедает две десятых процента недельного лимита.
+   28.59– 35.03  шаг  7.16 с  Поэтому на пятьдесят пятой минуте тишины, пока кеш ещё горячий, Оркестра сжимает разговор в пересказ. Он в четыре раза короче.
+   35.76– 40.89  шаг  5.86 с  Пересказ пишется сейчас и ещё раз после возвращения. Но две короткие записи дешевле одной длинной.
+   41.61– 48.81  шаг  7.92 с  За две недели так сжались семьдесят разговоров. Без сжатия их возвраты стоили бы пятнадцать процентов недельного лимита, а вышло около семи.
+   49.53– 55.75  шаг  8.50 с  Сжатие за пять минут до остывания кеша вдвое бережёт лимит. Цена за это: агент помнит пересказ, а не каждое слово.
+длина ролика 59.8 с
+video/compact55-contact.png
+video/compact55.mp4 3.8 МБ
+  recall 0.81  сдвиг слова -0.12  звука 0.02  У агента в памяти длинный разговор, обычно триста шестьдесят тысяч токенов. Каждый ход модель перечитывает его целиком.
+      слышно: у агентов памяти длинный разговор обычно токенов каждый ход модель перечитывает его целиком
+  recall 0.93  сдвиг слова -0.0  звука 0.02  Чтобы это было дёшево, разговор лежит в кеше. Кеш живёт час после последнего хода.
+      слышно: чтобы это было дёшево разговор лежит в кэше живет час после последнего хода
+  recall 0.84  сдвиг слова -0.11  звука 0.03  По нашим замерам чтение из кеша почти бесплатно. Платим за запись: шесть десятых процента недельного лимита за миллион токенов.
+      слышно: по нашим замерам чтение из кэша почти бесплатно платим за запись недельного лимита миллион токенов
+  recall 1.00  сдвиг слова 0.06  звука 0.02  Владелец вернулся через два часа. Кеш уже остыл, и весь разговор записывается заново.
+      слышно: владелец вернулся через два часа кеш уже остыл и весь разговор записывается заново
+  recall 0.75  сдвиг слова -0.03  звука 0.03  Одно такое возвращение съедает две десятых процента недельного лимита.
+      слышно: одно такое возвращение съедает недельного лимита
+  recall 0.90  сдвиг слова 0.06  звука 0.03  Поэтому на пятьдесят пятой минуте тишины, пока кеш ещё горячий, Оркестра сжимает разговор в пересказ. Он в четыре раза короче.
+      слышно: поэтому на минуте тишины пока кеш еще горячий оркестр сжимает разговор в пересказ он четыре раза короче
+  recall 1.00  сдвиг слова 0.02  звука 0.03  Пересказ пишется сейчас и ещё раз после возвращения. Но две короткие записи дешевле одной длинной.
+      слышно: пересказ пишется сейчас и еще раз после возвращения но две короткие записи дешевле одной длинной
+  recall 0.86  сдвиг слова -0.08  звука 0.02  За две недели так сжались семьдесят разговоров. Без сжатия их возвраты стоили бы пятнадцать процентов недельного лимита, а вышло около семи.
+      слышно: за две недели так сжались разговоров без сжатия их возвраты стоили бы недельного лимита а вышло около семи
+  recall 1.00  сдвиг слова -0.06  звука 0.03  Сжатие за пять минут до остывания кеша вдвое бережёт лимит. Цена за это: агент помнит пересказ, а не каждое слово.
+      слышно: сжатие за пять минут до остывания кеша вдвое бережет лимит цена это агент помнит пересказ а не каждое слово
+минимальная дословность 0.75, наибольший сдвиг: первого слова 0.12 с, начала звука 0.03 с

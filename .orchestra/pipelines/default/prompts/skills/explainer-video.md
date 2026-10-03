@@ -50,7 +50,8 @@ Manim — библиотека, на которой 3Blue1Brown рисует с�
 уже есть как HTML-артефакт; правится быстро, кадр снимается в любой момент. Manim —
 математика и данные в движении: оси и графики функций (`Axes`, `plot`), кривые, которые
 рисуются (`Create`), числа, которые бегут (`ValueTracker` + `always_redraw`), превращение
-одной фигуры в другую (`Transform`), полярные и радиальные диаграммы. Если хочется
+одной фигуры в другую (`Transform`), полярные и радиальные диаграммы, формулы LaTeX
+с подстановкой чисел. Если хочется
 «как у 3b1b» — плавного морфинга и растущих графиков — это Manim.
 
 **Сцена** — файл `.py` с одним классом-наследником `VoiceScene` из
@@ -84,8 +85,25 @@ class Growth(VoiceScene):
 
 Сборка та же командой `make.py scene.py --out <папка>` (движок выбирается по
 расширению). Черновой просмотр без озвучки — `manim -ql scene.py Класс` с
-`PYTHONPATH=/home/kesha/orchestra/scripts/explainer_video`: 480p за ~1 мин. LaTeX на VPS
-не стоит, поэтому `MathTex`/`Tex` не работают — формулы пиши `text()` с Unicode (x², ≤, π).
+`PYTHONPATH=/home/kesha/orchestra/scripts/explainer_video`: 480p за ~1 мин.
+
+**Формулы — LaTeX.** `MathTex` (математика) и `Tex` (текст с `$…$`) рендерятся TeX'ом и
+выглядят как в учебнике; `manim_voice` сам добавляет в PATH наш TinyTeX и ставит шаблон с
+кириллицей, так что `\text{запись}` в формуле и русский `Tex` работают. Формулу режь на
+части — тогда их можно красить, подписывать скобкой и превращать при подстановке чисел:
+
+```python
+f = MathTex(r"\Delta q", r"\approx", r"0{,}6", r"\cdot", r"W", font_size=64)
+f[4].set_color(GOLD_)                                   # часть по индексу
+note = Brace(f[2:5], DOWN)                               # скобка под «0,6·W»
+g = MathTex(r"\Delta q", r"\approx", r"0{,}6", r"\cdot", r"0{,}362")
+self.play(TransformMatchingTex(f, g), run_time=self.left() * 0.4)  # W → число, остальное на месте
+```
+
+Десятичная запятая — `0{,}6` (без скобок TeX ставит пробел после запятой). Первая формула
+в сборке компилируется ~1–2 с, дальше кеш `media/Tex`. Ошибка `latex error converting to dvi`
+— смотри строку `!` в указанном `.log`: обычно недостающий пакет (`tlmgr install <пакет>`, см.
+«Окружение») или неэкранированный `%`/`&` в `Tex`. Пример с формулой — `.orchestra/tasks/V-685/compact55.py`.
 Кадр 14.2×8 единиц, центр (0, 0); снизу ~1 единицу занимают субтитры, сверху слева —
 заголовок: держи объекты в y ∈ [−2.6, 3].
 
@@ -148,3 +166,21 @@ MAMBA_ROOT_PREFIX=$PWD/mamba ./bin/micromamba create -y -p $PWD/env -c conda-for
 
 Ставится ~2 мин, ~0.5 ГБ. На macOS/Windows вместо `linux-64` — свой билд micromamba
 (mamba.readthedocs.io), остальное то же.
+
+LaTeX для `MathTex`/`Tex` — TinyTeX (TeX Live 2026, 220 МБ) в
+`~/.local/share/orchestra-manim/tex/`, без apt и root; `manim_voice` берёт его по
+`ORCHESTRA_MANIM_HOME`, а если папки нет — `latex` из системного PATH (на VPS есть и
+системный TeX Live 2023 из apt, он тоже работает). Если у тебя нет ни того, ни другого:
+
+```
+cd ~/.local/share/orchestra-manim
+curl -sSfL --retry 5 --retry-all-errors -o /tmp/tinytex.tar.xz \
+  https://github.com/rstudio/tinytex-releases/releases/download/v2026.10/TinyTeX-1-linux-x86_64-v2026.10.tar.xz
+mkdir tex-unpack && tar -xJf /tmp/tinytex.tar.xz -C tex-unpack && mv tex-unpack/.TinyTeX tex && rmdir tex-unpack
+tex/bin/x86_64-linux/tlmgr install standalone preview dvisvgm babel-english babel-russian cyrillic lh \
+  doublestroke setspace rsfs relsize ragged2e microtype wasysym physics jknapltx wasy mathastext
+```
+
+~1 мин. Свежая версия — releases rstudio/tinytex-releases; GitHub отсюда иногда отвечает 503,
+отсюда `--retry`. Нужен ещё пакет — `tex/bin/x86_64-linux/tlmgr install <имя>`. Скрипт
+установки с логом — `.orchestra/tasks/V-685/install-tex.sh`.

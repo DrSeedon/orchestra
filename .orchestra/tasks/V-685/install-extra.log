@@ -1,0 +1,28 @@
+tlmgr: package repository https://tlnet.yihui.org (verified)
+[1/13, ??:??/??:??] install: babel-english [3k]
+[2/13, 00:00/00:00] install: doublestroke [66k]
+[3/13, 00:01/00:04] install: hyphen-english [41k]
+[4/13, 00:01/00:02] install: jknapltx [9k]
+[5/13, 00:01/00:02] install: mathastext [19k]
+[6/13, 00:01/00:02] install: microtype [58k]
+[7/13, 00:02/00:03] install: physics [6k]
+[8/13, 00:02/00:02] install: ragged2e [3k]
+[9/13, 00:03/00:04] install: relsize [6k]
+[10/13, 00:03/00:04] install: rsfs [55k]
+[11/13, 00:03/00:03] install: setspace [8k]
+[12/13, 00:03/00:03] install: wasy [24k]
+[13/13, 00:03/00:03] install: wasysym [4k]
+running mktexlsr ...
+done running mktexlsr.
+running updmap-sys ...
+done running updmap-sys.
+regenerating language.dat
+regenerating language.def
+regenerating language.dat.lua
+running fmtutil-sys --byhyphen "/home/kesha/.local/share/orchestra-manim/tex/texmf-var/tex/generic/config/language.dat" --no-error-if-no-engine=luametatex,luajithbtex,luajittex,mfluajit,xetex --status-file=/tmp/VVQXcUkUXV/v8DUSvQjTu ...
+  OK: dvilualatex.fmt/luatex latex.fmt/pdftex lualatex.fmt/luahbtex xelatex.fmt/xetex pdflatex.fmt/pdftex
+running fmtutil-sys --byhyphen "/home/kesha/.local/share/orchestra-manim/tex/texmf-var/tex/generic/config/language.def" --no-error-if-no-engine=luametatex,luajithbtex,luajittex,mfluajit,xetex --status-file=/tmp/VVQXcUkUXV/v8DUSvQjTu ...
+  OK: xetex.fmt/xetex luatex.fmt/luatex pdftex.fmt/pdftex luahbtex.fmt/luahbtex dviluatex.fmt/luatex pdfetex.fmt/pdftex etex.fmt/pdftex
+running fmtutil-sys --byhyphen "/home/kesha/.local/share/orchestra-manim/tex/texmf-var/tex/generic/config/language.dat.lua" --no-error-if-no-engine=luametatex,luajithbtex,luajittex,mfluajit,xetex --status-file=/tmp/VVQXcUkUXV/v8DUSvQjTu ...
+tlmgr: package log updated: /home/kesha/.local/share/orchestra-manim/tex/texmf-var/web2c/tlmgr.log
+tlmgr: command log updated: /home/kesha/.local/share/orchestra-manim/tex/texmf-var/web2c/tlmgr-commands.log

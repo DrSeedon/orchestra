@@ -1,0 +1,36 @@
++ cd /home/kesha/.local/share/orchestra-manim
++ curl -sSfL --retry 5 --retry-all-errors -o /tmp/tinytex.tar.xz https://github.com/rstudio/tinytex-releases/releases/download/v2026.10/TinyTeX-1-linux-x86_64-v2026.10.tar.xz
++ mkdir -p tex-unpack
++ tar -xJf /tmp/tinytex.tar.xz -C tex-unpack
++ mv tex-unpack/.TinyTeX tex
++ rmdir tex-unpack
++ rm /tmp/tinytex.tar.xz
++ T=/home/kesha/.local/share/orchestra-manim/tex/bin/x86_64-linux
++ /home/kesha/.local/share/orchestra-manim/tex/bin/x86_64-linux/tlmgr install standalone preview babel-russian cyrillic lh dvisvgm
+tlmgr: package repository https://tlnet.yihui.org (verified)
+[1/15, ??:??/??:??] install: adjustbox [14k]
+[2/15, 00:01/02:46] install: babel-russian [7k]
+[3/15, 00:01/01:54] install: collectbox [3k]
+[4/15, 00:01/01:39] install: currfile [4k]
+[5/15, 00:01/01:25] install: cyrillic [16k]
+[6/15, 00:01/00:53] install: cyrillic-bin.x86_64-linux [1k]
+[7/15, 00:02/01:46] install: cyrillic-bin [2k]
+[8/15, 00:02/01:43] install: dvisvgm.x86_64-linux [1822k]
+[9/15, 00:02/00:02] install: dvisvgm [1k]
+[10/15, 00:02/00:02] install: filemod [4k]
+[11/15, 00:03/00:03] install: gincltex [2k]
+[12/15, 00:03/00:03] install: lh [353k]
+[13/15, 00:03/00:03] install: preview [7k]
+[14/15, 00:03/00:03] install: standalone [13k]
+[15/15, 00:03/00:03] install: svn-prov [3k]
+running mktexlsr ...
+done running mktexlsr.
+tlmgr: package log updated: /home/kesha/.local/share/orchestra-manim/tex/texmf-var/web2c/tlmgr.log
+tlmgr: command log updated: /home/kesha/.local/share/orchestra-manim/tex/texmf-var/web2c/tlmgr-commands.log
++ head -1
++ /home/kesha/.local/share/orchestra-manim/tex/bin/x86_64-linux/latex --version
+pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
+dvisvgm 3.6
++ /home/kesha/.local/share/orchestra-manim/tex/bin/x86_64-linux/dvisvgm --version
++ du -sh tex
+217M	tex
