@@ -21,6 +21,7 @@ EXPLAINER_VOICE. Внутри `with self.step(i)` анимации занима�
 секунд осталось в шаге; длительности анимаций задавай долями шага, а не секундами, тогда
 темп ролика меняется одним ключом. Заголовок `t` и субтитр `sub ?? say` рисует сцена сама.
 Без EXPLAINER_VOICE (просмотр `manim -ql`) длительность шага оценивается по длине фразы.
+MathTex/Tex работают с кириллицей: шаблон LaTeX и путь к TinyTeX ставит этот модуль.
 """
 from __future__ import annotations
 
@@ -31,9 +32,17 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import manimpango
-from manim import DOWN, LEFT, UL, UP, Scene, Text, VGroup, config
+from manim import DOWN, LEFT, UL, UP, Scene, TexTemplate, Text, VGroup, config
 
 FONTS = Path(__file__).resolve().parent / "fonts"
+# Свой TinyTeX рядом с Manim (SKILL explainer-video); нет его — latex берётся из системного PATH.
+TEX_BIN = Path(os.environ.get("ORCHESTRA_MANIM_HOME", Path.home() / ".local/share/orchestra-manim")) / "tex/bin/x86_64-linux"
+if TEX_BIN.is_dir():
+    os.environ["PATH"] = f"{TEX_BIN}:{os.environ['PATH']}"
+# Шаблон Manim по умолчанию — babel english без кириллицы: «\text{кеш}» в MathTex падает.
+config.tex_template = TexTemplate(preamble="\n".join((
+    r"\usepackage[T2A]{fontenc}", r"\usepackage[utf8]{inputenc}", r"\usepackage[english,russian]{babel}",
+    r"\usepackage{amsmath}", r"\usepackage{amssymb}")))
 BG, PANEL, LINE, MUTED = "#0b0e14", "#151a24", "#2a3142", "#8b93a7"
 BLUE_, GREEN_, RED_, GOLD_, FG = "#58c4dd", "#83c167", "#fc6255", "#f0ac5f", "#e6e6e6"
 FONT, MONO = "Manrope", "JetBrains Mono"

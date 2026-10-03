@@ -1,0 +1,8 @@
+events 166 claude ok with tokens+next 70 from 2026-09-20T05:23:17.370034+00:00 to 2026-10-03T09:43:17.616812+00:00
+returns after cache expiry 65
+W without compaction 24515067 pp 14.81
+W with compaction 10959282 pp 6.62
+median pre 362178.5 median post 84310.5
+median pct 36.0 -> 8.0
+median idle min 121
+summary chars 784079 ≈ output tokens 261359 pp 0.47
