@@ -16,6 +16,13 @@ honestly. Omit linter noise, development-only changes and cosmetic style refacto
 Use patch increments for fixes, minor increments for features, major for breaking changes;
 sections are Added / Fixed / Changed / Removed / Known tradeoff / Reasoning.
 
+An owner's decision that should outlive this conversation goes into the project's rules file
+(AGENTS.md/CLAUDE.md) in the same turn: the date, his words verbatim and what prompted it, plus
+one line of the resulting rule. Paraphrases get lost in compaction and handoffs; a dated quote
+does not (seedon and katya-work, V-683, 03.10.2026). Keep undated rules in the rules file and
+dated state in a separate state file with only current statuses; do not grow a chronicle there.
+If the rule is already written, fix that entry instead of appending another version.
+
 Update an existing architecture.md after significant changes to modules, structure or
 dependencies. Do not create that document on your own.
 </project-maintenance>
