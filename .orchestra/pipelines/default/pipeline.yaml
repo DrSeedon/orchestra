@@ -23,6 +23,9 @@ defaults:
 # рабочие роли, но medium→high — САМЫЙ крупный шаг лестницы Opus (+2.9 пункта), и переносить его
 # на оркестраторов дешевле, чем оставлять их на ступени, выбранной до этого замера. Откат — правка
 # одного ключа модели Opus в двух ролях ниже; живые агенты подхватят её на следующем ходе.
+# Opus 5.5 у оркестраторов: medium с 23.09, снова high с 03.10 по слову владельца как замер
+# (V-683: жалобы katya-work выросли 8% → 13% после 23.09; модель и effort сменились разом).
+# Сравнение — .orchestra/tasks/V-683/complaint_rate.py через 4–5 дней. Воркеры остаются medium.
 # Основания значений:
 #   harness           → medium — бесплатные маршруты OpenRouter, ступень НЕ измерена ни на одном
 #                               из них; medium выбран как середина и как выключатель гейта
@@ -50,7 +53,7 @@ roles:
     # 20.09.2026 (флаг agents снят, spawn и смена модели отказывают): по этой карте
     # собирается промпт уже живущим агентам на astra, и без ключа их ход сломается.
     # Запрет живёт в допуске платформы и в модуле model-routing, а не в этой строке.
-    effort: &effort_policy {"claude-opus-5-5[1m]": medium, "claude-sonnet-5-5[1m]": medium, "claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
+    effort: &effort_policy {"claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, "claude-opus-5[1m]": high, gpt-5.6-sol: high, gpt-5.6-luna: high, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
     skills: [grill-me, orchestra-agents, laptop-access]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
