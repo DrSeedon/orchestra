@@ -1,0 +1,257 @@
+Manim Community v0.20.1
+
+[10/03/26 09:09:49] INFO     Animation 0 : Using cached     cairo_renderer.py:94
+                             data (hash :                                       
+                             3115109185_4079250704_63182989                     
+                             6)                                                 
+Animation 1: Create(VGroup of 2 submobjects):   0%|          | 0/33 [00:00<?, ?it/s]Animation 1: Create(VGroup of 2 submobjects):  30%|███       | 10/33 [00:00<00:00, 94.85it/s]Animation 1: Create(VGroup of 2 submobjects):  61%|██████    | 20/33 [00:00<00:00, 68.96it/s]                                                                                             [10/03/26 09:09:52] INFO     Animation 1 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/31151091                         
+                             85_3853437817_2719723907.m                         
+                             p4'                                                
+Animation 2: LaggedStart(Group), etc.:   0%|          | 0/36 [00:00<?, ?it/s]Animation 2: LaggedStart(Group), etc.:   6%|▌         | 2/36 [00:00<00:01, 18.80it/s]Animation 2: LaggedStart(Group), etc.:  14%|█▍        | 5/36 [00:00<00:01, 20.41it/s]Animation 2: LaggedStart(Group), etc.:  25%|██▌       | 9/36 [00:00<00:01, 20.86it/s]Animation 2: LaggedStart(Group), etc.:  36%|███▌      | 13/36 [00:00<00:00, 26.00it/s]Animation 2: LaggedStart(Group), etc.:  44%|████▍     | 16/36 [00:00<00:00, 26.35it/s]Animation 2: LaggedStart(Group), etc.:  53%|█████▎    | 19/36 [00:00<00:00, 22.84it/s]Animation 2: LaggedStart(Group), etc.:  61%|██████    | 22/36 [00:01<00:00, 19.05it/s]Animation 2: LaggedStart(Group), etc.:  69%|██████▉   | 25/36 [00:01<00:00, 14.80it/s]Animation 2: LaggedStart(Group), etc.:  75%|███████▌  | 27/36 [00:01<00:00, 14.65it/s]Animation 2: LaggedStart(Group), etc.:  86%|████████▌ | 31/36 [00:01<00:00, 19.31it/s]Animation 2: LaggedStart(Group), etc.:  97%|█████████▋| 35/36 [00:01<00:00, 23.42it/s]                                                                                      [10/03/26 09:09:56] INFO     Animation 2 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1872788721_339788813.mp                         
+                             4'                                                 
+[10/03/26 09:09:57] INFO     Animation 3 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1254572979_2978702553.m                         
+                             p4'                                                
+                    WARNING  The original duration of              scene.py:1118
+                             NightShift.wait(), 0.0333333 seconds,              
+                             is too short for the current frame                 
+                             rate of 15 FPS. Rendering with the                 
+                             shortest possible duration of                      
+                             0.0666667 seconds instead.                         
+[10/03/26 09:09:58] INFO     Animation 4 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_918700654_898730280.mp4                         
+                             '                                                  
+Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:   0%|          | 0/11 [00:00<?, ?it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:   9%|▉         | 1/11 [00:00<00:01,  8.88it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:  18%|█▊        | 2/11 [00:00<00:01,  8.67it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:  27%|██▋       | 3/11 [00:00<00:01,  7.48it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:  45%|████▌     | 5/11 [00:00<00:00,  9.77it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:  55%|█████▍    | 6/11 [00:00<00:00,  7.89it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.:  73%|███████▎  | 8/11 [00:00<00:00, 10.61it/s]Animation 5: FadeIn(Text('Владелец, сообщений')), etc.: 100%|██████████| 11/11 [00:00<00:00, 14.49it/s]                                                                                                       [10/03/26 09:10:01] INFO     Animation 5 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_2606614717_910434983.mp                         
+                             4'                                                 
+Animation 6: _MethodAnimation(ValueTracker):   0%|          | 0/85 [00:00<?, ?it/s]Animation 6: _MethodAnimation(ValueTracker):   2%|▏         | 2/85 [00:00<00:06, 13.69it/s]Animation 6: _MethodAnimation(ValueTracker):   5%|▍         | 4/85 [00:00<00:06, 12.82it/s]Animation 6: _MethodAnimation(ValueTracker):   7%|▋         | 6/85 [00:00<00:05, 13.20it/s]Animation 6: _MethodAnimation(ValueTracker):   9%|▉         | 8/85 [00:00<00:05, 13.15it/s]Animation 6: _MethodAnimation(ValueTracker):  12%|█▏        | 10/85 [00:00<00:05, 13.90it/s]Animation 6: _MethodAnimation(ValueTracker):  14%|█▍        | 12/85 [00:01<00:07,  9.60it/s]Animation 6: _MethodAnimation(ValueTracker):  16%|█▋        | 14/85 [00:01<00:09,  7.72it/s]Animation 6: _MethodAnimation(ValueTracker):  18%|█▊        | 15/85 [00:01<00:08,  7.96it/s]Animation 6: _MethodAnimation(ValueTracker):  20%|██        | 17/85 [00:01<00:06, 10.08it/s]Animation 6: _MethodAnimation(ValueTracker):  24%|██▎       | 20/85 [00:01<00:05, 12.39it/s]Animation 6: _MethodAnimation(ValueTracker):  26%|██▌       | 22/85 [00:02<00:05, 11.12it/s]Animation 6: _MethodAnimation(ValueTracker):  28%|██▊       | 24/85 [00:02<00:05, 10.96it/s]Animation 6: _MethodAnimation(ValueTracker):  31%|███       | 26/85 [00:02<00:05, 10.86it/s]Animation 6: _MethodAnimation(ValueTracker):  33%|███▎      | 28/85 [00:02<00:04, 11.64it/s]Animation 6: _MethodAnimation(ValueTracker):  35%|███▌      | 30/85 [00:02<00:04, 11.99it/s]Animation 6: _MethodAnimation(ValueTracker):  38%|███▊      | 32/85 [00:03<00:05,  9.62it/s]Animation 6: _MethodAnimation(ValueTracker):  40%|████      | 34/85 [00:03<00:07,  7.06it/s]Animation 6: _MethodAnimation(ValueTracker):  41%|████      | 35/85 [00:03<00:06,  7.44it/s]Animation 6: _MethodAnimation(ValueTracker):  42%|████▏     | 36/85 [00:03<00:06,  7.13it/s]Animation 6: _MethodAnimation(ValueTracker):  44%|████▎     | 37/85 [00:03<00:06,  7.56it/s]Animation 6: _MethodAnimation(ValueTracker):  47%|████▋     | 40/85 [00:03<00:04, 11.09it/s]Animation 6: _MethodAnimation(ValueTracker):  49%|████▉     | 42/85 [00:04<00:04, 10.41it/s]Animation 6: _MethodAnimation(ValueTracker):  53%|█████▎    | 45/85 [00:04<00:02, 13.62it/s]Animation 6: _MethodAnimation(ValueTracker):  56%|█████▋    | 48/85 [00:04<00:02, 16.28it/s]Animation 6: _MethodAnimation(ValueTracker):  60%|██████    | 51/85 [00:04<00:02, 15.36it/s]Animation 6: _MethodAnimation(ValueTracker):  62%|██████▏   | 53/85 [00:04<00:02, 12.31it/s]Animation 6: _MethodAnimation(ValueTracker):  65%|██████▍   | 55/85 [00:05<00:02, 12.38it/s]Animation 6: _MethodAnimation(ValueTracker):  67%|██████▋   | 57/85 [00:05<00:02, 11.79it/s]Animation 6: _MethodAnimation(ValueTracker):  69%|██████▉   | 59/85 [00:05<00:02,  9.13it/s]Animation 6: _MethodAnimation(ValueTracker):  72%|███████▏  | 61/85 [00:05<00:02,  8.88it/s]Animation 6: _MethodAnimation(ValueTracker):  73%|███████▎  | 62/85 [00:06<00:03,  6.70it/s]Animation 6: _MethodAnimation(ValueTracker):  75%|███████▌  | 64/85 [00:06<00:02,  7.99it/s]Animation 6: _MethodAnimation(ValueTracker):  78%|███████▊  | 66/85 [00:06<00:01,  9.59it/s]Animation 6: _MethodAnimation(ValueTracker):  80%|████████  | 68/85 [00:06<00:01, 11.12it/s]Animation 6: _MethodAnimation(ValueTracker):  82%|████████▏ | 70/85 [00:06<00:01, 11.83it/s]Animation 6: _MethodAnimation(ValueTracker):  85%|████████▍ | 72/85 [00:06<00:01, 12.30it/s]Animation 6: _MethodAnimation(ValueTracker):  87%|████████▋ | 74/85 [00:07<00:01, 10.82it/s]Animation 6: _MethodAnimation(ValueTracker):  89%|████████▉ | 76/85 [00:07<00:00, 10.77it/s]Animation 6: _MethodAnimation(ValueTracker):  92%|█████████▏| 78/85 [00:07<00:00,  9.22it/s]Animation 6: _MethodAnimation(ValueTracker):  94%|█████████▍| 80/85 [00:08<00:00,  6.69it/s]Animation 6: _MethodAnimation(ValueTracker):  95%|█████████▌| 81/85 [00:08<00:00,  6.82it/s]Animation 6: _MethodAnimation(ValueTracker):  98%|█████████▊| 83/85 [00:08<00:00,  8.34it/s]Animation 6: _MethodAnimation(ValueTracker): 100%|██████████| 85/85 [00:08<00:00,  9.26it/s]                                                                                            [10/03/26 09:10:13] INFO     Animation 6 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_3609536635_3548489822.m                         
+                             p4'                                                
+[10/03/26 09:10:15] INFO     Animation 7 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1216856574_2284066456.m                         
+                             p4'                                                
+Animation 8: FadeIn(AnnularSector), etc.:   0%|          | 0/31 [00:00<?, ?it/s]Animation 8: FadeIn(AnnularSector), etc.:  10%|▉         | 3/31 [00:00<00:01, 20.24it/s]Animation 8: FadeIn(AnnularSector), etc.:  19%|█▉        | 6/31 [00:00<00:01, 20.61it/s]Animation 8: FadeIn(AnnularSector), etc.:  29%|██▉       | 9/31 [00:00<00:00, 22.27it/s]Animation 8: FadeIn(AnnularSector), etc.:  39%|███▊      | 12/31 [00:00<00:00, 19.09it/s]Animation 8: FadeIn(AnnularSector), etc.:  45%|████▌     | 14/31 [00:00<00:01, 15.35it/s]Animation 8: FadeIn(AnnularSector), etc.:  52%|█████▏    | 16/31 [00:00<00:00, 15.06it/s]Animation 8: FadeIn(AnnularSector), etc.:  58%|█████▊    | 18/31 [00:01<00:00, 15.18it/s]Animation 8: FadeIn(AnnularSector), etc.:  65%|██████▍   | 20/31 [00:01<00:00, 13.61it/s]Animation 8: FadeIn(AnnularSector), etc.:  74%|███████▍  | 23/31 [00:01<00:00, 15.52it/s]Animation 8: FadeIn(AnnularSector), etc.:  81%|████████  | 25/31 [00:01<00:00, 16.06it/s]Animation 8: FadeIn(AnnularSector), etc.:  87%|████████▋ | 27/31 [00:01<00:00, 14.97it/s]Animation 8: FadeIn(AnnularSector), etc.:  94%|█████████▎| 29/31 [00:01<00:00, 15.37it/s]Animation 8: FadeIn(AnnularSector), etc.: 100%|██████████| 31/31 [00:02<00:00, 11.14it/s]                                                                                         [10/03/26 09:10:20] INFO     Animation 8 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_3984760321_3531750115.m                         
+                             p4'                                                
+Animation 9: Write(Text('ночь')):   0%|          | 0/14 [00:00<?, ?it/s]                                                                        [10/03/26 09:10:23] INFO     Animation 9 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1944552204_1413359095.m                         
+                             p4'                                                
+Animation 10: FadeIn(Text('28')):   0%|          | 0/17 [00:00<?, ?it/s]                                                                        [10/03/26 09:10:24] INFO     Animation 10 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_4106313440_822264041.mp                         
+                             4'                                                 
+[10/03/26 09:10:27] INFO     Animation 11 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_2524703719_483703504.mp                         
+                             4'                                                 
+                    WARNING  The original duration of              scene.py:1118
+                             NightShift.wait(), 0.0333333 seconds,              
+                             is too short for the current frame                 
+                             rate of 15 FPS. Rendering with the                 
+                             shortest possible duration of                      
+                             0.0666667 seconds instead.                         
+[10/03/26 09:10:28] INFO     Animation 12 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_918700654_1585743378.mp                         
+                             4'                                                 
+Animation 13: FadeIn(Text('Агенты, вызовов')), etc.:   0%|          | 0/9 [00:00<?, ?it/s]Animation 13: FadeIn(Text('Агенты, вызовов')), etc.:  22%|██▏       | 2/9 [00:00<00:00, 16.32it/s]Animation 13: FadeIn(Text('Агенты, вызовов')), etc.:  56%|█████▌    | 5/9 [00:00<00:00, 16.78it/s]Animation 13: FadeIn(Text('Агенты, вызовов')), etc.:  89%|████████▉ | 8/9 [00:00<00:00, 19.57it/s]                                                                                                  [10/03/26 09:10:30] INFO     Animation 13 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_203800350_3184846490.mp                         
+                             4'                                                 
+Animation 14: _MethodAnimation(ValueTracker):   0%|          | 0/64 [00:00<?, ?it/s]Animation 14: _MethodAnimation(ValueTracker):   3%|▎         | 2/64 [00:00<00:04, 14.65it/s]Animation 14: _MethodAnimation(ValueTracker):   6%|▋         | 4/64 [00:00<00:04, 12.82it/s]Animation 14: _MethodAnimation(ValueTracker):   9%|▉         | 6/64 [00:00<00:04, 12.02it/s]Animation 14: _MethodAnimation(ValueTracker):  12%|█▎        | 8/64 [00:00<00:04, 11.63it/s]Animation 14: _MethodAnimation(ValueTracker):  16%|█▌        | 10/64 [00:01<00:10,  5.02it/s]Animation 14: _MethodAnimation(ValueTracker):  19%|█▉        | 12/64 [00:01<00:07,  6.63it/s]Animation 14: _MethodAnimation(ValueTracker):  22%|██▏       | 14/64 [00:01<00:06,  7.51it/s]Animation 14: _MethodAnimation(ValueTracker):  25%|██▌       | 16/64 [00:02<00:06,  7.56it/s]Animation 14: _MethodAnimation(ValueTracker):  28%|██▊       | 18/64 [00:02<00:06,  7.63it/s]Animation 14: _MethodAnimation(ValueTracker):  31%|███▏      | 20/64 [00:02<00:05,  7.50it/s]Animation 14: _MethodAnimation(ValueTracker):  34%|███▍      | 22/64 [00:02<00:05,  8.11it/s]Animation 14: _MethodAnimation(ValueTracker):  38%|███▊      | 24/64 [00:02<00:04,  9.88it/s]Animation 14: _MethodAnimation(ValueTracker):  41%|████      | 26/64 [00:03<00:04,  8.59it/s]Animation 14: _MethodAnimation(ValueTracker):  44%|████▍     | 28/64 [00:03<00:04,  8.62it/s]Animation 14: _MethodAnimation(ValueTracker):  47%|████▋     | 30/64 [00:03<00:03,  8.97it/s]Animation 14: _MethodAnimation(ValueTracker):  48%|████▊     | 31/64 [00:03<00:03,  8.90it/s]Animation 14: _MethodAnimation(ValueTracker):  52%|█████▏    | 33/64 [00:03<00:03,  9.67it/s]Animation 14: _MethodAnimation(ValueTracker):  55%|█████▍    | 35/64 [00:04<00:02, 11.03it/s]Animation 14: _MethodAnimation(ValueTracker):  58%|█████▊    | 37/64 [00:04<00:03,  7.11it/s]Animation 14: _MethodAnimation(ValueTracker):  59%|█████▉    | 38/64 [00:05<00:05,  4.65it/s]Animation 14: _MethodAnimation(ValueTracker):  61%|██████    | 39/64 [00:05<00:04,  5.05it/s]Animation 14: _MethodAnimation(ValueTracker):  62%|██████▎   | 40/64 [00:05<00:04,  5.44it/s]Animation 14: _MethodAnimation(ValueTracker):  64%|██████▍   | 41/64 [00:05<00:03,  5.76it/s]Animation 14: _MethodAnimation(ValueTracker):  66%|██████▌   | 42/64 [00:05<00:03,  6.34it/s]Animation 14: _MethodAnimation(ValueTracker):  67%|██████▋   | 43/64 [00:05<00:03,  5.86it/s]Animation 14: _MethodAnimation(ValueTracker):  70%|███████   | 45/64 [00:05<00:02,  7.12it/s]Animation 14: _MethodAnimation(ValueTracker):  73%|███████▎  | 47/64 [00:06<00:01,  8.62it/s]Animation 14: _MethodAnimation(ValueTracker):  77%|███████▋  | 49/64 [00:06<00:01,  9.84it/s]Animation 14: _MethodAnimation(ValueTracker):  80%|███████▉  | 51/64 [00:06<00:01,  6.52it/s]Animation 14: _MethodAnimation(ValueTracker):  81%|████████▏ | 52/64 [00:06<00:01,  6.27it/s]Animation 14: _MethodAnimation(ValueTracker):  84%|████████▍ | 54/64 [00:07<00:01,  7.68it/s]Animation 14: _MethodAnimation(ValueTracker):  88%|████████▊ | 56/64 [00:07<00:00,  9.08it/s]Animation 14: _MethodAnimation(ValueTracker):  91%|█████████ | 58/64 [00:07<00:00, 10.29it/s]Animation 14: _MethodAnimation(ValueTracker):  94%|█████████▍| 60/64 [00:07<00:00, 11.08it/s]Animation 14: _MethodAnimation(ValueTracker):  97%|█████████▋| 62/64 [00:07<00:00, 10.85it/s]Animation 14: _MethodAnimation(ValueTracker): 100%|██████████| 64/64 [00:08<00:00, 10.08it/s]                                                                                             [10/03/26 09:10:40] INFO     Animation 14 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_3043757284_1869058869.m                         
+                             p4'                                                
+[10/03/26 09:10:42] INFO     Animation 15 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_3903508846_1257926713.m                         
+                             p4'                                                
+Animation 16: FadeIn(Text('каждая кривая — в долях своего пика')):   0%|          | 0/28 [00:00<?, ?it/s]Animation 16: FadeIn(Text('каждая кривая — в долях своего пика')):  25%|██▌       | 7/28 [00:00<00:00, 57.88it/s]Animation 16: FadeIn(Text('каждая кривая — в долях своего пика')):  46%|████▋     | 13/28 [00:00<00:00, 38.39it/s]Animation 16: FadeIn(Text('каждая кривая — в долях своего пика')):  64%|██████▍   | 18/28 [00:00<00:00, 35.62it/s]Animation 16: FadeIn(Text('каждая кривая — в долях своего пика')):  89%|████████▉ | 25/28 [00:00<00:00, 39.74it/s]                                                                                                                  [10/03/26 09:10:46] INFO     Animation 16 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1380272649_2697683725.m                         
+                             p4'                                                
+Animation 17: Create(Arc), etc.:   0%|          | 0/34 [00:00<?, ?it/s]Animation 17: Create(Arc), etc.:  53%|█████▎    | 18/34 [00:00<00:00, 171.96it/s]                                                                                 [10/03/26 09:10:49] INFO     Animation 17 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_4132636552_3800575172.m                         
+                             p4'                                                
+Animation 18: Indicate(VGroup of 10 submobjects), etc.:   0%|          | 0/39 [00:00<?, ?it/s]Animation 18: Indicate(VGroup of 10 submobjects), etc.:  26%|██▌       | 10/39 [00:00<00:00, 99.30it/s]Animation 18: Indicate(VGroup of 10 submobjects), etc.:  51%|█████▏    | 20/39 [00:00<00:00, 31.16it/s]Animation 18: Indicate(VGroup of 10 submobjects), etc.:  67%|██████▋   | 26/39 [00:00<00:00, 33.50it/s]Animation 18: Indicate(VGroup of 10 submobjects), etc.:  79%|███████▉  | 31/39 [00:00<00:00, 29.23it/s]Animation 18: Indicate(VGroup of 10 submobjects), etc.:  90%|████████▉ | 35/39 [00:01<00:00, 20.40it/s]                                                                                                       [10/03/26 09:10:53] INFO     Animation 18 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_2325957470_4216853938.m                         
+                             p4'                                                
+[10/03/26 09:10:56] INFO     Animation 19 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1797340115_3043738282.m                         
+                             p4'                                                
+                    WARNING  The original duration of              scene.py:1118
+                             NightShift.wait(), 0.0333333 seconds,              
+                             is too short for the current frame                 
+                             rate of 15 FPS. Rendering with the                 
+                             shortest possible duration of                      
+                             0.0666667 seconds instead.                         
+[10/03/26 09:10:57] INFO     Animation 20 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_918700654_907105505.mp4                         
+                             '                                                  
+Animation 21: FadeOut(Arc), etc.:   0%|          | 0/17 [00:00<?, ?it/s]Animation 21: FadeOut(Arc), etc.:  12%|█▏        | 2/17 [00:00<00:00, 15.49it/s]Animation 21: FadeOut(Arc), etc.:  29%|██▉       | 5/17 [00:00<00:00, 14.09it/s]Animation 21: FadeOut(Arc), etc.:  41%|████      | 7/17 [00:00<00:00, 11.32it/s]Animation 21: FadeOut(Arc), etc.:  59%|█████▉    | 10/17 [00:00<00:00, 15.36it/s]Animation 21: FadeOut(Arc), etc.:  71%|███████   | 12/17 [00:00<00:00, 16.00it/s]Animation 21: FadeOut(Arc), etc.:  82%|████████▏ | 14/17 [00:00<00:00, 15.54it/s]Animation 21: FadeOut(Arc), etc.:  94%|█████████▍| 16/17 [00:01<00:00, 10.65it/s]                                                                                 [10/03/26 09:11:02] INFO     Animation 21 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1777565916_1636770924.m                         
+                             p4'                                                
+Animation 22: Indicate(VGroup of 6 submobjects):   0%|          | 0/33 [00:00<?, ?it/s]Animation 22: Indicate(VGroup of 6 submobjects):  15%|█▌        | 5/33 [00:00<00:00, 46.85it/s]Animation 22: Indicate(VGroup of 6 submobjects):  42%|████▏     | 14/33 [00:00<00:00, 65.74it/s]Animation 22: Indicate(VGroup of 6 submobjects):  82%|████████▏ | 27/33 [00:00<00:00, 87.85it/s]                                                                                                [10/03/26 09:11:05] INFO     Animation 22 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_2628135952_2313605316.m                         
+                             p4'                                                
+Animation 23: FadeIn(Text('2 236')):   0%|          | 0/24 [00:00<?, ?it/s]Animation 23: FadeIn(Text('2 236')):  42%|████▏     | 10/24 [00:00<00:00, 94.58it/s]Animation 23: FadeIn(Text('2 236')):  88%|████████▊ | 21/24 [00:00<00:00, 90.54it/s]                                                                                    [10/03/26 09:11:09] INFO     Animation 23 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1235647113_705667843.mp                         
+                             4'                                                 
+[10/03/26 09:11:12] INFO     Animation 24 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_901497556_1773458282.mp                         
+                             4'                                                 
+                    WARNING  The original duration of              scene.py:1118
+                             NightShift.wait(), 0.0666667 seconds,              
+                             is too short for the current frame                 
+                             rate of 15 FPS. Rendering with the                 
+                             shortest possible duration of                      
+                             0.0666667 seconds instead.                         
+[10/03/26 09:11:14] INFO     Animation 25 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_918700654_90560194.mp4'                         
+Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')):   0%|          | 0/15 [00:00<?, ?it/s]Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')):  13%|█▎        | 2/15 [00:00<00:00, 18.25it/s]Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')):  33%|███▎      | 5/15 [00:00<00:00, 21.20it/s]Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')):  53%|█████▎    | 8/15 [00:00<00:00, 16.75it/s]Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')):  67%|██████▋   | 10/15 [00:00<00:00, 15.25it/s]Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')):  80%|████████  | 12/15 [00:00<00:00, 13.01it/s]Animation 26: FadeOut(Text('каждая кривая — в долях своего пика')): 100%|██████████| 15/15 [00:00<00:00, 14.55it/s]                                                                                                                   [10/03/26 09:11:17] INFO     Animation 26 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_1148081401_536323559.mp                         
+                             4'                                                 
+Animation 27: FadeIn(VGroup of 3 submobjects):   0%|          | 0/34 [00:00<?, ?it/s]Animation 27: FadeIn(VGroup of 3 submobjects):  44%|████▍     | 15/34 [00:00<00:00, 147.70it/s]                                                                                               [10/03/26 09:11:20] INFO     Animation 27 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_3578795638_1774042745.m                         
+                             p4'                                                
+Animation 28: FadeIn(VGroup of 3 submobjects):   0%|          | 0/25 [00:00<?, ?it/s]Animation 28: FadeIn(VGroup of 3 submobjects):  68%|██████▊   | 17/25 [00:00<00:00, 169.16it/s]                                                                                               [10/03/26 09:11:22] INFO     Animation 28 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_4124531987_931649244.mp                         
+                             4'                                                 
+Animation 29: Circumscribe(Group):   0%|          | 0/37 [00:00<?, ?it/s]Animation 29: Circumscribe(Group):  49%|████▊     | 18/37 [00:00<00:00, 179.54it/s]                                                                                   [10/03/26 09:11:25] INFO     Animation 29 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_2278450031_1444129475.m                         
+                             p4'                                                
+[10/03/26 09:11:28] INFO     Animation 30 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_3181308809_3351021279.m                         
+                             p4'                                                
+[10/03/26 09:11:31] INFO     Animation 31 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/partial_movie                         
+                             _files/NightShift/11185476                         
+                             60_2688965532_3073506299.m                         
+                             p4'                                                
+                    INFO     Combining to Movie file.   scene_file_writer.py:753
+                    INFO                                scene_file_writer.py:904
+                             File ready at                                      
+                             '/tmp/v684/m/videos/night-                         
+                             shift/480p15/NightShift.mp                         
+                             4'                                                 
+                                                                                
+                    INFO     Rendered NightShift                    scene.py:278
+                             Played 32 animations                               
+You are using manim version v0.20.1, but version v0.21.0 is available.
+You should consider upgrading via pip install -U manim

@@ -26,6 +26,26 @@ def test_missing_word_is_reported_per_phrase():
     assert hits[1] == [2, 3]
 
 
+def test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step(tmp_path):
+    import wave
+    clips = []
+    for n, seconds in enumerate((2.0, 3.0)):
+        clip = tmp_path / f"{n}.wav"
+        with wave.open(str(clip), "wb") as w:
+            w.setnchannels(1); w.setsampwidth(2); w.setframerate(make.SR)
+            w.writeframes(b"\0\0" * int(seconds * make.SR))
+        clips.append(clip)
+    steps = [{"t": "а", "say": "а", "sub": None, "hold": None}, {"t": "б", "say": "б", "sub": None, "hold": 1.5}]
+    slow, fast = make.plan(steps, clips, 1.0), make.plan(steps, clips, 1.5)
+    for timing in (slow, fast):
+        for row in timing["steps"]:
+            assert row["step_start"] < row["phrase_start"] < row["phrase_end"] < row["step_start"] + row["d"]
+        assert abs(sum(r["d"] for r in timing["steps"]) - timing["T"]) < 1e-6
+    # паузы ×1/1.5, hold последнего шага — время досмотреть итог — не меняется
+    assert abs(fast["steps"][0]["d"] - (2.0 + (make.LEAD + make.GAP) / 1.5)) < 1e-3
+    assert abs(fast["steps"][1]["d"] - (3.0 + make.LEAD / 1.5 + 1.5)) < 1e-3
+
+
 def test_say_rejects_latin_and_digits_before_synthesis():
     assert make.NOT_SPEAKABLE.search("кеш 20 минут")
     assert make.NOT_SPEAKABLE.search("кеш Together")

@@ -1,0 +1,333 @@
+Manim Community v0.20.1
+
+[10/03/26 09:26:14] INFO     Animation 0 : Using cached     cairo_renderer.py:94
+                             data (hash :                                       
+                             1338929920_3506589752_63182989                     
+                             6)                                                 
+[10/03/26 09:26:16] INFO     Animation 1 : Using cached     cairo_renderer.py:94
+                             data (hash :                                       
+                             1338929920_2566568070_27197239                     
+                             07)                                                
+Animation 1: Create(VGroup of 2 submobjects):   0%|          | 0/1 [00:00<?, ?it/s]                                                                                   Animation 2: LaggedStart(Group), etc.:   0%|          | 0/50 [00:00<?, ?it/s]Animation 2: LaggedStart(Group), etc.:   6%|▌         | 3/50 [00:00<00:01, 25.49it/s]Animation 2: LaggedStart(Group), etc.:  12%|█▏        | 6/50 [00:00<00:03, 11.53it/s]Animation 2: LaggedStart(Group), etc.:  22%|██▏       | 11/50 [00:00<00:01, 19.70it/s]Animation 2: LaggedStart(Group), etc.:  28%|██▊       | 14/50 [00:00<00:01, 19.52it/s]Animation 2: LaggedStart(Group), etc.:  34%|███▍      | 17/50 [00:00<00:01, 19.39it/s]Animation 2: LaggedStart(Group), etc.:  42%|████▏     | 21/50 [00:01<00:01, 21.02it/s]Animation 2: LaggedStart(Group), etc.:  48%|████▊     | 24/50 [00:01<00:01, 14.59it/s]Animation 2: LaggedStart(Group), etc.:  54%|█████▍    | 27/50 [00:01<00:01, 16.71it/s]Animation 2: LaggedStart(Group), etc.:  62%|██████▏   | 31/50 [00:01<00:01, 18.01it/s]Animation 2: LaggedStart(Group), etc.:  70%|███████   | 35/50 [00:01<00:00, 20.56it/s]Animation 2: LaggedStart(Group), etc.:  76%|███████▌  | 38/50 [00:02<00:00, 18.55it/s]Animation 2: LaggedStart(Group), etc.:  84%|████████▍ | 42/50 [00:02<00:00, 21.07it/s]Animation 2: LaggedStart(Group), etc.:  90%|█████████ | 45/50 [00:02<00:00, 11.02it/s]Animation 2: LaggedStart(Group), etc.:  94%|█████████▍| 47/50 [00:03<00:00,  6.21it/s]                                                                                      [10/03/26 09:26:25] INFO     Animation 2 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_400803                         
+                             8177_610531359.mp4'                                
+[10/03/26 09:26:28] INFO     Animation 3 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_282321                         
+                             2457_3021508495.mp4'                               
+Animation 4: FadeIn(Text('Владелец, сообщений')), etc.:   0%|          | 0/16 [00:00<?, ?it/s]Animation 4: FadeIn(Text('Владелец, сообщений')), etc.:  25%|██▌       | 4/16 [00:00<00:00, 34.25it/s]Animation 4: FadeIn(Text('Владелец, сообщений')), etc.:  50%|█████     | 8/16 [00:00<00:00, 20.33it/s]Animation 4: FadeIn(Text('Владелец, сообщений')), etc.:  69%|██████▉   | 11/16 [00:00<00:00, 21.00it/s]Animation 4: FadeIn(Text('Владелец, сообщений')), etc.:  88%|████████▊ | 14/16 [00:00<00:00, 12.23it/s]Animation 4: FadeIn(Text('Владелец, сообщений')), etc.: 100%|██████████| 16/16 [00:01<00:00, 11.01it/s]                                                                                                       [10/03/26 09:26:32] INFO     Animation 4 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_102368                         
+                             4755_3953759510.mp4'                               
+Animation 5: _MethodAnimation(ValueTracker):   0%|          | 0/115 [00:00<?, ?it/s]Animation 5: _MethodAnimation(ValueTracker):   3%|▎         | 4/115 [00:00<00:04, 25.20it/s]Animation 5: _MethodAnimation(ValueTracker):   6%|▌         | 7/115 [00:00<00:04, 26.88it/s]Animation 5: _MethodAnimation(ValueTracker):   9%|▊         | 10/115 [00:00<00:04, 25.00it/s]Animation 5: _MethodAnimation(ValueTracker):  11%|█▏        | 13/115 [00:00<00:05, 17.40it/s]Animation 5: _MethodAnimation(ValueTracker):  15%|█▍        | 17/115 [00:00<00:04, 21.82it/s]Animation 5: _MethodAnimation(ValueTracker):  17%|█▋        | 20/115 [00:01<00:05, 16.33it/s]Animation 5: _MethodAnimation(ValueTracker):  20%|██        | 23/115 [00:01<00:05, 17.62it/s]Animation 5: _MethodAnimation(ValueTracker):  23%|██▎       | 26/115 [00:01<00:05, 17.28it/s]Animation 5: _MethodAnimation(ValueTracker):  24%|██▍       | 28/115 [00:01<00:04, 17.45it/s]Animation 5: _MethodAnimation(ValueTracker):  26%|██▌       | 30/115 [00:01<00:06, 13.86it/s]Animation 5: _MethodAnimation(ValueTracker):  28%|██▊       | 32/115 [00:01<00:06, 12.46it/s]Animation 5: _MethodAnimation(ValueTracker):  30%|███       | 35/115 [00:02<00:05, 15.19it/s]Animation 5: _MethodAnimation(ValueTracker):  32%|███▏      | 37/115 [00:02<00:05, 14.73it/s]Animation 5: _MethodAnimation(ValueTracker):  34%|███▍      | 39/115 [00:02<00:05, 13.41it/s]Animation 5: _MethodAnimation(ValueTracker):  36%|███▌      | 41/115 [00:02<00:05, 14.22it/s]Animation 5: _MethodAnimation(ValueTracker):  37%|███▋      | 43/115 [00:02<00:05, 14.17it/s]Animation 5: _MethodAnimation(ValueTracker):  39%|███▉      | 45/115 [00:03<00:07,  9.37it/s]Animation 5: _MethodAnimation(ValueTracker):  41%|████      | 47/115 [00:03<00:08,  8.33it/s]Animation 5: _MethodAnimation(ValueTracker):  43%|████▎     | 49/115 [00:03<00:06,  9.74it/s]Animation 5: _MethodAnimation(ValueTracker):  44%|████▍     | 51/115 [00:03<00:05, 10.96it/s]Animation 5: _MethodAnimation(ValueTracker):  46%|████▌     | 53/115 [00:03<00:05, 12.12it/s]Animation 5: _MethodAnimation(ValueTracker):  48%|████▊     | 55/115 [00:03<00:04, 12.48it/s]Animation 5: _MethodAnimation(ValueTracker):  50%|████▉     | 57/115 [00:04<00:09,  6.13it/s]Animation 5: _MethodAnimation(ValueTracker):  51%|█████▏    | 59/115 [00:04<00:09,  6.08it/s]Animation 5: _MethodAnimation(ValueTracker):  53%|█████▎    | 61/115 [00:05<00:07,  7.59it/s]Animation 5: _MethodAnimation(ValueTracker):  55%|█████▍    | 63/115 [00:05<00:05,  9.08it/s]Animation 5: _MethodAnimation(ValueTracker):  57%|█████▋    | 65/115 [00:05<00:05,  9.83it/s]Animation 5: _MethodAnimation(ValueTracker):  58%|█████▊    | 67/115 [00:05<00:06,  7.56it/s]Animation 5: _MethodAnimation(ValueTracker):  60%|██████    | 69/115 [00:05<00:05,  8.43it/s]Animation 5: _MethodAnimation(ValueTracker):  62%|██████▏   | 71/115 [00:06<00:04,  9.90it/s]Animation 5: _MethodAnimation(ValueTracker):  63%|██████▎   | 73/115 [00:06<00:03, 11.46it/s]Animation 5: _MethodAnimation(ValueTracker):  65%|██████▌   | 75/115 [00:06<00:03, 12.24it/s]Animation 5: _MethodAnimation(ValueTracker):  67%|██████▋   | 77/115 [00:06<00:02, 13.65it/s]Animation 5: _MethodAnimation(ValueTracker):  69%|██████▊   | 79/115 [00:06<00:02, 12.73it/s]Animation 5: _MethodAnimation(ValueTracker):  70%|███████   | 81/115 [00:06<00:03, 11.22it/s]Animation 5: _MethodAnimation(ValueTracker):  72%|███████▏  | 83/115 [00:07<00:03,  8.28it/s]Animation 5: _MethodAnimation(ValueTracker):  74%|███████▍  | 85/115 [00:07<00:05,  5.51it/s]Animation 5: _MethodAnimation(ValueTracker):  75%|███████▍  | 86/115 [00:07<00:04,  5.84it/s]Animation 5: _MethodAnimation(ValueTracker):  77%|███████▋  | 88/115 [00:08<00:04,  6.53it/s]Animation 5: _MethodAnimation(ValueTracker):  77%|███████▋  | 89/115 [00:08<00:03,  6.90it/s]Animation 5: _MethodAnimation(ValueTracker):  78%|███████▊  | 90/115 [00:08<00:04,  5.13it/s]Animation 5: _MethodAnimation(ValueTracker):  79%|███████▉  | 91/115 [00:08<00:05,  4.52it/s]Animation 5: _MethodAnimation(ValueTracker):  80%|████████  | 92/115 [00:09<00:06,  3.44it/s]Animation 5: _MethodAnimation(ValueTracker):  81%|████████  | 93/115 [00:09<00:06,  3.45it/s]Animation 5: _MethodAnimation(ValueTracker):  83%|████████▎ | 95/115 [00:09<00:04,  4.75it/s]Animation 5: _MethodAnimation(ValueTracker):  83%|████████▎ | 96/115 [00:10<00:03,  5.11it/s]Animation 5: _MethodAnimation(ValueTracker):  84%|████████▍ | 97/115 [00:10<00:03,  4.91it/s]Animation 5: _MethodAnimation(ValueTracker):  86%|████████▌ | 99/115 [00:10<00:02,  6.73it/s]Animation 5: _MethodAnimation(ValueTracker):  88%|████████▊ | 101/115 [00:10<00:01,  8.23it/s]Animation 5: _MethodAnimation(ValueTracker):  90%|████████▉ | 103/115 [00:10<00:01,  9.04it/s]Animation 5: _MethodAnimation(ValueTracker):  91%|█████████▏| 105/115 [00:11<00:01,  8.03it/s]Animation 5: _MethodAnimation(ValueTracker):  93%|█████████▎| 107/115 [00:11<00:00,  8.31it/s]Animation 5: _MethodAnimation(ValueTracker):  94%|█████████▍| 108/115 [00:11<00:00,  7.60it/s]Animation 5: _MethodAnimation(ValueTracker):  96%|█████████▌| 110/115 [00:11<00:00,  8.66it/s]Animation 5: _MethodAnimation(ValueTracker):  97%|█████████▋| 112/115 [00:11<00:00,  9.86it/s]Animation 5: _MethodAnimation(ValueTracker):  99%|█████████▉| 114/115 [00:12<00:00,  9.26it/s]                                                                                              [10/03/26 09:26:47] INFO     Animation 5 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_383793                         
+                             75_1842857195.mp4'                                 
+[10/03/26 09:26:50] INFO     Animation 6 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_155731                         
+                             163_3010468496.mp4'                                
+Animation 7: FadeIn(AnnularSector), etc.:   0%|          | 0/41 [00:00<?, ?it/s]Animation 7: FadeIn(AnnularSector), etc.:   5%|▍         | 2/41 [00:00<00:02, 19.30it/s]Animation 7: FadeIn(AnnularSector), etc.:  10%|▉         | 4/41 [00:00<00:02, 15.89it/s]Animation 7: FadeIn(AnnularSector), etc.:  17%|█▋        | 7/41 [00:00<00:01, 18.85it/s]Animation 7: FadeIn(AnnularSector), etc.:  22%|██▏       | 9/41 [00:00<00:02, 14.45it/s]Animation 7: FadeIn(AnnularSector), etc.:  27%|██▋       | 11/41 [00:00<00:01, 15.80it/s]Animation 7: FadeIn(AnnularSector), etc.:  32%|███▏      | 13/41 [00:00<00:02, 12.96it/s]Animation 7: FadeIn(AnnularSector), etc.:  37%|███▋      | 15/41 [00:01<00:01, 14.28it/s]Animation 7: FadeIn(AnnularSector), etc.:  41%|████▏     | 17/41 [00:01<00:01, 14.96it/s]Animation 7: FadeIn(AnnularSector), etc.:  46%|████▋     | 19/41 [00:01<00:01, 11.00it/s]Animation 7: FadeIn(AnnularSector), etc.:  51%|█████     | 21/41 [00:01<00:01, 12.36it/s]Animation 7: FadeIn(AnnularSector), etc.:  56%|█████▌    | 23/41 [00:01<00:01, 12.06it/s]Animation 7: FadeIn(AnnularSector), etc.:  61%|██████    | 25/41 [00:01<00:01, 11.33it/s]Animation 7: FadeIn(AnnularSector), etc.:  66%|██████▌   | 27/41 [00:02<00:01,  7.73it/s]Animation 7: FadeIn(AnnularSector), etc.:  71%|███████   | 29/41 [00:02<00:01,  8.75it/s]Animation 7: FadeIn(AnnularSector), etc.:  76%|███████▌  | 31/41 [00:03<00:01,  5.43it/s]Animation 7: FadeIn(AnnularSector), etc.:  80%|████████  | 33/41 [00:03<00:01,  6.95it/s]Animation 7: FadeIn(AnnularSector), etc.:  85%|████████▌ | 35/41 [00:03<00:00,  8.46it/s]Animation 7: FadeIn(AnnularSector), etc.:  90%|█████████ | 37/41 [00:03<00:00,  9.53it/s]Animation 7: FadeIn(AnnularSector), etc.:  95%|█████████▌| 39/41 [00:03<00:00, 10.99it/s]Animation 7: FadeIn(AnnularSector), etc.: 100%|██████████| 41/41 [00:03<00:00, 10.23it/s]                                                                                         [10/03/26 09:26:59] INFO     Animation 7 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_240714                         
+                             4229_1933967454.mp4'                               
+Animation 8: Write(Text('ночь')):   0%|          | 0/19 [00:00<?, ?it/s]Animation 8: Write(Text('ночь')):  42%|████▏     | 8/19 [00:00<00:00, 64.61it/s]Animation 8: Write(Text('ночь')):  79%|███████▉  | 15/19 [00:00<00:00, 25.10it/s]Animation 8: Write(Text('ночь')): 100%|██████████| 19/19 [00:00<00:00, 28.40it/s]                                                                                 [10/03/26 09:27:01] INFO     Animation 8 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_121836                         
+                             6715_223774382.mp4'                                
+Animation 9: FadeIn(Text('28')):   0%|          | 0/23 [00:00<?, ?it/s]Animation 9: FadeIn(Text('28')):  52%|█████▏    | 12/23 [00:00<00:00, 115.72it/s]                                                                                 [10/03/26 09:27:06] INFO     Animation 9 : Partial      scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_185133                         
+                             650_4189459852.mp4'                                
+[10/03/26 09:27:11] INFO     Animation 10 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_189112                         
+                             2559_168156733.mp4'                                
+Animation 11: FadeIn(Text('Агенты, вызовов')), etc.:   0%|          | 0/12 [00:00<?, ?it/s]Animation 11: FadeIn(Text('Агенты, вызовов')), etc.:  33%|███▎      | 4/12 [00:00<00:00, 33.46it/s]Animation 11: FadeIn(Text('Агенты, вызовов')), etc.:  67%|██████▋   | 8/12 [00:00<00:00, 29.15it/s]Animation 11: FadeIn(Text('Агенты, вызовов')), etc.:  92%|█████████▏| 11/12 [00:00<00:00, 22.11it/s]                                                                                                    [10/03/26 09:27:13] INFO     Animation 11 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_383568                         
+                             0661_2243999838.mp4'                               
+Animation 12: _MethodAnimation(ValueTracker):   0%|          | 0/83 [00:00<?, ?it/s]Animation 12: _MethodAnimation(ValueTracker):   4%|▎         | 3/83 [00:00<00:03, 21.30it/s]Animation 12: _MethodAnimation(ValueTracker):   7%|▋         | 6/83 [00:00<00:04, 19.15it/s]Animation 12: _MethodAnimation(ValueTracker):  10%|▉         | 8/83 [00:00<00:04, 18.29it/s]Animation 12: _MethodAnimation(ValueTracker):  12%|█▏        | 10/83 [00:00<00:05, 13.97it/s]Animation 12: _MethodAnimation(ValueTracker):  14%|█▍        | 12/83 [00:00<00:05, 12.65it/s]Animation 12: _MethodAnimation(ValueTracker):  17%|█▋        | 14/83 [00:01<00:08,  8.08it/s]Animation 12: _MethodAnimation(ValueTracker):  19%|█▉        | 16/83 [00:01<00:07,  8.78it/s]Animation 12: _MethodAnimation(ValueTracker):  22%|██▏       | 18/83 [00:01<00:06,  9.30it/s]Animation 12: _MethodAnimation(ValueTracker):  24%|██▍       | 20/83 [00:01<00:07,  8.30it/s]Animation 12: _MethodAnimation(ValueTracker):  27%|██▋       | 22/83 [00:02<00:06,  9.55it/s]Animation 12: _MethodAnimation(ValueTracker):  29%|██▉       | 24/83 [00:02<00:05, 10.38it/s]Animation 12: _MethodAnimation(ValueTracker):  31%|███▏      | 26/83 [00:02<00:05,  9.68it/s]Animation 12: _MethodAnimation(ValueTracker):  34%|███▎      | 28/83 [00:02<00:05, 10.25it/s]Animation 12: _MethodAnimation(ValueTracker):  36%|███▌      | 30/83 [00:02<00:05,  9.34it/s]Animation 12: _MethodAnimation(ValueTracker):  39%|███▊      | 32/83 [00:03<00:05,  9.02it/s]Animation 12: _MethodAnimation(ValueTracker):  41%|████      | 34/83 [00:03<00:05,  9.51it/s]Animation 12: _MethodAnimation(ValueTracker):  42%|████▏     | 35/83 [00:03<00:05,  8.61it/s]Animation 12: _MethodAnimation(ValueTracker):  43%|████▎     | 36/83 [00:03<00:05,  8.24it/s]Animation 12: _MethodAnimation(ValueTracker):  46%|████▌     | 38/83 [00:03<00:04,  9.13it/s]Animation 12: _MethodAnimation(ValueTracker):  48%|████▊     | 40/83 [00:03<00:04,  9.62it/s]Animation 12: _MethodAnimation(ValueTracker):  49%|████▉     | 41/83 [00:04<00:04,  9.21it/s]Animation 12: _MethodAnimation(ValueTracker):  51%|█████     | 42/83 [00:04<00:04,  9.17it/s]Animation 12: _MethodAnimation(ValueTracker):  53%|█████▎    | 44/83 [00:04<00:03,  9.91it/s]Animation 12: _MethodAnimation(ValueTracker):  55%|█████▌    | 46/83 [00:04<00:03, 11.02it/s]Animation 12: _MethodAnimation(ValueTracker):  58%|█████▊    | 48/83 [00:04<00:03, 10.00it/s]Animation 12: _MethodAnimation(ValueTracker):  60%|██████    | 50/83 [00:04<00:03,  9.90it/s]Animation 12: _MethodAnimation(ValueTracker):  63%|██████▎   | 52/83 [00:05<00:03,  9.76it/s]Animation 12: _MethodAnimation(ValueTracker):  65%|██████▌   | 54/83 [00:05<00:02, 10.88it/s]Animation 12: _MethodAnimation(ValueTracker):  67%|██████▋   | 56/83 [00:05<00:02, 10.75it/s]Animation 12: _MethodAnimation(ValueTracker):  70%|██████▉   | 58/83 [00:05<00:02, 10.30it/s]Animation 12: _MethodAnimation(ValueTracker):  72%|███████▏  | 60/83 [00:06<00:02,  8.17it/s]Animation 12: _MethodAnimation(ValueTracker):  75%|███████▍  | 62/83 [00:06<00:02,  8.82it/s]Animation 12: _MethodAnimation(ValueTracker):  76%|███████▌  | 63/83 [00:06<00:02,  8.43it/s]Animation 12: _MethodAnimation(ValueTracker):  77%|███████▋  | 64/83 [00:06<00:02,  6.99it/s]Animation 12: _MethodAnimation(ValueTracker):  78%|███████▊  | 65/83 [00:06<00:02,  7.15it/s]Animation 12: _MethodAnimation(ValueTracker):  80%|███████▉  | 66/83 [00:06<00:02,  7.64it/s]Animation 12: _MethodAnimation(ValueTracker):  82%|████████▏ | 68/83 [00:07<00:02,  7.14it/s]Animation 12: _MethodAnimation(ValueTracker):  84%|████████▍ | 70/83 [00:07<00:01,  8.47it/s]Animation 12: _MethodAnimation(ValueTracker):  86%|████████▌ | 71/83 [00:07<00:01,  8.11it/s]Animation 12: _MethodAnimation(ValueTracker):  88%|████████▊ | 73/83 [00:07<00:01,  8.46it/s]Animation 12: _MethodAnimation(ValueTracker):  89%|████████▉ | 74/83 [00:07<00:01,  8.44it/s]Animation 12: _MethodAnimation(ValueTracker):  92%|█████████▏| 76/83 [00:08<00:00,  7.34it/s]Animation 12: _MethodAnimation(ValueTracker):  93%|█████████▎| 77/83 [00:08<00:00,  6.81it/s]Animation 12: _MethodAnimation(ValueTracker):  94%|█████████▍| 78/83 [00:08<00:00,  6.68it/s]Animation 12: _MethodAnimation(ValueTracker):  96%|█████████▋| 80/83 [00:08<00:00,  7.15it/s]Animation 12: _MethodAnimation(ValueTracker):  98%|█████████▊| 81/83 [00:08<00:00,  7.32it/s]Animation 12: _MethodAnimation(ValueTracker):  99%|█████████▉| 82/83 [00:09<00:00,  7.28it/s]Animation 12: _MethodAnimation(ValueTracker): 100%|██████████| 83/83 [00:09<00:00,  7.69it/s]                                                                                             [10/03/26 09:27:25] INFO     Animation 12 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_123789                         
+                             7267_3275240613.mp4'                               
+[10/03/26 09:27:28] INFO     Animation 13 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_231967                         
+                             1493_1584125812.mp4'                               
+Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):   0%|          | 0/39 [00:00<?, ?it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  21%|██        | 8/39 [00:00<00:00, 70.01it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  41%|████      | 16/39 [00:00<00:00, 48.16it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  56%|█████▋    | 22/39 [00:00<00:00, 30.51it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  67%|██████▋   | 26/39 [00:00<00:00, 27.67it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  77%|███████▋  | 30/39 [00:01<00:00, 21.72it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  85%|████████▍ | 33/39 [00:01<00:00, 20.91it/s]Animation 14: FadeIn(Text('каждая кривая — в долях своего пика')):  97%|█████████▋| 38/39 [00:01<00:00, 26.21it/s]                                                                                                                  [10/03/26 09:27:35] INFO     Animation 14 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_308577                         
+                             0226_3233349415.mp4'                               
+Animation 15: Create(Arc), etc.:   0%|          | 0/46 [00:00<?, ?it/s]Animation 15: Create(Arc), etc.:  11%|█         | 5/46 [00:00<00:01, 28.59it/s]Animation 15: Create(Arc), etc.:  17%|█▋        | 8/46 [00:00<00:01, 21.93it/s]Animation 15: Create(Arc), etc.:  35%|███▍      | 16/46 [00:00<00:00, 38.70it/s]Animation 15: Create(Arc), etc.:  46%|████▌     | 21/46 [00:00<00:00, 33.77it/s]Animation 15: Create(Arc), etc.:  63%|██████▎   | 29/46 [00:00<00:00, 40.33it/s]Animation 15: Create(Arc), etc.:  78%|███████▊  | 36/46 [00:00<00:00, 46.85it/s]Animation 15: Create(Arc), etc.:  98%|█████████▊| 45/46 [00:01<00:00, 57.64it/s]                                                                                [10/03/26 09:27:40] INFO     Animation 15 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_723378                         
+                             01_4110945097.mp4'                                 
+Animation 16: Indicate(VGroup of 10 submobjects), etc.:   0%|          | 0/55 [00:00<?, ?it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:   7%|▋         | 4/55 [00:00<00:01, 33.97it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  16%|█▋        | 9/55 [00:00<00:01, 41.59it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  25%|██▌       | 14/55 [00:00<00:02, 19.96it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  38%|███▊      | 21/55 [00:00<00:01, 30.05it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  53%|█████▎    | 29/55 [00:00<00:00, 41.40it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  64%|██████▎   | 35/55 [00:00<00:00, 45.88it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  76%|███████▋  | 42/55 [00:01<00:00, 49.65it/s]Animation 16: Indicate(VGroup of 10 submobjects), etc.:  91%|█████████ | 50/55 [00:01<00:00, 56.55it/s]                                                                                                       [10/03/26 09:27:47] INFO     Animation 16 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_423699                         
+                             5780_1872648540.mp4'                               
+[10/03/26 09:27:51] INFO     Animation 17 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_945757                         
+                             687_699873546.mp4'                                 
+Animation 18: FadeOut(Arc), etc.:   0%|          | 0/23 [00:00<?, ?it/s]Animation 18: FadeOut(Arc), etc.:   9%|▊         | 2/23 [00:00<00:01, 16.23it/s]Animation 18: FadeOut(Arc), etc.:  17%|█▋        | 4/23 [00:00<00:01, 16.48it/s]Animation 18: FadeOut(Arc), etc.:  26%|██▌       | 6/23 [00:00<00:01, 12.27it/s]Animation 18: FadeOut(Arc), etc.:  35%|███▍      | 8/23 [00:00<00:01, 11.51it/s]Animation 18: FadeOut(Arc), etc.:  43%|████▎     | 10/23 [00:00<00:00, 13.19it/s]Animation 18: FadeOut(Arc), etc.:  52%|█████▏    | 12/23 [00:00<00:00, 14.54it/s]Animation 18: FadeOut(Arc), etc.:  61%|██████    | 14/23 [00:01<00:00,  9.83it/s]Animation 18: FadeOut(Arc), etc.:  70%|██████▉   | 16/23 [00:01<00:00,  9.95it/s]Animation 18: FadeOut(Arc), etc.:  83%|████████▎ | 19/23 [00:01<00:00, 13.04it/s]Animation 18: FadeOut(Arc), etc.:  91%|█████████▏| 21/23 [00:01<00:00, 14.05it/s]Animation 18: FadeOut(Arc), etc.: 100%|██████████| 23/23 [00:01<00:00, 12.87it/s]                                                                                 [10/03/26 09:27:57] INFO     Animation 18 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_768491                         
+                             071_2731586766.mp4'                                
+Animation 19: Indicate(VGroup of 6 submobjects):   0%|          | 0/45 [00:00<?, ?it/s]Animation 19: Indicate(VGroup of 6 submobjects):  18%|█▊        | 8/45 [00:00<00:00, 57.80it/s]Animation 19: Indicate(VGroup of 6 submobjects):  31%|███       | 14/45 [00:00<00:00, 50.01it/s]Animation 19: Indicate(VGroup of 6 submobjects):  42%|████▏     | 19/45 [00:00<00:00, 45.29it/s]Animation 19: Indicate(VGroup of 6 submobjects):  62%|██████▏   | 28/45 [00:00<00:00, 56.49it/s]Animation 19: Indicate(VGroup of 6 submobjects):  84%|████████▍ | 38/45 [00:00<00:00, 51.82it/s]Animation 19: Indicate(VGroup of 6 submobjects):  98%|█████████▊| 44/45 [00:00<00:00, 42.47it/s]                                                                                                [10/03/26 09:28:01] INFO     Animation 19 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_269250                         
+                             0673_123939241.mp4'                                
+Animation 20: FadeIn(Text('2 236')):   0%|          | 0/33 [00:00<?, ?it/s]Animation 20: FadeIn(Text('2 236')):  24%|██▍       | 8/33 [00:00<00:00, 73.89it/s]Animation 20: FadeIn(Text('2 236')):  48%|████▊     | 16/33 [00:00<00:00, 59.81it/s]Animation 20: FadeIn(Text('2 236')):  76%|███████▌  | 25/33 [00:00<00:00, 70.98it/s]                                                                                    [10/03/26 09:28:04] INFO     Animation 20 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_163481                         
+                             1425_1035380577.mp4'                               
+[10/03/26 09:28:12] INFO     Animation 21 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_160064                         
+                             8519_3072845982.mp4'                               
+Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):   0%|          | 0/22 [00:00<?, ?it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):   9%|▉         | 2/22 [00:00<00:01, 10.82it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  18%|█▊        | 4/22 [00:00<00:01, 13.50it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  27%|██▋       | 6/22 [00:00<00:01, 11.24it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  36%|███▋      | 8/22 [00:00<00:01,  9.57it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  45%|████▌     | 10/22 [00:00<00:01, 10.03it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  55%|█████▍    | 12/22 [00:01<00:01,  8.98it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  59%|█████▉    | 13/22 [00:01<00:01,  8.34it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  64%|██████▎   | 14/22 [00:01<00:01,  7.82it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  73%|███████▎  | 16/22 [00:01<00:00,  9.66it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  82%|████████▏ | 18/22 [00:02<00:00,  6.07it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  86%|████████▋ | 19/22 [00:02<00:00,  6.20it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')):  95%|█████████▌| 21/22 [00:02<00:00,  7.16it/s]Animation 22: FadeOut(Text('каждая кривая — в долях своего пика')): 100%|██████████| 22/22 [00:02<00:00,  7.40it/s]                                                                                                                   [10/03/26 09:28:17] INFO     Animation 22 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_199208                         
+                             9834_1604239612.mp4'                               
+Animation 23: FadeIn(VGroup of 3 submobjects):   0%|          | 0/48 [00:00<?, ?it/s]Animation 23: FadeIn(VGroup of 3 submobjects):  27%|██▋       | 13/48 [00:00<00:00, 113.92it/s]Animation 23: FadeIn(VGroup of 3 submobjects):  52%|█████▏    | 25/48 [00:00<00:00, 101.16it/s]Animation 23: FadeIn(VGroup of 3 submobjects):  75%|███████▌  | 36/48 [00:00<00:00, 102.58it/s]Animation 23: FadeIn(VGroup of 3 submobjects):  98%|█████████▊| 47/48 [00:00<00:00, 62.06it/s]                                                                                               [10/03/26 09:28:22] INFO     Animation 23 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_209949                         
+                             9823_1224230424.mp4'                               
+Animation 24: FadeIn(VGroup of 3 submobjects):   0%|          | 0/36 [00:00<?, ?it/s]Animation 24: FadeIn(VGroup of 3 submobjects):  17%|█▋        | 6/36 [00:00<00:00, 52.35it/s]Animation 24: FadeIn(VGroup of 3 submobjects):  33%|███▎      | 12/36 [00:00<00:00, 55.50it/s]Animation 24: FadeIn(VGroup of 3 submobjects):  53%|█████▎    | 19/36 [00:00<00:00, 56.28it/s]Animation 24: FadeIn(VGroup of 3 submobjects):  69%|██████▉   | 25/36 [00:00<00:00, 39.50it/s]Animation 24: FadeIn(VGroup of 3 submobjects):  83%|████████▎ | 30/36 [00:00<00:00, 39.63it/s]                                                                                              [10/03/26 09:28:26] INFO     Animation 24 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_111649                         
+                             8992_1402329027.mp4'                               
+Animation 25: Circumscribe(Group):   0%|          | 0/54 [00:00<?, ?it/s]Animation 25: Circumscribe(Group):   4%|▎         | 2/54 [00:00<00:02, 19.92it/s]Animation 25: Circumscribe(Group):   9%|▉         | 5/54 [00:00<00:01, 25.64it/s]Animation 25: Circumscribe(Group):  15%|█▍        | 8/54 [00:00<00:01, 25.24it/s]Animation 25: Circumscribe(Group):  22%|██▏       | 12/54 [00:00<00:01, 28.77it/s]Animation 25: Circumscribe(Group):  30%|██▉       | 16/54 [00:00<00:01, 29.48it/s]Animation 25: Circumscribe(Group):  39%|███▉      | 21/54 [00:00<00:00, 35.56it/s]Animation 25: Circumscribe(Group):  50%|█████     | 27/54 [00:00<00:00, 40.56it/s]Animation 25: Circumscribe(Group):  59%|█████▉    | 32/54 [00:00<00:00, 42.69it/s]Animation 25: Circumscribe(Group):  80%|███████▉  | 43/54 [00:00<00:00, 61.77it/s]Animation 25: Circumscribe(Group):  98%|█████████▊| 53/54 [00:01<00:00, 70.42it/s]                                                                                  [10/03/26 09:28:33] INFO     Animation 25 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_428080                         
+                             9174_3303614170.mp4'                               
+[10/03/26 09:28:39] INFO     Animation 26 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_165557                         
+                             510_2099444439.mp4'                                
+[10/03/26 09:28:45] INFO     Animation 27 : Partial     scene_file_writer.py:601
+                             movie file written in                              
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/partial_movie_files/Ni                         
+                             ghtShift/1584702162_339013                         
+                             9927_3744854900.mp4'                               
+                    INFO     Combining to Movie file.   scene_file_writer.py:753
+                    INFO                                scene_file_writer.py:904
+                             File ready at                                      
+                             '/home/kesha/orchestra/wor                         
+                             ktrees/home-kesha-orchestr                         
+                             a/feat-manim-video/.orches                         
+                             tra/tasks/V-684/video/.man                         
+                             im/videos/night-shift/1080                         
+                             p30/night-shift.mp4'                               
+                                                                                
+                    INFO     Rendered NightShift                    scene.py:278
+                             Played 28 animations                               
+You are using manim version v0.20.1, but version v0.21.0 is available.
+You should consider upgrading via pip install -U manim
+    0.23–  3.87  шаг  4.24 с  Вот сутки Оркестры, как циферблат на двадцать четыре часа. Время красноярское.
+    4.47–  8.89  шаг  5.02 с  Стрелка проходит месяц сообщений владельца. Почти четыре тысячи, больше всего с трёх до пяти дня.
+    9.49– 13.38  шаг  4.49 с  А с часу ночи до семи утра за весь месяц всего двадцать восемь сообщений. Человек спит.
+   13.98– 17.18  шаг  3.80 с  Теперь агенты. За тот же месяц они вызвали инструменты девяносто тысяч раз.
+   17.78– 22.25  шаг  5.08 с  Каждая кривая в своём масштабе. Днём они идут почти вместе: агенты работают, пока владелец пишет.
+   22.86– 27.22  шаг  4.97 с  А ночью золотая не падает к нулю. Две тысячи вызовов, по восемьдесят на каждое ночное сообщение.
+   27.82– 32.70  шаг  7.11 с  Днём на одно сообщение приходится двадцать два вызова, ночью восемьдесят. Оркестра работает, пока владелец спит.
+длина ролика 36.7 с
+.orchestra/tasks/V-684/video/night-shift-contact.png
+.orchestra/tasks/V-684/video/night-shift.mp4 3.0 МБ
+  recall 0.82  сдвиг слова -0.07  звука 0.03  Вот сутки Оркестры, как циферблат на двадцать четыре часа. Время красноярское.
+      слышно: вот сутки оркестры как циферблат на часа время красноярское
+  recall 0.87  сдвиг слова 0.01  звука 0.03  Стрелка проходит месяц сообщений владельца. Почти четыре тысячи, больше всего с трёх до пяти дня.
+      слышно: стрелка проходит месяц сообщений владельца почти больше всего с трёх до пяти дня
+  recall 0.88  сдвиг слова -0.05  звука 0.03  А с часу ночи до семи утра за весь месяц всего двадцать восемь сообщений. Человек спит.
+      слышно: а с часу ночи до семи утра за весь месяц всего сообщений человек спит
+  recall 0.92  сдвиг слова -0.01  звука 0.02  Теперь агенты. За тот же месяц они вызвали инструменты девяносто тысяч раз.
+      слышно: теперь агенты за тот же месяц они вызвали инструменты тысяч раз
+  recall 1.00  сдвиг слова 0.03  звука 0.03  Каждая кривая в своём масштабе. Днём они идут почти вместе: агенты работают, пока владелец пишет.
+      слышно: каждая кривая в своем масштабе днем они идут почти вместе агенты работают пока владелец пишет
+  recall 0.93  сдвиг слова -0.09  звука 0.02  А ночью золотая не падает к нулю. Две тысячи вызовов, по восемьдесят на каждое ночное сообщение.
+      слышно: а ночью золотая не падает к нулю вызовов по 80 на каждое ночное сообщение
+  recall 1.00  сдвиг слова -0.01  звука 0.03  Днём на одно сообщение приходится двадцать два вызова, ночью восемьдесят. Оркестра работает, пока владелец спит.
+      слышно: днем на одно сообщение приходится 22 вызова ночью 80 оркестр работает пока владелец спит
+минимальная дословность 0.82, наибольший сдвиг: первого слова 0.09 с, начала звука 0.03 с
+	Command being timed: "uv run --frozen --project /home/kesha/orchestra python scripts/explainer_video/make.py .orchestra/tasks/V-684/night-shift.py --out .orchestra/tasks/V-684/video"
+	User time (seconds): 214.37
+	System time (seconds): 56.73
+	Percent of CPU this job got: 145%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 3:05.76
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 808844
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 884806
+	Voluntary context switches: 128413
+	Involuntary context switches: 5305
+	Swaps: 0
+	File system inputs: 1320
+	File system outputs: 38600
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 0
+night-shift rc=0
