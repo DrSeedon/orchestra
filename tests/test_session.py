@@ -2560,6 +2560,28 @@ class TestPrecompactTimer:
         session._schedule_precompact_timer(30)
         assert len(launched) == 1
 
+    def test_precompact_floor_override_applies_only_to_named_session(self, session, monkeypatch):
+        launched = []
+        session.backend_type = "claude"
+        session._log = lambda *_: None
+
+        def capture(coro):
+            launched.append(coro)
+            coro.close()
+            return MagicMock(done=lambda: False)
+
+        session._spawn_bg = capture
+        monkeypatch.setattr(type(session), "PRECOMPACT_MIN_CONTEXT_PCT_BY_SESSION", {session.name: 80})
+
+        session._schedule_precompact_timer(79)
+        assert launched == []
+        session._schedule_precompact_timer(80)
+        assert len(launched) == 1
+        assert session._precompact_timer["min_context_pct"] == 80
+
+        monkeypatch.setattr(type(session), "PRECOMPACT_MIN_CONTEXT_PCT_BY_SESSION", {"other": 80})
+        assert session._precompact_policy()["min_context_pct"] == 30
+
     def test_codex_precompact_policy_uses_25m_and_low_context_floor(self, session):
         launched = []
         session.backend_type = "codex"

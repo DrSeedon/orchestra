@@ -551,6 +551,9 @@ class AgentSession:
     # while re-writing 90-150k tokens of cache; above 30% they cut 78-86%.
     # Codex uses the same floor by the owner's decision (25.09).
     PRECOMPACT_MIN_CONTEXT_PCT = 30
+    # Owner 03.10 (V-683): katya-work lost agreements to 2-5 idle compacts a day; there
+    # idle compaction waits for a nearly full context and the cold cache is accepted.
+    PRECOMPACT_MIN_CONTEXT_PCT_BY_SESSION = {"katya-work-orchestrator": 80}
     CLAUDE_CACHE_WINDOW_SECONDS = 60 * 60
     # ChatGPT-auth Codex publishes no contractual cache TTL. Keep a five-minute
     # safety margin before the observed/documented ~30-minute reference window.
@@ -575,13 +578,15 @@ class AgentSession:
         return json.dumps(payload, ensure_ascii=False)
 
     def _precompact_policy(self) -> dict | None:
+        min_pct = self.PRECOMPACT_MIN_CONTEXT_PCT_BY_SESSION.get(
+            self.name, self.PRECOMPACT_MIN_CONTEXT_PCT)
         if self.backend_type == "claude":
             return {
                 "delay_seconds": self.PRECOMPACT_DELAY_SECONDS,
                 "cache_window_seconds": self.CLAUDE_CACHE_WINDOW_SECONDS,
                 "context_threshold": self.PRECOMPACT_CONTEXT_THRESHOLD,
-                "arm_threshold": self.PRECOMPACT_MIN_CONTEXT_PCT,
-                "min_context_pct": self.PRECOMPACT_MIN_CONTEXT_PCT,
+                "arm_threshold": min_pct,
+                "min_context_pct": min_pct,
                 "compact_mode": "handoff",
             }
         if self.backend_type == "codex":
@@ -589,8 +594,8 @@ class AgentSession:
                 "delay_seconds": self.CODEX_PRECOMPACT_DELAY_SECONDS,
                 "cache_window_seconds": self.CODEX_CACHE_WINDOW_SECONDS,
                 "context_threshold": self.CODEX_PRECOMPACT_CONTEXT_THRESHOLD,
-                "arm_threshold": self.PRECOMPACT_MIN_CONTEXT_PCT,
-                "min_context_pct": self.PRECOMPACT_MIN_CONTEXT_PCT,
+                "arm_threshold": min_pct,
+                "min_context_pct": min_pct,
                 "compact_mode": "native",
             }
         return None
