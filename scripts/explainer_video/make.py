@@ -3,6 +3,9 @@
     uv run --frozen --project /home/kesha/orchestra python \
         /home/kesha/orchestra/scripts/explainer_video/make.py scene.html --out DIR
 
+Сцена `.py` — Manim вместо html-motion: класс-наследник VoiceScene из manim_voice.py,
+тот же договор STEPS; рендерит Manim из ~/.local/share/orchestra-manim.
+
 Озвучка задаёт время, а не наоборот: у каждого шага `STEPS` есть фраза `say`, она
 синтезируется первой, и длительность шага становится «вступление + фраза + пауза».
 Поэтому смена состояния в начале шага совпадает с началом фразы по построению, а не
@@ -14,7 +17,8 @@
 каждая фраза), `<имя>-contact.png` (кадры конца шагов для просмотра глазами) и, если
 есть DEEPGRAM_API_KEY, `<имя>.check.json` — распознанный текст и сдвиг каждой фразы.
 
-Ключи: --speaker 0..4 (3 и 4 мужские, 0–2 женские), --rate 1.0, --fps 30,
+Ключи: --speaker 0..4 (3 и 4 мужские, 0–2 женские), --rate 1.5 (темп: речь и паузы между
+фразами; 1.0 — темп V-681), --fps 30,
 --stills (только озвучка, тайминг и контакт-лист, без видео), --no-check.
 Синтез кэшируется по тексту фразы: правка одной фразы пересинтезирует только её,
 но первая загрузка модели занимает ~2 мин. Тяжёлое — запускать вне cgroup платформы.
@@ -42,6 +46,8 @@ HERE = Path(__file__).resolve().parent
 TTS_HOME = Path(os.environ.get("ORCHESTRA_TTS_HOME", Path.home() / ".local/share/orchestra-tts"))
 TTS_PYTHON = Path(os.environ.get("ORCHESTRA_TTS_PYTHON", TTS_HOME / "venv/bin/python"))
 TTS_MODEL = Path(os.environ.get("ORCHESTRA_TTS_MODEL", TTS_HOME / "vosk-model-tts-ru-0.9-multi"))
+MANIM_HOME = Path(os.environ.get("ORCHESTRA_MANIM_HOME", Path.home() / ".local/share/orchestra-manim"))
+MANIM_BIN = MANIM_HOME / "env/bin"
 SR = 48000
 VIEW = {"width": 1280, "height": 720}
 SCALE = 1.5  # 1280×720 CSS-пикселей → кадр 1920×1080
@@ -110,12 +116,38 @@ def read_steps(scene: Path) -> list[dict]:
         browser, page = open_scene(pw, scene, None)
         steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null}))")
         browser.close()
+    return check_steps(steps)
+
+
+def check_steps(steps: list[dict]) -> list[dict]:
     for i, step in enumerate(steps, 1):
         if not step["say"].strip():
             fail(f"шаг {i} «{step['t']}» без фразы say")
         if bad := sorted(set(NOT_SPEAKABLE.findall(step["say"]))):
             fail(f"шаг {i}: в say есть {''.join(bad)} — латиницу и цифры пиши словами по-русски")
     return steps
+
+
+MANIM_STEPS_JS = """
+import importlib.util, json, sys
+sys.path.insert(0, sys.argv[2])
+spec = importlib.util.spec_from_file_location("scene", sys.argv[1])
+mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+from manim_voice import VoiceScene
+found = [c for c in vars(mod).values() if isinstance(c, type) and issubclass(c, VoiceScene) and c.__module__ == "scene"]
+if len(found) != 1:
+    sys.exit(f"в файле должна быть ровно одна сцена VoiceScene, найдено {[c.__name__ for c in found]}")
+print(json.dumps({"cls": found[0].__name__, "steps": [{"t": s["t"], "say": s.get("say", ""), "sub": s.get("sub"),
+                  "hold": s.get("hold")} for s in found[0].STEPS]}, ensure_ascii=False))
+"""
+
+
+def manim_steps(scene: Path) -> tuple[str, list[dict]]:
+    if not (MANIM_BIN / "manim").exists():
+        fail(f"нет Manim: {MANIM_BIN}/manim — установка в SKILL explainer-video")
+    got = json.loads(run(str(MANIM_BIN / "python"), "-c", MANIM_STEPS_JS, str(scene.resolve()), str(HERE),
+                         capture_output=True, text=True).stdout)
+    return got["cls"], check_steps(got["steps"])
 
 
 def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float) -> list[Path]:
@@ -149,13 +181,16 @@ def wav_seconds(path: Path) -> float:
         return w.getnframes() / w.getframerate()
 
 
-def plan(steps: list[dict], clips: list[Path]) -> dict:
+def plan(steps: list[dict], clips: list[Path], rate: float) -> dict:
     rows, at = [], 0.0
     for step, clip in zip(steps, clips, strict=True):
         length = wav_seconds(clip)
-        d = round(LEAD + length + (step["hold"] if step["hold"] is not None else GAP), 3)
+        # Паузы ускоряются вместе с речью, иначе при rate 1.5 ролик короче лишь в 1.4 раза;
+        # hold — время досмотреть итог, его темп не трогает.
+        lead = LEAD / rate
+        d = round(lead + length + (step["hold"] if step["hold"] is not None else GAP / rate), 3)
         rows.append({"title": step["t"], "say": step["say"], "sub": step["sub"], "step_start": round(at, 3),
-                     "phrase_start": round(at + LEAD, 3), "phrase_end": round(at + LEAD + length, 3), "d": d})
+                     "phrase_start": round(at + lead, 3), "phrase_end": round(at + lead + length, 3), "d": d})
         at += d
     return {"steps": rows, "T": round(at, 3), "pre": PRE, "post": POST}
 
@@ -180,8 +215,8 @@ def voice_track(timing: dict, clips: list[Path], out: Path) -> None:
 
 def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: bool, jobs: int) -> None:
     voice = {"d": [row["d"] for row in timing["steps"]]}
-    frames_dir = out / "frames"
-    frames_dir.mkdir(exist_ok=True)
+    frames_dir = out / "frames" / name
+    frames_dir.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as pw:
         browser, page = open_scene(pw, scene, voice)
         applied = page.evaluate("[window.__VOICE_APPLIED === true, P.T, STEPS.map(s => s.d)]")
@@ -238,6 +273,30 @@ def render_part(args) -> None:
     ff.stdin.close()
     if ff.wait() != 0:
         raise RuntimeError(f"ffmpeg не собрал кусок {path}")
+
+
+def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps: int, video: bool) -> None:
+    """Manim сам пишет MP4; длительности шагов получает через EXPLAINER_VOICE (см. manim_voice.py).
+    --stills тоже рендерит, но в 480p: кадр Manim нельзя снять без проигрыша сцены до него."""
+    media = out / ".manim"
+    quality = ["-r", "1920,1080", "--fps", str(fps)] if video else ["-ql"]
+    voice = {"d": [row["d"] for row in timing["steps"]], "pre": PRE, "post": POST}
+    run(str(MANIM_BIN / "manim"), "render", *quality, "--media_dir", str(media), "-o", name,
+        str(scene.resolve()), cls,
+        env={**os.environ, "EXPLAINER_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),
+             "PATH": f"{MANIM_BIN}:{os.environ['PATH']}"})
+    rendered = max(media.glob(f"videos/**/{name}.mp4"), key=lambda p: p.stat().st_mtime)
+    frames_dir = out / "frames" / name
+    frames_dir.mkdir(parents=True, exist_ok=True)
+    for i, row in enumerate(timing["steps"]):
+        t = PRE + row["step_start"] + row["d"] - 0.1
+        run("ffmpeg", "-v", "error", "-y", "-ss", f"{t:.3f}", "-i", str(rendered), "-frames:v", "1",
+            str(frames_dir / f"step{i + 1:02d}.png"))
+    tile = f"tile=3x{(len(timing['steps']) + 2) // 3}"
+    run("ffmpeg", "-v", "error", "-y", "-pattern_type", "glob", "-i", str(frames_dir / "step*.png"),
+        "-vf", f"scale=640:-1,{tile}", "-frames:v", "1", str(out / f"{name}-contact.png"))
+    if video:
+        rendered.replace(out / f"{name}.video.mp4")
 
 
 def mux(out: Path, name: str) -> Path:
@@ -335,7 +394,7 @@ def main() -> None:
     ap.add_argument("scene", type=Path)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--speaker", type=int, default=3)
-    ap.add_argument("--rate", type=float, default=1.0)
+    ap.add_argument("--rate", type=float, default=1.5)
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
@@ -346,16 +405,23 @@ def main() -> None:
     out, name = args.out, args.scene.stem
     out.mkdir(parents=True, exist_ok=True)
 
-    steps = read_steps(args.scene)
+    manim = args.scene.suffix == ".py"
+    if manim:
+        cls, steps = manim_steps(args.scene)
+    else:
+        steps = read_steps(args.scene)
     clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate)
-    timing = plan(steps, clips)
+    timing = plan(steps, clips, args.rate)
     (out / f"{name}.timing.json").write_text(json.dumps(timing, ensure_ascii=False, indent=1))
     for row in timing["steps"]:
         print(f"  {row['phrase_start']:6.2f}–{row['phrase_end']:6.2f}  шаг {row['d']:5.2f} с  {row['say']}")
     print(f"длина ролика {PRE + timing['T'] + POST:.1f} с")
     if not args.check_only:
         voice_track(timing, clips, out / f"{name}.voice.wav")
-        render(args.scene, timing, out, name, args.fps, video=not args.stills, jobs=args.jobs)
+        if manim:
+            render_manim(args.scene, cls, timing, out, name, args.fps, video=not args.stills)
+        else:
+            render(args.scene, timing, out, name, args.fps, video=not args.stills, jobs=args.jobs)
         print(out / f"{name}-contact.png")
         if args.stills:
             return
