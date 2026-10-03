@@ -29,6 +29,8 @@ _NOISE = (
     ("agent command exit code", re.compile(r"^Exit code (?:\d+|<N>)$", re.I)),
     ("external app tool argument", re.compile(r"This app tool requires", re.I)),
     ("external app unknown tool", re.compile(r"codex_apps/.*Unknown tool", re.I)),
+    # Case-sensitive on purpose: a missing real `Bash` tool must still surface.
+    ("agent misspelled tool name", re.compile(r"No such tool available: bash(?:_placeholder)?\b")),
     ("TG polling cut by shutdown", re.compile(r"Failed to fetch updates.*ServerDisconnectedError", re.I)),
     ("agent shell syntax", re.compile(r"-c: line (?:\d+|<N>): syntax error", re.I)),
     ("agent missing python package", re.compile(r"File \"<stdin>\".*ModuleNotFoundError", re.I)),
