@@ -1,0 +1,220 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Orchestra — панель управления командой ИИ-агентов</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+.mv{max-width:980px;margin:16px auto;background:#fff;border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px #0000000d,0 6px 20px #0000000a}
+.mv h1{font-size:21px;margin:0 0 8px;letter-spacing:-.01em}.stg{overflow-x:auto}.stg>svg{width:100%;min-width:680px;height:auto;display:block}
+.cap{position:relative;min-height:4.4em;margin:8px 0}.cap b{display:block;font-size:16px}#capB{position:absolute;inset:0 0 auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.bar button{display:grid;place-items:center;width:32px;height:32px;padding:0;border:0;border-radius:50%;background:#f5f5f7;color:#1d1d1f;cursor:pointer;transition:transform .25s cubic-bezier(.3,1.5,.5,1),background-color .2s}
+.bar button:hover{background:#e8e8ed}.bar button:active{transform:scale(.88)}.bar svg{width:14px;height:14px;fill:currentColor}
+#bPlay{width:40px;height:40px;background:#007aff;color:#fff}#bPlay:hover{background:#0071e3}#bPlay svg{width:16px;height:16px}
+#bPlay path{transition:opacity .2s,transform .3s cubic-bezier(.3,1.5,.5,1);transform-box:fill-box;transform-origin:center}#bPlay .i2,#bPlay.on .i1{opacity:0;transform:scale(.4)}#bPlay.on .i2{opacity:1;transform:none}
+#seek{flex:1;min-width:140px;-webkit-appearance:none;appearance:none;height:4px;margin:0 4px;border-radius:2px;background:linear-gradient(#007aff 0 0) 0/var(--p,0%) 100% no-repeat,#e5e5ea;cursor:pointer}
+#seek::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek::-moz-range-thumb{width:16px;height:16px;border:0;border-radius:50%;background:#fff;box-shadow:0 1px 4px #0000004d;transition:transform .2s}
+#seek:hover::-webkit-slider-thumb{transform:scale(1.2)}#seek:hover::-moz-range-thumb{transform:scale(1.2)}
+#clock{font-variant-numeric:tabular-nums;min-width:92px;text-align:right;color:#6e6e73}.bar select{border:0;background:#f5f5f7;border-radius:8px;padding:6px 8px;font:inherit;cursor:pointer}
+.ch{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 0;padding:0;list-style:none}
+.ch li{--o:0;padding:3px 10px;border-radius:8px;cursor:pointer;background:color-mix(in srgb,#007aff calc(var(--o)*100%),#f5f5f7);color:color-mix(in srgb,#fff calc(var(--o)*100%),#1d1d1f)}.ch li:hover{filter:brightness(.96)}
+@media print{.bar{display:none}}@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head><body>
+<div class="mv">
+<h1>Orchestra — панель управления командой ИИ-агентов</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 1200 520" role="img" aria-labelledby="st"><title id="st">Настоящая панель Orchestra на демонстрационном проекте</title>
+ <defs><clipPath id="frame"><rect x="0" y="0" width="1200" height="520" rx="14"/></clipPath>
+  <mask id="spot" maskUnits="userSpaceOnUse" x="0" y="0" width="1200" height="520"><rect width="1200" height="520" fill="#fff"/><rect id="hole" rx="10" fill="#000"/></mask>
+  <linearGradient id="fade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#0b0e14" stop-opacity=".55"/><stop offset="1" stop-color="#0b0e14" stop-opacity=".92"/></linearGradient></defs>
+ <g clip-path="url(#frame)">
+  <rect width="1200" height="520" fill="#0b0e14"/>
+  <image id="iPlan" href="img/plan.png" preserveAspectRatio="none" opacity="0"/>
+  <image id="iAgents" href="img/agents.png" preserveAspectRatio="none" opacity="1"/>
+  <image id="iWorker" href="img/worker.png" preserveAspectRatio="none" opacity="0"/>
+  <image id="iMerge" href="img/merge.png" preserveAspectRatio="none" opacity="0"/>
+  <image id="iTasks" href="img/tasks.png" preserveAspectRatio="none" opacity="0"/>
+  <foreignObject x="0" y="0" width="1200" height="520"><canvas id="clipCanvas" width="2400" height="1040" xmlns="http://www.w3.org/1999/xhtml" style="width:1200px;height:520px;display:block"></canvas></foreignObject>
+  <rect id="cAgents" fill="none" opacity="0"/><rect id="cLive" fill="none" opacity="0"/><rect id="cTasks" fill="none" opacity="0"/>
+  <rect id="cQuota" fill="none" opacity="0"/><rect id="cSpend" fill="none" opacity="0"/>
+  <rect id="dim" width="1200" height="520" fill="#05070b" mask="url(#spot)" opacity="0"/>
+  <rect id="hl" fill="none" stroke="#f0ac5f" stroke-width="4" rx="10" opacity="0"/>
+  <g id="intro" opacity="1"><rect width="1200" height="520" fill="url(#fade)"/>
+   <text x="600" y="235" text-anchor="middle" font-size="76" font-weight="800" fill="#ffffff">Orchestra</text>
+   <text x="600" y="290" text-anchor="middle" font-size="26" fill="#c9cfdb">Оркестратор планирует. Воркеры работают параллельно. Вы решаете.</text></g>
+  <g id="outro" opacity="0"><rect width="1200" height="520" fill="#0b0e14" opacity=".9"/>
+   <text x="600" y="150" text-anchor="middle" font-size="64" font-weight="800" fill="#ffffff">Orchestra</text>
+   <text x="600" y="222" text-anchor="middle" font-size="25" fill="#58c4dd">Один оркестратор · воркеры в отдельных ветках</text>
+   <text x="600" y="266" text-anchor="middle" font-size="25" fill="#83c167">Проверки, тесты и мерж · задачи и квоты на одной панели</text>
+   <text x="600" y="310" text-anchor="middle" font-size="25" fill="#f0ac5f">Claude · Codex · Grok — в ваших подписках</text>
+   <text x="600" y="392" text-anchor="middle" font-size="22" font-family="JetBrains Mono, monospace" fill="#8b93a7">открытый код · свой сервер · AGPL-3.0</text></g>
+ </g>
+</svg></div>
+<div class="cap"><div id="capA" aria-live="polite"><b id="capT"></b><span id="capX"></span></div><div id="capB" aria-hidden="true"><b></b><span></span></div></div>
+<div class="bar"><button id="bPrev" aria-label="Предыдущий шаг"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Пуск или пауза"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Следующий шаг"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Время"><span id="clock"></span>
+ <select id="rate" aria-label="Скорость"><option value="0.5">0,5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+<ol class="ch" id="chap"></ol>
+</div>
+<script src="clips/clips.js"></script>
+<script>
+// ── СЦЕНА ──
+// Screenshots are the real dashboard at 1600×940 CSS px (stand on fake data, V-686).
+// A "camera" region [x, y, w, h] in those px is fitted into the 1200×520 stage.
+const PAGE = [1600, 940], LAYERS = ['iPlan', 'iAgents', 'iWorker', 'iMerge', 'iTasks', 'cAgents', 'cLive', 'cTasks', 'cQuota', 'cSpend'];
+// Clips (c*) are live screencasts of the same stand (stand/clips.py → build-clips.sh), drawn on one canvas;
+// their <rect> only carries the camera geometry and opacity that the player animates.
+function cam(r, hl, layer) {
+  const s = Math.min(1200 / r[2], 520 / r[3]), x = 600 - (r[0] + r[2] / 2) * s, y = 260 - (r[1] + r[3] / 2) * s;
+  const set = {};
+  for (const id of LAYERS) set[id] = {x, y, width: PAGE[0] * s, height: PAGE[1] * s, opacity: id === layer ? 1 : 0};
+  const box = hl ? {x: x + hl[0] * s - 6, y: y + hl[1] * s - 6, width: hl[2] * s + 12, height: hl[3] * s + 12} : null;
+  set.hl = box ? {...box, opacity: 1} : {opacity: 0};
+  set.hole = box || {};
+  set.dim = {opacity: box ? .6 : 0};
+  return set;
+}
+const FULL = [0, 0, 1600, 940], CHAT_TOP = [250, 150, 990, 429], CHAT_SPAWN = [250, 440, 990, 429];
+const AGENTS = [1060, 290, 540, 420], CHAT = [250, 70, 1030, 870], MERGED = [250, 600, 990, 429];
+const step = (t, say, view, extra = {}) => ({t, say, ...extra, set: {...view, ...(extra.set || {})}});
+const STEPS = [
+ step('Orchestra', 'Это Оркестра: одна панель управления командой агентов искусственного интеллекта для вашего репозитория.',
+      cam(FULL, null, 'iAgents'), {set: {intro: {opacity: 1}}}),
+ step('Вы ставите задачу', 'Вы описываете задачу оркестратору обычными словами.',
+      cam(CHAT_TOP, [332, 172, 884, 86], 'iPlan'), {set: {intro: {opacity: 0}}}),
+ step('Он разбирается', 'Он изучает код, находит причину и делит работу на параллельные направления.',
+      cam(CHAT_TOP, [268, 272, 948, 192], 'iPlan')),
+ step('Запускаются воркеры', 'У каждого агента своя ветка, поэтому изменения не конфликтуют.',
+      cam(CHAT_SPAWN, [268, 480, 948, 336], 'iPlan')),
+ step('Разные модели', 'У каждой модели своя роль: планировать, писать код или обновлять документацию.',
+      cam(AGENTS, [1352, 340, 124, 328], 'iAgents')),
+ step('Откройте воркера', 'В его чате видны ветка, контекст и стоимость работы.',
+      cam([560, 240, 1040, 451], null, 'cAgents'), {clip: ['agents', .5, 9.8], rate: 1}),
+ step('Отчёт о работе', 'Воркер присылает список изменённых файлов и результат тестов.',
+      cam([250, 470, 1030, 447], null, 'cLive'), {clip: ['live', 4.4, 7.4]}),
+ step('Проверка и тесты', 'Оркестратор сам проверяет изменения и запускает весь набор тестов.',
+      cam([250, 470, 1030, 447], null, 'cLive'), {clip: ['live', 7.4, 11.2]}),
+ step('Мерж', 'После проверки он объединяет изменения одним коммитом на задачу. Код не выкачен.',
+      cam([250, 470, 1030, 447], null, 'cLive'), {clip: ['live', 11.2, 15.3]}),
+ step('Доска задач', 'Доска задач обновляется сама.',
+      cam([0, 60, 900, 390], null, 'cTasks'), {clip: ['tasks', .6, 3.76]}),
+ step('Квоты и лимиты', 'Нажмите на панель квот, чтобы увидеть лимиты Клода и Кодекса.',
+      cam([560, 0, 1040, 451], null, 'cQuota'), {clip: ['quota', .8, 6.4]}),
+ step('История квот', 'История показывает, как быстро расходуются квоты от недели к неделе.',
+      cam([640, 300, 960, 416], null, 'cQuota'), {clip: ['quota', 6.4, 12.44]}),
+ step('Расходы по дням', 'Аналитика показывает стоимость по дням и расходы Клода и Кодекса.',
+      cam([40, 560, 1520, 380], null, 'cSpend'), {clip: ['spend', .8, 6.9]}),
+ step('По агентам и моделям', 'Выберите период или посмотрите расходы каждого агента и модели.',
+      cam([32, 38, 1536, 666], null, 'cSpend'), {clip: ['spend', 6.9, 13.48]}),
+ step('Квотный шлюз', 'Шлюз задерживает запуск новых воркеров до исчерпания лимита.',
+      cam([0, 0, 940, 170], [0, 0, 930, 72], 'iTasks')),
+ step('Решаете вы', 'Рискованные действия, например возврат денег, ждут вашего разрешения.',
+      cam(MERGED, [268, 772, 948, 34], 'iMerge')),
+ step('Orchestra', 'Оркестра — открытый код на вашем сервере, работающий с уже подключёнными подписками.',
+      cam(FULL, null, 'iMerge'), {hold: 2.5, sub: 'Orchestra — открытый код на своём сервере и ваши подписки.',
+      set: {outro: {opacity: 1}}}),
+];
+STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);
+STEPS.forEach(s => s.d ??= 4);
+// The camera and the frame land BEFORE the phrase starts (voice LEAD is 0.35 s / rate):
+// the move starts CAM_PRE before the step and is over CAM_POST after its first frame.
+const CAM_PRE = .45, CAM_POST = .14, CAM_IDS = [...LAYERS, 'hl', 'hole', 'dim'];
+STEPS.forEach((s, i) => { s.w = {}; for (const id of CAM_IDS) s.w[id] = [i ? -CAM_PRE / s.d : 0, CAM_POST / s.d]; });
+const clipCache = new Map();
+function clipFrame(name, f) {
+  const c = CLIPS[name], k = Math.min(c.n, Math.max(1, Math.round(f) + 1)), src = `clips/${name}/${String(k).padStart(4, '0')}.jpg`;
+  let img = clipCache.get(src);
+  if (!img) { img = new Image(); img.src = src; img.ready = img.decode().catch(() => {}); clipCache.set(src, img);
+    if (clipCache.size > 90) clipCache.delete(clipCache.keys().next().value); }
+  return img;
+}
+let clipPending = null;
+// Recorded cursor track → smooth arrow + click ripple (the screencast itself has no cursor).
+const ARROW = new Path2D('M0 0L6.5 18 9.2 10.8 16.5 8.2Z');
+function cursor(g, pts, ct, to) {
+  if (!pts.length || ct < pts[0][0]) return;
+  let j = 0; while (j < pts.length - 1 && pts[j + 1][0] <= ct) j++;
+  const a = pts[j], b = pts[j + 1] || a, q = b[0] > a[0] ? clamp((ct - a[0]) / (b[0] - a[0])) : 0;
+  const [x, y] = to(a[1] + (b[1] - a[1]) * q, a[2] + (b[2] - a[2]) * q);
+  for (const c of pts) if (c[3] && ct >= c[0] && ct < c[0] + .6) {
+    const [cx, cy] = to(c[1], c[2]), e = EASE.out((ct - c[0]) / .6);
+    g.save(); g.globalAlpha *= 1 - e; g.strokeStyle = '#f0ac5f'; g.lineWidth = 6;
+    g.beginPath(); g.arc(cx, cy, 14 + 34 * e, 0, 7); g.stroke(); g.restore(); }
+  const press = pts.some(c => c[3] && ct >= c[0] && ct < c[0] + .15) ? .85 : 1;
+  g.save(); g.translate(x, y); g.scale(2.6 * press, 2.6 * press); g.shadowColor = '#000a'; g.shadowBlur = 4; g.shadowOffsetY = 1.5;
+  g.fillStyle = '#fff'; g.fill(ARROW); g.shadowColor = 'transparent'; g.lineWidth = .9; g.lineJoin = 'round'; g.strokeStyle = '#0b0e14'; g.stroke(ARROW); g.restore();
+}
+function draw(i, p, t) {
+  const cv = $('clipCanvas'), g = cv.getContext('2d'), jobs = [];
+  g.clearRect(0, 0, cv.width, cv.height);
+  for (const id of LAYERS) {
+    if (id[0] !== 'c') continue;
+    const r = $(id), op = +r.getAttribute('opacity');
+    if (!(op > 0)) continue;
+    const name = id[1].toLowerCase() + id.slice(2);
+    let pos = null;
+    const own = k => STEPS[k]?.clip?.[0] === name;
+    // clip: [name, a, b] seconds of the recording; plays from a at real speed, faster if [a, b] is longer than the step
+    // (or at an explicit rate), and holds at b.
+    if (own(i)) { const [, a, b] = STEPS[i].clip; pos = Math.min(b, a + p * STEPS[i].d * (STEPS[i].rate ?? Math.max(1, (b - a) / STEPS[i].d))); }
+    else if (own(i + 1)) pos = STEPS[i + 1].clip[1];
+    else { for (let k = i - 1; k >= 0; k--) if (own(k)) { pos = STEPS[k].clip[2]; break; } }
+    if (pos === null) continue;
+    const img = clipFrame(name, pos * CLIPS[name].fps);
+    const rx = +r.getAttribute('x'), ry = +r.getAttribute('y'), k = +r.getAttribute('width') / PAGE[0];
+    const ct = pos;
+    const paint = () => { g.globalAlpha = op; g.drawImage(img, rx * 2, ry * 2, PAGE[0] * k * 2, PAGE[1] * k * 2);
+      cursor(g, CLIPS[name].cursor, ct, (x, y) => [(rx + x * k) * 2, (ry + y * k) * 2]); g.globalAlpha = 1; };
+    if (img.complete && img.naturalWidth) paint(); else jobs.push(img.ready.then(() => { if (clipPending === pend) paint(); }));
+  }
+  const pend = jobs.length ? Promise.all(jobs) : null; clipPending = pend;
+}
+// ── ПЛЕЕР ──
+function $(id){return document.getElementById(id)} // function: всплывает, сцена может звать $ раньше плеера
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),SK=7;
+const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // spring: критическое затухание
+const hex=/^#[0-9a-f]{6}$/i,mix=(a,b,p)=>typeof a=='number'&&typeof b=='number'?a+(b-a)*p:hex.test(a)&&hex.test(b)?'#'+[1,3,5].map(k=>Math.round(parseInt(a.substr(k,2),16)*(1-p)+parseInt(b.substr(k,2),16)*p).toString(16).padStart(2,'0')).join(''):p>0?b:a;
+const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-motion: reduce)').matches,FADE=.5,sp=EASE.spring;let T=0,t=0,on=false,last=0,ci=-1,gl=null;
+ const get=(e,a)=>{const v=a=='text'?e.textContent:e.getAttribute(a);return v!==null&&v!==''&&!isNaN(v)?+v:v};
+ // у каждого атрибута свой список отрезков {t0,t1,a,b}; между отрезками значение держится
+ for(const s of STEPS){for(const[id,o]of Object.entries(s.set||{}))for(const[a,v]of Object.entries(o)){const e=E[id]??=$(id),L=(TL[id]??={})[a]??=Object.assign([],{v0:get(e,a)}),
+   to=Array.isArray(v)?v[1]:v,st=a=='text'||/opacity/.test(a)||typeof to=='string',w=s.w?.[id];
+   L.push({t0:T+(w?w[0]*s.d:0),t1:T+(w?w[1]*s.d:st?Math.min(s.d,FADE):s.d),a:Array.isArray(v)?v[0]:(L.length?L.at(-1).b:L.v0)??to,b:to,e:s.e,st,m0:0,m1:0})}
+  S.push(T);T+=s.d}
+ // стык двух движений в одну сторону: общая скорость (монотонный сплайн Фрича–Батленда), объект не встаёт на границе шага
+ for(const id in TL)for(const a in TL[id]){const L=TL[id][a];for(let k=1;k<L.length;k++){const x=L[k-1],y=L[k],h0=x.t1-x.t0,h1=y.t1-y.t0,d0=(x.b-x.a)/h0,d1=(y.b-y.a)/h1;
+   if(!x.st&&!y.st&&!x.e&&!y.e&&Math.abs(x.t1-y.t0)<1e-9&&x.b===y.a&&d0*d1>0)x.m1=y.m0=3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1)}}
+ for(const id in TL){const e=E[id],o=TL[id];if(o.along||!(o.text||o.opacity))continue;FX[id]=1;
+  if(o.text){const g=G[id]=e.cloneNode(true);g.removeAttribute('id');g.setAttribute('aria-hidden','true');e.after(g)}
+  for(const x of[e,G[id]])if(x)Object.assign(x.style,{transformBox:'fill-box',transformOrigin:'center'})}
+ const val=(L,t)=>{let g=null;for(const s of L)if(s.t0<t||s.t0<=0&&t<=0)g=s;if(!g)return[L.v0,1,L.v0,L.v0];
+  const h=g.t1-g.t0,p=h>0?clamp((t-g.t0)/h):1;if(p>=1)return[g.b,1,g.a,g.b];
+  if(g.m0||g.m1){const p2=p*p,p3=p2*p;return[(2*p3-3*p2+1)*g.a+(p3-2*p2+p)*h*g.m0+(3*p2-2*p3)*g.b+(p3-p2)*h*g.m1,p,g.a,g.b]}
+  const q=(EASE[g.e]||sp)(p);return[mix(g.a,g.b,q),q,g.a,g.b]};
+ const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // смена текста: старый уходит раньше, чем проявляется новый — буквы не наслаиваются
+ const put=(e,a,v)=>{const c=e._c??={};if(c[a]===v)return;c[a]=v;a=='text'?e.textContent=v:a=='css'?e.style.transform=v:a[0]=='-'?e.style.setProperty(a,v):e.setAttribute(a,v)};
+ function frame(te){for(const id in TL){const e=E[id],o=TL[id],g=G[id],v={};for(const a in o)v[a]=val(o[a],te);let dy=0,gy=0,k=0;
+   for(const a in v)if(a!='text'&&a!='along'&&a!='at'&&v[a][0]!=null)put(e,a,v[a][0]);
+   if(v.opacity){const[,q,f,b]=v.opacity;k=f==0&&b!=0?1-q:b==0&&f!=0?q:0}
+   if(v.text&&!g)put(e,'text',v.text[0]);
+   if(g){const[x,q,f,b]=v.text,x2=f!==b&&q<1;put(e,'text',x2?b:x);put(g,'text',f);put(e,'fill-opacity',x2?xin(q):1);put(g,'fill-opacity',x2?xout(q):0);
+    if(x2){dy=(1-q)*6;gy=-q*6}for(const a of['opacity','fill'])if(v[a])put(g,a,e.getAttribute(a))}
+   if(FX[id]){const tf=d=>`translateY(${(d+k*6).toFixed(2)}px) scale(${(1-.03*k).toFixed(4)})`;put(e,'css',tf(dy));if(g)put(g,'css',tf(gy))}
+   if(v.along){const p=$(v.along[0]),pt=p.getPointAtLength(clamp(v.at?.[0]??0)*p.getTotalLength());put(e,'transform',`translate(${pt.x.toFixed(2)},${pt.y.toFixed(2)})`)}}}
+ const at=t=>{let i=S.length-1;while(i>0&&t<=S[i])i--;return i},end=i=>S[i]+STEPS[i].d;
+ function seek(v){t=clamp(v,0,T);const i=at(t);frame(rm?end(i):t);if(typeof draw=='function')draw(i,rm?1:clamp((t-S[i])/STEPS[i].d),t);
+  if(i!==ci){ci=i;$('capT').textContent=STEPS[i].t;$('capX').textContent=STEPS[i].x;const B=$('capB').children;B[0].textContent=i?STEPS[i-1].t:'';B[1].textContent=i?STEPS[i-1].x:'';
+   [...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}
+  const q=rm||!i?1:sp(clamp((t-S[i])/FADE));[...$('chap').children].forEach((li,k)=>put(li,'--o',k==i?q:k==i-1?1-q:0));$('capA').style.cssText=`opacity:${xin(q)};transform:translateY(${(1-q)*6}px)`;$('capB').style.cssText=`opacity:${xout(q)};transform:translateY(${-q*6}px)`;
+  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' с'}
+ function tick(now){if(!on)return;seek(t+Math.max(0,now-last)/1000*$('rate').value);last=now;t>=T?pause():requestAnimationFrame(tick)}
+ function play(){gl=null;if(t>=T)t=0;on=true;last=performance.now();$('bPlay').classList.add('on');requestAnimationFrame(tick)}
+ function pause(){on=false;gl=null;$('bPlay').classList.remove('on')}
+ function glide(to){pause();if(rm)return seek(to);const a=t,t0=performance.now(),g=gl={to},f=now=>{if(gl!==g)return;const q=clamp((now-t0)/400);seek(q<1?a+(to-a)*EASE.out(q):to);if(q<1)requestAnimationFrame(f);else gl=null};requestAnimationFrame(f)}
+ const toggle=()=>on?pause():play(),next=()=>{const c=gl?gl.to:t,i=at(c);glide(c<end(i)-1e-3?end(i):end(Math.min(i+1,S.length-1)))},prev=()=>{const c=gl?gl.to:t,i=at(c);glide(i?end(i-1):0)};
+ $('seek').max=T;$('seek').oninput=e=>{pause();seek(+e.target.value)};$('bPlay').onclick=toggle;$('bNext').onclick=next;$('bPrev').onclick=prev;
+ STEPS.forEach((s,k)=>{const li=document.createElement('li');li.textContent=(k+1)+'. '+s.t;li.onclick=()=>{seek(S[k]);play()};$('chap').append(li)});
+ addEventListener('keydown',e=>{const f={' ':toggle,ArrowRight:next,ArrowLeft:prev,Home:()=>{pause();seek(0)},End:()=>{pause();seek(T)}}[e.key];if(f&&e.target.tagName!='SELECT'){e.preventDefault();f()}});
+ seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return t},T,S}})();
+{const seek0 = P.seek; P.seek = v => { seek0(v); return clipPending || undefined; };}
+</script></body></html>

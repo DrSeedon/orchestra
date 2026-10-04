@@ -1,0 +1,12 @@
+agents 0.6
+agents 10.07
+live 10.07
+live 25.08
+tasks 25.08
+tasks 28.76
+quota 28.76
+quota 40.46
+spend 42.18
+spend 55.48
+1106 frames 55.5 page s, 555 wall s
+{'agents': (237, 180), 'live': (376, 164), 'tasks': (92, 66), 'quota': (293, 462), 'spend': (333, 203)}
