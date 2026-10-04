@@ -445,6 +445,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/spawn-resume",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/sessions/{name}/stop",
   [
    "POST"

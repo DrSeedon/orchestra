@@ -7,6 +7,7 @@ import logging
 import math
 import re
 import sqlite3
+import subprocess
 from app.task_refs import task_ref as public_task_ref
 
 from contextlib import AsyncExitStack
@@ -211,6 +212,7 @@ class CreateSessionRequest(BaseModel):
     tg_topic: bool = False
     planned_initial_turn: bool = False
     initial_task_title: str = ""
+    initial_delivery_id: str = ""
     model_policy_override_reason: str = ""
 
     @field_validator("name")
@@ -261,6 +263,12 @@ class InitialDeliveryRequest(BaseModel):
     message: str
     scope: str
     sender: str
+
+
+class SpawnResumeRequest(BaseModel):
+    scope: str
+    delivery_id: str
+    task: str
 
 
 class ScopeRequest(BaseModel):
@@ -360,6 +368,11 @@ async def create_session(req: CreateSessionRequest):
             initial_task_title=req.initial_task_title,
             model_policy_override_reason=req.model_policy_override_reason,
         )
+        if req.initial_delivery_id:
+            from app import initial_deliveries
+            initial_deliveries.record_spawn_intent(
+                session.id, req.initial_delivery_id, req.initial_task_title,
+            )
         d = session.to_dict()
         if session.task_id:
             from app import tm as _tm
@@ -387,6 +400,40 @@ async def create_session(req: CreateSessionRequest):
         import traceback
         logger.error(f"spawn failed: {traceback.format_exc()}")
         return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@router.post("/api/sessions/{name}/spawn-resume")
+async def spawn_resume(name: str, req: SpawnResumeRequest):
+    """Verdict for a spawn retried after the create call was cut off (V-695)."""
+    found = manager.get_by_name(name, req.scope)
+    if not found:
+        return JSONResponse({"error": "not found"}, status_code=404)
+    from app import initial_deliveries
+    info = found.to_dict() if found.loaded else dict(found.db_row)
+    verdict = initial_deliveries.spawn_resume_verdict(
+        str(info.get("id") or ""), req.delivery_id, req.task, req.scope,
+        status=str(info.get("status") or ""),
+        total_turns=int(info.get("total_turns") or 0),
+    )
+    if verdict is not None:
+        return JSONResponse({"error": verdict}, status_code=409)
+    worktree_path = str(info.get("worktree_path") or "")
+    common = ""
+    try:
+        out = (await asyncio.to_thread(
+            subprocess.run,
+            ["git", "-C", worktree_path, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, timeout=10, check=True,
+        )).stdout.strip()
+        common = str(Path(out).resolve())
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return {
+        "worktree_path": worktree_path,
+        "branch": str(info.get("branch") or ""),
+        "repo_path": str(Path(common).parent) if common else "",
+        "git_common_dir": common,
+    }
 
 
 @router.get("/api/sessions/{name}")
