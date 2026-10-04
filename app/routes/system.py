@@ -17,6 +17,7 @@ import time
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
+from email.utils import formatdate, parsedate_to_datetime
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 from io import BytesIO
@@ -224,9 +225,10 @@ BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
                      '.zip', '.tar', '.gz', '.bz2', '.xz', '.rar', '.7z',
                      '.exe', '.bin', '.so', '.whl', '.dll', '.dylib', '.pyc',
                      '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.mp3', '.mp4',
-                     '.wav', '.avi', '.mov', '.ttf', '.otf', '.woff', '.woff2'}
+                     '.wav', '.avi', '.mov', '.webm', '.ttf', '.otf', '.woff', '.woff2'}
 
 _IMAGE_PREVIEW_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp'}
+_VIDEO_EXTENSIONS = {'.mp4', '.webm', '.mov'}
 _IMAGE_PREVIEW_MIN_EDGE = 64
 _IMAGE_PREVIEW_MAX_EDGE = 1600
 
@@ -250,8 +252,24 @@ def _render_image_preview(path: str, mtime_ns: int, size: int, edge: int) -> tup
         return output.getvalue(), image.width, image.height
 
 
+def _request_not_modified(request: Request, etag: str, mtime: float) -> bool:
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match is not None:
+        return any(
+            tag.strip() == "*" or tag.strip().removeprefix("W/") == etag
+            for tag in if_none_match.split(",")
+        )
+    if_modified_since = request.headers.get("if-modified-since")
+    if if_modified_since:
+        try:
+            return int(mtime) <= int(parsedate_to_datetime(if_modified_since).timestamp())
+        except (TypeError, ValueError, OverflowError):
+            pass
+    return False
+
+
 @router.get("/api/files/raw")
-async def get_file_raw(path: str, download: bool = False, preview: int = 0):
+async def get_file_raw(path: str, request: Request, download: bool = False, preview: int = 0):
     if not _is_safe_path(path):
         return JSONResponse({"error": "access denied"}, status_code=403)
     target = Path(path)
@@ -274,15 +292,19 @@ async def get_file_raw(path: str, download: bool = False, preview: int = 0):
             etag = hashlib.sha256(
                 f"{target}:{stat_result.st_mtime_ns}:{stat_result.st_size}:{edge}".encode()
             ).hexdigest()[:24]
+            headers = {
+                "Cache-Control": "no-cache",
+                "ETag": f'"{etag}"',
+                "Last-Modified": formatdate(stat_result.st_mtime, usegmt=True),
+                "X-Preview-Width": str(width),
+                "X-Preview-Height": str(height),
+            }
+            if _request_not_modified(request, headers["ETag"], stat_result.st_mtime):
+                return Response(status_code=304, headers=headers)
             return Response(
                 body,
                 media_type="image/webp",
-                headers={
-                    "Cache-Control": "private, max-age=3600",
-                    "ETag": f'"{etag}"',
-                    "X-Preview-Width": str(width),
-                    "X-Preview-Height": str(height),
-                },
+                headers=headers,
             )
     headers = {}
     if target.suffix.lower() in {".html", ".htm"}:
@@ -291,10 +313,21 @@ async def get_file_raw(path: str, download: bool = False, preview: int = 0):
             "default-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
             "connect-src 'none'"
         )
+    is_media = target.suffix.lower() in _IMAGE_PREVIEW_EXTENSIONS | _VIDEO_EXTENSIONS | {'.svg'}
+    if is_media:
+        headers["Cache-Control"] = "no-cache"
     # download=1 forces a save dialog (Content-Disposition: attachment); default lets
     # the browser render HTML inline under the sandbox CSP.
     filename = target.name if download else None
-    return FileResponse(str(target), filename=filename, headers=headers)
+    stat_result = target.stat()
+    response = FileResponse(str(target), filename=filename, headers=headers, stat_result=stat_result)
+    if is_media and _request_not_modified(request, response.headers["etag"], stat_result.st_mtime):
+        return Response(status_code=304, headers={
+            "Cache-Control": "no-cache",
+            "ETag": response.headers["etag"],
+            "Last-Modified": response.headers["last-modified"],
+        })
+    return response
 
 
 @router.get("/api/files/content")

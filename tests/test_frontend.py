@@ -23,9 +23,15 @@ from pathlib import Path
 import pytest
 from playwright.sync_api import Browser, Page, expect, sync_playwright
 from playwright.sync_api import TimeoutError as PlaywrightTimeout
+from starlette.requests import Request
 
 _DASHBOARD_ORIGIN = ""
 _I18N_JS = Path(__file__).resolve().parent.parent / "app/static/js/i18n.js"
+
+
+def _raw_file_request(headers=None):
+    raw_headers = [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()]
+    return Request({"type": "http", "method": "GET", "path": "/api/files/raw", "headers": raw_headers})
 
 
 def _pin_english(page: Page) -> None:
@@ -98,7 +104,7 @@ async def test_raw_html_response_has_sandbox_csp(tmp_path, monkeypatch, suffix):
     target.write_text("<script>document.body.textContent = 'works'</script>")
     monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
 
-    response = await system.get_file_raw(str(target))
+    response = await system.get_file_raw(str(target), _raw_file_request())
 
     assert response.headers["content-security-policy"] == HTML_ARTIFACT_CSP
 
@@ -111,7 +117,7 @@ async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
     target.write_text("safe text")
     monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
 
-    response = await system.get_file_raw(str(target))
+    response = await system.get_file_raw(str(target), _raw_file_request())
 
     assert "content-security-policy" not in response.headers
 
@@ -132,16 +138,76 @@ async def test_raw_image_preview_is_bounded_webp_and_original_stays_untouched(
     Image.new("RGB", (1200, 800), "#b45309").save(target, "JPEG", quality=96)
     monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
 
-    preview = await system.get_file_raw(str(target), preview=320)
+    preview = await system.get_file_raw(str(target), _raw_file_request(), preview=320)
     with Image.open(BytesIO(preview.body)) as rendered:
         assert rendered.format == "WEBP"
         assert rendered.size == (320, 213)
 
-    original = await system.get_file_raw(str(target))
+    original = await system.get_file_raw(str(target), _raw_file_request())
     assert isinstance(original, FileResponse)
     assert Path(original.path) == target
     assert len(preview.body) < target.stat().st_size
-    assert preview.headers["cache-control"] == "private, max-age=3600"
+    assert preview.headers["cache-control"] == "no-cache"
+    unchanged = await system.get_file_raw(
+        str(target), _raw_file_request({"If-None-Match": preview.headers["etag"]}), preview=320
+    )
+    assert unchanged.status_code == 304
+    assert unchanged.body == b""
+
+    Image.new("RGB", (1200, 800), "#047857").save(target, "JPEG", quality=96)
+    replaced = await system.get_file_raw(
+        str(target), _raw_file_request({"If-None-Match": preview.headers["etag"]}), preview=320
+    )
+    assert replaced.status_code == 200
+    assert replaced.headers["etag"] != preview.headers["etag"]
+    assert replaced.body != preview.body
+
+
+def test_raw_video_supports_range_and_full_download(tmp_path, monkeypatch):
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from app.routes import system
+
+    target = tmp_path / "clip.mp4"
+    content = bytes(range(256)) * 8
+    target.write_bytes(content)
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+    app = FastAPI()
+    app.include_router(system.router)
+
+    with TestClient(app) as client:
+        ranged = client.get(
+            "/api/files/raw", params={"path": str(target)}, headers={"Range": "bytes=10-19"}
+        )
+        full = client.get("/api/files/raw", params={"path": str(target)})
+        cached = client.get(
+            "/api/files/raw", params={"path": str(target)},
+            headers={"If-None-Match": full.headers["etag"]},
+        )
+        cached_by_date = client.get(
+            "/api/files/raw", params={"path": str(target)},
+            headers={"If-Modified-Since": full.headers["last-modified"]},
+        )
+        target.write_bytes(b"rewritten media content")
+        replaced = client.get(
+            "/api/files/raw", params={"path": str(target)},
+            headers={"If-None-Match": full.headers["etag"]},
+        )
+
+    assert ranged.status_code == 206
+    assert ranged.headers["content-range"] == f"bytes 10-19/{len(content)}"
+    assert ranged.content == content[10:20]
+    assert ranged.headers["accept-ranges"] == "bytes"
+    assert full.status_code == 200
+    assert full.content == content
+    assert full.headers["cache-control"] == "no-cache"
+    assert cached.status_code == 304
+    assert cached.content == b""
+    assert cached_by_date.status_code == 304
+    assert replaced.status_code == 200
+    assert replaced.content == b"rewritten media content"
+    assert replaced.headers["etag"] != full.headers["etag"]
 
 
 def _dashboard_base() -> str:
