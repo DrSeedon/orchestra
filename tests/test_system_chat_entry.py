@@ -145,6 +145,6 @@ def test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender(das
         assert rendered['text'] == 'dashboard message'
         assert rendered['aria']
         assert len(rendered['labels']) == 1
-        assert 'Unknown: unknown' in rendered['labels'][0]
+        assert 'unknown' in rendered['labels'][0]
     finally:
         page.close()

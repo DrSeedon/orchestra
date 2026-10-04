@@ -173,6 +173,18 @@ def test_failed_request_surfaces_the_error(browser):
     assert "signal timed out" in out["anthropic"]
 
 
+def test_provider_absent_from_history_does_not_get_a_chart(browser):
+    """A provider with no source snapshots must not inherit another provider's series."""
+    out = _slot_text(
+        browser,
+        "const resets = new Date(Date.now() + 3600000).toISOString();"
+        f"window.api = async () => {_history(6)};",
+    )
+
+    assert "<svg" in out["anthropic"]
+    assert "<svg" not in out["codex"]
+
+
 def test_real_data_draws_a_chart_not_a_stub(browser):
     """Главная жалоба: графика нет вовсе. При живых данных должен быть svg."""
     out = _slot_text(

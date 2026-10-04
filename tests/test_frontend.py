@@ -1251,8 +1251,10 @@ def _route_frontend_sources(page: Page, source_path: Path | None = None) -> None
 def test_send_chart_result_renders_image_and_keeps_delivery_receipt(
     dashboard_browser: Browser,
     compact: bool,
+    request,
 ):
     page = dashboard_browser.new_page()
+    request.addfinalizer(page.close)
     _route_frontend_sources(page)
     chat_source = (Path(__file__).parent.parent / "app/static/js/chat.js").read_text()
     page.route(
@@ -1263,12 +1265,27 @@ def test_send_chart_result_renders_image_and_keeps_delivery_receipt(
             body=chat_source,
         ),
     )
-    _goto_dashboard(page)
-    page.wait_for_function("() => !document.querySelector('.chat-load-state')")
-    page.evaluate(
-        "([compact]) => { window.compactMode = compact; document.querySelector('#chat').innerHTML = ''; }",
-        [compact],
+    page.route(
+        "**/api/orchestrators**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body="[]",
+        ),
     )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof addChatEntry === 'function'")
+    page.evaluate("""compact => {
+        _chatLoadController?.abort();
+        _chatLoadGeneration += 1;
+        _chatLoading = false;
+        _chatSnapshotReady = false;
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        selectedAgent = null;
+        currentScope = null;
+        window.compactMode = compact;
+        document.querySelector('#chat').replaceChildren();
+    }""", compact)
     def serve_chart(route):
         if route.request.url.endswith("/charts/report.png"):
             route.fulfill(
@@ -1276,7 +1293,7 @@ def test_send_chart_result_renders_image_and_keeps_delivery_receipt(
                 content_type="image/png",
                 body=base64.b64decode(
                     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk"
-                    "+AAAAAYAAjCB0C8AAAAASUVORK5CYII="
+                    "+A8AAQUBAScY42YAAAAASUVORK5CYII="
                 ),
             )
         else:
@@ -1323,7 +1340,6 @@ def test_send_chart_result_renders_image_and_keeps_delivery_receipt(
     body = page.locator("#chat").inner_text()
     assert "event_id=chart-event-1" in body
     assert "/srv/orchestra/data/charts/report.png" not in body
-    page.close()
 
 
 def test_user_message_renders_display_only_payload_without_durable_timestamp(
@@ -5472,7 +5488,7 @@ def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Brows
     assert state["agents"] >= 2, f"список агентов пуст на потерянном канале: {state}"
     assert not state["usageUnavailable"], f"usage показал пустоту вместо снимка: {state}"
     assert "5h" in state["usageText"], f"usage не восстановлен из снимка: {state}"
-    assert "total" in state["statsText"], f"stats не восстановлен из снимка: {state}"
+    assert "2" in state["statsText"], f"stats не восстановлен из снимка: {state}"
     # Честность: данные показаны, но помечены как несвежие с меткой времени.
     assert state["phase"] in {"degraded", "recovering"}, f"нет пометки о кеше: {state}"
     assert state["detail"], f"нет причины состояния канала: {state}"

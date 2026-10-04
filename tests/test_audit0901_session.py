@@ -30,9 +30,10 @@ async def _run_one_heartbeat_pass(monkeypatch, session):
     import app.session_hibernate as module
     from app.session_hibernate import HibernateManager
 
+    loop = SimpleNamespace(time=lambda: 20_000.0)
     fake_asyncio = SimpleNamespace(
         sleep=AsyncMock(side_effect=[None, asyncio.CancelledError()]),
-        get_event_loop=asyncio.get_event_loop,
+        get_event_loop=lambda: loop,
         CancelledError=asyncio.CancelledError,
     )
     monkeypatch.setattr(
@@ -112,7 +113,7 @@ async def test_heartbeat_dead_process_recovery_publishes(mock_db, monkeypatch):
     session._listen_task = SimpleNamespace(done=lambda: True)
     session._turns.bump_turn_gen()
     session.status = AgentStatus.RUNNING
-    session._last_msg_time = asyncio.get_event_loop().time() - 10_000
+    session._last_msg_time = 1.0
 
     await _run_one_heartbeat_pass(monkeypatch, session)
 
@@ -150,7 +151,7 @@ async def test_heartbeat_zombie_without_backend_publishes(mock_db, monkeypatch):
     session._listen_task = SimpleNamespace(done=lambda: True)
     session._turns.bump_turn_gen()
     session.status = AgentStatus.RUNNING
-    session._last_msg_time = asyncio.get_event_loop().time() - 10_000
+    session._last_msg_time = 1.0
 
     await _run_one_heartbeat_pass(monkeypatch, session)
 
