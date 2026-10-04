@@ -2101,9 +2101,11 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
     return page, state
 
 
-def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser):
+def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser, request):
     """Текущая неудачная попытка видна сразу; следующий клик для диагноза не нужен."""
     page = dashboard_browser.new_page()
+    request.addfinalizer(page.close)
+    page.set_default_timeout(8000)
     _route_frontend_sources(page)
     reason = "2 mutating tool calls still in flight"
     page.route(
@@ -2115,33 +2117,36 @@ def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser
         ),
     )
     _goto_dashboard(page)
-    page.wait_for_function("() => typeof restartServer === 'function'")
+    page.wait_for_function("() => typeof restartServer === 'function'", timeout=8000)
 
     page.click("#restart-btn")
     page.wait_for_function(
         "() => (document.querySelector('#connection-banner .connection-detail')?.textContent || '')"
-        ".includes('2 mutating tool calls still in flight')"
+        ".includes('2 mutating tool calls still in flight')",
+        timeout=8000,
     )
     state = page.evaluate("""() => ({
         notice: document.querySelector('#connection-banner').textContent,
         disabled: document.querySelector('#restart-btn').disabled,
         label: document.querySelector('#restart-btn').textContent,
     })""")
-    page.close()
-
     assert reason in state["notice"], state["notice"]
     assert state["disabled"] is False, "после отказа кнопку можно нажать снова"
     assert state["label"] == "⟳"
 
 
-def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Browser):
+def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Browser, request):
     """Успешный рестарт не прячет потерянный журнал за общим `scheduled`."""
     page = dashboard_browser.new_page()
+    request.addfinalizer(page.close)
+    page.set_default_timeout(8000)
     _route_frontend_sources(page)
     reason = "OperationalError: database is locked"
-    page.route(
-        re.compile(r"/api/restart$"),
-        lambda route: route.fulfill(
+    restart_requests = []
+
+    def restart_route(route):
+        restart_requests.append(route.request.url)
+        route.fulfill(
             status=200,
             content_type="application/json",
             body=json.dumps({
@@ -2153,20 +2158,30 @@ def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Brow
                     "reason": reason,
                 },
             }),
-        ),
-    )
+        )
+
+    page.route(re.compile(r"/api/restart$"), restart_route)
     _goto_dashboard(page)
-    page.wait_for_function("() => typeof restartServer === 'function'")
+    page.wait_for_function("() => typeof restartServer === 'function'", timeout=8000)
 
     page.click("#restart-btn")
-    page.wait_for_function(
-        "() => (document.querySelector('#connection-banner .connection-detail')?.textContent || '')"
-        ".includes('OperationalError: database is locked')"
-    )
+    try:
+        page.wait_for_function(
+            "() => (document.querySelector('#connection-banner .connection-detail')?.textContent || '')"
+            ".includes('OperationalError: database is locked')",
+            timeout=8000,
+        )
+    except PlaywrightTimeout:
+        state = page.evaluate("""() => ({
+            phase: document.querySelector('#connection-banner')?.dataset.phase || '',
+            detail: document.querySelector('#connection-banner .connection-detail')?.textContent || '',
+            buttonDisabled: document.querySelector('#restart-btn')?.disabled,
+        })""")
+        pytest.fail(f"journal loss did not reach the UI; requests={restart_requests}, state={state}")
     notice = page.locator("#connection-banner").inner_text()
-    page.close()
 
-    assert reason in notice, notice
+    assert restart_requests, "restart button did not issue the API request"
+    assert reason in notice, {"notice": notice, "requests": restart_requests}
 
 
 def test_restart_signal_failure_reaches_frontend_on_heartbeat(dashboard_browser: Browser):

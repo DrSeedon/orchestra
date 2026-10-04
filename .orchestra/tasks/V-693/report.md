@@ -320,6 +320,12 @@ Run [37214891801](https://github.com/DrSeedon/orchestra/actions/runs/37214891801
 
 The latest changes address these two test findings; a green full Actions run on the current branch head is outstanding.
 
+## Sixth Actions attempt: restart-page timeout cascade
+
+Run [37215324173](https://github.com/DrSeedon/orchestra/actions/runs/37215324173) passed all six shards. Browser emitted `test_restart_button_shows_current_attempt_failure` as passed, then reported `test_restart_button_shows_journal_loss_before_reboot` failed after 30 seconds; every following dashboard test then failed at 30-second intervals until the 20-minute job limit. The cancellation log contains no pytest traceback for the first node, so it does not establish whether the journal-loss response was missing or the browser call stalled.
+
+A focused local cold start exposed the same timeout poisoning mechanism during fixture setup: importing `aiogram` in `_no_tg_bridge` exceeded the 30-second pytest timer in `test_dashboard_loads`, after which two restart-page tests passed. With a warmed dashboard/browser, both restart tests completed normally. That local probe is evidence that a setup timeout can poison the shared Playwright loop; it is not proof that this was the CI trigger. The two restart tests now close their pages via pytest finalizers and use 8-second Playwright waits. The journal-loss test captures whether `/api/restart` was reached and the banner phase/detail if the result does not render, so the next run should distinguish routing, UI behavior, and setup timeout without cascading through later tests. No product behavior was changed.
+
 ## Verification performed
 
 - Full local six-shard matrix ran under the test lock. Shards 0–3 and 5 passed (752, 821, 539, 395, and 705 passed respectively); shard 4 had 699 passed plus one host-only `test_installed_codex_history_version_matches_pin` failure because `/usr/bin/codex` is 0.156.1 while the laptop test pin is 0.153.4. This test skips if Codex is absent, as expected on GitHub's runner. The lock was released immediately after the suite ended.
@@ -327,4 +333,4 @@ The latest changes address these two test findings; a green full Actions run on 
 - First repaired browser command `python -m pytest -vv -rf --timeout=30 -m browser tests/` completed with **173 passed, 7 skipped, 4004 deselected in 265.89 s**. It produced no failures, pytest timeouts, or OOM. At that point the provider-absence node had been removed; it was later restored with structural assertions after the frozen browser inventory caught the node-count loss.
 - After restoring that node and correcting the GitHub-discovered heartbeat clock and chart PNG fixtures, the latest complete local browser rerun finished with **174 passed, 7 skipped, 4004 deselected in 387.54 s**, with no failure, timeout, or OOM. The initial 30-second cascade did not recur.
 - Focused checks also passed after the last related edits: `tests/test_usage_history_frontend.py` (10 passed), `tests/test_t344_quota_lines_browser.py` (19 passed), dashboard lifecycle/task/timeline nodes (6 passed), and the prior usage analytics/quota/model-catalog batch (41 passed); the final browser run includes the later single-test corrections as well.
-- GitHub Actions run `37212793425` was green on commit `ae70b3f8`; later runs exposed preview, timeline-fixture, and offline-phase test assumptions, all recorded above. Their focused local checks pass; a green Actions run on the corrected branch head is outstanding.
+- GitHub Actions run `37212793425` was green on commit `ae70b3f8`; later runs exposed preview, timeline fixture, offline phase, and restart page timeout assumptions, all recorded above. A green Actions run on the corrected branch head is outstanding.
