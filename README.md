@@ -44,9 +44,9 @@ You are not the dispatcher. Deciding what to cut into tasks, who gets which one,
   <em>The real dashboard, live: a worker reports back, the orchestrator reviews, runs the tests and merges; quotas and spend unfold</em>
 </p>
 
-<p align="center">
-  🎬 <a href="docs/orchestra-tour.mp4"><b>Watch the 85-second tour with sound</b></a>
-</p>
+**🎬 The 85-second tour, with sound:**
+
+https://github.com/user-attachments/assets/4e1cc784-9d47-4dd6-af51-d1f314b42506
 
 <p align="center">
   <img src="docs/dashboard-real.png" alt="Orchestra dashboard: chat with the orchestrator, agents panel with models, status and cost, quota bar" width="100%">
