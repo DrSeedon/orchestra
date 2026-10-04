@@ -1,0 +1,6 @@
+.tts-cache/
+frames/
+voice-samples.voice.wav
+.voice-samples.*.part*.mp4
+.voice-samples.parts.txt
+__pycache__/
