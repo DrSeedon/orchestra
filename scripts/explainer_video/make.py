@@ -17,7 +17,7 @@
 каждая фраза), `<имя>-contact.png` (кадры конца шагов для просмотра глазами) и, если
 есть DEEPGRAM_API_KEY, `<имя>.check.json` — распознанный текст и сдвиг каждой фразы.
 
-Ключи: --speaker 0..4 (3 и 4 мужские, 0–2 женские), --rate 1.25 (темп: речь и паузы между
+Ключи: --speaker 0..4 (1 — по умолчанию, 0–2 женские, 3 и 4 мужские), --rate 1.15 (темп: речь и паузы между
 фразами; 1.0 — темп V-681), --fps 30,
 --stills (только озвучка, тайминг и контакт-лист, без видео), --no-check.
 Синтез кэшируется по тексту фразы: правка одной фразы пересинтезирует только её,
@@ -410,11 +410,11 @@ def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("scene", type=Path)
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--speaker", type=int, default=3)
+    ap.add_argument("--speaker", type=int, default=1)
     ap.add_argument("--lang", choices=["ru", "en"], default="ru",
                     help="en — английская озвучка Kokoro вместо русской Vosk")
     ap.add_argument("--voice", default="af_heart", help="голос Kokoro для --lang en (am_michael — мужской)")
-    ap.add_argument("--rate", type=float, default=1.25)
+    ap.add_argument("--rate", type=float, default=1.15)
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
