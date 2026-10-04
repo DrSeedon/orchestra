@@ -39,9 +39,19 @@ You are not the dispatcher. Deciding what to cut into tasks, who gets which one,
 > 2024: "here's an SDK, build it yourself." 2025: "here's an agent, give it a task." 2026: "here's a TEAM, give it a goal." Orchestra is the third thing.
 
 <p align="center">
-  <img src="docs/dashboard.png" alt="Dashboard showing agents working" width="100%">
+  <img src="docs/dashboard-live.gif" alt="Orchestra dashboard: a worker reports done, the orchestrator reviews, tests and merges; the quota panel and the daily-spend chart for Claude and Codex unfold" width="100%">
   <br>
-  <em>Real-time dashboard — a snapshot of 6 agents working in parallel on a client project</em>
+  <em>The real dashboard, live: a worker reports back, the orchestrator reviews, runs the tests and merges; quotas and spend unfold</em>
+</p>
+
+<p align="center">
+  🎬 <a href="docs/orchestra-tour.mp4"><b>Watch the 85-second tour with sound</b></a>
+</p>
+
+<p align="center">
+  <img src="docs/dashboard-real.png" alt="Orchestra dashboard: chat with the orchestrator, agents panel with models, status and cost, quota bar" width="100%">
+  <br>
+  <em>One orchestrator, five workers on Opus, Sonnet, GPT-6 Luna and Haiku, each on its own git branch (demo project, sample data)</em>
 </p>
 
 ## Quick Start
