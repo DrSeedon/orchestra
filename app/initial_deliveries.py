@@ -135,6 +135,49 @@ def get_initial_delivery(delivery_id: str, scope: str) -> dict | None:
     return _resource(row) if row else None
 
 
+def _task_sha(task: str) -> str:
+    return hashlib.sha256(task.encode()).hexdigest()
+
+
+def record_spawn_intent(session_id: str, delivery_id: str, task: str) -> None:
+    """Remember who created this worker and for which task, to vet a retried spawn."""
+    db.kv_set(
+        f"spawn_intent:{session_id}",
+        json.dumps({"delivery_id": delivery_id, "task_sha": _task_sha(task)}),
+    )
+
+
+def spawn_resume_verdict(
+    session_id: str, delivery_id: str, task: str, scope: str,
+    *, status: str, total_turns: int,
+) -> dict | None:
+    """None = the retry may continue to delivery; otherwise the refusal envelope.
+
+    Only the spawn that created the worker (same delivery_id AND same task) may adopt it,
+    and only while nothing was ever delivered and no turn ran, so a retry can neither hijack
+    another caller's worker nor hand a busy one a second task.
+    """
+    try:
+        intent = json.loads(db.kv_get(f"spawn_intent:{session_id}") or "{}")
+    except ValueError:
+        intent = {}
+    if intent.get("delivery_id") != delivery_id or intent.get("task_sha") != _task_sha(task):
+        return {
+            "code": "SPAWN_NAME_TAKEN",
+            "message": "a worker with this name already exists and was created for another "
+                       "task or delivery_id; choose another name or use send_message",
+        }
+    if get_initial_delivery(delivery_id, scope) is not None:
+        return None
+    if total_turns > 0 or status != "idle":
+        return {
+            "code": "SPAWN_SESSION_NOT_FRESH",
+            "message": f"worker already {status or 'unknown'} with {total_turns} turns; "
+                       "the initial task is not re-delivered",
+        }
+    return None
+
+
 def ensure_delivery_runner(delivery_id: str) -> None:
     """Start at most one local runner for a committed delivery."""
     current = _runner_tasks.get(delivery_id)

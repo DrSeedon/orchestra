@@ -975,6 +975,38 @@ def _cross_repo_note(scope: str, mapping: dict) -> str:
     )
 
 
+async def _resume_cut_off_spawn(
+    name: str, task: str, scope: str, delivery_id: str, cause: ApiToolError,
+) -> dict[str, Any]:
+    """Create call was cut off (V-695): the server may still have made the worker.
+
+    Timeout/transport loss or "already exists" → ask the server whether this very spawn
+    (same delivery_id and task) owns the worker; if so, continue to the idempotent delivery.
+    """
+    cut_off = cause.outcome_unknown and cause.status is None
+    taken = cause.status == 409 and "already exists" in cause.message
+    if not (cut_off or taken):
+        raise cause
+    try:
+        return await _api(
+            "POST", f"/api/sessions/{name}/spawn-resume",
+            json={"scope": scope, "delivery_id": delivery_id, "task": task},
+        )
+    except ApiToolError as verdict:
+        if verdict.status == 404 and cut_off:
+            cause.details["next_action"] = {
+                "code": "RETRY_SPAWN_SAME_DELIVERY_ID",
+                "message": (
+                    "Creation outcome unknown. Repeat spawn_worker with the same name, task "
+                    f"and delivery_id={delivery_id}: it resumes the worker if it was created "
+                    "and never delivers the task twice."
+                ),
+                "delivery_id": delivery_id,
+            }
+            raise cause from verdict
+        raise verdict from cause
+
+
 @mcp.tool()
 async def spawn_worker(name: str, task: str, repo_path: str,
                        model: str,
@@ -1048,7 +1080,14 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         body["description"] = description
     if tg_topic:
         body["tg_topic"] = True
-    result = await _api("POST", "/api/sessions", json=body)
+    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
+    if not delivery_id:
+        delivery_id = str(uuid.uuid4())
+    body["initial_delivery_id"] = delivery_id
+    try:
+        result = await _api("POST", "/api/sessions", json=body)
+    except ApiToolError as exc:
+        result = await _resume_cut_off_spawn(name, task, scope, delivery_id, exc)
     if isinstance(result, dict) and result.get("error"):
         raise ApiToolError(code="domain_error", message=f"Spawn failed: {result['error']}")
     required = ("worktree_path", "branch", "repo_path", "git_common_dir")
@@ -1083,9 +1122,6 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         f"\nGit common dir: {mapping_data['git_common_dir']}"
         f"\nBranch: {mapping_data['branch']}"
     )
-    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
-    if not delivery_id:
-        delivery_id = str(uuid.uuid4())
     # Предупреждение уходит и САМОМУ воркеру, а не только вызывающему: сегодня в
     # чужой репозиторий закоммитил именно ребёнок, который своего расхождения не знал.
     worker_task = task
