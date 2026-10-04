@@ -695,23 +695,18 @@ function clearPastePreview() {
 
 
 function renderImages(el, content) {
-    const re = /(\/\S+\.(png|jpg|jpeg|gif|webp|svg))/gi;
+    const re = /(\/\S+\.(png|jpe?g|gif|webp|svg|mp4|webm|mov))/gi;
     const matches = content.match(re);
     if (!matches) return;
 
     const imageUrl = (path, preview = false) =>
         `/api/files/raw?path=${encodeURIComponent(path)}${preview ? '&preview=640' : ''}`;
+    const mediaUrl = (path, preview = false) => imageUrl(path, preview && !isVideoMedia(path));
     const makeImage = (path, className = '', openOnClick = true) => {
-        const img = document.createElement('img');
-        img.src = imageUrl(path, true);
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        img.fetchPriority = 'low';
-        img.className = className;
-        if (openOnClick) {
-            img.addEventListener('click', () => openImageLightbox(imageUrl(path)));
-        }
-        return img;
+        const previewClass = isVideoMedia(path) && className === 'chat-inline-image' ? 'chat-inline-video' : className;
+        const media = createMediaPreview(mediaUrl(path, true), {className: previewClass, alt: path.split('/').pop() || '', openOnClick});
+        media.fetchPriority = 'low';
+        return media;
     };
 
     if (matches.length === 1) {
@@ -768,7 +763,7 @@ function renderImages(el, content) {
             }
             thumb.addEventListener('click', () => {
                 if (expandsGallery) renderGallery(true);
-                else openImageLightbox(imageUrl(path));
+                else openImageLightbox(mediaUrl(path));
             });
             grid.appendChild(thumb);
         });
@@ -2652,20 +2647,18 @@ function _renderFullToolCall(content, payload, div) {
             const data = JSON.parse(body);
             const path = data.file_path || '';
             header.textContent = `🖼 ${T('Viewing')} ${(path.split('/').pop() || T('image'))}`;
-            const img = document.createElement('img');
-            img.src = `/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}`;
-            img.loading = 'eager';
-            img.className = 'codex-tool-image';
-            img.alt = path.split('/').pop() || T('Viewed image');
-            img.addEventListener('error', () => {
-                img.classList.add('codex-tool-image-error');
-                img.alt = T('Image unavailable');
+            const mediaUrl = `/api/files/raw?path=${encodeURIComponent(path)}${isVideoMedia(path) ? '' : '&preview=640'}`;
+            const media = createMediaPreview(mediaUrl, {
+                className: 'codex-tool-image', alt: path.split('/').pop() || T('Viewed image'),
             });
-            img.addEventListener('load', () => {
-                img.classList.remove('codex-tool-image-error');
+            media.addEventListener('error', () => {
+                media.classList.add('codex-tool-image-error');
+                if (!isVideoMedia(path)) media.alt = T('Image unavailable');
             });
-            img.addEventListener('click', () => openImageLightbox(img.src));
-            div.appendChild(img);
+            media.addEventListener(isVideoMedia(path) ? 'loadedmetadata' : 'load', () => {
+                media.classList.remove('codex-tool-image-error');
+            });
+            div.appendChild(media);
         } catch {}
     }
     const isImageGenerationTool = rawName === 'ImageGeneration';
@@ -3114,19 +3107,16 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             }
             const fp = lastTool.dataset.filePath;
             if (!hasError && fp) {
-                // Image thumbnail above the buttons — click opens full-size lightbox
-                if (/\.(png|jpe?g|gif|webp|svg)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
-                    const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&t=${Date.now()}`;
-                    const previewUrl = `/api/files/raw?path=${encodeURIComponent(fp)}&preview=640&t=${Date.now()}`;
-                    const img = document.createElement('img');
-                    img.className = 'sf-thumb';
-                    img.src = previewUrl;
-                    img.loading = 'lazy';
-                    img.decoding = 'async';
-                    img.style.cssText = 'display:block;margin-top:6px;max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
-                    img.addEventListener('click', () => openImageLightbox(rawUrl));
-                    img.onerror = () => img.remove();  // broken/missing file → no ugly broken-icon
-                    lastTool.appendChild(img);
+                // Media preview above the buttons opens in the lightbox.
+                if (/\.(png|jpe?g|gif|webp|svg|mp4|webm|mov)$/i.test(fp) && !lastTool.querySelector('.sf-thumb')) {
+                    const rawUrl = `/api/files/raw?path=${encodeURIComponent(fp)}`;
+                    const previewUrl = isVideoMedia(fp) ? rawUrl : `${rawUrl}&preview=640`;
+                    const media = createMediaPreview(previewUrl, {
+                        className: 'sf-thumb', alt: fp.split('/').pop() || '',
+                        style: 'display:block;margin-top:6px;max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)',
+                    });
+                    media.onerror = () => media.remove();
+                    lastTool.appendChild(media);
                 }
                 const btnRow = document.createElement('div');
                 btnRow.style.cssText = 'margin-top:4px;display:flex;gap:6px;flex-wrap:wrap';
@@ -3785,13 +3775,13 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     addTimestamp(lastTool, ts);
                     return;
                 }
-                if (/\.(png|jpg|jpeg|gif|webp|svg)$/i.test(readPath)) {
-                    const img = document.createElement('img');
-                    img.src = `/api/files/raw?path=${encodeURIComponent(readPath)}&t=${Date.now()}`;
-                    img.loading = 'lazy';
-                    img.style.cssText = 'max-height:200px;border-radius:8px;cursor:pointer;margin-top:6px;display:block';
-                    img.addEventListener('click', () => openImageLightbox(img.src));
-                    readContainer.appendChild(img);
+                if (/\.(png|jpe?g|gif|webp|svg|mp4|webm|mov)$/i.test(readPath)) {
+                    const rawUrl = `/api/files/raw?path=${encodeURIComponent(readPath)}`;
+                    const mediaUrl = isVideoMedia(readPath) ? rawUrl : `${rawUrl}&preview=640`;
+                    const media = createMediaPreview(mediaUrl, {
+                        style: 'max-height:200px;max-width:100%;border-radius:8px;cursor:pointer;margin-top:6px;display:block',
+                    });
+                    readContainer.appendChild(media);
                     addTimestamp(lastTool, ts);
                     return;
                 }

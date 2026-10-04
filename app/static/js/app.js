@@ -146,7 +146,8 @@ async function _restoreToolResultImage(img, payload) {
 
 async function _loadToolResultImage(img, origPath, inlineSrc, payload) {
     if (origPath) {
-        const rawSrc = `/api/files/raw?path=${encodeURIComponent(origPath)}&t=${Date.now()}`;
+        const preview = /\.(png|jpe?g|gif|bmp|webp)$/i.test(origPath) ? '&preview=640' : '';
+        const rawSrc = `/api/files/raw?path=${encodeURIComponent(origPath)}${preview}`;
         if (await _loadImageSrc(img, rawSrc)) return true;
     }
     if (await _loadImageSrc(img, inlineSrc)) return true;
@@ -215,19 +216,15 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         row.style.cssText = 'display:flex;align-items:flex-start;gap:7px;flex-wrap:wrap;padding:3px 0';
         if (index >= SEND_FILES_VISIBLE_LIMIT) row.style.display = 'none';
 
-        if (downloads && /\.(png|jpe?g|gif|webp|svg)$/i.test(path)) {
+        if (downloads && /\.(png|jpe?g|gif|webp|svg|mp4|webm|mov)$/i.test(path)) {
             const rawUrl = _sendFileRawUrl(path);
-            const previewUrl = `${_sendFileRawUrl(path, false, true)}&t=${Date.now()}`;
-            const img = document.createElement('img');
-            img.className = 'sf-thumb';
-            img.src = previewUrl;
-            img.loading = 'lazy';
-            img.decoding = 'async';
-            img.alt = _sendFileName(path);
-            img.style.cssText = 'display:block;width:44px;height:44px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)';
-            img.addEventListener('click', () => openImageLightbox(rawUrl));
-            img.onerror = () => img.remove();
-            row.appendChild(img);
+            const previewUrl = isVideoMedia(path) ? rawUrl : _sendFileRawUrl(path, false, true);
+            const media = createMediaPreview(previewUrl, {
+                className: 'sf-thumb', alt: _sendFileName(path),
+                style: 'display:block;width:44px;height:44px;object-fit:cover;border-radius:6px;cursor:pointer;border:1px solid rgba(99,102,241,0.2)',
+            });
+            media.onerror = () => media.remove();
+            row.appendChild(media);
         }
 
         const details = document.createElement('div');
@@ -1561,17 +1558,61 @@ function _renderPromptBlocks(container, blocks) {
     });
 }
 
+function isVideoMedia(src) {
+    try {
+        const url = new URL(src, window.location.href);
+        const path = url.searchParams.get('path') || url.pathname;
+        return /\.(mp4|webm|mov)$/i.test(path);
+    } catch {
+        return false;
+    }
+}
+
+function createMediaPreview(src, {className = '', alt = '', style = '', openOnClick = true} = {}) {
+    const video = isVideoMedia(src);
+    const media = document.createElement(video ? 'video' : 'img');
+    media.src = src;
+    media.className = className;
+    if (video) {
+        media.muted = true;
+        media.playsInline = true;
+        media.preload = 'metadata';
+        media.addEventListener('loadedmetadata', () => {
+            if (media.duration > 0) media.currentTime = Math.min(0.1, media.duration / 2);
+        }, {once: true});
+    } else {
+        media.alt = alt;
+        media.loading = 'lazy';
+        media.decoding = 'async';
+    }
+    if (style) media.style.cssText = style;
+    if (openOnClick) media.addEventListener('click', () => openImageLightbox(src));
+    return media;
+}
+
 function openImageLightbox(src) {
     const overlay = document.createElement('div');
     overlay.className = 'img-lightbox';
-    const img = document.createElement('img');
-    img.src = src;
-    img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);object-fit:contain';
-    overlay.appendChild(img);
+    const video = isVideoMedia(src);
+    const media = document.createElement(video ? 'video' : 'img');
+    media.src = src;
+    media.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,0.6);object-fit:contain';
+    if (video) {
+        media.controls = true;
+        media.playsInline = true;
+        media.preload = 'metadata';
+    } else {
+        media.addEventListener('click', (e) => { e.stopPropagation(); window.open(src, '_blank'); });
+    }
+    overlay.appendChild(media);
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', (e) => { if (e.target !== img) overlay.remove(); });
-    img.addEventListener('click', (e) => { e.stopPropagation(); window.open(src, '_blank'); });
-    const onKey = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); } };
+    const close = () => {
+        if (video) { media.pause(); media.removeAttribute('src'); media.load(); }
+        overlay.remove();
+        document.removeEventListener('keydown', onKey);
+    };
+    overlay.addEventListener('click', (e) => { if (e.target !== media) close(); });
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', onKey);
 }
 
@@ -1590,6 +1631,19 @@ async function openFilePreview(path) {
     dlBtn.href = rawUrl;
     dlBtn.download = fileName;
     dlBtn.classList.remove('hidden');
+    if (/\.(mp4|webm|mov)$/i.test(path)) {
+        openBtn.classList.add('hidden');
+        contentEl.className = 'flex-1 p-4';
+        contentEl.style.cssText = 'display:flex;align-items:center;justify-content:center;max-height:calc(80vh - 48px)';
+        const video = document.createElement('video');
+        video.src = rawUrl;
+        video.controls = true;
+        video.playsInline = true;
+        video.preload = 'metadata';
+        video.style.cssText = 'max-width:100%;max-height:70vh;border-radius:8px';
+        contentEl.replaceChildren(video);
+        return;
+    }
     if (/\.html?$/i.test(path)) {
         openBtn.href = rawUrl;
         openBtn.classList.remove('hidden');
@@ -1605,7 +1659,10 @@ async function openFilePreview(path) {
         if (data.error) {
             const sizeStr = data.size ? ` (${(data.size / 1024).toFixed(1)} KB)` : '';
             if (data.error === 'binary file' && /\.(png|jpg|jpeg|gif|webp|bmp|ico|svg)$/i.test(path)) {
-                contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
+                const img = document.createElement('img');
+                img.src = `/api/files/raw?path=${encodeURIComponent(path)}&preview=1200`;
+                img.style.cssText = 'max-width:100%;max-height:70vh;border-radius:8px';
+                contentEl.replaceChildren(img);
             } else {
                 contentEl.textContent = `⚠ ${data.error}${sizeStr}`;
             }
@@ -1627,7 +1684,10 @@ async function openFilePreview(path) {
             // wrapped markdown as raw HTML, so ## headings / - lists never render.
             contentEl.innerHTML = DOMPurify.sanitize(marked.parse(_stripXmlTags(data.content), { renderer }), { ADD_ATTR: ['loading'] });
         } else if (/\.svg$/i.test(path)) {
-            contentEl.innerHTML = `<img src="/api/files/raw?path=${encodeURIComponent(path)}&t=${Date.now()}" style="max-width:100%;max-height:70vh;border-radius:8px">`;
+            const img = document.createElement('img');
+            img.src = `/api/files/raw?path=${encodeURIComponent(path)}&preview=1200`;
+            img.style.cssText = 'max-width:100%;max-height:70vh;border-radius:8px';
+            contentEl.replaceChildren(img);
         } else {
             const ext = (path.match(/\.(\w+)$/)?.[1] || '').toLowerCase();
             const LANG_MAP = {
