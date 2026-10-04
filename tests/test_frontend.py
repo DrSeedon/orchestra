@@ -4824,11 +4824,10 @@ def test_truncated_read_image_restores_full_log_when_source_file_is_gone(
 
 def test_image_generation_history_restores_full_result_and_survives_chat_reentry(
     dashboard_browser: Browser,
+    request,
 ):
-    page = dashboard_browser.new_page()
-    _route_frontend_sources(page)
-    _goto_dashboard(page)
-    page.wait_for_function("() => typeof _showChatFor === 'function'")
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode=False)
+    request.addfinalizer(page.close)
 
     filler = [
         {"id": i, "session_id": "sid-a", "type": "text", "content": f"row-{i}",
@@ -4867,6 +4866,10 @@ def test_image_generation_history_restores_full_result_and_survives_chat_reentry
 
     state = page.evaluate(
         """async ({historyRows, fullRow}) => {
+            if (_chatLoadController) {
+                _chatLoadController.abort();
+                _chatLoadGeneration += 1;
+            }
             if (eventSource) { eventSource.close(); eventSource = null; }
             selectedAgent = 'agent-a';
             currentScope = '/scope-a';
@@ -4915,8 +4918,6 @@ def test_image_generation_history_restores_full_result_and_survives_chat_reentry
             "fullRow": full_row,
         },
     )
-    page.close()
-
     assert state["historyFetches"] == 2
     assert state["logFetches"] == 2
     for rendered in (state["first"], state):
