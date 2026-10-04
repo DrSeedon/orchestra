@@ -187,6 +187,7 @@ class TestRoute:
     def test_chat_snapshot_is_never_served_from_http_cache(self, db, monkeypatch):
         from app.db import add_log, save_session
 
+        monkeypatch.setenv("ORCHESTRA_DB_PATH", str(db))
         monkeypatch.delenv("DASHBOARD_USER", raising=False)
         monkeypatch.delenv("DASHBOARD_PASSWORD", raising=False)
         save_session(_session("fresh-snapshot", "chat", scope="/proj"))

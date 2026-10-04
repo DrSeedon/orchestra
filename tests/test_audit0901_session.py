@@ -30,15 +30,15 @@ async def _run_one_heartbeat_pass(monkeypatch, session):
     import app.session_hibernate as module
     from app.session_hibernate import HibernateManager
 
-    real_sleep = asyncio.sleep
-    monkeypatch.setattr(
-        module.asyncio, "sleep",
-        AsyncMock(side_effect=[None, asyncio.CancelledError()]),
+    fake_asyncio = SimpleNamespace(
+        sleep=AsyncMock(side_effect=[None, asyncio.CancelledError()]),
+        get_event_loop=asyncio.get_event_loop,
+        CancelledError=asyncio.CancelledError,
     )
-    try:
-        await HibernateManager(session).heartbeat_loop()
-    finally:
-        monkeypatch.setattr(module.asyncio, "sleep", real_sleep)
+    monkeypatch.setattr(
+        module, "asyncio", fake_asyncio,
+    )
+    await HibernateManager(session).heartbeat_loop()
 
 
 @pytest.mark.asyncio

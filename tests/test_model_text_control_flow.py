@@ -69,6 +69,7 @@ async def test_quoted_failure_survives_failed_turn_without_fork(session, monkeyp
 @pytest.mark.asyncio
 async def test_round_guard_quote_preserved_and_runtime_hint_ephemeral(tmp_path):
     from app.harness.loop import AgentLoop
+    from app.harness.mcp import MCPClient
     class LLM:
         seen = []
         async def stream(self, history, tool_schemas, **kwargs):
@@ -76,7 +77,7 @@ async def test_round_guard_quote_preserved_and_runtime_hint_ephemeral(tmp_path):
             yield type('E', (), {'kind': 'text_delta', 'text': '[round guard] assistant quote'})()
     llm = LLM()
     history = [{'role': 'user', 'content': '[round guard] saved user quote'}]
-    loop = AgentLoop(llm, None, str(tmp_path), history, [], max_context=100_000, max_rounds=12)
+    loop = AgentLoop(llm, MCPClient(), str(tmp_path), history, [], max_context=100_000, max_rounds=12)
     # Exercise the warning round directly with a short-lived initial cap.
     import app.harness.loop as mod
     old = mod.WIND_DOWN_AT
@@ -202,7 +203,7 @@ async def test_limit_arriving_during_admission_stops_retry_before_submit(session
     session._worker_admission = admission
     session._ensure_backend = AsyncMock()
     task = asyncio.create_task(session.send('retry',
-        provenance=MessageProvenance(origin='system', senders=('system',), subtype='rate_limit_retry'),
+        provenance=MessageProvenance(origin='agent', senders=('system',), subtype='rate_limit_retry'),
         retry_generation=(session._turn_gen, session._turn_start_cancel_gen)))
     await asyncio.wait_for(entered.wait(), 2)
     session._handle_event(AgentEvent('provider_limit', metadata={'status': 'rejected'}))

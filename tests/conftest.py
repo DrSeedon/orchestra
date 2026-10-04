@@ -18,6 +18,9 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 
+# MCP proofs in tests must never depend on a developer's or runner's secret.
+os.environ["INTERNAL_TOKEN"] = "orchestra-pytest-only-token"
+
 # Снимается ДО импорта app: `app.quota_gate` читает эти переменные на уровне модуля
 # (`HARD_STOP_PCT`, `_startup_quota_env`), поэтому monkeypatch внутри фикстуры уже опаздывает.
 # Квотные переменные — настройка ЖИВОГО процесса, а не ожидание тестов; гейт мержа наследует
