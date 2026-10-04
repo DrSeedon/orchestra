@@ -299,6 +299,10 @@ Run [37212151477](https://github.com/DrSeedon/orchestra/actions/runs/37212151477
 
 The 3 affected nodes passed together locally after the readiness waits (**3 passed in 46.05s**, including both isolated-server fixture startups). This focused run did not repeat the full suite; the next Actions run is the acceptance check.
 
+## Final acceptance
+
+Run [37212793425](https://github.com/DrSeedon/orchestra/actions/runs/37212793425), on commit `ae70b3f8f4a28b13e5c95c9e2565d280df2d2026` in `task-V-693/fix-ci`, completed successfully. All six pytest shards and the browser job are green. The browser job reports **174 passed, 7 skipped, 4004 deselected in 118.95 s**, with maximum RSS **280,264 KiB**. No job exited 137. The CI run exercised the exact pushed commit containing the readiness changes.
+
 ## Verification performed
 
 - Full local six-shard matrix ran under the test lock. Shards 0–3 and 5 passed (752, 821, 539, 395, and 705 passed respectively); shard 4 had 699 passed plus one host-only `test_installed_codex_history_version_matches_pin` failure because `/usr/bin/codex` is 0.156.1 while the laptop test pin is 0.153.4. This test skips if Codex is absent, as expected on GitHub's runner. The lock was released immediately after the suite ended.
@@ -306,4 +310,4 @@ The 3 affected nodes passed together locally after the readiness waits (**3 pass
 - First repaired browser command `python -m pytest -vv -rf --timeout=30 -m browser tests/` completed with **173 passed, 7 skipped, 4004 deselected in 265.89 s**. It produced no failures, pytest timeouts, or OOM. At that point the provider-absence node had been removed; it was later restored with structural assertions after the frozen browser inventory caught the node-count loss.
 - After restoring that node and correcting the GitHub-discovered heartbeat clock and chart PNG fixtures, the latest complete local browser rerun finished with **174 passed, 7 skipped, 4004 deselected in 387.54 s**, with no failure, timeout, or OOM. The initial 30-second cascade did not recur.
 - Focused checks also passed after the last related edits: `tests/test_usage_history_frontend.py` (10 passed), `tests/test_t344_quota_lines_browser.py` (19 passed), dashboard lifecycle/task/timeline nodes (6 passed), and the prior usage analytics/quota/model-catalog batch (41 passed); the final browser run includes the later single-test corrections as well.
-- GitHub Actions runs `37204003897`, `37210226146`, and `37212151477` found successive fixture/environment failures; their resolved causes are recorded above. The current readiness fix passed its focused local run; the next full Actions result remains outstanding.
+- GitHub Actions run `37212793425` is green on the final implementation commit; the three preceding Actions attempts and each resolved cause are recorded above.
