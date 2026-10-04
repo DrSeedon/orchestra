@@ -1,0 +1,413 @@
+[synthesis input ignores automatic marks] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_ruaccent_marks_text_before_it_reaches_vosk_synthesis ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12091/test_ruaccent_marks_text_befor0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76acaec4b500>
+
+    def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypatch):
+        import io
+        import json
+        import wave
+
+        class Accentizer:
+            def process_all(self, text):
+                return text.replace("лимита", "лим+ита")
+
+        monkeypatch.setattr(make, "load_accentizer", Accentizer)
+        steps = [{"t": "Лимит", "say": "История лимита." , "sub": None, "hold": None}]
+        make.mark_stress(steps, "ru", enabled=True)
+        jobs = []
+
+        def fake_run(*argv, **kwargs):
+            if "tts_worker.py" in argv[1]:
+                jobs.extend(json.loads(kwargs["input"]))
+                for job in jobs:
+                    with wave.open(job["out"], "wb") as output:
+                        output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                        output.writeframes(b"\0\0" * 32)
+            elif argv[0] == "ffmpeg":
+                with wave.open(argv[-1], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                    output.writeframes(b"\0\0" * 32)
+
+        monkeypatch.setattr(make, "run", fake_run)
+        make.synthesize(steps, tmp_path / "cache", 1, 1.15)
+>       assert jobs[0]["text"] == "История лим+ита."
+E       AssertionError: assert 'История лимита.' == 'История лим+ита.'
+E
+E         - История лим+ита.
+E         ?            -
+E         + История лимита.
+
+tests/test_explainer_video.py:93: AssertionError
+----------------------------- Captured stdout call -----------------------------
+синтез 1 фраз (загрузка модели ~2 мин)…
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis
+1 failed in 7.23s
+
+[manual plus sent through automatic marker] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_manual_plus_words_are_not_sent_through_automatic_accenting ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x73bdcb62fa40>
+
+    def test_manual_plus_words_are_not_sent_through_automatic_accenting(monkeypatch):
+        calls = []
+
+        class Accentizer:
+            def process_all(self, text):
+                calls.append(text)
+                return text.upper()
+
+        monkeypatch.setattr(make, "load_accentizer", Accentizer)
+        steps = [{"say": "Привет, лим+ита готова."}]
+        make.mark_stress(steps, "ru", enabled=True)
+>       assert steps[0]["_tts_text"] == "ПРИВЕТ, лим+ита ГОТОВА."
+E       AssertionError: assert 'Привет, лим+ита готова.' == 'ПРИВЕТ, лим+ита ГОТОВА.'
+E
+E         - ПРИВЕТ, лим+ита ГОТОВА.
+E         + Привет, лим+ита готова.
+
+tests/test_explainer_video.py:107: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_manual_plus_words_are_not_sent_through_automatic_accenting
+1 failed in 5.22s
+
+[CLI ignores --no-stress] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_________________ test_no_stress_flag_disables_ruaccent_in_cli _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x777be4833950>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12093/test_no_stress_flag_disables_r0')
+
+    def test_no_stress_flag_disables_ruaccent_in_cli(monkeypatch, tmp_path):
+        monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--no-stress"])
+        monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "Фраза.", "sub": None, "hold": None}])
+        monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+        monkeypatch.setattr(make, "synthesize", lambda steps, *_args, **_kwargs: assert_unmarked(steps))
+        monkeypatch.setattr(make, "plan", lambda *_: {"steps": [], "T": 0})
+        monkeypatch.setattr(make, "voice_track", lambda *_: None)
+        monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
+>       make.main()
+
+tests/test_explainer_video.py:119:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts/explainer_video/make.py:481: in main
+    steps = mark_stress(steps, args.lang, enabled=True)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/explainer_video/make.py:201: in mark_stress
+    accentizer = load_accentizer()
+                 ^^^^^^^^^^^^^^^^^
+tests/test_explainer_video.py:114: in <lambda>
+    monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <tuple_iterator object at 0x777be2602080>
+
+>   monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+E   AssertionError
+
+tests/test_explainer_video.py:114: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_no_stress_flag_disables_ruaccent_in_cli
+1 failed in 6.07s
+
+[English path runs marker] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_english_branch_does_not_load_or_run_ruaccent _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74c583d3fa10>
+
+    def test_english_branch_does_not_load_or_run_ruaccent(monkeypatch):
+        monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+        steps = [{"say": "English words."}]
+>       assert make.mark_stress(steps, "en", enabled=True) is steps
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_explainer_video.py:130:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts/explainer_video/make.py:201: in mark_stress
+    accentizer = load_accentizer()
+                 ^^^^^^^^^^^^^^^^^
+tests/test_explainer_video.py:128: in <lambda>
+    monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <tuple_iterator object at 0x74c583d3fa60>
+
+>   monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+E   AssertionError
+
+tests/test_explainer_video.py:128: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_english_branch_does_not_load_or_run_ruaccent
+1 failed in 5.37s
+
+[cache hashes source instead of marked text] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______________ test_cache_key_changes_when_accented_text_changes _______________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12095/test_cache_key_changes_when_ac0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x78afbfe4b9e0>
+
+    def test_cache_key_changes_when_accented_text_changes(tmp_path, monkeypatch):
+        import json
+        import wave
+
+        jobs_seen = []
+
+        def fake_run(*argv, **kwargs):
+            if "tts_worker.py" in argv[1]:
+                jobs = json.loads(kwargs["input"])
+                jobs_seen.extend(job["text"] for job in jobs)
+                for job in jobs:
+                    with wave.open(job["out"], "wb") as output:
+                        output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                        output.writeframes(b"\0\0" * 32)
+            elif argv[0] == "ffmpeg":
+                with wave.open(argv[-1], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                    output.writeframes(b"\0\0" * 32)
+
+        monkeypatch.setattr(make, "run", fake_run)
+        cache = tmp_path / "cache"
+        original = [{"say": "История лимита."}]
+        marked = [{"say": "История лимита.", "_tts_text": "История лим+ита."}]
+        make.synthesize(original, cache, 1, 1.15)
+        make.synthesize(marked, cache, 1, 1.15)
+>       assert jobs_seen == ["История лимита.", "История лим+ита."]
+E       AssertionError: assert ['История лимита.'] == ['История лим...рия лим+ита.']
+E
+E         Right contains one more item: 'История лим+ита.'
+E         Use -v to get more diff
+
+tests/test_explainer_video.py:159: AssertionError
+----------------------------- Captured stdout call -----------------------------
+синтез 1 фраз (загрузка модели ~2 мин)…
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_cache_key_changes_when_accented_text_changes
+1 failed in 8.05s
+
+[missing package has no helpful failure] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______________ test_missing_ruaccent_fails_with_install_command _______________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7469c9f95460>
+
+    def test_missing_ruaccent_fails_with_install_command(monkeypatch):
+        import pytest
+
+        def missing(_name):
+            raise ModuleNotFoundError("No module named 'ruaccent'", name="ruaccent")
+
+        monkeypatch.setattr(make.importlib, "import_module", missing)
+        with pytest.raises(SystemExit, match="ruaccent==1.5.8.3"):
+>           make.load_accentizer()
+
+tests/test_explainer_video.py:142:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts/explainer_video/make.py:168: in load_accentizer
+    RUAccent = importlib.import_module("ruaccent").RUAccent
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+_name = 'ruaccent'
+
+    def missing(_name):
+>       raise ModuleNotFoundError("No module named 'ruaccent'", name="ruaccent")
+E       ModuleNotFoundError: No module named 'ruaccent'
+
+tests/test_explainer_video.py:138: ModuleNotFoundError
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_missing_ruaccent_fails_with_install_command
+1 failed in 8.96s
+
+
+[CLI does not apply default RUAccent before synthesis] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_ruaccent_marks_text_before_it_reaches_vosk_synthesis ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12103/test_ruaccent_marks_text_befor0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76713af7c230>
+
+    def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypatch):
+        import json
+        import wave
+
+        class Accentizer:
+            def process_all(self, text):
+                return text.replace("лимита", "лим+ита")
+
+        monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills"])
+        monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "Лимит", "say": "История лимита.", "sub": None, "hold": None}])
+        monkeypatch.setattr(make, "load_accentizer", lambda: Accentizer())
+        jobs = []
+
+        def fake_run(*argv, **kwargs):
+            if "tts_worker.py" in argv[1]:
+                jobs.extend(json.loads(kwargs["input"]))
+                for job in jobs:
+                    with wave.open(job["out"], "wb") as output:
+                        output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                        output.writeframes(b"\0\0" * 32)
+            elif argv[0] == "ffmpeg":
+                with wave.open(argv[-1], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                    output.writeframes(b"\0\0" * 32)
+
+        monkeypatch.setattr(make, "run", fake_run)
+        monkeypatch.setattr(make, "plan", lambda *_: {"steps": [], "T": 0})
+        monkeypatch.setattr(make, "voice_track", lambda *_: None)
+        monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
+        make.main()
+>       assert jobs[0]["text"] == "История лим+ита."
+E       AssertionError: assert 'История лимита.' == 'История лим+ита.'
+E
+E         - История лим+ита.
+E         ?            -
+E         + История лимита.
+
+tests/test_explainer_video.py:95: AssertionError
+----------------------------- Captured stdout call -----------------------------
+синтез 1 фраз (загрузка модели ~2 мин)…
+длина ролика 2.0 с
+/tmp/pytest-of-kesha/pytest-12103/test_ruaccent_marks_text_befor0/scene-contact.png
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis
+1 failed in 7.81s
+
+
+[synthesis ignores stress-marked text, current CLI test] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__________ test_ruaccent_marks_text_before_it_reaches_vosk_synthesis ___________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12104/test_ruaccent_marks_text_befor0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x76f36b884170>
+
+    def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypatch):
+        import json
+        import wave
+
+        class Accentizer:
+            def process_all(self, text):
+                return text.replace("лимита", "лим+ита")
+
+        monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills"])
+        monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "Лимит", "say": "История лимита.", "sub": None, "hold": None}])
+        monkeypatch.setattr(make, "load_accentizer", lambda: Accentizer())
+        jobs = []
+
+        def fake_run(*argv, **kwargs):
+            if "tts_worker.py" in argv[1]:
+                jobs.extend(json.loads(kwargs["input"]))
+                for job in jobs:
+                    with wave.open(job["out"], "wb") as output:
+                        output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                        output.writeframes(b"\0\0" * 32)
+            elif argv[0] == "ffmpeg":
+                with wave.open(argv[-1], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                    output.writeframes(b"\0\0" * 32)
+
+        monkeypatch.setattr(make, "run", fake_run)
+        monkeypatch.setattr(make, "plan", lambda *_: {"steps": [], "T": 0})
+        monkeypatch.setattr(make, "voice_track", lambda *_: None)
+        monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
+        make.main()
+>       assert jobs[0]["text"] == "История лим+ита."
+E       AssertionError: assert 'История лимита.' == 'История лим+ита.'
+E
+E         - История лим+ита.
+E         ?            -
+E         + История лимита.
+
+tests/test_explainer_video.py:95: AssertionError
+----------------------------- Captured stdout call -----------------------------
+синтез 1 фраз (загрузка модели ~2 мин)…
+длина ролика 2.0 с
+/tmp/pytest-of-kesha/pytest-12104/test_ruaccent_marks_text_befor0/scene-contact.png
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis
+1 failed in 7.61s
+
+
+[CLI applies RUAccent to English scene] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+____________ test_english_cli_branch_does_not_load_or_run_ruaccent _____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71fa38d880e0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12107/test_english_cli_branch_does_n0')
+
+    def test_english_cli_branch_does_not_load_or_run_ruaccent(monkeypatch, tmp_path):
+        monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--lang", "en"])
+        monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "English words.", "sub": None, "hold": None}])
+        monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+
+        def synthesize(steps, *_args, **kwargs):
+            assert "_tts_text" not in steps[0]
+            assert kwargs["voice"] == "af_heart"
+            return []
+
+        monkeypatch.setattr(make, "synthesize", synthesize)
+        monkeypatch.setattr(make, "plan", lambda *_: {"steps": [], "T": 0})
+        monkeypatch.setattr(make, "voice_track", lambda *_: None)
+        monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
+>       make.main()
+
+tests/test_explainer_video.py:143:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+scripts/explainer_video/make.py:481: in main
+    steps = mark_stress(steps, "ru", enabled=not args.no_stress)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+scripts/explainer_video/make.py:201: in mark_stress
+    accentizer = load_accentizer()
+                 ^^^^^^^^^^^^^^^^^
+tests/test_explainer_video.py:132: in <lambda>
+    monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <tuple_iterator object at 0x71fa376b08e0>
+
+>   monkeypatch.setattr(make, "load_accentizer", lambda: (_ for _ in ()).throw(AssertionError()))
+E   AssertionError
+
+tests/test_explainer_video.py:132: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_english_cli_branch_does_not_load_or_run_ruaccent
+1 failed in 9.08s
+
+
+[ASR matching keeps manual + marker as a token boundary] exit=1
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________ test_manual_stress_marker_is_ignored_by_deepgram_word_matching ________
+
+    def test_manual_stress_marker_is_ignored_by_deepgram_word_matching():
+>       assert make.tokens("П+осле проверки") == make.tokens("После проверки")
+E       AssertionError: assert ['п', 'осле', 'прове'] == ['после', 'прове']
+E
+E         At index 0 diff: 'п' != 'после'
+E         Left contains one more item: 'прове'
+E         Use -v to get more diff
+
+tests/test_explainer_video.py:30: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_explainer_video.py::test_manual_stress_marker_is_ignored_by_deepgram_word_matching
+1 failed in 9.80s
+[caption still shows + after rollback] exit=1; E       AssertionError: assert ['лим+ита', 'лим+ита'] == ['лимита', 'лимита']
+[TTS site-packages leak into make process] exit=1; E       AssertionError: assert ['/home/kesha...dynload', ...] == ['/home/kesha...ite-packages']
+[manual plus word sent to RUAccent] exit=1; E       AssertionError: assert 'ПРИВЕТ, ЛИМ+ИТА ГОТОВА.' == 'ПРИВЕТ, лим+ита ГОТОВА.'

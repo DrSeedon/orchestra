@@ -1,0 +1,56 @@
+[
+  {
+    "phrase": "Это Оркестра: одна панель управления командой агентов искусственного интеллекта для вашего репозитория.",
+    "word": "репозитория",
+    "vosk_stress_vowel_indices": [
+      3,
+      5
+    ],
+    "vosk_phones": "rj e0 p o0 zj i1 t o0 rj i1 j a0",
+    "ruaccent_word": "репозит+ория",
+    "ruaccent_stress_vowel_index": 4,
+    "difference": "stress differs"
+  },
+  {
+    "phrase": "Вы описываете задачу оркестратору обычными словами.",
+    "word": "оркестратору",
+    "vosk_stress_vowel_indices": [],
+    "vosk_phones": null,
+    "ruaccent_word": "оркестр+атору",
+    "ruaccent_stress_vowel_index": 3,
+    "difference": "OOV"
+  },
+  {
+    "phrase": "После проверки он объединяет изменения одним коммитом на задачу. Код не выкачен.",
+    "word": "После",
+    "vosk_stress_vowel_indices": [
+      1
+    ],
+    "vosk_phones": "p o1 s lj e0",
+    "ruaccent_word": "Посл+е",
+    "ruaccent_stress_vowel_index": 2,
+    "difference": "stress differs"
+  },
+  {
+    "phrase": "Шлюз задерживает запуск новых воркеров до исчерпания лимита.",
+    "word": "лимита",
+    "vosk_stress_vowel_indices": [
+      3
+    ],
+    "vosk_phones": "lj i0 mj i0 t a1",
+    "ruaccent_word": "лим+ита",
+    "ruaccent_stress_vowel_index": 2,
+    "difference": "stress differs"
+  },
+  {
+    "phrase": "Оркестра — открытый код на вашем сервере, работающий с уже подключёнными подписками.",
+    "word": "уже",
+    "vosk_stress_vowel_indices": [
+      1
+    ],
+    "vosk_phones": "u1 zh e0",
+    "ruaccent_word": "уж+е",
+    "ruaccent_stress_vowel_index": 2,
+    "difference": "stress differs"
+  }
+]

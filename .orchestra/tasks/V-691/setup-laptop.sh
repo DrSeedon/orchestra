@@ -46,6 +46,8 @@ TEX_BIN="$MANIM/tex/bin/x86_64-linux"
 cd "$TTS"
 if [[ ! -x venv/bin/python ]]; then uv venv --python 3.12 venv; fi
 uv pip install --python venv/bin/python vosk-tts
+uv pip install --python venv/bin/python \
+  ruaccent==1.5.8.3 transformers==4.57.1 tokenizers==0.22.2 huggingface-hub==0.36.0
 if [[ ! -d "$TTS/vosk-model-tts-ru-0.9-multi" ]]; then
   curl -sSfL --retry 10 --retry-all-errors --retry-delay 2 --continue-at - \
     -o "$ROOT/vosk-model-tts-ru-0.9-multi.zip" \
