@@ -1627,7 +1627,7 @@ class TestLimitsCommand:
         )
 
         lines = text.splitlines()
-        assert lines[0] == "*Лимиты*"
+        assert lines[0] == "📊 *Лимиты*"
         assert (
             "• Claude 5h — осталось 70%; израсходовано 30%;"
             " окно (83%); сброс 01.08.2026 07:50 UTC+7, через 50 мин; темп ok"
@@ -1672,6 +1672,134 @@ class TestLimitsCommand:
         assert kwargs["is_photo"] is True
         assert kwargs["important"] is True
         assert "израсходовано" in args[2]
+        assert "🕒 Обновлено" in args[2]
+        assert "следующее в" in args[2]
+
+    @pytest.mark.asyncio
+    async def test_limits_first_creation_persists_delivered_message_id(self, tb, monkeypatch):
+        import app.db as db
+
+        state = {}
+        monkeypatch.setattr(db, "kv_set", lambda key, value: state.update({key: value}))
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value={"codex": {}}))
+        monkeypatch.setattr("app.limits_card.render_limits_card", AsyncMock(return_value="limits.png"))
+        sent = AsyncMock(return_value=SimpleNamespace(message_id=901))
+        monkeypatch.setattr(tb, "_tg_send_file_safe", sent)
+        monkeypatch.setattr(tb, "_live_limits_wake", asyncio.Event())
+        self._authorize_owner(tb)
+
+        await tb.handle_limits(self._message())
+
+        import json
+        saved = json.loads(state[tb._LIVE_LIMITS_KV_KEY])
+        assert saved["chat_id"] == 123
+        assert saved["message_id"] == 901
+        assert saved["next_update"]
+        assert tb._live_limits_wake.is_set()
+
+    @pytest.mark.asyncio
+    async def test_repeated_limits_command_makes_its_answer_current(self, tb, monkeypatch):
+        import app.db as db
+
+        state = {tb._LIVE_LIMITS_KV_KEY: '{"chat_id":123,"message_id":900}'}
+        monkeypatch.setattr(db, "kv_set", lambda key, value: state.update({key: value}))
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value={"codex": {}}))
+        monkeypatch.setattr("app.limits_card.render_limits_card", AsyncMock(return_value="limits.png"))
+        sent = AsyncMock(return_value=SimpleNamespace(message_id=901))
+        monkeypatch.setattr(tb, "_tg_send_file_safe", sent)
+        self._authorize_owner(tb)
+
+        await tb.handle_limits(self._message())
+
+        sent.assert_awaited_once()
+        assert '"message_id": 901' in state[tb._LIVE_LIMITS_KV_KEY]
+
+    @pytest.mark.asyncio
+    async def test_live_limits_refresh_after_restart_edits_saved_message(self, tb, monkeypatch):
+        import app.db as db
+
+        state = {tb._LIVE_LIMITS_KV_KEY: '{"chat_id":123,"message_id":901}'}
+        monkeypatch.setattr(db, "kv_get", lambda key: state.get(key, ""))
+        monkeypatch.setattr(db, "kv_set", lambda key, value: state.update({key: value}))
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value={"codex": {}}))
+        monkeypatch.setattr("app.limits_card.render_limits_card", AsyncMock(return_value="limits.png"))
+        tb.bot = AsyncMock()
+        sent = AsyncMock()
+        monkeypatch.setattr(tb, "_tg_send_file_safe", sent)
+
+        assert await tb._refresh_live_limits_message()
+
+        tb.bot.edit_message_media.assert_awaited_once()
+        assert tb.bot.edit_message_media.await_args.kwargs["chat_id"] == 123
+        assert tb.bot.edit_message_media.await_args.kwargs["message_id"] == 901
+        sent.assert_not_awaited()
+        assert '"message_id": 901' in state[tb._LIVE_LIMITS_KV_KEY]
+
+    @pytest.mark.asyncio
+    async def test_deleted_live_limits_message_replaces_it_once(self, tb, monkeypatch):
+        import app.db as db
+        from aiogram.exceptions import TelegramBadRequest
+
+        state = {tb._LIVE_LIMITS_KV_KEY: '{"chat_id":123,"message_id":901}'}
+        monkeypatch.setattr(db, "kv_get", lambda key: state.get(key, ""))
+        monkeypatch.setattr(db, "kv_set", lambda key, value: state.update({key: value}))
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value={"codex": {}}))
+        monkeypatch.setattr("app.limits_card.render_limits_card", AsyncMock(return_value="limits.png"))
+        tb.bot = AsyncMock()
+        tb.bot.edit_message_media.side_effect = TelegramBadRequest(
+            method=AsyncMock(), message="message to edit not found",
+        )
+        sent = AsyncMock(return_value=SimpleNamespace(message_id=902))
+        monkeypatch.setattr(tb, "_tg_send_file_safe", sent)
+
+        assert await tb._refresh_live_limits_message()
+
+        sent.assert_awaited_once()
+        assert '"message_id": 902' in state[tb._LIVE_LIMITS_KV_KEY]
+
+    @pytest.mark.asyncio
+    async def test_unchanged_live_limits_message_is_not_replaced(self, tb, monkeypatch):
+        import app.db as db
+        from aiogram.exceptions import TelegramBadRequest
+
+        state = {tb._LIVE_LIMITS_KV_KEY: '{"chat_id":123,"message_id":901}'}
+        monkeypatch.setattr(db, "kv_get", lambda key: state.get(key, ""))
+        monkeypatch.setattr(db, "kv_set", lambda key, value: state.update({key: value}))
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value={"codex": {}}))
+        monkeypatch.setattr("app.limits_card.render_limits_card", AsyncMock(return_value="limits.png"))
+        tb.bot = AsyncMock()
+        tb.bot.edit_message_media.side_effect = TelegramBadRequest(
+            method=AsyncMock(), message="message is not modified",
+        )
+        sent = AsyncMock()
+        monkeypatch.setattr(tb, "_tg_send_file_safe", sent)
+
+        assert await tb._refresh_live_limits_message()
+
+        tb.bot.edit_message_media.assert_awaited_once()
+        sent.assert_not_awaited()
+        assert '"message_id": 901' in state[tb._LIVE_LIMITS_KV_KEY]
+
+    @pytest.mark.asyncio
+    async def test_live_limits_render_error_does_not_send_replacement(self, tb, monkeypatch):
+        import app.db as db
+
+        state = {tb._LIVE_LIMITS_KV_KEY: '{"chat_id":123,"message_id":901}'}
+        monkeypatch.setattr(db, "kv_get", lambda key: state.get(key, ""))
+        monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value={"codex": {}}))
+        monkeypatch.setattr(
+            "app.limits_card.render_limits_card",
+            AsyncMock(side_effect=RuntimeError("render failed")),
+        )
+        tb.bot = AsyncMock()
+        sent = AsyncMock()
+        monkeypatch.setattr(tb, "_tg_send_file_safe", sent)
+
+        with pytest.raises(RuntimeError, match="render failed"):
+            await tb._refresh_live_limits_message()
+
+        sent.assert_not_awaited()
+        tb.bot.edit_message_media.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_limits_sends_explicit_error_when_image_delivery_fails(
