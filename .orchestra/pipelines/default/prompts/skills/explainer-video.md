@@ -201,3 +201,25 @@ tex/bin/x86_64-linux/tlmgr install standalone preview dvisvgm babel-english babe
 ~1 мин. Свежая версия — releases rstudio/tinytex-releases; GitHub отсюда иногда отвечает 503,
 отсюда `--retry`. Нужен ещё пакет — `tex/bin/x86_64-linux/tlmgr install <имя>`. Скрипт
 установки с логом — `.orchestra/tasks/V-685/install-tex.sh`.
+
+### Chromium на Ubuntu 26.04
+
+HTML-сборке нужен браузер Playwright. На Ubuntu 26.04 установленный вместе с проектом
+Playwright 1.60.0 завершился сообщением `Playwright does not support chromium on
+ubuntu26.04-x64`. Playwright 1.61.0 добавил поддержку Ubuntu 26.04. Чтобы сохранить lockfile
+проекта, поставь его в отдельное окружение и запускай `make.py` этим Python; скрипт
+`make.py` в вызывающем окружении использует только Playwright, а TTS и Manim остаются в
+своих окружениях:
+
+```
+P=~/.local/share/orchestra-playwright
+uv venv --python 3.12 "$P"
+uv pip install --python "$P/bin/python" playwright==1.61.0
+PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
+  "$P/bin/python" -m playwright install chromium
+PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
+  "$P/bin/python" /home/kesha/orchestra/scripts/explainer_video/make.py scene.html --out video
+```
+
+Если `/mnt/data` недоступен или места там достаточно, выбери другое хранилище для
+`PLAYWRIGHT_BROWSERS_PATH`; каталог браузера может занимать сотни мегабайт.
