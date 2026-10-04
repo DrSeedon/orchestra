@@ -102,6 +102,7 @@ def _login(page, origin):
     page.fill('input[name="password"]', PASSWORD)
     page.click('button[type="submit"]')
     page.wait_for_selector("#agent-list", timeout=30000)
+    page.wait_for_load_state("load")
 
 
 def _open_dashboard(dashboard_browser, lang=None):

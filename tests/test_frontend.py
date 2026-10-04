@@ -1473,6 +1473,7 @@ def test_pasted_image_previews_use_one_bounded_square_size(
     page = dashboard_browser.new_page()
     _route_frontend_sources(page)
     _goto_dashboard(page)
+    page.wait_for_load_state("load")
     page.wait_for_function("() => typeof _showUploadingChip === 'function'")
     metrics = page.evaluate("""async () => {
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="1000"></svg>';
