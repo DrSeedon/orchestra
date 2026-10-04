@@ -39,6 +39,7 @@ class _FakeSession:
         self.scope = "/repo"
         self.parent_name = "parent"
         self.last_task_sender = None
+        self._cancel_precompact_timer = lambda *_args, **_kwargs: None
 
 
 class _SpyManager:

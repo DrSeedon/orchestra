@@ -6,6 +6,7 @@ import pytest
 
 from app.harness import tools
 from app.harness.loop import AgentLoop
+from app.harness.mcp import MCPClient
 
 
 @pytest.mark.asyncio
@@ -20,7 +21,7 @@ async def test_timeout_retains_partial_output_and_names_outer_budget(tmp_path):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("command,failed", [("printf ok", False), ("printf partial; exit 7", True)])
 async def test_bash_event_identifies_call_and_exit_status(tmp_path, command, failed):
-    loop = AgentLoop(None, None, str(tmp_path), [], [], max_context=10000)
+    loop = AgentLoop(None, MCPClient(), str(tmp_path), [], [], max_context=10000)
     events = [event async for event in loop._dispatch_tool({
         "id": "bash-probe", "function": {"name": "bash", "arguments": json.dumps({"command": command})},
     })]
@@ -35,7 +36,7 @@ async def test_timeout_event_is_error(tmp_path, monkeypatch):
     async def timeout(*args, **kwargs):
         return "[bash error] harness timeout; partial output"
     monkeypatch.setattr(tools, "bash", timeout)
-    loop = AgentLoop(None, None, str(tmp_path), [], [], max_context=10000)
+    loop = AgentLoop(None, MCPClient(), str(tmp_path), [], [], max_context=10000)
     events = [event async for event in loop._dispatch_tool({
         "id": "timeout-probe", "function": {"name": "bash", "arguments": '{"command":"ignored"}'},
     })]

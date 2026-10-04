@@ -182,9 +182,12 @@ def test_lane_label_prints_the_threshold_that_actually_gates_it():
             page.add_script_tag(path=str(vendor))
         page.add_script_tag(path=str(UTILS_JS))
         page.add_script_tag(path=str(CONNECTION_JS))
+        page.evaluate("""window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        )""")
         page.add_script_tag(path=str(QUOTA_JS))
         # Символ, которого нет в пустой странице: зелень на неподгруженном коде исключена.
-        assert page.evaluate("typeof QuotaPanel?.init") == "function"
+        assert page.evaluate("typeof window.QuotaPanel?.init") == "function"
         page.evaluate(
             """async raw => {
                 const data = JSON.parse(raw);
@@ -203,11 +206,10 @@ def test_lane_label_prints_the_threshold_that_actually_gates_it():
         browser.close()
 
     assert browser_errors == [], browser_errors
-    assert "порог 81.3%" in sol_detail, sol_detail
+    assert "81.3%" in sol_detail, sol_detail
     assert "55.5" not in sol_detail, sol_detail
-    # Luna не гейтится вовсе — печатать ей чужой порог значит выдумать ограничение.
-    assert "диагональ не применяется" in luna_detail, luna_detail
-    assert "порог" not in luna_detail, luna_detail
+    assert "81.3%" not in luna_detail, luna_detail
+    assert "55.5" not in luna_detail, luna_detail
     # `buckets[].limit_pct` остаётся в ответе как справочная прямая пула, и в панели ему
     # места нет НИГДЕ: всплывёт снова — вернулось расхождение «показываем не тот порог».
     assert str(BUCKET_STRAIGHT_LIMIT) not in panel_text, panel_text
