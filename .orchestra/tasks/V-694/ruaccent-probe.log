@@ -1,0 +1,130 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3.12
+Creating virtual environment at: .orchestra/tasks/V-694/samples/.ruaccent-venv
+Activate with: source .orchestra/tasks/V-694/samples/.ruaccent-venv/bin/activate
+Using Python 3.12.3 environment at: .orchestra/tasks/V-694/samples/.ruaccent-venv
+Resolved 34 packages in 531ms
+Downloading tokenizers (3.1MiB)
+Downloading python-crfsuite (1.2MiB)
+Downloading transformers (11.0MiB)
+Downloading hf-xet (4.3MiB)
+Downloading onnxruntime (17.8MiB)
+Downloading sentencepiece (1.3MiB)
+ Downloaded sentencepiece
+ Downloaded python-crfsuite
+ Downloaded tokenizers
+ Downloaded hf-xet
+ Downloaded onnxruntime
+ Downloaded transformers
+Prepared 18 packages in 3.79s
+Installed 34 packages in 1.33s
+ + annotated-doc==0.0.4
+ + anyio==4.14.1
+ + certifi==2026.6.17
+ + click==8.4.2
+ + filelock==3.29.7
+ + flatbuffers==25.12.19
+ + fsspec==2026.6.0
+ + h11==0.16.0
+ + hf-xet==1.5.1
+ + httpcore==1.0.9
+ + httpx==0.28.1
+ + huggingface-hub==1.22.0
+ + idna==3.18
+ + markdown-it-py==4.2.0
+ + mdurl==0.1.2
+ + numpy==2.5.1
+ + onnxruntime==1.27.0
+ + packaging==26.2
+ + protobuf==7.35.1
+ + pygments==2.20.0
+ + python-crfsuite==0.9.12
+ + pyyaml==6.0.3
+ + razdel==0.5.0
+ + regex==2026.6.28
+ + rich==15.0.0
+ + ruaccent==1.5.8.3
+ + safetensors==0.8.0
+ + sentencepiece==0.2.1
+ + shellingham==1.5.4
+ + tokenizers==0.22.2
+ + tqdm==4.68.4
+ + transformers==5.13.0
+ + typer==0.26.8
+ + typing-extensions==4.16.0
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/ruaccent.py:24: SyntaxWarning: invalid escape sequence '\['
+  self.normalize = re.compile(r"[^a-zA-Z0-9\sа-яА-ЯёЁ—.,!?:;""''(){}\[\]«»„“”-]")
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/probe_ruaccent.py", line 14, in <module>
+    from ruaccent import RUAccent
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/__init__.py", line 6, in <module>
+    from .ruaccent import RUAccent
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/ruaccent.py", line 7, in <module>
+    from .omograph_model import OmographModel
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/omograph_model.py", line 3, in <module>
+    from transformers import AutoTokenizer
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/__init__.py", line 30, in <module>
+    from . import dependency_versions_check
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/dependency_versions_check.py", line 56, in <module>
+    require_version_core(deps[pkg])
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 116, in require_version_core
+    return require_version(requirement, hint)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 110, in require_version
+    _compare_versions(op, got_ver, want_ver, requirement, pkg, hint)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 43, in _compare_versions
+    raise ImportError(
+ImportError: tokenizers>=0.22.0,<=0.23.0 is required for a normal functioning of this module, but found tokenizers==0.23.2.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main
+Using Python 3.12.3 environment at: .orchestra/tasks/V-694/samples/.ruaccent-venv
+  × No solution found when resolving dependencies:
+  ╰─▶ Because there is no version of tokenizers==0.23.0 and you require
+      tokenizers==0.23.0, we can conclude that your requirements are
+      unsatisfiable.
+Using Python 3.12.3 environment at: .orchestra/tasks/V-694/samples/.ruaccent-venv
+Resolved 18 packages in 189ms
+Downloading transformers (11.4MiB)
+ Downloaded transformers
+Prepared 2 packages in 2.54s
+Uninstalled 2 packages in 184ms
+Installed 5 packages in 82ms
+ + charset-normalizer==3.4.9
+ - huggingface-hub==1.22.0
+ + huggingface-hub==0.36.0
+ + requests==2.34.2
+ - transformers==5.13.0
+ + transformers==4.57.1
+ + urllib3==2.7.0
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/probe_ruaccent.py", line 14, in <module>
+    from ruaccent import RUAccent
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/__init__.py", line 6, in <module>
+    from .ruaccent import RUAccent
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/ruaccent.py", line 7, in <module>
+    from .omograph_model import OmographModel
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/ruaccent/omograph_model.py", line 3, in <module>
+    from transformers import AutoTokenizer
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/__init__.py", line 27, in <module>
+    from . import dependency_versions_check
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/dependency_versions_check.py", line 57, in <module>
+    require_version_core(deps[pkg])
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 117, in require_version_core
+    return require_version(requirement, hint)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 111, in require_version
+    _compare_versions(op, got_ver, want_ver, requirement, pkg, hint)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/transformers/utils/versions.py", line 44, in _compare_versions
+    raise ImportError(
+ImportError: tokenizers>=0.22.0,<=0.23.0 is required for a normal functioning of this module, but found tokenizers==0.23.2.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main
+None of PyTorch, TensorFlow >= 2.0, or Flax have been found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/research-ru-stress/.orchestra/tasks/V-694/samples/.ruaccent-venv/lib/python3.12/site-packages/huggingface_hub/file_download.py:979: UserWarning: `local_dir_use_symlinks` parameter is deprecated and will be ignored. The process to download files to a local folder has been updated and do not rely on symlinks anymore. You only need to pass a destination folder as`local_dir`.
+For more details, check out https://huggingface.co/docs/huggingface_hub/main/en/guides/download#download-files-to-local-folder.
+  warnings.warn(
+01	+Это Орк+естра: одн+а пан+ель управл+ения ком+андой аг+ентов иск+усственного интелл+екта для в+ашего репозит+ория.	225836
+02	В+ы оп+исываете зад+ачу оркестр+атору об+ычными слов+ами.	113196
+03	+Он изуч+ает к+од, нах+одит прич+ину и д+елит раб+оту на паралл+ельные направл+ения.	163884
+04	У к+аждой мод+ели сво+я р+оль: план+ировать, пис+ать код +или обновл+ять документ+ацию.	178220
+05	Ист+ория пок+азывает, как б+ыстро расх+одуются кв+оты от нед+ели к нед+еле.	144940
+06	Шл+юз зад+ерживает з+апуск н+овых в+оркеров до исч+ерпания лим+ита.	132140
+07	Риск+ованные д+ействия, наприм+ер возвр+ат д+енег, ждут в+ашего разреш+ения.	153644
+08	Орк+естра — откр+ытый к+од на в+ашем с+ервере, раб+отающий с уж+е подключёнными подп+исками.	184364
