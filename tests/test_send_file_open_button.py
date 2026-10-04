@@ -46,10 +46,9 @@ def test_open_does_not_pass_the_download_flag():
     assert "true" not in body.split("_sendFileRawUrl(path")[1][:20]
 
 
-def test_download_button_is_kept_next_to_open():
-    """Открытие не заменяет скачивание: файл всё ещё нужно уметь сохранить."""
+def test_open_and_download_actions_are_both_rendered():
     source = APP_JS.read_text(encoding="utf-8")
     block = source[source.index("_SEND_FILE_OPENABLE.test(path)"):]
 
-    assert "🔗 Открыть" in block[:400]
-    assert "📥 Download" in block[:600]
+    assert "_openSendFile(path)" in block[:400]
+    assert "_downloadSendFile(path)" in block[:600]

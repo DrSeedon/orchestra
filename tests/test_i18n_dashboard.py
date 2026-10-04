@@ -102,6 +102,7 @@ def _login(page, origin):
     page.fill('input[name="password"]', PASSWORD)
     page.click('button[type="submit"]')
     page.wait_for_selector("#agent-list", timeout=30000)
+    page.wait_for_load_state("domcontentloaded")
 
 
 def _open_dashboard(dashboard_browser, lang=None):
@@ -153,8 +154,15 @@ def test_dictionary_reaches_marked_attributes(dashboard_browser):
                 document.querySelectorAll('[' + marker + ']').forEach((el) => {
                     const shown = (el.getAttribute(attr) || '').trim();
                     if (!shown) return;
+                    const dictionaryValues = Object.values(window.orchDict);
+                    const dynamicDictionaryValues = typeof selectedAgent === 'string'
+                        ? dictionaryValues
+                            .filter(value => value.includes('{agent}'))
+                            .map(value => value.replaceAll('{agent}', selectedAgent))
+                        : [];
                     rows.push({attr, shown,
-                               translated: Object.values(window.orchDict).includes(shown)});
+                               translated: dictionaryValues.includes(shown)
+                                   || (attr === 'placeholder' && dynamicDictionaryValues.includes(shown))});
                 });
             }
             return rows;

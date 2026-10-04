@@ -835,31 +835,79 @@ async def test_t1_shutdown_sequence_marks_bg_and_handoff_before_cleanup_complete
     assert order.index("handoff_done") < order.index(cleanup)
 
 
-def test_t1_lifespan_calls_shutdown_runtime_after_yield_mechanically():
+@pytest.mark.asyncio
+async def test_lifespan_shuts_down_owned_tasks_on_exit(
+    monkeypatch, tmp_path,
+):
+    from contextlib import contextmanager
+    from fastapi import FastAPI
     from app import main as app_main
 
-    source = Path(app_main.__file__).read_text()
-    tree = ast.parse(source)
-    lifespan = next(
-        node for node in tree.body
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name == "lifespan"
-    )
-    yield_index = next(
-        index for index, statement in enumerate(lifespan.body)
-        if any(isinstance(node, (ast.Yield, ast.YieldFrom)) for node in ast.walk(statement))
-    )
-    shutdown_calls = []
-    for index, statement in enumerate(lifespan.body):
-        if not (
-            isinstance(statement, ast.Expr)
-            and isinstance(statement.value, ast.Await)
-            and isinstance(statement.value.value, ast.Call)
-        ):
-            continue
-        function = statement.value.value.func
-        if isinstance(function, ast.Name) and function.id == "_shutdown_runtime":
-            shutdown_calls.append(index)
+    async def noop():
+        return None
 
-    assert shutdown_calls == [yield_index + 1], (
-        "lifespan must directly await _shutdown_runtime exactly once immediately after yield"
-    )
+    async def idle(*_args):
+        await asyncio.Event().wait()
+
+    monkeypatch.setenv("ORCHESTRA_DB_PATH", str(tmp_path / "test.sqlite"))
+    monkeypatch.setattr(app_main, "init_db", lambda: None)
+    monkeypatch.setattr(app_main, "recover_initial_deliveries", noop)
+    monkeypatch.setattr(app_main, "recover_message_deliveries", noop)
+    monkeypatch.setattr(app_main, "schedule_restart_inbox_drain", lambda: None)
+    monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
+    monkeypatch.setattr(app_main, "_start_bridge_background", idle)
+
+    from app import db, startup_migration, catalog_migration_v621, tm
+    from app import orchestra_layout, task_runtime, artifacts, models
+    from app.routes import tg
+
+    monkeypatch.setattr(db, "ensure_owner_activity_schema", lambda: None)
+    monkeypatch.setattr(startup_migration, "migrate_v576", lambda *_: {})
+    monkeypatch.setattr(task_runtime, "task_repository_path", lambda: tmp_path / "tasks")
+    monkeypatch.setattr(catalog_migration_v621, "migrate_v621", lambda *_: {})
+    monkeypatch.setattr(tm, "sync_catalog", lambda *_: {})
+    monkeypatch.setattr(orchestra_layout, "migrate_registered_project_layouts", lambda: {})
+    monkeypatch.setattr(artifacts, "cleanup_expired", lambda: None)
+    monkeypatch.setattr(models, "refresh_models", noop)
+    monkeypatch.setattr(models, "is_proxy_connected", lambda: True)
+    monkeypatch.setattr(app_main.manager, "auto_resume_all", noop)
+    monkeypatch.setattr(app_main.manager, "start_background_tasks", lambda: None)
+    monkeypatch.setattr(tg, "resume_dashboard_voice_transcriptions", noop)
+
+    from app import fan_barrier, bootstrap, turn_signals, bg_jobs
+    monkeypatch.setattr(fan_barrier, "recover_deadlines", lambda: None)
+    monkeypatch.setattr(bootstrap, "ensure_bootstrap", noop)
+    monkeypatch.setattr(turn_signals, "start_sweeper", lambda *_: None)
+    monkeypatch.setattr(bg_jobs.bg_manager, "set_session_manager", lambda *_: None)
+    monkeypatch.setattr(bg_jobs.bg_manager, "restore_from_db", noop)
+
+    from app.routes import system
+    from app import quota_queue, runaway_guard, merge_operations
+    monkeypatch.setattr(system, "_usage_snapshot_loop", idle)
+    monkeypatch.setattr(quota_queue, "quota_release_loop", idle)
+    monkeypatch.setattr(runaway_guard, "ensure_task", lambda *_: None)
+    monkeypatch.setattr(merge_operations, "restore_merge_operations", noop)
+    monkeypatch.setattr(app_main._fdstore, "notify_ready", lambda: False)
+
+    @contextmanager
+    def task_mode(_runtime):
+        yield object()
+
+    monkeypatch.setattr(task_runtime, "task_runtime_mode", task_mode)
+    monkeypatch.setattr(task_runtime, "production_runtime", lambda: object())
+
+    calls = []
+    async def shutdown(restart, snapshot, bridge):
+        calls.append((restart, snapshot, bridge))
+        owned = [task for task in (restart, snapshot, bridge) if task is not None]
+        for task in owned:
+            task.cancel()
+        await asyncio.gather(*owned, return_exceptions=True)
+
+    monkeypatch.setattr(app_main, "_shutdown_runtime", shutdown)
+    async with app_main.lifespan(FastAPI()):
+        assert calls == []
+
+    assert len(calls) == 1
+    assert calls[0][0] is None
+    assert calls[0][1].done() and calls[0][2].done()

@@ -63,20 +63,23 @@ async def test_heartbeat_reaches_silence_signal_only_for_running_live_backend(
 ):
     import app.session_hibernate as module
 
-    real_sleep = asyncio.sleep
-    loop_now = asyncio.get_event_loop().time()
+    loop_now = 20_000.0
+    loop = SimpleNamespace(time=lambda: loop_now)
 
     async def one_pass(worker):
+        sleep = AsyncMock(side_effect=[None, asyncio.CancelledError()])
         monkeypatch.setattr(
-            module.asyncio, "sleep",
-            AsyncMock(side_effect=[None, asyncio.CancelledError()]),
+            module, "asyncio",
+            SimpleNamespace(
+                sleep=sleep,
+                get_event_loop=lambda: loop,
+                CancelledError=asyncio.CancelledError,
+            ),
         )
         try:
             await HibernateManager(worker).heartbeat_loop()
         except asyncio.CancelledError:
             pass
-        finally:
-            monkeypatch.setattr(module.asyncio, "sleep", real_sleep)
 
     common = dict(
         backend_type="claude", _listen_task=SimpleNamespace(done=lambda: False),

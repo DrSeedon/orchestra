@@ -5,6 +5,16 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  GIT_AUTHOR_NAME: Orchestra CI
+  GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+  GIT_COMMITTER_NAME: Orchestra CI
+  GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest

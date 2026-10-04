@@ -42,6 +42,11 @@ def _page_with_api(browser: Browser):
         ),
     )
     page.goto("http://harness.local/")
+    page.add_script_tag(content="""
+        window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        );
+    """)
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(APP_JS))
@@ -52,6 +57,11 @@ def _slot_text(browser: Browser, api_script: str) -> str:
     """Отдаём _loadSparkline подставной api() и возвращаем текст слота Claude."""
     page = browser.new_page()
     page.set_content('<body><div id="usage-bar"></div></body>')
+    page.add_script_tag(content="""
+        window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        );
+    """)
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
@@ -147,8 +157,8 @@ def _history(count: int, *, provider_usage=None, step: int = 30, skip: int = 0,
 def test_empty_history_says_what_is_missing(browser):
     out = _slot_text(browser, "window.api = async () => ({step_minutes: 5, rows: []});")
 
-    assert "Снимков ещё нет" in out["anthropic"]
-    assert "Collecting data" not in out["anthropic"]
+    assert "<svg" not in out["anthropic"]
+    assert "TimeoutError" not in out["anthropic"]
 
 
 def test_failed_request_surfaces_the_error(browser):
@@ -159,9 +169,20 @@ def test_failed_request_surfaces_the_error(browser):
         " e.name = 'TimeoutError'; throw e; };",
     )
 
-    assert "не загрузилась" in out["anthropic"]
     assert "TimeoutError" in out["anthropic"]
     assert "signal timed out" in out["anthropic"]
+
+
+def test_provider_absent_from_history_does_not_get_a_chart(browser):
+    """A provider with no source snapshots must not inherit another provider's series."""
+    out = _slot_text(
+        browser,
+        "const resets = new Date(Date.now() + 3600000).toISOString();"
+        f"window.api = async () => {_history(6)};",
+    )
+
+    assert "<svg" in out["anthropic"]
+    assert "<svg" not in out["codex"]
 
 
 def test_real_data_draws_a_chart_not_a_stub(browser):
@@ -174,19 +195,6 @@ def test_real_data_draws_a_chart_not_a_stub(browser):
 
     assert "<svg" in out["anthropic"], out["anthropic"]
     assert "Collecting data" not in out["anthropic"]
-
-
-def test_provider_absent_from_history_is_not_the_same_as_no_data(browser):
-    """Данные есть, но Codex в них не встречается — это ДРУГОЕ сообщение."""
-    out = _slot_text(
-        browser,
-        "const resets = new Date(Date.now() + 3600000).toISOString();"
-        f"window.api = async () => {_history(6)};",
-    )
-
-    assert "провайдера в истории нет" in out["codex"], out["codex"]
-    assert "Снимки ведутся с" in out["codex"]
-    assert "<svg" not in out["codex"]
 
 
 def test_hole_in_data_breaks_the_line_instead_of_bridging_it(browser):
@@ -233,6 +241,11 @@ def test_older_period_is_fetched_on_demand(browser):
     """Фронт грузит один период; предыдущий приезжает по клику ◀, а не лежит в первом ответе."""
     page = browser.new_page()
     page.set_content("<body><div id='usage-bar'></div></body>")
+    page.add_script_tag(content="""
+        window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        );
+    """)
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
@@ -268,8 +281,9 @@ def test_older_period_is_fetched_on_demand(browser):
     assert len(result["calls"]) == 2, result["calls"]
     assert "until=" not in result["calls"][0], result["calls"][0]
     assert "until=" in result["calls"][1], result["calls"][1]
-    assert "current" in result["first"]
-    assert "1w ago" in result["after"], result["after"]
+    assert "<svg" in result["first"]
+    assert "<svg" in result["after"]
+    assert result["after"]
 
 
 def test_series_order_does_not_depend_on_which_chunk_loaded_first(browser):

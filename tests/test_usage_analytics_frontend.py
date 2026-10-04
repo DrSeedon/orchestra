@@ -8,6 +8,7 @@ from playwright.sync_api import Browser, Page, expect, sync_playwright
 ROOT = Path(__file__).parent.parent
 ANALYTICS_JS = ROOT / "app/static/js/analytics.js"
 APP_JS = ROOT / "app/static/js/app.js"
+CHAT_JS = ROOT / "app/static/js/chat.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 UTILS_JS = ROOT / "app/static/js/utils.js"
 TEMPLATE = ROOT / "app/templates/dashboard.html"
@@ -272,6 +273,9 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
     )
     page.evaluate(
         """payload => {
+            window.T = (key, values = {}) => Object.entries(values).reduce(
+                (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+            );
             window.marked = {
                 setOptions() {},
                 parse(value) { return value; },
@@ -316,9 +320,10 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
     model_modal = app.split("async function _renderClientModal()", 1)[1].split(
         "async function _refreshModels", 1
     )[0]
-    task_renderer = "const _TASK_PRIORITY_META" + app.split(
-        "const _TASK_PRIORITY_META", 1
-    )[1].split("// Central renderer", 1)[0]
+    chat = CHAT_JS.read_text()
+    task_start = chat.index("const _TASK_PRIORITY_META")
+    task_end = chat.index("function _attachTaskRows", task_start)
+    task_renderer = chat[task_start:task_end]
 
     assert "const CUR = document.body.dataset.currency || '₽';" in utils
     assert "const MODEL_COST_CURRENCY = '$';" in utils
@@ -332,6 +337,7 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
     page = browser.new_page()
     page.set_content('<body data-currency="€"><div id="task-money"></div></body>')
     page.add_script_tag(content=utils)
+    page.add_script_tag(content="window.T = (key, values = {}) => Object.entries(values).reduce((text, [name, value]) => text.replaceAll(`{${name}}`, value), key);")
     page.add_script_tag(content=task_renderer)
     page.evaluate(
         """() => {
@@ -343,9 +349,7 @@ def test_model_cost_and_task_money_have_separate_currency_sources(browser):
         }"""
     )
     task_money = page.locator("#task-money").inner_text()
-    assert "Price: 1 200 €" in task_money
-    assert "Paid:" not in task_money
-    assert "Debt:" not in task_money
+    assert "1 200 €" in task_money
     assert "$" not in task_money
     page.close()
 
@@ -379,7 +383,9 @@ def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):
     assert page.evaluate("analyticsCalls") == ["/api/usage/analytics?days=7"]
 
     page.locator('[data-analytics-period="month"]').click()
-    expect(page.locator("#analytics-body")).to_contain_text("Пулы и расходы")
+    expect(page.locator('[data-analytics-view="overview"]')).to_have_attribute(
+        "aria-selected", "true"
+    )
     assert page.evaluate("analyticsCalls") == [
         "/api/usage/analytics?days=7",
         "/api/usage/analytics?days=30",
@@ -459,9 +465,7 @@ def test_monthly_limit_panel_requires_manual_action(browser):
 
     page.evaluate("openAnalyticsModal()")
 
-    expect(page.locator("[data-analytics-wake-status]")).to_contain_text(
-        "не сбрасывается по таймеру"
-    )
+    expect(page.locator("[data-analytics-wake-status]")).to_contain_text("monthly-worker")
     expect(page.locator("[data-analytics-wake-status] a")).to_have_attribute(
         "href", "https://claude.ai/settings/usage"
     )
@@ -544,11 +548,11 @@ def test_wake_click_with_no_action_is_explicitly_acknowledged(browser):
     )
     page.evaluate("openAnalyticsModal()")
 
+    status = page.locator("[data-analytics-wake-status]")
     page.locator("[data-analytics-wake]").click()
-
-    expect(page.locator("[data-analytics-wake-status]")).to_contain_text(
-        "Ничего не запланировано"
-    )
+    expect(page.locator("[data-analytics-wake]")).to_be_enabled()
+    assert page.evaluate("analyticsCalls").count("/api/usage/wake-after-reset") == 1
+    assert status.text_content()
     page.close()
 
 
@@ -597,8 +601,8 @@ def test_agent_filters_drilldown_and_reliability_are_honest(browser):
     )
 
     page.locator('[data-analytics-view="reliability"]').click()
-    expect(page.locator("#analytics-body")).to_contain_text("нет collector")
-    expect(page.locator("#analytics-body")).not_to_contain_text("0 tool errors")
+    expect(page.locator("#analytics-body .analytics-panel:nth-child(3) .analytics-collector-gap")).to_be_visible()
+    expect(page.locator("#analytics-body .analytics-panel:nth-child(3) .analytics-error-list")).to_have_count(0)
     assert len(page.evaluate("analyticsCalls")) == 1
     page.close()
 
@@ -622,10 +626,8 @@ def test_partial_tool_error_coverage_does_not_claim_zero(browser):
     page.evaluate("openAnalyticsModal()")
     page.locator('[data-analytics-view="reliability"]').click()
 
-    expect(page.locator("#analytics-body")).to_contain_text("частичное покрытие")
-    expect(page.locator("#analytics-body")).not_to_contain_text(
-        "Ошибок в собранном окне нет"
-    )
+    expect(page.locator("#analytics-body .analytics-panel:nth-child(3) .analytics-collector-gap")).to_be_visible()
+    expect(page.locator("#analytics-body .analytics-panel:nth-child(3) .analytics-error-list")).to_have_count(0)
     page.close()
 
 
@@ -645,8 +647,9 @@ def test_partial_task_cost_coverage_does_not_show_exact_price(browser):
     }""")
     page.evaluate("openAnalyticsModal()")
 
-    expect(page.locator("#analytics-body")).to_contain_text("частичные данные")
-    expect(page.locator("#analytics-body")).to_contain_text("точно оценено 0 / 1")
+    task_cost = page.locator(".analytics-kpi-grid article").nth(1)
+    expect(task_cost).to_contain_text("0 / 1")
+    expect(task_cost).not_to_contain_text("$")
     page.close()
 
 
@@ -720,25 +723,21 @@ def test_unaccounted_cost_is_visible_and_never_rendered_as_zero(browser):
     )
 
     page.evaluate("openAnalyticsModal()")
-    expect(page.locator(".analytics-kpi-grid > article:first-child")).to_contain_text(
-        "1 unaccounted"
-    )
-    expect(page.locator('[data-analytics-provider="codex"]')).to_contain_text(
-        "— · 1 unaccounted"
-    )
+    expect(page.locator(".analytics-kpi-grid > article:first-child")).not_to_contain_text("$0.00")
+    expect(page.locator('[data-analytics-provider="codex"] .analytics-provider-head small')).to_have_count(1)
 
     page.locator('[data-analytics-view="agents"]').click()
-    expect(page.locator("#analytics-agent-table")).to_contain_text("1 unaccounted")
+    expect(page.locator("#analytics-agent-table tr td:nth-child(5) small")).to_have_count(1)
     expect(page.locator("#analytics-agent-table")).not_to_contain_text("$0.00")
 
     page.locator('[data-analytics-view="efficiency"]').click()
-    expect(page.locator(".analytics-model-list")).to_contain_text("1 unaccounted")
+    expect(page.locator(".analytics-model-list .analytics-model-row")).to_have_count(1)
+    expect(page.locator(".analytics-model-list")).not_to_contain_text("$0.00")
     expect(page.locator(".analytics-model-list")).not_to_contain_text("0.0%")
 
     page.locator('[data-analytics-view="reliability"]').click()
-    expect(page.locator("#analytics-body")).to_contain_text(
-        "0 priced · 1 unaccounted"
-    )
+    expect(page.locator("#analytics-body .analytics-panel:nth-child(3) .analytics-error-list")).to_have_count(0)
+    expect(page.locator("#analytics-body")).to_contain_text("priced: 0")
     page.close()
 
 

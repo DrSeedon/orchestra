@@ -65,6 +65,9 @@ def test_catalog_free_filter_and_admission_work_with_new_and_old_api_payloads(br
     page.goto("http://catalog.test/")
     page.wait_for_load_state("networkidle")
     page.evaluate("""() => {
+        window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        );
         window.$ = selector => document.querySelector(selector);
         window.MODEL_COST_CURRENCY = '$';
         window._MODELS = [];
