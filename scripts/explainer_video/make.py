@@ -66,7 +66,7 @@ VOICE_JS = """
 window.__VOICE = %s;
 window.voice = steps => {
   const v = window.__VOICE; if (!v) return;
-  steps.forEach((s, i) => { s.d = v.d[i]; s.x = s.sub ?? s.say; });
+  steps.forEach((s, i) => { s.d = v.d[i]; s.x = (s.sub ?? s.say).replace(/\\+/g, ""); });
   window.__VOICE_APPLIED = true;
 };
 """
@@ -158,6 +158,36 @@ def manim_steps(scene: Path, lang: str) -> tuple[str, list[dict]]:
     return got["cls"], check_steps(got["steps"], lang)
 
 
+def mark_stress(steps: list[dict], lang: str, enabled: bool) -> list[dict]:
+    if lang != "ru" or not enabled:
+        return steps
+    if not TTS_PYTHON.exists():
+        fail(f"нет окружения TTS: {TTS_PYTHON} — установка в SKILL explainer-video")
+    try:
+        result = subprocess.run(
+            [str(TTS_PYTHON), str(HERE / "tts_worker_stress.py")],
+            input=json.dumps([step["say"] for step in steps], ensure_ascii=False),
+            capture_output=True, text=True, check=False,
+            env={**os.environ, "ORCHESTRA_TTS_HOME": str(TTS_HOME)},
+        )
+    except OSError as exc:
+        fail(f"не удалось запустить RUAccent в {TTS_PYTHON}: {exc}")
+    if result.returncode:
+        if "RUACCENT_NOT_INSTALLED" in result.stderr:
+            fail(f"не установлен RUAccent в {TTS_PYTHON}; установка: uv pip install --python {TTS_PYTHON} "
+                 "ruaccent==1.5.8.3 transformers==4.57.1 tokenizers==0.22.2 huggingface-hub==0.36.0")
+        fail(f"ошибка RUAccent worker: {result.stderr.strip() or result.returncode}")
+    try:
+        accented = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        fail(f"RUAccent worker вернул некорректный JSON: {exc}")
+    if not isinstance(accented, list) or len(accented) != len(steps) or not all(isinstance(x, str) for x in accented):
+        fail("RUAccent worker вернул неверное число или тип размеченных фраз")
+    for step, text in zip(steps, accented, strict=True):
+        step["_tts_text"] = text
+    return steps
+
+
 def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice: str = "") -> list[Path]:
     """Каждая фраза → wav 48 кГц моно без тишины по краям (кэш по тексту и голосу).
 
@@ -166,11 +196,12 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
     trimmed, jobs = [], []
     for step in steps:
         engine = f"kokoro-v1.0|{voice}" if voice else f"{speaker}|{TTS_MODEL.name}"
-        key = hashlib.sha1(f"{step['say']}|{rate}|{engine}".encode()).hexdigest()[:16]
+        text = step.get("_tts_text", step["say"])
+        key = hashlib.sha1(f"{text}|{rate}|{engine}".encode()).hexdigest()[:16]
         raw, cut = cache / f"{key}.raw.wav", cache / f"{key}.wav"
         trimmed.append(cut)
         if not cut.exists() and not raw.exists():
-            jobs.append({"text": step["say"], "speaker": speaker, "voice": voice, "rate": rate, "out": str(raw)})
+            jobs.append({"text": text, "speaker": speaker, "voice": voice, "rate": rate, "out": str(raw)})
     if jobs and voice:
         if not TTS_EN_PYTHON.exists() or not (TTS_EN_HOME / "kokoro-v1.0.onnx").exists():
             fail(f"нет английского TTS: {TTS_EN_PYTHON} и {TTS_EN_HOME}/kokoro-v1.0.onnx — установка в SKILL explainer-video")
@@ -332,7 +363,7 @@ def tokens(text: str) -> list[str]:
     """Слова для сверки с распознанным: регистр, ё/э → е, «7 680» → «7680», граница
     кириллицы и латиницы — граница слова (Deepgram склеивает «иstreamlake»). Сравнение по
     первым 5 знакам гасит падежи («кеша»/«кешу»)."""
-    text = text.lower().replace("ё", "е").replace("э", "е")
+    text = text.lower().replace("+", "").replace("ё", "е").replace("э", "е")
     text = re.sub(r"(?<=\d) (?=\d{3}\b)", "", text)
     text = re.sub(r"(?<=[а-я])(?=[a-z0-9])|(?<=[a-z0-9])(?=[а-я])", " ", text)
     return [w[:5] for w in re.findall(r"[a-zа-я0-9]+", text)]
@@ -415,6 +446,7 @@ def main() -> None:
                     help="en — английская озвучка Kokoro вместо русской Vosk")
     ap.add_argument("--voice", default="af_heart", help="голос Kokoro для --lang en (am_michael — мужской)")
     ap.add_argument("--rate", type=float, default=1.15)
+    ap.add_argument("--no-stress", action="store_true", help="не запускать автоматическую разметку ударений RUAccent")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
@@ -430,6 +462,7 @@ def main() -> None:
         cls, steps = manim_steps(args.scene, args.lang)
     else:
         steps = read_steps(args.scene, args.lang)
+    steps = mark_stress(steps, args.lang, enabled=not args.no_stress)
     clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
                        voice=args.voice if args.lang == "en" else "")
     timing = plan(steps, clips, args.rate)

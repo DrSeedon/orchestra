@@ -1,0 +1,57 @@
+Running as unit: run-p1487727-i1474346.scope; invocation ID: aa649b878ea2436daa5de92b7838d3e2
+Manim Community v0.20.1
+
+tlmgr: package repository https://mirror.macomnet.net/pub/CTAN/systems/texlive/tlnet (verified)
+tlmgr install: package already present: babel-english
+tlmgr install: package already present: babel-russian
+tlmgr install: package already present: cyrillic
+tlmgr install: package already present: doublestroke
+tlmgr install: package already present: dvisvgm
+tlmgr install: package already present: jknapltx
+tlmgr install: package already present: lh
+tlmgr install: package already present: mathastext
+tlmgr install: package already present: microtype
+tlmgr install: package already present: physics
+tlmgr install: package already present: preview
+tlmgr install: package already present: ragged2e
+tlmgr install: package already present: relsize
+tlmgr install: package already present: rsfs
+tlmgr install: package already present: setspace
+tlmgr install: package already present: standalone
+tlmgr install: package already present: wasy
+tlmgr install: package already present: wasysym
+pdfTeX 3.141592653-2.6-1.40.29 (TeX Live 2026)
+dvisvgm 3.6
+Using Python 3.12.12 environment at: venv
+Audited 1 package in 50ms
+Using Python 3.12.12 environment at: venv
+Resolved 25 packages in 1.37s
+Downloading transformers (11.4MiB)
+Downloading tokenizers (3.1MiB)
+Downloading python-crfsuite (1.2MiB)
+Downloading sentencepiece (1.3MiB)
+ Downloaded python-crfsuite
+ Downloaded sentencepiece
+ Downloaded tokenizers
+ Downloaded transformers
+Prepared 9 packages in 1.60s
+Uninstalled 2 packages in 20ms
+Installed 9 packages in 37ms
+ - huggingface-hub==1.33.0
+ + huggingface-hub==0.36.0
+ + python-crfsuite==0.9.12
+ + razdel==0.5.0
+ + regex==2026.9.10
+ + ruaccent==1.5.8.3
+ + safetensors==0.8.0
+ + sentencepiece==0.2.2
+ - tokenizers==0.23.2
+ + tokenizers==0.22.2
+ + transformers==4.57.1
+Using Python 3.12.12 environment at: en/venv
+Audited 2 packages in 30ms
+Using Python 3.12.12 environment at: /mnt/data/Apps/orchestra-video/playwright
+Audited 1 package in 3ms
+1.9G	/mnt/data/Apps/orchestra-video/orchestra-manim
+1.5G	/mnt/data/Apps/orchestra-video/orchestra-tts
+175M	/mnt/data/Apps/orchestra-video/uv-cache
