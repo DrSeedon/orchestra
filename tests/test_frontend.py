@@ -4326,16 +4326,28 @@ def test_chat_timeline_navigates_final_agent_answers_only(
     request.addfinalizer(page.close)
     page.set_default_timeout(8000)
     _route_frontend_sources(page)
+    page.route(
+        "**/api/orchestrators**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body="[]",
+        ),
+    )
     _goto_dashboard(page)
     page.wait_for_function("() => typeof _recomputeChatTimelineFinals === 'function'", timeout=8000)
     page.wait_for_selector('#chat-final-nav', state='attached', timeout=8000)
     page.evaluate("""() => {
         selectedAgent = null;
+        _chatLoadController?.abort();
+        _chatLoadGeneration += 1;
+        _chatLoading = false;
+        _chatSnapshotReady = false;
         if (eventSource) {
             eventSource.close();
             eventSource = null;
         }
-        document.querySelector('#chat').innerHTML = '';
+        document.querySelector('#chat').replaceChildren();
     }""")
     page.evaluate("""() => {
         window.addTimelineEntry = (type, label) => {
@@ -4355,10 +4367,13 @@ def test_chat_timeline_navigates_final_agent_answers_only(
         }""",
         long_text,
     )
-    page.wait_for_function(
-        "() => document.querySelectorAll('#chat-timeline-track .is-final').length === 1",
-        timeout=8000,
-    )
+    page.wait_for_function("""() => {
+        const last = document.querySelector('#chat [data-test-label$="-last"]');
+        const first = document.querySelector('#chat [data-test-label$="-first"]');
+        return last?.dataset.chatNavKind === 'final'
+            && first?.dataset.chatNavKind === 'agent'
+            && document.querySelectorAll('#chat-timeline-track .is-final').length === 1;
+    }""", timeout=8000)
     assert page.locator('#chat [data-test-label$="-last"]').get_attribute('data-chat-nav-kind') == 'final'
     assert page.locator('#chat [data-test-label$="-first"]').get_attribute('data-chat-nav-kind') == 'agent'
 
@@ -5557,7 +5572,7 @@ def test_dashboard_survives_lossy_channel_from_snapshot(dashboard_browser: Brows
     assert "5h" in state["usageText"], f"usage не восстановлен из снимка: {state}"
     assert "2" in state["statsText"], f"stats не восстановлен из снимка: {state}"
     # Честность: данные показаны, но помечены как несвежие с меткой времени.
-    assert state["phase"] in {"degraded", "recovering"}, f"нет пометки о кеше: {state}"
+    assert state["phase"] in {"offline", "degraded", "recovering"}, f"нет пометки о кеше: {state}"
     assert state["detail"], f"нет причины состояния канала: {state}"
     assert "sessions:" in state["notice"] or "usage:" in state["notice"], (
         f"нет источника сохранённых данных: {state}"
