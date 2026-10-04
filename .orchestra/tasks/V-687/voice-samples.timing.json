@@ -1,0 +1,79 @@
+{
+ "steps": [
+  {
+   "title": "Номер один · Vosk",
+   "say": "Мой будильник звонил так уверенно, что первым встал сосед.",
+   "sub": "Мой будильник звонил так уверенно, что первым встал сосед.",
+   "step_start": 0.0,
+   "phrase_start": 0.28,
+   "phrase_end": 3.641,
+   "d": 4.541
+  },
+  {
+   "title": "Номер два · Vosk",
+   "say": "Я заказал салат, а он попросил уважать его личные границы.",
+   "sub": "Я заказал салат, а он попросил уважать его личные границы.",
+   "step_start": 4.541,
+   "phrase_start": 4.821,
+   "phrase_end": 7.7,
+   "d": 4.059
+  },
+  {
+   "title": "Номер три · Vosk",
+   "say": "В холодильнике пусто, зато освещение очень драматичное.",
+   "sub": "В холодильнике пусто, зато освещение очень драматичное.",
+   "step_start": 8.6,
+   "phrase_start": 8.88,
+   "phrase_end": 11.71,
+   "d": 4.01
+  },
+  {
+   "title": "Номер четыре · Vosk",
+   "say": "Кот сел на клавиатуру и назначил себя главным по печенькам.",
+   "sub": "Кот сел на клавиатуру и назначил себя главным по печенькам.",
+   "step_start": 12.61,
+   "phrase_start": 12.89,
+   "phrase_end": 15.544,
+   "d": 3.834
+  },
+  {
+   "title": "Number five · Kokoro",
+   "say": "My alarm was so confident this morning, even the neighbor got up.",
+   "sub": "My alarm was so confident this morning, even the neighbor got up.",
+   "step_start": 16.444,
+   "phrase_start": 16.724,
+   "phrase_end": 19.739,
+   "d": 4.195
+  },
+  {
+   "title": "Number six · Kokoro",
+   "say": "I ordered a salad. It asked me to respect its personal space.",
+   "sub": "I ordered a salad. It asked me to respect its personal space.",
+   "step_start": 20.639,
+   "phrase_start": 20.919,
+   "phrase_end": 23.953,
+   "d": 4.214
+  },
+  {
+   "title": "Number seven · Kokoro",
+   "say": "The fridge is empty, but the lighting is incredibly dramatic.",
+   "sub": "The fridge is empty, but the lighting is incredibly dramatic.",
+   "step_start": 24.853,
+   "phrase_start": 25.133,
+   "phrase_end": 28.273,
+   "d": 4.32
+  },
+  {
+   "title": "Number eight · Kokoro",
+   "say": "My cat sat on the keyboard and promoted himself to team lead.",
+   "sub": "My cat sat on the keyboard and promoted himself to team lead.",
+   "step_start": 29.173,
+   "phrase_start": 29.453,
+   "phrase_end": 32.805,
+   "d": 4.932
+  }
+ ],
+ "T": 34.105,
+ "pre": 0.4,
+ "post": 1.6
+}
