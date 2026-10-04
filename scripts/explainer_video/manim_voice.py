@@ -81,7 +81,7 @@ class VoiceScene(Scene):
 
     def _chrome(self, step: dict) -> VGroup:
         title = text(step["t"], 34, "#ffffff", "BOLD").to_corner(UL, buff=0.45)
-        lines = textwrap.wrap(step.get("sub") or step["say"], self.CAPTION_CHARS)
+        lines = textwrap.wrap((step.get("sub") or step["say"]).replace("+", ""), self.CAPTION_CHARS)
         caption = VGroup(*(text(line, 26, "#d5d8df") for line in lines))
         caption.arrange(DOWN, aligned_edge=LEFT, buff=0.14).to_edge(DOWN, buff=0.38).to_edge(LEFT, buff=0.6)
         return VGroup(title, caption)
