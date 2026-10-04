@@ -1469,43 +1469,93 @@ def test_document_upload_card_appears_immediately_and_reports_progress(
 
 def test_pasted_image_previews_use_one_bounded_square_size(
     dashboard_browser: Browser,
+    request,
 ):
     page = dashboard_browser.new_page()
+    request.addfinalizer(page.close)
     _route_frontend_sources(page)
+    page.route(
+        "**/api/orchestrators**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="application/json",
+            body="[]",
+        ),
+    )
     _goto_dashboard(page)
-    page.wait_for_load_state("load")
     page.wait_for_function("() => typeof _showUploadingChip === 'function'")
-    metrics = page.evaluate("""async () => {
+    page.evaluate("""() => {
+        if (eventSource) { eventSource.close(); eventSource = null; }
+        selectedAgent = null;
+        currentScope = null;
+    }""")
+    page.evaluate("""() => {
         const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="1000"></svg>';
         const dataUrl = 'data:image/svg+xml,' + encodeURIComponent(svg);
-        const measure = image => {
-            const rect = image.getBoundingClientRect();
-            const style = getComputedStyle(image);
-            return {
-                width: rect.width,
-                height: rect.height,
-                objectFit: style.objectFit,
-                maxWidth: style.maxWidth,
-                maxHeight: style.maxHeight,
-            };
-        };
-
         showImagePreview(dataUrl, '/tmp/panorama.svg');
-        const saved = document.querySelector('#paste-preview img');
-        await saved.decode();
-        const savedMetrics = measure(saved);
-        clearPastePreview();
-
-        const file = new File([svg], 'panorama.svg', {type: 'image/svg+xml'});
-        const cleanup = _showUploadingChip(file, file.name);
-        const uploading = document.querySelector('#paste-preview img');
-        await uploading.decode();
-        const uploadingMetrics = measure(uploading);
-        cleanup();
-        return {saved: savedMetrics, uploading: uploadingMetrics};
     }""")
-    page.close()
-
+    try:
+        page.wait_for_function("""() => {
+            const image = document.querySelector('#paste-preview img');
+            return image?.complete && image.naturalWidth > 0
+                && getComputedStyle(image).maxWidth === '64px';
+        }""", timeout=8000)
+    except PlaywrightTimeout:
+        state = page.evaluate("""() => ({
+            image: (() => {
+                const image = document.querySelector('#paste-preview img');
+                if (!image) return null;
+                const style = getComputedStyle(image);
+                return {complete: image.complete, naturalWidth: image.naturalWidth,
+                        maxWidth: style.maxWidth, maxHeight: style.maxHeight,
+                        objectFit: style.objectFit};
+            })(),
+            stylesheets: [...document.styleSheets].map(sheet => ({
+                href: sheet.href,
+                hasPreviewRule: [...(sheet.cssRules || [])].some(rule =>
+                    rule.selectorText?.includes('.paste-preview-image')),
+            })),
+        })""")
+        pytest.fail(f"preview image or CSS did not settle: {state}")
+    saved_metrics = page.evaluate("""() => {
+        const image = document.querySelector('#paste-preview img');
+        const rect = image.getBoundingClientRect();
+        const style = getComputedStyle(image);
+        const result = {
+            width: rect.width,
+            height: rect.height,
+            objectFit: style.objectFit,
+            maxWidth: style.maxWidth,
+            maxHeight: style.maxHeight,
+        };
+        clearPastePreview();
+        return result;
+    }""")
+    page.evaluate("""() => {
+        const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="4000" height="1000"></svg>';
+        const file = new File([svg], 'panorama.svg', {type: 'image/svg+xml'});
+        window.__uploadingPreviewCleanup = _showUploadingChip(file, file.name);
+    }""")
+    page.wait_for_function("""() => {
+        const image = document.querySelector('#paste-preview img');
+        return image?.complete && image.naturalWidth > 0
+            && getComputedStyle(image).maxWidth === '64px';
+    }""", timeout=8000)
+    uploading_metrics = page.evaluate("""() => {
+        const image = document.querySelector('#paste-preview img');
+        const rect = image.getBoundingClientRect();
+        const style = getComputedStyle(image);
+        const result = {
+            width: rect.width,
+            height: rect.height,
+            objectFit: style.objectFit,
+            maxWidth: style.maxWidth,
+            maxHeight: style.maxHeight,
+        };
+        window.__uploadingPreviewCleanup();
+        return result;
+    }""")
+    metrics = {"saved": saved_metrics, "uploading": uploading_metrics}
     expected = {
         "width": 64,
         "height": 64,
