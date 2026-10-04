@@ -14,6 +14,7 @@ import time
 from collections import Counter, OrderedDict, deque
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import aiohttp
 from aiogram import Bot, Dispatcher, types, F
@@ -110,6 +111,10 @@ _mirror_outboxes: dict[str, asyncio.Queue] = {}
 _mirror_tasks: dict[str, asyncio.Task] = {}
 _mirror_dropped: dict[str, int] = {}
 _mirror_stopping: set[str] = set()
+_LIVE_LIMITS_KV_KEY = "tg_live_limits_message"
+_LIVE_LIMITS_INTERVAL_SECONDS = 30 * 60
+_LIVE_LIMITS_RETRY_SECONDS = 60
+_live_limits_wake: asyncio.Event | None = None
 
 
 def save_config():
@@ -3869,7 +3874,7 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
     # оно 16.09 встало на 100% и остановило работу на трое суток, пока пятичасовое
     # показывало ноль. Показываем обе строки, как у Claude.
     lines = [
-        "*Лимиты*",
+        "📊 *Лимиты*",
         _window_line("Claude 5h", anthropic.get("five_hour"), "five_hour"),
         _window_line("Claude 7d", anthropic.get("seven_day"), "seven_day"),
         _window_line("Codex 5h", codex.get("primary"), "five_hour"),
@@ -3897,6 +3902,123 @@ def _format_limits_message_for_chat(usage: dict, *, now: datetime | None = None)
     return "\n".join(lines)
 
 
+def _live_limits_state() -> dict | None:
+    from app.db import kv_get
+
+    try:
+        state = json.loads(kv_get(_LIVE_LIMITS_KV_KEY))
+    except (TypeError, ValueError):
+        return None
+    if (not isinstance(state, dict)
+            or not isinstance(state.get("chat_id"), int)
+            or not isinstance(state.get("message_id"), int)):
+        return None
+    return state
+
+
+def _save_live_limits_state(chat_id: int, message_id: int, next_update: datetime) -> None:
+    from app.db import kv_set
+
+    kv_set(_LIVE_LIMITS_KV_KEY, json.dumps({
+        "chat_id": chat_id,
+        "message_id": message_id,
+        "next_update": next_update.astimezone(timezone.utc).isoformat(),
+    }))
+
+
+def _live_limits_caption(usage: dict, *, now: datetime | None = None) -> tuple[str, datetime]:
+    now = now or datetime.now(timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    next_update = now + timedelta(seconds=_LIVE_LIMITS_INTERVAL_SECONDS)
+    krasnoyarsk = ZoneInfo("Asia/Krasnoyarsk")
+    updated_text = now.astimezone(krasnoyarsk).strftime("%H:%M")
+    next_text = next_update.astimezone(krasnoyarsk).strftime("%H:%M")
+    caption = _format_limits_message_for_chat(usage, now=now)
+    return f"{caption}\n\n🕒 Обновлено {updated_text} · следующее в {next_text}", next_update
+
+
+async def _refresh_live_limits_message() -> bool:
+    state = _live_limits_state()
+    if state is None or bot is None:
+        return False
+    original_message_id = state["message_id"]
+    usage = await _get_limits_usage()
+    from app.limits_card import render_limits_card
+    from aiogram.types import FSInputFile, InputMediaPhoto
+
+    now = datetime.now(timezone.utc)
+    caption, next_update = _live_limits_caption(usage, now=now)
+    path = await render_limits_card(usage, now=now)
+    media = InputMediaPhoto(media=FSInputFile(path), caption=caption, parse_mode=None)
+    try:
+        await bot.edit_message_media(
+            chat_id=state["chat_id"],
+            message_id=state["message_id"],
+            media=media,
+        )
+    except TelegramBadRequest as e:
+        error = str(e).lower()
+        if "message is not modified" not in error:
+            if not any(term in error for term in (
+                "message to edit not found", "message_id_invalid", "message can't be edited",
+            )):
+                raise
+            current = _live_limits_state()
+            if (current is None or current["chat_id"] != state["chat_id"]
+                    or current["message_id"] != original_message_id):
+                return True
+            delivery = await _tg_send_file_safe(
+                state["chat_id"], path, caption, thread_id=None,
+                is_photo=True, important=True,
+            )
+            message_id = getattr(delivery, "message_id", None)
+            if not isinstance(message_id, int):
+                raise RuntimeError("новое сообщение лимитов не доставлено")
+            state["message_id"] = message_id
+    current = _live_limits_state()
+    if (current is None or current["chat_id"] != state["chat_id"]
+            or current["message_id"] != original_message_id):
+        return True
+    _save_live_limits_state(state["chat_id"], state["message_id"], next_update)
+    return True
+
+
+async def _live_limits_loop():
+    while True:
+        wake = _live_limits_wake
+        if wake is None:
+            await asyncio.sleep(_LIVE_LIMITS_RETRY_SECONDS)
+            continue
+        wake.clear()
+        try:
+            state = _live_limits_state()
+        except Exception:
+            logger.exception("Could not load saved live /limits message; retrying later")
+            await asyncio.sleep(_LIVE_LIMITS_RETRY_SECONDS)
+            continue
+        if state is None:
+            await wake.wait()
+            continue
+        due = _to_utc_datetime(state.get("next_update"))
+        delay = max(0.0, (due - datetime.now(timezone.utc)).total_seconds()) if due else 0.0
+        try:
+            await asyncio.wait_for(wake.wait(), timeout=delay)
+            continue
+        except asyncio.TimeoutError:
+            pass
+        try:
+            await _refresh_live_limits_message()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Live /limits refresh failed; retrying later")
+            try:
+                await asyncio.wait_for(wake.wait(), timeout=_LIVE_LIMITS_RETRY_SECONDS)
+            except asyncio.TimeoutError:
+                pass
+
+
 @dp.message(F.chat.type == "private", F.text, lambda msg: msg.text and msg.text.strip() == "/limits")
 async def handle_limits(msg: types.Message):
     if not await _is_limits_owner(msg):
@@ -3905,7 +4027,7 @@ async def handle_limits(msg: types.Message):
 
     try:
         usage = await _get_limits_usage()
-        response = _format_limits_message_for_chat(usage)
+        response, next_update = _live_limits_caption(usage)
         from app.limits_card import render_limits_card
 
         path = await render_limits_card(usage)
@@ -3919,6 +4041,11 @@ async def handle_limits(msg: types.Message):
         )
         if delivery is None:
             raise RuntimeError("изображение не доставлено")
+        message_id = getattr(delivery, "message_id", None)
+        if isinstance(message_id, int):
+            _save_live_limits_state(msg.chat.id, message_id, next_update)
+            if _live_limits_wake is not None:
+                _live_limits_wake.set()
         return
     except Exception as e:
         detail = str(e).strip() or "(без сообщения)"
@@ -4217,7 +4344,7 @@ def _unmanaged_instance_reason() -> str | None:
 
 
 async def start_bridge(manager):
-    global bot, _manager
+    global bot, _manager, _live_limits_wake
     reason = _unmanaged_instance_reason()
     if reason is not None:
         raise UnmanagedInstanceError(
@@ -4248,6 +4375,7 @@ async def start_bridge(manager):
         return
 
     _manager = manager
+    _live_limits_wake = asyncio.Event()
     config["group_id"] = group
     save_config()
 
@@ -4283,6 +4411,7 @@ async def start_bridge(manager):
 
     _tasks.append(asyncio.create_task(_safe_polling()))
     _tasks.append(asyncio.create_task(_deferred_startup()))
+    _tasks.append(asyncio.create_task(_live_limits_loop()))
     if local_api:
         _tasks.append(asyncio.create_task(_bot_api_health_loop(local_api)))
     logger.info(f"TG Bridge started (polling immediate, topics deferred) | group={group}")
@@ -4363,7 +4492,7 @@ async def _safe_polling():
 
 
 async def stop_bridge():
-    global bot, _manager
+    global bot, _manager, _live_limits_wake
     # unhook so a restarted bridge (or tests) never fire stale callbacks
     from app import session as _session_mod
     _session_mod.on_scope_idle = None
@@ -4410,4 +4539,5 @@ async def stop_bridge():
         # A handler racing past the unhook must see inactive state even if close fails.
         bot = None
         _manager = None
+        _live_limits_wake = None
         _mirror_stopping.clear()
