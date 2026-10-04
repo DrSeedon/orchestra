@@ -1,0 +1,124 @@
+{
+ "worst_margin_s": 0.135,
+ "steps": [
+  {
+   "step": "Orchestra",
+   "move_start": 0.4,
+   "lands": 0.54,
+   "voice_onset": 0.68,
+   "margin_s": 0.14
+  },
+  {
+   "step": "\u0412\u044b \u0441\u0442\u0430\u0432\u0438\u0442\u0435 \u0437\u0430\u0434\u0430\u0447\u0443",
+   "move_start": 5.291,
+   "lands": 5.881,
+   "voice_onset": 6.02,
+   "margin_s": 0.139
+  },
+  {
+   "step": "\u041e\u043d \u0440\u0430\u0437\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f",
+   "move_start": 8.38,
+   "lands": 8.97,
+   "voice_onset": 9.11,
+   "margin_s": 0.14
+  },
+  {
+   "step": "\u0417\u0430\u043f\u0443\u0441\u043a\u0430\u044e\u0442\u0441\u044f \u0432\u043e\u0440\u043a\u0435\u0440\u044b",
+   "move_start": 12.537,
+   "lands": 13.127,
+   "voice_onset": 13.27,
+   "margin_s": 0.143
+  },
+  {
+   "step": "\u0420\u0430\u0437\u043d\u044b\u0435 \u043c\u043e\u0434\u0435\u043b\u0438",
+   "move_start": 16.194,
+   "lands": 16.784,
+   "voice_onset": 16.92,
+   "margin_s": 0.136
+  },
+  {
+   "step": "\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435 \u0432\u043e\u0440\u043a\u0435\u0440\u0430",
+   "move_start": 20.745,
+   "lands": 21.335,
+   "voice_onset": 21.47,
+   "margin_s": 0.135
+  },
+  {
+   "step": "\u041e\u0442\u0447\u0451\u0442 \u043e \u0440\u0430\u0431\u043e\u0442\u0435",
+   "move_start": 24.077,
+   "lands": 24.667,
+   "voice_onset": 24.81,
+   "margin_s": 0.143
+  },
+  {
+   "step": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0438 \u0442\u0435\u0441\u0442\u044b",
+   "move_start": 27.467,
+   "lands": 28.057,
+   "voice_onset": 28.2,
+   "margin_s": 0.143
+  },
+  {
+   "step": "\u041c\u0435\u0440\u0436",
+   "move_start": 31.159,
+   "lands": 31.749,
+   "voice_onset": 31.89,
+   "margin_s": 0.141
+  },
+  {
+   "step": "\u0414\u043e\u0441\u043a\u0430 \u0437\u0430\u0434\u0430\u0447",
+   "move_start": 35.699,
+   "lands": 36.289,
+   "voice_onset": 36.43,
+   "margin_s": 0.141
+  },
+  {
+   "step": "\u041a\u0432\u043e\u0442\u044b \u0438 \u043b\u0438\u043c\u0438\u0442\u044b",
+   "move_start": 37.824,
+   "lands": 38.414,
+   "voice_onset": 38.55,
+   "margin_s": 0.136
+  },
+  {
+   "step": "\u0418\u0441\u0442\u043e\u0440\u0438\u044f \u043a\u0432\u043e\u0442",
+   "move_start": 41.377,
+   "lands": 41.967,
+   "voice_onset": 42.11,
+   "margin_s": 0.143
+  },
+  {
+   "step": "\u0420\u0430\u0441\u0445\u043e\u0434\u044b \u043f\u043e \u0434\u043d\u044f\u043c",
+   "move_start": 45.081,
+   "lands": 45.671,
+   "voice_onset": 45.81,
+   "margin_s": 0.139
+  },
+  {
+   "step": "\u041f\u043e \u0430\u0433\u0435\u043d\u0442\u0430\u043c \u0438 \u043c\u043e\u0434\u0435\u043b\u044f\u043c",
+   "move_start": 48.738,
+   "lands": 49.328,
+   "voice_onset": 49.47,
+   "margin_s": 0.142
+  },
+  {
+   "step": "\u041a\u0432\u043e\u0442\u043d\u044b\u0439 \u0448\u043b\u044e\u0437",
+   "move_start": 52.384,
+   "lands": 52.974,
+   "voice_onset": 53.11,
+   "margin_s": 0.136
+  },
+  {
+   "step": "\u0420\u0435\u0448\u0430\u0435\u0442\u0435 \u0432\u044b",
+   "move_start": 55.867,
+   "lands": 56.457,
+   "voice_onset": 56.6,
+   "margin_s": 0.143
+  },
+  {
+   "step": "Orchestra",
+   "move_start": 59.803,
+   "lands": 60.393,
+   "voice_onset": 60.53,
+   "margin_s": 0.137
+  }
+ ]
+}
