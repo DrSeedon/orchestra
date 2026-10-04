@@ -50,3 +50,13 @@ def test_say_rejects_latin_and_digits_before_synthesis():
     assert make.NOT_SPEAKABLE.search("кеш 20 минут")
     assert make.NOT_SPEAKABLE.search("кеш Together")
     assert not make.NOT_SPEAKABLE.search("Кеш живёт двадцать минут — у Тугезера.")
+
+
+def test_english_voice_reads_latin_and_digits_but_rejects_cyrillic():
+    import pytest
+    ok = [{"t": "Merge", "say": "Merged #2: 48 tests green.", "sub": None, "hold": None}]
+    assert make.check_steps(ok, "en") == ok
+    with pytest.raises(SystemExit):
+        make.check_steps([{"t": "x", "say": "Merged кеш", "sub": None, "hold": None}], "en")
+    with pytest.raises(SystemExit):
+        make.check_steps(ok, "ru")

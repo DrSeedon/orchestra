@@ -1,6 +1,6 @@
 ---
 name: explainer-video
-description: "Объясняющий ролик MP4 30–90 с в духе 3Blue1Brown: анимированная схема html-motion или график/анимация Manim и русская закадровая озвучка (локальный Vosk TTS), синхронные по фразам; проверка распознаванием и отправка в Telegram видео."
+description: "Объясняющий ролик MP4 30–90 с в духе 3Blue1Brown: анимированная схема html-motion или график/анимация Manim и закадровая озвучка — русская (Vosk) или английская (Kokoro), локально, синхронные по фразам; проверка распознаванием и отправка в Telegram видео."
 ---
 
 # Explainer Video
@@ -39,6 +39,11 @@ description: "Объясняющий ролик MP4 30–90 с в духе 3Blue
   (инструмент отказывает заранее): пиши словами («семь тысяч шестьсот восемьдесят»,
   «Дип Инфра», «опен роутер»), на экране оставляй цифры и оригинальные названия.
   1–2 предложения, 2–6 с в темпе 1.25, весь ролик 30–90 с. Без канцелярита: так, как сказал бы вслух.
+- **Ролик на английском:** `make.py … --lang en` — озвучка Kokoro-82M вместо Vosk, проверка
+  Deepgram с `language=en`. В `say` английский как есть: цифры, названия и `#2` Kokoro читает
+  сам, отказ только на кириллицу. Голос `--voice af_heart` (по умолчанию, женский) или
+  `am_michael` (мужской); на пробной фразе все пять опробованных голосов Deepgram распознал
+  дословно (V-686). Темп `--rate 1.1` звучит естественнее 1.25.
 
 ## Второй движок: Manim
 
@@ -152,6 +157,18 @@ printf '%s\n' "$DEEPGRAM_API_KEY" | ssh -o BatchMode=yes kesha@localhost \
 782 МБ zip с alphacephei.com/vosk/models). Пути меняются переменными `ORCHESTRA_TTS_HOME`,
 `ORCHESTRA_TTS_PYTHON`, `ORCHESTRA_TTS_MODEL`. Silero и Piper отвергнуты по лицензиям
 (NC), облачный TTS — платный: подробности в `.orchestra/tasks/V-681/report.md`.
+
+Английский голос — `~/.local/share/orchestra-tts/en/` (`ORCHESTRA_TTS_EN_HOME`): `venv` с
+`kokoro-onnx` (MIT) и `soundfile`, рядом `kokoro-v1.0.onnx` (310 МБ) и `voices-v1.0.bin`
+(28 МБ, веса Kokoro-82M — Apache 2.0) из релиза `model-files-v1.0` репозитория
+thewh1teagle/kokoro-onnx. Ставится ~1 мин:
+
+```
+D=~/.local/share/orchestra-tts/en; mkdir -p $D && cd $D && uv venv --python 3.12 venv
+uv pip install --python venv/bin/python kokoro-onnx soundfile
+for f in kokoro-v1.0.onnx voices-v1.0.bin; do curl -sSfL --retry 5 -o $f \
+  https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f; done
+```
 
 `~/.local/share/orchestra-manim/`: micromamba в `bin/`, окружение `env/` с Python 3.12 и
 ManimCE 0.20.1 из conda-forge (вместе с Cairo, Pango и ffmpeg — apt и root не нужны).

@@ -1,0 +1,1273 @@
+{
+ "transcript": "this is orchestra one dashboard that runs a whole team of ai coding agents on your repository you describe the job to one orchestrator in plain words it reads the code finds the cause and splits the work into parallel tracks each track goes to its own worker on its own git branch so they never collide mix models freely opus plans sonnet and codecs do the work haiku keeps the docs click any worker to jump into its own chat with its branch context and cost you say go the worker reports back with the files it changed and its test results the orchestrator reviews the diff live and runs the whole test suite itself only then does it merge one squash commit per task and nothing is deployed the task board keeps up by itself click the quota bar and every claud and codex limit unfolds each window keeps its history so you see how fast it burns week by week one more click opens the spend cost per day clawed in codec stacked switch to thirty days or break it down by agent and model a gate holds new workers back before a limit is hit anything risky like moving money waits for your okay orchestra open source self hosted and it runs on the subscriptions you already have",
+ "recall_min": 0.77,
+ "offset_max_abs_s": 0.18,
+ "onset_offset_max_abs_s": 0.03,
+ "phrases": [
+  {
+   "say": "This is Orchestra: one dashboard that runs a whole team of AI coding agents on your repository.",
+   "heard": "this is orchestra one dashboard that runs a whole team of ai coding agents on your repository",
+   "recall": 1.0,
+   "planned_start": 0.72,
+   "heard_start": 0.64,
+   "offset_s": -0.08,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "You describe the job to one orchestrator, in plain words.",
+   "heard": "you describe the job to one orchestrator in plain words",
+   "recall": 1.0,
+   "planned_start": 7.46,
+   "heard_start": 7.2799997,
+   "offset_s": -0.18,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "It reads the code, finds the cause, and splits the work into parallel tracks.",
+   "heard": "it reads the code finds cause and splits work into parallel tracks",
+   "recall": 1.0,
+   "planned_start": 11.38,
+   "heard_start": 11.28,
+   "offset_s": -0.1,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "Each track goes to its own worker, on its own git branch, so they never collide.",
+   "heard": "each track goes to its own worker on git branch so they never collide",
+   "recall": 1.0,
+   "planned_start": 16.49,
+   "heard_start": 16.445,
+   "offset_s": -0.04,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "Mix models freely. Opus plans, Sonnet and Codex do the work, Haiku keeps the docs.",
+   "heard": "mix models freely opus plans sonnet and do the work haiku keeps docs",
+   "recall": 0.93,
+   "planned_start": 21.45,
+   "heard_start": 21.405,
+   "offset_s": -0.04,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "Click any worker to jump into its own chat, with its branch, context and cost.",
+   "heard": "click any worker to jump into its own chat with branch context and cost",
+   "recall": 1.0,
+   "planned_start": 27.48,
+   "heard_start": 27.325,
+   "offset_s": -0.15,
+   "onset_offset_s": 0.01
+  },
+  {
+   "say": "You say go. The worker reports back with the files it changed and its test results.",
+   "heard": "you say go the worker reports back with files it changed and its test results",
+   "recall": 1.0,
+   "planned_start": 32.59,
+   "heard_start": 32.420002,
+   "offset_s": -0.17,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "The orchestrator reviews the diff, live, and runs the whole test suite itself.",
+   "heard": "the orchestrator reviews diff live and runs whole test suite itself",
+   "recall": 1.0,
+   "planned_start": 38.12,
+   "heard_start": 38.02,
+   "offset_s": -0.1,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "Only then does it merge: one squash commit per task, and nothing is deployed.",
+   "heard": "only then does it merge one squash commit per task and nothing is deployed",
+   "recall": 1.0,
+   "planned_start": 42.88,
+   "heard_start": 42.82,
+   "offset_s": -0.06,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "The task board keeps up by itself.",
+   "heard": "the task board keeps up by itself",
+   "recall": 1.0,
+   "planned_start": 47.88,
+   "heard_start": 47.825,
+   "offset_s": -0.05,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "Click the quota bar, and every Claude and Codex limit unfolds.",
+   "heard": "click the quota bar and every claud codex limit unfolds",
+   "recall": 1.0,
+   "planned_start": 50.35,
+   "heard_start": 50.225,
+   "offset_s": -0.13,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "Each window keeps its history, so you see how fast it burns, week by week.",
+   "heard": "each window keeps its history so you see how fast it burns week by",
+   "recall": 1.0,
+   "planned_start": 54.79,
+   "heard_start": 54.704998,
+   "offset_s": -0.08,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "One more click opens the spend: cost per day, Claude and Codex stacked.",
+   "heard": "one more click opens the spend cost per day stacked",
+   "recall": 0.77,
+   "planned_start": 59.7,
+   "heard_start": 59.6,
+   "offset_s": -0.1,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "Switch to thirty days, or break it down by agent and model.",
+   "heard": "switch to thirty days or break it down by agent and model",
+   "recall": 1.0,
+   "planned_start": 64.33,
+   "heard_start": 64.32,
+   "offset_s": -0.01,
+   "onset_offset_s": 0.02
+  },
+  {
+   "say": "A gate holds new workers back before a limit is hit.",
+   "heard": "a gate holds new workers back before limit is hit",
+   "recall": 1.0,
+   "planned_start": 68.43,
+   "heard_start": 68.32,
+   "offset_s": -0.11,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "Anything risky, like moving money, waits for your OK.",
+   "heard": "anything risky like moving money waits for your",
+   "recall": 0.89,
+   "planned_start": 72.03,
+   "heard_start": 72.015,
+   "offset_s": -0.02,
+   "onset_offset_s": 0.03
+  },
+  {
+   "say": "Orchestra. Open source, self hosted, and it runs on the subscriptions you already have.",
+   "heard": "orchestra open source self hosted and it runs on the subscriptions you already have",
+   "recall": 1.0,
+   "planned_start": 75.69,
+   "heard_start": 75.615,
+   "offset_s": -0.08,
+   "onset_offset_s": 0.03
+  }
+ ],
+ "words": [
+  [
+   "this",
+   0.64,
+   0.88
+  ],
+  [
+   "is",
+   0.88,
+   1.12
+  ],
+  [
+   "orchestra",
+   1.12,
+   1.62
+  ],
+  [
+   "one",
+   2.0,
+   2.3999999
+  ],
+  [
+   "dashboard",
+   2.3999999,
+   2.8799999
+  ],
+  [
+   "that",
+   2.8799999,
+   3.12
+  ],
+  [
+   "runs",
+   3.12,
+   3.36
+  ],
+  [
+   "a",
+   3.36,
+   3.4399998
+  ],
+  [
+   "whole",
+   3.4399998,
+   3.76
+  ],
+  [
+   "team",
+   3.76,
+   3.9199998
+  ],
+  [
+   "of",
+   3.9199998,
+   4.3199997
+  ],
+  [
+   "ai",
+   4.3199997,
+   4.64
+  ],
+  [
+   "coding",
+   4.64,
+   5.04
+  ],
+  [
+   "agents",
+   5.04,
+   5.52
+  ],
+  [
+   "on",
+   5.52,
+   5.68
+  ],
+  [
+   "your",
+   5.68,
+   5.92
+  ],
+  [
+   "repository",
+   5.92,
+   6.42
+  ],
+  [
+   "you",
+   7.2799997,
+   7.52
+  ],
+  [
+   "describe",
+   7.52,
+   7.9199996
+  ],
+  [
+   "the",
+   7.9199996,
+   8.08
+  ],
+  [
+   "job",
+   8.08,
+   8.4
+  ],
+  [
+   "to",
+   8.4,
+   8.559999
+  ],
+  [
+   "one",
+   8.559999,
+   8.88
+  ],
+  [
+   "orchestrator",
+   8.88,
+   9.38
+  ],
+  [
+   "in",
+   9.599999,
+   9.76
+  ],
+  [
+   "plain",
+   9.76,
+   10.16
+  ],
+  [
+   "words",
+   10.16,
+   10.66
+  ],
+  [
+   "it",
+   11.28,
+   11.5199995
+  ],
+  [
+   "reads",
+   11.5199995,
+   11.759999
+  ],
+  [
+   "the",
+   11.759999,
+   12.0
+  ],
+  [
+   "code",
+   12.0,
+   12.5
+  ],
+  [
+   "finds",
+   12.559999,
+   12.88
+  ],
+  [
+   "the",
+   12.88,
+   13.12
+  ],
+  [
+   "cause",
+   13.12,
+   13.5199995
+  ],
+  [
+   "and",
+   13.5199995,
+   13.759999
+  ],
+  [
+   "splits",
+   13.759999,
+   14.08
+  ],
+  [
+   "the",
+   14.08,
+   14.16
+  ],
+  [
+   "work",
+   14.16,
+   14.4
+  ],
+  [
+   "into",
+   14.4,
+   14.719999
+  ],
+  [
+   "parallel",
+   14.719999,
+   15.2
+  ],
+  [
+   "tracks",
+   15.2,
+   15.7
+  ],
+  [
+   "each",
+   16.445,
+   16.765
+  ],
+  [
+   "track",
+   16.765,
+   17.085001
+  ],
+  [
+   "goes",
+   17.085001,
+   17.325
+  ],
+  [
+   "to",
+   17.325,
+   17.405
+  ],
+  [
+   "its",
+   17.405,
+   17.565
+  ],
+  [
+   "own",
+   17.565,
+   17.725
+  ],
+  [
+   "worker",
+   17.725,
+   18.205
+  ],
+  [
+   "on",
+   18.205,
+   18.445
+  ],
+  [
+   "its",
+   18.445,
+   18.605
+  ],
+  [
+   "own",
+   18.605,
+   18.845001
+  ],
+  [
+   "git",
+   18.845001,
+   19.085
+  ],
+  [
+   "branch",
+   19.085,
+   19.485
+  ],
+  [
+   "so",
+   19.485,
+   19.725
+  ],
+  [
+   "they",
+   19.725,
+   19.885
+  ],
+  [
+   "never",
+   19.885,
+   20.125
+  ],
+  [
+   "collide",
+   20.125,
+   20.625
+  ],
+  [
+   "mix",
+   21.405,
+   21.725
+  ],
+  [
+   "models",
+   21.725,
+   22.125
+  ],
+  [
+   "freely",
+   22.125,
+   22.625
+  ],
+  [
+   "opus",
+   22.925,
+   23.244999
+  ],
+  [
+   "plans",
+   23.244999,
+   23.744999
+  ],
+  [
+   "sonnet",
+   23.885,
+   24.205
+  ],
+  [
+   "and",
+   24.205,
+   24.445
+  ],
+  [
+   "codecs",
+   24.445,
+   24.845001
+  ],
+  [
+   "do",
+   24.845001,
+   25.005001
+  ],
+  [
+   "the",
+   25.005001,
+   25.085
+  ],
+  [
+   "work",
+   25.085,
+   25.404999
+  ],
+  [
+   "haiku",
+   25.404999,
+   25.805
+  ],
+  [
+   "keeps",
+   25.805,
+   26.125
+  ],
+  [
+   "the",
+   26.125,
+   26.285
+  ],
+  [
+   "docs",
+   26.285,
+   26.785
+  ],
+  [
+   "click",
+   27.325,
+   27.645
+  ],
+  [
+   "any",
+   27.645,
+   27.885
+  ],
+  [
+   "worker",
+   27.885,
+   28.205
+  ],
+  [
+   "to",
+   28.205,
+   28.285
+  ],
+  [
+   "jump",
+   28.285,
+   28.525
+  ],
+  [
+   "into",
+   28.525,
+   28.765
+  ],
+  [
+   "its",
+   28.765,
+   28.925
+  ],
+  [
+   "own",
+   28.925,
+   29.165
+  ],
+  [
+   "chat",
+   29.165,
+   29.564999
+  ],
+  [
+   "with",
+   29.564999,
+   29.805
+  ],
+  [
+   "its",
+   29.805,
+   30.045
+  ],
+  [
+   "branch",
+   30.045,
+   30.545
+  ],
+  [
+   "context",
+   30.605,
+   31.105
+  ],
+  [
+   "and",
+   31.165,
+   31.404999
+  ],
+  [
+   "cost",
+   31.404999,
+   31.86
+  ],
+  [
+   "you",
+   32.420002,
+   32.66
+  ],
+  [
+   "say",
+   32.66,
+   32.98
+  ],
+  [
+   "go",
+   32.98,
+   33.48
+  ],
+  [
+   "the",
+   33.54,
+   33.7
+  ],
+  [
+   "worker",
+   33.7,
+   34.18
+  ],
+  [
+   "reports",
+   34.18,
+   34.5
+  ],
+  [
+   "back",
+   34.5,
+   34.74
+  ],
+  [
+   "with",
+   34.74,
+   34.9
+  ],
+  [
+   "the",
+   34.9,
+   35.06
+  ],
+  [
+   "files",
+   35.06,
+   35.46
+  ],
+  [
+   "it",
+   35.46,
+   35.62
+  ],
+  [
+   "changed",
+   35.62,
+   36.02
+  ],
+  [
+   "and",
+   36.02,
+   36.18
+  ],
+  [
+   "its",
+   36.18,
+   36.420002
+  ],
+  [
+   "test",
+   36.420002,
+   36.82
+  ],
+  [
+   "results",
+   36.82,
+   37.32
+  ],
+  [
+   "the",
+   38.02,
+   38.260002
+  ],
+  [
+   "orchestrator",
+   38.260002,
+   38.760002
+  ],
+  [
+   "reviews",
+   38.82,
+   39.14
+  ],
+  [
+   "the",
+   39.14,
+   39.38
+  ],
+  [
+   "diff",
+   39.38,
+   39.7
+  ],
+  [
+   "live",
+   39.7,
+   40.18
+  ],
+  [
+   "and",
+   40.18,
+   40.42
+  ],
+  [
+   "runs",
+   40.42,
+   40.74
+  ],
+  [
+   "the",
+   40.74,
+   40.9
+  ],
+  [
+   "whole",
+   40.9,
+   41.14
+  ],
+  [
+   "test",
+   41.14,
+   41.38
+  ],
+  [
+   "suite",
+   41.38,
+   41.7
+  ],
+  [
+   "itself",
+   41.7,
+   42.2
+  ],
+  [
+   "only",
+   42.82,
+   43.06
+  ],
+  [
+   "then",
+   43.06,
+   43.3
+  ],
+  [
+   "does",
+   43.3,
+   43.54
+  ],
+  [
+   "it",
+   43.54,
+   43.7
+  ],
+  [
+   "merge",
+   43.7,
+   44.2
+  ],
+  [
+   "one",
+   44.34,
+   44.58
+  ],
+  [
+   "squash",
+   44.58,
+   44.98
+  ],
+  [
+   "commit",
+   44.98,
+   45.3
+  ],
+  [
+   "per",
+   45.3,
+   45.46
+  ],
+  [
+   "task",
+   45.46,
+   45.78
+  ],
+  [
+   "and",
+   45.78,
+   46.02
+  ],
+  [
+   "nothing",
+   46.02,
+   46.34
+  ],
+  [
+   "is",
+   46.34,
+   46.58
+  ],
+  [
+   "deployed",
+   46.58,
+   47.08
+  ],
+  [
+   "the",
+   47.825,
+   47.985
+  ],
+  [
+   "task",
+   47.985,
+   48.305
+  ],
+  [
+   "board",
+   48.305,
+   48.545
+  ],
+  [
+   "keeps",
+   48.545,
+   48.785
+  ],
+  [
+   "up",
+   48.785,
+   48.945
+  ],
+  [
+   "by",
+   48.945,
+   49.105
+  ],
+  [
+   "itself",
+   49.105,
+   49.605
+  ],
+  [
+   "click",
+   50.225,
+   50.545
+  ],
+  [
+   "the",
+   50.545,
+   50.704998
+  ],
+  [
+   "quota",
+   50.704998,
+   51.105
+  ],
+  [
+   "bar",
+   51.105,
+   51.504997
+  ],
+  [
+   "and",
+   51.504997,
+   51.745
+  ],
+  [
+   "every",
+   51.745,
+   52.065
+  ],
+  [
+   "claud",
+   52.065,
+   52.385
+  ],
+  [
+   "and",
+   52.385,
+   52.545
+  ],
+  [
+   "codex",
+   52.545,
+   53.024998
+  ],
+  [
+   "limit",
+   53.024998,
+   53.425
+  ],
+  [
+   "unfolds",
+   53.425,
+   53.925
+  ],
+  [
+   "each",
+   54.704998,
+   55.024998
+  ],
+  [
+   "window",
+   55.024998,
+   55.345
+  ],
+  [
+   "keeps",
+   55.345,
+   55.585
+  ],
+  [
+   "its",
+   55.585,
+   55.824997
+  ],
+  [
+   "history",
+   55.824997,
+   56.305
+  ],
+  [
+   "so",
+   56.305,
+   56.545
+  ],
+  [
+   "you",
+   56.545,
+   56.704998
+  ],
+  [
+   "see",
+   56.704998,
+   56.864998
+  ],
+  [
+   "how",
+   56.864998,
+   57.105
+  ],
+  [
+   "fast",
+   57.105,
+   57.425
+  ],
+  [
+   "it",
+   57.425,
+   57.585
+  ],
+  [
+   "burns",
+   57.585,
+   58.085
+  ],
+  [
+   "week",
+   58.145,
+   58.385
+  ],
+  [
+   "by",
+   58.385,
+   58.625
+  ],
+  [
+   "week",
+   58.625,
+   59.125
+  ],
+  [
+   "one",
+   59.6,
+   59.76
+  ],
+  [
+   "more",
+   59.76,
+   60.0
+  ],
+  [
+   "click",
+   60.0,
+   60.32
+  ],
+  [
+   "opens",
+   60.32,
+   60.559998
+  ],
+  [
+   "the",
+   60.559998,
+   60.8
+  ],
+  [
+   "spend",
+   60.8,
+   61.3
+  ],
+  [
+   "cost",
+   61.36,
+   61.68
+  ],
+  [
+   "per",
+   61.68,
+   61.84
+  ],
+  [
+   "day",
+   61.84,
+   62.16
+  ],
+  [
+   "clawed",
+   62.16,
+   62.48
+  ],
+  [
+   "in",
+   62.48,
+   62.64
+  ],
+  [
+   "codec",
+   62.64,
+   63.039997
+  ],
+  [
+   "stacked",
+   63.039997,
+   63.539997
+  ],
+  [
+   "switch",
+   64.32,
+   64.64
+  ],
+  [
+   "to",
+   64.64,
+   64.799995
+  ],
+  [
+   "thirty",
+   64.799995,
+   65.119995
+  ],
+  [
+   "days",
+   65.119995,
+   65.6
+  ],
+  [
+   "or",
+   65.6,
+   65.84
+  ],
+  [
+   "break",
+   65.84,
+   66.08
+  ],
+  [
+   "it",
+   66.08,
+   66.159996
+  ],
+  [
+   "down",
+   66.159996,
+   66.479996
+  ],
+  [
+   "by",
+   66.479996,
+   66.72
+  ],
+  [
+   "agent",
+   66.72,
+   67.04
+  ],
+  [
+   "and",
+   67.04,
+   67.2
+  ],
+  [
+   "model",
+   67.2,
+   67.7
+  ],
+  [
+   "a",
+   68.32,
+   68.56
+  ],
+  [
+   "gate",
+   68.56,
+   68.799995
+  ],
+  [
+   "holds",
+   68.799995,
+   69.119995
+  ],
+  [
+   "new",
+   69.119995,
+   69.36
+  ],
+  [
+   "workers",
+   69.36,
+   69.759995
+  ],
+  [
+   "back",
+   69.759995,
+   70.08
+  ],
+  [
+   "before",
+   70.08,
+   70.32
+  ],
+  [
+   "a",
+   70.32,
+   70.479996
+  ],
+  [
+   "limit",
+   70.479996,
+   70.799995
+  ],
+  [
+   "is",
+   70.799995,
+   70.96
+  ],
+  [
+   "hit",
+   70.96,
+   71.295
+  ],
+  [
+   "anything",
+   72.015,
+   72.335
+  ],
+  [
+   "risky",
+   72.335,
+   72.835
+  ],
+  [
+   "like",
+   72.895,
+   73.134995
+  ],
+  [
+   "moving",
+   73.134995,
+   73.455
+  ],
+  [
+   "money",
+   73.455,
+   73.935
+  ],
+  [
+   "waits",
+   73.935,
+   74.174995
+  ],
+  [
+   "for",
+   74.174995,
+   74.335
+  ],
+  [
+   "your",
+   74.335,
+   74.494995
+  ],
+  [
+   "okay",
+   74.494995,
+   74.994995
+  ],
+  [
+   "orchestra",
+   75.615,
+   76.115
+  ],
+  [
+   "open",
+   76.494995,
+   76.814995
+  ],
+  [
+   "source",
+   76.814995,
+   77.314995
+  ],
+  [
+   "self",
+   77.455,
+   77.775
+  ],
+  [
+   "hosted",
+   77.775,
+   78.275
+  ],
+  [
+   "and",
+   78.415,
+   78.655
+  ],
+  [
+   "it",
+   78.655,
+   78.814995
+  ],
+  [
+   "runs",
+   78.814995,
+   79.055
+  ],
+  [
+   "on",
+   79.055,
+   79.215
+  ],
+  [
+   "the",
+   79.215,
+   79.455
+  ],
+  [
+   "subscriptions",
+   79.455,
+   79.955
+  ],
+  [
+   "you",
+   80.015,
+   80.174995
+  ],
+  [
+   "already",
+   80.174995,
+   80.575
+  ],
+  [
+   "have",
+   80.575,
+   81.075
+  ]
+ ]
+}

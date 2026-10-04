@@ -1,0 +1,124 @@
+{
+ "worst_margin_s": 0.111,
+ "steps": [
+  {
+   "step": "Orchestra",
+   "move_start": 0.4,
+   "lands": 0.62,
+   "voice_onset": 0.74,
+   "margin_s": 0.12
+  },
+  {
+   "step": "You ask once",
+   "move_start": 6.695,
+   "lands": 7.365,
+   "voice_onset": 7.49,
+   "margin_s": 0.125
+  },
+  {
+   "step": "It plans",
+   "move_start": 10.616,
+   "lands": 11.286,
+   "voice_onset": 11.4,
+   "margin_s": 0.114
+  },
+  {
+   "step": "Workers spawn",
+   "move_start": 15.721,
+   "lands": 16.391,
+   "voice_onset": 16.52,
+   "margin_s": 0.129
+  },
+  {
+   "step": "Mixed models",
+   "move_start": 20.682,
+   "lands": 21.352,
+   "voice_onset": 21.48,
+   "margin_s": 0.128
+  },
+  {
+   "step": "Open any worker",
+   "move_start": 26.709,
+   "lands": 27.379,
+   "voice_onset": 27.49,
+   "margin_s": 0.111
+  },
+  {
+   "step": "Report back",
+   "move_start": 31.826,
+   "lands": 32.496,
+   "voice_onset": 32.62,
+   "margin_s": 0.124
+  },
+  {
+   "step": "Review and test",
+   "move_start": 37.348,
+   "lands": 38.018,
+   "voice_onset": 38.14,
+   "margin_s": 0.122
+  },
+  {
+   "step": "Merge",
+   "move_start": 42.111,
+   "lands": 42.781,
+   "voice_onset": 42.91,
+   "margin_s": 0.129
+  },
+  {
+   "step": "Task board",
+   "move_start": 47.112,
+   "lands": 47.782,
+   "voice_onset": 47.9,
+   "margin_s": 0.118
+  },
+  {
+   "step": "Quotas unfold",
+   "move_start": 49.583,
+   "lands": 50.253,
+   "voice_onset": 50.37,
+   "margin_s": 0.117
+  },
+  {
+   "step": "Quota history",
+   "move_start": 54.02,
+   "lands": 54.69,
+   "voice_onset": 54.82,
+   "margin_s": 0.13
+  },
+  {
+   "step": "Daily spend",
+   "move_start": 58.933,
+   "lands": 59.603,
+   "voice_onset": 59.73,
+   "margin_s": 0.127
+  },
+  {
+   "step": "Per agent",
+   "move_start": 63.564,
+   "lands": 64.234,
+   "voice_onset": 64.35,
+   "margin_s": 0.116
+  },
+  {
+   "step": "Limits gate",
+   "move_start": 67.663,
+   "lands": 68.333,
+   "voice_onset": 68.46,
+   "margin_s": 0.127
+  },
+  {
+   "step": "You stay in charge",
+   "move_start": 71.264,
+   "lands": 71.934,
+   "voice_onset": 72.06,
+   "margin_s": 0.126
+  },
+  {
+   "step": "Orchestra",
+   "move_start": 74.923,
+   "lands": 75.593,
+   "voice_onset": 75.72,
+   "margin_s": 0.127
+  }
+ ]
+}
