@@ -332,6 +332,12 @@ Run [37217340079](https://github.com/DrSeedon/orchestra/actions/runs/37217340079
 
 The test now uses `_open_tool_correlation_page()`, which waits for initial polls to drain and suspends them, then aborts any pending chat snapshot before stubbing history. Its two-visit contract is unchanged. The first narrow local attempt timed out during `_no_tg_bridge` setup while importing `aiogram`, before this test body ran; it provides no local verdict on the new fixture path. The next Actions run is the acceptance check.
 
+## Eighth Actions attempt: another chat snapshot test had the same poll race
+
+Run [37217827591](https://github.com/DrSeedon/orchestra/actions/runs/37217827591) passed all six pytest shards and completed browser in 1m45s with **1 failed, 173 passed, 7 skipped**. The image-generation re-entry node passed after switching to the isolated helper. The remaining failure was `tests/test_frontend.py::test_chat_open_waits_for_authoritative_snapshot_and_paints_once`: it counted two history fetches while testing one synthetic `_showChatFor()` call.
+
+`_open_chat_snapshot_page()` had closed SSE and cleared chat but left the page's real poll scheduler active, so a second snapshot could overlap the deliberately gated fetch. It now builds on `_open_tool_correlation_page()`, which stops polling and waits for in-flight requests to drain, then selects the synthetic agent/scope. Both the image-generation replay and this single-snapshot test pass together locally (**2 passed in 27.58s**). Their fetch-count assertions remain unchanged. The next Actions run is the acceptance check.
+
 ## Verification performed
 
 - Full local six-shard matrix ran under the test lock. Shards 0–3 and 5 passed (752, 821, 539, 395, and 705 passed respectively); shard 4 had 699 passed plus one host-only `test_installed_codex_history_version_matches_pin` failure because `/usr/bin/codex` is 0.156.1 while the laptop test pin is 0.153.4. This test skips if Codex is absent, as expected on GitHub's runner. The lock was released immediately after the suite ended.
@@ -339,4 +345,4 @@ The test now uses `_open_tool_correlation_page()`, which waits for initial polls
 - First repaired browser command `python -m pytest -vv -rf --timeout=30 -m browser tests/` completed with **173 passed, 7 skipped, 4004 deselected in 265.89 s**. It produced no failures, pytest timeouts, or OOM. At that point the provider-absence node had been removed; it was later restored with structural assertions after the frozen browser inventory caught the node-count loss.
 - After restoring that node and correcting the GitHub-discovered heartbeat clock and chart PNG fixtures, the latest complete local browser rerun finished with **174 passed, 7 skipped, 4004 deselected in 387.54 s**, with no failure, timeout, or OOM. The initial 30-second cascade did not recur.
 - Focused checks also passed after the last related edits: `tests/test_usage_history_frontend.py` (10 passed), `tests/test_t344_quota_lines_browser.py` (19 passed), dashboard lifecycle/task/timeline nodes (6 passed), and the prior usage analytics/quota/model-catalog batch (41 passed); the final browser run includes the later single-test corrections as well.
-- GitHub Actions run `37212793425` was green on commit `ae70b3f8`; later runs exposed preview, timeline fixture, offline phase, restart-timeout, and image-history polling assumptions, all recorded above. A green Actions run on the corrected branch head is outstanding.
+- GitHub Actions run `37212793425` was green on commit `ae70b3f8`; later runs exposed preview, timeline fixture, offline phase, restart-timeout, and chat-history polling assumptions, all recorded above. A green Actions run on the corrected branch head is outstanding.

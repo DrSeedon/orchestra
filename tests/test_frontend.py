@@ -4929,19 +4929,10 @@ def test_image_generation_history_restores_full_result_and_survives_chat_reentry
 
 
 def _open_chat_snapshot_page(browser: Browser) -> Page:
-    page = browser.new_page()
-    _route_frontend_sources(page)
-    _goto_dashboard(page)
-    page.wait_for_function("() => typeof _showChatFor === 'function'")
+    page = _open_tool_correlation_page(browser, compact_mode=False)
     page.evaluate("""() => {
-        if (eventSource) {
-            eventSource.close();
-            eventSource = null;
-        }
         selectedAgent = 'fe-orch';
         currentScope = '/tmp/fe-scope';
-        document.querySelector('#chat').replaceChildren();
-        window.compactMode = false;
     }""")
     return page
 
