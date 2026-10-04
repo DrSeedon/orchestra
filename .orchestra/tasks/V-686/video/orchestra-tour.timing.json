@@ -1,0 +1,160 @@
+{
+ "steps": [
+  {
+   "title": "Orchestra",
+   "say": "This is Orchestra: one dashboard that runs a whole team of AI coding agents on your repository.",
+   "sub": null,
+   "step_start": 0.0,
+   "phrase_start": 0.318,
+   "phrase_end": 6.245,
+   "d": 6.745
+  },
+  {
+   "title": "You ask once",
+   "say": "You describe the job to one orchestrator, in plain words.",
+   "sub": null,
+   "step_start": 6.745,
+   "phrase_start": 7.063,
+   "phrase_end": 10.166,
+   "d": 3.921
+  },
+  {
+   "title": "It plans",
+   "say": "It reads the code, finds the cause, and splits the work into parallel tracks.",
+   "sub": null,
+   "step_start": 10.666,
+   "phrase_start": 10.984,
+   "phrase_end": 15.271,
+   "d": 5.105
+  },
+  {
+   "title": "Workers spawn",
+   "say": "Each track goes to its own worker, on its own git branch, so they never collide.",
+   "sub": null,
+   "step_start": 15.771,
+   "phrase_start": 16.089,
+   "phrase_end": 20.232,
+   "d": 4.961
+  },
+  {
+   "title": "Mixed models",
+   "say": "Mix models freely. Opus plans, Sonnet and Codex do the work, Haiku keeps the docs.",
+   "sub": null,
+   "step_start": 20.732,
+   "phrase_start": 21.05,
+   "phrase_end": 26.259,
+   "d": 6.027
+  },
+  {
+   "title": "Open any worker",
+   "say": "Click any worker to jump into its own chat, with its branch, context and cost.",
+   "sub": null,
+   "step_start": 26.759,
+   "phrase_start": 27.077,
+   "phrase_end": 31.376,
+   "d": 5.117
+  },
+  {
+   "title": "Report back",
+   "say": "You say go. The worker reports back with the files it changed and its test results.",
+   "sub": null,
+   "step_start": 31.876,
+   "phrase_start": 32.194,
+   "phrase_end": 36.898,
+   "d": 5.522
+  },
+  {
+   "title": "Review and test",
+   "say": "The orchestrator reviews the diff, live, and runs the whole test suite itself.",
+   "sub": null,
+   "step_start": 37.398,
+   "phrase_start": 37.716,
+   "phrase_end": 41.661,
+   "d": 4.763
+  },
+  {
+   "title": "Merge",
+   "say": "Only then does it merge: one squash commit per task, and nothing is deployed.",
+   "sub": null,
+   "step_start": 42.161,
+   "phrase_start": 42.479,
+   "phrase_end": 46.662,
+   "d": 5.001
+  },
+  {
+   "title": "Task board",
+   "say": "The task board keeps up by itself.",
+   "sub": null,
+   "step_start": 47.162,
+   "phrase_start": 47.48,
+   "phrase_end": 49.133,
+   "d": 2.471
+  },
+  {
+   "title": "Quotas unfold",
+   "say": "Click the quota bar, and every Claude and Codex limit unfolds.",
+   "sub": null,
+   "step_start": 49.633,
+   "phrase_start": 49.951,
+   "phrase_end": 53.57,
+   "d": 4.437
+  },
+  {
+   "title": "Quota history",
+   "say": "Each window keeps its history, so you see how fast it burns, week by week.",
+   "sub": null,
+   "step_start": 54.07,
+   "phrase_start": 54.388,
+   "phrase_end": 58.483,
+   "d": 4.913
+  },
+  {
+   "title": "Daily spend",
+   "say": "One more click opens the spend: cost per day, Claude and Codex stacked.",
+   "sub": null,
+   "step_start": 58.983,
+   "phrase_start": 59.301,
+   "phrase_end": 63.114,
+   "d": 4.631
+  },
+  {
+   "title": "Per agent",
+   "say": "Switch to thirty days, or break it down by agent and model.",
+   "sub": null,
+   "step_start": 63.614,
+   "phrase_start": 63.932,
+   "phrase_end": 67.213,
+   "d": 4.099
+  },
+  {
+   "title": "Limits gate",
+   "say": "A gate holds new workers back before a limit is hit.",
+   "sub": null,
+   "step_start": 67.713,
+   "phrase_start": 68.031,
+   "phrase_end": 70.814,
+   "d": 3.601
+  },
+  {
+   "title": "You stay in charge",
+   "say": "Anything risky, like moving money, waits for your OK.",
+   "sub": null,
+   "step_start": 71.314,
+   "phrase_start": 71.632,
+   "phrase_end": 74.473,
+   "d": 3.659
+  },
+  {
+   "title": "Orchestra",
+   "say": "Orchestra. Open source, self hosted, and it runs on the subscriptions you already have.",
+   "sub": "Orchestra. Open source, self-hosted, on the subscriptions you already have.",
+   "step_start": 74.973,
+   "phrase_start": 75.291,
+   "phrase_end": 80.422,
+   "d": 7.949
+  }
+ ],
+ "T": 82.922,
+ "pre": 0.4,
+ "post": 1.6
+}
