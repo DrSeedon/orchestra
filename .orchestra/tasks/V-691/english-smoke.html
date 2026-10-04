@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Reusing a cached prefix</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#0b0e14;color:#eef1f7;font:22px/1.4 Manrope,Arial,sans-serif}
+body{display:flex;align-items:center;justify-content:center}.scene{width:1280px;height:720px;padding:52px 58px;position:relative}
+h1{font-size:34px;margin:0 0 16px}.subtitle{color:#8b93a7;font:20px "JetBrains Mono",monospace}
+svg{width:100%;height:480px;margin-top:10px}.panel{fill:#151a24;stroke:#2a3142;stroke-width:2}.flow{fill:none;stroke:#2a3142;stroke-width:4}
+.label{font-size:24px;font-weight:700;fill:#eef1f7}.small{font:18px "JetBrains Mono",monospace;fill:#8b93a7}.accent{fill:#58c4dd}.gold{fill:#f0ac5f}.green{fill:#83c167}
+#caption{position:absolute;left:58px;right:58px;bottom:22px;min-height:82px;border-top:1px solid #2a3142;padding-top:14px;color:#c4cad6;font-size:20px}
+#step{color:#58c4dd;font:15px "JetBrains Mono",monospace;margin-right:12px}
+</style>
+</head>
+<body><main class="scene">
+<h1>How a cached prefix saves repeated work</h1>
+<div class="subtitle">same context in → reuse the old part → process only what changed</div>
+<svg id="stage" viewBox="0 0 1164 450" role="img" aria-label="Request flows through a prefix cache to a model">
+ <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10z" fill="#58c4dd"/></marker></defs>
+ <path id="flow1" class="flow" d="M340 212H474" marker-end="url(#arrow)"/><path id="flow2" class="flow" d="M690 212H824" marker-end="url(#arrow)"/>
+ <rect id="request" class="panel" x="54" y="120" width="286" height="184" rx="18"/>
+ <rect id="cache" class="panel" x="474" y="120" width="216" height="184" rx="18"/>
+ <rect id="model" class="panel" x="824" y="120" width="286" height="184" rx="18"/>
+ <text class="label" x="197" y="164" text-anchor="middle">Request</text>
+ <rect id="old" x="88" y="192" width="142" height="42" rx="8" fill="#58c4dd" opacity=".88"/>
+ <rect id="fresh" x="230" y="192" width="76" height="42" rx="8" fill="#f0ac5f" opacity=".9"/>
+ <text x="159" y="220" text-anchor="middle" fill="#0b0e14" font-size="16" font-weight="700">old prefix</text>
+ <text x="268" y="220" text-anchor="middle" fill="#0b0e14" font-size="16" font-weight="700">new</text>
+ <text class="small" x="197" y="274" text-anchor="middle">context tokens</text>
+ <text class="label" x="582" y="164" text-anchor="middle">Prefix cache</text>
+ <rect id="stored" x="512" y="192" width="140" height="42" rx="8" fill="#2a3142"/>
+ <text id="storedText" class="small" x="582" y="220" text-anchor="middle">empty</text>
+ <text class="small" x="582" y="274" text-anchor="middle">reuse on a match</text>
+ <text class="label" x="967" y="164" text-anchor="middle">Model</text>
+ <circle id="work" cx="908" cy="212" r="12" fill="#2a3142"/>
+ <circle cx="967" cy="212" r="12" fill="#2a3142"/><circle cx="1026" cy="212" r="12" fill="#2a3142"/>
+ <text class="small" x="967" y="274" text-anchor="middle">compute new tokens</text>
+ <circle id="dot" r="10" fill="#f0ac5f" opacity="0"/>
+ <text id="metric" class="label" x="582" y="374" text-anchor="middle" fill="#8b93a7">No cached tokens yet</text>
+</svg>
+<div id="caption"><span id="step"></span><span id="say"></span></div>
+</main>
+<script>
+const STEPS = [
+ {d:5,t:"Context arrives",say:"A request brings context the model has seen before."},
+ {d:5,t:"First pass",say:"The provider stores that reusable prefix in its cache."},
+ {d:5,t:"Same prefix",say:"The next request repeats the old prefix and adds new tokens."},
+ {d:5,t:"Cache hit",say:"The cache supplies the matching part, so the model skips that work."},
+ {d:5,t:"Only fresh tokens",say:"The model now processes only the new part of the request."},
+ {d:5,t:"The reply grows",say:"Each reply can add fresh words while keeping its earlier context warm."},
+ {d:5,t:"Savings add up",say:"Across a long conversation, cache hits skip the same work again and again.",hold:2},
+];
+STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);
+const $=id=>document.getElementById(id);let now=0;
+function current(t){let start=0;for(let i=0;i<STEPS.length;i++){if(t<start+STEPS[i].d||i===STEPS.length-1)return{i,start,p:Math.max(0,Math.min(1,(t-start)/STEPS[i].d))};start+=STEPS[i].d}}
+function seek(t){now=Math.max(0,Math.min(P.T,t));const {i,p}=current(now),s=STEPS[i];$('step').textContent=`${i+1} / ${STEPS.length} · ${s.t}`;$('say').textContent=s.x;$('request').setAttribute('stroke',i===0||i===2?'#58c4dd':'#2a3142');$('request').setAttribute('stroke-width',i===0||i===2?'3':'2');$('cache').setAttribute('stroke',i===1||i===3?'#83c167':'#2a3142');$('cache').setAttribute('stroke-width',i===1||i===3?'3':'2');$('model').setAttribute('stroke',i>=4?'#f0ac5f':'#2a3142');$('model').setAttribute('stroke-width',i>=4?'3':'2');$('stored').setAttribute('fill',i>=1?'#24402d':'#2a3142');$('storedText').textContent=i>=1?'cached prefix':'empty';$('metric').textContent=i<3?'No cached tokens yet':i===3?'Reuse the matching prefix':'Compute only what changed';$('metric').setAttribute('fill',i>=3?'#83c167':'#8b93a7');$('dot').setAttribute('opacity',i===0||i===2||i===4||i===5?'1':'0');const x=i===0?340+p*134:i===1?582:i===2?690+p*134:i===3?824+p*126:908+p*118;$('dot').setAttribute('cx',x);$('dot').setAttribute('cy',212);$('work').setAttribute('fill',i>=4?'#f0ac5f':'#2a3142')}
+const P={get t(){return now},get T(){return STEPS.reduce((n,s)=>n+s.d,0)},seek};P.seek(0);
+</script>
+</body></html>
