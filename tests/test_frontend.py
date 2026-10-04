@@ -4269,12 +4269,15 @@ def test_chat_timeline_marker_height_tracks_message_height(
 
 def test_chat_timeline_navigates_final_agent_answers_only(
     dashboard_browser: Browser,
+    request,
 ):
     page = dashboard_browser.new_page(viewport={"width": 900, "height": 700})
+    request.addfinalizer(page.close)
+    page.set_default_timeout(8000)
     _route_frontend_sources(page)
     _goto_dashboard(page)
-    page.wait_for_function("() => typeof _recomputeChatTimelineFinals === 'function'")
-    page.wait_for_selector('#chat-final-nav', state='attached')
+    page.wait_for_function("() => typeof _recomputeChatTimelineFinals === 'function'", timeout=8000)
+    page.wait_for_selector('#chat-final-nav', state='attached', timeout=8000)
     page.evaluate("""() => {
         selectedAgent = null;
         if (eventSource) {
@@ -4301,14 +4304,18 @@ def test_chat_timeline_navigates_final_agent_answers_only(
         }""",
         long_text,
     )
-    page.wait_for_function("() => document.querySelectorAll('#chat-timeline-track .is-final').length === 1")
+    page.wait_for_function(
+        "() => document.querySelectorAll('#chat-timeline-track .is-final').length === 1",
+        timeout=8000,
+    )
     assert page.locator('#chat [data-test-label$="-last"]').get_attribute('data-chat-nav-kind') == 'final'
     assert page.locator('#chat [data-test-label$="-first"]').get_attribute('data-chat-nav-kind') == 'agent'
 
     # A later answer in the same turn replaces the provisional final marker.
     page.evaluate("longText => addTimelineEntry('text', longText + '-continued')", long_text)
     page.wait_for_function(
-        "() => document.querySelector('[data-test-label$=\"-continued\"]')?.dataset.chatNavKind === 'final'"
+        "() => document.querySelector('[data-test-label$=\"-continued\"]')?.dataset.chatNavKind === 'final'",
+        timeout=8000,
     )
     assert page.locator('#chat-timeline-track .is-final').count() == 1
     assert page.locator('#chat [data-test-label$="-last"]').get_attribute('data-chat-nav-kind') == 'agent'
@@ -4316,7 +4323,10 @@ def test_chat_timeline_navigates_final_agent_answers_only(
     # A short final reply is the latest text, but is intentionally not navigable.
     page.evaluate("() => addTimelineEntry('user_message', 'next-question')")
     page.evaluate("() => addTimelineEntry('text', 'коротко')")
-    page.wait_for_function("() => document.querySelector('#chat-final-count')?.textContent.match(/\\d+/)?.[0] === '1'")
+    page.wait_for_function(
+        "() => document.querySelector('#chat-final-count')?.textContent.match(/\\d+/)?.[0] === '1'",
+        timeout=8000,
+    )
     assert page.locator('#chat [data-test-label="коротко"]').get_attribute('data-chat-nav-kind') == 'agent'
 
     # Live stream supersedes the previous turn's provisional candidate and is
@@ -4333,9 +4343,13 @@ def test_chat_timeline_navigates_final_agent_answers_only(
     assert page.locator('#chat [data-test-label="streaming"]').get_attribute('data-chat-nav-kind') == 'agent'
     page.evaluate("longText => addChatEntry('text', longText + '-complete', null, null, {})", long_text)
     page.wait_for_function(
-        "() => document.querySelector('[data-test-label=\"streaming\"]')?.dataset.chatNavKind === 'final'"
+        "() => document.querySelector('[data-test-label=\"streaming\"]')?.dataset.chatNavKind === 'final'",
+        timeout=8000,
     )
-    page.wait_for_function("() => document.querySelector('#chat-final-count')?.textContent.match(/\\d+/)?.[0] === '2'")
+    page.wait_for_function(
+        "() => document.querySelector('#chat-final-count')?.textContent.match(/\\d+/)?.[0] === '2'",
+        timeout=8000,
+    )
     assert re.findall(r"\d+", page.locator('#chat-final-count').text_content() or "") == ["2"]
 
     # Prepending an older history page recomputes its own turn without changing
@@ -4351,7 +4365,10 @@ def test_chat_timeline_navigates_final_agent_answers_only(
         }""",
         long_text,
     )
-    page.wait_for_function("() => document.querySelector('#chat-final-count')?.textContent.match(/\\d+/)?.[0] === '3'")
+    page.wait_for_function(
+        "() => document.querySelector('#chat-final-count')?.textContent.match(/\\d+/)?.[0] === '3'",
+        timeout=8000,
+    )
 
     page.locator('#chat-final-next').click()
     page.wait_for_timeout(100)
@@ -4360,7 +4377,6 @@ def test_chat_timeline_navigates_final_agent_answers_only(
         "el => getComputedStyle(el).backgroundColor"
     ) == "rgb(52, 211, 153)"
     assert page.locator('#chat-final-prev').get_attribute('aria-label')
-    page.close()
 
 
 def test_codex_successful_mcp_startup_status_is_hidden(
