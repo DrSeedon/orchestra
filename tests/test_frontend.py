@@ -2103,20 +2103,21 @@ def _open_restart_page(browser: Browser) -> tuple[Page, dict]:
 
 def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser, request):
     """Текущая неудачная попытка видна сразу; следующий клик для диагноза не нужен."""
-    page = dashboard_browser.new_page()
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode=False)
     request.addfinalizer(page.close)
     page.set_default_timeout(8000)
-    _route_frontend_sources(page)
     reason = "2 mutating tool calls still in flight"
-    page.route(
-        re.compile(r"/api/restart$"),
-        lambda route: route.fulfill(
+    restart_requests = []
+
+    def restart_route(route):
+        restart_requests.append(route.request.url)
+        route.fulfill(
             status=409,
             content_type="application/json",
             body=json.dumps({"detail": {"phase": "preparation", "reason": reason}}),
-        ),
-    )
-    _goto_dashboard(page)
+        )
+
+    page.route("**/api/restart*", restart_route)
     page.wait_for_function("() => typeof restartServer === 'function'", timeout=8000)
 
     page.click("#restart-btn")
@@ -2130,17 +2131,17 @@ def test_restart_button_shows_current_attempt_failure(dashboard_browser: Browser
         disabled: document.querySelector('#restart-btn').disabled,
         label: document.querySelector('#restart-btn').textContent,
     })""")
-    assert reason in state["notice"], state["notice"]
+    assert restart_requests, "restart button did not issue the API request"
+    assert reason in state["notice"], {"notice": state["notice"], "requests": restart_requests}
     assert state["disabled"] is False, "после отказа кнопку можно нажать снова"
     assert state["label"] == "⟳"
 
 
 def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Browser, request):
     """Успешный рестарт не прячет потерянный журнал за общим `scheduled`."""
-    page = dashboard_browser.new_page()
+    page = _open_tool_correlation_page(dashboard_browser, compact_mode=False)
     request.addfinalizer(page.close)
     page.set_default_timeout(8000)
-    _route_frontend_sources(page)
     reason = "OperationalError: database is locked"
     restart_requests = []
 
@@ -2160,8 +2161,7 @@ def test_restart_button_shows_journal_loss_before_reboot(dashboard_browser: Brow
             }),
         )
 
-    page.route(re.compile(r"/api/restart$"), restart_route)
-    _goto_dashboard(page)
+    page.route("**/api/restart*", restart_route)
     page.wait_for_function("() => typeof restartServer === 'function'", timeout=8000)
 
     page.click("#restart-btn")
