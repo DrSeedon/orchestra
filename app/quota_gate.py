@@ -181,6 +181,7 @@ class QuotaPolicy:
     gated_lanes: frozenset[str]
     curved_lanes: frozenset[str]
     lane_hard_stop_pct: Mapping[str, float]
+    claude_weekly_shift_hours: float = 8.0
 
     def hard_stop_for(self, lane: str | None) -> float:
         """Жёсткий стоп конкретной полосы.
@@ -321,6 +322,12 @@ def tolerance_pp(progress: float, policy: QuotaPolicy | None = None) -> float:
     return policy.tolerance_start_pp + (policy.tolerance_end_pp - policy.tolerance_start_pp) * progress
 
 
+def _line_progress(progress: float, lane: str | None, policy: QuotaPolicy) -> float:
+    if lane == "claude":
+        return progress + policy.claude_weekly_shift_hours * 60.0 / WEEKLY_WINDOW_MINUTES
+    return progress
+
+
 def line_limit(
     progress: float,
     lane: str | None = None,
@@ -330,13 +337,18 @@ def line_limit(
 
     Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
     в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
-    Полоса без кривизны (Claude) получает прежнюю прямую, как и вызов без `lane`.
+    Claude получает прямую, рассчитанную на точке окна на `claude_weekly_shift_hours`
+    вперёд; остальные прямые и вызовы без `lane` не сдвигаются.
     """
     policy = policy or quota_policy()
-    norm = progress
-    if lane is not None and lane in policy.curved_lanes and progress > 0.0:
-        norm = progress ** (1.0 / policy.curve_exponent)
-    return min(policy.hard_stop_for(lane), norm * 100.0 + tolerance_pp(progress, policy))
+    line_progress = _line_progress(progress, lane, policy)
+    norm = line_progress
+    if lane is not None and lane in policy.curved_lanes and line_progress > 0.0:
+        norm = line_progress ** (1.0 / policy.curve_exponent)
+    return min(
+        policy.hard_stop_for(lane),
+        norm * 100.0 + tolerance_pp(line_progress, policy),
+    )
 
 
 def line_release_progress(
@@ -369,7 +381,14 @@ def line_release_progress(
     line_denominator = 100.0 + policy.tolerance_end_pp - policy.tolerance_start_pp
     if line_denominator == 0:
         return float("inf")
-    return (utilization - policy.tolerance_start_pp) / line_denominator
+    progress = (utilization - policy.tolerance_start_pp) / line_denominator
+    if lane == "claude":
+        progress -= policy.claude_weekly_shift_hours * 60.0 / WEEKLY_WINDOW_MINUTES
+        if utilization <= line_limit(0.0, lane, policy):
+            return 0.0
+        if utilization > line_limit(1.0, lane, policy):
+            return float("inf")
+    return progress
 
 
 def _line_release_in_seconds(

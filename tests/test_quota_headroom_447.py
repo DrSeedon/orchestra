@@ -78,7 +78,7 @@ async def test_quota_map_headroom_is_server_line_minus_fact(mapped):
     luna = _lane(_bucket(payload, "codex"), "luna")
 
     # Frozen values keep this oracle red when line_limit is shifted by a mutant.
-    assert claude["headroom_pp"] == pytest.approx(55.5 - 30.0)
+    assert claude["headroom_pp"] == pytest.approx(55.5 + 91.0 * 8.0 / 168.0 - 30.0)
     assert sol["headroom_pp"] == pytest.approx(81.2858283255199 - 90.0)
     assert claude["headroom_pp"] == pytest.approx(line_limit(0.5, "claude") - 30.0)
     assert sol["headroom_pp"] == pytest.approx(line_limit(0.5, "sol") - 90.0)

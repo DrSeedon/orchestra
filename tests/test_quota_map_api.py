@@ -502,7 +502,7 @@ async def test_line_point_is_computed_server_side_for_every_pool(mapped):
     assert claude["window"]["progress"] == pytest.approx(0.5)
     assert claude["tolerance_pp"] == pytest.approx(5.5)
     assert "limit_pct" not in claude
-    assert _lane(claude, "claude")["limit_pct"] == pytest.approx(55.5)
+    assert _lane(claude, "claude")["limit_pct"] == pytest.approx(55.5 + 91.0 * 8.0 / 168.0)
 
     codex = _pool(payload, "codex")
     assert codex["window"]["progress"] == pytest.approx(0.25)
