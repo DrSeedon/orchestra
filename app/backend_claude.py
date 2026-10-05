@@ -1411,6 +1411,7 @@ class ClaudeBackend:
                 "resets_at": info.resets_at,
                 "overage_status": info.overage_status,
                 "event_id": msg.uuid,
+                "raw": raw,
             }))
 
         elif isinstance(msg, ResultMessage):

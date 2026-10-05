@@ -715,6 +715,7 @@ def _normalize_codex_usage(result: dict) -> dict:
             "balance": credits.get("balance"),
         },
         "reset_credits": reset_credits.get("availableCount", 0),
+        "raw_payload": result,
     }
     spark_limits = by_limit.get("codex_bengalfox")
     if isinstance(spark_limits, dict):
@@ -790,6 +791,30 @@ def _usage_window_label(window_minutes: int) -> str:
     return f"{window_minutes}m"
 
 
+def _claude_window_minutes(window_id: str) -> int | None:
+    if not isinstance(window_id, str):
+        return None
+    if window_id == "five_hour" or window_id.startswith("five_hour_"):
+        return 300
+    if window_id == "seven_day" or window_id.startswith("seven_day_"):
+        return 10080
+    return None
+
+
+def _provider_reset_iso(value: object) -> str | None:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value <= 0
+    ):
+        return None
+    try:
+        return datetime.fromtimestamp(value, timezone.utc).isoformat().replace("+00:00", "Z")
+    except (OSError, OverflowError, ValueError):
+        return None
+
+
 def _provider_usage_snapshot(
     anthropic: dict | None,
     codex: dict | None,
@@ -812,8 +837,38 @@ def _provider_usage_snapshot(
             "window_minutes": minutes,
             "resets_at": window.get("resets_at"),
         })
+    raw_event = (anthropic or {}).get("rate_limit_event")
+    event_windows = raw_event.get("unifiedWindows") if isinstance(raw_event, dict) else None
+    if isinstance(event_windows, dict):
+        known = {window["id"] for window in anthropic_windows}
+        for window_id, value in event_windows.items():
+            minutes = _claude_window_minutes(window_id)
+            if window_id in known or minutes is None or not isinstance(value, dict):
+                continue
+            utilization = value.get("utilization")
+            if (
+                isinstance(utilization, bool)
+                or not isinstance(utilization, (int, float))
+                or not math.isfinite(utilization)
+                or not 0 <= utilization <= 1
+            ):
+                continue
+            reset_iso = _provider_reset_iso(value.get("resetsAt"))
+            anthropic_windows.append({
+                "id": window_id,
+                "label": _usage_window_label(minutes),
+                "utilization": utilization * 100,
+                "window_minutes": minutes,
+                "resets_at": reset_iso,
+                "raw_payload": value,
+            })
     if anthropic_windows:
-        providers["anthropic"] = {"label": "Claude", "windows": anthropic_windows}
+        providers["anthropic"] = {
+            "label": "Claude", "windows": anthropic_windows,
+            "raw_payload": (anthropic or {}).get("raw_payload", anthropic),
+        }
+        if (anthropic or {}).get("rate_limit_event") is not None:
+            providers["anthropic"]["rate_limit_event"] = (anthropic or {})["rate_limit_event"]
 
     fable = next(
         (
@@ -866,7 +921,76 @@ def _provider_usage_snapshot(
                 "plan_type": (usage or {}).get("plan_type"),
                 "windows": windows,
             }
+            if provider_id == "codex" and (usage or {}).get("raw_payload") is not None:
+                providers[provider_id]["raw_payload"] = (usage or {}).get("raw_payload")
     return providers
+
+
+def _apply_claude_rate_limit_event(data: dict | None, event: dict) -> dict | None:
+    """Merge current CLI windows without rounding away its fractional utilization."""
+    if not isinstance(data, dict):
+        return data
+    raw = event.get("raw")
+    if not isinstance(raw, dict):
+        return data
+    windows = raw.get("unifiedWindows")
+    if not isinstance(windows, dict):
+        windows = {}
+    else:
+        windows = dict(windows)
+    rate_type = raw.get("rateLimitType") or event.get("rate_limit_type")
+    if rate_type and rate_type not in windows and raw.get("utilization") is not None:
+        windows[rate_type] = {
+            "utilization": raw.get("utilization"),
+            "resetsAt": raw.get("resetsAt", event.get("resets_at")),
+        }
+    result = dict(data)
+    for window_id, value in windows.items():
+        if _claude_window_minutes(window_id) is None or not isinstance(value, dict):
+            continue
+        utilization = value.get("utilization")
+        if (
+            isinstance(utilization, bool)
+            or not isinstance(utilization, (int, float))
+            or not math.isfinite(utilization)
+            or not 0 <= utilization <= 1
+        ):
+            continue
+        window = dict(result.get(window_id) or {})
+        window["utilization"] = utilization * 100
+        reset_iso = _provider_reset_iso(value.get("resetsAt"))
+        if reset_iso:
+            window["resets_at"] = reset_iso
+        window["raw_payload"] = value
+        result[window_id] = window
+    result["rate_limit_event"] = raw
+    result["rate_limit_event_id"] = event.get("event_id")
+    return result
+
+
+def record_claude_rate_limit_event(event: dict) -> None:
+    """Keep the latest SDK event available to `/api/usage`, quota gates and snapshots."""
+    observed_at = time.time()
+    _usage_cache["rate_limit_event"] = {"event": event, "ts": observed_at}
+    _usage_cache["data"] = _apply_claude_rate_limit_event(
+        _usage_cache.get("data"), event,
+    )
+    _usage_cache["ts"] = observed_at
+
+
+def _latest_claude_data(data: dict | None, now: float | None = None) -> dict | None:
+    record = _usage_cache.get("rate_limit_event")
+    if not isinstance(record, dict):
+        return data
+    timestamp = record.get("ts")
+    checked_at = time.time() if now is None else now
+    if (
+        isinstance(timestamp, bool)
+        or not isinstance(timestamp, (int, float))
+        or not 0 <= checked_at - timestamp < _USAGE_CACHE_TTL
+    ):
+        return data
+    return _apply_claude_rate_limit_event(data, record.get("event") or {})
 
 
 async def _fetch_codex_usage() -> dict:
@@ -1186,6 +1310,9 @@ async def _get_usage_data(
     if required_provider == "grok" and not grok_fetched:
         raise RuntimeError("fresh Grok usage is unavailable")
 
+    anthropic_data = _latest_claude_data(anthropic_data)
+    if anthropic_data is not None:
+        _usage_cache["data"] = anthropic_data
     return {
         "anthropic": anthropic_data,
         "codex": codex_data,
@@ -1396,6 +1523,7 @@ async def _collect_usage_snapshot() -> None:
         _usage_cache["data"] = anthropic_data
         _usage_cache["ts"] = time.time()
         _save_usage_cache()
+    anthropic_data = _latest_claude_data(anthropic_data)
 
     codex_error = ""
     try:

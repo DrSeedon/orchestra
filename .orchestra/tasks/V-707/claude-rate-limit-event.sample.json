@@ -1,0 +1,21 @@
+{
+  "type": "rate_limit_event",
+  "rate_limit_info": {
+    "status": "allowed_warning",
+    "resetsAt": 1791270000,
+    "rateLimitType": "seven_day",
+    "utilization": 0.83,
+    "isUsingOverage": false,
+    "surpassedThreshold": 0.75,
+    "unifiedWindows": {
+      "five_hour": {
+        "utilization": 0.11,
+        "resetsAt": 1791198000
+      },
+      "seven_day": {
+        "utilization": 0.83,
+        "resetsAt": 1791270000
+      }
+    }
+  }
+}

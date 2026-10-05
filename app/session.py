@@ -2382,6 +2382,9 @@ class AgentSession:
             self._last_text_output = event.content
         elif event.type == "provider_limit":
             # This event is produced by the provider adapter, never assistant prose.
+            if event.metadata.get("raw"):
+                from app.routes.system import record_claude_rate_limit_event
+                record_claude_rate_limit_event(event.metadata)
             self._log("provider_limit", json.dumps(event.metadata, ensure_ascii=False))
             if event.metadata.get("status") == "rejected":
                 self._session_limit_hit = True
