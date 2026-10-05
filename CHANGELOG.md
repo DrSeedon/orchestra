@@ -12,6 +12,7 @@
 - **Mixed layout repair reports a manual resolution path** (`app/orchestra_layout.py`, V-704). When old and new project directories coexist, `--repair` explains that merging is unsafe and gives manual reconciliation steps instead of returning itself as the repair command.
 - **Ignore Python caches inside Orchestra state** (`.gitignore`, V-704). Added a deeper `__pycache__` exclusion after reopening `.orchestra/**`; imported scripts under `.orchestra/` previously left untracked bytecode.
 - **Keep worker work out of the shared Git stash stack** (`.orchestra/pipelines/default/prompts/modules/git-workflow.md`, V-704). The worker rules now direct unfinished work to its task branch or a task-local patch; stash entries are shared across linked worktrees.
+- **Офлайн-установка RUAccent на ноутбуке и строгий запуск русской сборки** (`.orchestra/tasks/V-691/setup-laptop.sh`, `prompts/skills/explainer-video.md`; V-719). Установщик восстанавливает модель и данные `koziev` из локальных архивов; при ошибке RUAccent инструкция требует остановиться и сообщить о среде вместо незаметного обхода через `--no-stress`. Триггер: блокировка Hugging Face и отсутствующие веса/данные RUAccent на ноутбуке.
 
 ### Removed
 - **Project-memory MCP search and API** (`app/mcp_stdio.py`, `app/routes/memory.py`, `app/memory_search.py`; V-718). Removed the tool, its API route and search implementation after the owner chose to remove the feature; agents now search `.orchestra/kb/` and `.orchestra/tasks/` with `rg`.

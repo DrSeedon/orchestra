@@ -1,0 +1,42 @@
+Running as unit: run-p1405060-i1422337.scope; invocation ID: aa9d3c4d85f7441db16dfd100aacf2b2
+explainer_video: ошибка RUAccent worker: None of PyTorch, TensorFlow >= 2.0, or Flax have been found. Models won't be available and only tokenizers, configuration and file/data utilities can be used.
+Traceback (most recent call last):
+  File "/mnt/data/Projects/Python/orchestra/scripts/explainer_video/tts_worker_stress.py", line 53, in <module>
+    main()
+  File "/mnt/data/Projects/Python/orchestra/scripts/explainer_video/tts_worker_stress.py", line 44, in main
+    accentizer.load(
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/ruaccent/ruaccent.py", line 84, in load
+    files = self.fs.ls(repo + path)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/hf_file_system.py", line 366, in ls
+    resolved_path = self.resolve_path(path, revision=revision)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/hf_file_system.py", line 210, in resolve_path
+    repo_and_revision_exist, err = self._repo_and_revision_exist(repo_type, repo_id, revision)
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/hf_file_system.py", line 126, in _repo_and_revision_exist
+    self._api.repo_info(
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/hf_api.py", line 2867, in repo_info
+    return method(
+           ^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/utils/_validators.py", line 114, in _inner_fn
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/hf_api.py", line 2660, in model_info
+    r = get_session().get(path, headers=headers, timeout=timeout, params=params)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/requests/sessions.py", line 671, in get
+    return self.request("GET", url, params=params, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/requests/sessions.py", line 651, in request
+    resp = self.send(prep, **send_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/requests/sessions.py", line 784, in send
+    r = adapter.send(request, **kwargs)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/maxim/.local/share/orchestra-tts/venv/lib/python3.12/site-packages/huggingface_hub/utils/_http.py", line 106, in send
+    raise OfflineModeIsEnabled(
+huggingface_hub.errors.OfflineModeIsEnabled: Cannot reach https://huggingface.co/api/models/ruaccent/accentuator: offline mode is enabled. To disable it, please unset the `HF_HUB_OFFLINE` environment variable.

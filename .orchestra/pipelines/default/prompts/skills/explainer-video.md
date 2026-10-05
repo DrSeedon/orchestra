@@ -128,6 +128,10 @@ RUAccent marks Russian phrases before Vosk synthesis using versions from `setup-
 word keeps the wrong stress, put `+` before the stressed vowel (`лим+ита`): the manual form wins
 over automation and the marker is hidden from captions. `--no-stress` explicitly disables RUAccent.
 
+If RUAccent fails to load, stop and report the broken TTS environment. Do not use `--no-stress`
+to continue a requested Russian build. Manual `+` markers are only targeted corrections for
+specific words RUAccent marks incorrectly; do not replace the automatic pass with hand-marking.
+
 **Check stress yourself before the build.** RUAccent makes mistakes: in V-696 it marked
 «посл+е» instead of «по́сле» once in five edits. The owner hears every such word. Before a full
 build, run `make.py scene.html --out <folder> --stress-only`: it takes seconds and synthesizes
