@@ -1,0 +1,20 @@
+diff --git a/bot.py b/bot.py
+index 4c8d5ce..883828a 100644
+--- a/bot.py
++++ b/bot.py
+@@ -40,6 +40,7 @@ import reminders as _reminders
+ import compact as _compact
+ import inbox_server as _inbox
+ import rag as _rag
++import orchestra_watchdog as _orchestra_watchdog
+ 
+ import file_access as _file_access
+ import telegram_io as _tio
+@@ -160,6 +161,7 @@ async def main():
+ 
+     _inbox.set_refs(bot, registry)
+     await _inbox.start_inbox_server()
++    asyncio.create_task(_orchestra_watchdog.OrchestraWatchdog(bot).run())
+ 
+     _file_access.ensure_roots()
+     _media.cleanup_media()
