@@ -54,6 +54,7 @@ def test_rate_limit_event_preserves_exact_raw_utilization_and_all_fields():
     assert events[0].content.startswith("RATE_LIMIT_RAW ")
     assert "0.16327272727272726" in events[0].content
     assert json.loads(events[0].content.removeprefix("RATE_LIMIT_RAW ")) == raw
+    assert events[1].metadata["raw"] == raw
 
 
 def test_missing_rate_limit_event_class_does_not_break_import_or_dispatch():

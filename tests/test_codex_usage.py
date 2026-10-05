@@ -45,6 +45,7 @@ def test_normalize_codex_usage_prefers_codex_bucket():
         "secondary": None,
         "credits": {"has_credits": False, "unlimited": False, "balance": "0"},
         "reset_credits": 2,
+        "raw_payload": result,
     }
 
 
@@ -126,6 +127,7 @@ def test_provider_usage_snapshot_unifies_provider_windows():
     assert providers == {
         "anthropic": {
             "label": "Claude",
+            "raw_payload": anthropic,
             "windows": [
                 {
                     "id": "five_hour",

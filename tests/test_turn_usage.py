@@ -29,7 +29,7 @@ def test_turn_usage_requires_durable_event_id_and_deduplicates(usage_db):
         "output_tokens": 20,
         "cache_read_tokens": 80,
         "cache_create_tokens": 5,
-        "quota_five_hour_pct": 12.5,
+        "quota_five_hour_pct": 12.3456789,
         "quota_seven_day_pct": 41,
         "quota_primary_pct": None,
         "quota_sampled_at": "2026-07-29T08:00:00+00:00",
@@ -48,7 +48,7 @@ def test_turn_usage_requires_durable_event_id_and_deduplicates(usage_db):
     assert rows[0]["event_id"] == "result-uuid-1"
     assert rows[0]["cost_usd"] == 1.25
     assert rows[0]["cache_read_tokens"] == 80
-    assert rows[0]["quota_five_hour_pct"] == 12.5
+    assert rows[0]["quota_five_hour_pct"] == 12.3456789
     assert rows[0]["quota_seven_day_pct"] == 41
     assert rows[0]["quota_primary_pct"] is None
     assert rows[0]["quota_sampled_at"] == "2026-07-29T08:00:00+00:00"
