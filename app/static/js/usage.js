@@ -43,7 +43,8 @@ function _krskReset(isoStr) {
     if (!isoStr) return '';
     const at = new Date(isoStr);
     if (Number.isNaN(at.getTime())) return '';
-    return new Intl.DateTimeFormat('ru-RU', {
+    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
+    return new Intl.DateTimeFormat(locale, {
         timeZone: 'Asia/Krasnoyarsk',
         weekday: 'short', day: 'numeric', month: 'short',
         hour: '2-digit', minute: '2-digit',
@@ -607,11 +608,11 @@ function _historyProviders(row) {
         ? null : Number(value);
     const fiveHour = pct(row?.five_hour_pct);
     const sevenDay = pct(row?.seven_day_pct);
-    if (fiveHour !== null && (row.five_hour_resets_at || fiveHour)) {
+    if (fiveHour !== null && (row.five_hour_resets_at || fiveHour === 0)) {
         windows.push({id:'five_hour', label:'5h', utilization:fiveHour,
             window_minutes:300, resets_at:row.five_hour_resets_at || null});
     }
-    if (sevenDay !== null && (row.seven_day_resets_at || sevenDay)) {
+    if (sevenDay !== null && (row.seven_day_resets_at || sevenDay === 0)) {
         windows.push({id:'seven_day', label:'7d', utilization:sevenDay,
             window_minutes:10080, resets_at:row.seven_day_resets_at || null});
     }

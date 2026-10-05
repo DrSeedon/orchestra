@@ -127,6 +127,7 @@
     'Output shortened for display ({n} source bytes)': 'Показана часть вывода (исходный размер: {n} байт)',
     'Created': 'Создано',
     'Created:': 'Создана:',
+    'Claude workers': 'Claude-воркеры',
     'Creating...': 'Создание…',
     'Critical': 'Критический',
     'Current turn': 'Текущий ход',

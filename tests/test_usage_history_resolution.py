@@ -58,6 +58,31 @@ def test_grid_does_not_bridge_a_hole_in_snapshots(db):
     assert grid[-1] >= now - timedelta(minutes=5), "свежий хвост потерян"
 
 
+@pytest.mark.parametrize(
+    ("column", "window_id"),
+    [("five_hour_pct", "five_hour"), ("seven_day_pct", "seven_day")],
+)
+def test_history_includes_a_real_zero_without_reset_metadata(db, column, window_id):
+    """A provider's zero utilization is data even when it omits resets_at."""
+    from app.db import usage_get_history
+
+    now = datetime.now(timezone.utc)
+    with sqlite3.connect(db) as conn:
+        conn.execute(
+            """INSERT INTO usage_snapshots
+               (ts, five_hour_pct, seven_day_pct, five_hour_resets_at,
+                seven_day_resets_at, total_cost_usd, active_agents, provider_usage)
+               VALUES (?, ?, ?, '', '', 0, 0, '')""",
+            (now.isoformat(), 0 if column == "five_hour_pct" else None,
+             0 if column == "seven_day_pct" else None),
+        )
+
+    answer = usage_get_history(24, 5)
+    windows = answer[0]["providers"]["anthropic"]["windows"]
+    assert {window["id"] for window in windows} == {window_id}
+    assert windows[0]["utilization"] == 0
+
+
 def test_hole_shorter_than_two_steps_is_still_filled(db):
     """Один пропущенный снимок — не провал: сетка обязана остаться ровной."""
     from app.db import usage_get_history
