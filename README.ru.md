@@ -44,6 +44,10 @@
   <em>Работа команды в реальном времени: от постановки задачи до мержа, доски задач и квот</em>
 </p>
 
+**🎬 Тур на 74 секунды, со звуком:**
+
+https://github.com/user-attachments/assets/19a92bef-1e04-4125-9163-ef3228c71cea
+
 <p align="center">
   <img src="docs/dashboard-real.ru.png" alt="Дашборд Orchestra на русском: сообщения оркестратора, воркеры, задачи, статусы и квоты" width="100%">
   <br>
