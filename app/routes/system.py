@@ -1045,7 +1045,10 @@ async def _fetch_codex_usage() -> dict:
         try:
             await asyncio.wait_for(proc.wait(), timeout=1)
         except asyncio.TimeoutError:
-            proc.kill()
+            try:
+                proc.kill()
+            except ProcessLookupError:
+                pass
             await proc.wait()
 
 
@@ -1255,7 +1258,7 @@ async def _get_usage_data(
             else:
                 codex_data = _codex_usage_cache["data"]
         except Exception as e:
-            logger.warning(f"Codex usage fetch failed: {e}")
+            logger.warning("Codex usage fetch failed: %r", e)
             codex_data = _codex_usage_cache["data"]
     if required_provider in {"codex", "codex_spark"} and not codex_fetched:
         raise RuntimeError("fresh Codex usage is unavailable")

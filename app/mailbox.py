@@ -76,6 +76,29 @@ def mark_delivered(ids: list[int]) -> None:
         )
 
 
+def mark_codex_steer_submitted(message_id: int) -> None:
+    with db._conn() as connection:
+        connection.execute(
+            """UPDATE mailbox
+               SET origin_detail=json_set(origin_detail, '$.subtype', 'codex_steer_backup')
+               WHERE id=? AND delivered_at IS NULL
+                 AND json_extract(origin_detail, '$.subtype')='codex_steer_backup_pending'""",
+            (int(message_id),),
+        )
+
+
+def complete_codex_steers(recipient: str, scope: str, turn_id: str) -> int:
+    with db._conn() as connection:
+        cursor = connection.execute(
+            """UPDATE mailbox SET delivered_at = ?
+               WHERE recipient=? AND scope=? AND delivered_at IS NULL
+                 AND json_extract(origin_detail, '$.subtype')='codex_steer_backup'
+                 AND json_extract(origin_detail, '$.ref')=?""",
+            (time.time(), recipient, scope, turn_id),
+        )
+        return cursor.rowcount
+
+
 # Семантика доставки объявлена явно: AT-LEAST-ONCE.
 # Выбор между «потерять» и «повторить» сделан в пользу повтора: агент, прочитавший
 # сообщение дважды, теряет центы, а молча потерянное сообщение стоит работы (#158).

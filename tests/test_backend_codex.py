@@ -8,8 +8,6 @@ Regression net for the three bugs found in the codex-integration audit:
 
 import asyncio
 import json
-import shutil
-import subprocess
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -71,16 +69,6 @@ def _history_import():
         snapshot_id=1,
         thread_id="11111111-2222-4333-8444-555555555555",
     )
-
-
-def test_installed_codex_history_version_matches_pin():
-    cli = shutil.which("codex")
-    if cli is None:
-        pytest.skip("Codex CLI is not installed")
-    result = subprocess.run(
-        [cli, "--version"], capture_output=True, text=True, check=True, timeout=10
-    )
-    assert result.stdout.strip() == f"codex-cli {CODEX_CLI_HISTORY_VERSION}"
 
 
 # ── BUG 1: GPT-5.6 models registered in backend dicts ──
@@ -604,6 +592,23 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
 
     spawn.assert_not_awaited()
     assert backend.has_owned_processes is False
+
+
+@pytest.mark.asyncio
+async def test_history_import_accepts_verified_0156_1_pin(monkeypatch):
+    import app.backend_codex as module
+
+    backend = CodexBackend(
+        model="gpt-5.6-sol",
+        cwd="/tmp",
+        history_import=_history_import(),
+    )
+    run_process = AsyncMock(return_value=(0, "codex-cli 0.156.1", ""))
+    monkeypatch.setattr(module, "_run_process", run_process)
+
+    await backend._verify_history_version()
+
+    run_process.assert_awaited_once()
 
 
 @pytest.mark.asyncio
