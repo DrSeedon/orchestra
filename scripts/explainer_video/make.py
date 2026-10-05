@@ -19,7 +19,8 @@
 
 Ключи: --speaker 0..4 (1 — по умолчанию, 0–2 женские, 3 и 4 мужские), --rate 1.15 (темп: речь и паузы между
 фразами; 1.0 — темп V-681), --fps 30,
---stills (только озвучка, тайминг и контакт-лист, без видео), --no-check.
+--stills (только озвучка, тайминг и контакт-лист, без видео), --stress-only (только разметка
+ударений RUAccent: `<имя>.stress.txt` и вывод по фразам, без синтеза), --no-check.
 Синтез кэшируется по тексту фразы: правка одной фразы пересинтезирует только её,
 но первая загрузка модели занимает ~2 мин. Тяжёлое — запускать вне cgroup платформы.
 """
@@ -447,6 +448,8 @@ def main() -> None:
     ap.add_argument("--voice", default="af_heart", help="голос Kokoro для --lang en (am_michael — мужской)")
     ap.add_argument("--rate", type=float, default=1.15)
     ap.add_argument("--no-stress", action="store_true", help="не запускать автоматическую разметку ударений RUAccent")
+    ap.add_argument("--stress-only", action="store_true",
+                    help="только разметить ударения и показать фразы (секунды, без синтеза) — для проверки агентом")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
@@ -463,6 +466,12 @@ def main() -> None:
     else:
         steps = read_steps(args.scene, args.lang)
     steps = mark_stress(steps, args.lang, enabled=not args.no_stress)
+    if args.stress_only:
+        marked = [step.get("_tts_text", step["say"]) for step in steps]
+        (out / f"{name}.stress.txt").write_text("\n".join(marked) + "\n")
+        for i, text in enumerate(marked, 1):
+            print(f"  {i:2d}. {text}")
+        return
     clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
                        voice=args.voice if args.lang == "en" else "")
     timing = plan(steps, clips, args.rate)
