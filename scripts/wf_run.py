@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import ast
+import base64
 import hashlib
 import inspect
 import json
@@ -212,6 +213,10 @@ def _parse_and_validate(raw: str, schema: dict) -> Any:
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as error:
+        if schema.get("type") == "string":
+            value = raw
+            _validate_schema(value, schema)
+            return value
         raise ValueError(f"invalid JSON: {error.msg} at line {error.lineno} column {error.colno}") from error
     _validate_schema(value, schema)
     return value
@@ -1037,10 +1042,38 @@ class WorkflowEngine:
         self.result = namespace.get("result")
         return self.result
 
+    async def execute_tasks(self, spec: dict[str, Any]) -> Any:
+        tasks = spec["tasks"]
+        mode = spec["mode"]
+
+        async def run_task(task: dict[str, Any], prior: WorkflowValue | None = None):
+            inputs = [prior] if prior is not None else []
+            return await self.agent(
+                task["prompt"], model=task.get("model", "luna"),
+                schema=task.get("schema"), inputs=inputs,
+            )
+
+        if mode == "parallel":
+            self.result = await self.parallel([
+                lambda task=task: run_task(task) for task in tasks
+            ])
+        elif mode == "chain":
+            results = []
+            prior = None
+            for task in tasks:
+                prior = await run_task(task, prior)
+                results.append(prior)
+                if prior is None:
+                    break
+            self.result = results
+        else:
+            raise ValueError("mode must be 'parallel' or 'chain'")
+        return self.result
+
 
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("workflow", type=Path)
+    parser.add_argument("workflow", type=Path, nargs="?")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--run-id")
     group.add_argument("--resume")
@@ -1048,14 +1081,35 @@ def _args() -> argparse.Namespace:
     parser.add_argument("--max-calls", type=int, default=100)
     parser.add_argument("--max-concurrency", type=int, default=None)
     parser.add_argument("--repo", type=Path, help="Target repository for isolated writable calls")
+    parser.add_argument("--tasks-b64", help="Base64-encoded declarative tasks; avoids a workflow file")
     return parser.parse_args()
 
 
 async def _main() -> int:
     args = _args()
     run_id = args.resume or args.run_id
-    workflow = args.workflow.resolve()
+    if bool(args.workflow) == bool(args.tasks_b64):
+        raise ValueError("provide exactly one of workflow or --tasks-b64")
+    workflow = args.workflow.resolve() if args.workflow else None
+    spec = None
+    if args.tasks_b64:
+        spec = json.loads(base64.urlsafe_b64decode(args.tasks_b64.encode()).decode())
     run_dir = ROOT / "data" / "workflow-runs" / run_id
+    encoded_spec = args.tasks_b64 or ""
+    command_parts = [
+        "env", f"ORCHESTRA_TASK_ID={os.environ.get('ORCHESTRA_TASK_ID', '')}",
+        f"ORCHESTRA_SCOPE={os.environ.get('ORCHESTRA_SCOPE', '')}",
+        sys.executable, str(ROOT / "scripts" / "wf_run.py"),
+        "--tasks-b64", encoded_spec,
+        "--budget-usd", f"{args.budget_usd:g}",
+        "--max-calls", str(args.max_calls),
+        "--max-concurrency", str(args.max_concurrency or 3),
+    ] if spec is not None else []
+    if args.repo:
+        command_parts.extend(["--repo", str(args.repo.resolve())])
+    if spec is not None:
+        command_parts.extend(["--resume", run_id])
+    command = shlex.join(command_parts) if command_parts else ""
     engine = WorkflowEngine(
         run_id,
         run_dir,
@@ -1064,18 +1118,54 @@ async def _main() -> int:
         max_calls=args.max_calls,
         max_concurrency=args.max_concurrency,
         workspace_repo=args.repo,
+        resume_command_override=command,
     )
     resume = engine.resume_command()
     print(f"WF_BG_MESSAGE={json.dumps(f'wf_run {run_id} interrupted; resume with: {resume}')}", flush=True)
     try:
-        await engine.execute(workflow)
+        if spec is None:
+            await engine.execute(workflow)
+        else:
+            await engine.execute_tasks(spec)
     except BaseException:
         engine.partial_reason = engine.partial_reason or "error"
         raise
     finally:
         manifest = engine.write_manifest()
         print(json.dumps(manifest, ensure_ascii=False, separators=(",", ":")), flush=True)
+        if spec is not None:
+            print(_notification_summary(manifest), flush=True)
     return 0
+
+
+def _notification_summary(manifest: dict) -> str:
+    steps = manifest.get("steps", [])
+    results = manifest.get("result") or []
+    successful = sum(step.get("reason") == "completed" for step in steps)
+    total = max(len(steps), len(results))
+    lines = [
+        f"WORKFLOW_SUMMARY run={manifest.get('run_id')} "
+        f"successful={successful}/{total} "
+        f"complete={str(bool(manifest.get('complete'))).lower()} "
+        f"manifest={ROOT / 'data' / 'workflow-runs' / str(manifest.get('run_id')) / 'manifest.json'}"
+    ]
+    omitted = 0
+    for index, value in enumerate(results):
+        data = value.get("data") if isinstance(value, dict) else None
+        path = value.get("result_path") if isinstance(value, dict) else None
+        label = f"{index + 1}. {path or 'no result path'}"
+        if isinstance(data, str) and data:
+            answer = " ".join(data.split())
+            label = f"{index + 1}. {answer[:120]}"
+        if sum(map(len, lines)) + len(label) + len(lines) * 1 > 2400:
+            omitted = len(results) - index
+            break
+        lines.append(label)
+    if manifest.get("partial_reason"):
+        lines.append(f"partial_reason={manifest['partial_reason']}")
+    if omitted:
+        lines.append(f"{omitted} more results in manifest")
+    return "\n".join(lines)
 
 
 if __name__ == "__main__":

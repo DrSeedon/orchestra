@@ -12,10 +12,16 @@ from scripts.wf_adapters import (
     parse_codex_output,
     persist_turn_usage,
 )
-from scripts.wf_run import WorkflowEngine, validate_pilot_manifest
+from scripts.wf_run import WorkflowEngine, _parse_and_validate, validate_pilot_manifest
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "wf"
+
+
+def test_string_schema_accepts_plain_text_and_json_string():
+    schema = {"type": "string"}
+    assert _parse_and_validate("answer without quotes\n", schema) == "answer without quotes\n"
+    assert _parse_and_validate('"quoted JSON string"', schema) == "quoted JSON string"
 
 
 def _git_repo(path: Path) -> Path:
