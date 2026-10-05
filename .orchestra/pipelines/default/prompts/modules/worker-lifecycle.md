@@ -5,10 +5,8 @@ At spawn and on description updates, `description` MUST start with `lifecycle=on
 `lifecycle=persistent`. Names, prefixes, and roles never determine lifecycle; an unmarked legacy
 worker is `persistent`.
 
-**Killing is the exception, not the end of every task** (owner, 05.10.2026, verbatim: «если думаешь
-что этот проект дальше будем делать чинить или возникнут еще задачи не убивай просто так . типо
-только если это точно закрыта задача и больше не появится удалять надо»). The trigger: an
-orchestrator on a game-fixing project kept spawning and killing Opus workers task after task, so
+**Killing is the exception, not the end of every task** (owner decision, 05.10.2026). The trigger:
+an orchestrator on a game-fixing project kept spawning and killing Opus workers task after task, so
 every new fix started cold and re-read the project from zero. An idle worker costs nothing; its
 warm context about the project is the value. So choose `lifecycle=one-shot` only when the whole
 line of work is truly closed: a single investigation, a one-off fix in a project you will not
