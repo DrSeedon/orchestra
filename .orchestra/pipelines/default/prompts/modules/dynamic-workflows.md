@@ -1,40 +1,7 @@
 ## Dynamic workflows
 
-Use scripted workflows for bounded one-shot steps with explicit inputs and machine-checkable
-outputs: parallel extraction, comparisons, then dependent stages. Ordinary `spawn_worker`
-is for continued conversation, managed task lifecycle and mergeable implementation work.
-Only spawn-capable roles launch workflows; terminal workers ask their parent.
+Use the `dynamic_workflow` tool for a bounded one-shot fan-out of similar independent tasks, such as collecting facts by region, analyzing a list of items, or comparing several options. Pass each prompt, an optional JSON schema and model, the parallel or chain mode, budget and call limits, the task ID, and repository. The tool starts a durable `wf_run` job and wakes you once with the outcome, short answers and result paths; do not poll for completion.
 
-Write a Python workflow file under the assigned task. It supports top-level await:
-```python
-result = await parallel([
-    lambda: agent("First complete task and input", model="luna"),
-    lambda: agent("Second complete task and input", model="luna"),
-])
-assert all(value is not None for value in result)
-```
-`agent(..., schema={...})` validates JSON and retries at most twice; success is a
-WorkflowValue (`.data`, `.result_path`, `.workspace_path`), failure can be `None`.
-`pipeline(items, stage1, stage2)` passes each stage's results to the next stage.
+Choose `parallel` when tasks do not depend on each other. Choose `chain` when each task should receive the previous task's result as structured input. Luna is the default; choose other models only as allowed by model-routing. Astra and Sol are unavailable.
 
-Launch through `bg_create(type="run", command=...)`, then end the turn. Use absolute paths:
-`uv run --frozen --project /home/kesha/orchestra python /home/kesha/orchestra/scripts/wf_run.py /absolute/task/workflow.py --repo /absolute/target/repository --run-id TASK-unique --budget-usd 1 --max-calls 6 --max-concurrency 2`.
-Set `ORCHESTRA_TASK_ID` and `ORCHESTRA_SCOPE` in the command to the assigned task/project;
-redirect output to its task directory. The runner is in the Orchestra installation, even
-when the target project is elsewhere. `--repo` must be the primary Git root, not a linked
-worktree; calls start from that repository's current committed branch. Quote shell paths. These are subscription CLI calls;
-`budget-usd` is an API-equivalent stopping estimate, not a hard spending or quota reservation.
-Choose limits for the task. Luna is the default; Astra only for complex work that Luna
-cannot handle, with explicit approval for that additional Astra run. Sol is not a workflow
-destination. The model-routing module owns exceptions and auxiliary-model approvals.
-
-Read `data/workflow-runs/<run-id>/manifest.json` under the runner installation: require
-`complete=true`, successful steps and the expected result. Exit code alone is insufficient.
-Use the manifest's `resume_command` after interruption; completed steps are replayed from
-journal, ambiguous dispatched steps are not blindly rerun. Keep workflow inputs stable.
-
-Each call is ephemeral: no session conversation/history, agent messaging lifecycle or
-automatic merge. Writable calls get isolated worktrees; inspect their archived results
-before integrating. No automatic recovery from arbitrary external side effects. Defaults
-include tools/network/MCP and four workflow rule modules, not the full role prompt; supply
-all task context explicitly. Restrict capabilities only with `capability_reason`.
+Use an ordinary worker for a task that needs ongoing conversation, managed task lifecycle, or mergeable repository changes. Use a workflow file with `wf_run.py` only when the steps require custom Python logic between calls, such as conditional branching, transforming intermediate data, or stages that fan out over different generated inputs. The file remains useful for those cases; ordinary task lists should use `dynamic_workflow`.

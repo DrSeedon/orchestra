@@ -7,6 +7,7 @@ Usage: python -m app.mcp_stdio
 """
 
 import asyncio
+import base64
 import hashlib
 import json
 import logging
@@ -3146,6 +3147,97 @@ async def task_get(par: str, project: str = "") -> str:
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)
+
+
+@mcp.tool()
+async def dynamic_workflow(
+    tasks: list[dict[str, Any]],
+    mode: str,
+    budget_usd: float,
+    max_calls: int,
+    max_concurrency: int,
+    task_id: str,
+    repo: str,
+) -> str:
+    """Run a bounded set of model tasks without a workflow file. Each task has prompt, optional model (defaults to luna), and optional JSON schema. mode is parallel or chain; chain passes each completed result as structured input to the next task. Completion wakes the caller with short answers and result paths."""
+    if mode not in {"parallel", "chain"}:
+        return "Error: mode must be 'parallel' or 'chain'"
+    if not tasks or len(tasks) > 100:
+        return "Error: tasks must contain between 1 and 100 items"
+    if (not isinstance(budget_usd, (int, float)) or isinstance(budget_usd, bool)
+            or not math.isfinite(budget_usd) or budget_usd <= 0):
+        return "Error: budget_usd must be positive"
+    if not isinstance(max_calls, int) or isinstance(max_calls, bool) or max_calls < 1:
+        return "Error: max_calls must be a positive integer"
+    if not isinstance(max_concurrency, int) or isinstance(max_concurrency, bool) or not 1 <= max_concurrency <= 100:
+        return "Error: max_concurrency must be between 1 and 100"
+    if not task_id or not task_id.strip():
+        return "Error: task_id is required"
+    if re.fullmatch(r"[A-Za-z0-9._-]+", task_id) is None:
+        return "Error: task_id may contain only letters, digits, dot, underscore, and dash"
+    repo_path = Path(repo).expanduser().resolve()
+    if not repo_path.is_dir():
+        return f"Error: repository directory not found: {repo_path}"
+
+    from app.models import get_model_flags, resolve_model
+
+    normalized = []
+    for index, task in enumerate(tasks):
+        if not isinstance(task, dict) or not isinstance(task.get("prompt"), str) or not task["prompt"].strip():
+            return f"Error: tasks[{index}].prompt must be a non-empty string"
+        row = {"prompt": task["prompt"]}
+        model = task.get("model", "luna")
+        if not isinstance(model, str) or not model.strip():
+            return f"Error: tasks[{index}].model must be a non-empty string"
+        try:
+            model_id = resolve_model(model)
+        except (ValueError, TypeError) as error:
+            return f"Error: tasks[{index}].model: {error}"
+        if model_id in {"gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol"}:
+            return f"Error: model '{model}' is not allowed for dynamic workflows"
+        if not get_model_flags(model_id)["agents"]:
+            return f"Error: model '{model}' is not enabled for agents"
+        row["model"] = model_id
+        schema = task.get("schema")
+        if schema is not None:
+            if not isinstance(schema, dict):
+                return f"Error: tasks[{index}].schema must be a JSON object"
+            row["schema"] = schema
+        normalized.append(row)
+
+    runner_root = Path(__file__).resolve().parents[1]
+    run_id = f"{task_id}-{uuid.uuid4().hex[:12]}"
+    spec = json.dumps({"tasks": normalized, "mode": mode}, ensure_ascii=False, separators=(",", ":"))
+    tasks_b64 = base64.urlsafe_b64encode(spec.encode()).decode()
+    if len(tasks_b64) > 64 * 1024:
+        return "Error: encoded tasks exceed the 64 KiB command limit"
+    command_parts = [
+        "env", f"ORCHESTRA_TASK_ID={task_id}", f"ORCHESTRA_SCOPE={SCOPE}",
+        sys.executable, str(runner_root / "scripts" / "wf_run.py"),
+        "--tasks-b64", tasks_b64, "--run-id", run_id,
+        "--budget-usd", f"{budget_usd:g}", "--max-calls", str(max_calls),
+        "--max-concurrency", str(max_concurrency), "--repo", str(repo_path),
+    ]
+    command = shlex.join(command_parts)
+    manifest_path = runner_root / "data" / "workflow-runs" / run_id / "manifest.json"
+    result = await _api("POST", "/api/bg/jobs", json={
+        "type": "run",
+        "config": {
+            "command": command,
+            "cwd": str(repo_path),
+            "success_file": str(manifest_path),
+            "success_pattern": r'"complete"\s*:\s*true',
+        },
+        "message": f"Dynamic workflow {run_id} ({len(tasks)} tasks, {mode})",
+        "target_name": WORKER_NAME,
+        "target_scope": SCOPE,
+        "timeout_seconds": 3600,
+        "created_by": WORKER_NAME,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Error: {result['error']}"
+    return (f"Dynamic workflow queued: run_id={run_id}, job_id={result.get('id', '?')}, "
+            f"tasks={len(tasks)}, mode={mode}. The completion message will include answers and result paths.")
 
 
 @mcp.tool()
