@@ -371,12 +371,6 @@ async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
                 msg.chat.id,
                 thread_id,
             )
-            await _tg_send_safe(
-                config["group_id"],
-                "❌ Сообщение не доставлено: эта тема Telegram не привязана к агенту.",
-                thread_id,
-                important=True,
-            )
         return None, None
     session = await _manager.ensure_loaded_any(orch_name)
     if not session:

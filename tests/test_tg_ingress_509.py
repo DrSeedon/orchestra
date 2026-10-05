@@ -72,7 +72,7 @@ async def test_unknown_nonservice_type_still_reaches_agent(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_unmapped_topic_gets_explicit_non_delivery_reply(monkeypatch, caplog):
+async def test_unmapped_topic_is_logged_without_reply(monkeypatch, caplog):
     message = _message(text="hello", message_thread_id=22884)
     tb.config["group_id"] = message.chat.id
     tb.config["topics"] = {"known": 7}
@@ -85,10 +85,5 @@ async def test_unmapped_topic_gets_explicit_non_delivery_reply(monkeypatch, capl
         orch_name, session = await tb._resolve_orch(message)
 
     assert (orch_name, session) == (None, None)
-    send.assert_awaited_once_with(
-        message.chat.id,
-        "❌ Сообщение не доставлено: эта тема Telegram не привязана к агенту.",
-        22884,
-        important=True,
-    )
+    send.assert_not_awaited()
     assert "unmapped topic" in caplog.text
