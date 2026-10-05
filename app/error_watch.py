@@ -34,6 +34,8 @@ _NOISE = (
     ("TG polling cut by shutdown", re.compile(r"Failed to fetch updates.*ServerDisconnectedError", re.I)),
     ("agent shell syntax", re.compile(r"-c: line (?:\d+|<N>): syntax error", re.I)),
     ("agent missing python package", re.compile(r"File \"<stdin>\".*ModuleNotFoundError", re.I)),
+    # Claude Read on a path the agent guessed wrong; the tool already tells the agent.
+    ("agent read of missing file", re.compile(r"^File does not exist\. Note: your current working directory is", re.I)),
     ("Bash hook fail-open under load", re.compile(r"PreToolUse failed open \(TimeoutError\): classifier deadline", re.I)),
     # uvicorn cuts open SSE connections on every service restart; the chained-traceback
     # line carries no cause of its own — the real exception is logged as a separate line.
