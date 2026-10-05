@@ -46,7 +46,12 @@ def _payload_hash(**payload: object) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
+def _resource(
+    row: sqlite3.Row | dict,
+    *,
+    acceptance: str = "ACCEPTED",
+    connection: sqlite3.Connection | None = None,
+) -> dict:
     error = json.loads(row["error_json"]) if row["error_json"] else None
     provider_ref = row["provider_ref"]
     if isinstance(provider_ref, str) and provider_ref.startswith(_STEERED_PROVIDER_REF_PREFIX):
@@ -62,19 +67,23 @@ def _resource(row: sqlite3.Row | dict, *, acceptance: str = "ACCEPTED") -> dict:
         "status_url": f"/api/message-deliveries/{row['delivery_id']}",
         "provider_ref": provider_ref,
         "error": error,
-        "next_action": _next_action(row),
+        "next_action": _next_action(row, connection=connection),
         **({"stalled": True} if stalled else {}),
     }
 
 
-def _queue_block(row: sqlite3.Row | dict) -> dict:
+def _queue_block(
+    row: sqlite3.Row | dict,
+    *,
+    connection: sqlite3.Connection | None = None,
+) -> dict:
     """Почему принятое сообщение никуда не поедет: неразобранная голова очереди.
 
     Барьер `DELIVERY_UNKNOWN` намеренный (#380 R7), но молчать про него нельзя:
     отправитель получал бодрый `state=QUEUED` на каждое следующее сообщение, воркер
     выглядел живым и глухим, и так простояли 25 часов и три задания.
     """
-    head = _next_target_delivery(row["target_session_id"])
+    head = _next_target_delivery(row["target_session_id"], connection=connection)
     if (
         head is None
         or head["state"] != "DELIVERY_UNKNOWN"
@@ -98,7 +107,11 @@ def _queue_block(row: sqlite3.Row | dict) -> dict:
     }
 
 
-def _next_action(row: sqlite3.Row | dict) -> dict:
+def _next_action(
+    row: sqlite3.Row | dict,
+    *,
+    connection: sqlite3.Connection | None = None,
+) -> dict:
     if row["state"] == "WAITING_NEXT_TURN":
         return {
             "code": "WAITING_NEXT_TURN",
@@ -120,10 +133,10 @@ def _next_action(row: sqlite3.Row | dict) -> dict:
     # поле receipt'а, которое читают потребители остальных доставок и мержей, — второй
     # носитель той же мысли просто никто бы не открыл.
     if row["state"] == "QUEUED":
-        block = _queue_block(row)
+        block = _queue_block(row, connection=connection)
         if block:
             return block
-        head = _next_target_delivery(row["target_session_id"])
+        head = _next_target_delivery(row["target_session_id"], connection=connection)
         if (
             head is not None
             and head["state"] == "WAITING_QUOTA"
@@ -285,7 +298,9 @@ async def accept_message_delivery(
             if not retrying:
                 connection.commit()
                 return _resource(existing, acceptance="ALREADY_ACCEPTED"), 202
-            resource = _resource(existing, acceptance="ALREADY_ACCEPTED")
+            resource = _resource(
+                existing, acceptance="ALREADY_ACCEPTED", connection=connection,
+            )
         if not retrying:
             connection.execute(
                 """INSERT INTO message_deliveries (
@@ -311,7 +326,7 @@ async def accept_message_delivery(
             inserted_row = connection.execute(
                 "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
             ).fetchone()
-            resource = _resource(inserted_row)
+            resource = _resource(inserted_row, connection=connection)
             inserted = True
         connection.commit()
         wake_runner = (inserted or retrying) and quota_wait is None
@@ -375,12 +390,12 @@ def prepare_message_delivery(delivery_id: str) -> dict:
                 "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
             ).fetchone()
         if row["state"] != "PREPARING":
-            return _resource(row)
+            return _resource(row, connection=connection)
         user_log = connection.execute(
             "SELECT content FROM logs WHERE id=?", (row["user_log_id"],)
         ).fetchone()
         return {
-            **_resource(row),
+            **_resource(row, connection=connection),
             "user_log_id": row["user_log_id"],
             "history_user_message": user_log["content"] if user_log else row["rendered_message"],
             "provenance": MessageProvenance.from_storage(
@@ -416,7 +431,7 @@ def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = No
         row = connection.execute(
             "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
         ).fetchone()
-        return _resource(row)
+        return _resource(row, connection=connection)
 
 
 def mark_message_delivery_dispatching(delivery_id: str) -> dict:
@@ -755,15 +770,20 @@ def targets_with_uncertain_delivery() -> set[str]:
         )}
 
 
-def _next_target_delivery(target_session_id: str) -> sqlite3.Row | None:
+def _next_target_delivery(
+    target_session_id: str,
+    *,
+    connection: sqlite3.Connection | None = None,
+) -> sqlite3.Row | None:
     placeholders = ",".join("?" * len(_TERMINAL_DELIVERY_STATES))
-    with db._conn() as connection:
-        return connection.execute(
-            f"""SELECT * FROM message_deliveries
-               WHERE target_session_id=? AND state NOT IN ({placeholders})
-               ORDER BY accept_seq LIMIT 1""",
-            (target_session_id, *_TERMINAL_DELIVERY_STATES),
-        ).fetchone()
+    sql = f"""SELECT * FROM message_deliveries
+             WHERE target_session_id=? AND state NOT IN ({placeholders})
+             ORDER BY accept_seq LIMIT 1"""
+    params = (target_session_id, *_TERMINAL_DELIVERY_STATES)
+    if connection is not None:
+        return connection.execute(sql, params).fetchone()
+    with db._conn() as current:
+        return current.execute(sql, params).fetchone()
 
 
 async def run_message_delivery(delivery_id: str, manager=None) -> None:

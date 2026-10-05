@@ -745,7 +745,7 @@ class TestStop:
         assert session.status == AgentStatus.IDLE
 
     @pytest.mark.asyncio
-    async def test_interrupt_marks_idle_first_and_disconnects_on_missing_ack(self, session):
+    async def test_interrupt_waits_for_terminal_event_and_disconnects_on_missing_ack(self, session):
         from app.session import AgentStatus
 
         observed = {}
@@ -769,10 +769,11 @@ class TestStop:
         await session.interrupt()
         await session._drain_persist()
 
-        assert observed == {"status": AgentStatus.IDLE, "lock": True}
+        assert observed == {"status": AgentStatus.RUNNING, "lock": True}
         assert backend.disconnected is True
         assert session._backend is None
         assert session._turn_start == 0
+        assert session.status == AgentStatus.IDLE
 
     @pytest.mark.asyncio
     async def test_message_waits_for_interrupt_before_starting_clean_turn(self, session):
@@ -808,6 +809,10 @@ class TestStop:
         assert not send_task.done()
 
         release_interrupt.set()
+        await asyncio.sleep(0)
+        assert session.status == AgentStatus.RUNNING
+        assert backend.sent == []
+        session._turns.finish_turn_status()
         await interrupt_task
         await send_task
 
@@ -819,8 +824,12 @@ class TestStop:
     async def test_manual_interrupt_suppresses_stale_auto_report(self, session):
         from app.session import AgentStatus
 
-        backend = AsyncMock()
-        backend.interrupt = AsyncMock(return_value=True)
+        class Backend:
+            async def interrupt(self):
+                session._turns.finish_turn_status()
+                return True
+
+        backend = Backend()
         session._backend = backend
         session.status = AgentStatus.RUNNING
         session.last_task_sender = "parent"
@@ -3316,7 +3325,11 @@ class TestRetryAdmissionRaces:
             entered.set()
             await release.wait()
 
-        backend = SimpleNamespace(events=events, send=AsyncMock(), interrupt=AsyncMock())
+        async def interrupt():
+            session._turns.finish_turn_status()
+            return True
+
+        backend = SimpleNamespace(events=events, send=AsyncMock(), interrupt=interrupt)
         session._backend = backend
         session._reconnect_backend = reconnect
         session.status = AgentStatus.RUNNING
@@ -5304,7 +5317,8 @@ class TestQuotaGatedDeferredTurns:
 
         compact_task = asyncio.create_task(session.compact())
         await backend.sent.wait()
-        await asyncio.wait_for(session.interrupt(), timeout=1)
+        interrupt_task = asyncio.create_task(session.interrupt())
+        await asyncio.wait_for(interrupt_task, timeout=1)
         result = await asyncio.wait_for(compact_task, timeout=1)
 
         assert result["ok"] is False

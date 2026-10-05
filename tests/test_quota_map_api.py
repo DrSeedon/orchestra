@@ -501,12 +501,15 @@ async def test_line_point_is_computed_server_side_for_every_pool(mapped):
     claude = _pool(payload, "anthropic")
     assert claude["window"]["progress"] == pytest.approx(0.5)
     assert claude["tolerance_pp"] == pytest.approx(5.5)
-    assert claude["limit_pct"] == pytest.approx(55.5)
+    assert "limit_pct" not in claude
+    assert _lane(claude, "claude")["limit_pct"] == pytest.approx(55.5)
 
     codex = _pool(payload, "codex")
     assert codex["window"]["progress"] == pytest.approx(0.25)
     assert codex["tolerance_pp"] == pytest.approx(7.75)
-    assert codex["limit_pct"] == pytest.approx(32.75)
+    assert "limit_pct" not in codex
+    from app.quota_gate import line_limit
+    assert _lane(codex, "sol")["limit_pct"] == pytest.approx(line_limit(0.25, "sol"))
 
 
 @pytest.mark.asyncio
@@ -585,7 +588,7 @@ async def test_pool_without_its_window_is_no_data_not_zero(mapped):
     claude = _pool(payload, "anthropic")
     assert claude["data_available"] is False
     assert claude["window"] is None
-    assert claude["limit_pct"] is None and claude["tolerance_pp"] is None
+    assert "limit_pct" not in claude and claude["tolerance_pp"] is None
     assert _model(claude, "claude-opus-5[1m]")["state"] == "unknown"
     assert _pool(payload, "codex")["data_available"] is True
 

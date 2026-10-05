@@ -2066,10 +2066,6 @@ async def build_quota_map() -> dict:
             "window": gating,
             "reference_windows": reference,
             "tolerance_pp": None if progress is None else tolerance_pp(progress, policy),
-            # Справочная прямая пула, а НЕ порог, по которому блокируют: полосы у него
-            # разные (Sol идёт по кривой), и оба потребителя — гейт и панель — читают
-            # `lanes[].limit_pct`. Нарисовать это число значит вернуть то самое расхождение.
-            "limit_pct": None if progress is None else line_limit(progress, policy=policy),
             "trace": {},
             "lanes": sorted(
                 lanes_by_bucket.get(bucket, {}).values(),
@@ -2538,8 +2534,6 @@ async def release_lock_endpoint(req: TestLockRequest):
 
 _restart_tasks: set[asyncio.Task] = set()
 
-# Compatibility field in restart outcomes: worker-turn grace is deliberately zero.
-_DRAIN_DEADLINE_S = 0.0
 RESTART_DURABLE_STATE_BUDGET_S = 30.0
 RESTART_OUTCOME_RECORD_BUDGET_S = 5.0
 # Durable flush and outcome journal are bounded; worker turns add no wait at all.
@@ -2870,7 +2864,7 @@ async def _do_restart_service() -> dict:
         "prepared": True,
         "handed_over": [],
         "waited_s": time.monotonic() - started,
-        "turn_grace_s": _DRAIN_DEADLINE_S,
+        "turn_grace_s": 0.0,
         "cut_turns": len(cut_sessions),
         "cut_names": [session.name for session in cut_sessions],
         "cut_ids": cut_ids,

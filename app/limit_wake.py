@@ -16,7 +16,6 @@ from app.db import (
 )
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.models import backend_for_model
 from app.session_state import AgentStatus
 
 logger = logging.getLogger(__name__)
@@ -39,14 +38,6 @@ def _is_limit_wake_log(row: dict) -> bool:
         and isinstance(detail, dict)
         and detail.get("subtype") == "limit_wake"
     )
-
-
-def _provider_for_model(model: str) -> str:
-    if backend_for_model(model) == "claude":
-        return "anthropic"
-    if model == "gpt-5.3-codex-spark":
-        return "codex_spark"
-    return "codex"
 
 
 def _latest_limit_turn(logs: list[dict]) -> tuple[str, int] | None:
@@ -108,9 +99,17 @@ def find_limit_stopped_agents(
     logs_by_session: dict[str, list[dict]],
 ) -> list[dict]:
     """Return idle agents whose most recent completed turn hit a subscription limit."""
+    from app.quota_gate import quota_bucket_for_model
+
     result = []
     for session in sessions:
         if session.get("status") in {"running", "starting", "archived"}:
+            continue
+        try:
+            provider = quota_bucket_for_model(session["model"])
+        except ValueError:
+            continue
+        if provider is None:
             continue
         limit = _latest_limit_turn(logs_by_session.get(session["id"], []))
         if not limit:
@@ -119,7 +118,7 @@ def find_limit_stopped_agents(
         result.append({
             **session,
             "limit_kind": kind,
-            "provider": _provider_for_model(session["model"]),
+            "provider": provider,
             "limit_turn_id": turn_id,
         })
     return result

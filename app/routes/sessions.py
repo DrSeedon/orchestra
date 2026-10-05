@@ -711,13 +711,12 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
 
 @router.get("/api/sessions/{name}/logs")
-async def get_session_logs(name: str, response: Response, scope: str,
+async def get_session_logs(name: str, request: Request, scope: str,
                            after_id: int = 0, before_id: int = 0,
                            limit: int = 500, max_bytes: int = 0, cap: int = 0):
     # Live chat snapshots are authoritative state, not an asset. A browser/intermediary
     # replaying an older 200 here recreates the exact "old messages, then SSE catches up"
     # staircase that the network-first client is designed to eliminate.
-    response.headers["Cache-Control"] = "no-store"
     limit = min(limit, 1000)
     session_id = manager.get_session_id(name, scope)
     if not session_id:
@@ -740,7 +739,13 @@ async def get_session_logs(name: str, response: Response, scope: str,
                                max(0, min(cap, 1 << 20)))
     else:
         logs = get_logs(session_id, after_id=after_id)
-    return [annotate(log) for log in logs]
+    payload = [annotate(log) for log in logs]
+    body = json.dumps(payload, ensure_ascii=False, default=str, sort_keys=True)
+    tag = '"' + hashlib.md5(body.encode()).hexdigest() + '"'
+    headers = {"ETag": tag, "Cache-Control": "no-store"}
+    if request.headers.get("if-none-match") == tag:
+        return Response(status_code=304, headers=headers)
+    return JSONResponse(payload, headers=headers)
 
 
 @router.get("/api/logs/sync")
@@ -1051,6 +1056,28 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                     quota_wait=quota_wait,
                 )
             return JSONResponse(resource, status_code=status_code)
+        if request is not None:
+            from app.mcp_proof import check_mcp_proof
+
+            source_id = request.headers.get("x-orchestra-session-id", "").strip()
+            source = get_session_row(source_id) if source_id else None
+            authenticated_sender = bool(
+                source and check_mcp_proof(
+                    source_id, request.headers.get("x-orchestra-mcp-proof", "")
+                )
+            )
+            if authenticated_sender:
+                if source["scope"] != req.scope or (
+                    req.sender and req.sender != source["name"]
+                ):
+                    return keyed_auth_required(
+                        "sender and scope must match the authenticated MCP session"
+                    )
+                req = req.model_copy(update={"sender": source["name"]})
+            elif req.sender:
+                return keyed_auth_required(
+                    "sender is derived from a valid MCP proof, not the request body"
+                )
         if req.sender:
             provenance = MessageProvenance(
                 origin="agent", senders=(req.sender,), subtype="http_send",

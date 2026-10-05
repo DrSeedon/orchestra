@@ -101,14 +101,38 @@ async def test_senderless_send_with_invalid_auth_is_unknown(wired):
 
 
 @pytest.mark.asyncio
-async def test_sender_still_wins_over_the_unknown_fallback(wired):
-    """Запасной путь не должен затирать честно названного отправителя."""
+async def test_sender_claim_without_mcp_proof_is_rejected(wired):
     routes, captured = wired
 
-    await routes.send_message(
+    result = await routes.send_message(
         "target",
         routes.SendRequest(message="от агента", scope="/scope", sender="worker-1"),
         request=_request(),
+    )
+
+    assert result.status_code == 403
+    assert captured == []
+
+
+@pytest.mark.asyncio
+async def test_authenticated_mcp_sender_is_derived_without_body_claim(wired, monkeypatch):
+    from app import db
+    from app.mcp_proof import issue_mcp_proof
+    from tests.test_message_delivery_receipts_380 import _session_record
+
+    routes, captured = wired
+    source_id = "authenticated-mcp-sender"
+    monkeypatch.setenv("INTERNAL_TOKEN", "proof-secret")
+    db.save_session(_session_record(
+        session_id=source_id, name="worker-1", scope="/scope", task_id="9",
+    ))
+
+    await routes.send_message(
+        "target", routes.SendRequest(message="от агента", scope="/scope"),
+        request=_request(headers=[
+            (b"x-orchestra-session-id", source_id.encode()),
+            (b"x-orchestra-mcp-proof", issue_mcp_proof(source_id).encode()),
+        ]),
     )
 
     assert captured[0].origin == "agent"
@@ -171,9 +195,9 @@ async def test_dashboard_channel_labels_source_without_claiming_authenticated_us
 @pytest.mark.asyncio
 async def test_dashboard_channel_cannot_override_agent_sender(wired):
     routes, captured = wired
-    await routes.send_message(
+    result = await routes.send_message(
         'target', routes.SendRequest(message='hello', scope='/scope', sender='worker-1', channel='dashboard'),
         request=_request(),
     )
-    assert captured[0].origin == 'agent'
-    assert captured[0].senders == ('worker-1',)
+    assert result.status_code == 403
+    assert captured == []

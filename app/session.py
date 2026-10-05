@@ -2402,9 +2402,6 @@ class AgentSession:
             )
             short = event.content[:80]
             self._turn_logs.append(f"[tool] {short}")
-            tool_name = event.metadata.get("tool_name", event.content)
-            if "send_message" in tool_name or "mcp__orchestra__send_message" in tool_name:
-                self._did_report = True
         elif event.type == "tool_result":
             self._log(
                 "tool_result",
@@ -2413,6 +2410,12 @@ class AgentSession:
                 tool_name=tool_name_for_log or None,
                 tool_is_error=bool(event.metadata.get("is_error")),
             )
+            if (
+                not event.metadata.get("is_error")
+                and ("send_message" in tool_name_for_log
+                     or "mcp__orchestra__send_message" in tool_name_for_log)
+            ):
+                self._did_report = True
         elif event.type == "file_change":
             self._log("tool", f"file: {event.content}")
             self._turn_logs.append(f"[tool] file: {event.content[:60]}")
@@ -2605,26 +2608,48 @@ class AgentSession:
     async def interrupt(self) -> None:
         async with self._lifecycle_lock:
             self._turn_start_cancel_gen += 1
+            was_running = self.status == AgentStatus.RUNNING
             backend = self._backend if (
-                self.status == AgentStatus.RUNNING or self._compacting
+                was_running or self._compacting
             ) else None
-            # Publish the stop before waiting for the SDK control acknowledgement. This
-            # prevents concurrent messages from being injected into the turn being
-            # interrupted; they will start a clean turn after this lock is released.
             self._turns.cancel_auto_report()
             self._cancel_precompact_timer("interrupt")
-            self._turn_start = 0
             self._manually_interrupted = True
-            self.status = AgentStatus.IDLE
-            self._log("status", "interrupted")
+            self._log("status", "interrupt requested")
             self._persist()
-            self._turns.publish_turn_finished()
 
             if backend:
-                acknowledged = await backend.interrupt()
-                if acknowledged is False and self._backend is backend:
+                try:
+                    acknowledged = await backend.interrupt()
+                except Exception as error:
+                    self._log(
+                        "error",
+                        f"interrupt failed: {type(error).__name__}: {error}",
+                    )
+                    acknowledged = False
+                if (
+                    acknowledged is False
+                    and self._backend is backend
+                    and (self.status == AgentStatus.RUNNING or self._compacting)
+                ):
                     self._log("error", "interrupt was not acknowledged; disconnecting backend")
                     await self._disconnect_backend()
+                    if was_running and self.status == AgentStatus.RUNNING:
+                        self._finish_failed_running_turn(
+                            "interrupt was not acknowledged; backend disconnected"
+                        )
+            elif was_running:
+                self._finish_failed_running_turn(
+                    "running turn had no backend during interrupt"
+                )
+
+            if self.status == AgentStatus.RUNNING:
+                await self.wait_for_turn_completion()
+            elif not was_running:
+                self._turn_start = 0
+                self._log("status", "interrupted")
+                self._persist()
+                self._turns.publish_turn_finished()
 
     async def _compaction_permit(self, *, reserve: bool = False):
         # Сжатие не проходит через квотный гейт (решение владельца V-640):
