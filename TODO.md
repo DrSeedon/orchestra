@@ -20,6 +20,7 @@
 - Устаревшие копии скиллов в Claude-worktree — OPEN-DEFECT, [T108](.orchestra/tasks/V-698/triage.md#t108). Доказательство: `71a008fe:TODO.md:L156 (worktree copy behavior; stale skill report)`.
 
 ## Merge gate и операции
+- worker_wip и kill_worker падают «cannot resolve git common dir for /home/kesha/archive», если worktree воркера прицеплен к bare-репозиторию (comfy, `/home/kesha/archive/comfy-monorepo.git`, перецеплено 19.09): платформа берёт родительский каталог bare-репо вместо него самого. Обход 05.10 у comfy-image-orchestrator-vps: `git worktree remove` руками, затем `kill_worker(force)`.
 - Гейт мутации при мерже (app/merge_test_gate.py) передаёт pytest УДАЛЁННЫЕ тест-фай… — OPEN-DEFECT, [T012](.orchestra/tasks/V-698/triage.md#t012). Доказательство: `app/merge_test_gate.py:225,574-577`; отчёт: `.orchestra/tasks/...`.
 - Два правила гейта мержа противоречат друг другу: «домержи main, если ветка отстала… — OPEN-DEFECT, [T020](.orchestra/tasks/V-698/triage.md#t020). Доказательство: `71a008fe:TODO.md:L38; current prompt pair to reconcile`.
 - merge_worker в состоянии PENDING читается агентами как провал, потому что объяснен… — OPEN-DEFECT, [T072](.orchestra/tasks/V-698/triage.md#t072). Доказательство: `71a008fe:TODO.md:L112 (PENDING result rendering incident)`.
