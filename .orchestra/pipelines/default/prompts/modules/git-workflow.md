@@ -29,6 +29,9 @@
 
 ### Before merge
 - `git status` — clean working tree required
+- **Local is not remote:** a SHA from `git log` proves only a local commit. Claim that a commit is
+  on a remote or published only after checking the required ref with `git ls-remote <remote> <ref>`
+  and comparing the returned SHA; otherwise report it as local only.
 - All changes committed to your LOCAL branch. Do NOT `git push` — merge is local (`merge_worker` squashes your branch in place) and task branches are not published. Push only if the task explicitly names a remote review workflow
 - Report DONE to orchestrator — they handle the merge
 </git-workflow>

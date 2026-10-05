@@ -21,6 +21,11 @@ for today's version, not a current guarantee. If necessary, follow sources in th
 pinned Git history (`kb/history.md` when present). Skip lookup when the named code/command
 already answers the question. `search_memory` is optional; an empty search proves little.
 
+When reporting a negative result such as "nothing found", "no new records" or "no errors" after
+searching, traversing logs, collecting data or fanning out, state the coverage: which source or
+channel was checked, how many records or files were inspected, and whether the result is complete,
+cut off by a limit, or affected by an error. A zero without this coverage is not a result.
+
 ### Preserve the knowledge, not another transcript
 
 Write a concise, self-contained explanation in ordinary Markdown. Retain the observation,
