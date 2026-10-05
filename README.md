@@ -259,12 +259,12 @@ An idle agent costs nothing: Claude and Codex workers hibernate after their idle
 Agents file platform bugs through `report_bug`. Reports land in the service state directory outside every Git checkout — one immutable record per report, published by atomic rename — so a bug filed mid-task can never dirty a worktree and block merges. Unread reports raise a banner in the dashboard.
 
 ### 🧠 Project Memory
-Agents search past work across task docs, project rules and prior agent messages before they start.
-Retrieval is lexical: plain `rg` over the knowledge base, which is written for that — one fact per
-line, with exact paths, symbols and the command that proves it.
+Agents search past work in project rules, the knowledge base and task reports before they start.
+Retrieval is lexical: plain `rg` over those files, with exact paths, symbols and commands that
+make findings easy to retrieve.
 
-The vector index and its ML dependencies have been removed. `search_memory` reads project
-Markdown and the original SQLite logs directly; edits are visible without reindexing.
+The vector index and its ML dependencies have been removed. Search project knowledge and task
+reports directly with `rg`; edits are visible immediately without reindexing.
 Tasks have one private Git store and one projection in the runtime SQLite database.
 Existing installations first prepare a conversion with `python -m scripts.migrate_task_storage`.
 After stopping the old service, `python -m scripts.finalize_task_storage` copies fresh runtime data

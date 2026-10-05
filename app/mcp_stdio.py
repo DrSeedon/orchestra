@@ -42,11 +42,6 @@ logger = logging.getLogger("orchestra-mcp")
 
 ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
-# Дедлайн ТОЛЬКО для search_memory (общий дефолт _api = 30 с не трогаем).
-# 5 с = 1.9× от худшего здорового наблюдения 2659 мс при 8 одновременных клиентах,
-# замер 03.08.2026 .orchestra/tasks/18/measurements/search-latency-p8.log. Привязан к 8 ядрам
-# и текущему размеру индекса — меняется железо, перемеряй, а не подкручивай.
-SEARCH_DEADLINE_S = 5.0
 MESSAGE_FILE_MAX_BYTES = 64 * 1024
 DISABLED_TOOLS = parse_disabled_tools(os.environ.get("ORCHESTRA_DISABLED_TOOLS", "[]"))
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
@@ -99,7 +94,6 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "task_list",
     "task_get",
     "bg_list",
-    "search_memory",
     "delivery_status",
     "message_delivery_status",
     "file_delivery_status",
@@ -109,7 +103,6 @@ REDUCER_MCP_TOOLS = frozenset({
     "send_message",
     "update_progress",
     "list_agents",
-    "search_memory",
 })
 
 
@@ -3276,51 +3269,6 @@ async def bg_cancel(job_id: str) -> str:
     if isinstance(result, dict) and result.get("error"):
         return f"Cancel failed: {result['error']}"
     return f"Job {job_id} cancelled."
-
-
-@mcp.tool()
-async def search_memory(query: str, limit: int = 5, cross_project: bool = False) -> str:
-    """Optional literal search: current KB, personal notes, task evidence, then source logs.
-    File hits identify their area and matching line. Archives require targeted file search.
-    """
-    # scope НЕ параметр: берём ORCHESTRA_SCOPE из env воркера → нельзя запросить чужой проект.
-    if not SCOPE:
-        return "search_memory: no project scope (orchestrator context) — nothing to search."
-    body = {"scope": SCOPE, "query": query, "limit": limit, "cross_project": cross_project}
-    # Подсказка одна на все отказы: агент обязан уйти в grep, а не ждать и не повторять вызов.
-    grep = f"ищи точным якорем: rg -n -i -F -- {shlex.quote(query)} .orchestra/kb/"
-    try:
-        result = await _api("POST", "/api/memory/search", json=body,
-                            timeout=SEARCH_DEADLINE_S)
-    except ApiToolError as e:
-        # _api поднимает ApiToolError и на 5xx, и на payload["error"] — ловить надо ЗДЕСЬ.
-        # Раньше исключение улетало наружу, и агент получал голое имя класса после 30 с.
-        if e.code in ("transport_timeout", "search_busy", "search_stale"):
-            reason = {"transport_timeout": f"поиск не уложился в {SEARCH_DEADLINE_S:.0f} с",
-                      "search_busy": "очередь поиска переполнена",
-                      "search_stale": "запрос протух в очереди"}[e.code]
-            return f"search_memory: {reason}. Не жди и не повторяй — {grep}"
-        return f"search_memory: {e.code} — {e.message}. {grep}"
-    hits = result.get("results", []) if isinstance(result, dict) else []
-    if not hits:
-        return f"No memory matches for: {query!r}. Проверь — {grep}"
-    lines = []
-    for h in hits:
-        if h.get("source") == "file":
-            location = str(h.get("path"))
-            if h.get("line"):
-                location += f":{h['line']}"
-            head = f"[file: {location}]"
-            if h.get("area"):
-                head += f" ({h['area']})"
-        else:
-            author = h.get("author")
-            tag = f"{h.get('kind')}" + (f" from {author}" if author else "")
-            head = f"[log: {tag}]"
-        if cross_project:
-            head = f"({h.get('project')}) {head}"
-        lines.append(f"{head}\n{h.get('content', '').strip()}")
-    return "\n\n---\n\n".join(lines)
 
 
 # Wrapper reloads Orchestra .env on every invocation, so Codex review follows the same
