@@ -1,0 +1,25 @@
+interval_seconds=60.7 total_write_bytes=245121024 projected_bytes_per_day=348800736315
+76320768 pid=3437625 cmd=<process command line omitted>
+66330624 pid=3556748 cmd=<process command line omitted>
+50012160 pid=3549376 cmd=<process command line omitted>
+10240000 pid=3539745 cmd=<process command line omitted>
+7094272 pid=3509661 cmd=<process command line omitted>
+6819840 pid=3511534 cmd=<process command line omitted>
+5791744 pid=3509277 cmd=<process command line omitted>
+5296128 pid=3547332 cmd=<process command line omitted>
+2822144 pid=3518794 cmd=<process command line omitted>
+2727936 pid=3526154 cmd=<process command line omitted>
+2658304 pid=3422573 cmd=<process command line omitted>
+2539520 pid=3510104 cmd=<process command line omitted>
+1691648 pid=3495802 cmd=<process command line omitted>
+1675264 pid=1553810 cmd=<process command line omitted>
+1626112 pid=3438504 cmd=<process command line omitted>
+720896 pid=3550266 cmd=<process command line omitted>
+479232 pid=3438964 cmd=<process command line omitted>
+208896 pid=3511227 cmd=<process command line omitted>
+24576 pid=3550361 cmd=<process command line omitted>
+24576 pid=3464959 cmd=<process command line omitted>
+You are an AI agent running inside Orchestra — a multi-agent orchestration platform.
+
+**Comm
+16384 pid=909553 cmd=<process command line omitted>

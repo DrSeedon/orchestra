@@ -1,0 +1,9 @@
+7.6G	/home/kesha/.cache
+1.3G	/home/kesha/.npm
+106M	/home/kesha/.local/share/uv
+14G	/home/kesha/.orchestra/codex-home
+4.4G	/home/kesha/.local/share/Trash
+du: cannot access '/home/kesha/.Trash': No such file or directory
+93G	/home/kesha/orchestra/worktrees
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/sda1       290G  290G  501M 100% /
