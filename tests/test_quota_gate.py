@@ -270,6 +270,71 @@ def test_line_is_norm_plus_tolerance_and_never_exceeds_the_hard_stop():
     assert line_limit(1.0) == HARD_STOP_PCT
 
 
+def test_claude_weekly_line_is_shifted_eight_hours_but_other_lanes_are_unchanged():
+    progress = 0.5
+    baseline = 100.0 * progress + tolerance_pp(progress)
+    shifted = line_limit(progress, "claude")
+
+    assert shifted - baseline == pytest.approx(91.0 * 8.0 / 168.0)
+    assert line_limit(progress) == pytest.approx(baseline)
+    assert quota_gate.line_release_progress(101.0) == pytest.approx(1.0)
+    assert line_limit(progress, "sol") == pytest.approx(
+        progress ** (1.0 / quota_gate.CURVE_EXPONENT) * 100.0 + tolerance_pp(progress)
+    )
+
+
+def test_claude_release_prediction_uses_shifted_line_and_plateau_at_hard_stop():
+    line_crossing_progress = 0.6
+    utilization = line_limit(line_crossing_progress, "claude")
+    assert quota_gate.line_release_progress(utilization, "claude") == pytest.approx(
+        line_crossing_progress
+    )
+
+    reset_at = NOW + WEEK_SECONDS * (1.0 - 0.95)
+    status, seconds = _line_release_in_seconds(
+        utilization=98.9,
+        progress=0.95,
+        gated=True,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=10080,
+        reset_at=reset_at,
+        now=NOW,
+        lane="claude",
+    )
+    assert status == "open" and seconds is None
+
+    status, seconds = _line_release_in_seconds(
+        utilization=98.9,
+        progress=0.92,
+        gated=True,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=10080,
+        reset_at=reset_at,
+        now=NOW,
+        lane="claude",
+    )
+    assert status == "opens_in"
+    assert seconds == pytest.approx(
+        (quota_gate.line_release_progress(98.9, "claude") - 0.92) * WEEK_SECONDS
+    )
+
+
+def test_claude_hard_stop_still_waits_for_reset_despite_early_line_plateau():
+    reset_at = NOW + 3600
+    status, seconds = _line_release_in_seconds(
+        utilization=HARD_STOP_PCT,
+        progress=0.92,
+        gated=True,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=10080,
+        reset_at=reset_at,
+        now=NOW,
+        lane="claude",
+    )
+    assert status == "at_reset"
+    assert seconds == pytest.approx(3600)
+
+
 def _line_release_expected(
     utilization: float,
     progress: float,
@@ -723,7 +788,7 @@ def _no_gate_override():
 
 
 def test_gate_override_admits_a_worker_the_line_refused():
-    providers = _providers(claude=23.0, progress=0.1385)
+    providers = _providers(claude=27.0, progress=0.1385)
     assert _decide("claude-opus-5", providers).state == "blocked"
 
     quota_gate.set_gate_override(1800.0, now=NOW)
@@ -736,7 +801,7 @@ def test_gate_override_admits_a_worker_the_line_refused():
 
 
 def test_gate_override_expires_on_its_own_without_being_cleared():
-    providers = _providers(claude=23.0, progress=0.1385)
+    providers = _providers(claude=27.0, progress=0.1385)
     quota_gate.set_gate_override(60.0, now=NOW)
     assert _decide("claude-opus-5", providers, now=NOW + 59).state == "available"
 
