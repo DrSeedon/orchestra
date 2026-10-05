@@ -14,12 +14,12 @@ reason that cannot be recovered by ordinary source reading.
 
 ### Find the relevant experience
 
-Use the injected topic index, then search exact symbols, errors or distinctive terms:
-`rg -n -i -F -e '<symbol>' -e '<symptom>' .orchestra/kb`.
+Use the injected topic index, then search exact symbols, errors or distinctive terms in the knowledge base and task reports:
+`rg -n -i -F -e '<symbol>' -e '<symptom>' .orchestra/kb .orchestra/tasks`.
 Read the matching section with its conditions and evidence. Historical behavior is a hypothesis
 for today's version, not a current guarantee. If necessary, follow sources in the task or
 pinned Git history (`kb/history.md` when present). Skip lookup when the named code/command
-already answers the question. `search_memory` is optional; an empty search proves little.
+already answers the question. Search `.orchestra/kb/` and `.orchestra/tasks/` with `rg`; no matches do not prove that an idea is new.
 
 When reporting a negative result such as "nothing found", "no new records" or "no errors" after
 searching, traversing logs, collecting data or fanning out, state the coverage: which source or

@@ -38,17 +38,17 @@ async def test_worker_policy_and_stable_catalog(monkeypatch):
     server = m.OrchestraMCP('probe')
     calls = []
 
-    @server.tool(name='search_memory')
+    @server.tool(name='sentinel_tool')
     async def sentinel() -> str:
         calls.append(True)
         return 'executed'
 
     before = await server.list_tools()
-    monkeypatch.setattr(m, 'DISABLED_TOOLS', ['search_memory'])
-    denied = await server.call_tool('search_memory', {})
+    monkeypatch.setattr(m, 'DISABLED_TOOLS', ['sentinel_tool'])
+    denied = await server.call_tool('sentinel_tool', {})
     assert denied.isError and calls == []
     monkeypatch.setattr(m, 'DISABLED_TOOLS', [])
-    assert not (await server.call_tool('search_memory', {})).isError
+    assert not (await server.call_tool('sentinel_tool', {})).isError
     assert calls == [True]
     assert await server.list_tools() == before
 

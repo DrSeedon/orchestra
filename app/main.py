@@ -517,7 +517,6 @@ from app.routes.sessions import router as sessions_router
 from app.routes.system import router as system_router
 from app.routes.tg import router as tg_router
 from app.routes.subagent import router as subagent_router
-from app.routes.memory import router as memory_router
 from app.routes.merge_operations import router as merge_operations_router
 from app.routes.artifacts import router as artifacts_router
 from app.routes.attention import router as attention_router
@@ -528,7 +527,6 @@ app.include_router(sessions_router)
 app.include_router(system_router)
 app.include_router(tg_router)
 app.include_router(subagent_router)
-app.include_router(memory_router)
 app.include_router(merge_operations_router)
 app.include_router(artifacts_router)
 app.include_router(attention_router)

@@ -1872,8 +1872,7 @@ class SessionManager:
                 "<role>" in old_without_memory
                 and "</role>" in old_without_memory
                 and (
-                    ("<memory-search>" in old_without_memory and "</memory-search>" in old_without_memory)
-                    or ("<knowledge>" in old_without_memory and "</knowledge>" in old_without_memory)
+                    ("<knowledge>" in old_without_memory and "</knowledge>" in old_without_memory)
                 )
             ):
                 # Pre-overlay pipeline prompts are identifiable by their complete platform

@@ -24,7 +24,7 @@ FORBIDDEN = {
     "release_test_lock", "task_create", "task_update",
     "resolve_merge_operation",
 }
-REQUIRED = {"send_message", "update_progress", "list_agents", "search_memory"}
+REQUIRED = {"send_message", "update_progress", "list_agents"}
 
 
 def _mcp():
