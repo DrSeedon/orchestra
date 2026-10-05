@@ -5,24 +5,32 @@ At spawn and on description updates, `description` MUST start with `lifecycle=on
 `lifecycle=persistent`. Names, prefixes, and roles never determine lifecycle; an unmarked legacy
 worker is `persistent`.
 
-**Killing is the exception, not the end of every task** (owner decision, 05.10.2026). The trigger:
-an orchestrator on a game-fixing project kept spawning and killing Opus workers task after task, so
-every new fix started cold and re-read the project from zero. An idle worker costs nothing; its
-warm context about the project is the value. So choose `lifecycle=one-shot` only when the whole
-line of work is truly closed: a single investigation, a one-off fix in a project you will not
-touch again. Ongoing work on a project or module (a game being fixed, a feature with follow-ups,
-anything where more tasks are likely) is `lifecycle=persistent`; after merge, send the next task
-of that project to the same worker instead of spawning a new one.
+**Killing is the exception, not the end of every task** (owner decision, 05.10.2026). The trigger
+was an orchestrator on a game-fixing project spawning and killing Opus workers for every task, so
+each new fix started with a cold reread of the project. An idle worker costs nothing; its warm
+context is the value. Choose `lifecycle=one-shot` only when the whole line of work is truly
+closed: a single investigation or a one-off fix in a project you will not touch again. Ongoing
+work on a project or module is `lifecycle=persistent`; after merge, send the next task of that
+project to the same worker instead of spawning a new one.
 
-Before every `kill_worker`, follow in order:
-1. Run `worker_wip(name)`. Dirty files or unmerged commits → commit/merge or use reversible
-   `stop_worker`; do not kill.
-2. RESEARCH DONE / PLAN READY / “awaiting approval” / STOP without later final DONE → never kill;
-   the worker has a next phase.
-3. `lifecycle=one-shot` → kill only after final DONE, successful merge, `idle`, and clean WIP,
-   AND only if no further task in that project or area is expected. If more work there is
-   likely, relabel the worker `lifecycle=persistent` instead of killing it.
-4. `lifecycle=persistent` or unmarked → keep idle; kill only on explicit user cleanup/kill.
+**Owner decision, 2026-10-05 (cleanup clarification):** Accumulated idle workers filled the disk,
+so the activity boundary is now explicit. A persistent line is active when a task arrived within
+the last 72 hours or the task queue has a `new`/`in_progress` task for that line. An unmarked
+legacy worker is treated as persistent, so the same activity test applies. Review this rule after
+every `merge_worker(task_outcome="complete")` and at the beginning of every session, including
+after compaction or restart.
+
+At each review, run `list_agents` and inspect every idle worker with no attached task:
+1. `lifecycle=one-shot` → kill immediately.
+2. `lifecycle=persistent` or unmarked → kill when the line has had no task for 72 hours and its
+   queue has no `new`/`in_progress` task. Otherwise keep it idle for the active line.
+
+Before killing, run `worker_wip(name)`. Uncommitted files always block the kill: commit them or
+use reversible `stop_worker` first. A clean worktree with old unmerged commits that conflict with
+`main` and are obsolete because the same task was merged in another version does not block the
+kill; the stale branch stays in Git and may be killed with force. Any other unmerged work must be
+merged or stopped before killing. RESEARCH DONE, PLAN READY, “awaiting approval”, or STOP without
+a later final DONE also blocks the kill because the worker has a next phase.
 
 `stop_worker` preserves the session/worktree; `kill_worker` archives permanently. The gate applies
 even during requested cleanup. If you spawn children, you own their merge/kill lifecycle.
