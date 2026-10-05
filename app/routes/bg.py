@@ -1,5 +1,7 @@
 """Background Jobs API routes."""
 
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -46,6 +48,18 @@ async def bg_job_create(req: BgJobCreateRequest, request: Request = None):
     target = get_session(session_id) or {}
     run = assignment(scope, session_id, str(target.get("task_id") or ""))
     config = dict(req.config)
+    if req.type == "run" and not config.get("host"):
+        caller_session_id = request.headers.get("x-orchestra-session-id", "") if request else ""
+        caller = get_session(caller_session_id) if caller_session_id else None
+        caller = caller or target
+        candidates = (caller.get("worktree_path"), caller.get("cwd"), caller.get("scope"))
+        cwd = next((Path(path) for path in candidates if path and Path(path).is_dir()), None)
+        if cwd is None:
+            return JSONResponse(
+                {"error": "no existing caller worktree, cwd, or scope directory for local run"},
+                status_code=400,
+            )
+        config["cwd"] = str(cwd)
     config.pop("review_receipt_id", None)
     receipt = review_receipt_get(req.receipt_id) if req.receipt_id else None
     review_job = req.type == "run" and bool(req.receipt_id)

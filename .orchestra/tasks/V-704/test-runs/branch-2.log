@@ -1,0 +1,47 @@
+RC=1
+STDOUT:
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestPidfdProcessLifecycle.test_live_leader_and_child_are_terminated_but_unrelated_survives _
+
+self = <tests.test_bg_jobs.TestPidfdProcessLifecycle object at 0x73a37514cd10>
+
+        @pytest.mark.asyncio
+        async def test_live_leader_and_child_are_terminated_but_unrelated_survives(self):
+            from app.bg_jobs import _kill_proc, _spawn_bg_process
+    
+            code = """
+    import os
+    import time
+    child = os.fork()
+    if child == 0:
+        time.sleep(30)
+        os._exit(0)
+    print(child, flush=True)
+    time.sleep(30)
+    """
+            proc = await _spawn_bg_process(
+                [sys.executable, "-c", code],
+                shell=False,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.DEVNULL,
+            )
+            child_pid = int((await asyncio.wait_for(proc.stdout.readline(), 2)).decode())
+            unrelated = await asyncio.create_subprocess_exec(
+                "/bin/sleep", "30", start_new_session=True,
+            )
+            try:
+                await _kill_proc(proc)
+                assert proc.returncode == -signal.SIGTERM
+>               assert not os.path.exists(f"/proc/{child_pid}")
+E               AssertionError: assert not True
+E                +  where True = <function exists at 0x73a37790f6a0>('/proc/3565888')
+E                +    where <function exists at 0x73a37790f6a0> = <module 'posixpath' (frozen)>.exists
+E                +      where <module 'posixpath' (frozen)> = os.path
+
+tests/test_bg_jobs.py:1172: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_bg_jobs.py::TestPidfdProcessLifecycle::test_live_leader_and_child_are_terminated_but_unrelated_survives
+1 failed in 8.34s
+
+STDERR:

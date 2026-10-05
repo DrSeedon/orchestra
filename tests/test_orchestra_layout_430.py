@@ -241,6 +241,34 @@ def test_t1_partial_missing_and_dirty_states_are_loud_and_repairable(tmp_path: P
         assert dirty_files[name].read_bytes() == before_bytes[name]
 
 
+def test_t146_mixed_state_repair_gives_manual_resolution_instead_of_loop(tmp_path: Path):
+    repo = _old_layout_repo(tmp_path, "mixed")
+    (repo / ".orchestra/tasks").mkdir(parents=True)
+    (repo / ".orchestra/tasks/existing.md").write_text("new tree\n", encoding="utf-8")
+    (repo / ".orchestra/layout.json").write_text(
+        '{"schema_version":1,"layout":".orchestra",'
+        '"managed_paths":["tasks"]}\n',
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-qm", "mixed layout")
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts/migrate_orchestra_layout.py"),
+         "--repair", str(repo)],
+        capture_output=True, text=True,
+    )
+
+    assert result.returncode == 2
+    payload = json.loads(result.stdout)
+    assert payload["code"] == "ORCHESTRA_LAYOUT_PARTIAL"
+    assert "automatic merge is unsafe" in payload["error"]
+    assert "Manually move non-conflicting entries" in payload["repair_command"]
+    assert "migrate_orchestra_layout.py" not in payload["repair_command"]
+    assert (repo / "docs/tasks/tasks.md").read_text() == "tasks\n"
+    assert (repo / ".orchestra/tasks/existing.md").read_text() == "new tree\n"
+
+
 def test_t1_dirty_check_occurs_inside_repository_mutation_lock(tmp_path: Path, monkeypatch):
     layout = _layout_module()
     repo = _old_layout_repo(tmp_path, "race")

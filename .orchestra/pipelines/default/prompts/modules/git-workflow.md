@@ -13,6 +13,7 @@
   Change files required by the approved outcome, including shared config and tests.
   Respect explicit task exclusions and explain unexpected changes.
 - Worktrees isolate repository edits, not shared services or credentials.
+- Do not use `git stash` in repositories with linked worktrees: the stash stack is shared by all of them. Keep unfinished work in your task branch or in a task-local patch.
 
 ### Conflict prevention
 - Coordinate overlapping edits and interfaces with the relevant worker; file overlap alone

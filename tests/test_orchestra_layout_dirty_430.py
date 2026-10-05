@@ -100,6 +100,43 @@ def test_t4_forced_dirty_migration_preserves_bytes_status_and_commit_scope(tmp_p
     assert _git(repository, "stash", "list").stdout == ""
 
 
+def test_t004_migration_error_after_stash_restores_dirty_files_immediately(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    repository = tmp_path / "failed-migration"
+    (repository / "docs/kb").mkdir(parents=True)
+    (repository / "docs/kb/fact.md").write_text("BASE\n", encoding="utf-8")
+    _git(repository, "init", "-q")
+    _git(repository, "config", "user.email", "task704@example.invalid")
+    _git(repository, "config", "user.name", "task704")
+    _git(repository, "add", "-A")
+    _git(repository, "commit", "-qm", "old layout")
+    tracked = repository / "docs/kb/fact.md"
+    tracked.write_text("USER CONTENT\n", encoding="utf-8")
+    untracked = repository / "docs/kb/draft.md"
+    untracked.write_text("UNTRACKED CONTENT\n", encoding="utf-8")
+
+    original = layout._ensure_managed_placeholders
+    failed = False
+
+    def fail_once(repo: Path, managed: list[str]) -> None:
+        nonlocal failed
+        if not failed:
+            failed = True
+            raise RuntimeError("injected failure after stash")
+        original(repo, managed)
+
+    monkeypatch.setattr(layout, "_ensure_managed_placeholders", fail_once)
+    with pytest.raises(RuntimeError, match="injected failure after stash"):
+        layout.migrate_project_layout_preserving_dirty(repository)
+
+    assert failed
+    assert (repository / ".orchestra/kb/fact.md").read_text() == "USER CONTENT\n"
+    assert (repository / ".orchestra/kb/draft.md").read_text() == "UNTRACKED CONTENT\n"
+    assert _git(repository, "stash", "list").stdout == ""
+    assert not layout._preserve_journal_path(repository).exists()
+
+
 def test_restore_content_mismatch_keeps_the_preserved_stash(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):

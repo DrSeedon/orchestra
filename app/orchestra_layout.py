@@ -110,8 +110,10 @@ class LayoutMigrationError(RuntimeError):
         )
 
 
-def _raise(code: str, repository: Path, detail: str) -> None:
-    raise LayoutMigrationError(code, repository, detail)
+def _raise(
+    code: str, repository: Path, detail: str, repair_command: str = ""
+) -> None:
+    raise LayoutMigrationError(code, repository, detail, repair_command)
 
 
 def _git_root(repository: Path) -> Path:
@@ -979,7 +981,9 @@ def migrate_project_layout(
             _raise(
                 "ORCHESTRA_LAYOUT_PARTIAL",
                 repository,
-                f"both old and new paths exist: {duplicate}",
+                f"both old and new paths exist: {duplicate}; automatic merge is unsafe",
+                "Manually move non-conflicting entries from the old paths into .orchestra/, "
+                "resolve same-name conflicts, remove empty old directories, then rerun --repair",
             )
 
         try:
@@ -1160,73 +1164,82 @@ def migrate_project_layout_preserving_dirty(
             "status_short": status_before,
         }
         _write_preserve_journal(preserve_journal, journal)
-        _run(repository, "stash", "push", "--include-untracked", "-m", stash_message)
-        stash_oid = _stash_oid_for_message(repository, stash_message) or ""
-        journal.update({"phase": "stashed", "stash_oid": stash_oid})
-        _write_preserve_journal(preserve_journal, journal)
-        residual = _status_records(repository)
-        unexpected = [record for record in residual if record not in before_records]
-        if unexpected:
-            _raise(
-                "ORCHESTRA_LAYOUT_GIT_ERROR",
-                repository,
-                "stash left changes outside the preserve snapshot; "
-                f"stash={stash_oid} unexpected={unexpected[:5]}",
-            )
-
-        _ensure_managed_placeholders(repository, managed_before)
-        state, _ = _layout_state(repository)
-        result = migrate_project_layout(
-            repository,
-            repair=state == "partial",
-            _lock=False,
-            _allow_dirty=True,
-            live_session_ids=live_session_ids,
-        )
-        journal.update({"phase": "migrated", "migration_commit": result.get("commit", "")})
-        _write_preserve_journal(preserve_journal, journal)
-
-        if stash_oid:
-            _restore_preserved_stash(repository, source_head, stash_oid)
-            index_tree = f"{stash_oid}^2"
-            dirty_paths = set(_diff_paths(repository, source_head, index_tree))
-            dirty_paths.update(_diff_paths(repository, index_tree, stash_oid))
-            _verify_restored_stash(
-                repository,
-                stash_oid,
-                dirty_paths,
-                _untracked_stash_paths(repository, stash_oid),
-            )
-        expected_records = _mapped_status_records(before_records)
-        observed_records = sorted(
-            _status_records(repository),
-            key=lambda item: (item["path"], item["xy"], item.get("original", "")),
-        )
-        status_after = _run(repository, "status", "--short").stdout.splitlines()
-        if observed_records != expected_records:
-            _raise(
-                "ORCHESTRA_LAYOUT_GIT_ERROR",
-                repository,
-                "dirty status changed while restoring preserved work; "
-                f"stash={stash_oid} expected={expected_records[:5]} "
-                f"observed={observed_records[:5]}",
-            )
-        if stash_oid:
-            stash_ref = _stash_ref(repository, stash_oid)
-            if stash_ref is None:
+        stash_oid = ""
+        try:
+            _run(repository, "stash", "push", "--include-untracked", "-m", stash_message)
+            stash_oid = _stash_oid_for_message(repository, stash_message) or ""
+            journal.update({"phase": "stashed", "stash_oid": stash_oid})
+            _write_preserve_journal(preserve_journal, journal)
+            residual = _status_records(repository)
+            unexpected = [record for record in residual if record not in before_records]
+            if unexpected:
                 _raise(
                     "ORCHESTRA_LAYOUT_GIT_ERROR",
                     repository,
-                    f"preserved stash disappeared before verification: {stash_oid}",
+                    "stash left changes outside the preserve snapshot; "
+                    f"stash={stash_oid} unexpected={unexpected[:5]}",
                 )
-            _run(repository, "stash", "drop", "-q", stash_ref)
-        preserve_journal.unlink()
-        return {
-            **result,
-            "dirty_preserved": True,
-            "dirty_status_before": status_before,
-            "dirty_status_after": status_after,
-        }
+
+            _ensure_managed_placeholders(repository, managed_before)
+            state, _ = _layout_state(repository)
+            result = migrate_project_layout(
+                repository,
+                repair=state == "partial",
+                _lock=False,
+                _allow_dirty=True,
+                live_session_ids=live_session_ids,
+            )
+            journal.update({"phase": "migrated", "migration_commit": result.get("commit", "")})
+            _write_preserve_journal(preserve_journal, journal)
+
+            if stash_oid:
+                _restore_preserved_stash(repository, source_head, stash_oid)
+                index_tree = f"{stash_oid}^2"
+                dirty_paths = set(_diff_paths(repository, source_head, index_tree))
+                dirty_paths.update(_diff_paths(repository, index_tree, stash_oid))
+                _verify_restored_stash(
+                    repository,
+                    stash_oid,
+                    dirty_paths,
+                    _untracked_stash_paths(repository, stash_oid),
+                )
+            expected_records = _mapped_status_records(before_records)
+            observed_records = sorted(
+                _status_records(repository),
+                key=lambda item: (item["path"], item["xy"], item.get("original", "")),
+            )
+            status_after = _run(repository, "status", "--short").stdout.splitlines()
+            if observed_records != expected_records:
+                _raise(
+                    "ORCHESTRA_LAYOUT_GIT_ERROR",
+                    repository,
+                    "dirty status changed while restoring preserved work; "
+                    f"stash={stash_oid} expected={expected_records[:5]} "
+                    f"observed={observed_records[:5]}",
+                )
+            if stash_oid:
+                stash_ref = _stash_ref(repository, stash_oid)
+                if stash_ref is None:
+                    _raise(
+                        "ORCHESTRA_LAYOUT_GIT_ERROR",
+                        repository,
+                        f"preserved stash disappeared before verification: {stash_oid}",
+                    )
+                _run(repository, "stash", "drop", "-q", stash_ref)
+            preserve_journal.unlink()
+            return {
+                **result,
+                "dirty_preserved": True,
+                "dirty_status_before": status_before,
+                "dirty_status_after": status_after,
+            }
+        except Exception:
+            if not stash_oid:
+                stash_oid = _stash_oid_for_message(repository, stash_message) or ""
+            if stash_oid:
+                journal.update({"phase": "stashed", "stash_oid": stash_oid})
+                _recover_preserved_dirty(repository, preserve_journal, journal)
+            raise
 
 
 def migrate_registered_projects(
