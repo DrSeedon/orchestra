@@ -153,6 +153,21 @@ def test_no_stress_flag_disables_ruaccent_in_cli(monkeypatch, tmp_path):
     make.main()
 
 
+def test_stress_only_shows_marked_phrases_without_synthesis(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stress-only"])
+    monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "До лимита.", "sub": None, "hold": None}])
+
+    def mark(steps, *_args, **_kwargs):
+        steps[0]["_tts_text"] = "До лим+ита."
+        return steps
+
+    monkeypatch.setattr(make, "mark_stress", mark)
+    monkeypatch.setattr(make, "synthesize", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+    make.main()
+    assert (tmp_path / "scene.stress.txt").read_text() == "До лим+ита.\n"
+    assert "До лим+ита." in capsys.readouterr().out
+
+
 def assert_unmarked(steps):
     assert "_tts_text" not in steps[0]
     return []
