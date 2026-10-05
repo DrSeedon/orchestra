@@ -132,11 +132,13 @@ async def test_retry_after_lost_delivery_delivers_and_double_retry_is_one_delive
 async def test_name_taken_with_other_task_or_delivery_id_is_refused(env):
     await _spawn(env)
     with pytest.raises(env.m.ApiToolError) as other_task:
-        await _spawn(env, task="a different job")
-    assert other_task.value.code == "SPAWN_NAME_TAKEN"
+        await _spawn(env, task=TASK + " ")
+    assert other_task.value.code == "SPAWN_TASK_MISMATCH"
+    assert "original exact task text" in other_task.value.message
     with pytest.raises(env.m.ApiToolError) as other_id:
         await _spawn(env, delivery_id="22222222-2222-4222-8222-222222222222")
-    assert other_id.value.code == "SPAWN_NAME_TAKEN"
+    assert other_id.value.code == "SPAWN_DELIVERY_ID_MISMATCH"
+    assert "another delivery_id" in other_id.value.message
     assert len(_rows(env)) == 1
 
 

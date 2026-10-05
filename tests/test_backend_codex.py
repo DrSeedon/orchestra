@@ -285,6 +285,7 @@ def test_mcp_config_rendered_into_config_toml_not_argv():
     assert srv["command"] == "python"
     assert srv["args"] == ["/x/mcp_stdio.py"]
     assert srv["enabled"] is True
+    assert srv["tool_timeout_sec"] == 360
     assert srv["env"]["WORKER_NAME"] == "w1"
     assert "send_message" in srv["enabled_tools"]
     assert "spawn_worker" in srv["enabled_tools"]
@@ -299,7 +300,9 @@ def test_mcp_config_supports_url_only_servers():
         "remote": {"url": "https://example/sse"},
     })
     data = tomllib.loads((b._prepare_codex_home() / "config.toml").read_text())
+    assert data["mcp_servers"]["orchestra"]["tool_timeout_sec"] == 360
     assert data["mcp_servers"]["remote"]["enabled"] is True
+    assert "tool_timeout_sec" not in data["mcp_servers"]["remote"]
     assert data["mcp_servers"]["remote"]["url"] == "https://example/sse"
 
 
