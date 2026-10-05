@@ -1,0 +1,4 @@
+main app/backend_claude.py compact_boundary parser (snake_case plus camelCase fallback): 1494-1498
+main scripts/wf_run.py: file is present; dynamic-workflow entrypoint is the committed script.
+main app/manager.py: worker-removal path calls _cleanup_cli_home at 1180; helper checks archived session and removes its managed home at 1199-1200.
+main tests/conftest.py: QUOTA_GATED_LANES and related vars cleared before app import at 29-34; ORCHESTRA_TASK_PREFIX cleared in autouse DB isolation at 87-99.

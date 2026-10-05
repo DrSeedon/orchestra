@@ -1,0 +1,24 @@
+READ-ONLY PROCESS AND MAIN COMMIT AUDIT
+COMMAND: systemctl show orchestra.service MainPID/ExecStart/ActiveEnterTimestamp/WorkingDirectory/User
+MainPID=3437625
+ExecStart={ path=/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python ; argv[]=/opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m uvicorn app.main:app --fd 3 --timeout-graceful-shutdown 5 ; ignore_errors=no ; start_time=[Mon 2026-10-05 05:47:04 CEST] ; stop_time=[n/a] ; pid=3437625 ; code=(null) ; status=0/0 }
+WorkingDirectory=/home/kesha/orchestra
+User=kesha
+ActiveEnterTimestamp=Mon 2026-10-05 05:48:04 CEST
+COMMAND: ps -p 3437625 -o pid,lstart,args
+3437625 Mon Oct  5 05:47:04 2026 /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python -m uvicorn app.main:app --fd 3 --timeout-graceful-shutdown 5
+COMMAND: readlink /proc/3437625/cwd
+/home/kesha/orchestra
+COMMAND: git -C /home/kesha/orchestra rev-parse main
+af2446b672fdad5f0a44d467f7f039122f388453
+stability recovery package: e2e83139f4de1dd08dd63f1db7f244e0804520d2 2026-09-05T14:35:53+07:00 fix: complete scoped recovery and continuation lifecycle safeguards; ancestor_of_main=True
+V-544 file limits: 3e068562ffc7d1aa7ebe95dd4b5a5c367ce0ced0 2026-09-11T07:47:48+02:00 V-544: #V-544: тяжёлое фото уходит документом, отказ провайдера терминален, лимиты названы; ancestor_of_main=True
+V-545 migration script: 13648c8fa3924c489c8729780527b63564e62229 2026-09-15T13:36:21+02:00 V-545: сохранить одноразовый скрипт рестарта с переименованием БД; ancestor_of_main=True
+V-543 pidfd: 180a5a4f1c9372ebf557ee72d859fb2308bd4966 2026-09-10T08:45:37+02:00 V-543: #V-543: close pidfd ownership gaps in watchers and cancelled spawns; ancestor_of_main=True
+merge paths rename fix: bec4f37817eefe961e92b4fad2046969ee4d0b1d 2026-09-11T08:49:39+02:00 merge gate: список путей берётся без детектора переименований (37с → 0.026с, чинит отказ merge_worker); ancestor_of_main=True
+V-546 quota thresholds: 084a989edad3164192311669080d9aba6af9e6da 2026-09-11T10:38:05+02:00 V-546: жёсткий стоп квотного гейта стал свойством полосы (sol 95%, luna 99%); ancestor_of_main=True
+V-540 stable system prompt implementation in main: 7069c42a6538aa074cca1c9c26c735ecc6b25fc4 2026-09-11T10:44:14+02:00 V-540: #V-540: capture live Claude usage baseline and reproducible query; ancestor_of_main=True
+quota env hot-apply: fbc9e40dff69ea17cbba5983723bbe9ef571ebdc 2026-09-15T10:22:58+02:00 квотный гейт: правка .env применяется без рестарта, если ключ пришёл из того же файла; ancestor_of_main=True
+V-547 gate status display: 4444697fd45e00bb0bfca513b0b516696cef1096 2026-09-12T06:55:16+02:00 V-547: состояние квотного гейта видно на панели — состав полос в rule и индикатор; ancestor_of_main=True
+MCP child process environment: e86fc63f0b0a830670d37a545888ff7ba0a636b0 2026-09-12T17:20:08+02:00 подпроцессы MCP наследуют ORCHESTRA_DB_PATH и хранилище задач — чинит отказ codex_review; ancestor_of_main=True
+NOTE: ff9feeb55ecbeb6af27a5744eec73f2b27ab6796 is not an ancestor of main; the V-540 behavior is in main commit 7069c42a, which changes app/manager.py and app/models.py.

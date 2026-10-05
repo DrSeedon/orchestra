@@ -1,0 +1,13 @@
+PROCESS_PID=3437625
+PROCESS_CWD=/home/kesha/orchestra
+ORCHESTRA_DB_PATH_ENV=/home/kesha/orchestra/data/orchestra.db
+DB_PATH=/home/kesha/orchestra/data/orchestra.db
+USER_VERSION=3
+SIZE_BYTES_SCHEMA:
+artifacts: CREATE TABLE artifacts ( id TEXT PRIMARY KEY, capability_verifier BLOB NOT NULL CHECK(length(capability_verifier) = 32), stored_name TEXT NOT NULL UNIQUE, content_sha256 BLOB NOT NULL CHECK(length(content_sha256) = 32), display_name TEXT NOT NULL, publisher_session_id TEXT NOT NULL, publisher_name TEXT NOT NULL, scope TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK(size_bytes > 0 AND size_bytes <= 10485760), created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL CHECK(expires_at > created_at), state TEXT NOT NULL CHECK(state IN ('pending', 'active', 'revoked')), activated_at INTEGER, revoked_at INTEGER, last_opened_at INTEGER, open_count INTEGER NOT NULL DEFAULT 0 CHECK(open_count >= 0), CHECK((state = 'pending' AND activated_at IS NULL AND revoked_at IS NULL) OR (state = 'active' AND activated_at IS NOT NULL AND revoked_at IS NULL) OR (state = 'revoked' AND revoked_at IS NOT NULL)) )
+tg_file_deliveries: CREATE TABLE "tg_file_deliveries" ( accept_seq INTEGER PRIMARY KEY AUTOINCREMENT, event_id TEXT NOT NULL UNIQUE, schema_version INTEGER NOT NULL, source_session_id TEXT, source_name TEXT NOT NULL, source_scope TEXT NOT NULL, source_path TEXT NOT NULL, original_name TEXT NOT NULL, snapshot_path TEXT NOT NULL, size_bytes INTEGER NOT NULL CHECK(size_bytes > 0 AND size_bytes <= 2097152000), content_sha256 TEXT NOT NULL CHECK(length(content_sha256) = 64), caption TEXT NOT NULL, outbound_caption TEXT NOT NULL, as_document INTEGER NOT NULL CHECK(as_document IN (0,1)), payload_hash TEXT NOT NULL CHECK(length(payload_hash) = 64), orch_name TEXT, batch_id TEXT, batch_index INTEGER, batch_group INTEGER, batch_kind TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, snapshot_deleted_at TEXT, quarantined_at TEXT )
+TARGET_SESSION_ROWS:
+/home/kesha/projects/seedon	fix-receipt-gates	parent_name='seedon-orchestrator'	parent_id='5c9748dc-488d-408d-8ebf-4d06e1638b78'	status='archived'
+/home/kesha/projects/seedon	infra	parent_name='seedon-orchestrator'	parent_id='5c9748dc-488d-408d-8ebf-4d06e1638b78'	status='archived'
+/home/kesha/projects/seedon	seo-cro	parent_name='seedon-orchestrator'	parent_id='5c9748dc-488d-408d-8ebf-4d06e1638b78'	status='idle'
+ROW_COUNT=3

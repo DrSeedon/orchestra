@@ -1,0 +1,6 @@
+COMMAND: curl -fsSL https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/ | rg -o "Node20 removal date.{0,120}|Node 20 is no longer available.{0,120}"
+Node20 removal date to September 23rd, 2026. Editor&rsquo;s note (February 25, 2026): Updated the migration date to June of 2026. Editor&rs
+Node20 removal date to September 23rd, 2026. Editor&rsquo;s note (February 25, 2026): Updated the migration date to June of 2026. Editor&rs
+Node20 removal date to September 23rd, 2026. Editor&rsquo;s note (February 25, 2026): Updated the migration date to June of 2026. Editor&rs
+Node20 removal date to September 23rd, 2026.</em></p>
+Node 20 is no longer available in GitHub Actions				</a>

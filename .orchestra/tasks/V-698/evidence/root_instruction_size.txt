@@ -1,0 +1,2 @@
+COMMAND: cd /home/kesha/orchestra && wc -c AGENTS.md
+12662 AGENTS.md

@@ -1,0 +1,6 @@
+F                                                                        [100%]
+=========================== short test summary info ============================
+FAILED tests/test_backend_codex.py::test_installed_codex_history_version_matches_pin
+1 failed in 4.92s
+
+COMMAND_RC=1

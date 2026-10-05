@@ -1,0 +1,14 @@
+ERROR: not found: /home/kesha/orchestra/worktrees/home-kesha-orchestra/todo-triage/tests/test_handoff_effect_classification.py::test_change_model_refusal_names_the_blocking_call_not_only_its_code
+(no match in any of [<Module test_handoff_effect_classification.py>])
+
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/todo-triage
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 0 items
+
+============================ no tests ran in 0.09s =============================
+
+COMMAND_RC=4
