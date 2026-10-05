@@ -86,6 +86,36 @@ class TestCreateSession:
         gate.assert_not_awaited()
 
     @pytest.mark.asyncio
+    async def test_explicit_task_binding_is_role_independent(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        import app.manager as manager_module
+        from tests.conftest import make_backend_mock
+
+        repo = _git_repo(tmp_path)
+        identity = {
+            "id": 17, "project_id": "project", "par_number": 558,
+            "sync_revision": 0, "ref_prefix": "V", "stable_id": "stable-558",
+        }
+        resolver = MagicMock(return_value=identity)
+        publish = MagicMock()
+        monkeypatch.setattr("app.tm.resolve_scoped_task_identity", resolver)
+        monkeypatch.setattr(manager_module, "publish_ready_session", publish)
+        monkeypatch.setattr(manager_module, "validate_spawn", lambda *_args: None)
+
+        with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
+            session = await mgr.create_session(
+                name="sub-orch-task", scope="/s", cwd=str(repo),
+                model="claude-sonnet-5-5[1m]", use_worktree=True,
+                repo_path=str(repo), role="sub-orchestrator", task_id="V-558",
+                planned_initial_turn=True,
+            )
+
+        assert session.is_orchestrator
+        resolver.assert_called_once_with("/s", "V-558")
+        assert publish.call_args.args[1] == identity
+
+    @pytest.mark.asyncio
     async def test_quota_block_notice_targets_exact_parent(self, mgr, monkeypatch):
         from app.quota_gate import QuotaDecision, QuotaGateError
         from app.session import AgentSession

@@ -825,6 +825,31 @@ def _open_task_run_for_task(
     )
 
 
+def _finish_superseded_task_runs(
+    conn: sqlite3.Connection,
+    session_id: str,
+    task_id: str,
+) -> None:
+    """Close legacy runs from an older assignment before opening the new one."""
+    session = conn.execute(
+        "SELECT template_hash FROM sessions WHERE id=?", (session_id,),
+    ).fetchone()
+    rows = conn.execute(
+        "SELECT task_id FROM review_receipts WHERE subject_kind='task_run' "
+        "AND session_id=? AND status='requested' AND task_id<>?",
+        (session_id, task_id),
+    ).fetchall()
+    for row in rows:
+        task_run_receipt_finish(
+            session_id=session_id,
+            task_id=str(row["task_id"]),
+            status="interrupted",
+            prompt_template_end=str(session["template_hash"] or "") if session else "",
+            failure_code="task_superseded",
+            connection=conn,
+        )
+
+
 def _finish_task_run_for_task(
     conn: sqlite3.Connection,
     task: dict,
@@ -1631,6 +1656,11 @@ def _release_previous_binding(
                 f"{reserved['operation_id']}; its binding is kept"
             )
     if not done_note:
+        for row in rows:
+            _finish_task_run_for_task(
+                conn, row, session_id, status="interrupted",
+                failure_code="task_superseded",
+            )
         release_session_task_binding(conn, session_id, keep_task_id=keep_task_id)
         return [{"task": public_task_ref(row), "outcome": "released"} for row in rows]
     for row in rows:
@@ -1734,6 +1764,9 @@ def api_update_task_if_current(
                 active_runtime().publish(conn, task_id)
                 updated = get_task_by_id(conn, task_id)
                 if status == "in_progress" and worker_session_id:
+                    _finish_superseded_task_runs(
+                        conn, worker_session_id, public_task_ref(updated),
+                    )
                     _open_task_run_for_task(conn, updated, worker_session_id)
                 elif status == "cancelled" and task.get("worker_session_id"):
                     _finish_task_run_for_task(
