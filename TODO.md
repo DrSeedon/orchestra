@@ -29,6 +29,7 @@
 - ConcurrentTaskUpdateError при параллельной записи канона НЕ чинится в #426 — план… — OPEN-DEFECT, [T138, T153](.orchestra/tasks/V-698/triage.md#t138). Доказательство: `71a008fe:TODO.md:L197 (ConcurrentTaskUpdateError evidence)`.
 
 ## Worker/task lifecycle
+- Доставки send_message к Codex-воркеру встают намертво: голова очереди в `WAITING_NEXT_TURN` (восстановленное влитие, лежит в mailbox до следующего хода) блокирует все `QUEUED` позади, а ход сам не начинается. 05.10: fix-codex и feat-kesha-alert 3+ часа без доставок после прерванного shutdown; рестарт сервиса и `restart-cli` не помогли. Обход: сообщение через дашбордный канал `/send` (channel=dashboard) запускает ход, и очередь трогается. Баг заведён report_bug 05.10.
 - ОТКРЫТО: Codex CLI обновлён до 0.156.1 (23.09, ради GPT-6), а импорт истории закре… — OPEN-DEFECT, [T057](.orchestra/tasks/V-698/triage.md#t057). Доказательство: `evidence/red_codex_history_pin.txt; evidence/codex_history_runtime_version.txt`.
 - Codex usage fetch failed: с пустым текстом — 15 раз за 01–04.10 (error_watch V-647). — OPEN-DEFECT, [T066](.orchestra/tasks/V-698/triage.md#t066). Доказательство: `app/routes/system.py:872; historical report in 71a008fe:TODO.md:L106`.
 - P1. Сообщение, влитое в идущий ход Codex, НЕ переживает обрыв этого хода — и теряе… — OPEN-DEFECT, [T067](.orchestra/tasks/V-698/triage.md#t067). Доказательство: `71a008fe:TODO.md:L107 (incident record; Codex active-turn message path)`.
