@@ -455,6 +455,7 @@ class BgJobManager:
             host = config.get("host")
             coro = self._run_exec(job_id, config["command"], message, target_name,
                                   target_scope, timeout, host=host,
+                                  cwd=config.get("cwd"),
                                   success_file=config.get("success_file"),
                                   success_pattern=config.get("success_pattern", ""))
         elif job_type == "merge":
@@ -1035,7 +1036,7 @@ class BgJobManager:
 
     async def _run_exec(self, job_id, command, message, target_name,
                         target_scope, timeout, host=None, success_file=None,
-                        success_pattern=""):
+                        success_pattern="", cwd=None):
         proc = None
         reader_task = None
         output_buf = []
@@ -1054,7 +1055,7 @@ class BgJobManager:
                 proc = await self._spawn_managed_process(
                     job_id, command, shell=True,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
-                    limit=_STREAM_LIMIT,
+                    limit=_STREAM_LIMIT, cwd=cwd,
                 )
             self._procs[job_id] = proc
             where = host or "local"

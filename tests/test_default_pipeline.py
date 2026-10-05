@@ -171,6 +171,11 @@ class TestDefaultRolesResolve:
             out = P.build_system_prompt(PIPELINE, role)
             assert out.count(module) == int(role in readers), (module_name, role)
 
+    def test_git_workflow_module_reaches_agents_that_edit_repositories(self):
+        module = P.prompt_path(PIPELINE, "modules/git-workflow.md").read_text().strip()
+        for role in ("worker", "full-cycle", "orchestrator", "sub-orchestrator"):
+            assert P.build_system_prompt(PIPELINE, role).count(module) == 1, role
+
     def test_code_quality_has_one_owner_and_reaches_implementation_roles(self):
         """#prompt-cleanup: блок жил ДВУМЯ дословными копиями в roles/worker.md и
         roles/full-cycle.md. Копия расходится молча, поэтому владелец теперь модуль.

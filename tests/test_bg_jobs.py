@@ -602,6 +602,25 @@ class TestRunExecOutcome:
         assert "completed" not in sent.lower()
 
     @pytest.mark.asyncio
+    async def test_local_run_executes_relative_paths_in_supplied_cwd(
+        self, db, mgr_mock, tmp_path,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        mgr = BgJobManager()
+        manager, _session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-cwd", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-cwd", "pwd > cwd.txt", "run done", "w1", "/s", 10,
+            cwd=str(tmp_path),
+        )
+
+        assert (tmp_path / "cwd.txt").read_text().strip() == str(tmp_path)
+
+    @pytest.mark.asyncio
     async def test_completed_job_restores_parent_report_provenance(
         self, db, mgr_mock
     ):
