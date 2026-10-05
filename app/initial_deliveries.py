@@ -161,11 +161,19 @@ def spawn_resume_verdict(
         intent = json.loads(db.kv_get(f"spawn_intent:{session_id}") or "{}")
     except ValueError:
         intent = {}
-    if intent.get("delivery_id") != delivery_id or intent.get("task_sha") != _task_sha(task):
+    if intent.get("delivery_id") != delivery_id:
         return {
-            "code": "SPAWN_NAME_TAKEN",
-            "message": "a worker with this name already exists and was created for another "
-                       "task or delivery_id; choose another name or use send_message",
+            "code": "SPAWN_DELIVERY_ID_MISMATCH",
+            "message": "a worker with this name belongs to another delivery_id; use a new "
+                       "worker name for a separate spawn, or retry with the original "
+                       "delivery_id",
+        }
+    if intent.get("task_sha") != _task_sha(task):
+        return {
+            "code": "SPAWN_TASK_MISMATCH",
+            "message": "this delivery_id was created with different task text; retry with "
+                       "the original exact task text, or use a new worker name and "
+                       "delivery_id for a different task",
         }
     if get_initial_delivery(delivery_id, scope) is not None:
         return None

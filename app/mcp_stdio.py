@@ -43,6 +43,8 @@ logger = logging.getLogger("orchestra-mcp")
 
 ORCHESTRA_URL = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888")
 SCOPE = os.environ.get("ORCHESTRA_SCOPE", "")
+# Full Git worktree creation measured above 100 seconds on current large projects.
+SPAWN_CREATE_TIMEOUT_S = 300.0
 MESSAGE_FILE_MAX_BYTES = 64 * 1024
 DISABLED_TOOLS = parse_disabled_tools(os.environ.get("ORCHESTRA_DISABLED_TOOLS", "[]"))
 ROLE = os.environ.get("ORCHESTRA_ROLE", "orchestrator")
@@ -1079,7 +1081,9 @@ async def spawn_worker(name: str, task: str, repo_path: str,
         delivery_id = str(uuid.uuid4())
     body["initial_delivery_id"] = delivery_id
     try:
-        result = await _api("POST", "/api/sessions", json=body)
+        result = await _api(
+            "POST", "/api/sessions", json=body, timeout=SPAWN_CREATE_TIMEOUT_S,
+        )
     except ApiToolError as exc:
         result = await _resume_cut_off_spawn(name, task, scope, delivery_id, exc)
     if isinstance(result, dict) and result.get("error"):

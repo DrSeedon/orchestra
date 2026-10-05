@@ -2113,6 +2113,9 @@ class CodexBackend(JsonRpcStdioTransport):
             # то есть уронить старт Codex.
             key = self._toml_key(str(name))
             lines = [f"[mcp_servers.{key}]", "enabled = true"]
+            if name == "orchestra":
+                # The 300s spawn POST must fit with time for delivery and its receipt.
+                lines.append("tool_timeout_sec = 360")
             if command:
                 lines.append(f"command = {self._toml_str(str(command))}")
                 srv_args = cfg.get("args") or []

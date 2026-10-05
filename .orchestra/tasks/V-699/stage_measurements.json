@@ -1,0 +1,22 @@
+[
+  {
+    "case": "seedon",
+    "tracked_files": 4767,
+    "tracked_bytes": 1247867967,
+    "git_worktree_add_seconds": 38.2227,
+    "git_checkout_seconds": 0.19,
+    "create_worktree_seconds": 38.8468,
+    "assemble_prompt_seconds": 0.1843,
+    "prompt_chars": 41111
+  },
+  {
+    "case": "katya-work",
+    "tracked_files": 3341,
+    "tracked_bytes": 2031504235,
+    "git_worktree_add_seconds": 105.6168,
+    "git_checkout_seconds": 0.6248,
+    "create_worktree_seconds": 107.3585,
+    "assemble_prompt_seconds": 0.4493,
+    "prompt_chars": 40149
+  }
+]

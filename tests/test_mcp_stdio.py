@@ -1001,6 +1001,7 @@ async def test_spawn_passes_base_branch(monkeypatch):
     async def fake_api(method, path, **kw):
         if path == "/api/sessions":
             captured.update(kw.get("json", {}))
+            captured["timeout"] = kw.get("timeout")
             return {
                 "worktree_path": "/worktrees/w-step1",
                 "branch": "task-1/w-step1",
@@ -1013,6 +1014,7 @@ async def test_spawn_passes_base_branch(monkeypatch):
                              model="claude-sonnet-5-5[1m]", base_branch="feature/auth")
     assert captured["base_branch"] == "feature/auth"
     assert captured["use_worktree"] is True
+    assert captured["timeout"] == 300
 
 
 @pytest.mark.asyncio
