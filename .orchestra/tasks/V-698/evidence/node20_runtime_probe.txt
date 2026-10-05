@@ -1,0 +1,5 @@
+COMMAND: curl -fsSL https://raw.githubusercontent.com/actions/checkout/v4/action.yml | rg -n "using:" | tr -d "\r"
+116:  using: node20
+
+COMMAND: curl -fsSL https://raw.githubusercontent.com/astral-sh/setup-uv/v4/action.yml | rg -n "using:" | tr -d "\r"
+53:  using: "node20"
