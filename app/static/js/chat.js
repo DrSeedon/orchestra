@@ -3132,10 +3132,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 btnRow.appendChild(_fileBtn(T('📥 Download'), () => {
                     window.open(`/api/files/raw?path=${encodeURIComponent(fp)}&download=1`, '_blank');
                 }));
-                if (/\.html?$/i.test(fp)) {
-                    btnRow.appendChild(_fileBtn(T('👁 Preview'), () => {
-                        window.open(`/api/files/raw?path=${encodeURIComponent(fp)}`, '_blank');
-                    }));
+                if (_SEND_FILE_OPENABLE.test(fp)) {
+                    btnRow.appendChild(_fileBtn(T('🔗 Open'), () => _openSendFile(fp)));
                 }
                 lastTool.appendChild(btnRow);
             }

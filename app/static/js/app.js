@@ -167,6 +167,8 @@ function _sendFileRawUrl(path, download = false, preview = false) {
 // Форматы, которые браузер ОТКРЫВАЕТ, а не предлагает сохранить. Картинки сюда не входят:
 // у них уже есть превью и лайтбокс по клику, вторая кнопка была бы дублем.
 const _SEND_FILE_OPENABLE = /\.(html?|pdf|txt|md|json|csv|log|xml|ya?ml)$/i;
+// The file viewer has no lightbox, so there media also gets the new-tab button.
+const _FILE_MEDIA_OPENABLE = /\.(png|jpe?g|gif|webp|bmp|svg|mp4|webm|mov|mp3|ogg|oga|wav|m4a)$/i;
 
 function _openSendFile(path) {
     // `download=1` НЕ ставим: именно этот флаг заставляет браузер сохранять вместо показа.
@@ -1631,8 +1633,10 @@ async function openFilePreview(path) {
     dlBtn.href = rawUrl;
     dlBtn.download = fileName;
     dlBtn.classList.remove('hidden');
+    // Anything the browser renders natively gets "open in a new tab", not only HTML.
+    openBtn.href = rawUrl;
+    openBtn.classList.toggle('hidden', !(_SEND_FILE_OPENABLE.test(path) || _FILE_MEDIA_OPENABLE.test(path)));
     if (/\.(mp4|webm|mov)$/i.test(path)) {
-        openBtn.classList.add('hidden');
         contentEl.className = 'flex-1 p-4';
         contentEl.style.cssText = 'display:flex;align-items:center;justify-content:center;max-height:calc(80vh - 48px)';
         const video = document.createElement('video');
@@ -1645,14 +1649,21 @@ async function openFilePreview(path) {
         return;
     }
     if (/\.html?$/i.test(path)) {
-        openBtn.href = rawUrl;
-        openBtn.classList.remove('hidden');
         contentEl.className = 'flex-1 p-0';
         contentEl.style.cssText = 'overflow:hidden;max-height:calc(80vh - 48px)';
         contentEl.innerHTML = `<iframe src="${rawUrl}" style="width:100%;height:100%;border:none;border-radius:0 0 12px 12px;min-height:60vh" sandbox="allow-scripts"></iframe>`;
         return;
     }
-    openBtn.classList.add('hidden');
+    if (/\.pdf$/i.test(path)) {
+        // No sandbox: Chromium refuses to run its PDF viewer inside a sandboxed frame.
+        contentEl.className = 'flex-1 p-0';
+        contentEl.style.cssText = 'overflow:hidden;max-height:calc(80vh - 48px)';
+        const frame = document.createElement('iframe');
+        frame.src = rawUrl;
+        frame.style.cssText = 'width:100%;height:100%;border:none;border-radius:0 0 12px 12px;min-height:60vh';
+        contentEl.replaceChildren(frame);
+        return;
+    }
     try {
         const res = await fetch(`/api/files/content?path=${encodeURIComponent(path)}`);
         const data = await res.json();
