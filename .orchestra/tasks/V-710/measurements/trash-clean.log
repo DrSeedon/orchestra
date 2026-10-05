@@ -1,0 +1,4 @@
+  File "<stdin>", line 52
+    print(f"cutoff={cutoff.isoformat()} candidates={len(eligible)} removed_paths={removed} env_skips={len(env_refs)} failed={failed} allocated_bytes_requested={bytes_expected} ignored_deleted_open_fds={sum(1 for e in os.scandir(/proc) if e.name.isdigit())}")
+                                                                                                                                                                                                             ^
+SyntaxError: f-string: expecting '=', or '!', or ':', or '}'
