@@ -544,11 +544,10 @@ class TestHtmlArtifactsSkillInvariants:
 
     def test_approved_profile_replaces_old_mandatory_styling(self):
         text = self.SKILL.read_text(encoding="utf-8")
-        assert "Светлая тема по умолчанию независимо от ОС" in text
-        assert "Одна семья предпочтительна" in text
-        assert "SVG-иконка вкладки обязательна" in text
-        assert "Две шрифтовые семьи, обе локальные" not in text
-        assert "Соседние артефакты одной сессии обязаны отличаться" not in text
+        assert "Background `#f5f5f7`" in text
+        assert 'type="image/svg+xml"' in text
+        assert "--accent: #7c3aed" not in text
+        assert "system sans" in text.lower()
 
     def test_budget(self):
         """description платится в КАЖДОЙ сессии (индекс скиллов), тело — только при срабатывании."""

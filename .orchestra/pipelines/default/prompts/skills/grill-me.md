@@ -1,118 +1,145 @@
 ---
 name: grill-me
-description: "Interview the user relentlessly about a plan or design until reaching shared understanding, resolving each branch of the decision tree. Use when user wants to stress-test a plan, get grilled on their design, or mentions \"grill me\"."
+description: "Interview the user relentlessly about a plan or design until reaching shared understanding and resolving each branch of the decision tree. Use when the user wants to stress-test a plan, get grilled on a design, or mentions \"grill me\"."
 roles: [all]
 integrations: [web-search]
 ---
 
-# Grill Me — прожарка плана/бизнеса/продукта
+# Grill Me — stress-test a plan, business, or product
 
 ## Purpose
-Безжалостно прожарить план, бизнес-модель или продукт через научно обоснованные фреймворки вопросов. Найти противоречия, слепые зоны, непроверенные допущения. Зафиксировать ответы.
 
-## When to Invoke
-- "прожарь", "прожарка", "grill me", "покритикуй", "найди слабые места"
-- "фундаментальные вопросы", "противоречия", "стресс-тест"
-- "devil's advocate", "разбери по косточкам", "poke holes"
-- User shares a plan and wants it challenged
+Relentlessly stress-test a plan, business model, or product through evidence-based question
+frameworks. Find contradictions, blind spots, and untested assumptions. Record the answers.
 
-## Methodology (5 научных фреймворков)
+## When to invoke
 
-### 1. Pre-Mortem (Gary Klein, HBR 2007)
-Представь что проект УЖЕ провалился. "Прошёл год, проект мёртв. Почему?"
-Грамматический сдвиг из "что может пойти не так" → "что пошло не так" улучшает идентификацию рисков на 30% (Wharton, "Back to the Future" 1989). Будущее время → прошедшее = prospective hindsight.
+- "grill me", "stress-test", "criticize this", "find the weak spots"
+- "fundamental questions", "contradictions", "stress test"
+- "devil's advocate", "take it apart", "poke holes"
+- The user shares a plan and wants it challenged
 
-### 2. Socratic Questioning (6 типов)
-- **Clarification**: "Что ты имеешь в виду под X?"
-- **Probing assumptions**: "Почему ты считаешь что X верно? На чём основано?"
-- **Probing evidence**: "Какие данные это подтверждают? Откуда ты знаешь?"
-- **Exploring alternatives**: "Что если допустить обратное? Какие ещё варианты?"
-- **Implications**: "Если X верно, что из этого следует?"
-- **Meta-questions**: "Почему этот вопрос вообще важен?"
+## Methodology (five question frameworks)
 
-### 3. Assumption Mapping (Bland & Osterwalder, 2019)
-Матрица 2x2: важность × неизвестность. CB Insights: 42% стартапов умирают от "no market need" — непроверенные допущения о спросе.
-- Desirability: "Клиенты ХОТЯТ это?" (чаще фатально)
-- Feasibility: "Мы МОЖЕМ это построить?" (реже фатально)
-- Viability: "Это ОКУПИТСЯ?" (часто игнорируют)
+### 1. Pre-mortem (Gary Klein, HBR 2007)
 
-### 4. 5 Whys (Toyota, Taiichi Ohno)
-Для каждого слабого ответа — копай вглубь. "Почему?" × 5 уровней. Цель — root cause, не симптом.
+Imagine the project has ALREADY failed: "A year has passed; the project is dead. Why?" Shifting
+from "what could go wrong" to "what went wrong" improves risk identification by 30% (Wharton,
+"Back to the Future", 1989). Future tense → past tense is prospective hindsight.
 
-### 5. Red Team (US Military → бизнес)
-Принять роль конкурента/критика. "Если бы я хотел уничтожить этот бизнес — как?" Формализованный devil's advocate.
+### 2. Socratic questioning (six types)
 
-## Process Flow
+- **Clarification:** "What do you mean by X?"
+- **Probing assumptions:** "Why do you believe X is true? What is it based on?"
+- **Probing evidence:** "What data supports this? How do you know?"
+- **Exploring alternatives:** "What if the opposite is true? What else could work?"
+- **Implications:** "If X is true, what follows?"
+- **Meta-questions:** "Why does this question matter at all?"
 
-### Phase 1: Silent Analysis
-Read documents relevant to the plan being challenged. Построить карту:
-- Какие утверждения сделаны?
-- Какие доказательства есть?
-- Что принято на веру без проверки?
-- Где документы противоречат друг другу?
-- Какие очевидные вопросы НЕ заданы?
+### 3. Assumption mapping (Bland & Osterwalder, 2019)
 
-### Phase 2: Pre-Mortem
-Начни с одного вопроса:
-> "Представь: прошёл год, [проект] провалился. Клиенты ушли, деньги кончились. Что произошло? Назови 3 самых вероятных причины."
+Use a 2×2 matrix: importance × uncertainty. CB Insights reports that 42% of startups die from
+"no market need" — untested demand assumptions.
 
-Записать ответ. Потом:
+- Desirability: "Do customers WANT this?" (most often fatal)
+- Feasibility: "CAN we build this?" (less often fatal)
+- Viability: "WILL it pay off?" (often ignored)
 
-### Phase 3: Structured Grill (10 вопросов пачкой)
-Категории (выбрать 5-7 наиболее релевантных):
+### 4. Five Whys (Toyota, Taiichi Ohno)
 
-- 🏗️ **Фундамент** — зачем это существует? кому нужно? доказательства?
-- 💰 **Unit-экономика** — CAC, LTV, маржа, точка безубыточности
-- ⚔️ **Конкуренты/Moat** — кто уже делает? чем ты лучше? что если завтра X?
-- 📈 **Масштаб** — что если 10x? что сломается первым? single point of failure?
-- ⚠️ **Риски** — зависимость от вендора? юридические? технические?
-- 🎯 **Продажи** — кому? как находишь? цикл сделки? конверсия?
-- 📋 **Операции** — кто делает работу? SLA? что если ты заболел?
-- 🔄 **Противоречия** — "В док А написано X, в док Б написано Y — что правда?"
+For every weak answer, dig deeper. Ask "Why?" across five levels. The goal is the root cause,
+not the symptom.
 
-**Правила вопросов:**
-- Каждый вопрос ссылается на КОНКРЕТНЫЙ факт/документ — не generic "а вы думали о..."
-- Противоречие = цитировать ОБЕ стороны
-- От фундаментальных к деталям
-- В стиле юзера — прямо, без корпоративного языка
-- Для каждого вопроса — свой рекомендованный ответ (если есть мнение)
+### 5. Red team (US military → business)
 
-### Phase 4: Deep Dive (5 Whys)
-На слабые ответы ("ну хз", "потом", "как-нибудь") — 5 Whys:
-> "Почему нет SLA?" → "Потому что один работаю" → "Почему один?" → "Потому что нет денег на сотрудника" → "Почему?" → "Потому что один клиент" → ROOT CAUSE: нужен второй клиент до найма.
+Adopt the role of a competitor/critic: "If I wanted to destroy this business, how would I do it?"
+This is a formal devil's advocate.
 
-### Phase 5: Red Team
-Завершить одним вопросом:
-> "Я — твой конкурент. У меня бюджет 5M и команда из 10 человек. Как я убью твой бизнес за 6 месяцев?"
+## Process flow
+
+### Phase 1: Silent analysis
+
+Read documents relevant to the plan. Build a map:
+
+- What claims are made?
+- What evidence exists?
+- What is accepted without verification?
+- Where do documents contradict one another?
+- Which obvious questions were NOT asked?
+
+### Phase 2: Pre-mortem
+
+Start with one question:
+
+> "Imagine: a year has passed and [project] failed. Customers left and money ran out. What happened? Name the three most likely causes."
+
+Record the answer. Then continue.
+
+### Phase 3: Structured grill (10 questions as one batch)
+
+Choose the 5–7 most relevant categories:
+
+- 🏗️ **Foundation** — why does this exist, who needs it, what is the evidence?
+- 💰 **Unit economics** — CAC, LTV, margin, break-even point
+- ⚔️ **Competitors/moat** — who already does this, how are you better, what if X appears tomorrow?
+- 📈 **Scale** — what if usage grows 10×, what breaks first, where is the single point of failure?
+- ⚠️ **Risks** — vendor, legal, and technical dependencies
+- 🎯 **Sales** — who buys, how do you find them, sales cycle, conversion?
+- 📋 **Operations** — who does the work, SLA, what if you become ill?
+- 🔄 **Contradictions** — "Document A says X; document B says Y — which is true?"
+
+**Question rules:**
+
+- Every question cites a CONCRETE fact/document, not a generic "have you considered…?"
+- For a contradiction, quote BOTH sides.
+- Move from fundamentals to details.
+- Match the user's style: direct, without corporate language.
+- Give each question its own recommended answer when you have an opinion.
+
+### Phase 4: Deep dive (Five Whys)
+
+For weak answers ("no idea", "later", "somehow"), ask Five Whys:
+
+> "Why is there no SLA?" → "Because I work alone" → "Why alone?" → "Because there is no money for an employee" → "Why?" → "Because there is one customer" → ROOT CAUSE: get a second customer before hiring.
+
+### Phase 5: Red team
+
+End with one question:
+
+> "I am your competitor. I have a $5M budget and a team of ten. How do I kill your business in six months?"
 
 ### Phase 6: Record
-Записать всё в документ:
-```markdown
-## Прожарка [тема] — [дата]
 
-### Pre-Mortem: 3 причины провала
+Record everything in a document:
+
+```markdown
+## Grill [topic] — [date]
+
+### Pre-Mortem: three failure causes
 1. ...
 
-### Вопросы и ответы
-**🏗️ Q: [вопрос]**
-A: [ответ]
+### Questions and answers
+**🏗️ Q: [question]**
+A: [answer]
 
 ### Assumption Map
-| Допущение | Важность | Проверено? | Как проверить |
+| Assumption | Importance | Tested? | How to test |
 |---|---|---|---|
 
-### Нерешённые вопросы
+### Unresolved questions
 - [ ] ...
 
-### Red Team: как убить бизнес
+### Red Team: how to kill the business
 ...
 ```
 
-### Phase 7: Next Batch
-"Ещё 10 вопросов? Или углубиться в [тему]?"
-Каждый следующий батч ГЛУБЖЕ в слабые места. Стоп — когда юзер скажет.
+### Phase 7: Next batch
 
-## Error Handling
-- Vague answer ("хз", "потом") → записать + ⚠️ + 5 Whys
-- Defensive reaction → нормально, не смягчать. "Лучше я сейчас, чем клиент через месяц"
-- No docs → спросить устно, прожарить по ответам
+"Another 10 questions, or go deeper into [topic]?" Each next batch goes deeper into weak spots.
+Stop when the user says to stop.
+
+## Error handling
+
+- Vague answer ("no idea", "later") → record it + ⚠️ + Five Whys
+- Defensive reaction → normal; do not soften. "Better now than a customer in a month."
+- No documents → ask verbally and grill the answers

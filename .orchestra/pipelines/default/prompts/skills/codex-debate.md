@@ -1,7 +1,7 @@
 ---
 name: codex-debate
-description: "ЗАМОРОЖЕНО владельцем 20.09.2026: модельное ревью выключено, тул codex_review не зарегистрирован. Не вызывать и не искать замену."
-# прежнее описание, вернуть вместе с тулом:
+description: "FROZEN by the owner on 2026-09-20: model review is disabled and the codex_review tool is not registered. Do not call it or seek a substitute."
+# Previous description; restore together with the tool:
 # description: "Optional executor-owned review: one focused second opinion, a server-enforced task budget, and advisory findings. Work is accepted by commit and tests, without outcome signatures or skip receipts."
 ---
 
@@ -9,66 +9,66 @@ description: "ЗАМОРОЖЕНО владельцем 20.09.2026: модель
 
 ## Review decision gate — canonical policy
 
-**Ревью доступно, но не обязательно.** Исполнитель `worker` или `full-cycle` выбирает,
-поможет ли независимая проверка результату. Оркестратор и суборкестратор не запускают
-модельное ревью через этот инструмент, shell или подставного ревьюера.
+**Review is available but optional.** The `worker` or `full-cycle` executor chooses whether
+independent checking would help. Orchestrators and sub-orchestrators do not launch model review
+through this tool, the shell, or a substitute reviewer.
 
-**Codex недоступен → ревью НЕ делается. Замену ревьюеру не искать.** Выполни собственные
-проверки и явно укажи, что внешнего мнения нет. Отсутствие ревью не является долгом.
+**Codex unavailable → do not review. Do not seek a substitute reviewer.** Run your own checks and
+state clearly that no external opinion exists. Missing review is not a debt.
 
-- Обычная цель — один сфокусированный проход Luna через `codex_review(model="gpt5.6luna", ...)`;
-  серверный default — Luna. Второй проход нужен для конкретного существенного вопроса,
-  а не для получения слова APPROVED.
-- Astra — отдельный дополнительный запуск, требующий явного разрешения владельца именно
-  на Astra. Одобрение задачи или ревью вообще не является таким разрешением.
-- Sol ревьюером не назначается: с 06.09.2026 он не маршрут. «Он дешевле» основанием не
-  является и в обратную сторону тоже: замер 10.09.2026 не смог развести Sol и Astra по расходу
-  пула — три оценки поменяли их местами. Устойчиво только то, что дешевле всех Luna; она и
-  является штатным ревьюером.
-- **Серверный бюджет — три попытки на задачу, включая неудавшиеся.** Значение принадлежит
-  `app/work_review.py::MAX_REVIEW_REQUESTS`. Оно общее для режимов и исполнителей задачи;
-  другое имя отчёта, новая сессия или передача работы лимит не обнуляют.
-- Одновременно выполняется одно ревью задачи. На `review_in_progress` дождись штатного
-  завершения; не создавай другой output. На `review_budget_exhausted` сдавай имеющиеся
-  доказательства и перечисли неизвестное, не переименовывай задачу ради обхода.
+- The usual goal is one focused Luna pass through `codex_review(model="gpt5.6luna", ...)`;
+  the server default is Luna. A second pass needs a specific material question, not a request
+  for the word APPROVED.
+- Astra is a separate additional run and requires the owner's explicit authorization for Astra.
+  Approval of the task or of review in general is not that authorization.
+- Do not assign Sol as reviewer: it has not been a route since 2026-09-06. Cost is not a reason
+  either way: the 2026-09-10 measurement could not separate Sol and Astra's pool usage because
+  three estimates swapped their order. Only Luna is consistently cheaper than both and is the
+  standard reviewer.
+- **The server budget is three attempts per task, including failed attempts.** The value belongs
+  to `app/work_review.py::MAX_REVIEW_REQUESTS`. It is shared across task modes and executors;
+  another report name, a new session, or transferring the work does not reset it.
+- Only one review for a task runs at a time. On `review_in_progress`, wait for normal completion;
+  do not create another output. On `review_budget_exhausted`, submit available evidence and list
+  unknowns; do not rename the task to bypass the limit.
 
-## Работа: ревью — приложение к результату
+## Review work — an appendix to the result
 
-**work-review-v2** применяется ко всем назначениям, включая уже начатые. Рабочий путь:
+**work-review-v2** applies to all assignments, including already started ones. Workflow:
 
-1. Сделай работу, проверь критерий готовности, закоммить результат.
-2. Если полезно, запусти `codex_review(mode="implementation", context=..., output=...)`.
-   Инструмент фиксирует commit. `mode="review"` смотрит незакоммиченный diff,
-   `mode="exec"` — конкретный файл/план; эти режимы не доказывают проверку реализации.
-3. Прочитай ответ и проверь находки. Исправь реальные дефекты, обоснуй несогласие.
-   **Позиция автора — часть обычного отчёта**, а не отдельный пропуск к merge.
-4. Передай постановщику итоговый commit, результат проверок, путь к ревью, если оно было,
-   и что изменилось после него. **Отдельная аттестация и skip-квитанция не нужны.**
-5. Принимающий читает `worker_wip` и вызывает `merge_worker(expected_head=...,
-   acceptance_note=..., task_outcome=...)`. В note фиксирует решение, включая причину
-   отсутствия внешнего ревью. Сервер принимает только полномочного оркестратора/владельца,
-   проверяет тот же commit и выполняет предусмотренные тесты. Full-cycle родитель может
-   принять своего ребёнка в собственную ветку, но не выдать себе разрешение на main.
+1. Do the work, check readiness, and commit the result.
+2. If useful, run `codex_review(mode="implementation", context=..., output=...)`. The tool pins
+   the commit. `mode="review"` looks at an uncommitted diff, while `mode="exec"` reviews a
+   specific file or plan; these modes do not prove implementation review.
+3. Read the response and check its findings. Fix real defects and explain disagreements.
+   **The author's position belongs in the ordinary report**, not as a separate merge gate.
+4. Give the requester the final commit, check result, review path if any, and what changed after
+   it. **No separate attestation or skip receipt is needed.**
+5. The receiver reads `worker_wip` and calls `merge_worker(expected_head=..., acceptance_note=...,
+   task_outcome=...)`. The note records the decision, including why external review was absent.
+   The server accepts only an authorized orchestrator/owner, checks the same commit, and runs the
+   prescribed tests. A full-cycle parent may accept its child into its own branch but cannot grant
+   itself permission on main.
 
-`worker_wip` показывает все попытки, отчёты, проверенный commit и файлы, изменившиеся
-после последнего code-review. **advisory не означает APPROVED.** Не выдавай completed
-процесса за правильность кода. Если отчёт отсутствует или сравнение недоступно, скажи это;
-не реконструируй доказательство по памяти. Проверки текущего кода и решение принимающего
-важнее заголовка, оформления Markdown и знака вердикта ревьюера.
+`worker_wip` shows all attempts, reports, the checked commit, and files changed after the last
+code review. **Advisory does not mean APPROVED.** Do not present a completed process as proof of
+correct code. If the report is missing or comparison is unavailable, say so; do not reconstruct
+evidence from memory. Current-code checks and the receiver's decision matter more than the
+reviewer's heading, Markdown formatting, or verdict mark.
 
-`required=false` может дать size-skip для полного diff не больше 40 строк/3 файлов без
-binary. Это ответ инструмента без отдельной квитанции. Вызывать review
-только ради получения skip не требуется: причину укажи с результатом работы.
+`required=false` may return a size skip for a full diff of no more than 40 lines/3 files without
+binary files. This is the tool response and needs no separate receipt. Do not call review merely
+to obtain a skip; state the reason with the work result.
 
-На follow-up используй те же output, mode и model с resume=true. После запуска закончи
-ход или выполняй независимую работу; платформа сообщит исход. Не опрашивай job в цикле.
-Новая задача не создаётся ради нового лимита. Если изменился сам согласованный результат,
-обсуди область работы с постановщиком.
+For follow-up, reuse the same output, mode, and model with `resume=true`. After launching, end
+the turn or do independent work; the platform reports the outcome. Do not poll the job in a loop.
+Do not create a new task for a new limit. If the agreed result itself changes, discuss scope with
+the requester.
 
-## Калибровка и результат
+## Calibration and result
 
-В context дай цель, точные файлы/вопросы и критерий готовности. PROJECT CONTEXT инструмент
-загружает из репозитория сам. Для плана прямо укажи, что реализации ещё нет. Findings должны
-быть конкретными и проверяемыми; спорить следует фактами, а не запускать ещё одного агента.
-Сохрани отчёт под `.orchestra/tasks/<id>/`. В итоговом сообщении достаточно: что проверено,
-каким способом, существенные исправления/разногласия и остающаяся неопределённость.
+In `context`, give the goal, exact files/questions, and readiness criterion. The PROJECT CONTEXT
+tool loads repository context itself. For a plan, state plainly that implementation does not yet
+exist. Findings must be concrete and verifiable; argue with facts instead of launching another
+agent. Save the report under `.orchestra/tasks/<id>/`. The final message only needs what was
+checked, how, material fixes/disagreements, and remaining uncertainty.

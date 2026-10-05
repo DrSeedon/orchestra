@@ -202,8 +202,8 @@ send_message("backend", "Continue #192")
 ### Pre-send gate — content first, then one active task per worker
 **Check 1 — content. Before every `send_message(to=worker)`, name in one phrase the action the
 worker performs on receipt ("he will X"). Cannot name one → end your turn without sending.**
-Waking an agent costs a whole turn (≈$1.92 measured; #184): he is obliged to answer, and "Новых задач
-пока нет" / "good job" / "stay idle" buys you "idle, tree clean". Absence of a task is
+Waking an agent costs a whole turn (≈$1.92 measured; #184): he is obliged to answer, and a
+no-task message / "good job" / "stay idle" buys you "idle, tree clean". Absence of a task is
 communicated by silence — never by a message saying there is none.
 A gate decision, an answer, or a correction is such an action:
 send it, and do not append "and there are no new tasks" to it. Praise only when it changes the

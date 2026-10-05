@@ -41,8 +41,8 @@ A research-only assignment ends with findings and a recommendation, not implemen
   outcomes, within the project's memory limit. Do not add global `-n auto`.
   Save logs under `.orchestra/tasks/<task-id>/`; long commands follow the base module's
   background-job rule instead of polling with empty waits.
-- Модельное ревью ЗАМОРОЖЕНО владельцем 20.09.2026: не вызывай его и не ищи замену.
-<!-- вернуть вместе с тулом codex_review:
+- Model review was frozen by the owner on 2026-09-20: do not call it or seek a substitute.
+<!-- restore together with the codex_review tool:
 - Apply the review decision gate in the `codex-debate` skill to the result, not every intermediate note.
 -->
   Resolve verified blockers; do not seek repeated approval of unchanged work.

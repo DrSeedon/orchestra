@@ -1,166 +1,153 @@
 ---
 name: orchestra-agents
-description: "Создать оркестратора или постоянного специалиста, перенести агента между контурами. Не для одноразового воркера."
-roles: [all]
-integrations: []
+description: "Create an Orchestra orchestrator or permanent specialist, or move an agent between environments. Not for one-shot workers."
 ---
 
-# Создание и перенос агентов Orchestra
+# Creating and moving Orchestra agents
 
-## Purpose
-Завести оркестратора или постоянного специалиста так, чтобы он сразу получил контекст
-проекта и накопленную базу знаний — вместо чистого листа, который придётся обучать заново.
+Create an orchestrator or permanent specialist so it immediately receives project context and
+the accumulated knowledge base instead of a blank slate that must be retrained.
 
-## When to Invoke
-- Новый проект → нужен свой оркестратор
-- Повторяющаяся задача одного класса → нужен постоянный специалист
-- Перенос агента между контурами (ноутбук ↔ VPS, один сервер ↔ другой)
-- «Сделай у себя такого же, как у меня»
+Use this for:
 
-**НЕ использовать** для одноразовых воркеров под конкретную задачу — там достаточно
-обычного `spawn_worker`, и лишняя церемония только мешает.
+- a new project that needs its own orchestrator;
+- a recurring task class that needs a permanent specialist;
+- moving an agent between environments (laptop ↔ VPS, one server ↔ another);
+- "make one like mine" requests.
 
-## Pre-Flight Check
+**Do not use this** for one-shot workers for a specific task: ordinary `spawn_worker` is enough,
+and extra ceremony only gets in the way.
 
-**Один экземпляр Orchestra не видит агентов другого.** У каждого своя БД, свои сессии,
-свой список. `list_agents` и `list_orchestrators` показывают ТОЛЬКО локальных. Прежде чем
-писать «клону» или создавать копию — определись, в каком контуре работаешь, иначе сообщение
-уйдёт похожему по имени, но постороннему агенту. Проверка адресата стоит один вызов,
-ошибка — потерянный ход и путаницу в двух контурах сразу.
+## Separate environments
 
-Для работы с удалённым экземпляром — скилл `vps-orchestra` (адреса и доступы там,
-в этом файле их намеренно нет).
+**One Orchestra instance cannot see another instance's agents.** Each has its own database,
+sessions, and list. `list_agents` and `list_orchestrators` show ONLY local agents. Before writing
+to a "clone" or creating a copy, identify the environment; otherwise a message may go to a
+similarly named but unrelated agent. Checking the recipient costs one call; an error loses a turn
+and creates confusion in both environments.
 
-## Process Flow
+For a remote instance, use the `vps-orchestra` skill; addresses and access details intentionally
+do not belong in this file.
 
-### 1. Определи, кто нужен
+### 1. Identify what is needed
 
-| нужен | роль | lifecycle |
+| Need | Role | Lifecycle |
 |---|---|---|
-| владелец проекта, управляет воркерами | `orchestrator` (флаг `is_orchestrator`) | persistent |
-| исследование, замеры, правка промптов | `full-cycle` | persistent |
-| реализация по готовому ТЗ | `worker` | one-shot или persistent |
-| подкоманда внутри большого проекта | `sub-orchestrator` | persistent |
+| Project owner who manages workers | `orchestrator` (`is_orchestrator` flag) | persistent |
+| Research, measurements, prompt edits | `full-cycle` | persistent |
+| Implementation from a ready specification | `worker` | one-shot or persistent |
+| Sub-team inside a large project | `sub-orchestrator` | persistent |
 
-Для работы с неизвестным подходом по умолчанию выбирай full-cycle. Если владелец
-явно назначил специалиста другой роли, не пересоздавай его только ради ярлыка роли.
-Методика и необходимые доказательства определяются заданием; наличие модуля само
-по себе не доказывает качество выполненной работы.
+For an unfamiliar approach, choose `full-cycle` by default. If the owner explicitly assigned a
+specialist another role, do not recreate it merely for a role label. The task defines method and
+required evidence; having a module does not itself prove quality.
 
-### 2. Оркестратор нового проекта
+### 2. Orchestrator for a new project
 
-Оркестратор создаётся не через `spawn_worker`, а через API создания сессии с флагом
-`is_orchestrator: true`. Ключевые поля запроса (`CreateSessionRequest` в
-`app/routes/sessions.py`):
+Create an orchestrator through the session-creation API with `is_orchestrator: true`, not through
+`spawn_worker`. Key request fields (`CreateSessionRequest` in `app/`):
 
 ```json
 {
-  "name": "<проект>-orchestrator",
-  "cwd": "/путь/к/проекту",
-  "scope": "/путь/к/проекту",
-  "model": "opus",
-  "is_orchestrator": true,
+  "name": "<project>-orchestrator",
   "role": "orchestrator",
-  "description": "lifecycle=persistent | AI оркестратор проекта <название>",
-  "system_prompt": ""
+  "model": "opus",
+  "cwd": "/path/to/project",
+  "scope": "/path/to/project",
+  "description": "lifecycle=persistent | project orchestrator"
 }
 ```
 
-`POST /api/sessions`. Omit a versioned model id: the role default lives in
-`.orchestra/pipelines/<name>/pipeline.yaml` (`roles.orchestrator.model`). Pass a short alias if you
-override. A copied id here goes stale.
+`cwd` and `scope` are the project root, not a subdirectory; that is where `CLAUDE.md`, `TODO.md`,
+and `.orchestra/` are loaded.
 
-`cwd` и `scope` — корень проекта, а не подкаталог: оттуда подхватывается `CLAUDE.md`,
-`TODO.md` и структура `.orchestra/`.
+### 3. Permanent specialist
 
-### 3. Постоянный специалист
+Use the session API with a stable name, project root, role, and a first task:
 
-```
-spawn_worker(
-  name='prompt-engineer',
-  role='full-cycle',
-  model='opus',
-  repo_path='/путь/к/проекту',
-  description='lifecycle=persistent | краткая роль одной фразой',
-  task='<первая задача>'
+```python
+create_session(
+    name='<specialist-name>',
+    role='full-cycle',
+    model='sonnet',
+    repo_path='/path/to/project',
+    description='lifecycle=persistent | one-sentence role',
+    task='<first task>',
 )
 ```
 
-### 4. Главное правило: `system_prompt` оставляй ПУСТЫМ
+### 4. Main rule: keep `system_prompt` empty
 
-Рантайм сам собирает полный промпт из роли, модулей и личной памяти. Свой текст — это
-НЕОБЯЗАТЕЛЬНЫЙ слой поверх, и по умолчанию его нет.
+The runtime assembles the complete prompt from the role, modules, and personal memory. A custom
+text is an optional overlay and is absent by default.
 
-Писать оверлей стоит только ради границы, которой нет ни в роли, ни в задаче, ни в
-`owned_dirs`: узкая экспертиза («Python asyncio»), запрет на конкретный каталог, планка
-качества выше стандартной.
+Write an overlay only for a boundary absent from the role, task, or `owned_dirs`: narrow
+expertise (such as Python asyncio), a specific directory prohibition, or a quality bar above the
+standard.
 
-**Не переписывай в оверлей роль и общие правила качества** — они уже в собранном промпте,
-и агент будет следовать твоей копии, а не оригиналу. Копия устаревает молча: оригинал
-правят, копию — нет.
+**Do not rewrite the role or shared quality rules in an overlay** — they already exist in the
+assembled prompt, and the agent will follow your stale copy instead of the source. The source may
+be updated while the copy silently diverges.
 
-### 5. Перенос агента между контурами
+### 5. Move an agent between environments
 
-Переносится **не сессия, а рецепт плюс память**. Диалог, накопленный контекст и session_id
-не переносятся ничем — это не ограничение, а свойство: агент собирается заново из
-воспроизводимых частей.
+Move **the recipe plus memory, not the session**. Conversation, accumulated context, and
+`session_id` do not move; this is a property that rebuilds the agent from reproducible parts.
 
-Что реально уезжает:
+What actually moves:
 
-| что | как |
+| What | How |
 |---|---|
-| личная память | файл `.orchestra/workers/<имя>.md` в репозитории → приезжает с `git pull` |
-| правила проекта | `CLAUDE.md` → тем же `git pull` |
-| зеркало для Codex-агентов | `AGENTS.md` генерируется при коннекте бэкенда |
-| роль и модули | из `.orchestra/pipelines/` в репозитории |
-| диалог, session_id | **не переносится** |
+| Personal memory | `.orchestra/workers/<name>.md` in the repository, arriving with `git pull` |
+| Project rules | `CLAUDE.md`, through the same `git pull` |
+| Codex-agent mirror | `AGENTS.md`, generated when the backend connects |
+| Role and modules | From `.orchestra/pipelines/` in the repository |
+| Conversation, `session_id` | **Does not move** |
 
-**Ключевой приём:** личная память инжектится по СОВПАДЕНИЮ ИМЕНИ. Назови агента в новом
-контуре точно так же — и он получит всю накопленную базу при первом же спавне. Копировать
-данные руками не нужно, и именно это чаще всего пытаются сделать зря.
+**Key technique:** personal memory is injected by exact name matching. Give the agent the same
+name in the new environment and it receives the accumulated base at its first spawn. Manual data
+copying is unnecessary and is the common mistake.
 
-Порядок переноса:
-1. Убедись, что `.orchestra/workers/<имя>.md` закоммичен и уехал в удалённый контур.
-2. Отправь туда рецепт: имя (точное), роль, модель, `description`, первая задача.
-3. Явно предупреди: `system_prompt` пустой. Иначе на месте сочинят свой и получат конфликт с ролью.
-4. Приложи 1-2 примера результатов агента — чтобы принимающая сторона понимала планку.
+Move in this order:
 
-### 6. Осознанное стирание истории при переезде
+1. Ensure `.orchestra/workers/<name>.md` is committed and has reached the remote environment.
+2. Send the recipe: exact name, role, model, `description`, and first task.
+3. State explicitly that `system_prompt` is empty; otherwise the destination will invent one and
+   conflict with the role.
+4. Attach 1–2 example results so the receiving side understands the quality bar.
 
-Если переносишь агента, у которого была долгая жизнь в старом контуре, — рассмотри
-обнуление его истории (`session_id`) вместо переноса.
+### 6. Deliberately erase history during a move
 
-Причина проверена на практике: старая сессия помнит устаревшее состояние и действует по
-нему УВЕРЕННО. Агент, у которого стёрта история и есть свежий передаточный документ,
-ошибается реже, чем агент, помнящий позапрошлую конфигурацию. Компакт эту проблему не
-решает: он просит сессию законспектировать саму себя, и устаревшие убеждения переезжают
-в конспект без исходника.
+When moving an agent with a long life in the old environment, consider clearing its history
+(`session_id`) instead of moving it.
 
-Делается при ОСТАНОВЛЕННОМ сервисе — живой сервер перезапишет значение из памяти.
-Взамен обязательно оставь передаточный документ: что сделано, что в работе, какие решения
-приняты, что не трогать. Без него агент останется без опоры вовсе.
+The reason is tested in practice: an old session remembers stale state and acts on it confidently.
+An agent with cleared history and a fresh handoff document errs less often than one remembering an
+outdated configuration. Compaction does not solve this: it asks the session to summarize itself,
+so stale beliefs move into the summary without their source.
 
-## Output Format
+Do this with the service STOPPED — a live server will overwrite the value from memory. Always
+leave a handoff document: what is done, what is in progress, decisions made, and what not to touch.
+Without it the agent has no support.
 
-После создания сообщи одной строкой: имя, роль, модель, контур. Если это перенос — что
-именно уехало (память/правила) и что осталось (диалог).
+After creation, report one line: name, role, model, and environment. For a move, state what moved
+(memory/rules) and what stayed (conversation).
 
-## Error Handling
+## Troubleshooting
 
-| Симптом | Причина | Решение |
+| Symptom | Cause | Resolution |
 |---|---|---|
-| агент «не знает проект» | `cwd`/`scope` указывают не в корень | пересоздать с корнем проекта |
-| агент игнорирует часть правил | свой `system_prompt` конфликтует с ролью | убрать оверлей, оставить пустым |
-| личная память не подхватилась | имя не совпадает с `.orchestra/workers/<имя>.md` | переименовать агента ровно в имя файла |
-| Codex-агент видит старые правила | зеркало `AGENTS.md` не обновилось | оно пишется при коннекте бэкенда — переподключить |
-| «создал оркестратора, а он воркер» | забыт флаг `is_orchestrator` | создавать через `POST /api/sessions`, не через `spawn_worker` |
-| сообщение ушло не тому | одинаковые имена в разных контурах | сверить список агентов ИМЕННО того экземпляра |
+| Agent "does not know the project" | `cwd`/`scope` point below the project root | Recreate with the project root |
+| Agent ignores part of the rules | Custom `system_prompt` conflicts with the role | Remove the overlay; keep it empty |
+| Personal memory was not loaded | Name differs from `.orchestra/workers/<name>.md` | Rename the agent to exactly match the file |
+| Codex agent sees old rules | `AGENTS.md` mirror was not refreshed | It is written on backend connect; reconnect |
+| "Created an orchestrator, but it is a worker" | `is_orchestrator` flag was omitted | Create through `POST /api/sessions`, not `spawn_worker` |
+| Message reached the wrong agent | Same name in different environments | Check the agent list of THAT instance |
 
-## Anti-Patterns
+## What not to do
 
-- **Копировать данные агента руками** — память подхватывается по имени, ручное копирование
-  создаёт вторую расходящуюся версию.
-- **Писать подробный `system_prompt`** — он вступает в конфликт с ролью, и агент слушается
-  копии, а не оригинала.
-- **Переносить сессию целиком** — устаревшие убеждения переезжают вместе с ней и звучат
-  так же уверенно, как верные.
+- **Copy agent data manually** — memory is loaded by name; manual copying creates a second
+  diverging version.
+- **Write a detailed `system_prompt`** — it conflicts with the role, so the agent follows the
+  copy instead of the source.
+- **Move the whole session** — stale beliefs move with it and sound as confident as correct ones.
