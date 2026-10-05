@@ -1,0 +1,27 @@
+# V-731 — замер пяти моделей на учебном 3D-ролике
+
+## Сводная таблица
+
+| Модель | API-equivalent, $ | Вход (кэш внутри входа) | Выход / reasoning | Ходы / usage-записи | Время агента | Видео; Deepgram; кадры | MP4 |
+|---|---:|---|---|---:|---|---|---|
+| Sonnet 5.5 | 7.1693 | 25,031,106 (25,031,012: read 24,898,210 + write 132,802) | 72,037 / нет данных | 7 | ≈1 ч 59 мин от доставки v2 (~12:13 UTC) до последнего учтённого хода (14:11:58 UTC); отчёт отдельно оценивает агентное время ≈3 ч | 403.6 с; 722/737 = 97.96% overall, min по фразе нет данных; ≥40 кадров | `/home/kesha/orchestra/worktrees/home-kesha-projects-seedon/course-pilot/.orchestra/tasks/V-170/video3d/v2/out/final.mp4` |
+| Luna | 0.3308 | 21,582,342 (кэш read 21,076,352; write 0) | 138,884 / нет данных | 11 | ≈2 ч 13 мин от начала подготовки до финальной проверки (bench-luna.md) | 251.33 с; recall среднее 99.5%, минимум 93%; 30 кадров | `/home/kesha/orchestra/worktrees/home-kesha-projects-seedon/bench3d-luna/.orchestra/tasks/V-170/video3d-v2/out/lesson.mp4` |
+| Opus 5.5 | 6.1887 | 12,710,984 (кэш 12,710,852: read 12,454,038 + write 256,814) | 74,423 / нет данных | 3 | ≈1 ч 21 мин (старт 14:19 → отчёт 15:40 по bench-opus.md) | 289.3 с; recall среднее 100%, минимум 100% после нормализации чисел (без неё 94.7%); 15 кадров | `/home/kesha/orchestra/worktrees/home-kesha-projects-seedon/bench3d-opus/.orchestra/tasks/V-170/video3d-v2-opus/out/rashozhdenie-v2-opus.mp4` |
+| GPT-6 Sol | 2.5012 | 8,991,255 (кэш 8,775,168; write 0) | 31,395 / 11,285 | 1 `turn.completed` | 43 мин 51 с (`started.txt` → `finished.txt`) | 195.413 с; recall среднее 94.4%, минимум 89.7%; 17 кадров | `/home/kesha/orchestra/worktrees/home-kesha-projects-seedon/bench3d-sol/.orchestra/tasks/V-170/video3d-v2/out/video3d-v2.mp4` |
+| GPT-6.1 Sol | 4.0223 | 18,534,980 (кэш 18,129,280; write 0) | 139,797 / 96,186 | 1 `turn.completed` | 1 ч 34 мин 46 с (`started.txt` → `finished.txt`) | 507.458 с; recall среднее 99.70%, минимум 97.06%; 54 кадра | `/home/kesha/orchestra/worktrees/home-kesha-projects-seedon/bench3d-sol61/.orchestra/tasks/V-170/video3d/v2/out/signals-v2-sol61.mp4` |
+
+Для трёх строк Claude/Luna стоимость — ровно `SUM(turn_usage.cost_usd)` по указанным сессиям/задачам. Sonnet ограничен строками с `ts >= 2026-10-05T12:13:00Z`, то есть ходами после приблизительного времени доставки ТЗ v2 из `runs.md`; это 7 из 14 строк сессии. В `turn_usage` нет поля reasoning, поэтому для этих строк оно указано как «нет данных». Claude хранит uncached input и cache read/write отдельными полями; таблица складывает их в общий вход и показывает cache внутри него. Codex `input_tokens` уже включает cached input. Кэш-запись входит в общий кэш.
+
+GPT-6 Sol: `.orchestra/tasks/V-727/run.jsonl` содержит один `turn.completed.usage`; стоимость рассчитана по ставкам из `app/backend_codex.py` для `gpt-6-sol`: $2/M input, $0.20/M cached input, $2.50/M cache-write input, $10/M output. В `app/models.py` тарифы Codex прямо делегированы `backend_codex.py`; у самого GPT-6 Sol цена в `ModelSpec` не задана. GPT-6.1 Sol отсутствует и в `app/models.py`, и в таблице тарифов Codex; для него использованы заданные в V-731 внешние DevDay ставки: $2/M input, $0.10/M cached input, $10/M output. У обоих Sol cache-write input равен 0. Reasoning из `turn.completed.usage` отдельно указан как часть выходных токенов; он не прибавлялся к output повторно. Внутреннее число model calls внутри Codex turn в этих файлах не указано.
+
+## Условия прогонов и источники
+
+Все пять прогонов выполнялись параллельно и делили машину. В отчёте Opus измерен полный рендер 2,591 с (≈43 мин), примерно в четыре раза медленнее v1; там же замедление отнесено к одновременным рендерам участников замера. Sonnet делал v1 этого же ролика, поэтому начинал с уже сделанной работы; Luna, Opus и оба Sol начинали с базы `43ae572`. Оба Sol запускались через `codex exec` без инструментов Orchestra.
+
+Показатели видео, Deepgram и проверенных кадров переписаны из `runs.md`, раздела «3D-пилот v2» Sonnet в отчёте V-170 и четырёх отчётов `bench-*.md`. Для Sonnet источник даёт только итог `722/737` слов, поэтому средний overall вычислен делением, а minimum per phrase отсутствует. Путь к MP4 Sonnet взят из `runs.md`; остальные абсолютные пути разрешены по указанным worktree и проверены на наличие файла. Все деньги, токены и ходы пересчитаны по read-only `turn_usage` и двум `turn.completed.usage` из JSONL; расчёты не меняют исходные данные.
+
+**Время Sonnet:** последнее usage-событие его сессии после доставки — `2026-10-05T14:11:58Z`; `runs.md` отдельно приводит ≈3 часа агентного времени. Таблица сохраняет оба значения и использует интервал от доставки до последнего учтённого хода для сопоставления с формулой «доставка → DONE». **Время Opus** взято из bench-отчёта (14:19–15:40); там же времена описаны как приблизительные. Коммит с `bench-opus.md` датирован 15:30:28, поэтому source timestamps расходятся примерно на 10 минут; таблица сохраняет указанное отчётом DONE-время. Для Sol применены точные `started.txt`/`finished.txt`: V-727 `12:45:28Z–13:29:19Z`, V-728 `12:53:58Z–14:28:44Z`.
+
+## PNG-таблица
+
+`table.png` рядом с этим отчётом — та же таблица для просмотра с телефона; размер 2880×1900. Она создана скриптом `render_table.py` из сведений таблицы выше.
