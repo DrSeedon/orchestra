@@ -16,9 +16,9 @@ from typing import Any, Callable, Iterable, Sequence
 CLAUDE_CLI_HISTORY_VERSION = "2.1.197"
 CLAUDE_SDK_HISTORY_VERSION = "0.2.114"
 CLAUDE_HISTORY_SOURCE = "logs:claude"
-# A synthetic history payload was accepted by codex-cli 0.156.1 `thread/resume` in an
-# isolated CODEX_HOME on 2026-10-05 (V-703); no live thread was resumed.
-CODEX_CLI_HISTORY_VERSION = "0.156.1"
+# Synthetic history payloads were accepted by CLI 0.156.1 (V-703) and 0.160.0 (V-726)
+# through `thread/resume` in isolated CODEX_HOME directories; no live thread was resumed.
+CODEX_CLI_HISTORY_VERSION = "0.160.0"
 
 TOOL_CALL_LIMIT = 8_000
 TOOL_RESULT_LIMIT = 20_000
