@@ -5,12 +5,25 @@ At spawn and on description updates, `description` MUST start with `lifecycle=on
 `lifecycle=persistent`. Names, prefixes, and roles never determine lifecycle; an unmarked legacy
 worker is `persistent`.
 
+**Killing is the exception, not the end of every task** (owner, 05.10.2026, verbatim: «если думаешь
+что этот проект дальше будем делать чинить или возникнут еще задачи не убивай просто так . типо
+только если это точно закрыта задача и больше не появится удалять надо»). The trigger: an
+orchestrator on a game-fixing project kept spawning and killing Opus workers task after task, so
+every new fix started cold and re-read the project from zero. An idle worker costs nothing; its
+warm context about the project is the value. So choose `lifecycle=one-shot` only when the whole
+line of work is truly closed: a single investigation, a one-off fix in a project you will not
+touch again. Ongoing work on a project or module (a game being fixed, a feature with follow-ups,
+anything where more tasks are likely) is `lifecycle=persistent`; after merge, send the next task
+of that project to the same worker instead of spawning a new one.
+
 Before every `kill_worker`, follow in order:
 1. Run `worker_wip(name)`. Dirty files or unmerged commits → commit/merge or use reversible
    `stop_worker`; do not kill.
 2. RESEARCH DONE / PLAN READY / “awaiting approval” / STOP without later final DONE → never kill;
    the worker has a next phase.
-3. `lifecycle=one-shot` → auto-kill only after final DONE, successful merge, `idle`, and clean WIP.
+3. `lifecycle=one-shot` → kill only after final DONE, successful merge, `idle`, and clean WIP,
+   AND only if no further task in that project or area is expected. If more work there is
+   likely, relabel the worker `lifecycle=persistent` instead of killing it.
 4. `lifecycle=persistent` or unmarked → keep idle; kill only on explicit user cleanup/kill.
 
 `stop_worker` preserves the session/worktree; `kill_worker` archives permanently. The gate applies
