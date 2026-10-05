@@ -702,7 +702,7 @@ class SessionManager:
             )
             allocated_task_id = task_identity["id"]
             task_id = public_task_ref(task_identity)
-        if task_id and not is_orch:
+        if task_id:
             from app.tm import resolve_scoped_task_identity
             task_identity = await asyncio.to_thread(
                 resolve_scoped_task_identity, scope, task_id,

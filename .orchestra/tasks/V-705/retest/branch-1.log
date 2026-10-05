@@ -1,0 +1,82 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ TestAtomicSpawnLifecycle.test_cancelled_blocked_git_waits_then_removes_worktree_and_branch _
+
+self = <tests.test_manager.TestAtomicSpawnLifecycle object at 0x74289ed61370>
+mgr = <app.manager.SessionManager object at 0x74289cefdcd0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12310/test_cancelled_blocked_git_wai0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x74289ed79100>
+
+    @pytest.mark.asyncio
+    async def test_cancelled_blocked_git_waits_then_removes_worktree_and_branch(
+        self, mgr, tmp_path, monkeypatch,
+    ):
+        import subprocess
+        import app.manager as manager_module
+        from app.db import get_session_by_name
+        from app.workspace import _slugify
+    
+        repo = _git_repo(tmp_path)
+        entered = threading.Event()
+        release = threading.Event()
+        cleanup_entered = threading.Event()
+        cleanup_release = threading.Event()
+        real_create = manager_module.create_worktree
+        real_discard = manager_module.discard_prepared_worktree
+    
+        def blocked_create(*args, **kwargs):
+            entered.set()
+            assert release.wait(2)
+            return real_create(*args, **kwargs)
+    
+        def blocked_discard(*args, **kwargs):
+            cleanup_entered.set()
+            assert cleanup_release.wait(2)
+            return real_discard(*args, **kwargs)
+    
+        monkeypatch.setattr(manager_module, "create_worktree", blocked_create)
+        monkeypatch.setattr(
+            manager_module, "discard_prepared_worktree", blocked_discard,
+        )
+        spawn = asyncio.create_task(mgr.create_session(
+            name="cancelled", scope="/s", cwd=str(repo),
+            model="claude-sonnet-5-5[1m]", use_worktree=True,
+            repo_path=str(repo),
+        ))
+        assert await asyncio.to_thread(entered.wait, 2)
+        spawn.cancel()
+        await asyncio.sleep(0)
+        assert spawn.done() is False
+        spawn.cancel()
+        await asyncio.sleep(0)
+        assert spawn.done() is False
+    
+        release.set()
+>       assert await asyncio.to_thread(cleanup_entered.wait, 2)
+E       assert False
+
+tests/test_manager.py:428: AssertionError
+---------------------------- Captured log teardown -----------------------------
+ERROR    asyncio:base_events.py:1821 unhandled exception during asyncio.run() shutdown
+task: <Task finished name='Task-2' coro=<SessionManager.create_session() done, defined at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-tasks/app/manager.py:536> exception=RuntimeError('spawn failed (CancelledError: ); compensation failed: Git cleanup: AssertionError: assert False\n +  where False = wait(2)\n +    where wait = <threading.Event at 0x74289cbbc6e0: unset>.wait')>
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-tasks/app/manager.py", line 184, in _wait_owned_task
+    await asyncio.shield(task)
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-tasks/app/manager.py", line 555, in create_session
+    return await self._create_session_locked(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-tasks/app/manager.py", line 832, in _create_session_locked
+    cleanup_task.result()
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-tasks/app/manager.py", line 816, in compensate_after
+    raise RuntimeError(
+RuntimeError: spawn failed (CancelledError: ); compensation failed: Git cleanup: AssertionError: assert False
+ +  where False = wait(2)
+ +    where wait = <threading.Event at 0x74289cbbc6e0: unset>.wait
+=========================== short test summary info ============================
+FAILED tests/test_manager.py::TestAtomicSpawnLifecycle::test_cancelled_blocked_git_waits_then_removes_worktree_and_branch
+1 failed in 17.68s

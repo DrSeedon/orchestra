@@ -81,3 +81,72 @@ def test_remote_project_is_imported_without_inventing_a_local_scope(runtime):
         row = connection.execute("SELECT * FROM tm_projects WHERE canonical_id='remote-project'").fetchone()
         assert row['scope'] is None
         assert connection.execute('SELECT COUNT(*) FROM tm_tasks WHERE project_id=?', (row['id'],)).fetchone()[0] == 1
+
+
+def test_new_assignment_supersedes_a_stale_legacy_task_run(runtime):
+    from app import tm
+    from app.session import AgentSession
+
+    previous = tm.api_create_task('local-project', 'Previous')
+    current = tm.api_create_task('local-project', 'Current')
+    session = AgentSession(
+        id='legacy-worker', name='legacy-worker', scope='/project', cwd='/project',
+        model='claude-sonnet-5-5[1m]', task_id=current['par'],
+    )
+    db.save_session(session._to_db_dict())
+    db.task_run_receipt_open(
+        session_id=session.id, worker_name=session.name, scope=session.scope,
+        task_id=previous['par'], task_source='legacy',
+    )
+    identity = tm.resolve_scoped_task_identity('/project', current['par'])
+
+    result = tm.api_update_task_if_current(
+        identity, status='in_progress', worker_session_id=session.id,
+    )
+
+    assert result['ok']
+    with db._conn() as connection:
+        runs = connection.execute(
+            "SELECT task_id,status,failure_code FROM review_receipts "
+            "WHERE subject_kind='task_run' AND session_id=? ORDER BY task_id",
+            (session.id,),
+        ).fetchall()
+    assert [tuple(row) for row in runs] == [
+        (previous['par'], 'interrupted', 'task_superseded'),
+        (current['par'], 'requested', ''),
+    ]
+
+
+def test_switching_tasks_closes_the_bound_run_as_superseded(runtime):
+    from app import tm
+    from app.session import AgentSession
+
+    previous = tm.api_create_task('local-project', 'Previous')
+    current = tm.api_create_task('local-project', 'Current')
+    session = AgentSession(
+        id='switch-worker', name='switch-worker', scope='/project', cwd='/project',
+        model='claude-sonnet-5-5[1m]', task_id=previous['par'],
+    )
+    db.save_session(session._to_db_dict())
+    previous_identity = tm.resolve_scoped_task_identity('/project', previous['par'])
+    assert tm.api_update_task_if_current(
+        previous_identity, status='in_progress', worker_session_id=session.id,
+    )['ok']
+    current_identity = tm.resolve_scoped_task_identity('/project', current['par'])
+
+    result = tm.api_update_task_if_current(
+        current_identity, status='in_progress', worker_session_id=session.id,
+        release_previous={'session_id': session.id},
+    )
+
+    assert result['ok']
+    with db._conn() as connection:
+        runs = connection.execute(
+            "SELECT task_id,status,failure_code FROM review_receipts "
+            "WHERE subject_kind='task_run' AND session_id=? ORDER BY task_id",
+            (session.id,),
+        ).fetchall()
+    assert [tuple(row) for row in runs] == [
+        (previous['par'], 'interrupted', 'task_superseded'),
+        (current['par'], 'requested', ''),
+    ]
