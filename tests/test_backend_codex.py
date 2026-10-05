@@ -598,7 +598,7 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_history_import_accepts_verified_0156_1_pin(monkeypatch):
+async def test_history_import_accepts_verified_0160_0_pin(monkeypatch):
     import app.backend_codex as module
 
     backend = CodexBackend(
@@ -606,7 +606,7 @@ async def test_history_import_accepts_verified_0156_1_pin(monkeypatch):
         cwd="/tmp",
         history_import=_history_import(),
     )
-    run_process = AsyncMock(return_value=(0, "codex-cli 0.156.1", ""))
+    run_process = AsyncMock(return_value=(0, "codex-cli 0.160.0", ""))
     monkeypatch.setattr(module, "_run_process", run_process)
 
     await backend._verify_history_version()
