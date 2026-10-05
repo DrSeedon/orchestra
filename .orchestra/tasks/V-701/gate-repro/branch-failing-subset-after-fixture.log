@@ -1,0 +1,34 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 17 items
+
+tests/test_tg_bridge.py ..............F                                  [ 88%]
+tests/test_tg_file_deliveries.py ..                                      [100%]
+
+=================================== FAILURES ===================================
+_______________ test_v681_mp4_is_video_and_as_document_overrides _______________
+
+    def test_v681_mp4_is_video_and_as_document_overrides():
+        from app.upload_limits import send_as_photo, send_as_video
+        from app.tg_file_deliveries import _batch_kind
+    
+        assert send_as_video("clip.MP4", as_document=False) is True
+        assert send_as_video("clip.mp4", as_document=True) is False
+        assert send_as_video("clip.webm", as_document=False) is False
+        assert send_as_photo("clip.mp4", 100, False) is False
+        assert _batch_kind("clip.mp4", 100, False) == "video"
+        assert _batch_kind("clip.mp4", 100, True) == "document"
+>       assert _batch_kind("shot.png", 100, False) == "photo"
+E       AssertionError: assert 'document' == 'photo'
+E         
+E         - photo
+E         + document
+
+tests/test_tg_bridge.py:5499: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_tg_bridge.py::test_v681_mp4_is_video_and_as_document_overrides
+========================= 1 failed, 16 passed in 5.17s =========================

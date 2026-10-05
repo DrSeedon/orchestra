@@ -24,11 +24,36 @@ PHOTO_EXTENSIONS = frozenset({".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp"})
 VIDEO_EXTENSIONS = frozenset({".mp4", ".m4v"})
 
 
-def send_as_photo(name: str, size_bytes: int, as_document: bool) -> bool:
-    """Отправлять ли это вложение фотографией: решает и расширение, и размер."""
+def send_as_photo(
+    name: str,
+    size_bytes: int,
+    as_document: bool,
+    *,
+    photo_path: str | None = None,
+) -> bool:
+    """Выбрать photo по типу и размеру, проверяя геометрию при наличии пути."""
     if as_document or size_bytes > MAX_PHOTO_BYTES:
         return False
-    return Path(name).suffix.lower() in PHOTO_EXTENSIONS
+    return (
+        Path(name).suffix.lower() in PHOTO_EXTENSIONS
+        and (photo_path is None or photo_geometry_valid(photo_path))
+    )
+
+
+def photo_geometry_valid(path: str) -> bool:
+    from PIL import Image
+
+    try:
+        with Image.open(path) as image:
+            width, height = image.size
+    except Exception:
+        return False
+    return (
+        width > 0
+        and height > 0
+        and width + height <= 10_000
+        and max(width, height) <= 20 * min(width, height)
+    )
 
 
 def send_as_video(name: str, as_document: bool) -> bool:

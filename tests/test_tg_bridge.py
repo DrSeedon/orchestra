@@ -22,6 +22,15 @@ from aiogram.methods import SendMessage
 from app.tg_bridge import stop_bridge as _real_stop_bridge
 
 
+def _test_png_bytes(color=(32, 64, 96)):
+    import io
+    from PIL import Image
+
+    image = io.BytesIO()
+    Image.new("RGB", (4, 4), color).save(image, format="PNG")
+    return image.getvalue()
+
+
 @pytest.mark.asyncio
 async def test_t2_artifact_text_disables_link_preview_at_the_bot_call(tb, monkeypatch):
     message = SimpleNamespace(message_id=77, chat=SimpleNamespace(id=-100123456))
@@ -80,6 +89,32 @@ async def test_t2_text_helper_threads_preview_disable_without_changing_document_
     )
     assert file_result["ok"] is True
     assert file_calls[0][1]["is_photo"] is False
+
+
+@pytest.mark.asyncio
+async def test_direct_photo_send_uses_document_for_invalid_geometry(
+    tb, tmp_path, monkeypatch,
+):
+    from PIL import Image
+
+    path = tmp_path / "panorama.png"
+    Image.new("RGB", (1_000, 40)).save(path)
+    tb.bot = object()
+    tb.config["topics"] = {"publisher": 42}
+    captured = {}
+
+    async def send_file(*args, **kwargs):
+        captured.update(kwargs)
+        return SimpleNamespace(
+            message_id=88,
+            chat=SimpleNamespace(id=tb.config["group_id"]),
+        )
+
+    monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+    result = await tb.send_file_to_tg(str(path), "panorama", "/scope", "publisher")
+
+    assert result["ok"] is True
+    assert captured["is_photo"] is False
 
 
 @pytest.fixture
@@ -470,7 +505,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "source.png"
-        source.write_bytes(b"original")
+        source.write_bytes(_test_png_bytes())
         positions = []
         edit_started = asyncio.Event()
         release_edit = asyncio.Event()
@@ -543,7 +578,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "failed.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         method = SendMessage(chat_id=-100, text="image placeholder")
         tb.bot = AsyncMock()
         tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
@@ -579,7 +614,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "bounded.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         release_edit = asyncio.Event()
         edit_started = asyncio.Event()
         marker_count = 0
@@ -635,7 +670,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "important.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         marker_started = asyncio.Event()
         release_marker = asyncio.Event()
         edit_started = asyncio.Event()
@@ -698,7 +733,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "important.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         tb.bot = AsyncMock()
         tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
         tb.bot.edit_message_media.return_value = object()
@@ -724,7 +759,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "retry.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         method = SendMessage(chat_id=-100, text="image")
         tb.bot = AsyncMock()
         tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
@@ -754,7 +789,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "already-edited.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         method = SendMessage(chat_id=-100, text="image")
         tb.bot = AsyncMock()
         tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
@@ -782,7 +817,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "marker.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         method = SendMessage(chat_id=-100, text="image")
         tb.bot = AsyncMock()
         tb.bot.send_message.side_effect = TelegramNetworkError(
@@ -812,7 +847,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "marker-flood.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         method = SendMessage(chat_id=-100, text="image")
         tb.bot = AsyncMock()
         tb.bot.send_message.side_effect = [
@@ -846,7 +881,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "overloaded.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         tb.bot = AsyncMock()
         monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
         monkeypatch.setattr(tb, "_TG_RELIABLE_QUEUE_MAX", 0)
@@ -870,7 +905,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "overloaded.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         tb.bot = AsyncMock()
         monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
         monkeypatch.setattr(tb, "_TG_RELIABLE_QUEUE_MAX", 0)
@@ -897,7 +932,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "ambiguous.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         method = SendMessage(chat_id=-100, text="image placeholder")
         tb.bot = AsyncMock()
         tb.bot.send_message.side_effect = TelegramNetworkError(
@@ -928,7 +963,8 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "mutable.png"
-        source.write_bytes(b"before")
+        before = _test_png_bytes((255, 0, 0))
+        source.write_bytes(before)
         release_edit = asyncio.Event()
         uploaded = []
         tb.bot = AsyncMock()
@@ -947,11 +983,11 @@ class TestTgImageLane:
             -100, str(source), None, 42,
             is_photo=True, important=False,
         )
-        source.write_bytes(b"after")
+        source.write_bytes(_test_png_bytes((0, 0, 255)))
         release_edit.set()
 
         assert await completion is not None
-        assert uploaded == [b"before"]
+        assert uploaded == [before]
         await asyncio.sleep(0)
         assert not list(tmp_path.glob("tg-image-*"))
 
@@ -962,7 +998,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "identity.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         old_marker_started = asyncio.Event()
         old_marker_result = asyncio.get_running_loop().create_future()
         release_new_edit = asyncio.Event()
@@ -1059,7 +1095,7 @@ class TestTgImageLane:
         import tempfile
 
         source = tmp_path / "cancelled.png"
-        source.write_bytes(b"image")
+        source.write_bytes(_test_png_bytes())
         edit_started = asyncio.Event()
         release_edit = asyncio.Event()
         snapshot_path = None
@@ -5145,6 +5181,38 @@ class TestTurnFoldStream:
         assert len(expandables) == 1           # только ⚙️
         assert expandables[0].startswith("⚙️ 1 действие")
         assert "sed -n '1,260p'" in expandables[0]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tool_name", ["Edit", "Write"])
+    async def test_edit_and_write_results_do_not_send_duplicate_image_previews(
+        self, tb, monkeypatch, tool_name,
+    ):
+        image_sends = []
+
+        async def send_file(*args, **kwargs):
+            image_sends.append((args, kwargs))
+
+        monkeypatch.setattr(tb, "_tg_send_file_safe", send_file)
+        content = json.dumps({"file_path": "/scope/result.png", "content": "image"})
+        sent, expandables, _ = await self._run(tb, monkeypatch, [[
+            {
+                "id": 1,
+                "type": "tool",
+                "content": f"{tool_name}: {content}",
+                "tool_use_id": "edit-1",
+            },
+            {
+                "id": 2,
+                "type": "tool_result",
+                "content": '{"type": "image"}',
+                "tool_use_id": "edit-1",
+            },
+        ]])
+
+        assert image_sends == []
+        assert not sent
+        assert len(expandables) == 1
+        assert expandables[0].startswith("⚙️ 1 действие")
 
     @pytest.mark.asyncio
     async def test_engine_status_dropped_user_status_becomes_action(self, tb, monkeypatch):

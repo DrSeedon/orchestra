@@ -96,6 +96,25 @@ def world(tmp_path, monkeypatch):
 
 def _file(root: Path, name: str, size: int) -> str:
     path = root / name
+    if path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}:
+        from PIL import Image
+        import io
+        import struct
+        import zlib
+
+        image = io.BytesIO()
+        Image.new("RGB", (16, 16)).save(image, format="PNG")
+        payload = image.getvalue()
+        padding = b"Comment\0" + bytes(max(0, size - len(payload) - 20))
+        chunk = (
+            struct.pack(">I", len(padding))
+            + b"tEXt"
+            + padding
+            + struct.pack(">I", zlib.crc32(b"tEXt" + padding))
+        )
+        end = payload.rfind(b"\0\0\0\0IEND")
+        path.write_bytes(payload[:end] + chunk + payload[end:])
+        return str(path)
     with path.open("wb") as handle:
         handle.truncate(size)
     return str(path)
@@ -245,6 +264,43 @@ async def test_terminal_failure_does_not_hide_a_delivered_sibling(world):
     resource = world.deliveries.get_file_delivery(EVENT, "source-544")
     assert resource["delivery_state"] == "FAILED"
     assert [item["delivery_state"] for item in resource["files"]] == ["FAILED"] * 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("size", [(10_001, 1), (1_000, 40)])
+async def test_photo_with_invalid_dimensions_is_delivered_as_document(world, size):
+    from PIL import Image
+
+    path = world.root / "panorama.png"
+    Image.new("RGB", size).save(path)
+
+    await _accept_one(world, str(path))
+    await world.deliveries.run_chat_deliveries(CHAT)
+
+    assert world.bot.singles[-1][0] == "document"
+    assert _states(world) == [("panorama.png", "SENT")]
+
+
+@pytest.mark.asyncio
+async def test_queued_legacy_photo_album_with_invalid_geometry_stays_deliverable(world):
+    from PIL import Image
+
+    panorama = world.root / "queued-panorama.png"
+    Image.new("RGB", (1_000, 40)).save(panorama)
+    ordinary = _file(world.root, "queued-ordinary.png", 1024)
+    await _accept_batch(world, [str(panorama), ordinary])
+
+    # Simulate a durable batch accepted by the previous code before geometry was checked.
+    with world.db._conn() as connection:
+        connection.execute(
+            "UPDATE tg_file_deliveries SET batch_kind='photo', batch_group=0 "
+            "WHERE original_name IN (?, ?)",
+            ("queued-panorama.png", "queued-ordinary.png"),
+        )
+    await world.deliveries.run_chat_deliveries(CHAT)
+
+    assert world.bot.groups[0]["types"] == ["InputMediaDocument"] * 2
+    assert [state for _name, state in _states(world)] == ["SENT", "SENT"]
 
 
 @pytest.mark.asyncio

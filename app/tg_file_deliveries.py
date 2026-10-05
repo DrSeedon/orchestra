@@ -335,7 +335,10 @@ def _payload_hash(
 
 
 def _batch_kind(path: str, size_bytes: int, as_document: bool) -> str:
-    if send_as_photo(path, size_bytes, as_document):
+    photo_path = path if Path(path).is_file() else None
+    if send_as_photo(
+        Path(path).name, size_bytes, as_document, photo_path=photo_path,
+    ):
         return "photo"
     if send_as_video(path, as_document):
         return "video"
@@ -346,7 +349,11 @@ def _plan_batch(prepared: list[dict[str, Any]], as_document: bool) -> None:
     buckets: dict[str, list[dict[str, Any]]] = {}
     kind_order: list[str] = []
     for index, item in enumerate(prepared):
-        kind = _batch_kind(item["original_name"], item["size_bytes"], as_document)
+        kind = _batch_kind(
+            item.get("source_path") or item["original_name"],
+            item["size_bytes"],
+            as_document,
+        )
         item["batch_index"] = index
         item["batch_kind"] = kind
         if kind not in buckets:
@@ -1505,7 +1512,7 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         candidate["batch_kind"]
                         if candidate["batch_id"]
                         else _batch_kind(
-                            candidate["original_name"],
+                            candidate["snapshot_path"],
                             candidate["size_bytes"],
                             bool(candidate["as_document"]),
                         )

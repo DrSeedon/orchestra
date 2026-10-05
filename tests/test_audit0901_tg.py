@@ -138,6 +138,40 @@ async def test_second_resolve_of_a_live_token_delivers_nothing(tb, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_late_media_resolution_cannot_overwrite_a_new_buffer_generation(
+    tb, monkeypatch,
+):
+    monkeypatch.setattr(tb, "DEBOUNCE_SEC", 0)
+    monkeypatch.setattr(tb, "MEDIA_WAIT_MAX", 0)
+    manager = _RecordingManager()
+    monkeypatch.setattr(tb, "_manager", manager)
+    session = SimpleNamespace(id="sess-generation")
+
+    old_token = await tb._register_media(_tg_message(), session)
+    buf = tb._get_buf(session.id)
+    assert await _until(lambda: buf.epoch is not old_token.epoch)
+
+    monkeypatch.setattr(tb, "DEBOUNCE_SEC", 30)
+    monkeypatch.setattr(tb, "MEDIA_WAIT_MAX", 30)
+    new_token = await tb._register_media(_tg_message(), session)
+    await tb._resolve_media(old_token, "OLD")
+
+    assert buf.entries[0][1:] == (None, new_token.reservation)
+    await tb._resolve_media(new_token, "NEW")
+    assert [(content, reservation) for _msg, content, reservation in buf.entries] == [
+        ("NEW", None),
+    ]
+    assert buf.pending_media == 0
+    if buf.debounce_task and not buf.debounce_task.done():
+        buf.debounce_task.cancel()
+        await asyncio.gather(buf.debounce_task, return_exceptions=True)
+    await tb._flush_batch(session.id, list(buf.entries))
+
+    assert len(manager.sent) == 2
+    assert all(any(value in content for value in ("OLD", "NEW")) for _sid, content in manager.sent)
+
+
+@pytest.mark.asyncio
 async def test_mirror_carries_important_flag_to_the_send(tb, monkeypatch):
     """Финальный текст агента в зеркале не должен ехать по косметической полосе."""
     tb.bot = SimpleNamespace()

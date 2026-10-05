@@ -95,7 +95,7 @@
 | <a id="t087"></a>87 | L128 | Красный на main, не связан с #V-546: tests/test_merge_test_gate.py::test_browser_i… | FIXED | evidence/red_merge_gate_inventory.txt — 1 passed | — | — | — | — | — |
 | <a id="t088"></a>88 | L129 | tests/test_work_acceptance.py::test_failed_acceptance_still_blocks_new_work_withou… | FIXED | evidence/red_acceptance_path.txt — 1 passed | — | — | — | — | — |
 | <a id="t089"></a>89 | L130 | P1. Картинка тяжелее 10 МБ не доходит в Telegram и роняет весь альбом — ПОЧИНЕНА в… | FIXED | .orchestra/tasks/V-544/report.md (recorded in 71a008fe:TODO.md:L130) | — | — | — | — | — |
-| <a id="t090"></a>90 | L131 | P1 (остаток от #V-544). PHOTO_INVALID_DIMENSIONS размером не ловится. | OPEN-DEFECT | 71a008fe:TODO.md:L131; current file-delivery path noted there | Telegram file delivery | M | да | да | да |
+| <a id="t090"></a>90 | L131 | P1 (остаток от #V-544). PHOTO_INVALID_DIMENSIONS размером не ловится. | FIXED | .orchestra/tasks/V-701/report.md#t090; fresh, legacy durable album, and direct send tests | — | — | — | — | — |
 | <a id="t091"></a>91 | L132 | #V-544 ждёт офлайн-миграции живой БД (действие владельца). | FIXED | evidence/live_state_readonly.txt — live tg_file_deliveries CHECK allows 2097152000 bytes; no 52428800 limit | — | — | — | — | — |
 | <a id="t092"></a>92 | L133 | Потолок документа через локальный Bot API ИЗМЕРЕН (#V-544, 11.09.2026): | FIXED | .orchestra/tasks/V-544/control-run-200mb.txt (recorded in 71a008fe:TODO.md:L133) | — | — | — | — | — |
 | <a id="t093"></a>93 | L134 | P1. Утечка pidfd — ПОЧИНЕНА в коде (#V-543, коммит 180a5a4f), в живом процессе при… | FIXED | commit 180a5a4f (recorded in 71a008fe:TODO.md:L134) | — | — | — | — | — |
@@ -114,8 +114,8 @@
 | <a id="t106"></a>106 | L152 | Событие клишного компакта разбирается по НЕ ТОМУ регистру ключей — в журнале всегд… | FIXED | app/backend_claude.py:1494-1498 accepts compact_metadata snake_case and legacy camelCase | — | — | — | — | — |
 | <a id="t107"></a>107 | L155 | RAG-бэкфилл на merge_worker ненадёжен | NOTE | 71a008fe:TODO.md:L155 (original detailed record) | — | — | — | — | — |
 | <a id="t108"></a>108 | L156 | Устаревшие копии скиллов в Claude-worktree | OPEN-DEFECT | 71a008fe:TODO.md:L156 (worktree copy behavior; stale skill report) | Worktree prompt sync | M | да | нет | да |
-| <a id="t109"></a>109 | L157 | TG media buffer race | OPEN-DEFECT | app/tg_bridge.py:625; tests/test_audit0901_tg.py:99-125 | Telegram media delivery | M | да | нет | да |
-| <a id="t110"></a>110 | L158 | TG дубли expandable+image | OPEN-DEFECT | 71a008fe:TODO.md:L158 (duplicate renderer paths) | Telegram media delivery | M | да | нет | да |
+| <a id="t109"></a>109 | L157 | TG media buffer race | FIXED | .orchestra/tasks/V-701/report.md#t109; epoch and reservation identity guards in app/tg_bridge.py; tests/test_audit0901_tg.py | — | — | — | — | — |
+| <a id="t110"></a>110 | L158 | TG дубли expandable+image | FIXED | .orchestra/tasks/V-701/report.md#t110; image previews are only emitted for Read results in app/tg_bridge.py; Edit/Write regression test | — | — | — | — | — |
 | <a id="t111"></a>111 | L159 | Pending tm_sync_log без fire в CLI-контексте | OPEN-DEFECT | 71a008fe:TODO.md:L159 (_fire_sync pending-write case) | Task sync bookkeeping | M | да | да | да |
 | <a id="t112"></a>112 | L160 | Тест-изоляция: test_default_equals_upstream загрязняет 106 тестов | NOTE | 71a008fe:TODO.md:L160 (original detailed record) | — | — | — | — | — |
 | <a id="t113"></a>113 | L161 | График usage: ~161 законный ноль не рисуется | OPEN-DEFECT | 71a008fe:TODO.md:L161; .orchestra/tasks/150/report.md | Usage chart | M | да | нет | да |
@@ -155,7 +155,7 @@
 | <a id="t147"></a>147 | L211 | check_orchestra_paths.py падает на контуре с чужой историей и не даёт третий крите… | OPEN-DEFECT | scripts/check_orchestra_paths.py; 71a008fe:TODO.md:L211 | Layout migration tools | M | нет | да | нет |
 | <a id="t148"></a>148 | L213 | Отказ гейта воркеру не оставлять голым отказом: называть Луну (замер seedon, 03.09). | NOTE | 71a008fe:TODO.md:L213 (original detailed record) | — | — | — | — | — |
 | <a id="t149"></a>149 | L215 | Ревью-гейт мержа (#462, приехал с ноутбука 04.09) блокирует одобренную работу, есл… | OBSOLETE | .orchestra/pipelines/default/prompts/modules/orchestration.md:82-89 (model review frozen) | — | — | — | — | — |
-| <a id="t150"></a>150 | L217 | Мост МОЛЧА глотает сообщения из темы, не привязанной ни к одному агенту — владелец… | OPEN-DEFECT | app/tg_bridge.py; 71a008fe:TODO.md:L217 (five-message incident) | Telegram topic routing | M | да | да | да |
+| <a id="t150"></a>150 | L217 | Мост МОЛЧА глотает сообщения из темы, не привязанной ни к одному агенту — владелец… | FIXED | .orchestra/tasks/V-701/report.md#t150; tests/test_tg_ingress_509.py — reply and warning for unmapped topic | — | — | — | — | — |
 | <a id="t151"></a>151 | L219 | codex_review(mode="implementation") жёстко подставляет "main", когда у вызывающего… | OBSOLETE | .orchestra/pipelines/default/prompts/modules/orchestration.md:82-89 (model review frozen) | — | — | — | — | — |
 | <a id="t152"></a>152 | L221 | Миграция раскладки docs/ → .orchestra/ (03.09) сломала замороженные тесты, которые… | NEEDS-OWNER | .orchestra/tasks/2/ (recorded in 71a008fe:TODO.md:L221) | — | — | — | — | — |
 | <a id="t153"></a>153 | L223 | POST_COMMIT_PARTIAL / ConcurrentTaskUpdateError: canonical head changed при мерже,… | OPEN-DEFECT | 71a008fe:TODO.md:L223 (POST_COMMIT_PARTIAL reproduction) | Canonical task finalization | L | да | да | нет |
@@ -190,7 +190,7 @@
 | <a id="t182"></a>182 | L287 | Строка tm_projects с id orchestra указывает НЕ на тот проект, который имеет в виду… | OPEN-DEFECT | .orchestra/tasks/V-576/namespace-map.md (recorded in 71a008fe:TODO.md:L287) | Task/catalog model | M | да | да | нет |
 | <a id="t183"></a>183 | L289 | portfolio_attention_events.delivered_at не пишется НИКОГДА, хотя таблица заводилас… | OBSOLETE | commit de5d62a523ca678e666c5bd03f97519bdf73b338 removes portfolio_attention_events in V-576 | — | — | — | — | — |
 | <a id="t184"></a>184 | L291 | Снимок истории чата грузится целиком при каждом переключении, потому что у /api/se… | OPEN-DEFECT | app/routes/sessions.py:713-720 (GET logs sets Cache-Control: no-store) | Chat snapshot transfer | M | да | нет | да |
-| <a id="t185"></a>185 | L293 | Значок темы в Telegram залипает на «выполняет ход» после рестарта: агент простаива… | OPEN-DEFECT | app/tg_bridge.py:3025-3036; 71a008fe:TODO.md:L293 | Telegram topic status | S | да | нет | да |
+| <a id="t185"></a>185 | L293 | Значок темы в Telegram залипает на «выполняет ход» после рестарта: агент простаива… | FIXED | .orchestra/tasks/V-701/report.md#t185; app/main.py auto_resume_all precedes bridge startup; app/tg_bridge.py _deferred_startup sync; tests/test_tg_bridge.py | — | — | — | — | — |
 | <a id="t186"></a>186 | L295 | Lite-профиль инструментов по ролям: воркер получает только то, что ему разрешено (… | NOTE | 71a008fe:TODO.md:L295 (original detailed record) | — | — | — | — | — |
 | <a id="t187"></a>187 | L297 | Ресерч на потом: забрать из харнеса MiniMax Code сторож зацикливания и динамически… | NOTE | 71a008fe:TODO.md:L297 (original detailed record) | — | — | — | — | — |
 | <a id="t188"></a>188 | L299 | На изучение: разделение труда «дешёвый исполнитель кликает, модель думает» в брауз… | NOTE | .orchestra/tasks/V-584/audit_screens.py (recorded in 71a008fe:TODO.md:L299) | — | — | — | — | — |
@@ -207,11 +207,11 @@
 
 | Вердикт | Пунктов |
 |---|---:|
-| FIXED | 44 |
+| FIXED | 49 |
 | OBSOLETE | 27 |
-| OPEN-DEFECT | 47 |
+| OPEN-DEFECT | 42 |
 | NEEDS-OWNER | 28 |
 | NOTE | 50 |
 | **Всего** | **196** |
 
-Fresh targeted checks used `/home/kesha/orchestra/.venv/bin/python -m pytest`; no code or test files were changed.
+Исходная свежая сверка V-698 запускалась через `/home/kesha/orchestra/.venv/bin/python -m pytest`; в той сверке код и тесты не менялись. Реализации по отмеченным пунктам см. в связанных task reports.
