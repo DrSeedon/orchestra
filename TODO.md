@@ -67,7 +67,6 @@
 - Починить два checkout'а, на которых падает миграция layout. — NEEDS-OWNER, [T017](.orchestra/tasks/V-698/triage.md#t017). Доказательство: `71a008fe:TODO.md:L32 (original detailed record)`.
 - Канал алерта на упавшую Orchestra: владелец 05.10 решил — алерт боту Кеша, Кеша сам поднимает, без спама. В работе V-708. [T019](.orchestra/tasks/V-698/triage.md#t019).
 - Ноутбук: добавить --timeout-graceful-shutdown 5 в ExecStart юнита orchestra — NEEDS-OWNER, [T046](.orchestra/tasks/V-698/triage.md#t046). Доказательство: `71a008fe:TODO.md:L76 (original detailed record)`. Проверено 05.10: флага в ExecStart нет, StartLimitIntervalUSec=10s — нужен sudo владельца на ноутбуке (связано с V-708).
-- Квотный гейт тормозит только НОВЫЕ ходы воркеров, а оркестраторы жгут пул без огра… — NEEDS-OWNER, [T055](.orchestra/tasks/V-698/triage.md#t055). Доказательство: `71a008fe:TODO.md:L85 (original detailed record)`.
 - На ноутбуке юзера Hermes v0.20.1 пишет навыки и память БЕЗ апрува, и это его насто… — NEEDS-OWNER, [T060](.orchestra/tasks/V-698/triage.md#t060). Доказательство: `71a008fe:TODO.md:L94 (original detailed record)`.
 - Ловить rate_limit_event и сохранять неокруглённую utilization (Claude), проверить аналог у Codex: владелец 05.10 «конечно делай». В работе V-707. [T062](.orchestra/tasks/V-698/triage.md#t062).
 - Нет единого события приёмки, поэтому спор «какая модель лучше» решается памятью, а… — NEEDS-OWNER, [T068](.orchestra/tasks/V-698/triage.md#t068). Доказательство: `71a008fe:TODO.md:L109 (original detailed record)`.
