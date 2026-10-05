@@ -115,6 +115,29 @@ def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
     ]
 
 
+def test_wake_provider_uses_quota_gate_model_mapping():
+    from app.limit_wake import find_limit_stopped_agents
+
+    sessions = [
+        _session("spark", "spark-worker", "gpt-5.3-codex-spark"),
+        _session("grok", "grok-worker", "grok-4.5"),
+    ]
+    logs = {
+        session["id"]: [
+            _log(1, "text", "usage limit"),
+            _log(2, "error", "subscription limit — ждём сброса квоты. НЕ ретраим"),
+            _log(3, "status", "turn ended (stop_sequence, 1 turns)"),
+        ]
+        for session in sessions
+    }
+
+    agents = find_limit_stopped_agents(sessions, logs)
+
+    assert [(agent["name"], agent["provider"]) for agent in agents] == [
+        ("spark-worker", "codex_spark"),
+    ]
+
+
 def test_legacy_limit_kind_cannot_be_inferred_from_assistant_text():
     from app.limit_wake import find_limit_stopped_agents
 

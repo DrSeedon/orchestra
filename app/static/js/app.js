@@ -2450,6 +2450,9 @@ function _afterPaint(fn) {
 }
 
 async function _fetchHistory(name, scope, signal) {
+    const key = `${scope}\0${name}`;
+    const previous = _chatHistorySnapshots.get(key);
+    let etag = previous?.etag || '';
     const q = new URLSearchParams({
         scope,
         before_id: String(2 ** 31 - 1),
@@ -2461,11 +2464,19 @@ async function _fetchHistory(name, scope, signal) {
         priority: 'critical',
         pollKey: 'chat',
         cache: 'no-store',
+        headers: etag ? {'If-None-Match': etag} : {},
+        onResponse: resp => { etag = resp.headers.get('ETag') || etag; },
     });
+    if (rows === null) {
+        if (!previous) throw new TypeError('chat history returned 304 without a local snapshot');
+        return previous.rows;
+    }
     if (!Array.isArray(rows)) throw new TypeError('chat history response is not an array');
+    _chatHistorySnapshots.set(key, {etag, rows});
     return rows;
 }
 
+const _chatHistorySnapshots = new Map();
 let _chatLoadController = null;
 let _chatLoadGeneration = 0;
 let _chatSnapshotReady = false;
@@ -3651,10 +3662,12 @@ async function api(url, opts = {}) {
     const priority = opts.priority === 'critical' ? 'critical' : 'normal';
     const attempts = (isGet && opts.timeoutMs === undefined) ? _API_ATTEMPTS : 1;
     const pollKey = opts.pollKey;
+    const onResponse = opts.onResponse;
     const requestOpts = {...opts};
     delete requestOpts.pollKey;
     delete requestOpts.priority;
     delete requestOpts.timeoutMs;
+    delete requestOpts.onResponse;
     for (let attempt = 1; ; attempt++) {
         const releaseGetPermit = isGet ? await _apiAcquireGetPermit(opts.signal, priority) : null;
         let data;
@@ -3665,7 +3678,12 @@ async function api(url, opts = {}) {
                 const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
                 const resp = await fetch(url, { headers: { 'Content-Type': 'application/json' }, ...requestOpts, signal });
                 Connection.observe(resp, url);
-                if (!resp.ok) {
+                onResponse?.(resp);
+                if (resp.status === 304) {
+                    data = null;
+                    _pollNoteSuccess(pollKey);
+                    Connection.ok(url);
+                } else if (!resp.ok) {
                     const text = await resp.text();
                     // Отказ на время перезапуска — штатный и повторяемый: вызов отклонён ДО
                     // побочного эффекта. Юзер до этого получал в чат сырой служебный JSON.
@@ -3679,9 +3697,11 @@ async function api(url, opts = {}) {
                     serverError.status = resp.status;
                     throw serverError;
                 }
-                data = await resp.json();
-                _pollNoteSuccess(pollKey);
-                Connection.ok(url);
+                else {
+                    data = await resp.json();
+                    _pollNoteSuccess(pollKey);
+                    Connection.ok(url);
+                }
             } catch (e) {
                 error = e;
             }
