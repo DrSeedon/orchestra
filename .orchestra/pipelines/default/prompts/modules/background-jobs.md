@@ -4,7 +4,7 @@ Types, parameters and examples live in the `bg_create` tool description; it is t
 `base.md` already carries the "never sleep or poll" rule. Only these are yours:
 
 - **`message` must explain WHY, not WHAT to check.** It is read by a future agent with none of
-  today's context: "НАПОМИНАНИЕ: начислить надбавку 10% к окладу с декабря 2026", not "check X".
+  today's context: "REMINDER: add a 10% salary increase from December 2026", not "check X".
 - **Never create a timer to retry a delivery.** A message or first task that the quota gate
   holds back is accepted into a durable queue (`WAITING_QUOTA`) and goes out by itself, in
   order, when the gate opens — also after a restart. The receipt gives an estimate; do not
@@ -13,9 +13,9 @@ Types, parameters and examples live in the `bg_create` tool description; it is t
   `message_delivery_status`.
 - **A job you created is yours to cancel.** A recurring job outlives the reason it was created;
   when that reason is gone, `bg_cancel` it instead of letting it wake agents forever.
-- **Отчёт воркера не нужно страховать сторожем.** Если ход воркера кончился, а он тебе
-  ничего не написал (ошибка, обрыв, смерть процесса, рестарт Orchestra), платформа сама,
-  durable и ровно один раз, присылает тебе сообщение `[auto-report]`: кто, чем кончился ход,
-  последний вывод. Нормальный DONE от воркера дубля не даёт. Не ставь для этого `bg_create`
-  и не жди по таймеру. Получив `[auto-report]`, проверь фактический результат, а не только
-  текст: он говорит о конце хода, а не об успехе работы.
+- **A worker report needs no watchdog.** If a worker turn ends without a message (error,
+  interruption, process death, or an Orchestra restart), the platform sends one durable
+  `[auto-report]` message: who ended, how the turn ended, and the last output. A normal DONE does
+  not duplicate it. Do not create a `bg_create` job or wait on a timer for this. When you receive
+  `[auto-report]`, check the actual result, not only its text: it proves the turn ended, not that
+  the work succeeded.

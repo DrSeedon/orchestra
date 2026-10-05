@@ -1,83 +1,79 @@
 ---
 name: html-motion
-description: "Анимированное объяснение по шагам в HTML: готовый каркас плеера (пуск/пауза, шаги, перемотка, скорость, клавиши), пояснение к каждому шагу, анимация графика во времени, проверка кадров и запись MP4."
+description: "Step-by-step animated HTML explanation: a ready player scaffold (play/pause, steps, seeking, speed, keys), an explanation for each step, chart animation over time, frame checks, and MP4 recording."
 ---
 
 # HTML Motion
 
-Дополнение к `html-artifacts`: его внешний вид, честность данных, самостоятельный файл,
-SVG-иконка и проверка действуют и здесь. Этот скилл добавляет только движение и плеер.
+An extension of `html-artifacts`: its appearance, honest data, standalone file, SVG icon, and
+checks apply here too. This skill adds only motion and the player.
 
-Анимация нужна, когда смысл в порядке или в изменении во времени: путь задачи, передача
-данных, рост показателя к событию. Она поясняет, а не украшает. Ответ виден сразу: подпись
-текущего шага и список всех шагов на экране, любой кадр доступен без просмотра до конца.
+Animation is useful when meaning lies in order or change over time: a task path, data transfer,
+or a metric growing toward an event. It explains rather than decorates. The answer is visible
+immediately: the current step label and all steps remain on screen, and any frame is available
+without watching to the end.
 
-- **Время — единственная правда.** Кадр — чистая функция от `t`: `render` каждый раз
-  выставляет все анимируемые атрибуты, не накапливая изменений. Тогда пауза, перемотка назад
-  и шаг по стрелке дают тот же кадр, что и проигрывание. Цепочки `setTimeout` и CSS
-  `@keyframes` к произвольному `t` не перематываются; у Web Animations API `pause()`
-  срабатывает на кадр позже, а `play()` завершённой анимации перематывает её в 0.
-- **Каркас ниже вставляй целиком, не переписывай.** Сцену заполняй в двух местах: SVG с `id`
-  и массив `STEPS`. Плеер уже умеет пуск/паузу, шаги ⏮ ⏭, ползунок, скорость 0.5/1/2,
-  клавиши (пробел, ←/→ — конец шага, Home/End), главы кликом, `prefers-reduced-motion`
-  (шаг сразу в итоговом состоянии), печать, ссылку на кадр `#t=12.5` и `window.P`
-  (`seek/play/pause/t/T/S`) для проверки. Если есть shell, копируй каркас из файла скилла
-  командой, а не перепечатывай: `awk '/^```html motion-template/{f=1;next} f&&/^```/{exit} f'
-  <путь к этому SKILL.md> > out.html` (обычно `.claude/skills/html-motion/SKILL.md` или
-  `.codex/skills/html-motion/SKILL.md` в рабочей папке).
-- **Шаг:** `{d: секунды, t: 'что происходит', x: 'почему и что это значит, с числами',
-  set: {id: {атрибут: значение}}, w: {id: [от, до]}, e: 'lin'}`. `set` накапливается: шаг
-  меняет только названное, остальное держит. `[a, b]` — явно «от a к b» (повтор движения).
-  `text` меняет текст, `along: 'idПути', at: 0..1` ведёт элемент по SVG-пути (рисуй его
-  вокруг 0,0). `w` — доля шага, в которую меняется элемент: `[.75,1]` для итога «когда
-  дошло», `[0,.5]` и `[.5,1]` — очерёдность внутри шага.
-- **Плавность делает каркас, кривые не пиши.** Движение (числа: координаты, `at`, ширина)
-  идёт весь шаг по пружине с критическим затуханием — мягкий старт, долгое торможение, без
-  перелёта. Если тот же атрибут меняется в соседних шагах в ту же сторону, объект не
-  останавливается на границе: скорость переходит в следующий шаг (монотонный кубический
-  сплайн, без перелёта). Состояния — цвет `#rrggbb`, `opacity`, `text` — меняются за 0.5 с
-  в начале окна: текст — наплывом старого в новый, появление и исчезновение — с лёгким
-  сдвигом и масштабом. Подпись шага тоже меняется наплывом. `e:'lin'|'io'|'out'` нужен
-  редко: равномерный ход ленты или часов. Задал `w` — изменение занимает всё окно.
-- **Непрерывный путь вместо прыжков.** Не переставляй объект с одного пути на другой в
-  видимом месте: сменил `along` — начало нового пути совпадает с концом прежнего. Токен,
-  который «входит» в узел и выходит из него, рисуй ДО прямоугольников узлов и веди невидимым
-  путём (`fill="none"` без `stroke`) через их центры: внутри узла он скрыт, там же можно
-  сменить ему текст или пересадить на другой путь. Углы путей скругляй (`Q`).
-- Анимируемое задавай атрибутами SVG, а не классами: CSS-правило перекрывает атрибут, и
-  изменение не будет видно. Элементу с анимируемым `text` или `opacity` не давай свой
-  `transform` — оберни в `<g>`: каркас двигает его через CSS `transform`. Вычисляемое
-  (подпись курсора графика, Canvas) — в необязательной `function draw(i, p, t)`, она
-  вызывается после применения состояний и тоже чиста от `t`.
-- Шаг 2–4 с, всего до ~30 с. Подпись — 1–2 фразы: что меняется и почему это важно, с числами
-  из источника. Порядок внутри шага: движение, затем результат.
-- **График во времени:** линия открывается шириной `<clipPath>` (обычное числовое состояние:
-  соседние шаги сливаются в одно непрерывное движение), маркеры событий — под тем же clip,
-  чтобы появляться ровно при проходе курсора. Точку на курсоре веди по линии интерполяцией
-  между соседними точками данных, а не ступенькой; значение у курсора в подписи считай в
-  `draw` из данных: факт, ориентир и разница. Пропуск остаётся разрывом. Числа в подписях
-  шагов сверяй со значением у курсора в конце шага.
-- **Запасной вариант — Canvas:** тот же плеер, шаги без `set`, рисование в `draw` с учётом
-  `devicePixelRatio`; подписи остаются в HTML. Бери, только когда объектов столько, что SVG
-  не справляется: у Canvas нет DOM для наведения и доступности.
-- Не подключай GSAP с CDN: без сети артефакт пустой. Встроенный весит 73 КБ, а пользы по
-  сравнению с каркасом не даёт.
+ - **Time is the only truth.** A frame is a pure function of `t`: `render` sets every animated
+   attribute on each call without accumulating changes. Pause, reverse seek, and arrow stepping
+   then produce the same frame as playback. `setTimeout` chains and CSS `@keyframes` cannot seek
+   to arbitrary `t`; Web Animations API `pause()` fires one frame late, and `play()` on a finished
+   animation rewinds it to 0.
+ - **Insert the scaffold below whole; do not rewrite it.** Fill the scene in two places: the SVG
+   with its `id` and the `STEPS` array. The player already supports play/pause, ⏮ ⏭ steps, slider,
+   speed 0.5/1/2, keys (space, ←/→ to step end, Home/End), click chapters,
+   `prefers-reduced-motion` (step immediately at final state), print, frame link `#t=12.5`, and
+   `window.P` (`seek/play/pause/t/T/S`) for checks. If a shell is available, copy the scaffold
+   from this skill instead of retyping it: `awk '/^```html motion-template/{f=1;next} f&&/^```/{exit} f'
+   <path-to-this-SKILL.md> > out.html` (usually `.claude/skills/html-motion/SKILL.md` or
+   `.codex/skills/html-motion/SKILL.md` in the working folder).
+ - **Step:** `{d: seconds, t: 'what happens', x: 'why it matters, with numbers', set: {id: {attribute: value}}, w: {id: [from, to]}, e: 'lin'}`. `set` accumulates: a step changes only named values and holds the rest. `[a, b]` explicitly means “from a to b” (repeat motion). `text` changes text, `along: 'pathId', at: 0..1` moves an element along an SVG path (draw it around 0,0). `w` is the fraction of the step during which an element changes: `[.75,1]` for a result “when it arrives”, `[0,.5]` and `[.5,1]` for ordering within a step.
+ - **The scaffold handles smoothness; do not write curves.** Numeric motion (coordinates, `at`,
+   width) runs through the whole step with critically damped spring motion: soft start, long
+   braking, no overshoot. If the same attribute changes in the same direction in adjacent steps,
+   the object does not stop at the boundary: velocity continues into the next step (monotone
+   cubic spline without overshoot). States — `#rrggbb`, `opacity`, `text` — change over 0.5 s at
+   the window start: text crossfades old to new, appearance/disappearance uses a slight shift and
+   scale. The step label also crossfades. Use `e:'lin'|'io'|'out'` rarely, for uniform tape or
+   clock motion. If `w` is set, the change fills that entire window.
+ - **Use continuous paths instead of jumps.** Do not move an object from one path to another at a
+   visible point: when `along` changes, the new path must begin at the old path's end. Draw a
+   token that enters and leaves a node BEFORE node rectangles, and route it through their centers
+   on an invisible path (`fill="none"` without `stroke`): it is hidden inside the node, where you
+   may change its text or move it to another path. Round path corners (`Q`).
+ - Set animated values through SVG attributes, not classes: CSS rules override attributes and hide
+   the change. Do not give an element with animated `text` or `opacity` its own `transform`; wrap
+   it in `<g>`, so the scaffold moves it through CSS `transform`. Computed content (chart cursor
+   label, Canvas) belongs in optional `function draw(i, p, t)`, called after states are applied and
+   also pure in `t`.
+ - Use 2–4 s per step and about 30 s total. The label is 1–2 source-grounded sentences: what
+   changes and why it matters, with numbers. Within a step, move first, then show the result.
+ - **Chart over time:** reveal the line by `<clipPath>` width (an ordinary numeric state; adjacent
+   steps merge into one continuous movement), and put event markers under the same clip so they
+   appear exactly as the cursor passes. Move the cursor point by interpolation between adjacent
+   data points, not a step; calculate its label value in `draw` from the data: fact, reference,
+   and difference. Keep missing data as a gap. Check step-label numbers against the cursor value
+   at the end of the step.
+ - **Canvas fallback:** use the same player, steps without `set`, and draw with `devicePixelRatio`;
+   labels remain HTML. Use it only when there are so many objects that SVG cannot cope: Canvas has
+   no DOM for hover or accessibility.
+ - Do not load GSAP from a CDN: without a network the artifact is empty. The embedded version is
+   73 KB and gives no benefit over the scaffold.
 
-Проверка дополняет общую из `html-artifacts`: сними кадры `P.seek(0)`, середины и
-`P.seek(P.T)`; поставь на паузу во время пуска и сравни снимок с `P.seek(P.t)`, сделанным
-из другого состояния, — пиксели должны совпасть; пройди клавиши (⏮ ⏭ и ←/→ доезжают до
-цели за 0.4 с), reduced motion и узкий экран. **Видео пиши покадрово, не экранной записью:**
-`record_video_dir` Playwright даёт 25 к/с с повторёнными кадрами — рывки там, где их нет в
-браузере. Нужен `page.clock.install()`, `P.play()`, затем в цикле `page.clock.run_for(1000/60)`
-и снимок кадра → `ffmpeg -framerate 60 -f image2pipe -i - -c:v libx264 -pix_fmt yuv420p`.
-Замер техник и плавности, примеры и скрипты записи лежат в репозитории Orchestra в
-`.orchestra/tasks/V-665/` и `.orchestra/tasks/V-668/`.
+Checks extend those in `html-artifacts`: capture frames at `P.seek(0)`, the middle, and
+`P.seek(P.T)`; pause during playback and compare with a capture from `P.seek(P.t)` in another
+state — pixels must match. Test keys (⏮ ⏭ and ←/→ reach the target in 0.4 s), reduced motion,
+and a narrow screen. **Write video frame by frame, not by screen recording:** Playwright's
+`record_video_dir` gives 25 fps with repeated frames and creates stutter absent in the browser.
+Use `page.clock.install()`, `P.play()`, then loop over `page.clock.run_for(1000/60)` and capture
+frames → `ffmpeg -framerate 60 -f image2pipe -i - -c:v libx264 -pix_fmt yuv420p`.
+Technique and smoothness measurements, examples, and recording scripts are in the Orchestra
+repository under `.orchestra/tasks/V-665/` and `.orchestra/tasks/V-668/`.
 
-## Каркас плеера
+## Player scaffold
 
 ```html motion-template
 <!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Название</title>
+<title>Title</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23007aff'/%3E%3Cpath d='M6 4.5v7l6-3.5z' fill='%23fff'/%3E%3C/svg%3E">
 <style>
 body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -100,39 +96,39 @@ body{margin:0;background:#f5f5f7;color:#1d1d1f;font:14px/1.45 -apple-system,Blin
 </style>
 </head><body>
 <div class="mv">
-<h1>Заголовок: что объясняем</h1>
-<div class="stg"><svg id="stage" viewBox="0 0 900 200" role="img" aria-labelledby="st"><title id="st">О чём схема</title>
+<h1>Title: what we explain</h1>
+<div class="stg"><svg id="stage" viewBox="0 0 900 200" role="img" aria-labelledby="st"><title id="st">What the diagram shows</title>
  <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#86868b"/></marker></defs>
  <path id="e1" d="M260 100H640" stroke="#86868b" stroke-width="2" fill="none" marker-end="url(#ar)"/>
- <rect id="a" x="60" y="68" width="200" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/><text x="160" y="105" text-anchor="middle">Источник</text>
- <rect id="b" x="640" y="68" width="200" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/><text id="bT" x="740" y="105" text-anchor="middle">Приёмник</text>
+ <rect id="a" x="60" y="68" width="200" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/><text x="160" y="105" text-anchor="middle">Source</text>
+ <rect id="b" x="640" y="68" width="200" height="64" rx="12" fill="#ffffff" stroke="#d2d2d7" stroke-width="2"/><text id="bT" x="740" y="105" text-anchor="middle">Receiver</text>
  <circle id="dot" r="9" fill="#007aff" opacity="0"/>
 </svg></div>
 <div class="cap"><div id="capA" aria-live="polite"><b id="capT"></b><span id="capX"></span></div><div id="capB" aria-hidden="true"><b></b><span></span></div></div>
-<div class="bar"><button id="bPrev" aria-label="Предыдущий шаг"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Пуск или пауза"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Следующий шаг"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
- <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Время"><span id="clock"></span>
- <select id="rate" aria-label="Скорость"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
+<div class="bar"><button id="bPrev" aria-label="Previous step"><svg viewBox="0 0 16 16"><path d="M3 3h2v10H3zM13 3v10L5.5 8z"/></svg></button><button id="bPlay" aria-label="Play or pause"><svg viewBox="0 0 16 16"><path class="i1" d="M4.5 2.5v11l9-5.5z"/><path class="i2" d="M4 3h3v10H4zM9 3h3v10H9z"/></svg></button><button id="bNext" aria-label="Next step"><svg viewBox="0 0 16 16"><path d="M11 3h2v10h-2zM3 3v10l7.5-5z"/></svg></button>
+ <input id="seek" type="range" min="0" step="0.01" value="0" aria-label="Time"><span id="clock"></span>
+ <select id="rate" aria-label="Speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></div>
 <ol class="ch" id="chap"></ol>
 </div>
 <script>
-// ── СЦЕНА ──
+// ── SCENE ──
 const STEPS = [
- {d:2, t:'Источник готов', x:'Что происходит и почему — одна-две фразы с числами.', set:{a:{stroke:'#007aff'}, dot:{opacity:[0,1], along:'e1', at:0}}},
- {d:3, t:'Передача', x:'Итог шага появляется, когда точка дошла.', set:{dot:{at:[0,1]}, b:{stroke:'#34c759', fill:'#e8f7ec'}, bT:{text:'Получено'}}, w:{b:[.75,1], bT:[.75,1]}},
+ {d:2, t:'Source ready', x:'What happens and why — one or two sentences with numbers.', set:{a:{stroke:'#007aff'}, dot:{opacity:[0,1], along:'e1', at:0}}},
+ {d:3, t:'Transfer', x:'The step result appears when the dot arrives.', set:{dot:{at:[0,1]}, b:{stroke:'#34c759', fill:'#e8f7ec'}, bT:{text:'Received'}}, w:{b:[.75,1], bT:[.75,1]}},
 ];
-// ── ПЛЕЕР ──
-function $(id){return document.getElementById(id)} // function: всплывает, сцена может звать $ раньше плеера
+// ── PLAYER ──
+function $(id){return document.getElementById(id)} // function declaration is hoisted; scenes may call $ before the player
 const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v)),SK=7;
-const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // spring: критическое затухание
+const EASE={spring:p=>(1-(1+SK*p)*Math.exp(-SK*p))/(1-(1+SK)*Math.exp(-SK)),io:p=>p*p*(3-2*p),out:p=>1-(1-p)**3,lin:p=>p}; // critically damped spring
 const hex=/^#[0-9a-f]{6}$/i,mix=(a,b,p)=>typeof a=='number'&&typeof b=='number'?a+(b-a)*p:hex.test(a)&&hex.test(b)?'#'+[1,3,5].map(k=>Math.round(parseInt(a.substr(k,2),16)*(1-p)+parseInt(b.substr(k,2),16)*p).toString(16).padStart(2,'0')).join(''):p>0?b:a;
 const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-motion: reduce)').matches,FADE=.5,sp=EASE.spring;let T=0,t=0,on=false,last=0,ci=-1,gl=null;
  const get=(e,a)=>{const v=a=='text'?e.textContent:e.getAttribute(a);return v!==null&&v!==''&&!isNaN(v)?+v:v};
- // у каждого атрибута свой список отрезков {t0,t1,a,b}; между отрезками значение держится
+ // each attribute has its own segment list {t0,t1,a,b}; value holds between segments
  for(const s of STEPS){for(const[id,o]of Object.entries(s.set||{}))for(const[a,v]of Object.entries(o)){const e=E[id]??=$(id),L=(TL[id]??={})[a]??=Object.assign([],{v0:get(e,a)}),
    to=Array.isArray(v)?v[1]:v,st=a=='text'||/opacity/.test(a)||typeof to=='string',w=s.w?.[id];
    L.push({t0:T+(w?w[0]*s.d:0),t1:T+(w?w[1]*s.d:st?Math.min(s.d,FADE):s.d),a:Array.isArray(v)?v[0]:(L.length?L.at(-1).b:L.v0)??to,b:to,e:s.e,st,m0:0,m1:0})}
   S.push(T);T+=s.d}
- // стык двух движений в одну сторону: общая скорость (монотонный сплайн Фрича–Батленда), объект не встаёт на границе шага
+ // same-direction motion joins with shared velocity (monotone Fritsch–Butland spline)
  for(const id in TL)for(const a in TL[id]){const L=TL[id][a];for(let k=1;k<L.length;k++){const x=L[k-1],y=L[k],h0=x.t1-x.t0,h1=y.t1-y.t0,d0=(x.b-x.a)/h0,d1=(y.b-y.a)/h1;
    if(!x.st&&!y.st&&!x.e&&!y.e&&Math.abs(x.t1-y.t0)<1e-9&&x.b===y.a&&d0*d1>0)x.m1=y.m0=3*(h0+h1)/((2*h1+h0)/d0+(h1+2*h0)/d1)}}
  for(const id in TL){const e=E[id],o=TL[id];if(o.along||!(o.text||o.opacity))continue;FX[id]=1;
@@ -142,7 +138,7 @@ const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-m
   const h=g.t1-g.t0,p=h>0?clamp((t-g.t0)/h):1;if(p>=1)return[g.b,1,g.a,g.b];
   if(g.m0||g.m1){const p2=p*p,p3=p2*p;return[(2*p3-3*p2+1)*g.a+(p3-2*p2+p)*h*g.m0+(3*p2-2*p3)*g.b+(p3-p2)*h*g.m1,p,g.a,g.b]}
   const q=(EASE[g.e]||sp)(p);return[mix(g.a,g.b,q),q,g.a,g.b]};
- const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // смена текста: старый уходит раньше, чем проявляется новый — буквы не наслаиваются
+ const xout=q=>1-EASE.io(clamp(q/.45)),xin=q=>EASE.io(clamp((q-.35)/.65)); // text change: old leaves before new appears, so letters do not overlap
  const put=(e,a,v)=>{const c=e._c??={};if(c[a]===v)return;c[a]=v;a=='text'?e.textContent=v:a=='css'?e.style.transform=v:a[0]=='-'?e.style.setProperty(a,v):e.setAttribute(a,v)};
  function frame(te){for(const id in TL){const e=E[id],o=TL[id],g=G[id],v={};for(const a in o)v[a]=val(o[a],te);let dy=0,gy=0,k=0;
    for(const a in v)if(a!='text'&&a!='along'&&a!='at'&&v[a][0]!=null)put(e,a,v[a][0]);
@@ -157,7 +153,7 @@ const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-m
   if(i!==ci){ci=i;$('capT').textContent=(i+1)+'. '+STEPS[i].t;$('capX').textContent=STEPS[i].x;const B=$('capB').children;B[0].textContent=i?i+'. '+STEPS[i-1].t:'';B[1].textContent=i?STEPS[i-1].x:'';
    [...$('chap').children].forEach((li,k)=>li.classList.toggle('on',k==i))}
   const q=rm||!i?1:sp(clamp((t-S[i])/FADE));[...$('chap').children].forEach((li,k)=>put(li,'--o',k==i?q:k==i-1?1-q:0));$('capA').style.cssText=`opacity:${xin(q)};transform:translateY(${(1-q)*6}px)`;$('capB').style.cssText=`opacity:${xout(q)};transform:translateY(${-q*6}px)`;
-  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' с'}
+  $('seek').value=t;$('seek').style.setProperty('--p',t/T*100+'%');$('clock').textContent=t.toFixed(1)+' / '+T.toFixed(1)+' s'}
  function tick(now){if(!on)return;seek(t+Math.max(0,now-last)/1000*$('rate').value);last=now;t>=T?pause():requestAnimationFrame(tick)}
  function play(){gl=null;if(t>=T)t=0;on=true;last=performance.now();$('bPlay').classList.add('on');requestAnimationFrame(tick)}
  function pause(){on=false;gl=null;$('bPlay').classList.remove('on')}

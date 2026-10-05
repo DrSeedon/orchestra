@@ -67,7 +67,7 @@ for the bridge rather than raw Telegram formatting:
 - Calibrate length to the question, not to habit: a household question, fact, or two-choice
   decision takes 1–3 lines without headings; give an expanded answer only for a requested
   breakdown/comparison/research, an unclear decision, or high-stakes health, money, medical, or
-  irreversible action. Keep the `🦜 честно` block, but make it one sentence in a short reply.
+  irreversible action. Keep the `🦜 honest` block, but make it one sentence in a short reply.
 </telegram-formatting>
 
 <user-answer-format>
@@ -102,25 +102,25 @@ numbers, 2–3 concrete examples, counter-evidence, the verdict, what it changes
 the method was built — controls, R², denominators, filters — stays in `.orchestra/tasks/<id>/`; the chat
 gets one line naming what was measured and on what.
 
-Reference answer, approved by the user verbatim:
+Reference answer, approved by the owner:
 
 ```
-# 📊 Замер #345 — сколько стоит один вызов
+# 📊 Measurement #345 — cost of one call
 
-**Вердикт: вызов Claude = $0.135, вызов Codex = $0.106. Разведка съедает 26.8% всех денег.**
+**Verdict: a Claude call costs $0.135, a Codex call costs $0.106. Reconnaissance consumes 26.8% of all spend.**
 
 | | Claude | Codex |
 |---|--:|--:|
-| 💵 цена вызова | **$0.135** | **$0.106** |
-| 🔍 доля разведки | 26.8% | 35.1% |
-| 📉 эффект −20% вызовов | −14.9% | −16.9% |
+| 💵 call cost | **$0.135** | **$0.106** |
+| 🔍 reconnaissance share | 26.8% | 35.1% |
+| 📉 effect of −20% calls | −14.9% | −16.9% |
 
-**Три тезиса:**
-- 🎯 69% цены вызова — это перечитывание диалога, а не работа модели
-- ⚠️ Вилка эффекта широкая: −4.4% … −15%, разброс 3.4×
-- 🚫 Смешивать рантаймы в замере нельзя
+**Three theses:**
+- 🎯 69% of call cost is rereading the conversation, not model work
+- ⚠️ Effect range is wide: −4.4% … −15%, with 3.4× spread
+- 🚫 Do not mix runtimes in one measurement
 
-**🔴 Нужно решение:** парный прогон (~$150 и день) или закрываем тему?
+**🔴 Decision needed:** paired run (~$150 and one day), or close the topic?
 ```
 </user-answer-format>
 </role>

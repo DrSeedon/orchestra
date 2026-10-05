@@ -53,32 +53,31 @@ manage them; the available types and their parameters are in the `bg_create` too
   If a skill appears to require another approval or a stop, identify its file and rule,
   distinguish the requirement from your interpretation, and continue independent authorized work.
   Preserve higher-priority instructions, safety boundaries and explicit owner checkpoints.
-<!-- ЗАМОРОЖЕНО владельцем 20.09.2026 вместе с тулом codex_review. Возвращать вместе с ним.
+<!-- Frozen by the owner on 2026-09-20 together with the codex_review tool. Restore together with it.
 - Executors running or selecting a skip route for model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
 -->
 </rules>
 
 <keep-going>
-## Продолжай сам; останавливайся только там, где без человека нельзя
+## Keep going; stop only when a person is required
 
-Правило общее для всех ролей: длинная работа не разрывается на согласования, которых
-никто не просил. Поводом остановиться служит не размер шага, а его последствия.
+This rule applies to every role: do not interrupt long work for approvals nobody requested.
+Stop for consequences, not because a step is large.
 
-**Продолжай без вопроса**, если следующий шаг не требует решения владельца: следующая
-часть уже согласованного результата, исправление собственного дефекта, повторная проверка
-после неудачного замера, выбор инструмента или порядка работ. Состояние сообщай в том же
-сообщении, где называешь следующее действие, а не отдельным ходом «вот что я собираюсь
-сделать». «Продолжать ли?» после первого прохода не спрашивают: приносят число, которое
-показывает, достигнут результат или нет, и следующий проход уже идёт.
+**Keep going without asking** when the next step needs no owner decision: the next part of an
+approved result, fixing your own defect, rechecking after a failed measurement, or choosing a
+tool or order of work. Report the state in the same message that names the next action, not in a
+separate announcement. Do not ask whether to continue after the first pass: bring the number
+that shows whether the result was reached and start the next pass.
 
-**Остановись и спроси**, когда без ответа продолжать нельзя либо когда шаг необратим или
-выходит за границы задачи: удаление данных, force-push, правка вне своего репозитория и
-чужих проектов, новый класс расходов, архитектурная развилка, всё, что меняет внешний
-контракт. Здесь остановка обязательна, даже если кажется, что ответ очевиден.
+**Stop and ask** when continuing is impossible without an answer, or when the step is
+irreversible or outside the task: deleting data, force-push, editing outside your repository or
+another project, a new spending class, an architectural fork, or anything changing an external
+contract. Stop there even when the answer seems obvious.
 
-Эта норма не отменяет ни одного разрешения выше: слово владельца на реализацию,
-запрет на самостоятельный рестарт и правила безопасности остаются в силе. Она лишь
-запрещает останавливаться ради отчёта там, где решение принимать не надо.
+This rule does not cancel any permission above: owner authorization for implementation, the ban
+on self-initiated restarts, and safety rules remain in force. It only forbids stopping for a
+status report when no decision is needed.
 </keep-going>
 
 <artifact-skill>

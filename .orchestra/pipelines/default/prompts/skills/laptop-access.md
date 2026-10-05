@@ -1,133 +1,132 @@
 ---
 name: laptop-access
-description: Проверить ноутбук владельца или его проекты с VPS через обратный SSH-туннель.
+description: Check the owner's laptop or its projects from the VPS through the reverse SSH tunnel.
 ---
 
-# Доступ к ноутбуку
+# Laptop access
 
-Единственный маршрут для агентов платформы — SSH через обратный туннель.
-Ноутбук сам поддерживает соединение с VPS; его system-level ssh-tunnel-vps.service
-проверен active/running 13.09.2026. Инструмент run_on_laptop агентам платформы недоступен.
+The only route for platform agents is SSH through the reverse tunnel. The laptop maintains the
+connection to the VPS; its system-level `ssh-tunnel-vps.service` was checked active/running on
+2026-09-13. The `run_on_laptop` tool is unavailable to platform agents.
 
-## Проверка соединения
+## Check the connection
 
-На VPS проверить локальный listener:
+On the VPS, check the local listener:
 
 ```bash
 ss -ltnH 'sport = :2222'
 ```
 
-Рабочая команда (13.09.2026, хост maxim-911aird, пользователь maxim):
+Working command (2026-09-13, host `maxim-911aird`, user `maxim`):
 
 ```bash
 ssh -i /home/kesha/.ssh/tunnel_laptop -o IdentitiesOnly=yes -o BatchMode=yes -o ConnectTimeout=5 -p 2222 maxim@127.0.0.1 'hostname; pwd'
 ```
 
-Для разрешённой работы заменяй только удалённую команду; пути с пробелами заключай
-в кавычки. Пользователь ноутбука — maxim, не VPS-пользователь kesha.
-Пустой успешный вывод ss означает отсутствие listener, а ошибка самой проверки
-не доказывает его отсутствие. Refused/timeout означает недоступное соединение:
-сообщи владельцу наблюдаемый отказ. Сон, выключение и потеря сети возможны, но по
-одной ошибке причина не установлена. Permission denied означает проблему
-аутентификации, а не доказанный сон: проверь пользователя и указанный ключ.
-Туннель поднимается с ноутбука; не перенастраивай и не перезапускай его с VPS.
+For authorized work, replace only the remote command; quote paths containing spaces. The laptop
+user is `maxim`, not the VPS user `kesha`. Empty successful `ss` output means no listener; an
+error from the check does not prove that none exists. Refused/timeout means the connection is
+unavailable: report the observed failure to the owner. Sleep, shutdown, and network loss are
+possible, but one error does not establish the cause. Permission denied means an authentication
+problem, not proven sleep: check the user and specified key. The tunnel is raised from the
+laptop; do not reconfigure or restart it from the VPS.
 
-## Реальные границы
+## Actual boundaries
 
-Это удалённый shell с правами аккаунта maxim, не whitelist команд и не фильтр
-метасимволов. SSH удерживает аутентификацию и защищает транспорт; доступ к объектам
-ограничивает ОС ноутбука. Разрешённость действий задают поручение и правила проекта,
-а не наличие рабочего соединения. Установка, перезапуск и изменение конфигурации
-допустимы лишь когда явно входят в согласованное поручение.
-Бережное обращение с ноутбуком — [AGENTS.md Orchestra, «Границы полномочий»](/home/kesha/orchestra/AGENTS.md).
-Не копируй эти нормы в скилл. Доступ сам по себе не поручает запускать другие агенты
-или продолжать чужие сессии. Долгие разрешённые команды — по background-jobs платформы.
+This is a remote shell with the `maxim` account's rights, not a command whitelist or metacharacter
+filter. SSH maintains authentication and protects transport; the laptop OS limits object access.
+The assignment and project rules determine what is allowed, not the existence of a working
+connection. Installation, restart, and configuration changes are allowed only when explicitly
+included in the agreed assignment. Handle the laptop carefully — see [AGENTS.md Orchestra,
+"Authority boundaries"](/home/kesha/orchestra/AGENTS.md). Do not copy those rules into this skill.
+Access alone does not authorize spawning agents or continuing other sessions. Long authorized
+commands follow the platform's background-jobs rules.
 
-## Карта каталогов
+## Directory map
 
-Снимок ноутбука: 2026-09-13T14:00:29.258676+00:00. Это имена каталогов, не утверждение,
-что каждый является самостоятельным проектом. Маркер .git проверен без чтения
-истории/remote: файл может обозначать worktree или submodule. Перед работой проверь
-существование выбранного пути; снимок не обещает его неизменности.
+Snapshot of the laptop: 2026-09-13T14:00:29.258676+00:00. These are directory names, not a
+claim that each is an independent project. The `.git` marker was checked without reading history
+or remotes; a file may represent a worktree or submodule. Before work, verify the chosen path
+exists; the snapshot does not promise it is unchanged.
 
 ### /mnt/data/Projects/Python/
 
-| Каталог | Маркер .git |
+| Directory | `.git` marker |
 |---|---|
-| `ai-proxy-manager` | каталог |
-| `Alexey-Projects` | не найден |
-| `Aperant` | каталог |
-| `BallisticSim` | не найден |
-| `civsim` | не найден |
-| `Claude-Code-Game-Master` | каталог |
-| `claude-plugins-official` | каталог |
-| `claude-server` | каталог |
-| `CursorUsageAnalyzer` | каталог |
-| `DnD-Music-MCP` | каталог |
-| `E-CommerceBench` | каталог |
-| `games` | каталог |
-| `inscryption-ai` | каталог |
-| `inscryption-ai-public` | каталог |
-| `kesha-tg-bot` | каталог |
-| `LLM` | не найден |
-| `OF-Parser` | не найден |
-| `orchestra` | каталог |
-| `orchestra-architecture-audit` | файл |
-| `orchestra-astra-usage` | файл |
-| `orchestra-backups` | не найден |
-| `orchestra-bash-latency-20260905` | файл |
-| `orchestra-codex-state-compat` | файл |
-| `orchestra-day-20260907` | файл |
-| `orchestra-db-research` | файл |
-| `orchestra-design-gallery` | файл |
-| `orchestra-enterprise` | каталог |
-| `orchestra-handoff-context-window` | файл |
-| `orchestra-html-skill` | файл |
-| `orchestra-instruction-guard` | файл |
-| `orchestra-knowledge-delivery` | файл |
-| `orchestra-local-workflow` | файл |
-| `orchestra-model-text-control-flow` | файл |
-| `orchestra-receipt-audit` | файл |
-| `orchestra-remove-dead-compat` | файл |
-| `orchestra-retire-legacy-review` | файл |
-| `orchestra-service-lifecycle` | файл |
-| `orchestra-service-lifecycle-baseline` | файл |
-| `orchestra-simplify-review` | файл |
-| `orchestra-stability-recovery` | файл |
-| `orchestra-storage` | файл |
-| `orchestra-storage-baseline` | файл |
-| `orchestra-sync-20260912` | файл |
-| `orchestra-worker-autonomy` | файл |
-| `Parsing` | каталог |
-| `PhotoServer` | каталог |
-| `seedon` | каталог |
-| `slay-the-spire-analysis` | не найден |
-| `space-sim` | каталог |
-| `stargate-tactics` | каталог |
-| `test-project` | каталог |
-| `TradingCryptoBot` | каталог |
-| `TTS` | не найден |
-| `Vitaliy-Projects` | не найден |
-| `VoiceType` | каталог |
-| `VPN-Service` | каталог |
-| `web_portfolio` | каталог |
-| `WebView` | каталог |
-| `wmod` | каталог |
-| `world-state` | не найден |
+| `ai-proxy-manager` | directory |
+| `Alexey-Projects` | not found |
+| `Aperant` | directory |
+| `BallisticSim` | not found |
+| `civsim` | not found |
+| `Claude-Code-Game-Master` | directory |
+| `claude-plugins-official` | directory |
+| `claude-server` | directory |
+| `CursorUsageAnalyzer` | directory |
+| `DnD-Music-MCP` | directory |
+| `E-CommerceBench` | directory |
+| `games` | directory |
+| `inscryption-ai` | directory |
+| `inscryption-ai-public` | directory |
+| `kesha-tg-bot` | directory |
+| `LLM` | not found |
+| `OF-Parser` | not found |
+| `orchestra` | directory |
+| `orchestra-architecture-audit` | file |
+| `orchestra-astra-usage` | file |
+| `orchestra-backups` | not found |
+| `orchestra-bash-latency-20260905` | file |
+| `orchestra-codex-state-compat` | file |
+| `orchestra-day-20260907` | file |
+| `orchestra-db-research` | file |
+| `orchestra-design-gallery` | file |
+| `orchestra-enterprise` | directory |
+| `orchestra-handoff-context-window` | file |
+| `orchestra-html-skill` | file |
+| `orchestra-instruction-guard` | file |
+| `orchestra-knowledge-delivery` | file |
+| `orchestra-local-workflow` | file |
+| `orchestra-model-text-control-flow` | file |
+| `orchestra-receipt-audit` | file |
+| `orchestra-remove-dead-compat` | file |
+| `orchestra-retire-legacy-review` | file |
+| `orchestra-service-lifecycle` | file |
+| `orchestra-service-lifecycle-baseline` | file |
+| `orchestra-simplify-review` | file |
+| `orchestra-stability-recovery` | file |
+| `orchestra-storage` | file |
+| `orchestra-storage-baseline` | file |
+| `orchestra-sync-20260912` | file |
+| `orchestra-worker-autonomy` | file |
+| `Parsing` | directory |
+| `PhotoServer` | directory |
+| `seedon` | directory |
+| `slay-the-spire-analysis` | not found |
+| `space-sim` | directory |
+| `stargate-tactics` | directory |
+| `test-project` | directory |
+| `TradingCryptoBot` | directory |
+| `TTS` | not found |
+| `Vitaliy-Projects` | not found |
+| `VoiceType` | directory |
+| `VPN-Service` | directory |
+| `web_portfolio` | directory |
+| `WebView` | directory |
+| `wmod` | directory |
+| `world-state` | not found |
 
 ### /mnt/data/Projects/Unity/
 
-| Каталог | Маркер .git |
+| Directory | `.git` marker |
 |---|---|
-| `AIMedical` | каталог |
-| `AISwapFace` | каталог |
-| `Bashilov Story` | не найден |
-| `Birusa2026` | каталог |
-| `DefaultProjectUnity` | каталог |
-| `POLUS` | не найден |
-| `Test` | не найден |
-| `WinterGame` | каталог |
+| `AIMedical` | directory |
+| `AISwapFace` | directory |
+| `Bashilov Story` | not found |
+| `Birusa2026` | directory |
+| `DefaultProjectUnity` | directory |
+| `POLUS` | not found |
+| `Test` | not found |
+| `WinterGame` | directory |
 
-Vault: /mnt/data/Рабочий стол/Cursor/COG-second-brain — существование проверено
-в том же снимке. Ноутбучная папка orchestra — checkout; работающий экземпляр Orchestra
-этой платформы находится на VPS. Доступ к checkout не разрешает деплой или рестарт.
+Vault: `/mnt/data/Рабочий стол/Cursor/COG-second-brain` — existence checked in the same snapshot.
+The laptop's Orchestra folder is a checkout; this platform's running Orchestra instance is on
+the VPS. Access to the checkout does not authorize deployment or restart.

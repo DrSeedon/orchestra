@@ -25,7 +25,7 @@ Built-in task tracker. Agents create, update, and close tasks.
   A task may carry several tags or none; `tags` on `task_update` replaces the whole list.
 - A task number is unique only inside the numbering space it was issued in, and one project
   can hold several. Listings carry `source` for exactly that reason: `#161` and
-  `#161 · ноутбук` are different tasks. Quote `source` whenever it is set.
+  `#161 · laptop` are different tasks. Quote `source` whenever it is set.
 
 ### Rules
 - Before approved work that will leave a persistent `.orchestra/` artifact (research, audit,

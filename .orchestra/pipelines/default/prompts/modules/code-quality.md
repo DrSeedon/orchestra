@@ -15,8 +15,8 @@ Prefer the simplest complete solution; challenge a faulty premise with evidence.
   does the codebase already do it; does the standard library/platform do it; can it be one line?
   This simplicity check never removes the protections in the safety module.
 
-**Collect everything, filter on display (owner's decision 29.09.2026, verbatim: «в нашу базу
-данных надо все собирать абсолютно все данные а потом уже фильтровать … на показе»).** "Minimum
+**Collect everything, filter on display (owner decision, 2026-09-29: collect the complete source
+record first and apply filters only when displaying it).** "Minimum
 code" never means minimum data. When code pulls data from an external source (API, site search,
 registry, feed), store every record and every field the source gives into our own storage, and
 apply business filters (price, keywords, region, relevance) at query/display time, where they can
@@ -35,19 +35,19 @@ them and nobody saw the gap.
 output and visible results for each check. Keep commands sequential when the next action
 depends on the previous result; do not batch mutations or retries merely to save a round.
 
-**`Killed` или `EXIT=137` — сначала проверь свой cgroup, потом код.** Всё, что запускает агент,
-включая `bg_create type=run`, живёт внутри cgroup платформы с жёстким потолком памяти, и ядро
-убивает процесс по OOM, когда в системе памяти ещё полно. `free` показывает НЕ тот лимит,
-который к тебе применяется, а `dmesg` агенту недоступен, поэтому симптом выглядит как дефект
-твоего кода или данных. Измерено 19.09.2026 на VPS: `/proc/self/cgroup` = `orchestra.service`,
-`MemoryMax` 12 ГБ, из них 8.5 ГБ уже занято самой платформой. Цена ошибочного диагноза в тот
-день — семь переписываний кода подряд (снижение лимита движка, разбиение группировки, смена
-архитектуры, хеш-бакеты, приближённый счёт, удаление 23 ГБ данных), и ни одно из них не было
-причиной. Диагностика: `cat /proc/self/cgroup` и `memory.max` своей группы. Тяжёлый счёт
-(датасеты, сборки, всё, что просит больше нескольких ГБ) запускай вне cgroup платформы —
-`ssh -o BatchMode=yes kesha@localhost '<команда>'` попадает в user-слайс, где `memory.max = max`;
-тот же упавший семь раз скрипт отработал там за 47 секунд. Лимиты `orchestra.service` агент
-не правит: это инфраструктура платформы, и потолок защищает её от процессов агентов.
+**`Killed` or `EXIT=137` — check your cgroup before your code.** Everything an agent launches,
+including `bg_create type=run`, lives inside the platform cgroup with a hard memory ceiling; the
+kernel can OOM-kill it while the machine still has free memory. `free` shows the wrong limit for
+you, and agents cannot use `dmesg`, so the symptom looks like a code or data defect. Measured on
+the VPS on 2026-09-19: `/proc/self/cgroup` was `orchestra.service`, `MemoryMax` was 12 GB, and
+the platform already used 8.5 GB. The mistaken diagnosis cost seven successive rewrites
+(lowering the engine limit, splitting grouping, changing architecture, hash buckets,
+approximate counting, and deleting 23 GB), none of which addressed the cause. Diagnose with
+`cat /proc/self/cgroup` and your cgroup's `memory.max`. Run heavy work (datasets, builds, or
+anything needing several GB) outside the platform cgroup:
+`ssh -o BatchMode=yes kesha@localhost '<command>'` enters the user slice where `memory.max = max`;
+the same script that failed seven times completed there in 47 seconds. Agents must not change
+`orchestra.service` limits: that infrastructure ceiling protects the platform from agent processes.
 
 **Route code intelligence by question.**
 - Literal text, paths, and current occurrences → `rg` first
@@ -59,9 +59,8 @@ depends on the previous result; do not batch mutations or retries merely to save
   reproduce it and add a meaningful check. Use test-first work when the contract is known;
   exploratory diagnosis need not manufacture a frozen test before understanding the failure.
 
-**Test the core, never the wording (owner's decision 06.09.2026, verbatim: «тесты нужны только
-на кор фичи которые не будут меняться… а не хуйню которую мы хотим поменять… ебанные тесты палки
-в колеса»).** This project changes constantly; a test that fails because we deliberately changed
+**Test the core, never the wording (owner decision, 2026-09-06: test only stable core behavior,
+not prose that is deliberately rewritten).** This project changes constantly; a test that fails because we deliberately changed
 something is not a guard, it is a brake.
 - **Never assert a literal phrase of a prompt, rule, report or document.** No anchor lists of
   quotes, no "this exact sentence must be present/absent". Such a test reddens when the OWNER
