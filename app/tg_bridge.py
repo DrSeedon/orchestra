@@ -43,7 +43,10 @@ from app.user_message_display import (
     user_message_display_content,
 )
 from app.transcription import transcribe_audio as _transcribe_audio
-from app.upload_limits import MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, send_as_photo, send_as_video
+from app.upload_limits import (
+    MAX_UPLOAD_BYTES, MAX_UPLOAD_MB, photo_geometry_valid, send_as_photo,
+    send_as_video,
+)
 from app.tg_video import send_group_with_video_fallback, send_video_or_document, video_kwargs
 
 logger = logging.getLogger("tg-bridge")
@@ -362,6 +365,18 @@ async def _resolve_orch(msg: types.Message) -> tuple[str | None, object | None]:
                 orch_name = name
                 break
     if not orch_name:
+        if msg.chat.id == config.get("group_id"):
+            logger.warning(
+                "TG incoming message not delivered: unmapped topic chat=%s thread=%s",
+                msg.chat.id,
+                thread_id,
+            )
+            await _tg_send_safe(
+                config["group_id"],
+                "❌ Сообщение не доставлено: эта тема Telegram не привязана к агенту.",
+                thread_id,
+                important=True,
+            )
         return None, None
     session = await _manager.ensure_loaded_any(orch_name)
     if not session:
@@ -2577,6 +2592,9 @@ async def _tg_send_file_safe(
     *, is_photo: bool, important: bool, placeholder_text: str | None = None,
     isolated_preview: bool = False, is_video: bool = False,
 ):
+    if is_photo and not photo_geometry_valid(path):
+        logger.info("TG image sent as document because its dimensions are invalid: %s", path)
+        is_photo = False
     if is_photo and (not important or isolated_preview):
         return await _tg_send_isolated_photo(
             chat_id,
@@ -2643,6 +2661,8 @@ async def _submit_file_snapshot_once(
     """Cross the Bot API boundary once for a durable file-delivery receipt."""
     if bot is None:
         raise RuntimeError("TG bridge not active")
+    if is_photo and not photo_geometry_valid(snapshot_path):
+        is_photo = False
     from aiogram.types import FSInputFile
 
     tg_file = FSInputFile(snapshot_path, filename=Path(snapshot_path).name)
@@ -2681,6 +2701,21 @@ async def _submit_file_group_once(
         FSInputFile, InputMediaDocument, InputMediaPhoto, InputMediaVideo,
     )
 
+    safe_items = [
+        {
+            **item,
+            "kind": (
+                "document"
+                if item["kind"] == "photo"
+                and not photo_geometry_valid(item["snapshot_path"])
+                else item["kind"]
+            ),
+        }
+        for item in items
+    ]
+    if any(item["kind"] == "document" for item in safe_items):
+        safe_items = [{**item, "kind": "document"} for item in safe_items]
+
     def _media(item: dict, video_meta):
         tg_file = FSInputFile(
             item["snapshot_path"], filename=item["original_name"],
@@ -2700,10 +2735,10 @@ async def _submit_file_group_once(
         )
 
     timeout = file_submit_timeout(
-        _snapshot_bytes([item["snapshot_path"] for item in items])
+        _snapshot_bytes([item["snapshot_path"] for item in safe_items])
     )
     async with asyncio.timeout(timeout):
-        return await send_group_with_video_fallback(_send_group, items, _media)
+        return await send_group_with_video_fallback(_send_group, safe_items, _media)
 
 
 def is_provider_rejection(exc: BaseException) -> bool:
@@ -2973,7 +3008,9 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
         return {"error": f"no TG topic for scope: {scope}"}
     label = f"📎 {sender}: {caption}" if caption else f"📎 {sender}: {fp.name}"
     label = label[:1024]
-    is_photo = send_as_photo(fp.name, file_size, as_document)
+    is_photo = send_as_photo(
+        fp.name, file_size, as_document, photo_path=str(fp),
+    )
     is_video = send_as_video(fp.name, as_document)
     msg = await _tg_send_file_safe(
         config["group_id"], path, label, thread_id,

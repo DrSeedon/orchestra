@@ -1,0 +1,1564 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/.venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+timeout: 120.0s
+timeout method: thread
+timeout func_only: False
+collecting ... collected 243 items
+
+tests/test_tg_bridge.py::test_t2_artifact_text_disables_link_preview_at_the_bot_call PASSED [  0%]
+tests/test_tg_bridge.py::test_t2_text_helper_threads_preview_disable_without_changing_document_fallback PASSED [  0%]
+tests/test_tg_bridge.py::test_direct_photo_send_uses_document_for_invalid_geometry PASSED [  1%]
+tests/test_tg_bridge.py::test_polling_does_not_override_uvicorn_signal_handlers PASSED [  1%]
+tests/test_tg_bridge.py::test_transcribe_audio_persists_voice_cost PASSED [  2%]
+tests/test_tg_bridge.py::TestShortName::test_strips_orchestrator_suffix PASSED [  2%]
+tests/test_tg_bridge.py::TestShortName::test_returns_as_is_when_no_suffix PASSED [  2%]
+tests/test_tg_bridge.py::TestPickUniqueTopicName::test_returns_base_when_config_empty PASSED [  3%]
+tests/test_tg_bridge.py::TestPickUniqueTopicName::test_increments_when_short_collides_with_existing_orch PASSED [  3%]
+tests/test_tg_bridge.py::TestPickUniqueTopicName::test_returns_existing_mapping_for_self PASSED [  4%]
+tests/test_tg_bridge.py::TestPickUniqueTopicName::test_increments_past_two_when_two_taken PASSED [  4%]
+tests/test_tg_bridge.py::TestPickUniqueTopicName::test_uses_short_of_unmapped_orch_as_fallback PASSED [  4%]
+tests/test_tg_bridge.py::TestPickUniqueTopicName::test_persists_topic_names_dict_existence PASSED [  5%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_deletes_main_topic_and_cleans_config PASSED [  5%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_does_not_touch_mirrors PASSED [  6%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_handles_bot_api_error_gracefully PASSED [  6%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_skips_orch_without_topic PASSED [  6%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_returns_error_when_bridge_inactive PASSED [  7%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_cleans_topic_status_cache PASSED [  7%]
+tests/test_tg_bridge.py::TestRemoveTopicsForOrchs::test_multiple_orchs_one_failure_does_not_block_others PASSED [  8%]
+tests/test_tg_bridge.py::TestFindOrchForScope::test_prefers_top_level_over_sub_orchestrator PASSED [  8%]
+tests/test_tg_bridge.py::TestFindOrchForScope::test_falls_back_to_sub_orchestrator_when_no_top_level PASSED [  9%]
+tests/test_tg_bridge.py::TestFindOrchForScope::test_scope_mismatch_returns_none PASSED [  9%]
+tests/test_tg_bridge.py::TestFindOrchForScope::test_worker_ignored PASSED [  9%]
+tests/test_tg_bridge.py::TestRenameOrchTopic::test_moves_uncertain_mirror_marker_with_config_key PASSED [ 10%]
+tests/test_tg_bridge.py::TestRenameOrchTopic::test_waits_for_inflight_mirror_create_before_renaming PASSED [ 10%]
+tests/test_tg_bridge.py::TestTgImageLane::test_slow_photo_edit_keeps_order_without_holding_later_text FAILED [ 11%]
+tests/test_tg_bridge.py::TestTgImageLane::test_failed_photo_edit_leaves_marker_and_counts_loss FAILED [ 11%]
+tests/test_tg_bridge.py::TestTgImageLane::test_image_capacity_rejects_before_third_marker FAILED [ 11%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_preview_handoff_does_not_wait_for_marker_or_edit FAILED [ 12%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_preview_bypasses_optional_image_capacity FAILED [ 12%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_media_edit_retries_ambiguous_failure FAILED [ 13%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_media_not_modified_is_success FAILED [ 13%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_marker_ambiguous_failure_is_not_retried FAILED [ 13%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_marker_retries_explicit_flood_rejection FAILED [ 14%]
+tests/test_tg_bridge.py::TestTgImageLane::test_important_preview_admission_failure_propagates PASSED [ 14%]
+tests/test_tg_bridge.py::TestTgImageLane::test_marker_admission_failure_is_unaccepted_and_lost_once FAILED [ 15%]
+tests/test_tg_bridge.py::TestTgImageLane::test_ambiguous_marker_is_not_retried FAILED [ 15%]
+tests/test_tg_bridge.py::TestTgImageLane::test_read_source_is_snapshotted_before_async_edit FAILED [ 16%]
+tests/test_tg_bridge.py::TestTgImageLane::test_old_marker_continuation_cannot_mutate_replacement_state FAILED [ 16%]
+tests/test_tg_bridge.py::TestTgImageLane::test_cross_worker_rate_slots_are_atomic_without_wall_clock PASSED [ 16%]
+tests/test_tg_bridge.py::TestTgImageLane::test_cancelled_consumer_does_not_delete_in_flight_snapshot FAILED [ 17%]
+tests/test_tg_bridge.py::TestTgImageLane::test_concurrent_stale_state_replacement_is_singleton PASSED [ 17%]
+tests/test_tg_bridge.py::TestTgImageLane::test_later_telemetry_cannot_pass_queued_marker PASSED [ 18%]
+tests/test_tg_bridge.py::TestTgImageLane::test_cancelled_queued_marker_does_not_make_cosmetic_preempt_reliable PASSED [ 18%]
+tests/test_tg_bridge.py::TestTgImageLane::test_pending_marker_splits_and_blocks_later_telemetry PASSED [ 18%]
+tests/test_tg_bridge.py::TestTgImageLane::test_completed_marker_releases_barrier_before_next_marker PASSED [ 19%]
+tests/test_tg_bridge.py::TestTgDeliveryStats::test_endpoint_returns_empty_chat_list PASSED [ 19%]
+tests/test_tg_bridge.py::TestTgDeliveryStats::test_endpoint_returns_sorted_complete_read_only_snapshots PASSED [ 20%]
+tests/test_tg_bridge.py::TestBotApiHealthLoop::test_three_consecutive_fails_triggers_restart PASSED [ 20%]
+tests/test_tg_bridge.py::TestSendFileRouting::test_routes_to_caller_own_topic PASSED [ 20%]
+tests/test_tg_bridge.py::TestSendFileRouting::test_falls_back_to_scope_when_sender_has_no_topic PASSED [ 21%]
+tests/test_tg_bridge.py::TestSendFileRouting::test_error_when_no_topic_anywhere PASSED [ 21%]
+tests/test_tg_bridge.py::TestFormattedChunks::test_splits_after_markdown_expands_table PASSED [ 22%]
+tests/test_tg_bridge.py::TestFormattedChunks::test_keeps_entities_for_single_chunk PASSED [ 22%]
+tests/test_tg_bridge.py::TestIncomingExpandableMessages::test_expandable_message_is_one_utf16_bounded_send PASSED [ 23%]
+tests/test_tg_bridge.py::TestIncomingExpandableMessages::test_short_markdown_entities_use_utf16_offsets PASSED [ 23%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_format_limits_chat_message_includes_consumed_window_and_pace PASSED [ 23%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_limits_uses_important_file_delivery_path PASSED [ 24%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_limits_first_creation_persists_delivered_message_id PASSED [ 24%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_repeated_limits_command_makes_its_answer_current PASSED [ 25%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_live_limits_refresh_after_restart_edits_saved_message PASSED [ 25%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_deleted_live_limits_message_replaces_it_once PASSED [ 25%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_unchanged_live_limits_message_is_not_replaced PASSED [ 26%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_live_limits_render_error_does_not_send_replacement PASSED [ 26%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_limits_sends_explicit_error_when_image_delivery_fails PASSED [ 27%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_usage_error_includes_exception_class_and_empty_detail PASSED [ 27%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_non_owner_is_denied_without_loading_usage PASSED [ 27%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_owner_lookup_failure_is_fail_closed PASSED [ 28%]
+tests/test_tg_bridge.py::TestLimitsCommand::test_handler_is_registered_for_private_chat_only PASSED [ 28%]
+tests/test_tg_bridge.py::TestTgRateAdmission::test_measured_group_burst_reserves_at_exact_1_05_spacing PASSED [ 29%]
+tests/test_tg_bridge.py::TestTgRateAdmission::test_twenty_first_group_reservation_waits_for_rolling_window PASSED [ 29%]
+tests/test_tg_bridge.py::TestTgRateAdmission::test_first_429_defers_retry_until_retry_after_margin PASSED [ 30%]
+tests/test_tg_bridge.py::TestTgRateAdmission::test_different_chats_have_independent_rolling_windows PASSED [ 30%]
+tests/test_tg_bridge.py::TestTgRateAdmission::test_topic_ids_share_one_chat_rate_history PASSED [ 30%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_serializes_concurrent_group_sends PASSED [ 31%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_different_chats_do_not_share_lock PASSED [ 31%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_retries_rate_limit_with_same_thread PASSED [ 32%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_nonimportant_flood_drop_counts_final_loss PASSED [ 32%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_retries_ambiguous_network_error PASSED [ 32%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_network_retry_counts_failed_request_against_interval PASSED [ 33%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_retries_bad_entities_as_plain_text PASSED [ 33%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_plain_entity_fallback_uses_a_new_rate_slot PASSED [ 34%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_coalesced_entity_fallback_uses_latest_payload PASSED [ 34%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_optional_entity_fallback_handles_rejected_admission PASSED [ 34%]
+tests/test_tg_bridge.py::TestTgSendSafe::test_logs_lost_after_final_network_failure PASSED [ 35%]
+tests/test_tg_bridge.py::TestTgReliableDeadlines::test_attempt_timeout_retries_then_releases_next_reply PASSED [ 35%]
+tests/test_tg_bridge.py::TestTgReliableDeadlines::test_rate_wait_does_not_consume_attempt_retry_budget PASSED [ 36%]
+tests/test_tg_bridge.py::TestTgReliableDeadlines::test_snapshot_exposes_oldest_queue_age_and_delivery_latency PASSED [ 36%]
+tests/test_tg_bridge.py::TestTgMirrorIsolation::test_stalled_mirror_does_not_stop_primary_log_polling PASSED [ 37%]
+tests/test_tg_bridge.py::TestTgMirrorIsolation::test_mirror_outbox_rejects_burst_beyond_fixed_capacity PASSED [ 37%]
+tests/test_tg_bridge.py::TestTgMirrorIsolation::test_optional_saturation_cannot_reject_primary_reliable_call PASSED [ 37%]
+tests/test_tg_bridge.py::TestTgMirrorIsolation::test_two_mirrors_share_one_chat_rate_authority PASSED [ 38%]
+tests/test_tg_bridge.py::TestTgMirrorIsolation::test_stop_cancels_mirror_owner_and_clears_outbox PASSED [ 38%]
+tests/test_tg_bridge.py::TestTgMirrorIsolation::test_stop_rejects_first_mirror_submission_during_reset PASSED [ 39%]
+tests/test_tg_bridge.py::TestTopicStatusDelivery::test_slow_topic_status_does_not_block_message_queue PASSED [ 39%]
+tests/test_tg_bridge.py::TestTopicStatusDelivery::test_sync_statuses_iterates_session_snapshot PASSED [ 39%]
+tests/test_tg_bridge.py::TestTopicStatusDelivery::test_deferred_startup_iterates_topic_snapshot PASSED [ 40%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_configured_stream_starts_before_blocked_topic_work PASSED [ 40%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_new_topic_gets_one_stream_during_deferred_startup PASSED [ 41%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_concurrent_topic_sync_serializes_creation PASSED [ 41%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_runtime_status_is_background_and_coalesces_latest_state PASSED [ 41%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_topic_create_timeout_is_not_blindly_retried PASSED [ 42%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_topic_create_network_error_is_not_blindly_retried PASSED [ 42%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_stop_marks_inflight_topic_create_uncertain PASSED [ 43%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_delete_then_recreate_replaces_owned_stream PASSED [ 43%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_stop_cancels_debounce_owner_and_clears_buffers PASSED [ 44%]
+tests/test_tg_bridge.py::TestTgLifecycleReliability::test_stop_clears_runtime_refs_when_bot_close_fails PASSED [ 44%]
+tests/test_tg_bridge.py::TestMediaGenerationSafety::test_stale_voice_cannot_overwrite_next_text_generation PASSED [ 44%]
+tests/test_tg_bridge.py::TestMediaGenerationSafety::test_stale_voice_cannot_resolve_next_media_reservation PASSED [ 45%]
+tests/test_tg_bridge.py::TestMediaGenerationSafety::test_stop_restart_buffer_identity_never_reuses_old_token PASSED [ 45%]
+tests/test_tg_bridge.py::TestMediaGenerationSafety::test_media_token_is_single_use PASSED [ 46%]
+tests/test_tg_bridge.py::TestMediaGenerationSafety::test_valid_media_resolution_preserves_message_order PASSED [ 46%]
+tests/test_tg_bridge.py::TestTgCallQueue::test_important_call_overtakes_waiting_nonimportant_call PASSED [ 46%]
+tests/test_tg_bridge.py::TestTgCallQueue::test_nonimportant_call_drops_when_rate_slot_would_wait PASSED [ 47%]
+tests/test_tg_bridge.py::TestTgCallQueue::test_queued_edit_does_not_block_caller PASSED [ 47%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_expired_cosmetics_drop_before_reliable_selection_and_stats_show_it PASSED [ 48%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_fresh_cosmetic_never_preempts_reliable_backlog PASSED [ 48%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_thousand_same_topic_tools_use_one_coalesced_entry PASSED [ 48%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_tool_timeout_releases_following_reliable_call PASSED [ 49%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_telemetry_key_capacity_drops_new_keys_without_tasks PASSED [ 49%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_update_while_digest_is_sending_survives_old_completion PASSED [ 50%]
+tests/test_tg_bridge.py::TestTgCosmeticExpiry::test_reliable_admission_and_reset_are_bounded PASSED [ 50%]
+tests/test_tg_bridge.py::TestSendFileRetry::test_recreates_files_for_primary_retry_and_async_mirror PASSED [ 51%]
+tests/test_tg_bridge.py::TestCronCommandTopicBoundary99::test_no_match_is_silent_but_match_reaches_topic_status PASSED [ 51%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_idle_waits_before_editing_topic PASSED [ 51%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_running_cancels_four_pending_idle_transitions PASSED [ 52%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_idle_rechecks_current_scope_after_delay PASSED [ 52%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_startup_sync_serializes_topic_edits PASSED [ 53%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_runtime_running_serializes_after_started_startup_idle PASSED [ 53%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_startup_sync_interrupts_existing_idle_delay PASSED [ 53%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_manifest_orchestrator_scope_can_fade_idle PASSED [ 54%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_startup_sync_keeps_status_cache_debounce PASSED [ 54%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_lifecycle_cancel_during_idle_delay_leaves_no_edit PASSED [ 55%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_topic_status_failure_logs_class_and_does_not_cache[error0-TimeoutError] PASSED [ 55%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_topic_status_failure_logs_class_and_does_not_cache[error1-TelegramBadRequest] PASSED [ 55%]
+tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_topic_not_modified_is_success_without_warning PASSED [ 56%]
+tests/test_tg_bridge.py::TestSilentFallbacksAreLogged::test_md_entities_fallback_logs_reason PASSED [ 56%]
+tests/test_tg_bridge.py::TestSilentFallbacksAreLogged::test_md_entities_success_path_unchanged PASSED [ 57%]
+tests/test_tg_bridge.py::TestToolMessagesAllDelivered141::test_burst_of_tool_calls_loses_no_content PASSED [ 57%]
+tests/test_tg_bridge.py::TestToolMessagesAllDelivered141::test_reliable_text_not_blocked_by_tool_burst PASSED [ 58%]
+tests/test_tg_bridge.py::TestToolMessagesAllDelivered141::test_batched_message_drops_stale_entities PASSED [ 58%]
+tests/test_tg_bridge.py::TestToolMessagesAllDelivered141::test_large_bodies_split_across_messages_without_loss PASSED [ 58%]
+tests/test_tg_bridge.py::TestToolMessagesAllDelivered141::test_single_oversized_body_is_split_not_rejected PASSED [ 59%]
+tests/test_tg_bridge.py::TestToolMessagesAllDelivered141::test_failed_send_returns_batch_to_bucket PASSED [ 59%]
+tests/test_tg_bridge.py::TestBackgroundSubagentFilter::test_explicit_background_type_is_filtered PASSED [ 60%]
+tests/test_tg_bridge.py::TestBackgroundSubagentFilter::test_explicit_type_wins_over_id_shape PASSED [ 60%]
+tests/test_tg_bridge.py::TestBackgroundSubagentFilter::test_real_subagents_are_kept PASSED [ 60%]
+tests/test_tg_bridge.py::TestBackgroundSubagentFilter::test_empty_type_falls_back_to_id_shape PASSED [ 61%]
+tests/test_tg_bridge.py::TestBackgroundSubagentFilter::test_unparseable_content_is_kept PASSED [ 61%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_mention_renders_as_clickable_entity_for_numeric_id PASSED [ 62%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_username_is_passed_through PASSED [ 62%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_intermediate_messages_carry_no_mention PASSED [ 62%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_worker_turn_end_is_not_mentioned PASSED [ 63%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_turn_without_speech_is_not_mentioned PASSED [ 63%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_exact_silent_turn_marker_is_not_delivered_or_mentioned PASSED [ 64%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_turn_with_actions_keeps_completion_anchor PASSED [ 64%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_turn_without_actions_sends_no_empty_anchor PASSED [ 65%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_turn_near_misses_are_delivered[_] PASSED [ 65%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_turn_near_misses_are_delivered[[[ORCHESTRA:SILENT_TURN]] ] PASSED [ 65%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_turn_near_misses_are_delivered[prefix [[ORCHESTRA:SILENT_TURN]]] PASSED [ 66%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_turn_near_misses_are_delivered[[[ORCHESTRA:SILENT_TURN]]\nexplanation] PASSED [ 66%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_marker_only_applies_to_agent_text[user_message-\U0001f464] PASSED [ 67%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_silent_marker_only_applies_to_agent_text[error-\u274c] PASSED [ 67%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_agent_speech_itself_is_not_tagged PASSED [ 67%]
+tests/test_tg_bridge.py::TestTurnEndMention::test_replay_after_mention_does_not_duplicate_it PASSED [ 68%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_notify_call_mentions_and_shows_its_reason PASSED [ 68%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_turn_without_notify_call_is_not_mentioned PASSED [ 69%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_sub_orchestrator_notify_call_is_mentioned PASSED [ 69%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_worker_notify_call_never_mentions PASSED [ 69%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_quoting_the_tool_name_in_text_does_not_mention PASSED [ 70%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_another_orchestra_tool_does_not_mention PASSED [ 70%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_unreadable_args_still_mention_without_reason PASSED [ 71%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_next_turn_without_notify_is_not_mentioned PASSED [ 71%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_two_notified_turns_give_two_mentions PASSED [ 72%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_mention_survives_backpressure_replay PASSED [ 72%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_no_mention_configured_sends_nothing_extra PASSED [ 72%]
+tests/test_tg_bridge.py::TestNotifyUserMention::test_reason_is_bounded_in_the_mention_line PASSED [ 73%]
+tests/test_tg_bridge.py::TestTurnFold::test_bash_line_shows_command_without_shell_escaping PASSED [ 73%]
+tests/test_tg_bridge.py::TestTurnFold::test_skill_line_names_the_skill PASSED [ 74%]
+tests/test_tg_bridge.py::TestTurnFold::test_file_change_and_edit_render_the_same_way PASSED [ 74%]
+tests/test_tg_bridge.py::TestTurnFold::test_anchor_stays_short_on_the_worst_turn PASSED [ 74%]
+tests/test_tg_bridge.py::TestTurnFold::test_progress_body_stays_bounded PASSED [ 75%]
+tests/test_tg_bridge.py::TestTurnFold::test_result_mark_reports_size_and_error PASSED [ 75%]
+tests/test_tg_bridge.py::TestTurnFold::test_state_is_idempotent_on_replay PASSED [ 76%]
+tests/test_tg_bridge.py::TestTurnFold::test_result_finds_its_own_call_when_tools_run_in_parallel PASSED [ 76%]
+tests/test_tg_bridge.py::TestTurnFold::test_legacy_rows_without_tool_use_id_pair_fifo PASSED [ 76%]
+tests/test_tg_bridge.py::TestTurnFold::test_result_without_any_open_call_is_ignored PASSED [ 77%]
+tests/test_tg_bridge.py::TestReadImagePreview::test_read_image_uses_important_isolated_preview PASSED [ 77%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_rate_limit_raw_stays_in_logs_but_not_user_channel PASSED [ 78%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_model_xml_reaches_topic_and_mirror_without_false_warning PASSED [ 78%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_agent_incoming_message_is_one_collapsed_message PASSED [ 79%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_compact_summary_text_uses_one_collapsed_message PASSED [ 79%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_owner_message_is_not_collapsed PASSED [ 79%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_tool_rows_never_send_their_own_message PASSED [ 80%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_edit_and_write_results_do_not_send_duplicate_image_previews[Edit] PASSED [ 80%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_edit_and_write_results_do_not_send_duplicate_image_previews[Write] PASSED [ 81%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_engine_status_dropped_user_status_becomes_action PASSED [ 81%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_turn_end_sends_exactly_one_reliable_anchor PASSED [ 81%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_replayed_turn_end_does_not_duplicate_the_anchor PASSED [ 82%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_anchor_is_not_resent_when_its_row_replays_after_delivery PASSED [ 82%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_progress_edit_is_throttled_and_skips_identical_text PASSED [ 83%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_parallel_results_land_on_their_own_calls PASSED [ 83%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_mention_survives_replay_of_an_already_sent_anchor PASSED [ 83%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_progress_body_respects_utf16_limit PASSED [ 84%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_late_message_id_does_not_leak_into_the_next_block PASSED [ 84%]
+tests/test_tg_bridge.py::TestTurnFoldStream::test_anchor_bar_is_one_line_wide PASSED [ 85%]
+tests/test_tg_bridge.py::TestSendMessageOwnBubble::test_full_text_and_addressee_in_own_expandable_message PASSED [ 85%]
+tests/test_tg_bridge.py::TestSendMessageOwnBubble::test_replayed_log_row_does_not_duplicate_the_message PASSED [ 86%]
+tests/test_tg_bridge.py::TestSendMessageOwnBubble::test_counter_equals_lines_of_the_current_block PASSED [ 86%]
+tests/test_tg_bridge.py::test_v681_mp4_is_video_and_as_document_overrides FAILED [ 86%]
+tests/test_tg_bridge.py::test_v681_video_sent_with_streaming_metadata_and_thumbnail PASSED [ 87%]
+tests/test_tg_bridge.py::test_v681_rejected_video_falls_back_to_document PASSED [ 87%]
+tests/test_tg_bridge.py::test_v681_unknown_video_outcome_is_not_resent_as_document PASSED [ 88%]
+tests/test_tg_bridge.py::test_v681_send_file_to_tg_routes_mp4_as_video_to_topic_and_mirror PASSED [ 88%]
+tests/test_tg_bridge.py::test_v681_rejected_video_album_is_resent_as_documents PASSED [ 88%]
+tests/test_tg_file_deliveries.py::test_send_files_12_photos_use_10_plus_2_and_one_caption FAILED [ 89%]
+tests/test_tg_file_deliveries.py::test_send_files_mixed_types_make_stable_homogeneous_groups FAILED [ 89%]
+tests/test_tg_file_deliveries.py::test_send_files_bad_path_rejects_whole_batch_before_acceptance PASSED [ 90%]
+tests/test_tg_file_deliveries.py::test_send_files_root_event_is_idempotent_for_the_ordered_manifest PASSED [ 90%]
+tests/test_tg_file_deliveries.py::test_send_files_mirror_gets_its_own_album PASSED [ 90%]
+tests/test_tg_file_deliveries.py::test_send_files_mcp_posts_one_batch_event_without_wrapping_send_file PASSED [ 91%]
+tests/test_tg_file_limits_v544.py::test_heavy_photo_goes_as_document_and_leaves_the_album_alive PASSED [ 91%]
+tests/test_tg_file_limits_v544.py::test_single_heavy_photo_is_submitted_as_a_document PASSED [ 92%]
+tests/test_tg_file_limits_v544.py::test_photo_at_the_cap_still_travels_as_a_photo PASSED [ 92%]
+tests/test_tg_file_limits_v544.py::test_provider_rejection_is_terminal_with_a_reason PASSED [ 93%]
+tests/test_tg_file_limits_v544.py::test_unclear_provider_failure_stays_unknown PASSED [ 93%]
+tests/test_tg_file_limits_v544.py::test_terminal_failure_does_not_hide_a_delivered_sibling PASSED [ 93%]
+tests/test_tg_file_limits_v544.py::test_photo_with_invalid_dimensions_is_delivered_as_document[size0] PASSED [ 94%]
+tests/test_tg_file_limits_v544.py::test_photo_with_invalid_dimensions_is_delivered_as_document[size1] PASSED [ 94%]
+tests/test_tg_file_limits_v544.py::test_queued_legacy_photo_album_with_invalid_geometry_stays_deliverable PASSED [ 95%]
+tests/test_tg_file_limits_v544.py::test_lease_outlives_the_upload_it_authorises PASSED [ 95%]
+tests/test_tg_file_limits_v544.py::test_upload_timeout_scales_with_the_file_size PASSED [ 95%]
+tests/test_tg_file_limits_v544.py::test_durable_schema_accepts_a_document_far_above_the_old_50mb_cap PASSED [ 96%]
+tests/test_tg_ingress_509.py::test_forum_topic_edited_is_logged_without_agent_delivery PASSED [ 96%]
+tests/test_tg_ingress_509.py::test_unknown_nonservice_type_still_reaches_agent PASSED [ 97%]
+tests/test_tg_ingress_509.py::test_unmapped_topic_gets_explicit_non_delivery_reply PASSED [ 97%]
+tests/test_audit0901_tg.py::test_late_transcription_still_reaches_the_agent PASSED [ 97%]
+tests/test_audit0901_tg.py::test_second_resolve_of_a_live_token_delivers_nothing PASSED [ 98%]
+tests/test_audit0901_tg.py::test_late_media_resolution_cannot_overwrite_a_new_buffer_generation PASSED [ 98%]
+tests/test_audit0901_tg.py::test_mirror_carries_important_flag_to_the_send PASSED [ 99%]
+tests/test_audit0901_tg.py::test_bot_api_restart_does_not_freeze_loop_and_reports_sudo_refusal PASSED [ 99%]
+tests/test_audit0901_tg.py::test_fan_out_subagent_lines_do_not_overwrite_each_other PASSED [100%]
+
+=================================== FAILURES ===================================
+_ TestTgImageLane.test_slow_photo_edit_keeps_order_without_holding_later_text __
+
+fut = <coroutine object Event.wait at 0x789fdffbab20>, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x789fdd017c20 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19e390>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_slow_photo_edit_keeps_ord0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdd5511c0>
+
+    @pytest.mark.asyncio
+    async def test_slow_photo_edit_keeps_order_without_holding_later_text(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "source.png"
+        source.write_bytes(b"original")
+        positions = []
+        edit_started = asyncio.Event()
+        release_edit = asyncio.Event()
+    
+        tb.bot = AsyncMock()
+    
+        async def send_message(_chat_id, text, **_kwargs):
+            message = SimpleNamespace(message_id=len(positions) + 1)
+            positions.append({"id": message.message_id, "kind": text})
+            return message
+    
+        async def edit_message_media(*, message_id, **_kwargs):
+            edit_started.set()
+            await release_edit.wait()
+            positions[message_id - 1]["kind"] = "PHOTO"
+            return SimpleNamespace(message_id=message_id)
+    
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        first_text = await tb._tg_send_safe(
+            -100,
+            "TEXT-1",
+            42,
+            telemetry_key=("test", 1),
+        )
+        completion = await tb._tg_send_file_safe(
+            -100,
+            str(source),
+            "photo",
+            42,
+            is_photo=True,
+            important=False,
+            placeholder_text="IMAGE-POSITION",
+        )
+>       await asyncio.wait_for(edit_started.wait(), timeout=5)
+
+tests/test_tg_bridge.py:537: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x789fe0456fc0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_slow_photo_edit_keeps_ord0/source.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_slow_photo_edit_keeps_ord0/source.png
+_____ TestTgImageLane.test_failed_photo_edit_leaves_marker_and_counts_loss _____
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19ea50>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_failed_photo_edit_leaves_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdd60a3f0>
+
+    @pytest.mark.asyncio
+    async def test_failed_photo_edit_leaves_marker_and_counts_loss(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "failed.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image placeholder")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.side_effect = TelegramNetworkError(
+            method=method,
+            message="timeout",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100,
+            str(source),
+            "failed",
+            42,
+            is_photo=True,
+            important=False,
+        )
+    
+        assert isinstance(completion, asyncio.Future)
+>       assert await completion is None
+E       AssertionError: assert <AsyncMock name='mock.send_document()' id='132628008412480'> is None
+
+tests/test_tg_bridge.py:593: AssertionError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_failed_photo_edit_leaves_0/failed.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_failed_photo_edit_leaves_0/failed.png
+_______ TestTgImageLane.test_image_capacity_rejects_before_third_marker ________
+
+fut = <coroutine object Event.wait at 0x789fe0359540>, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x789fdd016f90 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde193c50>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_image_capacity_rejects_be0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdd015070>
+
+    @pytest.mark.asyncio
+    async def test_image_capacity_rejects_before_third_marker(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "bounded.png"
+        source.write_bytes(b"image")
+        release_edit = asyncio.Event()
+        edit_started = asyncio.Event()
+        marker_count = 0
+        tb.bot = AsyncMock()
+    
+        async def send_message(*_args, **_kwargs):
+            nonlocal marker_count
+            marker_count += 1
+            return SimpleNamespace(message_id=marker_count)
+    
+        async def edit_message_media(**_kwargs):
+            edit_started.set()
+            await release_edit.wait()
+            return object()
+    
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_IMAGE_QUEUE_MAX", 2)
+    
+        first = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False, placeholder_text="first",
+        )
+>       await asyncio.wait_for(edit_started.wait(), timeout=5)
+
+tests/test_tg_bridge.py:634: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x789fdc4bb440>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_image_capacity_rejects_be0/bounded.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_image_capacity_rejects_be0/bounded.png
+_ TestTgImageLane.test_important_preview_handoff_does_not_wait_for_marker_or_edit _
+
+fut = <coroutine object Event.wait at 0x789fdd4fcba0>, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x789fdc27e360 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19eb10>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_important_preview_handoff0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc27eb40>
+
+    @pytest.mark.asyncio
+    async def test_important_preview_handoff_does_not_wait_for_marker_or_edit(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "important.png"
+        source.write_bytes(b"image")
+        marker_started = asyncio.Event()
+        release_marker = asyncio.Event()
+        edit_started = asyncio.Event()
+        release_edit = asyncio.Event()
+        reply_sent = asyncio.Event()
+        tb.bot = AsyncMock()
+    
+        async def send_message(_chat_id, text, **_kwargs):
+            if text == "IMAGE":
+                marker_started.set()
+                await release_marker.wait()
+                return SimpleNamespace(message_id=1)
+            reply_sent.set()
+            return object()
+    
+        async def edit_message_media(**_kwargs):
+            edit_started.set()
+            await release_edit.wait()
+            return object()
+    
+        tb.bot.send_message.side_effect = send_message
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            placeholder_text="IMAGE",
+            isolated_preview=True,
+        )
+>       await asyncio.wait_for(marker_started.wait(), timeout=5)
+
+tests/test_tg_bridge.py:697: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x789fd7fbe000>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_preview_handoff0/important.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_preview_handoff0/important.png
+___ TestTgImageLane.test_important_preview_bypasses_optional_image_capacity ____
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19dc70>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_important_preview_bypasse0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc509cd0>
+
+    @pytest.mark.asyncio
+    async def test_important_preview_bypasses_optional_image_capacity(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "important.png"
+        source.write_bytes(b"image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.return_value = object()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_IMAGE_QUEUE_MAX", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+    
+>       assert isinstance(completion, asyncio.Future)
+E       AssertionError: assert False
+E        +  where False = isinstance(<AsyncMock name='mock.send_document()' id='132627991441104'>, <class '_asyncio.Future'>)
+E        +    where <class '_asyncio.Future'> = asyncio.Future
+
+tests/test_tg_bridge.py:742: AssertionError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_preview_bypasse0/important.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_preview_bypasse0/important.png
+_____ TestTgImageLane.test_important_media_edit_retries_ambiguous_failure ______
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19eea0>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_important_media_edit_retr0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc510650>
+
+    @pytest.mark.asyncio
+    async def test_important_media_edit_retries_ambiguous_failure(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "retry.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.side_effect = [
+            TelegramNetworkError(method=method, message="timeout"),
+            object(),
+        ]
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+    
+>       assert await completion is not None
+               ^^^^^^^^^^^^^^^^
+E       TypeError: object AsyncMock can't be used in 'await' expression
+
+tests/test_tg_bridge.py:772: TypeError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_media_edit_retr0/retry.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_media_edit_retr0/retry.png
+_________ TestTgImageLane.test_important_media_not_modified_is_success _________
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19f560>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_important_media_not_modif0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fe00681a0>
+
+    @pytest.mark.asyncio
+    async def test_important_media_not_modified_is_success(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "already-edited.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+        tb.bot.edit_message_media.side_effect = TelegramBadRequest(
+            method=method,
+            message="Bad Request: message is not modified",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+    
+>       assert await completion is True
+               ^^^^^^^^^^^^^^^^
+E       TypeError: object AsyncMock can't be used in 'await' expression
+
+tests/test_tg_bridge.py:801: TypeError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_media_not_modif0/already-edited.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_media_not_modif0/already-edited.png
+____ TestTgImageLane.test_important_marker_ambiguous_failure_is_not_retried ____
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19fc20>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_important_marker_ambiguou0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc572150>
+
+    @pytest.mark.asyncio
+    async def test_important_marker_ambiguous_failure_is_not_retried(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "marker.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = TelegramNetworkError(
+            method=method,
+            message="response lost",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+    
+>       assert await completion is None
+               ^^^^^^^^^^^^^^^^
+E       TypeError: object AsyncMock can't be used in 'await' expression
+
+tests/test_tg_bridge.py:829: TypeError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_marker_ambiguou0/marker.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_marker_ambiguou0/marker.png
+____ TestTgImageLane.test_important_marker_retries_explicit_flood_rejection ____
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde1a8320>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_important_marker_retries_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc4f8200>
+
+    @pytest.mark.asyncio
+    async def test_important_marker_retries_explicit_flood_rejection(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "marker-flood.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = [
+            TelegramRetryAfter(
+                method=method,
+                message="flood",
+                retry_after=0,
+            ),
+            SimpleNamespace(message_id=1),
+        ]
+        tb.bot.edit_message_media.return_value = object()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_RETRY_AFTER_MARGIN", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True,
+            important=True,
+            isolated_preview=True,
+        )
+    
+>       assert await completion is not None
+               ^^^^^^^^^^^^^^^^
+E       TypeError: object AsyncMock can't be used in 'await' expression
+
+tests/test_tg_bridge.py:864: TypeError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_marker_retries_0/marker-flood.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_important_marker_retries_0/marker-flood.png
+__ TestTgImageLane.test_marker_admission_failure_is_unaccepted_and_lost_once ___
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde1a90a0>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_marker_admission_failure_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc4e6ba0>
+
+    @pytest.mark.asyncio
+    async def test_marker_admission_failure_is_unaccepted_and_lost_once(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "overloaded.png"
+        source.write_bytes(b"image")
+        tb.bot = AsyncMock()
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_RELIABLE_QUEUE_MAX", 0)
+        monkeypatch.setattr(tb, "_TG_RELIABLE_ADMISSION_MAX", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+    
+        snapshot = tb._tg_delivery_snapshot(-100)
+>       assert completion is None
+E       assert <Future pending> is None
+
+tests/test_tg_bridge.py:911: AssertionError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_marker_admission_failure_0/overloaded.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_marker_admission_failure_0/overloaded.png
+_____________ TestTgImageLane.test_ambiguous_marker_is_not_retried _____________
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde1a9760>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_ambiguous_marker_is_not_r0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc50ce00>
+
+    @pytest.mark.asyncio
+    async def test_ambiguous_marker_is_not_retried(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "ambiguous.png"
+        source.write_bytes(b"image")
+        method = SendMessage(chat_id=-100, text="image placeholder")
+        tb.bot = AsyncMock()
+        tb.bot.send_message.side_effect = TelegramNetworkError(
+            method=method,
+            message="response lost",
+        )
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TG_NETWORK_RETRY_DELAY", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+    
+        snapshot = tb._tg_delivery_snapshot(-100)
+>       assert completion is None
+E       assert <Future pending> is None
+
+tests/test_tg_bridge.py:943: AssertionError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_ambiguous_marker_is_not_r0/ambiguous.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_ambiguous_marker_is_not_r0/ambiguous.png
+______ TestTgImageLane.test_read_source_is_snapshotted_before_async_edit _______
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde1a9e20>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_read_source_is_snapshotte0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc502420>
+
+    @pytest.mark.asyncio
+    async def test_read_source_is_snapshotted_before_async_edit(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "mutable.png"
+        source.write_bytes(b"before")
+        release_edit = asyncio.Event()
+        uploaded = []
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+    
+        async def edit_message_media(*, media, **_kwargs):
+            await release_edit.wait()
+            uploaded.append(media.media.path.read_bytes())
+            return object()
+    
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+        source.write_bytes(b"after")
+        release_edit.set()
+    
+        assert await completion is not None
+>       assert uploaded == [b"before"]
+E       AssertionError: assert [] == [b'before']
+E         
+E         Right contains one more item: b'before'
+E         
+E         Full diff:
+E         + []
+E         - [
+E         -     b'before',
+E         - ]
+
+tests/test_tg_bridge.py:980: AssertionError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_read_source_is_snapshotte0/mutable.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_read_source_is_snapshotte0/mutable.png
+_ TestTgImageLane.test_old_marker_continuation_cannot_mutate_replacement_state _
+
+fut = <coroutine object Event.wait at 0x789fdc561460>, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x789fdc4fa540 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde19f620>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_old_marker_continuation_c0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc51c740>
+
+    @pytest.mark.asyncio
+    async def test_old_marker_continuation_cannot_mutate_replacement_state(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "identity.png"
+        source.write_bytes(b"image")
+        old_marker_started = asyncio.Event()
+        old_marker_result = asyncio.get_running_loop().create_future()
+        release_new_edit = asyncio.Event()
+        real_call_safe = tb._tg_call_safe
+        ordered_calls = 0
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=2)
+    
+        async def edit_message_media(**_kwargs):
+            await release_new_edit.wait()
+            return object()
+    
+        async def call_safe(*args, **kwargs):
+            nonlocal ordered_calls
+            if kwargs.get("ordered"):
+                ordered_calls += 1
+                if ordered_calls == 1:
+                    old_marker_started.set()
+                    return await old_marker_result
+            return await real_call_safe(*args, **kwargs)
+    
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tb, "_tg_call_safe", call_safe)
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        old_submission = asyncio.create_task(
+            tb._tg_send_file_safe(
+                -100, str(source), None, 42,
+                is_photo=True, important=False, placeholder_text="old",
+            ),
+        )
+>       await asyncio.wait_for(old_marker_started.wait(), timeout=5)
+
+tests/test_tg_bridge.py:1024: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x789fd7de6080>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_old_marker_continuation_c0/identity.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_old_marker_continuation_c0/identity.png
+__ TestTgImageLane.test_cancelled_consumer_does_not_delete_in_flight_snapshot __
+
+fut = <coroutine object Event.wait at 0x789fdd4ffe60>, timeout = 5
+
+    async def wait_for(fut, timeout):
+        """Wait for the single Future or coroutine to complete, with timeout.
+    
+        Coroutine will be wrapped in Task.
+    
+        Returns result of the Future or coroutine.  When a timeout occurs,
+        it cancels the task and raises TimeoutError.  To avoid the task
+        cancellation, wrap it in shield().
+    
+        If the wait is cancelled, the task is also cancelled.
+    
+        If the task suppresses the cancellation and returns a value instead,
+        that value is returned.
+    
+        This function is a coroutine.
+        """
+        # The special case for timeout <= 0 is for the following case:
+        #
+        # async def test_waitfor():
+        #     func_started = False
+        #
+        #     async def func():
+        #         nonlocal func_started
+        #         func_started = True
+        #
+        #     try:
+        #         await asyncio.wait_for(func(), 0)
+        #     except asyncio.TimeoutError:
+        #         assert not func_started
+        #     else:
+        #         assert False
+        #
+        # asyncio.run(test_waitfor())
+    
+    
+        if timeout is not None and timeout <= 0:
+            fut = ensure_future(fut)
+    
+            if fut.done():
+                return fut.result()
+    
+            await _cancel_and_wait(fut)
+            try:
+                return fut.result()
+            except exceptions.CancelledError as exc:
+                raise TimeoutError from exc
+    
+        async with timeouts.timeout(timeout):
+>           return await fut
+                   ^^^^^^^^^
+
+/usr/lib/python3.12/asyncio/tasks.py:520: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <asyncio.locks.Event object at 0x789fdc4f2f60 [unset]>
+
+    async def wait(self):
+        """Block until the internal flag is true.
+    
+        If the internal flag is true on entry, return True
+        immediately.  Otherwise, block until another coroutine calls
+        set() to set the flag to true, then return True.
+        """
+        if self._value:
+            return True
+    
+        fut = self._get_loop().create_future()
+        self._waiters.append(fut)
+        try:
+>           await fut
+E           asyncio.exceptions.CancelledError
+
+/usr/lib/python3.12/asyncio/locks.py:212: CancelledError
+
+The above exception was the direct cause of the following exception:
+
+self = <tests.test_tg_bridge.TestTgImageLane object at 0x789fde1a9340>
+tb = <module 'app.tg_bridge' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/tg_bridge.py'>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_cancelled_consumer_does_n0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x789fdc528470>
+
+    @pytest.mark.asyncio
+    async def test_cancelled_consumer_does_not_delete_in_flight_snapshot(
+        self, tb, tmp_path, monkeypatch,
+    ):
+        import tempfile
+    
+        source = tmp_path / "cancelled.png"
+        source.write_bytes(b"image")
+        edit_started = asyncio.Event()
+        release_edit = asyncio.Event()
+        snapshot_path = None
+        tb.bot = AsyncMock()
+        tb.bot.send_message.return_value = SimpleNamespace(message_id=1)
+    
+        async def edit_message_media(*, media, **_kwargs):
+            nonlocal snapshot_path
+            snapshot_path = media.media.path
+            edit_started.set()
+            await release_edit.wait()
+            assert snapshot_path.exists()
+            return object()
+    
+        tb.bot.edit_message_media.side_effect = edit_message_media
+        monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+    
+        completion = await tb._tg_send_file_safe(
+            -100, str(source), None, 42,
+            is_photo=True, important=False,
+        )
+>       await asyncio.wait_for(edit_started.wait(), timeout=5)
+
+tests/test_tg_bridge.py:1111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/asyncio/tasks.py:519: in wait_for
+    async with timeouts.timeout(timeout):
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Timeout [expired]>
+exc_type = <class 'asyncio.exceptions.CancelledError'>
+exc_val = CancelledError(), exc_tb = <traceback object at 0x789fd7bbd8c0>
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ) -> Optional[bool]:
+        assert self._state in (_State.ENTERED, _State.EXPIRING)
+    
+        if self._timeout_handler is not None:
+            self._timeout_handler.cancel()
+            self._timeout_handler = None
+    
+        if self._state is _State.EXPIRING:
+            self._state = _State.EXPIRED
+    
+            if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+                # Since there are no new cancel requests, we're
+                # handling this.
+>               raise TimeoutError from exc_val
+E               TimeoutError
+
+/usr/lib/python3.12/asyncio/timeouts.py:115: TimeoutError
+----------------------------- Captured stderr call -----------------------------
+TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_cancelled_consumer_does_n0/cancelled.png
+------------------------------ Captured log call -------------------------------
+INFO     tg-bridge:tg_bridge.py:2596 TG image sent as document because its dimensions are invalid: /tmp/pytest-of-kesha/pytest-12345/test_cancelled_consumer_does_n0/cancelled.png
+_______________ test_v681_mp4_is_video_and_as_document_overrides _______________
+
+    def test_v681_mp4_is_video_and_as_document_overrides():
+        from app.upload_limits import send_as_photo, send_as_video
+        from app.tg_file_deliveries import _batch_kind
+    
+        assert send_as_video("clip.MP4", as_document=False) is True
+        assert send_as_video("clip.mp4", as_document=True) is False
+        assert send_as_video("clip.webm", as_document=False) is False
+        assert send_as_photo("clip.mp4", 100, False) is False
+        assert _batch_kind("clip.mp4", 100, False) == "video"
+        assert _batch_kind("clip.mp4", 100, True) == "document"
+>       assert _batch_kind("shot.png", 100, False) == "photo"
+E       AssertionError: assert 'document' == 'photo'
+E         
+E         - photo
+E         + document
+
+tests/test_tg_bridge.py:5489: AssertionError
+___________ test_send_files_12_photos_use_10_plus_2_and_one_caption ____________
+
+batch_world = namespace(db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/db.py'>, del...lbumBot object at 0x789fd6255430>, root=PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_send_files_12_photos_use_0'))
+
+    @pytest.mark.asyncio
+    async def test_send_files_12_photos_use_10_plus_2_and_one_caption(batch_world):
+        world = batch_world
+        paths = _files(world.root, [f"photo-{index:02}.png" for index in range(12)])
+    
+        accepted, status, _headers = await _accept(world, paths)
+        assert status == 202
+        assert accepted["event_id"] == ROOT_EVENT
+        assert accepted["delivery_state"] == "QUEUED"
+        await world.deliveries.run_chat_deliveries(PRIMARY_CHAT)
+    
+        assert [len(group["names"]) for group in world.bot.groups] == [10, 2]
+        assert [name for group in world.bot.groups for name in group["names"]] == [
+            Path(path).name for path in paths
+        ]
+>       assert all(set(group["types"]) == {"InputMediaPhoto"} for group in world.bot.groups)
+E       assert False
+E        +  where False = all(<generator object test_send_files_12_photos_use_10_plus_2_and_one_caption.<locals>.<genexpr> at 0x789fd63afa00>)
+
+tests/test_tg_file_deliveries.py:114: AssertionError
+__________ test_send_files_mixed_types_make_stable_homogeneous_groups __________
+
+batch_world = namespace(db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-telegram/app/db.py'>, del...lbumBot object at 0x789fd6257590>, root=PosixPath('/tmp/pytest-of-kesha/pytest-12345/test_send_files_mixed_types_ma0'))
+
+    @pytest.mark.asyncio
+    async def test_send_files_mixed_types_make_stable_homogeneous_groups(batch_world):
+        world = batch_world
+        names = [
+            "photo-0.png", "doc-0.pdf", "photo-1.jpg",
+            *[f"doc-{index:02}.txt" for index in range(1, 12)],
+            "photo-2.webp",
+        ]
+        paths = _files(world.root, names)
+    
+        _accepted, status, _headers = await _accept(world, paths)
+        assert status == 202
+        await world.deliveries.run_chat_deliveries(PRIMARY_CHAT)
+    
+>       assert [len(group["names"]) for group in world.bot.groups] == [3, 10, 2]
+E       AssertionError: assert [10, 5] == [3, 10, 2]
+E         
+E         At index 0 diff: 10 != 3
+E         Right contains one more item: 2
+E         
+E         Full diff:
+E           [
+E         -     3,...
+E         
+E         ...Full output truncated (6 lines hidden), use '-vv' to show
+
+tests/test_tg_file_deliveries.py:135: AssertionError
+=============================== warnings summary ===============================
+tests/test_tg_bridge.py::TestLimitsCommand::test_non_owner_is_denied_without_loading_usage
+  /home/kesha/orchestra/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x789fe0ffc720>
+  
+  Traceback (most recent call last):
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+      self.close()
+    File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+      proto.pipe.close()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+      self.write_eof()
+    File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+      self._loop.call_soon(self._call_connection_lost, None)
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+      self._check_closed()
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+      raise RuntimeError('Event loop is closed')
+  RuntimeError: Event loop is closed
+  
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_slow_photo_edit_keeps_order_without_holding_later_text
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_failed_photo_edit_leaves_marker_and_counts_loss
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_image_capacity_rejects_before_third_marker
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_important_preview_handoff_does_not_wait_for_marker_or_edit
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_important_preview_bypasses_optional_image_capacity
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_important_media_edit_retries_ambiguous_failure
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_important_media_not_modified_is_success
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_important_marker_ambiguous_failure_is_not_retried
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_important_marker_retries_explicit_flood_rejection
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_marker_admission_failure_is_unaccepted_and_lost_once
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_ambiguous_marker_is_not_retried
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_read_source_is_snapshotted_before_async_edit
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_old_marker_continuation_cannot_mutate_replacement_state
+FAILED tests/test_tg_bridge.py::TestTgImageLane::test_cancelled_consumer_does_not_delete_in_flight_snapshot
+FAILED tests/test_tg_bridge.py::test_v681_mp4_is_video_and_as_document_overrides
+FAILED tests/test_tg_file_deliveries.py::test_send_files_12_photos_use_10_plus_2_and_one_caption
+FAILED tests/test_tg_file_deliveries.py::test_send_files_mixed_types_make_stable_homogeneous_groups
+================== 17 failed, 226 passed, 1 warning in 42.77s ==================
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x789fe0ffc720>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

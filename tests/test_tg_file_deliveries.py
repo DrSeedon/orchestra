@@ -68,10 +68,26 @@ def batch_world(tmp_path, monkeypatch):
 
 
 def _files(root: Path, names: list[str]) -> list[str]:
+    from PIL import Image
+
+    formats = {
+        ".bmp": "BMP",
+        ".gif": "GIF",
+        ".jpg": "JPEG",
+        ".jpeg": "JPEG",
+        ".png": "PNG",
+        ".webp": "WEBP",
+    }
     paths = []
     for index, name in enumerate(names):
         path = root / name
-        path.write_bytes(f"file-{index}-{name}".encode())
+        image_format = formats.get(path.suffix.lower())
+        if image_format:
+            Image.new("RGB", (16, 16), (index, index, index)).save(
+                path, format=image_format,
+            )
+        else:
+            path.write_bytes(f"file-{index}-{name}".encode())
         paths.append(str(path))
     return paths
 
