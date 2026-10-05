@@ -1,0 +1,18 @@
+{
+  "T101": {
+    "status": "passed",
+    "reason": "guarded_source_change",
+    "exit_code": 1,
+    "tests": [
+      "tests/test_diff_budget_recovery_702.py::test_diff_budget_refusal_exposes_parent_escalation_route"
+    ],
+    "changed_sources": [
+      "app/merge_operations.py"
+    ],
+    "selected_nodes": [
+      "tests/test_diff_budget_recovery_702.py::test_diff_budget_refusal_exposes_parent_escalation_route"
+    ],
+    "fallback_files": [],
+    "output": "interpreter=/home/kesha/orchestra/.venv/bin/python\n============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /tmp/orchestra-merge-mutation-yii2zwhj/tree\nconfigfile: pyproject.toml\nplugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ntimeout: 120.0s\ntimeout method: signal\ntimeout func_only: False\ncollecting ... collected 1 item\n\ntests/test_diff_budget_recovery_702.py::test_diff_budget_refusal_exposes_parent_escalation_route FAILED [100%]\n\n=================================== FAILURES ===================================\n___________ test_diff_budget_refusal_exposes_parent_escalation_route ___________\n\n    def test_diff_budget_refusal_exposes_parent_escalation_route():\n        import app.merge_operations as operations\n    \n        result = operations.normalize_merge_result(\n            \"large-diff-operation\",\n            {\n                \"ok\": False,\n                \"state\": \"failed\",\n                \"commit_point\": \"not_reached\",\n                \"target_branch\": \"main\",\n                \"worker_branch\": \"task-42/worker\",\n                \"worker_head\": \"b\" * 40,\n                \"commits_merged\": 0,\n                \"error\": \"DIFF TOO LARGE: 2001 insertions (limit 2000)\",\n            },\n            operations.normalize_request(name=\"worker\", scope=\"/scope\", target=\"main\"),\n        )\n    \n        assert result[\"operation_state\"] == \"FAILED\"\n>       assert result[\"next_action\"][\"code\"] == \"WAKE_PARENT\"\nE       AssertionError: assert 'FIX_AND_START_NEW_OPERATION' == 'WAKE_PARENT'\nE         \nE         - WAKE_PARENT\nE         + FIX_AND_START_NEW_OPERATION\n\ntests/test_diff_budget_recovery_702.py:20: AssertionError\n=========================== short test summary info ============================\nFAILED tests/test_diff_budget_recovery_702.py::test_diff_budget_refusal_exposes_parent_escalation_route\n============================== 1 failed in 8.71s ===============================\n\ninterpreter=/home/kesha/orchestra/.venv/bin/python"
+  }
+}

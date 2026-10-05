@@ -2283,9 +2283,10 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
     action = result.get("next_action") if isinstance(result.get("next_action"), dict) else {}
     action_message = _safe_response_text(str(action.get("message") or ""))
     if state in {"PENDING", "RUNNING"}:
+        structured = {**result, "is_terminal": False, "is_failure": False}
         completion = result.get("completion") or {}
         if completion.get("mode") == "background" and completion.get("job_id"):
-            return mcp_tool_result(result, text=(
+            return mcp_tool_result(structured, text=(
                 f"STILL {state} — NOT a failure. Merge operation {operation_id} continues "
                 f"on the server. Background job {completion['job_id']} will deliver its outcome. "
                 "Do not poll or call merge_worker again. Continue independent work or end "
@@ -2323,7 +2324,7 @@ def _merge_tool_result(result: dict[str, Any]) -> CallToolResult:
         if progress.get("stage"):
             elapsed = float(progress.get("elapsed_seconds") or 0)
             text += f" Current stage: {progress['stage']}; elapsed {elapsed:.0f}s."
-        return mcp_tool_result(result, text=text)
+        return mcp_tool_result(structured, text=text)
     if state == "SUCCEEDED":
         git = result.get("git") if isinstance(result.get("git"), dict) else {}
         count = int(git.get("commits_merged") or 0)
@@ -2478,7 +2479,11 @@ async def merge_worker(
     acceptance_note: str = "",
     task_id: str = "",
 ) -> CallToolResult:
-    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. For an unbound adhoc session, task_id explicitly identifies its in_progress task."""
+    """Durably squash a worker branch; waits for outcome. A slow STILL RUNNING result supplies a background wake: end the turn or do independent work, do not poll. Follow receipt recovery instructions; FAILED/PARTIAL/UNKNOWN require investigation. operation_id resumes that operation; branch drift is refused and needs a new operation. Before new work inspect worker_wip and pass its exact expected_head plus acceptance_note (acceptance decision and reason for absent model review); no separate attestation required. Verify the landed target afterward. waive_diff_budget is orchestrator-only and recorded in the result. task_outcome selects complete/continue; next_task_id preserves lifecycle handoff. On a taskless adhoc branch, task_id promotes committed work to the named task before merging; omitting task_id refuses a strict task-lifecycle merge."""
+    task_id = task_id.strip()
+    task_outcome = task_outcome.strip().lower()
+    if task_id and not task_outcome:
+        task_outcome = "complete"
     if waive_diff_budget and ROLE not in _ORCH_ROLES:
         return mcp_tool_result(
             result={

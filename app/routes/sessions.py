@@ -1976,8 +1976,9 @@ def _merge_not_reached(
     worker_branch: str = "",
     worker_head: str = "",
     http_status: int = 400,
+    next_action: dict | None = None,
 ) -> dict:
-    return {
+    result = {
         "ok": False,
         "state": "failed",
         "commit_point": "not_reached",
@@ -1990,6 +1991,9 @@ def _merge_not_reached(
         "conflicts": [],
         "_http_status": http_status,
     }
+    if next_action is not None:
+        result["next_action"] = next_action
+    return result
 
 
 def _legacy_merge_continue_warning(
@@ -2361,11 +2365,32 @@ async def execute_merge_session(
             if explicit_task_ref:
                 primary_task_ref = explicit_task_ref
             if not primary_task_ref:
+                with _tm._conn() as conn:
+                    completed_task_run = conn.execute(
+                        "SELECT task_id FROM review_receipts "
+                        "WHERE subject_kind='task_run' AND session_id=? "
+                        "AND status='completed' ORDER BY requested_at DESC LIMIT 1",
+                        (session_id,),
+                    ).fetchone()
+                name = str(row.get("name") or expected_name)
+                action = (
+                    "This worker completed its previous task and has unassigned committed "
+                    "work. Create or choose an in-progress task, then preserve that work with "
+                    f'switch_worker_branch(name="{name}", task_id="<task_id>", '
+                    "promote_current=True) before starting a new merge."
+                    if completed_task_run else
+                    "No completed task run is recorded for this worker. Create or choose an "
+                    "in-progress task, then bind it with switch_worker_branch before merging."
+                )
                 return _merge_not_reached(
                     "session has no bound task",
                     worker_branch=row_branch,
                     worker_head=expected_head,
                     http_status=409,
+                    next_action={
+                        "code": "PROMOTE_ADHOC_WORK" if completed_task_run else "ASSIGN_TASK",
+                        "message": action,
+                    },
                 )
             try:
                 primary_resolution = await asyncio.to_thread(

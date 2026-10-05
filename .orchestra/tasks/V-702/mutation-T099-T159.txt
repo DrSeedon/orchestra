@@ -1,0 +1,20 @@
+{
+  "T099_T159": {
+    "status": "inconclusive",
+    "reason": "timeout",
+    "exit_code": null,
+    "tests": [
+      "tests/test_merge_worker_lifecycle_702.py"
+    ],
+    "changed_sources": [
+      "app/manager.py",
+      "app/merge_operations.py",
+      "app/routes/sessions.py"
+    ],
+    "selected_nodes": [],
+    "fallback_files": [
+      "tests/test_merge_worker_lifecycle_702.py"
+    ],
+    "output": "interpreter=/home/kesha/orchestra/.venv/bin/python\n============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /tmp/orchestra-merge-mutation-3cttt15_/tree\nconfigfile: pyproject.toml\nplugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ntimeout: 120.0s\ntimeout method: signal\ntimeout func_only: False\ncollecting ... collected 3 items\n\ntests/test_merge_worker_lifecycle_702.py::test_merge_refuses_the_workers_own_branch \ninterpreter=/home/kesha/orchestra/.venv/bin/python"
+  }
+}

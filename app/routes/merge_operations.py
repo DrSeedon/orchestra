@@ -68,6 +68,74 @@ async def create_merge_operation(req: dict, request: Request = None):
     from app.db import get_session_by_name
     target_session = get_session_by_name(str(req.get("name") or ""), str(req.get("scope") or "").rstrip("/")) if request is not None else None
     accepting_actor = work_acceptor_principal(request, target_session or {}, str(req.get("target") or (target_session or {}).get("base_branch") or "main")) if request is not None else ""
+    explicit_task_id = str(req.get("task_id") or "").strip()
+    if (
+        explicit_task_id
+        and target_session
+        and not str(target_session.get("task_id") or "").strip()
+        and str(target_session.get("branch") or "").startswith("adhoc-")
+    ):
+        if req.get("merge_schema_version") != 2 or str(req.get("task_outcome") or "") != "complete":
+            return _response(
+                {
+                    "operation_state": "FAILED",
+                    "error": {
+                        "code": "TASK_LIFECYCLE_V2_REQUIRED",
+                        "message": "Promoting adhoc work requires merge_schema_version=2 and task_outcome='complete'.",
+                    },
+                },
+                400,
+            )
+        if not accepting_actor or not str(req.get("expected_head") or "").strip() or not str(req.get("acceptance_note") or "").strip():
+            return _response(
+                {
+                    "operation_state": "FAILED",
+                    "error": {
+                        "code": "WORK_ACCEPTANCE_REQUIRED",
+                        "message": "Before promoting adhoc work, inspect worker_wip and provide its exact expected_head and an acceptance_note.",
+                    },
+                },
+                409,
+            )
+        from app.routes.sessions import switch_branch
+
+        promotion = await switch_branch(
+            str(req.get("name") or ""),
+            {
+                "scope": str(req.get("scope") or ""),
+                "task_id": explicit_task_id,
+                "promote_current": True,
+            },
+        )
+        if not isinstance(promotion, dict) or not promotion.get("ok"):
+            refreshed = get_session_by_name(
+                str(req.get("name") or ""), str(req.get("scope") or "").rstrip("/"),
+            )
+            if str((refreshed or {}).get("task_id") or "").strip() == explicit_task_id:
+                target_session = refreshed
+            else:
+                detail = (
+                    str(promotion.get("error") or "adhoc work promotion failed")
+                    if isinstance(promotion, dict)
+                    else promotion.body.decode("utf-8", "replace")
+                    if isinstance(promotion, JSONResponse)
+                    else "adhoc work promotion returned no result"
+                )
+                return _response(
+                    {
+                        "operation_state": "FAILED",
+                        "error": {"code": "ADHOC_PROMOTION_FAILED", "message": detail},
+                        "next_action": {
+                            "code": "INSPECT_ADHOC_WORK",
+                            "message": "Inspect the worker branch and resolve the promotion refusal before retrying the merge.",
+                        },
+                    },
+                    promotion.status_code if isinstance(promotion, JSONResponse) else 409,
+                )
+        else:
+            target_session = get_session_by_name(
+                str(req.get("name") or ""), str(req.get("scope") or "").rstrip("/"),
+            )
     result, status_code = await accept_merge_operation(
         operation_id=str(req.get("operation_id") or ""),
         expected_head=str(req.get("expected_head") or ""),
@@ -77,6 +145,7 @@ async def create_merge_operation(req: dict, request: Request = None):
         scope=str(req.get("scope") or ""),
         target=str(req.get("target") or ""),
         next_task_id=str(req.get("next_task_id") or ""),
+        task_id=explicit_task_id,
         waive_diff_budget=waive,
         waived_by=str(req.get("waived_by") or ""),
         task_outcome=str(req.get("task_outcome") or ""),

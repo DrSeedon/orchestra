@@ -140,6 +140,7 @@ def normalize_request(
     next_task_id: str = "",
     waive_diff_budget: bool = False,
     waived_by: str = "",
+    task_id: str = "",
     task_outcome: str = "",
     merge_schema_version: int | None = None,
     expected_head: str = "",
@@ -154,6 +155,8 @@ def normalize_request(
         "waive_diff_budget": bool(waive_diff_budget),
         "waived_by": waived_by.strip() if waive_diff_budget else "",
     }
+    if task_id.strip():
+        request["task_id"] = task_id.strip()
     if merge_schema_version is not None:
         request["merge_schema_version"] = int(merge_schema_version)
         request["task_outcome"] = task_outcome.strip().lower()
@@ -1092,6 +1095,23 @@ def _classify_failure(raw: dict[str, Any], message: str) -> tuple[str, dict[str,
             "CHECK_WORKER_THEN_NEW_OPERATION",
             "No commits reached the target branch; verify the worker branch before retrying.",
         )
+    if "diff too large" in lower:
+        return "DIFF_TOO_LARGE", details, _action(
+            "WAKE_PARENT",
+            "Use send_message to wake the parent orchestrator and ask it to review the "
+            "diff limit; only the orchestrator can retry with waive_diff_budget=True. "
+            "Keep the worker branch intact.",
+        )
+    next_action = raw.get("next_action")
+    if (
+        "session has no bound task" in lower
+        and isinstance(next_action, dict)
+        and next_action.get("message")
+    ):
+        return "SESSION_HAS_NO_BOUND_TASK", details, {
+            "code": str(next_action.get("code") or "ASSIGN_TASK"),
+            "message": _text(next_action.get("message"), "Assign a task before merging."),
+        }
     if "target working tree is dirty" in lower:
         details["paths_text"] = message
         return "TARGET_DIRTY", details, _action(
@@ -2023,6 +2043,7 @@ async def accept_merge_operation(
     scope: str,
     target: str = "",
     next_task_id: str = "",
+    task_id: str = "",
     waive_diff_budget: bool = False,
     waived_by: str = "",
     task_outcome: str = "",
@@ -2036,6 +2057,7 @@ async def accept_merge_operation(
         scope=scope,
         target=target,
         next_task_id=next_task_id,
+        task_id=task_id,
         waive_diff_budget=waive_diff_budget,
         waived_by=waived_by,
         task_outcome=task_outcome,

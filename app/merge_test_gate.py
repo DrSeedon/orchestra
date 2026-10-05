@@ -438,17 +438,18 @@ def run_pytest(
             "status": INCONCLUSIVE, "reason": "pytest_unavailable",
             "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
         }
-    if (
-        proc.returncode == USAGE_ERROR_EXIT_CODE
-        and "unrecognized arguments" in output
-        and "--timeout" in output
-    ):
+    if proc.returncode == USAGE_ERROR_EXIT_CODE:
         # Интерпретатор без `pytest-timeout` отвергает НАШ флаг ещё до сбора: pytest выходит
         # с usage error, тесты не запускались вовсе. Общая ветка ниже объявила бы это
         # `exit_nonzero`, то есть «набор красный», и заблокировала мержи всех проектов на
         # отсутствующем плагине.
+        reason = (
+            "pytest_timeout_unavailable"
+            if "unrecognized arguments" in output and "--timeout" in output
+            else "pytest_usage_error"
+        )
         return {
-            "status": INCONCLUSIVE, "reason": "pytest_timeout_unavailable",
+            "status": INCONCLUSIVE, "reason": reason,
             "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
         }
     return {
@@ -571,18 +572,23 @@ _NON_SOURCE_SUFFIXES = {
 def changed_test_paths(changed: list[str]) -> list[str]:
     """Return test modules supplied by the worker, not merely source-mapped tests."""
     return sorted({
-        path.replace("\\", "/").lstrip("./")
+        _normalize_repo_path(path)
         for path in changed
-        if path.replace("\\", "/").lstrip("./").startswith(_TEST_PATH_PREFIX)
-        and path.replace("\\", "/").lstrip("./").endswith(".py")
+        if _normalize_repo_path(path).startswith(_TEST_PATH_PREFIX)
+        and _normalize_repo_path(path).endswith(".py")
     })
+
+
+def _normalize_repo_path(path: str) -> str:
+    normalized = path.replace("\\", "/")
+    return normalized[2:] if normalized.startswith("./") else normalized
 
 
 def changed_source_paths(changed: list[str]) -> list[str]:
     """Classify executable changes while leaving docs, config and prompts out."""
     sources: set[str] = set()
     for raw in changed:
-        path = raw.replace("\\", "/").lstrip("./")
+        path = _normalize_repo_path(raw)
         if not path or path.startswith(_TEST_PATH_PREFIX) or path.startswith(_NON_SOURCE_PREFIXES):
             continue
         suffix = Path(path).suffix.lower()
@@ -746,7 +752,10 @@ def evaluate_mutation_gate(
     interpreter: str | None = None,
 ) -> dict:
     """Run worker tests against target sources in an isolated disposable tree."""
-    tests = changed_test_paths(changed)
+    tests = [
+        path for path in changed_test_paths(changed)
+        if (Path(worktree) / path).is_file()
+    ]
     sources = changed_source_paths(changed)
     result = {
         "status": SKIPPED,
