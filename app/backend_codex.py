@@ -1373,12 +1373,18 @@ class CodexBackend(JsonRpcStdioTransport):
             error = params.get("error") or {}
             self._last_turn_error = error
             content = error.get("message") or "Codex error"
-            if params.get("willRetry"):
-                return [AgentEvent("status", f"codex reconnecting: {content}")]
             model_error = self._classify_error(error)
+            quota_exhausted = error.get("codexErrorInfo") in (
+                "usageLimitExceeded", "sessionBudgetExceeded",
+            )
+            if params.get("willRetry") and not quota_exhausted:
+                return [AgentEvent("status", f"codex reconnecting: {content}")]
+            metadata = {"model_error": model_error}
             if model_error == "rate_limit":
                 content = f"rate_limit: {content}"
-            return [AgentEvent("error", content, metadata={"model_error": model_error})]
+            if quota_exhausted:
+                metadata["codex_quota_exhausted"] = True
+            return [AgentEvent("error", content, metadata=metadata)]
 
         if method == "model/rerouted":
             return [AgentEvent("status", f"model rerouted: {json.dumps(params, ensure_ascii=False)}")]

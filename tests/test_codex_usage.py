@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import time
@@ -591,3 +592,67 @@ async def test_fetch_codex_usage_uses_app_server_protocol(monkeypatch):
     assert [message["method"] for message in proc.stdin.messages] == [
         "initialize", "initialized", "account/rateLimits/read",
     ]
+
+
+@pytest.mark.asyncio
+async def test_fetch_codex_usage_ignores_process_lookup_race_on_cleanup(monkeypatch):
+    class FakeStdin:
+        def write(self, _data):
+            pass
+
+        async def drain(self):
+            pass
+
+        def close(self):
+            pass
+
+    class FakeStdout:
+        def __init__(self):
+            self.lines = iter([
+                b'{"id":1,"result":{}}\n',
+                b'{"id":2,"result":{"rateLimits":{"primary":{"usedPercent":9,"windowDurationMins":300}}}}\n',
+            ])
+
+        async def readline(self):
+            return next(self.lines, b"")
+
+    class FakeProcess:
+        def __init__(self):
+            self.stdin = FakeStdin()
+            self.stdout = FakeStdout()
+            self.returncode = None
+            self.wait_calls = 0
+
+        def terminate(self):
+            pass
+
+        def kill(self):
+            self.returncode = 0
+            raise ProcessLookupError
+
+        async def wait(self):
+            self.wait_calls += 1
+            if self.wait_calls == 1:
+                raise asyncio.TimeoutError
+            return self.returncode
+
+    proc = FakeProcess()
+    monkeypatch.setattr(system.asyncio, "create_subprocess_exec", AsyncMock(return_value=proc))
+
+    usage = await system._fetch_codex_usage()
+
+    assert usage["primary"]["utilization"] == 9
+    assert proc.wait_calls == 2
+
+
+@pytest.mark.asyncio
+async def test_codex_usage_failure_logs_empty_timeout_repr(monkeypatch, caplog):
+    monkeypatch.setattr(system, "_maybe_refresh_openrouter_reconciliation", AsyncMock())
+    monkeypatch.setattr(system, "_usage_cache", {"data": None, "ts": 0.0, "token": None})
+    monkeypatch.setattr(system, "_codex_usage_cache", {"data": None, "ts": 0.0})
+    monkeypatch.setattr(system, "_fetch_codex_usage", AsyncMock(side_effect=TimeoutError()))
+
+    with pytest.raises(RuntimeError, match="fresh Codex usage is unavailable"):
+        await system._get_usage_data(required_provider="codex")
+
+    assert "Codex usage fetch failed: TimeoutError()" in caplog.text

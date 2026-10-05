@@ -1310,18 +1310,51 @@ class AgentSession:
                     self._pending_messages.append(message)
                     self._log("status", f"message queued ({len(self._pending_messages)} pending)")
                     return
+                mailbox_id = None
                 try:
                     backend = await self._ensure_backend()
                     injected, fact_keys = self._attach_pending_facts(message)
+                    turn_id = getattr(backend, "active_turn_id", None)
+                    if (
+                        self.backend_type == "codex"
+                        and provenance.origin not in {"platform", "system"}
+                        and isinstance(turn_id, str)
+                        and turn_id
+                    ):
+                        from app import mailbox
+
+                        sender = provenance.senders[0]
+                        body = message
+                        prefix = f"[from:{sender}] "
+                        if provenance.origin == "agent" and body.startswith(prefix):
+                            body = body[len(prefix):]
+                        mailbox_id = mailbox.enqueue(
+                            recipient=self.name,
+                            scope=self.scope,
+                            sender=sender,
+                            body=body,
+                            provenance=MessageProvenance(
+                                origin=provenance.origin,
+                                senders=provenance.senders,
+                                subtype="codex_steer_backup_pending",
+                                ref=turn_id,
+                            ),
+                        )
                     await backend.send(injected)
+                    if mailbox_id is not None:
+                        from app import mailbox
+
+                        mailbox.mark_codex_steer_submitted(mailbox_id)
                     self._ack_pending_facts(fact_keys)
                     if self.backend_type == "codex":
                         self._log("status", "message steered into active Codex turn")
                     return
                 except Exception as e:
                     logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
-                    self._pending_messages.append(message)
-                    self._log("status", f"inject failed, queued ({len(self._pending_messages)} pending)")
+                    if mailbox_id is None:
+                        self._pending_messages.append(message)
+                    pending = len(self._pending_messages) + int(mailbox_id is not None)
+                    self._log("status", f"inject failed, queued ({pending} pending)")
                     if self.status != AgentStatus.RUNNING and not self._compacting:
                         self._spawn_bg(self._flush_pending())
                 return
@@ -2134,7 +2167,19 @@ class AgentSession:
         self._persist()
         self._turns.publish_turn_finished()
         self._turns.report_abnormal_end(reason)
-        if self._pending_messages:
+        try:
+            from app import mailbox
+
+            queued = mailbox.claim(self.name, self.scope)
+        except Exception as error:
+            logger.warning(
+                "[%s] failed-turn mailbox claim failed: %s: %s",
+                self.name, type(error).__name__, error,
+            )
+            queued = []
+        if queued:
+            self._spawn_bg(self._turns._deliver_mailbox(queued))
+        elif self._pending_messages:
             self._spawn_bg(self._flush_pending())
         else:
             self._hibernate.schedule()
@@ -2427,6 +2472,51 @@ class AgentSession:
             self._last_turn_api_calls = max(1, int(event.metadata.get("num_turns") or 1))
             self._turns.handle_turn_end(event)
         elif event.type == "error":
+            if event.metadata.get("codex_quota_exhausted"):
+                self._session_limit_hit = True
+                from app.routes import system
+
+                usage = system._codex_usage_cache.get("data") or {}
+                if self.model == "gpt-5.3-codex-spark":
+                    usage = usage.get("spark") or {}
+                windows = [
+                    ("primary", usage.get("primary")),
+                    ("secondary", usage.get("secondary")),
+                ]
+                exhausted = [
+                    (key, window)
+                    for key, window in windows
+                    if isinstance(window, dict)
+                    and isinstance(window.get("utilization"), (int, float))
+                    and not isinstance(window["utilization"], bool)
+                    and window["utilization"] >= 100
+                ]
+                selected = exhausted or windows
+                reset_details = []
+                now = datetime.now(timezone.utc)
+                for key, window in selected:
+                    if not isinstance(window, dict):
+                        reset_details.append(f"{key} неизвестно")
+                        continue
+                    minutes = window.get("window_minutes")
+                    label = {300: "5h", 10080: "7d"}.get(minutes, key)
+                    value = window.get("resets_at") if isinstance(window, dict) else None
+                    reset_text = "неизвестно"
+                    if isinstance(value, str) and value:
+                        try:
+                            reset_at = datetime.fromisoformat(value.replace("Z", "+00:00"))
+                            if reset_at.tzinfo is None:
+                                reset_at = reset_at.replace(tzinfo=timezone.utc)
+                            if reset_at > now:
+                                reset_text = reset_at.isoformat().replace("+00:00", "Z")
+                        except ValueError:
+                            pass
+                    reset_details.append(f"{label} {reset_text}")
+                self._log(
+                    "error",
+                    f"квота Codex исчерпана, сброс {', '.join(reset_details)}",
+                )
+                return
             # rate_limit → single retry-status log (skip raw error to avoid duplicate
             # "model error: rate_limit" + "rate limited — retry" on one event)
             if event.metadata.get("model_error") == "rate_limit":

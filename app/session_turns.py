@@ -295,6 +295,16 @@ class TurnManager:
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
+        if ok and event_id and s.backend_type == "codex":
+            from app import mailbox
+
+            try:
+                mailbox.complete_codex_steers(s.name, s.scope, event_id)
+            except Exception as error:
+                logger.warning(
+                    f"[{s.name}] successful-turn steer cleanup failed: "
+                    f"{type(error).__name__}: {error}"
+                )
         if not ok and event_id:
             from app import message_deliveries
 
