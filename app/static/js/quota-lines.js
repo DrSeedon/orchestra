@@ -112,7 +112,7 @@ function _qlAllLanes() {
 
 function _qlLaneLabel(laneId) {
     const found = _qlAllLanes().find(lane => lane.lane === laneId);
-    return found ? (found.label || laneId) : laneId;
+    return T(found ? (found.label || laneId) : laneId);
 }
 
 // Hard-stop ceilings in words: Sol has its own (95%), others share one. Label
@@ -161,7 +161,7 @@ function _qlGateState() {
     const held = rule.gated_lanes.map(_qlLaneLabel);
     const free = _qlAllLanes()
         .filter(lane => !rule.gated_lanes.includes(lane.lane))
-        .map(lane => lane.label || lane.lane);
+        .map(lane => T(lane.label || lane.lane));
     const tail = free.length ? ` · ${T('outside gate')}: ${free.join(', ')}` : '';
     return {state: 'on', text: T('gate ON: {held}{tail} · ceiling: {ceiling}', {
         held: held.join(', '),
@@ -309,7 +309,7 @@ function _qlTimelineSvg(panel, rule) {
         const point = _qlPoint(lane.bucket);
         if (!point) continue;
         const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
-        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(lane.label || lane.lane)}: ${_qlNum(point.util)}%</title></circle>`);
+        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_qlNum(point.util)}%</title></circle>`);
         pointIndex++;
     }
     p.push(`<line class="ql-now" x1="${x(now)}" y1="${_QL_MT}" x2="${x(now)}" y2="${_QL_MT + _QL_PH}"/>`);
@@ -374,7 +374,7 @@ function _qlChartSvg(panel, rule) {
         const stop = _qlHardStop(rule, lane.lane);
         if (!(stop < hard)) continue;
         p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${T('{label} — hard {pct}%', {label: _escHtml(lane.label || lane.lane), pct: _qlNum(stop)})}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${T('{label} — hard {pct}%', {label: _escHtml(T(lane.label || lane.lane)), pct: _qlNum(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">${T('orchestrator always runs — no limit')}</text>`);
@@ -431,7 +431,7 @@ function _qlChartSvg(panel, rule) {
         const dx = right ? -Math.abs(offset.dx) : offset.dx;
         const dy = offset.dy;
         const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
-        const label = _escHtml(String(lane.label || lane.lane));
+        const label = _escHtml(String(T(lane.label || lane.lane)));
         const markerClass = `ql-point-${lane.lane || 'lane'}`;
         const anchor = right ? 'end' : 'start';
         const hardY = _qlY(hard);
@@ -487,8 +487,8 @@ function _qlVerdict(panel) {
     if (partial) {
         return {text: T('no data — some lanes missing telemetry'), nodata: true, blocked: false};
     }
-    const blocked = known.filter(l => l.blocked).map(l => l.label || l.lane);
-    const open = known.filter(l => !l.blocked).map(l => l.label || l.lane);
+    const blocked = known.filter(l => l.blocked).map(l => T(l.label || l.lane));
+    const open = known.filter(l => !l.blocked).map(l => T(l.label || l.lane));
     const parts = [];
     if (blocked.length) parts.push(T('{lanes} — blocked', {lanes: blocked.join(', ')}));
     if (open.length) parts.push(T('{lanes} — running', {lanes: open.join(', ')}));
@@ -515,10 +515,10 @@ function _qlPanelHtml(panel) {
             || lane.release_status === 'no_data';
         const state = nodata ? 'nodata' : lane.blocked ? 'blocked' : 'open';
         const word = _qlLaneSummary(lane);
-        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(lane.label || lane.lane)}: <b>${word}</b>${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
+        return `<span class="ql-badge ql-badge-${state}" data-ql-lane="${_escHtml(lane.lane)}">${_escHtml(T(lane.label || lane.lane))}: <b>${word}</b>${lane.gated ? '' : T(' <i>no diagonal</i>')}</span>`;
     }).join('');
     const reasons = _qlLanes(panel).filter(l => l.blocked && l.reason)
-        .map(l => `<li><b>${_escHtml(l.label || l.lane)}</b> — ${_escHtml(l.reason)}</li>`).join('');
+        .map(l => `<li><b>${_escHtml(T(l.label || l.lane))}</b> — ${_escHtml(l.reason)}</li>`).join('');
     const chart = _qlChartSvg(panel, rule);
     const traceNotices = (chart.traceNotices || [])
         .map(item => `<div class="ql-trace-msg" data-ql-trace-msg="${_escHtml(item.bucket)}">${T('{label}: no history for this window', {label: _escHtml(item.label)})}</div>`)

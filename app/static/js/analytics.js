@@ -649,18 +649,21 @@ function _analyticsKpi(label, value, detail) {
 function _analyticsMoney(value) {
     if (value == null || Number.isNaN(Number(value))) return '—';
     const amount = Number(value);
-    return `${MODEL_COST_CURRENCY}${amount.toLocaleString('ru-RU', { minimumFractionDigits: amount < 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
+    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
+    return `${MODEL_COST_CURRENCY}${amount.toLocaleString(locale, { minimumFractionDigits: amount < 100 ? 2 : 0, maximumFractionDigits: 2 })}`;
 }
 
 function _analyticsNumber(value) {
-    return Number(value || 0).toLocaleString('ru-RU');
+    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
+    return Number(value || 0).toLocaleString(locale);
 }
 
 function _analyticsDateTime(value) {
     if (!value) return '—';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return _analyticsEsc(String(value));
-    return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    const locale = typeof orchLang === 'function' && orchLang() === 'ru' ? 'ru-RU' : 'en-US';
+    return date.toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 function _analyticsDuration(seconds) {

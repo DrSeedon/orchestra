@@ -225,6 +225,17 @@ def test_null_pct_is_a_hole_not_a_zero(browser):
     assert line(nulled["anthropic"]) == line(missing["anthropic"])
 
 
+def test_real_zero_without_reset_metadata_draws_a_chart(browser):
+    out = _slot_text(browser, "window.api = async () => ({step_minutes: 5, rows: ["
+        "{ts: new Date(Date.now() - 10 * 60000).toISOString(), five_hour_pct: 0, seven_day_pct: 0, providers: null},"
+        "{ts: new Date(Date.now() - 5 * 60000).toISOString(), five_hour_pct: 0, seven_day_pct: 0, providers: null}"
+        "]});")
+
+    assert 'data-usage-series="anthropic:five_hour"' in out["anthropic"]
+    assert 'data-usage-series="anthropic:seven_day"' in out["anthropic"]
+    assert 'points="' in out["anthropic"]
+
+
 def _weekly(count: int, *, first_age_min: int, reset_in_h: int):
     """Снимки недельного окна: шаг 30 мин, самый старый — first_age_min минут назад."""
     rows = []

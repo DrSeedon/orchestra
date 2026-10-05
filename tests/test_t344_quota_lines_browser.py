@@ -137,7 +137,7 @@ def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progres
     return data
 
 
-def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
+def _render(browser: Browser, payload, as_json: bool = False, language: str = "en") -> "tuple":
     """Открыть страницу, подменить api() и отрисовать панель РАСКРЫТОЙ."""
     errors: list = []
     page = browser.new_page()
@@ -147,7 +147,7 @@ def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
         status=200, content_type="text/html", body="<body><div id='usage-bar'></div></body>"))
     # Набор писался под английские подписи; с V-584 локаль по умолчанию русская,
     # а английская локаль — это те же исходные строки в коде.
-    page.add_init_script("window.__ORCH_LANG__ = 'en';")
+    page.add_init_script(f"window.__ORCH_LANG__ = {json.dumps(language)};")
     page.goto("http://harness.local/")
     page.add_style_tag(path=str(STYLE_CSS))
     for vendor in VENDOR_JS:
@@ -175,6 +175,18 @@ def _render(browser: Browser, payload, as_json: bool = False) -> "tuple":
     )
     page.click("#quota-lines-toggle")
     return page, errors
+
+
+def test_claude_lane_label_follows_dashboard_language(browser):
+    payload = _payload()
+    claude = next(lane for lane in payload["buckets"][2]["lanes"] if lane["lane"] == "claude")
+    claude["label"] = "Claude workers"
+    page, errors = _render(browser, payload, language="ru")
+
+    assert "гейт ВКЛЮЧЁН: Claude-воркеры" in page.locator("[data-ql-gate='on']").inner_text()
+    assert page.locator("[data-ql-lane='claude']").inner_text().startswith("Claude-воркеры")
+    assert errors == [], errors
+    page.close()
 
 
 def test_unified_panel_has_four_points_without_console_errors(browser):

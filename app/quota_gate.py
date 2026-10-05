@@ -270,7 +270,7 @@ GATED_LANES = _env_gated_lanes("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT)
 CURVED_LANES = _env_gated_lanes("QUOTA_CURVED_LANES", _ENV_CURVED_LANES_DEFAULT)
 
 LANE_LABELS = {
-    "claude": "Claude-воркеры",
+    "claude": "Claude workers",
     "sol": "Sol",
     "luna": "Luna",
     "spark": "Spark",

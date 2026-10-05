@@ -148,6 +148,7 @@ def test_dictionary_reaches_marked_attributes(dashboard_browser):
     """Подписи title/placeholder/aria-label переводятся тем же словарём."""
     context, page = _open_dashboard(dashboard_browser, "ru")
     try:
+        page.wait_for_function("() => typeof selectedAgent === 'string' && selectedAgent.length > 0")
         state = page.evaluate("""(attrs) => {
             const rows = [];
             for (const [marker, attr] of attrs) {
@@ -162,7 +163,8 @@ def test_dictionary_reaches_marked_attributes(dashboard_browser):
                         : [];
                     rows.push({attr, shown,
                                translated: dictionaryValues.includes(shown)
-                                   || (attr === 'placeholder' && dynamicDictionaryValues.includes(shown))});
+                                   || (attr === 'placeholder' && dynamicDictionaryValues.includes(shown)),
+                               dynamic: attr === 'placeholder' && dynamicDictionaryValues.includes(shown)});
                 });
             }
             return rows;
@@ -171,6 +173,9 @@ def test_dictionary_reaches_marked_attributes(dashboard_browser):
         context.close()
 
     assert state, "ни один атрибут не помечен для перевода"
+    assert any(row["dynamic"] for row in state), (
+        "плейсхолдер выбранного агента не попал в проверку перевода"
+    )
     untranslated = [f'{row["attr"]}={row["shown"]!r}' for row in state if not row["translated"]]
     assert untranslated == [], (
         "эти подписи не получили значение из словаря: " + repr(untranslated)
