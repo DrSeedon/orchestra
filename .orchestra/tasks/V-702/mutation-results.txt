@@ -1,0 +1,66 @@
+{
+  "T012": {
+    "status": "inconclusive",
+    "reason": "tree_failed",
+    "exit_code": null,
+    "tests": [
+      "tests/test_merge_test_gate.py"
+    ],
+    "changed_sources": [
+      "app/merge_test_gate.py"
+    ],
+    "selected_nodes": [],
+    "fallback_files": [],
+    "output": "Command '['git', 'archive', '--format=tar', 'f122aa50e41cefeb026074fce322deb1b939574f']' timed out after 30 seconds"
+  },
+  "T072": {
+    "status": "passed",
+    "reason": "guarded_source_change",
+    "exit_code": 1,
+    "tests": [
+      "tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure"
+    ],
+    "changed_sources": [
+      "app/mcp_stdio.py"
+    ],
+    "selected_nodes": [
+      "tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure"
+    ],
+    "fallback_files": [],
+    "output": "interpreter=/home/kesha/orchestra/.venv/bin/python\n============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /tmp/orchestra-merge-mutation-dd6i4hop/tree\nconfigfile: pyproject.toml\nplugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ntimeout: 120.0s\ntimeout method: signal\ntimeout func_only: False\ncollecting ... collected 1 item\n\ntests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure FAILED [100%]\n\n=================================== FAILURES ===================================\n_____ test_merge_worker_running_past_the_cap_reads_as_progress_not_failure _____\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7bc14d6550d0>\n\n    @pytest.mark.asyncio\n    async def test_merge_worker_running_past_the_cap_reads_as_progress_not_failure(monkeypatch):\n        \"\"\"Потолок будет превышен — у времени операции длинный хвост.\n    \n        Корректность держится не на числе, а на том, что этот ответ невозможно\n        прочитать как отказ: раньше на нём рапортовали «merge worker failed».\n        \"\"\"\n        import app.mcp_stdio as m\n        monkeypatch.setattr(m, \"SCOPE\", \"/s\")\n        monkeypatch.setattr(m, \"_MERGE_WAIT_SECONDS\", 0.01)\n    \n        async def fake_api(method, path, **kw):\n            op = kw[\"json\"][\"operation_id\"] if method == \"POST\" else path.rsplit(\"/\", 1)[-1]\n            return _merge_payload(op, \"RUNNING\")\n    \n        with patch.object(m, \"_api\", side_effect=fake_api):\n            out = await m.merge_worker(name=\"w\", target=\"main\")\n    \n        text = out.content[0].text\n        result = out.structuredContent[\"result\"]\n        assert out.isError is False, \"нетерминальное состояние — не ошибка протокола\"\n        assert text.startswith(\"STILL RUNNING\"), text\n>       assert result[\"is_terminal\"] is False\n               ^^^^^^^^^^^^^^^^^^^^^\nE       KeyError: 'is_terminal'\n\ntests/test_mcp_stdio.py:2736: KeyError\n=========================== short test summary info ============================\nFAILED tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure\n============================== 1 failed in 9.50s ===============================\n\ninterpreter=/home/kesha/orchestra/.venv/bin/python"
+  },
+  "T099_T159": {
+    "status": "passed",
+    "reason": "guarded_source_change",
+    "exit_code": 1,
+    "tests": [
+      "tests/test_merge_worker_lifecycle_702.py"
+    ],
+    "changed_sources": [
+      "app/manager.py",
+      "app/merge_operations.py",
+      "app/routes/sessions.py"
+    ],
+    "selected_nodes": [],
+    "fallback_files": [
+      "tests/test_merge_worker_lifecycle_702.py"
+    ],
+    "output": "interpreter=/home/kesha/orchestra/.venv/bin/python\nests/test_merge_worker_lifecycle_702.py::test_merge_refuses_the_workers_own_branch PASSED [ 33%]\ntests/test_merge_worker_lifecycle_702.py::test_unbound_merge_action_distinguishes_completed_from_never_bound FAILED [ 66%]\ntests/test_merge_worker_lifecycle_702.py::test_completed_task_requires_explicit_task_before_next_delivery FAILED [100%]\n\n=================================== FAILURES ===================================\n______ test_unbound_merge_action_distinguishes_completed_from_never_bound ______\n\nmonkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7aef9131a8d0>\ntmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12262/test_unbound_merge_action_dist0')\n\n    @pytest.mark.asyncio\n    async def test_unbound_merge_action_distinguishes_completed_from_never_bound(\n        monkeypatch, tmp_path,\n    ):\n        import app.routes.sessions as sessions_route\n        from app import tm\n        from app.db import task_run_receipt_finish, task_run_receipt_open\n        from tests.test_task_tracker_integration import _make_taskless_adhoc_worker\n    \n        repo, _worktree, found, _target, branch, head = _make_taskless_adhoc_worker(\n            monkeypatch, tmp_path, name=\"taskless-no-history\",\n        )\n        never_bound = await sessions_route.execute_merge_session(\n            session_id=found.id,\n            expected_name=found.name,\n            expected_scope=found.scope,\n            expected_branch=branch,\n            expected_head=head,\n            req={\"scope\": found.scope, \"task_outcome\": \"complete\", \"merge_schema_version\": 2},\n        )\n>       assert never_bound[\"next_action\"][\"code\"] == \"ASSIGN_TASK\"\n               ^^^^^^^^^^^^^^^^^^^^^^^^^^\nE       KeyError: 'next_action'\n\ntests/test_merge_worker_lifecycle_702.py:55: KeyError\n_______ test_completed_task_requires_explicit_task_before_next_delivery ________\n\n    @pytest.mark.asyncio\n    async def test_completed_task_requires_explicit_task_before_next_delivery():\n        from app.manager import SessionManager\n    \n        session = SimpleNamespace(\n            id=\"completed-taskless\", task_id=\"\", needs_switch=True,\n            loaded=True,\n        )\n    \n        with pytest.raises(RuntimeError, match=\"no task for the next delivery\"):\n>           await SessionManager()._auto_switch_before_delivery(session)\n\ntests/test_merge_worker_lifecycle_702.py:108: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \n\nself = <app.manager.SessionManager object at 0x7aef8ed10230>\nsession = namespace(id='completed-taskless', task_id='', needs_switch=True, loaded=True)\n\n    async def _auto_switch_before_delivery(self, session: AgentSession) -> None:\n        if not getattr(session, \"loaded\", True):\n            durable = await asyncio.to_thread(get_session, session.id)\n            if durable:\n                session.branch = durable.get(\"branch\") or session.branch\n                session.base_branch = durable.get(\"base_branch\") or session.base_branch\n                session.task_id = durable.get(\"task_id\") or \"\"\n                session.needs_switch = bool(durable.get(\"needs_switch\") or 0)\n        if not session.needs_switch:\n            return\n        lifecycle = await asyncio.to_thread(self.lifecycle_quarantine, session)\n        if lifecycle:\n            raise LifecycleQuarantineError(lifecycle)\n>       if session.status != AgentStatus.IDLE:\n           ^^^^^^^^^^^^^^\nE       AttributeError: 'types.SimpleNamespace' object has no attribute 'status'\n\napp/manager.py:864: AttributeError\n=========================== short test summary info ============================\nFAILED tests/test_merge_worker_lifecycle_702.py::test_unbound_merge_action_distinguishes_completed_from_never_bound\nFAILED tests/test_merge_worker_lifecycle_702.py::test_completed_task_requires_explicit_task_before_next_delivery\n========================= 2 failed, 1 passed in 15.20s =========================\n\ninterpreter=/home/kesha/orchestra/.venv/bin/python"
+  },
+  "T101": {
+    "status": "inconclusive",
+    "reason": "timeout",
+    "exit_code": null,
+    "tests": [
+      "tests/test_merge_operations.py"
+    ],
+    "changed_sources": [
+      "app/merge_operations.py"
+    ],
+    "selected_nodes": [],
+    "fallback_files": [
+      "tests/test_merge_operations.py"
+    ],
+    "output": "interpreter=/home/kesha/orchestra/.venv/bin/python\n============================= test session starts ==============================\nplatform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/kesha/orchestra/.venv/bin/python\ncachedir: .pytest_cache\nrootdir: /tmp/orchestra-merge-mutation-u1i4t6gu/tree\nconfigfile: pyproject.toml\nplugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0\nasyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function\ntimeout: 120.0s\ntimeout method: signal\ntimeout func_only: False\ncollecting ... collected 41 items\n\ntests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner PASSED [  2%]\ntests/test_merge_operations.py::test_concurrent_keys_start_exactly_one_executor_and_survive_request_return PASSED [  4%]\ntests/test_merge_operations.py::test_same_key_payload_mismatch_is_typed_409_without_second_row PASSED [  7%]\ntests/test_merge_operations.py::test_t1_legitimate_operation_trailer_is_not_worker_spoof \ninterpreter=/home/kesha/orchestra/.venv/bin/python"
+  }
+}

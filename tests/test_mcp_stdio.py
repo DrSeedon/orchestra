@@ -2733,6 +2733,8 @@ async def test_merge_worker_running_past_the_cap_reads_as_progress_not_failure(m
     result = out.structuredContent["result"]
     assert out.isError is False, "нетерминальное состояние — не ошибка протокола"
     assert text.startswith("STILL RUNNING"), text
+    assert result["is_terminal"] is False
+    assert result["is_failure"] is False
     assert "NOT a failure" in text
     assert "do NOT report an error" in text.lower() or "do NOT report an error" in text
     assert result["operation_id"] in text, "нечем повторить — нет operation_id в тексте"
