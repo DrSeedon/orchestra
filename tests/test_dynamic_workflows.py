@@ -1,6 +1,5 @@
 """Prevent lost workflow routing, wrong-project edits and obsolete MCP dispatch."""
 import asyncio
-import base64
 import json
 import shlex
 import sys
@@ -86,9 +85,17 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     monkeypatch.setattr(mcp_stdio, '_api', fake_api)
     monkeypatch.setattr(mcp_stdio, 'SCOPE', 'test-scope')
     monkeypatch.setattr(mcp_stdio, 'WORKER_NAME', 'test-orchestrator')
+    fake_install = tmp_path / 'install'
+    (fake_install / 'app').mkdir(parents=True)
+    monkeypatch.setattr(mcp_stdio, '__file__', str(fake_install / 'app' / 'mcp_stdio.py'))
+    large_prompt = 'context ' * 9000
     response = await mcp_stdio.dynamic_workflow(
-        tasks=[{'prompt': 'first', 'schema': {'type': 'object'}}, {'prompt': 'second'}],
-        mode='parallel', budget_usd=1, max_calls=2, max_concurrency=2,
+        stages=[{
+            'prompt': large_prompt + 'persona={item}',
+            'items': [{'id': 1, 'profile': 'first'}, {'id': 2, 'profile': 'second'}],
+            'schema': {'type': 'object'},
+        }],
+        mode='stages', budget_usd=1, max_calls=2, max_concurrency=2,
         task_id='V-720', repo=str(tmp_path),
     )
     assert 'queued' in response
@@ -102,15 +109,39 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     assert body['config']['success_pattern'] == r'"complete"\s*:\s*true'
     args = shlex.split(body['config']['command'])
     assert args[:3] == ['env', 'ORCHESTRA_TASK_ID=V-720', 'ORCHESTRA_SCOPE=test-scope']
-    assert '--tasks-b64' in args and '--run-id' in args and '--repo' in args
-    spec = json.loads(base64.urlsafe_b64decode(args[args.index('--tasks-b64') + 1]))
-    assert spec == {
-        'tasks': [
-            {'prompt': 'first', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}},
-            {'prompt': 'second', 'model': 'gpt-6-luna'},
-        ],
-        'mode': 'parallel',
-    }
+    assert '--spec' in args and '--run-id' in args and '--repo' in args
+    assert '--tasks-b64' not in args and large_prompt not in body['config']['command']
+    spec_path = Path(args[args.index('--spec') + 1])
+    assert spec_path.stat().st_size > 64 * 1024
+    spec = json.loads(spec_path.read_text())
+    assert spec['mode'] == 'stages' and len(spec['stages'][0]['tasks']) == 2
+    assert spec['stages'][0]['tasks'] == [
+        {'prompt': large_prompt + 'persona={"id": 1, "profile": "first"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}},
+        {'prompt': large_prompt + 'persona={"id": 2, "profile": "second"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}},
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('mode', ['parallel', 'chain'])
+async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypatch):
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs['json'])
+        return {'id': 'bg-legacy'}
+
+    fake_install = tmp_path / 'install'
+    (fake_install / 'app').mkdir(parents=True)
+    monkeypatch.setattr(mcp_stdio, '__file__', str(fake_install / 'app' / 'mcp_stdio.py'))
+    monkeypatch.setattr(mcp_stdio, '_api', fake_api)
+    response = await mcp_stdio.dynamic_workflow(
+        budget_usd=1, max_calls=2, max_concurrency=2, task_id='V-738', repo=str(tmp_path),
+        tasks=[{'prompt': 'legacy task'}], mode=mode,
+    )
+    assert 'queued' in response
+    args = shlex.split(captured['config']['command'])
+    spec = json.loads(Path(args[args.index('--spec') + 1]).read_text())
+    assert spec == {'tasks': [{'prompt': 'legacy task', 'model': 'gpt-6-luna'}], 'mode': mode}
 
 
 @pytest.mark.asyncio
@@ -135,11 +166,14 @@ async def test_inline_workflow_run_writes_manifest_and_completion_summary(tmp_pa
     repo = _git_repo(tmp_path / 'target')
     runner = tmp_path / 'runner'
     runner.mkdir()
+    spec_path = runner / 'data/workflow-runs/inline-test/request.json'
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_text(json.dumps({
+        'tasks': [{'prompt': 'one'}, {'prompt': 'two'}], 'mode': 'parallel',
+    }))
     monkeypatch.setattr(wf_run, 'ROOT', runner)
     monkeypatch.setattr(sys, 'argv', [
-        'wf_run.py', '--tasks-b64', base64.urlsafe_b64encode(json.dumps({
-            'tasks': [{'prompt': 'one'}, {'prompt': 'two'}], 'mode': 'parallel',
-        }).encode()).decode(), '--repo', str(repo), '--run-id', 'inline-test',
+        'wf_run.py', '--spec', str(spec_path), '--repo', str(repo), '--run-id', 'inline-test',
         '--budget-usd', '1', '--max-calls', '2', '--max-concurrency', '2',
     ])
     arrived = []
@@ -168,7 +202,8 @@ async def test_inline_workflow_run_writes_manifest_and_completion_summary(tmp_pa
     assert 'WORKFLOW_SUMMARY run=inline-test successful=2/2 complete=true' in output
     assert 'answer one' in output and 'answer two' in output
     resume = shlex.split(manifest['resume_command'])
-    assert '--tasks-b64' in resume and '--resume' in resume
+    assert resume[resume.index('--spec') + 1] == str(spec_path)
+    assert '--resume' in resume
 
 
 @pytest.mark.asyncio
@@ -192,5 +227,66 @@ async def test_inline_chain_passes_each_result_as_structured_input(tmp_path):
         'tasks': [{'prompt': 'first'}, {'prompt': 'second'}],
     })
     assert [item.data for item in result] == ['result-1', 'result-2']
+    assert prompts[0] == 'first'
+    assert prompts[1].startswith('second\n\nStructured inputs:\n["result-1"]')
+
+
+@pytest.mark.asyncio
+async def test_stages_give_every_next_stage_task_all_previous_results(tmp_path):
+    prompts = []
+
+    async def adapter(prompt, **_kwargs):
+        prompts.append(prompt)
+        return _result(f"result-{len(prompts)}")
+
+    async def readiness(_model):
+        return {'state': 'available'}
+
+    engine = wf_run.WorkflowEngine(
+        'all-inputs-check', tmp_path, budget_usd=1, max_calls=4,
+        adapter=adapter, usage_writer=None, readiness_checker=readiness,
+        default_modules=(),
+    )
+    result = await engine.execute_stages([
+        {'tasks': [{'prompt': 'first'}, {'prompt': 'second'}]},
+        {'tasks': [{'prompt': 'third'}, {'prompt': 'fourth'}]},
+    ])
+    assert len(result) == 2 and len(result[0]) == len(result[1]) == 2
+    assert prompts[2].startswith('third\n\nStructured inputs:\n["result-1", "result-2"]')
+    assert prompts[3].startswith('fourth\n\nStructured inputs:\n["result-1", "result-2"]')
+
+
+@pytest.mark.asyncio
+async def test_stage_budget_is_global_and_resume_replays_prior_stage(tmp_path):
+    prompts = []
+
+    async def adapter(prompt, **_kwargs):
+        prompts.append(prompt)
+        return _result(f"result-{len(prompts)}", cost=1.1 if len(prompts) == 1 else 0.01)
+
+    async def readiness(_model):
+        return {'state': 'available'}
+
+    stages = [
+        {'tasks': [{'prompt': 'first'}]},
+        {'tasks': [{'prompt': 'second'}]},
+    ]
+    first = wf_run.WorkflowEngine(
+        'stage-budget', tmp_path, budget_usd=1, max_calls=2,
+        adapter=adapter, usage_writer=None, readiness_checker=readiness,
+        default_modules=(),
+    )
+    partial = await first.execute_stages(stages)
+    assert partial[0][0].data == 'result-1' and partial[1] == [None]
+    assert first.write_manifest()['partial_reason'] == 'budget'
+    assert prompts == ['first']
+
+    resumed = wf_run.WorkflowEngine(
+        'stage-budget', tmp_path, budget_usd=2, max_calls=2,
+        adapter=adapter, usage_writer=None, readiness_checker=readiness,
+        default_modules=(),
+    )
+    complete = await resumed.execute_stages(stages)
+    assert [item[0].data for item in complete] == ['result-1', 'result-2']
     assert prompts[0] == 'first'
     assert prompts[1].startswith('second\n\nStructured inputs:\n["result-1"]')

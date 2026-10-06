@@ -1070,6 +1070,30 @@ class WorkflowEngine:
             raise ValueError("mode must be 'parallel' or 'chain'")
         return self.result
 
+    async def execute_stages(self, stages: list[dict[str, Any]]) -> Any:
+        results_by_stage = []
+        previous: list[WorkflowValue] = []
+        for stage in stages:
+            stage_tasks = stage["tasks"]
+            results = await self.parallel([
+                lambda task=task, prior=tuple(previous): self.agent(
+                    task["prompt"], model=task.get("model", "luna"),
+                    schema=task.get("schema"), inputs=prior,
+                )
+                for task in stage_tasks
+            ])
+            results_by_stage.append(results)
+            if any(value is None for value in results):
+                break
+            previous = results
+        self.result = results_by_stage
+        return self.result
+
+    async def execute_spec(self, spec: dict[str, Any]) -> Any:
+        if spec.get("mode") == "stages":
+            return await self.execute_stages(spec["stages"])
+        return await self.execute_tasks(spec)
+
 
 def _args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1081,6 +1105,7 @@ def _args() -> argparse.Namespace:
     parser.add_argument("--max-calls", type=int, default=100)
     parser.add_argument("--max-concurrency", type=int, default=None)
     parser.add_argument("--repo", type=Path, help="Target repository for isolated writable calls")
+    parser.add_argument("--spec", type=Path, help="JSON workflow specification file")
     parser.add_argument("--tasks-b64", help="Base64-encoded declarative tasks; avoids a workflow file")
     return parser.parse_args()
 
@@ -1088,23 +1113,28 @@ def _args() -> argparse.Namespace:
 async def _main() -> int:
     args = _args()
     run_id = args.resume or args.run_id
-    if bool(args.workflow) == bool(args.tasks_b64):
-        raise ValueError("provide exactly one of workflow or --tasks-b64")
+    if sum(bool(value) for value in (args.workflow, args.tasks_b64, args.spec)) != 1:
+        raise ValueError("provide exactly one of workflow, --spec, or --tasks-b64")
     workflow = args.workflow.resolve() if args.workflow else None
     spec = None
     if args.tasks_b64:
         spec = json.loads(base64.urlsafe_b64decode(args.tasks_b64.encode()).decode())
+    elif args.spec:
+        spec = json.loads(args.spec.read_text(encoding="utf-8"))
     run_dir = ROOT / "data" / "workflow-runs" / run_id
     encoded_spec = args.tasks_b64 or ""
     command_parts = [
         "env", f"ORCHESTRA_TASK_ID={os.environ.get('ORCHESTRA_TASK_ID', '')}",
         f"ORCHESTRA_SCOPE={os.environ.get('ORCHESTRA_SCOPE', '')}",
         sys.executable, str(ROOT / "scripts" / "wf_run.py"),
-        "--tasks-b64", encoded_spec,
         "--budget-usd", f"{args.budget_usd:g}",
         "--max-calls", str(args.max_calls),
         "--max-concurrency", str(args.max_concurrency or 3),
     ] if spec is not None else []
+    if args.spec:
+        command_parts.extend(["--spec", str(args.spec.resolve())])
+    elif args.tasks_b64:
+        command_parts.extend(["--tasks-b64", encoded_spec])
     if args.repo:
         command_parts.extend(["--repo", str(args.repo.resolve())])
     if spec is not None:
@@ -1126,7 +1156,7 @@ async def _main() -> int:
         if spec is None:
             await engine.execute(workflow)
         else:
-            await engine.execute_tasks(spec)
+            await engine.execute_spec(spec)
     except BaseException:
         engine.partial_reason = engine.partial_reason or "error"
         raise
@@ -1140,7 +1170,16 @@ async def _main() -> int:
 
 def _notification_summary(manifest: dict) -> str:
     steps = manifest.get("steps", [])
-    results = manifest.get("result") or []
+    results = []
+
+    def flatten(value):
+        if isinstance(value, list):
+            for item in value:
+                flatten(item)
+        else:
+            results.append(value)
+
+    flatten(manifest.get("result") or [])
     successful = sum(step.get("reason") == "completed" for step in steps)
     total = max(len(steps), len(results))
     lines = [
