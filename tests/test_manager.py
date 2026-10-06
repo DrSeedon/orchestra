@@ -127,7 +127,7 @@ class TestCreateSession:
         parent.is_orchestrator = True
         worker = AgentSession(
             id="worker-id", name="child", scope="/s", cwd="/tmp",
-            model="gpt-5.6-sol", parent_id=parent.id, parent_name=parent.name,
+            model="gpt-6-luna", parent_id=parent.id, parent_name=parent.name,
         )
         mgr.sessions = {parent.id: parent, worker.id: worker}
         monkeypatch.setattr(mgr, "send", AsyncMock())
@@ -156,7 +156,7 @@ class TestCreateSession:
 
         worker = AgentSession(
             id="worker-id", name="child", scope="/s", cwd="/tmp",
-            model="gpt-5.6-sol", parent_name="missing-parent",
+            model="gpt-6-luna", parent_name="missing-parent",
         )
         now = datetime.now(timezone.utc).timestamp()
         error = QuotaGateError(QuotaDecision(
@@ -204,13 +204,13 @@ class TestCreateSession:
         monkeypatch.setattr("app.manager.resolve_effort", resolver)
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr.create_session(
-                name="w-eff", scope="/s", cwd="/tmp", model="gpt-5.6-sol", role="worker",
+                name="w-eff", scope="/s", cwd="/tmp", model="gpt-6-luna", role="worker",
                 planned_initial_turn=False,
             )
         assert session.effort == "medium"
         raw_effort, model, runtime = resolver.call_args.args
         assert isinstance(raw_effort, dict)
-        assert (model, runtime) == ("gpt-5.6-sol", "codex")
+        assert (model, runtime) == ("gpt-6-luna", "codex")
 
     @pytest.mark.asyncio
     async def test_validates_cwd(self, mgr):
@@ -916,7 +916,7 @@ class TestInjectSkillsGating:
     async def test_codex_skills_list_does_not_inject(self, mgr, tmp_path):
         rr = MagicMock(skills=["foo", "bar"], is_orchestrator=False)
         inject = await self._run(
-            mgr, tmp_path, lambda p, r: rr, model="gpt5.6sol",
+            mgr, tmp_path, lambda p, r: rr, model="gpt6luna",
         )
         inject.assert_not_called()
 
@@ -2069,7 +2069,7 @@ class TestListSessions:
             )
             codex = await mgr.create_session(
                 name="codex-cache", scope="/s", cwd="/tmp",
-                model="gpt-5.6-sol",
+                model="gpt-6-luna",
             )
         mgr.sessions.pop(codex.id)
 
@@ -2087,7 +2087,7 @@ class TestRemoveScope:
         from app.db import save_session
         save_session({
             "id": "orch-x", "name": "orch-x-orchestrator", "scope": "/scope-x",
-            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8",
@@ -2113,7 +2113,7 @@ class TestRemoveScope:
         from app.db import save_session
         save_session({
             "id": "orch-y", "name": "orch-y-orchestrator", "scope": "/scope-y",
-            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": None,
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "color": "#818cf8",
@@ -2174,7 +2174,7 @@ class TestAutoResume:
         created_at = datetime.now(timezone.utc).isoformat()
         save_session({
             "id": "worker-order", "name": "worker-order", "scope": "/tmp",
-            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": "sdk-worker", "cost_usd": 0.0,
             "worktree_path": None, "branch": None, "is_orchestrator": False,
             "role": "worker", "pipeline": "default", "color": "#818cf8",
@@ -2182,7 +2182,7 @@ class TestAutoResume:
         })
         save_session({
             "id": "orch-order", "name": "orch-order", "scope": "/tmp",
-            "cwd": "/tmp", "model": "claude-opus-5[1m]", "system_prompt": "",
+            "cwd": "/tmp", "model": "claude-opus-5-5[1m]", "system_prompt": "",
             "status": "idle", "session_id": "sdk-orch",
             "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": True, "role": "orchestrator", "pipeline": "default",
@@ -2223,24 +2223,35 @@ class TestAutoResume:
         assert get_role(session.pipeline, session.role) is not None
 
     @pytest.mark.asyncio
-    async def test_resume_upgrades_retired_sonnet_model_id(self, mgr):
+    @pytest.mark.parametrize(("stored_model", "backend"), [
+        ("claude-sonnet-5[1m]", "claude"),
+        ("gpt-5.6-luna", "codex"),
+        ("gpt-5.6-sol", "codex"),
+    ])
+    async def test_resume_loads_retired_model_id_without_selecting_it(
+        self, mgr, stored_model, backend,
+    ):
         from app.db import get_session_by_name, save_session
         from tests.conftest import make_backend_mock
 
         save_session({
-            "id": "old-sonnet", "name": "old-sonnet", "scope": "/tmp", "cwd": "/tmp",
-            "model": "claude-sonnet-5[1m]", "system_prompt": "", "status": "idle",
+            "id": "old-model", "name": "old-model", "scope": "/tmp", "cwd": "/tmp",
+            "model": stored_model, "system_prompt": "", "status": "idle",
             "session_id": None, "cost_usd": 0.0, "worktree_path": None, "branch": None,
             "is_orchestrator": False, "role": "worker", "pipeline": "default",
             "color": "#fff", "created_at": datetime.now(timezone.utc).isoformat(),
             "finished_at": None,
         })
-        row = get_session_by_name("old-sonnet", "/tmp")
+        row = get_session_by_name("old-model", "/tmp")
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             session = await mgr._load_from_db(row)
 
-        assert session.model == "claude-sonnet-5-5[1m]"
-        assert session.backend_type == "claude"
+        from app.models import MODELS
+
+        assert session.model == stored_model
+        assert session.backend_type == backend
+        assert session.system_prompt
+        assert stored_model not in MODELS
 
     @pytest.mark.asyncio
     async def test_resume_prefers_worktree_memory_over_parent_scope(
@@ -2408,7 +2419,7 @@ class TestEnsureLoadedSingleFlight:
 
         async def change_model():
             session = await mgr.ensure_loaded(row["name"], row["scope"])
-            await session.change_model("gpt-5.6-sol")
+            await session.change_model("gpt-6-luna")
             return session
 
         async def send():
@@ -3094,7 +3105,7 @@ class TestChangeOrchestratorScope:
         from tests.conftest import make_backend_mock
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             s = await mgr.create_session(
-                name=name, scope=scope, cwd="/tmp", model="claude-opus-5",
+                name=name, scope=scope, cwd="/tmp", model="claude-opus-5-5[1m]",
                 is_orchestrator=True,
             )
         s.session_id = "sdk-resume-token"
@@ -3223,7 +3234,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             orch = await mgr.create_session(
                 name="orch", scope="/old/proj", cwd="/tmp",
-                model="claude-opus-5", is_orchestrator=True,
+                model="claude-opus-5-5[1m]", is_orchestrator=True,
             )
         orch.session_id = "sdk-tok"
         orch.status = AgentStatus.IDLE
@@ -3250,7 +3261,7 @@ class TestChangeScopeUnloadedWorkerGuard:
         with patch("app.session.AgentSession._make_backend", return_value=make_backend_mock()):
             orch = await mgr.create_session(
                 name="orch", scope="/old/proj", cwd="/tmp",
-                model="claude-opus-5", is_orchestrator=True,
+                model="claude-opus-5-5[1m]", is_orchestrator=True,
             )
         orch.session_id = "sdk-tok"
         orch.status = AgentStatus.IDLE
@@ -3434,7 +3445,7 @@ class TestRestartWake:
         from app.db import save_session
         sess = AgentSession(
             id=sid, name=name, scope=scope, cwd=scope,
-            model="claude-opus-5[1m]", system_prompt="x", session_id=f"sdk-{sid}",
+            model="claude-opus-5-5[1m]", system_prompt="x", session_id=f"sdk-{sid}",
             created_at=datetime.now(timezone.utc), role="worker", pipeline="default",
         )
         sess.status = status
@@ -3541,7 +3552,7 @@ class TestRestartWake:
 async def test_worker_disabled_tools_survive_create_and_identity_refresh(mgr):
     import json
     session = await mgr.create_session(
-        name='scoped-worker', scope='/s', cwd='/tmp', model='gpt-5.6-luna',
+        name='scoped-worker', scope='/s', cwd='/tmp', model='gpt-6-luna',
         disabled_tools=['get_worker_info'],
     )
     assert session.disabled_tools == ['get_worker_info']

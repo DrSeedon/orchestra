@@ -71,17 +71,17 @@ async def test_change_worker_model_preserves_history_by_default(monkeypatch):
             "ok": True,
             "changed": True,
             "old_model": "claude-sonnet-5-5[1m]",
-            "model": "claude-opus-5[1m]",
+            "model": "claude-opus-5-5[1m]",
             "history_transfer": {"mode": "native_in_place"},
         }
 
     monkeypatch.setattr(m, "_api", fake_api)
 
-    result = await m.change_worker_model("worker", "claude-opus-5[1m]")
+    result = await m.change_worker_model("worker", "claude-opus-5-5[1m]")
 
     assert calls[0][2]["json"] == {
         "scope": m.SCOPE,
-        "model": "claude-opus-5[1m]",
+        "model": "claude-opus-5-5[1m]",
         "via": "mcp",
     }
     assert "history transfer=native_in_place" in result
@@ -95,14 +95,14 @@ async def test_change_worker_model_reports_chat_history_transfer_size(monkeypatc
         return {
             "ok": True,
             "changed": True,
-            "old_model": "gpt-5.6-sol",
-            "model": "claude-opus-5[1m]",
+            "old_model": "gpt-6-luna",
+            "model": "claude-opus-5-5[1m]",
             "history_transfer": {"mode": "chat_history_v1", "chars": 63500},
         }
 
     monkeypatch.setattr(m, "_api", fake_api)
 
-    result = await m.change_worker_model("worker", "claude-opus-5[1m]")
+    result = await m.change_worker_model("worker", "claude-opus-5-5[1m]")
 
     assert "history transfer=chat_history_v1 (63500 chars)" in result
 
@@ -121,7 +121,7 @@ async def test_change_worker_model_surfaces_api_refusal_with_code_and_reason(mon
     monkeypatch.setattr(m, "_api", fake_api)
 
     result = await _protocol_call(
-        m, "change_worker_model", {"name": "worker", "model": "claude-opus-5[1m]"},
+        m, "change_worker_model", {"name": "worker", "model": "claude-opus-5-5[1m]"},
     )
 
     assert result.isError is True
@@ -1063,7 +1063,7 @@ async def test_t3_spawn_marks_parent_as_initial_task_sender(monkeypatch):
             name="child",
             task="do it",
             repo_path="/s",
-            model="claude-opus-5[1m]",
+            model="claude-opus-5-5[1m]",
         )
 
     delivery_calls = [
@@ -1100,7 +1100,7 @@ async def test_spawn_reports_exact_repo_mapping_when_scope_differs(monkeypatch, 
     with patch.object(m, "_api", side_effect=fake_api):
         out = await m.spawn_worker(
             name="child", task="do it", repo_path=str(repo),
-            model="gpt-5.6-sol", task_id="88",
+            model="gpt-6-luna", task_id="88",
         )
 
     create_body = calls[0][2]
@@ -1128,7 +1128,7 @@ async def test_spawn_api_error_does_not_send_initial_task(monkeypatch):
         with pytest.raises(m.ApiToolError) as caught:
             await m.spawn_worker(
                 name="child", task="do it", repo_path="/repo/nested",
-                model="gpt-5.6-sol",
+                model="gpt-6-luna",
             )
 
     assert calls == ["/api/sessions"]
@@ -1195,7 +1195,7 @@ async def test_spawn_malformed_success_fails_loud_without_task(
         with pytest.raises(m.ApiToolError) as caught:
             await m.spawn_worker(
                 name="child", task="do it", repo_path="/repo",
-                model="gpt-5.6-sol",
+                model="gpt-6-luna",
             )
 
     assert calls == ["/api/sessions"]
@@ -1236,7 +1236,7 @@ async def test_t3_spawn_task_delivery_error_reports_created_worker(monkeypatch):
         with pytest.raises(m.ApiToolError) as caught:
             await m.spawn_worker(
                 name="child", task="do it", repo_path="/repo",
-                model="gpt-5.6-sol",
+                model="gpt-6-luna",
             )
 
     assert calls == [
@@ -1294,7 +1294,7 @@ async def test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend(mo
         "name": "child",
         "task": "do it",
         "repo_path": "/repo",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-luna",
     })
 
     assert result.isError is True
@@ -1361,7 +1361,7 @@ async def test_t3_spawn_delivery_posts_caller_key_and_returns_accepted_receipt(
         name="child",
         task="do it",
         repo_path="/repo",
-        model="gpt-5.6-sol",
+        model="gpt-6-luna",
         delivery_id=delivery_id,
     )
 
@@ -1405,7 +1405,7 @@ async def test_t3_spawn_delivery_same_repository_has_no_cross_repo_note(monkeypa
         name="child",
         task="do it",
         repo_path="/repo",
-        model="gpt-5.6-sol",
+        model="gpt-6-luna",
         delivery_id=delivery_id,
     )
 
@@ -1458,7 +1458,7 @@ async def test_t3_spawn_delivery_timeout_reconciles_without_second_post(monkeypa
         name="child",
         task="do it",
         repo_path="/repo",
-        model="gpt-5.6-sol",
+        model="gpt-6-luna",
         delivery_id=delivery_id,
     )
 
@@ -1507,7 +1507,7 @@ async def test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend(
         "name": "child",
         "task": "do it",
         "repo_path": "/repo",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-luna",
         "delivery_id": delivery_id,
     })
 
@@ -1566,7 +1566,7 @@ async def test_t3_spawn_committed_then_500_unresolved_never_posts_again(
         "name": "child",
         "task": "do it",
         "repo_path": "/repo",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-luna",
         "delivery_id": delivery_id,
     })
 
@@ -1618,7 +1618,7 @@ async def test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries(
         "name": "child",
         "task": "changed task",
         "repo_path": "/repo",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-luna",
         "delivery_id": delivery_id,
     })
 
@@ -2852,9 +2852,8 @@ async def test_resolve_merge_operation_reports_server_refusal(monkeypatch):
 @pytest.mark.parametrize(
     ("requested_model", "expected_model", "resume"),
     [
-        ("gpt-5.6-luna", "gpt-5.6-luna", True),
-        ("gpt-5.6-sol", "gpt-5.6-sol", False),
-        ("gpt5.6luna", "gpt-5.6-luna", False),
+        ("gpt-6-luna", "gpt-6-luna", True),
+        ("gpt6luna", "gpt-6-luna", False),
     ],
 )
 async def test_codex_review_model_reaches_quota_cli_job_and_accounting(
@@ -2934,7 +2933,7 @@ async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypa
             return {
                 "policy": "worker-weekly-v1",
                 "state": "available",
-                "model": "gpt-5.6-luna",
+                "model": "gpt-6-luna",
                 "provider": "codex",
                 "observed_at": 2_000_000_000,
                 "valid_until": 2_000_000_300,
@@ -2969,7 +2968,7 @@ async def test_codex_review_default_is_server_owned_luna_fast(tmp_path, monkeypa
     ("model", "message"),
     [
         ("not-a-model", "unknown model"),
-        ("claude-opus-5[1m]", "runtime 'claude'"),
+        ("claude-opus-5-5[1m]", "runtime 'claude'"),
         ("grok-4.6", "runtime 'grok'"),
         ("gpt-5.3-codex-spark", "Spark is forbidden"),
     ],

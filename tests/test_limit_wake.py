@@ -31,7 +31,7 @@ def _candidate(
     limit_kind: str = "timed",
     limit_turn_id: int = 10,
 ) -> dict:
-    model = "claude-opus-5[1m]" if provider == "anthropic" else "gpt-5.6-sol"
+    model = "claude-opus-5-5[1m]" if provider == "anthropic" else "gpt-6.1-sol"
     return {
         **_session(session_id, name, model),
         "limit_kind": limit_kind,
@@ -75,10 +75,10 @@ def test_find_limit_stopped_agents_only_returns_latest_limited_turn():
     from app.limit_wake import find_limit_stopped_agents
 
     sessions = [
-        _session("limited", "limited-worker", "claude-opus-5[1m]"),
-        _session("recovered", "recovered-worker", "claude-opus-5[1m]"),
-        _session("ordinary", "ordinary-worker", "gpt-5.6-sol"),
-        _session("running", "running-worker", "claude-opus-5[1m]", "running"),
+        _session("limited", "limited-worker", "claude-opus-5-5[1m]"),
+        _session("recovered", "recovered-worker", "claude-opus-5-5[1m]"),
+        _session("ordinary", "ordinary-worker", "gpt-6.1-sol"),
+        _session("running", "running-worker", "claude-opus-5-5[1m]", "running"),
     ]
     logs = {
         "limited": [
@@ -120,7 +120,7 @@ def test_wake_provider_uses_quota_gate_model_mapping():
 
     sessions = [
         _session("spark", "spark-worker", "gpt-5.3-codex-spark"),
-        _session("grok", "grok-worker", "grok-4.5"),
+        _session("grok", "grok-worker", "grok-4.6"),
     ]
     logs = {
         session["id"]: [
@@ -141,7 +141,7 @@ def test_wake_provider_uses_quota_gate_model_mapping():
 def test_legacy_limit_kind_cannot_be_inferred_from_assistant_text():
     from app.limit_wake import find_limit_stopped_agents
 
-    session = _session("monthly", "monthly-worker", "claude-opus-5[1m]")
+    session = _session("monthly", "monthly-worker", "claude-opus-5-5[1m]")
     logs = {
         "monthly": [
             _log(
@@ -163,7 +163,7 @@ def test_legacy_limit_kind_cannot_be_inferred_from_assistant_text():
 def test_limit_phrase_in_normal_assistant_text_is_not_terminal_evidence():
     from app.limit_wake import find_limit_stopped_agents
 
-    session = _session("normal", "normal-worker", "claude-opus-5[1m]")
+    session = _session("normal", "normal-worker", "claude-opus-5-5[1m]")
     logs = {
         "normal": [
             _log(1, "text", "The weekly usage limit is documented here."),
@@ -177,7 +177,7 @@ def test_limit_phrase_in_normal_assistant_text_is_not_terminal_evidence():
 def test_limit_detection_uses_event_timestamp_when_log_ids_commit_out_of_order():
     from app.limit_wake import find_limit_stopped_agents
 
-    session = _session("limited", "limited-worker", "claude-opus-5[1m]")
+    session = _session("limited", "limited-worker", "claude-opus-5-5[1m]")
     logs = {
         "limited": [
             {
@@ -205,13 +205,13 @@ def test_build_wake_plan_uses_latest_blocking_provider_window():
 
     agents = [
         {
-            **_session("a", "claude-worker", "claude-opus-5[1m]"),
+            **_session("a", "claude-worker", "claude-opus-5-5[1m]"),
             "limit_kind": "timed",
             "provider": "anthropic",
             "limit_turn_id": 10,
         },
         {
-            **_session("b", "codex-worker", "gpt-5.6-sol"),
+            **_session("b", "codex-worker", "gpt-6.1-sol"),
             "limit_kind": "timed",
             "provider": "codex",
             "limit_turn_id": 20,
@@ -960,13 +960,13 @@ async def test_wake_job_stops_before_second_agent_when_limit_closes(
     })
     candidates = [
         {
-            **_session("a", "worker-a", "claude-opus-5[1m]"),
+            **_session("a", "worker-a", "claude-opus-5-5[1m]"),
             "limit_kind": "timed",
             "provider": "anthropic",
             "limit_turn_id": 10,
         },
         {
-            **_session("b", "worker-b", "claude-opus-5[1m]"),
+            **_session("b", "worker-b", "claude-opus-5-5[1m]"),
             "limit_kind": "timed",
             "provider": "anthropic",
             "limit_turn_id": 20,
@@ -1058,7 +1058,7 @@ async def test_wake_job_reconciles_claimed_delivery_without_duplicate_send(
     monkeypatch.setattr(
         "app.limit_wake._load_limit_stopped_agents",
         lambda: [{
-            **_session("a", "worker-a", "claude-opus-5[1m]"),
+            **_session("a", "worker-a", "claude-opus-5-5[1m]"),
             "limit_kind": "timed",
             "provider": "anthropic",
             "limit_turn_id": 10,

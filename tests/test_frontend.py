@@ -4589,7 +4589,7 @@ def test_codex_spawn_worker_renders_task_model_and_completion(
     payload = {
         "name": "mobile-os-strategy",
         "role": "full-cycle",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-luna",
         "task": "Research an AOSP-first product strategy.",
         "description": "Mobile OS strategy",
         "system_prompt": "Detailed instructions. " * 200,
@@ -4606,7 +4606,7 @@ def test_codex_spawn_worker_renders_task_model_and_completion(
             );
             addChatEntry(
                 'tool_result',
-                "Worker 'mobile-os-strategy' spawned. Model: gpt-5.6-sol. Task sent.",
+                "Worker 'mobile-os-strategy' spawned. Model: gpt-6-luna. Task sent.",
                 null,
                 null,
                 {tool_use_id: 'spawn-1'}
@@ -4621,7 +4621,7 @@ def test_codex_spawn_worker_renders_task_model_and_completion(
         "mobile-os-strategy spawned"
     )
     expect(card.locator(".codex-tool-state")).to_have_text("done")
-    expect(card).to_contain_text("GPT-5.6 Sol")
+    expect(card).to_contain_text("GPT-6 Luna")
     expect(card).to_contain_text("Research an AOSP-first product strategy.")
     assert '"system_prompt"' not in card.inner_text()
     page.close()
@@ -5482,7 +5482,7 @@ def _lossy_payload(path: str):
     if path == "/api/usage":
         return _LOSSY_USAGE
     if path == "/api/models":
-        return {"models": [{"id": "claude-opus-5[1m]", "name": "Opus 5"}],
+        return {"models": [{"id": "claude-opus-5-5[1m]", "name": "Opus 5.5"}],
                 "proxy_connected": True}
     if path == "/api/logs/sync":
         return {"logs": [], "max_log_id": 0, "live_sessions": []}

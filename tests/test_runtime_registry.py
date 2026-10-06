@@ -196,8 +196,8 @@ def test_backend_classes_satisfy_structural_contract(runtime_id, tmp_path, monke
     ctx = BackendBuildContext(
         model={
             "claude": "claude-sonnet-5-5[1m]",
-            "codex": "gpt-5.6-sol",
-            "grok": "grok-4.5",
+            "codex": "gpt-6-luna",
+            "grok": "grok-4.6",
             "harness": "nvidia/nemotron-3-ultra-550b-a55b:free",
         }[runtime_id],
         provider={
@@ -237,7 +237,7 @@ def test_codex_factory_indexes_all_skills_from_active_pipeline(
         """\
 name: custom
 defaults:
-  model: gpt5.6sol
+  model: gpt-6-luna
   skills: []
 roles:
   worker:
@@ -262,7 +262,7 @@ roles:
     request.addfinalizer(pipeline.load_pipeline.cache_clear)
 
     ctx = BackendBuildContext(
-        model="gpt-5.6-sol",
+        model="gpt-6-luna",
         provider="openai",
         cwd=str(tmp_path),
         system_prompt="BASE",
@@ -310,7 +310,7 @@ def test_codex_factory_omits_skill_index_by_default(tmp_path, monkeypatch, reque
         """\
 name: custom
 defaults:
-  model: gpt5.6sol
+  model: gpt-6-luna
   skills: []
 roles:
   worker:
@@ -326,7 +326,7 @@ roles:
     monkeypatch.setattr(runtime_registry, "_CODEX_SKILL_INDEX_ENABLED", False)
 
     ctx = BackendBuildContext(
-        model="gpt-5.6-sol", provider="openai", cwd=str(tmp_path), system_prompt="BASE",
+        model="gpt-6-luna", provider="openai", cwd=str(tmp_path), system_prompt="BASE",
         resume_session_id=None, mcp_servers={}, is_orchestrator=False, scope=str(tmp_path),
         pipeline="custom", role="worker", profile="", effort="high", context_limit=258_400,
     )
@@ -357,7 +357,7 @@ def test_codex_factory_loads_scope_mcp_without_overriding_orchestra(tmp_path):
         "env": {"ORCHESTRA_SESSION_ID": "session-scope-mcp"},
     }
     ctx = BackendBuildContext(
-        model="gpt-5.6-sol", provider="openai", cwd=str(tmp_path), system_prompt="BASE",
+        model="gpt-6-luna", provider="openai", cwd=str(tmp_path), system_prompt="BASE",
         resume_session_id=None, mcp_servers={"orchestra": managed_orchestra},
         is_orchestrator=True, scope=str(tmp_path), pipeline="default", role="orchestrator",
         profile="", effort="high", context_limit=258_400,
@@ -387,7 +387,7 @@ def test_codex_factory_passes_native_history_import(tmp_path):
         thread_id="11111111-2222-4333-8444-555555555555",
     )
     ctx = BackendBuildContext(
-        model="gpt-5.6-sol",
+        model="gpt-6-luna",
         provider="openai",
         cwd=str(tmp_path),
         system_prompt="BASE",

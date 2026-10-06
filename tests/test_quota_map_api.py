@@ -526,13 +526,13 @@ async def test_gated_and_free_lanes_split_on_the_same_number(mapped):
     claude = _pool(payload, "anthropic")
     assert _lane(claude, "claude")["gated"] is True
     assert _lane(claude, "claude")["blocked"] is True
-    assert _model(claude, "claude-opus-5[1m]")["state"] == "blocked"
+    assert _model(claude, "claude-opus-5-5[1m]")["state"] == "blocked"
 
     codex = _pool(payload, "codex")
     assert _lane(codex, "sol")["blocked"] is True
     assert _lane(codex, "luna")["gated"] is False
     assert _lane(codex, "luna")["blocked"] is False
-    assert _model(codex, "gpt-5.6-luna")["state"] == "available"
+    assert _model(codex, "gpt-6-luna")["state"] == "available"
 
     spark = _pool(payload, "codex_spark")
     assert _lane(spark, "spark")["gated"] is False
@@ -576,7 +576,7 @@ async def test_claude_five_hour_window_is_reference_and_never_gates(mapped):
     assert claude["window"]["id"] == "seven_day"
     assert claude["window"]["utilization"] == 4
     assert [item["id"] for item in claude["reference_windows"]] == ["five_hour"]
-    assert _model(claude, "claude-opus-5[1m]")["state"] == "available"
+    assert _model(claude, "claude-opus-5-5[1m]")["state"] == "available"
 
 
 @pytest.mark.asyncio
@@ -591,7 +591,7 @@ async def test_pool_without_its_window_is_no_data_not_zero(mapped):
     assert claude["data_available"] is False
     assert claude["window"] is None
     assert "limit_pct" not in claude and claude["tolerance_pp"] is None
-    assert _model(claude, "claude-opus-5[1m]")["state"] == "unknown"
+    assert _model(claude, "claude-opus-5-5[1m]")["state"] == "unknown"
     assert _pool(payload, "codex")["data_available"] is True
 
 
@@ -605,7 +605,7 @@ async def test_stale_observation_is_marked_not_silently_trusted(mapped):
     codex = _pool(await mapped(observation), "codex")
 
     assert codex["fresh"] is False
-    assert _model(codex, "gpt-5.6-sol")["state"] == "unknown"
+    assert _model(codex, "gpt-6.1-sol")["state"] == "unknown"
 
 
 @pytest.mark.asyncio
@@ -615,11 +615,11 @@ async def test_grok_is_outside_the_policy_entirely(mapped):
     ))
 
     outside = {item["model"]: item for item in payload["outside_policy"]}
-    assert "grok-4.5" in outside
-    assert outside["grok-4.5"]["lane"] is None
-    assert outside["grok-4.5"]["gated"] is False
-    assert outside["grok-4.5"]["limit_pct"] is None
-    assert outside["grok-4.5"]["state"] == "not_applicable"
+    assert "grok-4.6" in outside
+    assert outside["grok-4.6"]["lane"] is None
+    assert outside["grok-4.6"]["gated"] is False
+    assert outside["grok-4.6"]["limit_pct"] is None
+    assert outside["grok-4.6"]["state"] == "not_applicable"
 
 
 @pytest.mark.asyncio

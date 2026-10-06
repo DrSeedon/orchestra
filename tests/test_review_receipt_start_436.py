@@ -42,7 +42,7 @@ def _readiness():
     return {
         "policy": "worker-weekly-v1",
         "state": "available",
-        "model": "gpt-5.6-sol",
+        "model": "gpt-6-luna",
         "provider": "codex",
         "weekly_utilization": 1,
         "threshold": 95,
@@ -87,11 +87,11 @@ async def test_start_receipt_uses_resolved_model_task_artifact_and_reserved_roun
         target=".orchestra/tasks/436/plan.md",
         output=".orchestra/tasks/436/review.md",
         mode="exec",
-        model="gpt5.6luna",
+        model="luna",
     )
 
     assert "receipt_id" in captured, "T2 start path must create a durable review receipt"
-    assert captured["receipt"]["reviewer_model"] == "gpt-5.6-luna"
+    assert captured["receipt"]["reviewer_model"] == "gpt-6-luna"
     assert captured["receipt"]["runtime"] == "codex"
     assert captured["receipt"]["task_id"] == "436"
     assert captured["receipt"]["artifact_path"].endswith(".orchestra/tasks/436/review.md")

@@ -854,7 +854,7 @@ _CODEX_REVIEW_DEFAULT_MODEL = "gpt-6-luna"
 
 def _resolve_codex_review_model(model: str) -> str:
     """Resolve registry aliases, then enforce the explicit-review runtime policy."""
-    from app.models import get_model_spec, resolve_model
+    from app.models import MANUAL_ONLY_MODEL_IDS, get_model_spec, resolve_model
     from app.quota_gate import quota_bucket_for_model
 
     if not isinstance(model, str) or not model.strip():
@@ -873,6 +873,12 @@ def _resolve_codex_review_model(model: str) -> str:
         ) from error
 
     spec = get_model_spec(resolved)
+    if resolved in MANUAL_ONLY_MODEL_IDS:
+        raise ApiToolError(
+            code="invalid_argument",
+            message=f"model '{resolved}' is available only for manual orchestrator sessions",
+            details={"field": "model", "requested_model": model, "resolved_model": resolved},
+        )
     if spec.runtime != "codex":
         raise ApiToolError(
             code="invalid_argument",
@@ -3315,7 +3321,7 @@ def _normalize_dynamic_task(
     task: dict[str, Any], *, default_model: str = "luna",
     default_schema: dict | None = None, label: str,
 ) -> tuple[dict[str, Any], str | None]:
-    from app.models import get_model_flags, resolve_model
+    from app.models import MANUAL_ONLY_MODEL_IDS, ensure_spawn_allowed, resolve_model
 
     model = task.get("model", default_model)
     if not isinstance(model, str) or not model.strip():
@@ -3324,9 +3330,11 @@ def _normalize_dynamic_task(
         model_id = resolve_model(model)
     except (ValueError, TypeError) as error:
         return {}, f"{label}.model: {error}"
-    if model_id in {"gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol"}:
+    if model_id in MANUAL_ONLY_MODEL_IDS:
         return {}, f"model '{model}' is not allowed for dynamic workflows"
-    if not get_model_flags(model_id)["agents"]:
+    try:
+        ensure_spawn_allowed(model_id)
+    except ValueError:
         return {}, f"model '{model}' is not enabled for agents"
     schema = task.get("schema", default_schema)
     if schema is not None and not isinstance(schema, dict):
@@ -3916,9 +3924,10 @@ async def codex_review(
     resume: continue the previous Codex session for this output (debate round). Falls back to a
         fresh session if none stored. On a resumed round put your counter-arguments / changelog
         in context (e.g. 'I fixed X and Y, re-review').
-    model: reviewer model or registry alias. Omitted means the server-owned gpt-5.6-luna Fast tier.
-        Registered Codex-runtime models are accepted except Codex Spark, which policy forbids for
-        review. Pass the model again on resume; it is applied to the resumed Codex thread.
+    model: reviewer model or registry alias. Omitted means the server-owned gpt-6-luna Fast tier.
+        Registered Codex-runtime models are accepted except Codex Spark and Astra/Sol, which are
+        owner-selectable only for manual orchestrator sessions. Pass the model again on resume;
+        it is applied to the resumed Codex thread.
     required: fail-safe implementation-review decision. Only literal JSON false asserts low risk
         and permits a <=40-line/<=3-file size skip; omitted, null, malformed, or true reviews.
     target_worker: retired; nonempty values are rejected. Only the executor reviews its own work.

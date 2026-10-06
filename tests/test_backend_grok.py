@@ -53,7 +53,7 @@ def test_grok_model_routes_to_grok_runtime():
 
 def test_grok_aliases_and_provider():
     assert resolve_model("grok4.6") == "grok-4.6"
-    assert resolve_model("grok") == "grok-4.5"
+    assert resolve_model("grok") == "grok-4.6"
     for model in ("grok-4.5", "grok-4.6"):
         spec = get_model_spec(model)
         assert spec.runtime == "grok"
