@@ -7,7 +7,6 @@ Usage: python -m app.mcp_stdio
 """
 
 import asyncio
-import base64
 import hashlib
 import json
 import logging
@@ -3155,19 +3154,107 @@ async def task_get(par: str, project: str = "") -> str:
 
 @mcp.tool()
 async def dynamic_workflow(
-    tasks: list[dict[str, Any]],
-    mode: str,
     budget_usd: float,
     max_calls: int,
     max_concurrency: int,
     task_id: str,
     repo: str,
+    tasks: list[dict[str, Any]] | None = None,
+    mode: str = "parallel",
+    stages: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Run a bounded set of model tasks without a workflow file. Each task has prompt, optional model (defaults to luna), and optional JSON schema. mode is parallel or chain; chain passes each completed result as structured input to the next task. Completion wakes the caller with short answers and result paths."""
-    if mode not in {"parallel", "chain"}:
-        return "Error: mode must be 'parallel' or 'chain'"
-    if not tasks or len(tasks) > 100:
-        return "Error: tasks must contain between 1 and 100 items"
+    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna) and JSON schema. Completion wakes the caller with answers and result paths. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+
+    MiroFish example: 50 personas read a page, then each writes a reaction for
+    three rounds using all results from the previous round, then one analyst
+    produces a report. This is one tool call:
+
+        personas = [{"id": i, "profile": f"persona {i}"} for i in range(50)]
+        stages = [{"prompt": "Read PAGE_URL as persona {item}; write your initial view.",
+                   "items": personas}]
+        stages += [{"prompt": f"Round {round_no}: as persona {{item}}, read every prior post in your structured inputs and write one reaction.",
+                    "items": personas} for round_no in range(1, 4)]
+        stages.append({"tasks": [{"prompt": "Analyze the page and all three rounds in your structured inputs; write the audience report."}]})
+        dynamic_workflow(budget_usd=5, max_calls=300, max_concurrency=20,
+                         task_id="TASK-ID", repo="/absolute/repository",
+                         mode="stages", stages=stages)
+    """
+    if stages is not None:
+        if mode != "stages" or tasks is not None:
+            return "Error: pass stages with mode='stages' and omit tasks"
+        if not stages or len(stages) > 20:
+            return "Error: stages must contain between 1 and 20 stages"
+        expanded_stages = []
+        total_tasks = 0
+        spec_payload_size = 0
+        for stage_index, stage in enumerate(stages):
+            if not isinstance(stage, dict):
+                return f"Error: stages[{stage_index}] must be an object"
+            allowed_fields = {"tasks", "prompt", "items", "model", "schema"}
+            unknown_fields = set(stage) - allowed_fields
+            if unknown_fields:
+                return f"Error: stages[{stage_index}] has unknown field {sorted(unknown_fields)[0]}"
+            default_model = stage.get("model", "luna")
+            default_schema = stage.get("schema")
+            if "tasks" in stage:
+                if "prompt" in stage or "items" in stage:
+                    return f"Error: stages[{stage_index}] must use either tasks or prompt and items"
+                stage_tasks = stage["tasks"]
+                if not isinstance(stage_tasks, list) or not stage_tasks:
+                    return f"Error: stages[{stage_index}].tasks must be a non-empty array"
+                task_count = len(stage_tasks)
+            elif "prompt" in stage and "items" in stage:
+                template = stage["prompt"]
+                items = stage["items"]
+                if not isinstance(template, str) or "{item}" not in template:
+                    return f"Error: stages[{stage_index}].prompt must contain '{{item}}'"
+                if not isinstance(items, list) or not items:
+                    return f"Error: stages[{stage_index}].items must be a non-empty array"
+                task_count = len(items)
+                stage_tasks = (
+                    {"prompt": template.replace(
+                        "{item}", item if isinstance(item, str) else json.dumps(item, ensure_ascii=False)
+                    )}
+                    for item in items
+                )
+            else:
+                return f"Error: stages[{stage_index}] needs tasks or prompt and items"
+            if total_tasks + task_count > 1000:
+                return "Error: expanded workflow exceeds 1,000 tasks"
+            normalized_stage = []
+            for task_index, task in enumerate(stage_tasks):
+                if not isinstance(task, dict) or not isinstance(task.get("prompt"), str) or not task["prompt"].strip():
+                    return f"Error: stages[{stage_index}].tasks[{task_index}].prompt must be a non-empty string"
+                normalized, error = _normalize_dynamic_task(
+                    task, default_model=default_model,
+                    default_schema=default_schema,
+                    label=f"stages[{stage_index}].tasks[{task_index}]",
+                )
+                if error:
+                    return f"Error: {error}"
+                normalized_stage.append(normalized)
+                spec_payload_size += len(
+                    json.dumps(normalized, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+                )
+                if spec_payload_size > 1024 * 1024:
+                    return "Error: workflow specification exceeds 1 MiB"
+            expanded_stages.append({"tasks": normalized_stage})
+            total_tasks += task_count
+        spec_payload = {"mode": "stages", "stages": expanded_stages}
+    else:
+        if mode not in {"parallel", "chain"}:
+            return "Error: mode must be 'parallel' or 'chain' unless stages are supplied"
+        if not isinstance(tasks, list) or not tasks or len(tasks) > 1000:
+            return "Error: tasks must contain between 1 and 1,000 items"
+        normalized = []
+        for index, task in enumerate(tasks):
+            if not isinstance(task, dict) or not isinstance(task.get("prompt"), str) or not task["prompt"].strip():
+                return f"Error: tasks[{index}].prompt must be a non-empty string"
+            row, error = _normalize_dynamic_task(task, label=f"tasks[{index}]")
+            if error:
+                return f"Error: {error}"
+            normalized.append(row)
+        spec_payload = {"tasks": normalized, "mode": mode}
     if (not isinstance(budget_usd, (int, float)) or isinstance(budget_usd, bool)
             or not math.isfinite(budget_usd) or budget_usd <= 0):
         return "Error: budget_usd must be positive"
@@ -3183,42 +3270,22 @@ async def dynamic_workflow(
     if not repo_path.is_dir():
         return f"Error: repository directory not found: {repo_path}"
 
-    from app.models import get_model_flags, resolve_model
-
-    normalized = []
-    for index, task in enumerate(tasks):
-        if not isinstance(task, dict) or not isinstance(task.get("prompt"), str) or not task["prompt"].strip():
-            return f"Error: tasks[{index}].prompt must be a non-empty string"
-        row = {"prompt": task["prompt"]}
-        model = task.get("model", "luna")
-        if not isinstance(model, str) or not model.strip():
-            return f"Error: tasks[{index}].model must be a non-empty string"
-        try:
-            model_id = resolve_model(model)
-        except (ValueError, TypeError) as error:
-            return f"Error: tasks[{index}].model: {error}"
-        if model_id in {"gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol"}:
-            return f"Error: model '{model}' is not allowed for dynamic workflows"
-        if not get_model_flags(model_id)["agents"]:
-            return f"Error: model '{model}' is not enabled for agents"
-        row["model"] = model_id
-        schema = task.get("schema")
-        if schema is not None:
-            if not isinstance(schema, dict):
-                return f"Error: tasks[{index}].schema must be a JSON object"
-            row["schema"] = schema
-        normalized.append(row)
-
     runner_root = Path(__file__).resolve().parents[1]
     run_id = f"{task_id}-{uuid.uuid4().hex[:12]}"
-    spec = json.dumps({"tasks": normalized, "mode": mode}, ensure_ascii=False, separators=(",", ":"))
-    tasks_b64 = base64.urlsafe_b64encode(spec.encode()).decode()
-    if len(tasks_b64) > 64 * 1024:
-        return "Error: encoded tasks exceed the 64 KiB command limit"
+    spec = json.dumps(spec_payload, ensure_ascii=False, separators=(",", ":"))
+    spec_bytes = spec.encode("utf-8")
+    if len(spec_bytes) > 1024 * 1024:
+        return "Error: workflow specification exceeds 1 MiB"
+    run_dir = runner_root / "data" / "workflow-runs" / run_id
+    try:
+        run_dir.mkdir(parents=True, exist_ok=False)
+        (run_dir / "request.json").write_bytes(spec_bytes)
+    except OSError as error:
+        return f"Error: cannot save workflow specification: {error}"
     command_parts = [
         "env", f"ORCHESTRA_TASK_ID={task_id}", f"ORCHESTRA_SCOPE={SCOPE}",
         sys.executable, str(runner_root / "scripts" / "wf_run.py"),
-        "--tasks-b64", tasks_b64, "--run-id", run_id,
+        "--spec", str(run_dir / "request.json"), "--run-id", run_id,
         "--budget-usd", f"{budget_usd:g}", "--max-calls", str(max_calls),
         "--max-concurrency", str(max_concurrency), "--repo", str(repo_path),
     ]
@@ -3232,7 +3299,7 @@ async def dynamic_workflow(
             "success_file": str(manifest_path),
             "success_pattern": r'"complete"\s*:\s*true',
         },
-        "message": f"Dynamic workflow {run_id} ({len(tasks)} tasks, {mode})",
+        "message": f"Dynamic workflow {run_id} ({total_tasks if stages is not None else len(tasks)} tasks, {mode})",
         "target_name": WORKER_NAME,
         "target_scope": SCOPE,
         "timeout_seconds": 3600,
@@ -3241,7 +3308,33 @@ async def dynamic_workflow(
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     return (f"Dynamic workflow queued: run_id={run_id}, job_id={result.get('id', '?')}, "
-            f"tasks={len(tasks)}, mode={mode}. The completion message will include answers and result paths.")
+            f"tasks={total_tasks if stages is not None else len(tasks)}, mode={mode}. The completion message will include answers and result paths.")
+
+
+def _normalize_dynamic_task(
+    task: dict[str, Any], *, default_model: str = "luna",
+    default_schema: dict | None = None, label: str,
+) -> tuple[dict[str, Any], str | None]:
+    from app.models import get_model_flags, resolve_model
+
+    model = task.get("model", default_model)
+    if not isinstance(model, str) or not model.strip():
+        return {}, f"{label}.model must be a non-empty string"
+    try:
+        model_id = resolve_model(model)
+    except (ValueError, TypeError) as error:
+        return {}, f"{label}.model: {error}"
+    if model_id in {"gpt-6-astra", "gpt-6-sol", "gpt-5.6-sol"}:
+        return {}, f"model '{model}' is not allowed for dynamic workflows"
+    if not get_model_flags(model_id)["agents"]:
+        return {}, f"model '{model}' is not enabled for agents"
+    schema = task.get("schema", default_schema)
+    if schema is not None and not isinstance(schema, dict):
+        return {}, f"{label}.schema must be a JSON object"
+    normalized = {"prompt": task["prompt"], "model": model_id}
+    if schema is not None:
+        normalized["schema"] = schema
+    return normalized, None
 
 
 @mcp.tool()
