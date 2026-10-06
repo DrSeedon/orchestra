@@ -192,7 +192,7 @@ class TurnManager:
     def publish_turn_finished(self) -> None:
         self.s._turn_finished_event.set()
 
-    def fire_auto_report(self) -> None:
+    def fire_auto_report(self, *, include_owner_initiated: bool = False) -> None:
         """Send auto-report to parent immediately when worker goes idle.
         Orchestrators don't auto-report — they reply to user directly.
         Skipped if worker already sent explicit send_message, has pending messages,
@@ -260,6 +260,11 @@ class TurnManager:
                     s._auto_report_task = asyncio.create_task(_deliver_manifest())
             return
 
+        if (
+            getattr(s, "_owner_initiated_turn", False)
+            and not include_owner_initiated
+        ):
+            return
         if s._did_report or silent_turn:
             return
 
@@ -286,7 +291,7 @@ class TurnManager:
         s = self.s
         s._last_turn_ok = False
         s._last_stop_reason = reason
-        self.fire_auto_report()
+        self.fire_auto_report(include_owner_initiated=True)
 
     def handle_turn_end(self, event: AgentEvent) -> None:
         s = self.s

@@ -296,6 +296,15 @@ _AUTO_COMPACT_WINDOW_START_DEFAULT = "21:00"
 _AUTO_COMPACT_WINDOW_END_DEFAULT = "06:00"
 _AUTO_COMPACT_TIMEZONE_DEFAULT = "Asia/Krasnoyarsk"
 
+_OWNER_DIRECT_MESSAGE_SUBTYPES = frozenset({"dashboard"})
+
+
+def _is_owner_direct_message(provenance: MessageProvenance) -> bool:
+    return provenance.origin == "user" or (
+        provenance.origin == "unknown"
+        and provenance.subtype in _OWNER_DIRECT_MESSAGE_SUBTYPES
+    )
+
 
 def _configured_auto_compact_window_state(
         now_utc: datetime, start_raw: str, end_raw: str,
@@ -486,6 +495,8 @@ class AgentSession:
     _last_msg_time: float = field(default=0.0, repr=False)
     _last_event: str = field(default="", repr=False)
     _pending_messages: list = field(default_factory=list, repr=False)
+    _pending_owner_initiated_turn: bool = field(default=False, repr=False)
+    _owner_initiated_turn: bool = field(default=False, repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
     on_turn_blocked: Optional[callable] = field(default=None, repr=False)
     _quota_block_notice_signature: str = field(default="", repr=False)
@@ -1121,10 +1132,16 @@ class AgentSession:
             return float(self.COMPACT_ACK_TIMEOUT_SECONDS)
         return float(self.COMPACT_ACK_TIMEOUT_HARNESS)
 
-    def _start_turn_state(self, *, compact_ack: bool = False) -> None:
+    def _start_turn_state(
+        self,
+        *,
+        compact_ack: bool = False,
+        owner_initiated: bool = False,
+    ) -> None:
         """Publish the single in-memory/DB transition into a running turn."""
         self._manually_interrupted = False
         self._did_report = False
+        self._owner_initiated_turn = owner_initiated
         self._turns.bump_turn_gen()
         if compact_ack:
             self._compact_ack_gen = self._turn_gen
@@ -1141,6 +1158,7 @@ class AgentSession:
     ) -> None:
         if isinstance(message, InjectedMessage) and message.provenance != provenance:
             raise ValueError("injected message provenance mismatch")
+        owner_initiated = _is_owner_direct_message(provenance)
         message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
         message = message.text if isinstance(message, InjectedMessage) else message
         original_user_message = message
@@ -1237,6 +1255,7 @@ class AgentSession:
                 if delivery is not None and allow_running_delivery:
                     return
                 self._pending_messages.append(message)
+                self._pending_owner_initiated_turn |= owner_initiated
                 self._log(
                     "user_message", message, event_id=message_event_id,
                     provenance=provenance,
@@ -1300,6 +1319,7 @@ class AgentSession:
                     and getattr(self._backend, "deferred_interrupt_pending", False) is True
                 ):
                     self._pending_messages.append(message)
+                    self._pending_owner_initiated_turn |= owner_initiated
                     self._log(
                         "status",
                         f"message queued (deferred interrupt pending, "
@@ -1308,6 +1328,7 @@ class AgentSession:
                     return
                 if not capabilities.mid_turn_inject:
                     self._pending_messages.append(message)
+                    self._pending_owner_initiated_turn |= owner_initiated
                     self._log("status", f"message queued ({len(self._pending_messages)} pending)")
                     return
                 mailbox_id = None
@@ -1353,6 +1374,7 @@ class AgentSession:
                     logger.warning(f"[{self.name}] mid-turn inject failed, queueing: {e}")
                     if mailbox_id is None:
                         self._pending_messages.append(message)
+                        self._pending_owner_initiated_turn |= owner_initiated
                     pending = len(self._pending_messages) + int(mailbox_id is not None)
                     self._log("status", f"inject failed, queued ({pending} pending)")
                     if self.status != AgentStatus.RUNNING and not self._compacting:
@@ -1440,7 +1462,7 @@ class AgentSession:
 
             if self.status in (AgentStatus.IDLE, AgentStatus.WAITING):
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._start_turn_state()
+                self._start_turn_state(owner_initiated=owner_initiated)
                 asyncio.create_task(self._notify_scope_running())
 
             try:
@@ -2618,6 +2640,8 @@ class AgentSession:
         try:
             msgs = list(self._pending_messages)
             self._pending_messages.clear()
+            owner_initiated = self._pending_owner_initiated_turn
+            self._pending_owner_initiated_turn = False
             if len(msgs) == 1:
                 combined = msgs[0]
             else:
@@ -2630,7 +2654,7 @@ class AgentSession:
             self._log("status", f"delivering {len(msgs)} queued message(s)")
             try:
                 _refuse_if_draining(self)  # no await between here and RUNNING below
-                self._start_turn_state()
+                self._start_turn_state(owner_initiated=owner_initiated)
                 self._hibernated = False
                 try:
                     backend = await self._ensure_backend(
@@ -2655,6 +2679,7 @@ class AgentSession:
                 # не доехало, вместо тишины (#220 T2).
                 self._log("status", f"drain: {refusal}")
                 self._pending_messages[0:0] = msgs
+                self._pending_owner_initiated_turn |= owner_initiated
                 self.status = AgentStatus.IDLE
                 self._persist()
                 self._turns.publish_turn_finished()
@@ -2664,6 +2689,7 @@ class AgentSession:
             except Exception as e:
                 logger.error(f"[{self.name}] flush pending failed: {e}")
                 self._pending_messages[0:0] = msgs
+                self._pending_owner_initiated_turn |= owner_initiated
                 self.status = AgentStatus.IDLE
                 self._persist()
                 self._turns.publish_turn_finished()
