@@ -174,6 +174,7 @@ async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
     monkeypatch, tmp_path, held, mode,
 ):
     from app import tm
+    from app.db import get_session
 
     name = "holding-worker"
     repo, worktree, current, following = await _worker_after_continue(
@@ -191,8 +192,18 @@ async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
 
     result = await _switch(name, repo, tm.public_task_ref(following), **extra)
 
-    if mode in {"force", "complete_previous"}:
+    if held == "unmerged_commit" and mode == "force":
+        assert result.get("ok") is True, result
+        released = _task(current["id"])
+        assert (released["status"], released["worker_session_id"]) == ("new", None)
+        run = _runs(name)[tm.public_task_ref(current)]
+        assert (run["status"], run["failure_code"]) == ("interrupted", "task_superseded")
+        assigned = _task(following["id"])
+        assert (assigned["status"], assigned["worker_session_id"]) == ("in_progress", name)
+        assert get_session(name)["task_id"] == tm.public_task_ref(following)
+    elif mode == "complete_previous":
         assert result.status_code == 409
+        _assert_still_bound(name, current, following)
     else:
         assert result.get("ok") is not True, result
-    _assert_still_bound(name, current, following)
+        _assert_still_bound(name, current, following)

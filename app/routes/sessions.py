@@ -3265,17 +3265,16 @@ async def switch_branch(name: str, req: dict):
                         "waited_seconds": round(waited_seconds, 2),
                         "message": "task/branch binding repaired",
                     }
-                # Прежняя задача держит воркера открытым прогоном, пока её не закроет мерж, —
-                # после merge(continue) закрывать уже нечем (V-620). Отпустить её можно, только
-                # пока снимок ДО git показывает, что работы на ветке нет; сам выпуск идёт в
-                # транзакции назначения новой задачи и откатывается вместе с ней.
+                # Прежний прогон выпускается вместе с назначением новой задачи. Force явно
+                # разрешает отказаться от закоммиченной работы; git по-прежнему отказывает на
+                # незакоммиченных файлах до того, как task-store меняет привязку.
                 release_previous = None
                 held_work = {"reason": "", "head": ""}
                 if new_task and previous_task_id:
                     held_work = await asyncio.to_thread(
                         _unlanded_work, found, worktree_path,
                     )
-                    if not held_work["reason"]:
+                    if not held_work["reason"] or force:
                         release_previous = {
                             "session_id": session_id,
                             "done_note": acceptance_note if complete_previous else "",
@@ -3287,17 +3286,6 @@ async def switch_branch(name: str, req: dict):
                                 "error": (
                                     f"cannot close task {previous_task_id} as done: "
                                     f"{held_work['reason']}; merge or discard that work first"
-                                ),
-                                "waited_seconds": round(waited_seconds, 2),
-                            },
-                            status_code=409,
-                        )
-                    elif force:
-                        return JSONResponse(
-                            {
-                                "error": (
-                                    f"cannot switch away from task {previous_task_id}: "
-                                    f"{held_work['reason']} — merge or discard that work first"
                                 ),
                                 "waited_seconds": round(waited_seconds, 2),
                             },
