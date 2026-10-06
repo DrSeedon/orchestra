@@ -208,12 +208,12 @@ class TestSchemaValidation:
     def test_full_model_id_accepted(self, pipelines_root):
         _write_pipeline(pipelines_root, "demo", """\
             name: demo
-            defaults: {model: claude-opus-5}
+            defaults: {model: "claude-opus-5-5[1m]"}
             roles:
               r: {kind: worker, label: R, model: "claude-sonnet-5-5[1m]"}
         """)
         cfg = P.load_pipeline("demo")
-        assert cfg.defaults.model == "claude-opus-5"
+        assert cfg.defaults.model == "claude-opus-5-5[1m]"
         assert cfg.roles["r"].model == "claude-sonnet-5-5[1m]"
 
     def test_can_spawn_unknown_role_rejected(self, pipelines_root):
@@ -590,36 +590,36 @@ class TestEffortByModel:
     def test_scalar_applies_to_every_model(self, pipelines_root):
         eff = self._role(pipelines_root, "medium")
         assert eff == "medium"
-        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "medium"
-        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "medium"
+        assert P.resolve_effort(eff, "claude-opus-5-5[1m]", "claude") == "medium"
+        assert P.resolve_effort(eff, "gpt-6.1-sol", "codex") == "medium"
 
     def test_map_resolves_by_exact_model_id(self, pipelines_root):
         eff = self._role(
             pipelines_root,
-            '{"claude-opus-5[1m]": high, gpt-5.6-sol: xhigh, gpt-5.6-luna: low}')
-        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "high"
-        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "xhigh"
+            '{"claude-opus-5-5[1m]": high, gpt-6.1-sol: xhigh, gpt-6-luna: low}')
+        assert P.resolve_effort(eff, "claude-opus-5-5[1m]", "claude") == "high"
+        assert P.resolve_effort(eff, "gpt-6.1-sol", "codex") == "xhigh"
         # Sol и Luna — один рантайм codex, но ступени разные: ключ именно модель
-        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
+        assert P.resolve_effort(eff, "gpt-6-luna", "codex") == "low"
 
     def test_unknown_model_falls_back_to_default(self, pipelines_root):
-        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh, default: medium}")
+        eff = self._role(pipelines_root, "{gpt-6.1-sol: xhigh, default: medium}")
         assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") == "medium"
 
     def test_no_default_and_no_match_gives_none(self, pipelines_root):
-        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh}")
+        eff = self._role(pipelines_root, "{gpt-6.1-sol: xhigh}")
         assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") is None
 
     def test_runtime_key_covers_whole_runtime(self, pipelines_root):
         eff = self._role(pipelines_root, "{codex: max, default: low}")
-        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "max"
-        assert P.resolve_effort(eff, "gpt-5.6-terra", "codex") == "max"
-        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "low"
+        assert P.resolve_effort(eff, "gpt-6-luna", "codex") == "max"
+        assert P.resolve_effort(eff, "gpt-6.1-sol", "codex") == "max"
+        assert P.resolve_effort(eff, "claude-opus-5-5[1m]", "claude") == "low"
 
     def test_exact_model_beats_runtime_and_default(self, pipelines_root):
-        eff = self._role(pipelines_root, "{gpt-5.6-sol: xhigh, codex: low, default: medium}")
-        assert P.resolve_effort(eff, "gpt-5.6-sol", "codex") == "xhigh"
-        assert P.resolve_effort(eff, "gpt-5.6-luna", "codex") == "low"
+        eff = self._role(pipelines_root, "{gpt-6.1-sol: xhigh, codex: low, default: medium}")
+        assert P.resolve_effort(eff, "gpt-6.1-sol", "codex") == "xhigh"
+        assert P.resolve_effort(eff, "gpt-6-luna", "codex") == "low"
 
     def test_alias_key_normalized_to_model_id(self, pipelines_root):
         from app.models import resolve_model
@@ -640,7 +640,7 @@ class TestEffortByModel:
             eff = self._role(pipelines_root, "{gpt-9-nope: high, default: medium}")
         assert eff == {"gpt-9-nope": "high", "default": "medium"}
         assert "gpt-9-nope" in caplog.text
-        assert P.resolve_effort(eff, "claude-opus-5[1m]", "claude") == "medium"
+        assert P.resolve_effort(eff, "claude-opus-5-5[1m]", "claude") == "medium"
 
     def test_key_matches_once_model_appears_in_registry(self, pipelines_root, monkeypatch):
         """Тот же ключ начинает работать, как только модель появилась в реестре."""
@@ -650,34 +650,34 @@ class TestEffortByModel:
         assert P.resolve_effort(eff, "gpt-9-nope", "codex") == "high"
 
     def test_grok_key_is_a_runtime_key_not_a_model(self, pipelines_root):
-        """`grok` — и id рантайма, и alias модели `grok-4.5`; рантайм выигрывает.
+        """`grok` — и id рантайма, и alias модели `grok-4.6`; рантайм выигрывает.
 
         Следствие, которое надо знать при правке манифеста: выбрать ключом `grok`
-        конкретную модель нельзя — для этого есть полный id `grok-4.5`.
+        конкретную модель нельзя — для этого есть полный id `grok-4.6`.
         """
-        eff = self._role(pipelines_root, "{grok: high, grok-4.5: low, default: medium}")
-        assert eff == {"grok": "high", "grok-4.5": "low", "default": "medium"}
+        eff = self._role(pipelines_root, "{grok: high, grok-4.6: low, default: medium}")
+        assert eff == {"grok": "high", "grok-4.6": "low", "default": "medium"}
         # точный id модели сильнее рантайма
-        assert P.resolve_effort(eff, "grok-4.5", "grok") == "low"
+        assert P.resolve_effort(eff, "grok-4.6", "grok") == "low"
         eff2 = self._role(pipelines_root, "{grok: high, default: medium}")
-        assert P.resolve_effort(eff2, "grok-4.5", "grok") == "high"
+        assert P.resolve_effort(eff2, "grok-4.6", "grok") == "high"
 
     def test_unknown_level_rejects_the_manifest(self, pipelines_root):
         """Опечатка в СТУПЕНИ роняет манифест, а не «пропускается».
 
-        Пропуск не сохранял бы статус-кво: `{gpt-5.6-sol: hgih, default: high}` тихо
+        Пропуск не сохранял бы статус-кво: `{gpt-6.1-sol: hgih, default: high}` тихо
         перевёл бы Sol с `xhigh` на `high` — то есть сменил маршрут, а не оставил как
         было. Список ступеней замкнут и известен при загрузке, гонки с досозданием
         реестра здесь нет (в отличие от ключей-моделей), поэтому опечатка однозначна.
         """
         with pytest.raises(Exception) as e:
-            self._role(pipelines_root, "{gpt-5.6-sol: hgih, default: medium}")
+            self._role(pipelines_root, "{gpt-6.1-sol: hgih, default: medium}")
         assert "hgih" in str(e.value)
 
     def test_unknown_level_rejects_even_when_default_would_cover_it(self, pipelines_root):
         """Именно этот случай и опасен: `default` рядом маскирует опечатку молчанием."""
         with pytest.raises(Exception):
-            self._role(pipelines_root, "{gpt-5.6-sol: xhihg, default: high}")
+            self._role(pipelines_root, "{gpt-6.1-sol: xhihg, default: high}")
 
     def test_absent_effort_stays_none(self, pipelines_root):
         _write_pipeline(pipelines_root, "noeff", """\
@@ -687,7 +687,7 @@ class TestEffortByModel:
         """)
         rr = P.resolve_role(P.load_pipeline("noeff"), "hand")
         assert rr.effort is None
-        assert P.resolve_effort(rr.effort, "claude-opus-5[1m]", "claude") is None
+        assert P.resolve_effort(rr.effort, "claude-opus-5-5[1m]", "claude") is None
 
 
 # ── build_system_prompt: композиция слоёв + ИЗОЛЯЦИЯ ───────────────────────

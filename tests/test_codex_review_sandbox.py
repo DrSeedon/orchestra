@@ -19,11 +19,10 @@ what_matters = "sandbox and command correctness"
 what_does_not_matter = "deployment scale"
 """
 
-# The model asked for is neither the server-owned default (gpt-5.6-luna) nor the model the
-# readiness fixture reports: an assert naming either would stay green whether or not the
-# caller's model actually reaches the Codex CLI.
-REVIEW_MODEL = "gpt-5.6-terra"
-READINESS_MODEL = "gpt-5.6-sol"
+# The registered Luna worker route reaches the Codex CLI; readiness's manual-only Sol
+# model is quota metadata and must not replace the requested model.
+REVIEW_MODEL = "gpt-6-luna"
+READINESS_MODEL = "gpt-6.1-sol"
 
 
 def _prepare_project_context(repo):

@@ -54,7 +54,7 @@ def env(tmp_path, monkeypatch):
             raise ValueError(f"worker '{kw['name']}' already exists (idle, ctx:0%). Use send_message instead")
         s = FakeSession(kw["name"], str(repo))
         db.save_session({
-            "id": s.id, "name": s.name, "scope": SCOPE, "cwd": str(repo), "model": "gpt-5.6-sol",
+            "id": s.id, "name": s.name, "scope": SCOPE, "cwd": str(repo), "model": "gpt-6-luna",
             "system_prompt": "", "status": "idle", "session_id": None, "cost_usd": 0.0,
             "worktree_path": str(repo), "branch": "task-695/w", "is_orchestrator": False,
             "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
@@ -100,7 +100,7 @@ def _rows(ctx):
 
 async def _spawn(ctx, task=TASK, delivery_id=DELIVERY_ID, name="w"):
     return await ctx.m.spawn_worker(
-        name=name, task=task, repo_path=str(ctx.repo), model="gpt-5.6-sol",
+        name=name, task=task, repo_path=str(ctx.repo), model="gpt-6-luna",
         delivery_id=delivery_id,
     )
 

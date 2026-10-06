@@ -91,13 +91,13 @@ def test_check_fails_when_prompt_quotes_manifest_model_id(tmp_path):
         for mod in spec.get("modules") or []:
             (tmp_path / "prompts" / "modules" / f"{mod}.md").write_text("module body\n")
     quoted = tmp_path / "prompts" / "modules" / "model-routing.md"
-    quoted.write_text("Use `claude-opus-5[1m]` as the worker default.\n")
+    quoted.write_text("Use `claude-opus-5-5[1m]` as the worker default.\n")
 
     errors = check.disagreements(planted)
-    assert any("claude-opus-5[1m]" in e and "quotes manifest model" in e for e in errors), errors
+    assert any("claude-opus-5-5[1m]" in e and "quotes manifest model" in e for e in errors), errors
     proc = _run("--check", "--manifest", str(planted))
     assert proc.returncode == 1
-    assert "claude-opus-5[1m]" in proc.stderr
+    assert "claude-opus-5-5[1m]" in proc.stderr
 
 
 def _policy_copy(tmp_path: Path) -> Path:

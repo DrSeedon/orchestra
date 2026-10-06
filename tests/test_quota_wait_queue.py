@@ -20,7 +20,7 @@ from app.quota_gate import QuotaGateError, evaluate_worker_admission, line_limit
 SOURCE_ID, SOURCE_NAME = "src-678", "orch-678"
 TARGET_ID, TARGET_NAME = "tgt-678", "worker-678"
 SCOPE = "/scope-678"
-MODEL = "gpt-5.6-sol"
+MODEL = "claude-opus-5-5[1m]"
 GENERATION = f"session={TARGET_ID}|task=678|branch=task-678/w|needs_switch=0"
 IDS = [f"00000000-0000-4000-8000-00000000067{i}" for i in range(6)]
 PROV = MessageProvenance(origin="agent", senders=(SOURCE_NAME,), subtype="direct_message")
@@ -41,13 +41,14 @@ def _record(session_id, name, role="worker"):
 def _decision(utilization_above_line: float):
     """Реальное решение гейта: выше линии на заданную величину → blocked (или available)."""
     now = time.time()
-    util = line_limit(0.1, "sol") + utilization_above_line
+    util = line_limit(0.1, "claude") + utilization_above_line
     window = {
-        "id": "primary", "window_minutes": 300, "utilization": util,
-        "resets_at": datetime.fromtimestamp(now + 270 * 60, timezone.utc).isoformat(),
+        "id": "seven_day", "window_minutes": 10080, "utilization": util,
+        "resets_at": datetime.fromtimestamp(now + 10080 * 60 * 0.9, timezone.utc).isoformat(),
     }
     return evaluate_worker_admission(
-        MODEL, {"codex": {"label": "Codex", "windows": [window]}}, {"codex": now}, now=now,
+        MODEL, {"anthropic": {"label": "Claude", "windows": [window]}},
+        {"anthropic": now}, now=now,
     )
 
 

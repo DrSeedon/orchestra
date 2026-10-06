@@ -51,9 +51,8 @@ CODEX_CONTEXT_LIMITS = {
 
 # Standard-tier API list prices per 1M tokens, verified 11.08.2026 against
 # https://platform.openai.com/docs/pricing (fetched through https://r.jina.ai/ — the page
-# itself answers 403 to curl/WebFetch). Cached input is exactly 10% of the input rate for
-# every priced model here; `tests/test_backend_codex.py` pins that ratio so a typo cannot
-# pass silently.
+# itself answers 403 to curl/WebFetch). Cached input is model-specific;
+# `tests/test_backend_codex.py` pins each ratio so a typo cannot pass silently.
 # Terra and Luna list prices dropped below what we had (Luna 5×: was 1.0/6.0) — rows already
 # in `turn_usage` keep the price of their own day and are deliberately not rewritten.
 # The long-context tier is per request, while Codex's measured 258,400-token request window
@@ -69,6 +68,8 @@ CODEX_TOKEN_PRICES = {
     # GPT-6, объявлены 22.09.2026 вдвое дешевле промо-цен GPT-5.6; кешированный вход −90%,
     # запись кеша по тому же отношению 1.25×input, что и у остальных строк таблицы.
     "gpt-6-sol":     {"input": 2.0, "cached": 0.2, "write": 2.5, "output": 10.0},
+    # GPT-6.1 Sol: official OpenAI model pricing; cached input is 5% of input.
+    "gpt-6.1-sol":   {"input": 2.0, "cached": 0.1, "write": 2.5, "output": 10.0},
     "gpt-6-luna":    {"input": 0.1, "cached": 0.01, "write": 0.125, "output": 0.5},
     "gpt-5.5":      {"input": 5.0, "cached": 0.5, "output": 30.0},
     "gpt-5.3-codex-spark": None,

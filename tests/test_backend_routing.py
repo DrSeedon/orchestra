@@ -51,17 +51,19 @@ def test_opus5_registry_and_aliases():
     model_id = "claude-opus-5[1m]"
     spec = get_model_spec(model_id)
 
-    assert MODELS[model_id] == "Opus 5 (1M)"
+    assert model_id not in MODELS
     assert spec.runtime == "claude"
     assert spec.provider == "anthropic"
     assert spec.context_length == 1_000_000
     assert TOKEN_PRICES[model_id] == {"input": 5.0, "output": 25.0}
     assert resolve_model("opus") == "claude-opus-5-5[1m]"
-    assert resolve_model("opus5") == model_id
-    assert resolve_model("claude-opus-5") == model_id
-    # Retired ids upgrade to Opus 5; 4.6 is selectable again and resolves to itself.
-    assert resolve_model("claude-opus-4-8[1m]") == model_id
-    assert resolve_model("claude-opus-4-6") == "claude-opus-4-6"
+    for retired_alias in ("opus5", "claude-opus-5", model_id):
+        with pytest.raises(ValueError, match="unknown model"):
+            resolve_model(retired_alias)
+    # Legacy Opus aliases now resolve to the currently selectable Opus model.
+    assert resolve_model("claude-opus-4-8[1m]") == "claude-opus-5-5[1m]"
+    with pytest.raises(ValueError, match="unknown model"):
+        resolve_model("claude-opus-4-6")
     assert "claude-opus-4-8[1m]" not in MODELS
     assert get_model_spec("claude-opus-4-8[1m]").runtime == "claude"
 
@@ -153,6 +155,19 @@ def test_registry_validator_covers_every_selectable_model():
         assert spec.provider != "unknown"
 
 
+def test_proxy_refresh_does_not_promote_retired_ids_to_selectable_routes():
+    import app.models as registry
+
+    for model_id in registry.RETIRED_SELECTABLE_MODEL_IDS:
+        assert registry._proxy_model_spec({
+            "id": model_id, "runtime": "codex", "provider": "openai",
+        }) is None
+        with pytest.raises(ValueError, match="retired and cannot be registered"):
+            registry.register_model(ModelSpec(
+                id=model_id, name=model_id, runtime="harness", provider="openrouter",
+            ))
+
+
 def test_declaring_one_spec_populates_every_derived_view(isolated_model_registry):
     """Adding a model must mean editing SELECTABLE_MODEL_SPECS and nothing else.
 
@@ -205,21 +220,21 @@ def test_derived_views_carry_exactly_the_declared_specs():
         assert registry.MODEL_PROVIDERS[spec.id] == spec.provider
 
 
-def test_opus46_is_selectable_and_priced():
-    """Opus 4.6 is live on the subscription — picking it must not divert to Opus 5."""
+def test_opus46_legacy_session_is_compatible_and_priced():
+    """Retired Opus 4.6 remains loadable and priced without being selectable."""
     spec = get_model_spec("claude-opus-4-6")
-    assert MODELS["claude-opus-4-6"] == "Opus 4.6"
+    assert "claude-opus-4-6" not in MODELS
     assert spec.runtime == "claude"
     assert spec.provider == "anthropic"
     assert spec.context_length == 200000
     assert get_model_spec("claude-opus-4-6[1m]").context_length == 1_000_000
     assert TOKEN_PRICES["claude-opus-4-6"] == {"input": 5.0, "output": 25.0}
-    assert resolve_model("claude-opus-4-6") == "claude-opus-4-6"
+    with pytest.raises(ValueError, match="unknown model"):
+        resolve_model("claude-opus-4-6")
     assert resolve_model("claude-opus-4-6[1m]") == "claude-opus-4-6[1m]"
-    assert backend_for_model("claude-opus-4-6") == "claude"
-    # A live model must not also linger as a retired compatibility route.
+    # A retired model remains only in the explicit persisted-session map.
     import app.models as registry
-    assert "claude-opus-4-6" not in registry.COMPAT_MODEL_SPECS
+    assert "claude-opus-4-6" in registry.COMPAT_MODEL_SPECS
 
 
 def test_cache_policy_is_explicit_and_unknown_is_conservative():
@@ -249,7 +264,7 @@ async def test_models_api_exposes_runtime_provider_and_capabilities():
 
     # #15 добавил маршруту параметр response — версия фронта уезжает заголовком
     response = await list_models(Response())
-    sol = next(model for model in response["models"] if model["id"] == "gpt-5.6-sol")
+    sol = next(model for model in response["models"] if model["id"] == "gpt-6.1-sol")
     assert sol["runtime"] == "codex"
     assert sol["provider"] == "openai"
     assert sol["capabilities"]["event_stream"] == "per_turn"
@@ -270,7 +285,7 @@ async def test_proxy_model_fetch_omits_empty_authorization_header(monkeypatch):
             return None
 
         def json(self):
-            return {"data": [{"id": "gpt-5.5", "context_length": 258400}]}
+            return {"data": [{"id": "gpt-6-luna", "context_length": 258400}]}
 
     class _Client:
         def __init__(self, **_kwargs):

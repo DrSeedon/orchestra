@@ -192,7 +192,7 @@ async def test_age_300_refreshes_exactly_at_boundary(isolated_usage, monkeypatch
 async def test_readiness_endpoint_returns_the_execution_time_decision(isolated_usage):
     """95% без разбираемого `resets_at` — линию считать нечем, действует жёсткий стоп."""
     system._usage_cache.update({"data": _anthropic(95), "ts": NOW})
-    result = await system.usage_readiness("claude-opus-5[1m]")
+    result = await system.usage_readiness("claude-opus-5-5[1m]")
     assert result["provider"] == "anthropic"
     assert result["lane"] == "claude" and result["gated"] is True
     assert result["state"] == "available" and result["allowed"] is True
@@ -208,7 +208,7 @@ async def test_readiness_endpoint_blocks_above_the_line(isolated_usage):
         NOW + 10080 * 60 / 2, timezone.utc,
     ).isoformat()
     system._usage_cache.update({"data": data, "ts": NOW})
-    result = await system.usage_readiness("claude-opus-5[1m]")
+    result = await system.usage_readiness("claude-opus-5-5[1m]")
     assert result["state"] == "blocked" and result["allowed"] is False
     assert result["limit_pct"] == pytest.approx(59.833333333333336)
 

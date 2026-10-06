@@ -145,8 +145,11 @@ async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypa
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize('model', ['astra', 'sol', 'gpt-5.6-sol'])
-async def test_dynamic_workflow_rejects_platform_blocked_models(model, monkeypatch):
+@pytest.mark.parametrize(
+    ('model', 'expected_error'),
+    [('astra', 'not allowed'), ('sol', 'not allowed'), ('gpt-5.6-sol', 'unknown model')],
+)
+async def test_dynamic_workflow_rejects_platform_blocked_models(model, expected_error, monkeypatch):
     async def unexpected_api(*_args, **_kwargs):
         pytest.fail('blocked models must not create a background job')
 
@@ -156,7 +159,7 @@ async def test_dynamic_workflow_rejects_platform_blocked_models(model, monkeypat
         budget_usd=1, max_calls=1, max_concurrency=1,
         task_id='V-720', repo=str(Path.cwd()),
     )
-    assert 'not allowed' in response
+    assert expected_error in response
 
 
 @pytest.mark.asyncio

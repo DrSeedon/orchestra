@@ -79,7 +79,7 @@ async def test_t4_only_migrated_layout_creates_session_after_fleet_cutover(
                 name=name,
                 scope=str(repository),
                 cwd=str(repository),
-                model="claude-opus-5[1m]",
+                model="claude-opus-5-5[1m]",
                 role="orchestrator",
                 planned_initial_turn=False,
             )
@@ -90,7 +90,7 @@ async def test_t4_only_migrated_layout_creates_session_after_fleet_cutover(
         name=name,
         scope=str(repository),
         cwd=str(repository),
-        model="claude-opus-5[1m]",
+        model="claude-opus-5-5[1m]",
         role="orchestrator",
         planned_initial_turn=False,
     )

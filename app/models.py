@@ -46,6 +46,13 @@ class ProviderMetadata:
     model_providers: tuple[str, ...] = ()
 
 
+# Models that owners may select for manual orchestrator sessions but agents cannot use.
+MANUAL_ONLY_MODEL_IDS = frozenset({"gpt-6-astra", "gpt-6.1-sol"})
+RETIRED_SELECTABLE_MODEL_IDS = frozenset({
+    "gpt-5.6-luna", "gpt-5.6-sol", "gpt-6-sol", "gpt-5.6-terra", "gpt-5.5",
+    "grok-4.5", "claude-opus-5[1m]", "claude-sonnet-5[1m]", "claude-opus-4-6",
+})
+
 # THE single place a selectable model is declared. Everything below —
 # MODELS, CONTEXT_LIMITS, BACKENDS, MODEL_PROVIDERS, TOKEN_PRICES — is derived
 # from this list, so adding a model means adding exactly one ModelSpec here.
@@ -63,11 +70,6 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         context_length=1000000, price_input=4.0, price_output=20.0,
     ),
     ModelSpec(
-        id="claude-opus-5[1m]", name="Opus 5 (1M)",
-        runtime="claude", provider="anthropic",
-        context_length=1000000, price_input=5.0, price_output=25.0,
-    ),
-    ModelSpec(
         id="claude-sonnet-5-5[1m]", name="Sonnet 5.5 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=2.0, price_output=10.0,
@@ -77,18 +79,12 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="claude", provider="anthropic",
         context_length=200000, price_input=0.80, price_output=4.0,
     ),
-    # Still served on the subscription: `claude --model claude-opus-4-6 --print`
-    # answers. Priced as Opus 5; the plain id gets Anthropic's standard 200k
-    # window, only the [1m] id carries the extended one.
+    # The plain id is retained for persisted-session recovery; only the [1m] id
+    # remains in the selectable catalog.
     ModelSpec(
         id="claude-opus-4-6[1m]", name="Opus 4.6 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=5.0, price_output=25.0,
-    ),
-    ModelSpec(
-        id="claude-opus-4-6", name="Opus 4.6",
-        runtime="claude", provider="anthropic",
-        context_length=200000, price_input=5.0, price_output=25.0,
     ),
     # Effective ChatGPT-auth Codex runtime budget. Public API window is larger, but
     # Orchestra's GPT workers run through Codex CLI and must use its runtime contract.
@@ -97,44 +93,23 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         runtime="codex", provider="openai", context_length=128000,
     ),
     ModelSpec(
-        id="gpt-5.6-sol", name="GPT-5.6 Sol",
-        runtime="codex", provider="openai", context_length=258400,
-    ),
-    ModelSpec(
         id="gpt-6-astra", name="GPT-6 Astra",
         runtime="codex", provider="openai", context_length=258400,
-    ),
-    ModelSpec(
-        id="gpt-5.6-terra", name="GPT-5.6 Terra",
-        runtime="codex", provider="openai", context_length=258400,
+        default_agents=False,
     ),
     ModelSpec(
         id="gpt-6-luna", name="GPT-6 Luna",
         runtime="codex", provider="openai", context_length=258400,
     ),
-    # GPT-6 Sol зарегистрирован, но агентам недоступен: запрет владельца на Sol
-    # (20.09.2026) снимает только он сам, новая версия сама по себе его не снимает.
     ModelSpec(
-        id="gpt-6-sol", name="GPT-6 Sol",
+        id="gpt-6.1-sol", name="GPT-6.1 Sol",
         runtime="codex", provider="openai", context_length=258400,
         default_agents=False,
-    ),
-    ModelSpec(
-        id="gpt-5.6-luna", name="GPT-5.6 Luna",
-        runtime="codex", provider="openai", context_length=258400,
-    ),
-    ModelSpec(
-        id="gpt-5.5", name="GPT-5.5",
-        runtime="codex", provider="openai", context_length=258400,
     ),
     # Reported by the Grok runtime itself (initialize + session/new agree). The bundled
     # vendor README disagrees with the runtime on other numbers, so the runtime wins.
     ModelSpec(
         id="grok-4.6", name="Grok 4.6",
-        runtime="grok", provider="x-ai", context_length=500000,
-    ),
-    ModelSpec(
-        id="grok-4.5", name="Grok 4.5",
         runtime="grok", provider="x-ai", context_length=500000,
     ),
     ModelSpec(
@@ -191,18 +166,13 @@ ALIASES = {
     "opus": "claude-opus-5-5[1m]",
     "opus5.5": "claude-opus-5-5[1m]",
     "claude-opus-5-5": "claude-opus-5-5[1m]",
-    "opus5": "claude-opus-5[1m]",
-    "claude-opus-5": "claude-opus-5[1m]",
-    "claude-opus-4-8[1m]": "claude-opus-5[1m]",
-    "claude-opus-4-8": "claude-opus-5[1m]",
-    # 4.6 is selectable again, so its ids must resolve to itself, not upgrade away.
+    "claude-opus-4-8[1m]": "claude-opus-5-5[1m]",
+    "claude-opus-4-8": "claude-opus-5-5[1m]",
+    # Only the 1M Opus 4.6 model remains selectable.
     "claude-opus-4-6[1m]": "claude-opus-4-6[1m]",
-    "claude-opus-4-6": "claude-opus-4-6",
-    "opus4.6": "claude-opus-4-6",
     "sonnet": "claude-sonnet-5-5[1m]",
     "sonnet5.5": "claude-sonnet-5-5[1m]",
     "claude-sonnet-5-5": "claude-sonnet-5-5[1m]",
-    "claude-sonnet-5[1m]": "claude-sonnet-5-5[1m]",
     "claude-sonnet-5-1m": "claude-sonnet-5-5[1m]",
     "sonnet5": "claude-sonnet-5-5[1m]",
     "claude-sonnet-4-6": "claude-sonnet-5-5[1m]",
@@ -211,25 +181,16 @@ ALIASES = {
     "spark": "gpt-5.3-codex-spark",
     "codexspark": "gpt-5.3-codex-spark",
     "gpt5.3spark": "gpt-5.3-codex-spark",
-    "gpt5.6": "gpt-5.6-sol",
-    "gpt5.6sol": "gpt-5.6-sol",
-    "sol": "gpt-6-sol",
-    "sol5.6": "gpt-5.6-sol",
+    "sol": "gpt-6.1-sol",
     "astra": "gpt-6-astra",
     "gpt6astra": "gpt-6-astra",
     # 23.09.2026 владелец перевёл рабочую лошадку на GPT-6 после замера V-616…V-620.
     "luna": "gpt-6-luna",
-    "luna5.6": "gpt-5.6-luna",
     "gpt6luna": "gpt-6-luna",
-    "gpt6sol": "gpt-6-sol",
-    "gpt5.6terra": "gpt-5.6-terra",
-    "gpt5.6luna": "gpt-5.6-luna",
-    "codex": "gpt-5.6-sol",
-    "gpt5.5": "gpt-5.5",
-    "grok": "grok-4.5",
+    "gpt6sol": "gpt-6.1-sol",
+    "codex": "gpt-6.1-sol",
+    "grok": "grok-4.6",
     "grok4.6": "grok-4.6",
-    "grok4.5": "grok-4.5",
-    "grok-build": "grok-4.5",
 }
 _GIGACHAT_ALIASES = {
     "gigachat": "GigaChat-2",
@@ -317,6 +278,44 @@ MODEL_SPECS: dict[str, ModelSpec] = {}
 # Keeping them outside MODELS prevents retired models from returning to the UI
 # while making resume deterministic without any prefix inference.
 COMPAT_MODEL_SPECS: dict[str, ModelSpec] = {
+    "claude-opus-5[1m]": ModelSpec(
+        id="claude-opus-5[1m]", name="Opus 5 (legacy, 1M)", runtime="claude",
+        provider="anthropic", context_length=1000000, price_input=5.0,
+        price_output=25.0,
+    ),
+    "claude-sonnet-5[1m]": ModelSpec(
+        id="claude-sonnet-5[1m]", name="Sonnet 5 (legacy, 1M)", runtime="claude",
+        provider="anthropic", context_length=1000000,
+    ),
+    "claude-opus-4-6": ModelSpec(
+        id="claude-opus-4-6", name="Opus 4.6 (legacy)", runtime="claude",
+        provider="anthropic", context_length=200000, price_input=5.0,
+        price_output=25.0,
+    ),
+    "gpt-5.6-luna": ModelSpec(
+        id="gpt-5.6-luna", name="GPT-5.6 Luna (legacy)", runtime="codex",
+        provider="openai", context_length=258400,
+    ),
+    "gpt-5.6-sol": ModelSpec(
+        id="gpt-5.6-sol", name="GPT-5.6 Sol (legacy)", runtime="codex",
+        provider="openai", context_length=258400,
+    ),
+    "gpt-6-sol": ModelSpec(
+        id="gpt-6-sol", name="GPT-6 Sol (legacy)", runtime="codex",
+        provider="openai", context_length=258400,
+    ),
+    "gpt-5.6-terra": ModelSpec(
+        id="gpt-5.6-terra", name="GPT-5.6 Terra (legacy)", runtime="codex",
+        provider="openai", context_length=258400,
+    ),
+    "gpt-5.5": ModelSpec(
+        id="gpt-5.5", name="GPT-5.5 (legacy)", runtime="codex",
+        provider="openai", context_length=258400,
+    ),
+    "grok-4.5": ModelSpec(
+        id="grok-4.5", name="Grok 4.5 (legacy)", runtime="grok",
+        provider="x-ai", context_length=500000,
+    ),
     "claude-sonnet-4-6": ModelSpec(
         id="claude-sonnet-4-6",
         name="Sonnet 4.6 (legacy)",
@@ -390,6 +389,8 @@ def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
     """Register one explicit provider/model/runtime route and legacy lookup views."""
     if not spec.id:
         raise ValueError("model id must not be empty")
+    if spec.id in RETIRED_SELECTABLE_MODEL_IDS:
+        raise ValueError(f"model '{spec.id}' is retired and cannot be registered for selection")
     if not spec.provider or spec.provider == "unknown":
         raise ValueError(f"model '{spec.id}' must declare an explicit provider")
     from app.runtime_registry import get_runtime
@@ -537,7 +538,7 @@ def get_model_flags(model_id: str) -> dict[str, bool]:
         "dashboard": bool(stored.get(
             "dashboard", manifest.default_dashboard if manifest is not None else False
         )),
-        "agents": bool(stored.get(
+        "agents": model_id not in MANUAL_ONLY_MODEL_IDS and bool(stored.get(
             "agents", manifest.default_agents if manifest is not None else False
         )),
     }
@@ -555,7 +556,7 @@ def set_model_flags(
     if dashboard is not None:
         entry["dashboard"] = bool(dashboard)
     if agents is not None:
-        entry["agents"] = bool(agents)
+        entry["agents"] = bool(agents) and model_id not in MANUAL_ONLY_MODEL_IDS
     flags_store[model_id] = entry
     kv_set(MODEL_FLAGS_KV_KEY, json.dumps(flags_store))
     return get_model_flags(model_id)
@@ -596,6 +597,16 @@ def _seed_model_specs() -> None:
             )
         MODEL_SPECS[spec.id] = spec
         _apply_derived_views(spec)
+    _restore_compatibility_prices()
+
+
+def _restore_compatibility_prices() -> None:
+    for spec in COMPAT_MODEL_SPECS.values():
+        if spec.price_input is not None or spec.price_output is not None:
+            TOKEN_PRICES[spec.id] = {
+                "input": float(spec.price_input or 0),
+                "output": float(spec.price_output or 0),
+            }
 
 
 _seed_model_specs()
@@ -675,6 +686,7 @@ def _clear_selectable_models() -> None:
     BACKENDS.clear()
     MODEL_PROVIDERS.clear()
     MODEL_SPECS.clear()
+    _restore_compatibility_prices()
     ALIASES.clear()
     # Direct providers are independent of the enterprise proxy catalog. Keep the
     # Russian GigaChat routes available when proxy-backed models are reloaded.
@@ -687,7 +699,8 @@ def _clear_selectable_models() -> None:
 
 def _proxy_model_spec(raw: dict) -> ModelSpec | None:
     model_id = str(raw.get("id") or "").strip()
-    if not model_id:
+    # Provider refreshes must not promote these retired IDs back into selection.
+    if not model_id or model_id in RETIRED_SELECTABLE_MODEL_IDS:
         return None
 
     reviewed = _REVIEWED_PROXY_ROUTES.get(model_id)

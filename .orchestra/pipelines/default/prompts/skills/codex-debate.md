@@ -16,7 +16,7 @@ through this tool, the shell, or a substitute reviewer.
 **Codex unavailable → do not review. Do not seek a substitute reviewer.** Run your own checks and
 state clearly that no external opinion exists. Missing review is not a debt.
 
-- The usual goal is one focused Luna pass through `codex_review(model="gpt5.6luna", ...)`;
+- The usual goal is one focused Luna pass through `codex_review(model="luna", ...)`;
   the server default is Luna. A second pass needs a specific material question, not a request
   for the word APPROVED.
 - Astra is a separate additional run and requires the owner's explicit authorization for Astra.

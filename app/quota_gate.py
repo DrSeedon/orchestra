@@ -263,7 +263,7 @@ def quota_policy() -> QuotaPolicy:
 
 WEEKLY_WINDOW_MINUTES = 10080
 SPARK_MODEL = "gpt-5.3-codex-spark"
-LUNA_MODEL = "gpt-5.6-luna"
+LUNA_MODEL = "gpt-6-luna"
 
 # Полосы, которым диагональ применяется. Всё, чего здесь нет, ограничено только
 # жёстким стопом.

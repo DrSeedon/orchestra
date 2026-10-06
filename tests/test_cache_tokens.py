@@ -121,8 +121,9 @@ class TestRecompute:
 
     def test_new_row_recomputes_from_raw(self):
         from app.routes.system import _cost_cached_for
-        from app.models import TOKEN_PRICES
+        from app.models import MODELS, TOKEN_PRICES
         p = TOKEN_PRICES["claude-opus-5[1m]"]
+        assert "claude-opus-5[1m]" not in MODELS
         r = self._row(total_input_tokens=1000, total_output_tokens=500,
                       total_cache_read_tokens=2000, total_cache_create_tokens=100,
                       cost_usd_cached=999.0)  # stored is stale/wrong

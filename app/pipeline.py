@@ -284,7 +284,7 @@ class RoleSpec(BaseModel):
                     f"effort['{key}']: unknown level '{val}'; "
                     f"known={sorted(CODEX_REASONING_EFFORTS)}")
             # Порядок проверок: рантайм раньше модели, иначе ключи "codex"/"grok" (они же
-            # алиасы моделей gpt-5.6-sol и grok-4.5) читались бы как модель — и ключ
+            # алиасы моделей gpt-6.1-sol и grok-4.6) читались бы как модель — и ключ
             # "codex" не покрывал бы Luna. Имена рантаймов здесь ЗАРЕЗЕРВИРОВАНЫ: выбрать
             # ими конкретную модель нельзя, для этого есть полный id.
             if key == "default" or _is_runtime(key):

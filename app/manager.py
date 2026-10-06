@@ -37,6 +37,7 @@ from app.workspace import (
     repo_root,
 )
 from app.models import (
+    COMPAT_MODEL_SPECS,
     CONTEXT_LIMITS,
     backend_for_model,
     cache_policy_for_runtime,
@@ -1933,7 +1934,11 @@ class SessionManager:
         cwd = db_row.get("cwd") or db_row["scope"]
         if not Path(cwd).is_dir():
             cwd = db_row["scope"]
-        model = resolve_model(db_row["model"])
+        stored_model = db_row["model"]
+        model = (
+            stored_model if stored_model in COMPAT_MODEL_SPECS
+            else resolve_model(stored_model)
+        )
         expected_bt = backend_for_model(model)
         stored_bt = db_row.get("backend_type") or expected_bt
         if stored_bt != expected_bt:

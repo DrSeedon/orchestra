@@ -897,8 +897,8 @@ class TestOrchestrators:
 
     def test_list_orchestrators_exposes_runtime_cache_policy(self, client):
         for name, model in (
-            ("claude-orch", "claude-opus-5[1m]"),
-            ("codex-orch", "gpt-5.6-sol"),
+            ("claude-orch", "claude-opus-5-5[1m]"),
+            ("codex-orch", "gpt-6.1-sol"),
         ):
             response = client.post("/api/sessions", json={
                 "name": name,
@@ -2964,7 +2964,7 @@ async def test_create_worktree_response_contains_server_repo_metadata(
     monkeypatch.setattr(sysmod, "_is_safe_path", lambda p: True)
 
     req = sessmod.CreateSessionRequest(
-        name="w1", cwd=str(repo), model="gpt-5.6-sol",
+        name="w1", cwd=str(repo), model="gpt-6-luna",
         use_worktree=True, repo_path=str(repo),
     )
     result = await sessmod.create_session(req)
@@ -3116,9 +3116,9 @@ def _quota_block_error():
 
     now = time.time()
     return QuotaGateError(QuotaDecision(
-        state="blocked", model="gpt-5.6-sol", provider="codex",
-        provider_label="Codex", lane="sol", gated=True, utilization=95,
-        progress=0.5, tolerance_pp=5.5, limit_pct=55.5,
+        state="blocked", model="gpt-6-luna", provider="codex",
+        provider_label="Codex", lane="luna", gated=True, utilization=99.5,
+        progress=0.5, tolerance_pp=5.5, limit_pct=99.0,
         observed_at=now, valid_until=now + 60, reset_at=None,
         window_starts_at=None, reason="test",
     ))
@@ -3133,7 +3133,7 @@ async def test_create_quota_refusal_is_canonical_nonretryable_429(tmp_path, monk
     monkeypatch.setattr(system, "_is_safe_path", lambda _path: True)
     monkeypatch.setattr(routes.manager, "create_session", AsyncMock(side_effect=_quota_block_error()))
     req = routes.CreateSessionRequest(
-        name="blocked-worker", cwd=str(tmp_path), model="gpt-5.6-sol",
+        name="blocked-worker", cwd=str(tmp_path), model="gpt-6-luna",
         planned_initial_turn=True,
     )
 
@@ -3143,9 +3143,9 @@ async def test_create_quota_refusal_is_canonical_nonretryable_429(tmp_path, monk
     assert body["error"]["code"] == "weekly_quota_blocked"
     assert body["error"]["retryable"] is False
     # Числа, произведшие отказ, обязаны доехать до клиента: без них 429 безымянный.
-    assert body["error"]["details"]["utilization"] == 95
-    assert body["error"]["details"]["limit_pct"] == 55.5
-    assert body["error"]["details"]["lane"] == "sol"
+    assert body["error"]["details"]["utilization"] == 99.5
+    assert body["error"]["details"]["limit_pct"] == 99.0
+    assert body["error"]["details"]["lane"] == "luna"
 
 
 @pytest.mark.asyncio

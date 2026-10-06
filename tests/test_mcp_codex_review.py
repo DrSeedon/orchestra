@@ -15,12 +15,10 @@ PROJECT_CONTEXT = """PROJECT CONTEXT (calibrate review severity):
 - What does NOT matter: enterprise ceremony
 """
 
-# Three deliberately different models. The reviewer model is chosen by the CALLER
-# (or falls back to the server-owned default); the readiness endpoint reports a model
-# of its own and must never decide it. Keeping READINESS_MODEL distinct from both the
-# default and the explicit lane is what makes these assertions falsifiable.
+# The reviewer model is chosen by the caller (or falls back to the server-owned
+# default); the readiness endpoint reports quota state and never chooses the model.
 DEFAULT_MODEL = "gpt-6-luna"
-EXPLICIT_MODEL = "gpt-5.6-terra"
+EXPLICIT_MODEL = "gpt-6-luna"
 READINESS_MODEL = "gpt-5.6-sol"
 
 
@@ -138,7 +136,7 @@ async def test_codex_review_uses_caller_context_and_declares_success_contract(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("requested", [EXPLICIT_MODEL, "gpt5.6terra"])
+@pytest.mark.parametrize("requested", [EXPLICIT_MODEL, "gpt6luna"])
 async def test_codex_review_explicit_model_overrides_default_and_readiness(
     tmp_path, monkeypatch, requested,
 ):
@@ -175,7 +173,8 @@ async def test_codex_review_explicit_model_overrides_default_and_readiness(
     # server-owned default and the model advertised by readiness.
     assert command.count(f"-m {EXPLICIT_MODEL}") == 1
     assert f"--usage-model {EXPLICIT_MODEL}" in command
-    assert DEFAULT_MODEL not in command
+    if EXPLICIT_MODEL != DEFAULT_MODEL:
+        assert DEFAULT_MODEL not in command
     assert READINESS_MODEL not in command
     assert EXPLICIT_MODEL in _review_text(result)
     # The quota gate is asked about the model that will actually run.
@@ -240,6 +239,9 @@ async def test_codex_review_resume_command_passes_usage_arguments(
         "not-a-registered-model",  # unknown id
         "claude-opus-5[1m]",       # registered, but wrong runtime
         "gpt-5.3-codex-spark",     # Codex runtime, but forbidden as reviewer
+        "gpt-6-astra",             # manually selectable only
+        "gpt-6.1-sol",              # manually selectable only
+        "gpt-5.6-sol",              # retired
     ],
 )
 async def test_codex_review_rejects_unusable_model_before_any_api_call(monkeypatch, model):

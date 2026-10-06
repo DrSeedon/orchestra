@@ -2,8 +2,9 @@
 
 
 dashboard flag → what the dashboard shows (/api/models) and what user actions accept;
-agents flag  → what agents may use (spawn prompt block, worker spawn, MCP change-model).
-Internal routes (codex_review model resolution) are deliberately NOT gated.
+agents flag → what agents may use (spawn, MCP change-model, dynamic workflows, review).
+Persisted-session recovery uses compatibility routes; owner-only models remain gated on every
+agent entry point, including the internal review-model resolver.
 """
 
 import pytest
@@ -67,6 +68,36 @@ def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
     with pytest.raises(ValueError, match="agents"):
         registry.ensure_spawn_allowed("test/vendor-x:free")
     registry.ensure_spawn_allowed("claude-haiku-4-5")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["astra", "sol"])
+async def test_manual_only_model_cannot_be_spawned_by_an_agent(model):
+    from app.manager import SessionManager
+
+    with pytest.raises(ValueError, match="disabled for agents"):
+        await SessionManager().create_session(
+            name="manual-only-child", scope="/tmp", cwd="/tmp", model=model,
+            parent_name="agent-orchestrator",
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["astra", "sol"])
+async def test_mcp_change_model_rejects_manual_only_models_before_loading(model, monkeypatch):
+    from app.routes import sessions as routes
+    from fastapi.responses import JSONResponse
+    from unittest.mock import AsyncMock
+
+    ensure_loaded = AsyncMock(side_effect=AssertionError("gate must run before loading"))
+    monkeypatch.setattr(routes.manager, "ensure_loaded", ensure_loaded)
+    response = await routes.change_model(
+        "worker", {"scope": "/tmp", "model": model, "via": "mcp"},
+    )
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 409
+    assert "disabled for agents" in response.body.decode()
+    ensure_loaded.assert_not_awaited()
 
 
 def test_t3_dashboard_gate_blocks_user_actions_only(vendor_model):

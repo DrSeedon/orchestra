@@ -96,15 +96,25 @@ def test_gpt56_prices_present():
     assert CODEX_TOKEN_PRICES["gpt-5.6-luna"] == {
         "input": 0.2, "cached": 0.02, "write": 0.25, "output": 1.2,
     }
+    assert CODEX_TOKEN_PRICES["gpt-6-sol"] == {
+        "input": 2.0, "cached": 0.2, "write": 2.5, "output": 10.0,
+    }
 
 
-def test_cached_input_is_a_tenth_of_fresh_input_for_every_model():
-    """OpenAI prices cached input at 10% of the input rate — a typo in one row is
-    otherwise invisible: the dashboard keeps rendering a plausible number."""
+def test_gpt61_sol_uses_official_standard_token_rates():
+    assert CODEX_TOKEN_PRICES["gpt-6.1-sol"] == {
+        "input": 2.0, "cached": 0.1, "write": 2.5, "output": 10.0,
+    }
+    assert _codex_cost("gpt-6.1-sol", 1000, 900, 0, 10) == pytest.approx(0.00039)
+
+
+def test_cached_input_rates_match_each_codex_model():
+    """A per-model cached-input rate typo would silently corrupt usage accounting."""
     for model, price in CODEX_TOKEN_PRICES.items():
         if price is None:
             continue
-        assert price["cached"] == pytest.approx(price["input"] / 10), model
+        ratio = 0.05 if model == "gpt-6.1-sol" else 0.1
+        assert price["cached"] == pytest.approx(price["input"] * ratio), model
 
 
 def test_legacy_gpt_models_unchanged():

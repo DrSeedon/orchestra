@@ -20,7 +20,7 @@ async def test_change_model_loads_unloaded_idle_worker(monkeypatch):
     live = SimpleNamespace(
         loaded=True,
         change_model=AsyncMock(
-            return_value={"ok": True, "model": "gpt-5.6-sol", "changed": False},
+            return_value={"ok": True, "model": "gpt-6-luna", "changed": False},
         ),
     )
     detached = SimpleNamespace(loaded=False)
@@ -28,14 +28,14 @@ async def test_change_model_loads_unloaded_idle_worker(monkeypatch):
     monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=live))
 
     response = await routes.change_model(
-        "feat-charts", {"scope": "/s", "model": "gpt-5.6-sol"},
+        "feat-charts", {"scope": "/s", "model": "gpt-6-luna"},
     )
     status, body = _status_body(response)
     assert status == 200
     assert body["ok"] is True
-    assert body["model"] == "gpt-5.6-sol"
+    assert body["model"] == "gpt-6-luna"
     routes.manager.ensure_loaded.assert_awaited_once_with("feat-charts", "/s")
-    live.change_model.assert_awaited_once_with("gpt-5.6-sol")
+    live.change_model.assert_awaited_once_with("gpt-6-luna")
 
 
 @pytest.mark.asyncio
@@ -48,7 +48,7 @@ async def test_change_model_missing_session_is_404(monkeypatch):
     monkeypatch.setattr(routes, "get_all_sessions", lambda: [])
 
     response = await routes.change_model(
-        "ghost", {"scope": "/s", "model": "gpt-5.6-sol"},
+        "ghost", {"scope": "/s", "model": "gpt-6-luna"},
     )
     status, body = _status_body(response)
     assert status == 404
@@ -70,14 +70,14 @@ async def test_change_model_refusal_returns_route_error_without_claiming_success
     monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=live))
 
     response = await routes.change_model(
-        "worker", {"scope": "/s", "model": "claude-opus-5[1m]"},
+        "worker", {"scope": "/s", "model": "gpt-6-luna"},
     )
 
     status, body = _status_body(response)
     assert status == 409
     assert body["error_code"] == "handoff_blocked"
     assert body["error"] == "source dialog could not be transferred"
-    live.change_model.assert_awaited_once_with("claude-opus-5[1m]")
+    live.change_model.assert_awaited_once_with("gpt-6-luna")
 
 
 @pytest.mark.asyncio
@@ -104,7 +104,7 @@ async def test_worker_name_refusal_distinguishes_foreign_scope_for_all_loaded_ro
             "globe-astra", routes.ScopeRequest(scope="/requested"),
         ),
         "change_model": lambda: routes.change_model(
-            "globe-astra", {"scope": "/requested", "model": "gpt-5.6-sol"},
+            "globe-astra", {"scope": "/requested", "model": "gpt-6-luna"},
         ),
     }
     monkeypatch.setattr(routes.manager, "ensure_loaded", AsyncMock(return_value=None))

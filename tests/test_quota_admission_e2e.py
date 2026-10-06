@@ -95,8 +95,7 @@ async def _spawn(mgr, name, model, **over):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name, model", [
-    ("sol", "gpt-5.6-sol"),
-    ("claude", "claude-opus-5[1m]"),
+    ("claude", "claude-opus-5-5[1m]"),
 ])
 async def test_gated_worker_is_still_created_above_the_line(mgr, monkeypatch, name, model):
     """V-678: спавн не отбивается гейтом — его первое задание ждёт в WAITING_QUOTA."""
@@ -109,8 +108,7 @@ async def test_gated_worker_is_still_created_above_the_line(mgr, monkeypatch, na
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name, model", [
-    ("sol", "gpt-5.6-sol"),
-    ("claude", "claude-opus-5[1m]"),
+    ("claude", "claude-opus-5-5[1m]"),
 ])
 async def test_gated_worker_is_created_below_the_line(mgr, monkeypatch, name, model):
     """Вторая сторона: гейт, отказывающий всегда, прошёл бы проверку выше."""
@@ -123,7 +121,7 @@ async def test_gated_worker_is_created_below_the_line(mgr, monkeypatch, name, mo
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name, model", [
-    ("luna", "gpt-5.6-luna"),
+    ("luna", "gpt-6-luna"),
     ("spark", "gpt-5.3-codex-spark"),
 ])
 async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
@@ -138,7 +136,7 @@ async def test_luna_and_spark_are_created_at_the_value_that_stops_sol(
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("name, model", [
-    ("luna", "gpt-5.6-luna"),
+    ("luna", "gpt-6-luna"),
     ("spark", "gpt-5.3-codex-spark"),
 ])
 async def test_luna_and_spark_are_still_created_at_the_hard_stop(mgr, monkeypatch, name, model):
@@ -158,7 +156,7 @@ async def test_orchestrator_is_created_at_a_hundred_percent(mgr, monkeypatch):
     monkeypatch.setattr("app.quota_gate.get_worker_admission", gate)
 
     session = await _spawn(
-        mgr, "root-orchestrator", "claude-opus-5[1m]",
+        mgr, "root-orchestrator", "claude-opus-5-5[1m]",
         role="orchestrator", is_orchestrator=True,
     )
 
@@ -180,8 +178,8 @@ async def test_unknown_quota_admits_the_spawn_and_the_following_send(mgr, monkey
 
     monkeypatch.setattr("app.quota_gate.get_worker_admission", blind)
 
-    session = await _spawn(mgr, "blind-worker", "gpt-5.6-sol")
+    session = await _spawn(mgr, "blind-worker", "gpt-6-luna")
 
     assert session.name == "blind-worker"
     # Тот же вопрос, который задаёт `/send` следующим шагом.
-    require_worker_admission(await blind("gpt-5.6-sol"))
+    require_worker_admission(await blind("gpt-6-luna"))
