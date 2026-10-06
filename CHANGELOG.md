@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- **Restore CI coverage for current file, quota and task-switch behavior** (`app/db.py`, `app/routes/sessions.py`, frontend and worker tests; V-736). Resetless non-null usage windows remain in history, forced task switches refuse while the previous task has unlanded work, and tests now model the TTS tools and provider metadata at their boundaries. Browser checks exercise the protected preview and current file actions; the readiness check includes Claude's configured eight-hour line shift. Trigger: main's CI stopped passing after changes to PDF actions, quota formatting and worker task-run semantics.
 - **Layout migration failures restore stashed project work** (`app/orchestra_layout.py`, V-704). If a startup migration errors after preserving dirty files, it runs journal recovery before returning the error; the trigger was user files left hidden in `stash@{0}` after migration failure.
 - **Local background runs use the caller's project directory** (`app/routes/bg.py`, `app/bg_jobs.py`, V-704). A run job uses the first existing caller path in worktree, cwd, scope order and refuses if none exists; relative paths previously resolved under the Orchestra service directory, and removed worktrees could make jobs fail.
 - **Mixed layout repair reports a manual resolution path** (`app/orchestra_layout.py`, V-704). When old and new project directories coexist, `--repair` explains that merging is unsafe and gives manual reconciliation steps instead of returning itself as the repair command.

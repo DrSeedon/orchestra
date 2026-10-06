@@ -203,14 +203,14 @@ async def test_readiness_endpoint_returns_the_execution_time_decision(isolated_u
 @pytest.mark.asyncio
 async def test_readiness_endpoint_blocks_above_the_line(isolated_usage):
     data = _anthropic(95)
-    # Ровно середина недельного окна: линия 55.5%, факт 95% — выше неё.
+    # В середине окна линия сдвинута на восемь часов: 59.8333%, факт 95% — выше неё.
     data["seven_day"]["resets_at"] = datetime.fromtimestamp(
         NOW + 10080 * 60 / 2, timezone.utc,
     ).isoformat()
     system._usage_cache.update({"data": data, "ts": NOW})
     result = await system.usage_readiness("claude-opus-5[1m]")
     assert result["state"] == "blocked" and result["allowed"] is False
-    assert result["limit_pct"] == pytest.approx(55.5)
+    assert result["limit_pct"] == pytest.approx(59.833333333333336)
 
 
 @pytest.mark.asyncio

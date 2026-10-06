@@ -16,7 +16,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -59,19 +59,6 @@ HTML_ARTIFACT_CSP = (
     "default-src 'unsafe-inline' 'unsafe-eval' data: blob:; "
     "connect-src 'none'"
 )
-
-
-def test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox():
-    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
-    html_branch = source.split("if (/\\.html?$/i.test(path)) {", 1)[1].split(
-        "return;", 1,
-    )[0]
-    match = re.search(r'<iframe[^`]+sandbox="([^"]+)"', html_branch)
-
-    assert match
-    assert "openBtn.href = rawUrl;" in html_branch
-    assert set(match.group(1).split()) == {"allow-scripts"}
-    assert "allow-same-origin" not in match.group(1)
 
 
 def test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result():
@@ -208,6 +195,30 @@ def test_raw_video_supports_range_and_full_download(tmp_path, monkeypatch):
     assert replaced.status_code == 200
     assert replaced.content == b"rewritten media content"
     assert replaced.headers["etag"] != full.headers["etag"]
+
+
+def test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox(
+    dashboard_browser: Browser,
+):
+    page = dashboard_browser.new_page()
+    _route_frontend_sources(page)
+    page.route(
+        "**/api/files/raw*",
+        lambda route: route.fulfill(status=200, content_type="text/html", body="<p>preview</p>"),
+    )
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof openFilePreview === 'function'")
+    page.evaluate("openFilePreview('/tmp/harness.html')")
+
+    iframe = page.locator("#file-preview-content iframe")
+    expect(iframe).to_have_count(1)
+    assert set((iframe.get_attribute("sandbox") or "").split()) == {"allow-scripts"}
+    open_link = page.locator("#file-preview-open")
+    assert open_link.get_attribute("target") == "_blank"
+    raw_url = urlsplit(open_link.get_attribute("href") or "")
+    assert raw_url.path == "/api/files/raw"
+    assert parse_qs(raw_url.query)["path"] == ["/tmp/harness.html"]
+    page.close()
 
 
 def _dashboard_base() -> str:
@@ -1729,7 +1740,9 @@ def test_send_file_single_keeps_existing_rendering(
 
     card = page.locator('[data-tool-raw-name="mcp__orchestra__send_file"]')
     expect(card.locator(".sf-file-list")).to_have_count(0)
-    expect(card.locator("button")).to_have_count(2)
+    expect(card.locator("button")).to_have_count(3)
+    expect(card.get_by_role("button", name=re.compile("Download"))).to_have_count(1)
+    expect(card.get_by_role("button", name=re.compile("Open"))).to_have_count(1)
     expect(card.locator(".sf-actions")).to_have_count(0)
     page.close()
 

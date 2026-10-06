@@ -1,0 +1,217 @@
+................FFFF.................................................... [ 31%]
+.................................................s...................... [ 62%]
+........................................................................ [ 93%]
+...............                                                          [100%]
+=================================== FAILURES ===================================
+________________ test_raw_html_response_has_sandbox_csp[.html] _________________
+
+item = <Coroutine test_raw_html_response_has_sandbox_csp[.html]>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_call(item: Any) -> Generator[None, Any, None]:
+        if _soft_scope is None:
+            yield
+            return
+        hard_failure: Optional[BaseException] = None
+        with _soft_scope() as errors:
+            try:
+                yield
+            except BaseException as exc:
+                hard_failure = exc
+        if not errors:
+            if hard_failure is not None:
+>               raise hard_failure
+
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:112:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:107: in pytest_runtest_call
+    yield
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest
+    super().runtest()
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner
+    runner.run(coro, context=context)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.runners.Runner object at 0x7582ab62ea50>
+coro = <coroutine object test_raw_html_response_has_sandbox_csp at 0x7582abb029d0>
+
+    def run(self, coro, *, context=None):
+        """Run a coroutine inside the embedded event loop."""
+        if not coroutines.iscoroutine(coro):
+            raise ValueError("a coroutine was expected, got {!r}".format(coro))
+
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "Runner.run() cannot be called from a running event loop")
+E           RuntimeError: Runner.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:93: RuntimeError
+_________________ test_raw_html_response_has_sandbox_csp[.HTM] _________________
+
+item = <Coroutine test_raw_html_response_has_sandbox_csp[.HTM]>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_call(item: Any) -> Generator[None, Any, None]:
+        if _soft_scope is None:
+            yield
+            return
+        hard_failure: Optional[BaseException] = None
+        with _soft_scope() as errors:
+            try:
+                yield
+            except BaseException as exc:
+                hard_failure = exc
+        if not errors:
+            if hard_failure is not None:
+>               raise hard_failure
+
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:112:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:107: in pytest_runtest_call
+    yield
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest
+    super().runtest()
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner
+    runner.run(coro, context=context)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.runners.Runner object at 0x7582ab62d010>
+coro = <coroutine object test_raw_html_response_has_sandbox_csp at 0x7582abb02640>
+
+    def run(self, coro, *, context=None):
+        """Run a coroutine inside the embedded event loop."""
+        if not coroutines.iscoroutine(coro):
+            raise ValueError("a coroutine was expected, got {!r}".format(coro))
+
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "Runner.run() cannot be called from a running event loop")
+E           RuntimeError: Runner.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:93: RuntimeError
+________________ test_raw_non_html_response_has_no_artifact_csp ________________
+
+item = <Coroutine test_raw_non_html_response_has_no_artifact_csp>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_call(item: Any) -> Generator[None, Any, None]:
+        if _soft_scope is None:
+            yield
+            return
+        hard_failure: Optional[BaseException] = None
+        with _soft_scope() as errors:
+            try:
+                yield
+            except BaseException as exc:
+                hard_failure = exc
+        if not errors:
+            if hard_failure is not None:
+>               raise hard_failure
+
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:112:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:107: in pytest_runtest_call
+    yield
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest
+    super().runtest()
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner
+    runner.run(coro, context=context)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.runners.Runner object at 0x7582abb95d90>
+coro = <coroutine object test_raw_non_html_response_has_no_artifact_csp at 0x7582abb01cc0>
+
+    def run(self, coro, *, context=None):
+        """Run a coroutine inside the embedded event loop."""
+        if not coroutines.iscoroutine(coro):
+            raise ValueError("a coroutine was expected, got {!r}".format(coro))
+
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "Runner.run() cannot be called from a running event loop")
+E           RuntimeError: Runner.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:93: RuntimeError
+_____ test_raw_image_preview_is_bounded_webp_and_original_stays_untouched ______
+
+item = <Coroutine test_raw_image_preview_is_bounded_webp_and_original_stays_untouched>
+
+    @pytest.hookimpl(wrapper=True, tryfirst=True)
+    def pytest_runtest_call(item: Any) -> Generator[None, Any, None]:
+        if _soft_scope is None:
+            yield
+            return
+        hard_failure: Optional[BaseException] = None
+        with _soft_scope() as errors:
+            try:
+                yield
+            except BaseException as exc:
+                hard_failure = exc
+        if not errors:
+            if hard_failure is not None:
+>               raise hard_failure
+
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:112:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+../../../.venv/lib/python3.12/site-packages/pytest_playwright/pytest_playwright.py:107: in pytest_runtest_call
+    yield
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest
+    super().runtest()
+../../../.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner
+    runner.run(coro, context=context)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asyncio.runners.Runner object at 0x7582ab5d2810>
+coro = <coroutine object test_raw_image_preview_is_bounded_webp_and_original_stays_untouched at 0x7582aca27490>
+
+    def run(self, coro, *, context=None):
+        """Run a coroutine inside the embedded event loop."""
+        if not coroutines.iscoroutine(coro):
+            raise ValueError("a coroutine was expected, got {!r}".format(coro))
+
+        if events._get_running_loop() is not None:
+            # fail fast with short traceback
+>           raise RuntimeError(
+                "Runner.run() cannot be called from a running event loop")
+E           RuntimeError: Runner.run() cannot be called from a running event loop
+
+/usr/lib/python3.12/asyncio/runners.py:93: RuntimeError
+=============================== warnings summary ===============================
+tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.html]
+tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.HTM]
+tests/test_frontend.py::test_raw_non_html_response_has_no_artifact_csp
+tests/test_frontend.py::test_raw_image_preview_is_bounded_webp_and_original_stays_untouched
+  /home/kesha/orchestra/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py:1054: RuntimeWarning: An exception occurred during teardown of an asyncio.Runner. The reason is likely that you closed the underlying event loop in a test, which prevents the cleanup of asynchronous generators by the runner.
+  This warning will become an error in future versions of pytest-asyncio. Please ensure that your tests don't close the event loop. Here is the traceback of the exception triggered during teardown:
+  Traceback (most recent call last):
+    File "/home/kesha/orchestra/.venv/lib/python3.12/site-packages/pytest_asyncio/plugin.py", line 1052, in _scoped_runner
+      runner.__exit__(None, None, None)
+    File "/usr/lib/python3.12/asyncio/runners.py", line 62, in __exit__
+      self.close()
+    File "/usr/lib/python3.12/asyncio/runners.py", line 71, in close
+      loop.run_until_complete(loop.shutdown_asyncgens())
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 663, in run_until_complete
+      self._check_running()
+    File "/usr/lib/python3.12/asyncio/base_events.py", line 624, in _check_running
+      raise RuntimeError(
+  RuntimeError: Cannot run the event loop while another loop is running
+
+
+    warnings.warn(
+
+tests/test_frontend.py::test_photo_batch_renders_as_compact_expandable_gallery
+  /usr/lib/python3.12/inspect.py:951: RuntimeWarning: coroutine 'test_raw_image_preview_is_bounded_webp_and_original_stays_untouched' was never awaited
+    if any(filename.endswith(s) for s in all_bytecode_suffixes):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.html]
+FAILED tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.HTM]
+FAILED tests/test_frontend.py::test_raw_non_html_response_has_no_artifact_csp
+FAILED tests/test_frontend.py::test_raw_image_preview_is_bounded_webp_and_original_stays_untouched
+4 failed, 226 passed, 1 skipped, 5 warnings in 120.98s (0:02:00)

@@ -188,7 +188,8 @@ def test_claude_adapter_keeps_primary_limit_signal(status):
         uuid='signal-id', session_id='session'))
     event = next(e for e in converted if e.type == 'provider_limit')
     assert event.metadata == {'status': status, 'rate_limit_type': 'seven_day',
-                             'resets_at': 2000000000, 'overage_status': 'rejected', 'event_id': 'signal-id'}
+                             'resets_at': 2000000000, 'overage_status': 'rejected',
+                             'event_id': 'signal-id', 'raw': {}}
 
 
 @pytest.mark.asyncio
