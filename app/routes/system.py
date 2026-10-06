@@ -2094,6 +2094,7 @@ async def build_quota_map() -> dict:
             "lane_hard_stop_pct": dict(sorted(policy.lane_hard_stop_pct.items())),
             "tolerance_start_pp": policy.tolerance_start_pp,
             "tolerance_end_pp": policy.tolerance_end_pp,
+            "claude_weekly_shift_hours": policy.claude_weekly_shift_hours,
             "curve_exponent": policy.curve_exponent,
             "curved_lanes": sorted(policy.curved_lanes),
             # Состав гейтящихся полос: без него панель не может сказать, действует

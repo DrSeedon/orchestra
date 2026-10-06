@@ -316,6 +316,29 @@ def test_panel_curve_matches_the_limit_the_server_computed(browser):
     page.close()
 
 
+def test_claude_shift_matches_lane_limit_and_legacy_rule_falls_back(browser):
+    payload = _payload(claude_progress=0.5, claude_util=30.0)
+    rule = {**payload["rule"], "claude_weekly_shift_hours": 8.0}
+    payload["rule"] = rule
+    lane = next(bucket for bucket in payload["buckets"] if bucket["bucket"] == "anthropic")["lanes"][0]
+    lane["limit_pct"] = 55.5 + 91.0 * 8.0 / 168.0
+    page, errors = _render(browser, payload)
+    values = page.evaluate(
+        """({rule, legacy}) => [
+            QuotaPanel.limitAt(0.5, rule, 'claude'),
+            QuotaPanel.limitAt(0.5, legacy, 'claude'),
+            QuotaPanel.limitAt(0.5, rule, 'sol'),
+        ]""",
+        {"rule": rule, "legacy": {k: v for k, v in rule.items() if k != "claude_weekly_shift_hours"}},
+    )
+
+    assert abs(values[0] - lane["limit_pct"]) < 0.01
+    assert values[1] == pytest.approx(55.5)
+    assert values[2] == pytest.approx(_limit(0.5, "sol"))
+    assert errors == []
+    page.close()
+
+
 def test_lane_ceiling_is_drawn_and_capped_like_the_gate(browser):
     """Потолок полосы обязан доехать до картинки: Sol стоит на 95%, Luna живёт до 99%.
 

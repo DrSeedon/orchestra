@@ -198,6 +198,7 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "lane_hard_stop_pct": {"sol": 95.0},
         "tolerance_start_pp": 10.0,
         "tolerance_end_pp": 1.0,
+        "claude_weekly_shift_hours": 8.0,
         # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
         # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
         "curve_exponent": 2.5,
@@ -229,6 +230,7 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
         "lane_hard_stop_pct": {"sol": 85.0},
         "tolerance_start_pp": 13.0,
         "tolerance_end_pp": 2.0,
+        "claude_weekly_shift_hours": 8.0,
         "curve_exponent": 2.5,
         "curved_lanes": ["sol"],
         # Гейт снят оператором — панель обязана узнать об этом из правила, а не

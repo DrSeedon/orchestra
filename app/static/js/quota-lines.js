@@ -47,9 +47,11 @@ const _QL_LANE_COLORS = {sol: '#f472b6', luna: '#38bdf8', spark: '#c084fc', clau
 function _qlLimitAt(t, rule, lane) {
     const start = Number(rule.tolerance_start_pp), end = Number(rule.tolerance_end_pp);
     const exponent = Number(rule.curve_exponent) || 1;
+    const shiftHours = lane === 'claude' ? Number(rule.claude_weekly_shift_hours) : 0;
+    const lineProgress = lane === 'claude' && Number.isFinite(shiftHours) ? t + shiftHours / 168 : t;
     const curved = lane && (rule.curved_lanes || []).includes(lane) && exponent > 1;
-    const norm = (curved && t > 0) ? Math.pow(t, 1 / exponent) : t;
-    return Math.min(_qlHardStop(rule, lane), norm * 100 + start + (end - start) * t);
+    const norm = (curved && lineProgress > 0) ? Math.pow(lineProgress, 1 / exponent) : lineProgress;
+    return Math.min(_qlHardStop(rule, lane), norm * 100 + start + (end - start) * lineProgress);
 }
 
 // Жёсткий стоп — свойство ПОЛОСЫ: хвост пула зарезервирован под дешёвую модель,
