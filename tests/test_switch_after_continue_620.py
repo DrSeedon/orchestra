@@ -122,7 +122,7 @@ async def test_switch_releases_clean_worker_and_requeues_previous_task(monkeypat
     assert (released["status"], released["worker_session_id"]) == ("new", None)
     runs = _runs(name)
     assert (runs[current_ref]["status"], runs[current_ref]["failure_code"]) == (
-        "interrupted", "binding_released",
+        "interrupted", "task_superseded",
     )
     assert runs[next_ref]["status"] == "requested"
     assigned = _task(following["id"])
@@ -191,7 +191,7 @@ async def test_switch_keeps_binding_while_worker_holds_unlanded_work(
 
     result = await _switch(name, repo, tm.public_task_ref(following), **extra)
 
-    if mode == "complete_previous":
+    if mode in {"force", "complete_previous"}:
         assert result.status_code == 409
     else:
         assert result.get("ok") is not True, result

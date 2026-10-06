@@ -770,7 +770,7 @@ def test_new_frontend_remains_compatible_with_old_analytics_payload(browser):
     )
 
     page.locator('[data-analytics-view="agents"]').click()
-    expect(page.locator("#analytics-agent-table")).to_contain_text("$1,74")
+    expect(page.locator("#analytics-agent-table")).to_contain_text("$1.74")
 
     page.locator('[data-analytics-view="efficiency"]').click()
     expect(page.locator(".analytics-model-list")).to_contain_text("60.8%")

@@ -2377,14 +2377,14 @@ def _usage_providers_from_row(row: dict) -> dict:
     # NULL в колонке = источник молчал (#150). Окно без числа — не точка данных:
     # отдать его с `utilization: None` значило бы переложить ноль на потребителя.
     fh_pct, sd_pct = row.get("five_hour_pct"), row.get("seven_day_pct")
-    if fh_pct is not None and (row.get("five_hour_resets_at") or fh_pct == 0):
+    if fh_pct is not None:
         windows.append({
             "id": "five_hour", "label": "5h",
             "utilization": fh_pct,
             "window_minutes": 300,
             "resets_at": row.get("five_hour_resets_at") or None,
         })
-    if sd_pct is not None and (row.get("seven_day_resets_at") or sd_pct == 0):
+    if sd_pct is not None:
         windows.append({
             "id": "seven_day", "label": "7d",
             "utilization": sd_pct,

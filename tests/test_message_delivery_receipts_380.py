@@ -1481,9 +1481,9 @@ async def test_t380_r7_accept_while_runner_exits_cannot_lose_wake(
     thread_failures = []
     gated_once = False
 
-    def gated_next(target_session_id):
+    def gated_next(target_session_id, *, connection=None):
         nonlocal gated_once
-        row = next_delivery(target_session_id)
+        row = next_delivery(target_session_id, connection=connection)
         if row is None and not gated_once:
             gated_once = True
             empty_seen.set()

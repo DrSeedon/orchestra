@@ -3292,6 +3292,17 @@ async def switch_branch(name: str, req: dict):
                             },
                             status_code=409,
                         )
+                    elif force:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    f"cannot switch away from task {previous_task_id}: "
+                                    f"{held_work['reason']} — merge or discard that work first"
+                                ),
+                                "waited_seconds": round(waited_seconds, 2),
+                            },
+                            status_code=409,
+                        )
                 try:
                     verdict = await asyncio.to_thread(
                         _existing_branch_verdict, worktree_path, new_branch,

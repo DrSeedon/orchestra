@@ -12,6 +12,17 @@ make = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(make)
 
 
+def _mock_tts_installation(tmp_path, monkeypatch):
+    python = tmp_path / "venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("test interpreter placeholder")
+    model = tmp_path / "vosk-model"
+    model.mkdir()
+    (model / "model.onnx").touch()
+    monkeypatch.setattr(make, "TTS_PYTHON", python)
+    monkeypatch.setattr(make, "TTS_MODEL", model)
+
+
 def test_deepgram_digits_latin_and_glued_words_match_screen_text():
     heard = make.tokens("а deepinfra иstreamlake держат кэш 7680 токенов")
     say, sub = "А Дип Инфра и Стрим Лейк держат кеш", "А DeepInfra и StreamLake держат кеш, 7 680 токенов"
@@ -88,6 +99,7 @@ def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypa
     import json
     import wave
 
+    _mock_tts_installation(tmp_path, monkeypatch)
     monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills"])
     monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "Лимит", "say": "История лимита.", "sub": None, "hold": None}])
     before_path = list(make.sys.path)
@@ -190,9 +202,10 @@ def test_english_cli_branch_does_not_load_or_run_ruaccent(monkeypatch, tmp_path)
     make.main()
 
 
-def test_missing_ruaccent_fails_with_install_command(monkeypatch):
+def test_missing_ruaccent_fails_with_install_command(tmp_path, monkeypatch):
     import pytest
 
+    _mock_tts_installation(tmp_path, monkeypatch)
     def missing(argv, **_kwargs):
         return make.subprocess.CompletedProcess(argv, 2, stdout="", stderr="RUACCENT_NOT_INSTALLED")
 
@@ -205,6 +218,7 @@ def test_cache_key_changes_when_accented_text_changes(tmp_path, monkeypatch):
     import json
     import wave
 
+    _mock_tts_installation(tmp_path, monkeypatch)
     jobs_seen = []
 
     def fake_run(*argv, **kwargs):
