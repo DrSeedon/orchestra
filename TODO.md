@@ -86,3 +86,5 @@
 - Гейт kill_worker считает КОММИТЫ, а не содержимое, и поэтому требует force там, гд… — NEEDS-OWNER, [T165](.orchestra/tasks/V-698/triage.md#t165). Доказательство: `71a008fe:TODO.md:L253 (original detailed record)`.
 - Развилка #504 T4 ждёт владельца: классификатор «НЕ ВЫПОЛНЕНО» по XML-подобной проз… — NEEDS-OWNER, [T172](.orchestra/tasks/V-698/triage.md#t172). Доказательство: `.orchestra/tasks/504/review-implementation.md (recorded in 71a008fe:TODO.md:L267)`; отчёт: `.orchestra/tasks/504/review-implementation.md`.
 - Наша телеметрия квот выбрасывает всё, кроме двух старых полей, — поэтому отдельног… — NEEDS-OWNER, [T181](.orchestra/tasks/V-698/triage.md#t181). Доказательство: `71a008fe:TODO.md:L285 (original detailed record)`.
+
+- `tests/test_t344_quota_lines_browser.py:250` пишет скриншот в отслеживаемый `.orchestra/tasks/V-652/quota-timeline.png`: каждый прогон пачкает дерево и может попасть в коммит. Писать в `tmp_path`. (06.10, замечено при приёмке V-735)
