@@ -4,6 +4,7 @@ import importlib.util
 import os
 import sys
 import time
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import pytest
@@ -148,10 +149,12 @@ def test_quota_policy_history_reconstruction_is_idempotent_after_process_restart
     quota_gate.initialize_quota_policy_history()
 
     history = db.quota_policy_history_for_window(0.0, time.time() + 1.0)
-    assert [event["effective_from"] for event in history] == pytest.approx([
+    assert [event["effective_from"] for event in history[:2]] == pytest.approx([
         1790640000.0,
         1791261780.0,
     ])
+    assert len(history) == 3
+    assert history[2]["policy"]["claude_night_quota_share"] == 0.057
 
 
 def test_empty_gated_lanes_config_disables_gating(monkeypatch):
@@ -311,7 +314,8 @@ def test_line_is_norm_plus_tolerance_and_never_exceeds_the_hard_stop():
 def test_claude_weekly_line_is_shifted_eight_hours_but_other_lanes_are_unchanged():
     progress = 0.5
     baseline = 100.0 * progress + tolerance_pp(progress)
-    shifted = line_limit(progress, "claude")
+    legacy_policy = replace(quota_gate.quota_policy(), claude_night_quota_share=None)
+    shifted = line_limit(progress, "claude", legacy_policy)
 
     assert shifted - baseline == pytest.approx(91.0 * 8.0 / 168.0)
     assert line_limit(progress) == pytest.approx(baseline)
@@ -323,8 +327,9 @@ def test_claude_weekly_line_is_shifted_eight_hours_but_other_lanes_are_unchanged
 
 def test_claude_release_prediction_uses_shifted_line_and_plateau_at_hard_stop():
     line_crossing_progress = 0.6
-    utilization = line_limit(line_crossing_progress, "claude")
-    assert quota_gate.line_release_progress(utilization, "claude") == pytest.approx(
+    legacy_policy = replace(quota_gate.quota_policy(), claude_night_quota_share=None)
+    utilization = line_limit(line_crossing_progress, "claude", legacy_policy)
+    assert quota_gate.line_release_progress(utilization, "claude", legacy_policy) == pytest.approx(
         line_crossing_progress
     )
 
@@ -338,6 +343,7 @@ def test_claude_release_prediction_uses_shifted_line_and_plateau_at_hard_stop():
         reset_at=reset_at,
         now=NOW,
         lane="claude",
+        policy=legacy_policy,
     )
     assert status == "open" and seconds is None
 
@@ -350,10 +356,11 @@ def test_claude_release_prediction_uses_shifted_line_and_plateau_at_hard_stop():
         reset_at=reset_at,
         now=NOW,
         lane="claude",
+        policy=legacy_policy,
     )
     assert status == "opens_in"
     assert seconds == pytest.approx(
-        (quota_gate.line_release_progress(98.9, "claude") - 0.92) * WEEK_SECONDS
+        (quota_gate.line_release_progress(98.9, "claude", legacy_policy) - 0.92) * WEEK_SECONDS
     )
 
 
@@ -371,6 +378,84 @@ def test_claude_hard_stop_still_waits_for_reset_despite_early_line_plateau():
     )
     assert status == "at_reset"
     assert seconds == pytest.approx(3600)
+
+
+def test_claude_smooth_line_uses_day_night_rates_and_keeps_eight_hour_headroom():
+    policy = quota_gate.quota_policy()
+    start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
+
+    def line(elapsed_hours, selected_policy=policy):
+        return line_limit(
+            elapsed_hours / 168.0, "claude", selected_policy,
+            window_minutes=10080, window_start_at=start,
+        )
+
+    day_rate = 89.0 * 0.943 / 112.0
+    night_rate = 89.0 * 0.057 / 56.0
+    assert line(1) - line(0) == pytest.approx(day_rate)
+    assert line(11) - line(10) == pytest.approx(night_rate)
+    headroom = 91.0 * 8.0 / 168.0
+    assert line(10) == pytest.approx(10.0 + day_rate * 10 + headroom)
+    assert line(18) == pytest.approx(10.0 + day_rate * 10 + night_rate * 8 + headroom)
+
+    midnight_change = line(10 + 1 / 60) - line(10 - 1 / 60)
+    eight_am_change = line(18 + 1 / 60) - line(18 - 1 / 60)
+    assert midnight_change == pytest.approx((day_rate + night_rate) / 60.0)
+    assert eight_am_change == pytest.approx((night_rate + day_rate) / 60.0)
+
+    no_shift = replace(policy, claude_weekly_shift_hours=0.0)
+    assert line(84) - line(84, no_shift) == pytest.approx(headroom)
+    assert line(168) == pytest.approx(HARD_STOP_PCT)
+
+
+def test_claude_day_night_rates_use_the_actual_window_length():
+    policy = quota_gate.quota_policy()
+    start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
+    long_window_minutes = 10 * 24 * 60
+    long_window_hours = long_window_minutes / 60
+
+    def line(elapsed_hours):
+        return line_limit(
+            elapsed_hours / long_window_hours, "claude", policy,
+            window_minutes=long_window_minutes, window_start_at=start,
+        )
+
+    expected_day_rate = 89.0 * 0.943 / (long_window_hours * 2 / 3)
+    expected_night_rate = 89.0 * 0.057 / (long_window_hours / 3)
+    assert line(1) - line(0) == pytest.approx(expected_day_rate)
+    assert line(11) - line(10) == pytest.approx(expected_night_rate)
+
+
+def test_claude_release_prediction_inverts_the_smooth_line_across_night():
+    policy = quota_gate.quota_policy()
+    start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
+    target_progress = 13.0 / 168.0
+    target_limit = line_limit(
+        target_progress, "claude", policy,
+        window_minutes=10080, window_start_at=start,
+    )
+
+    release = quota_gate.line_release_progress(
+        target_limit, "claude", policy,
+        window_minutes=10080, window_start_at=start,
+    )
+    assert release == pytest.approx(target_progress)
+
+    now = start + 9 * 3600
+    status, seconds = _line_release_in_seconds(
+        utilization=target_limit,
+        progress=9.0 / 168.0,
+        gated=True,
+        hard_stop_pct=HARD_STOP_PCT,
+        window_minutes=10080,
+        reset_at=start + WEEK_SECONDS,
+        now=now,
+        lane="claude",
+        policy=policy,
+        window_start_at=start,
+    )
+    assert status == "opens_in"
+    assert seconds == pytest.approx(4 * 3600)
 
 
 def _line_release_expected(
@@ -459,8 +544,14 @@ def test_gated_lane_blocks_just_above_the_line_and_admits_just_below(
     model, key, progress,
 ):
     """Обе стороны, а не только отказ: гейт, блокирующий всё, прошёл бы проверку из одной."""
-    # Порог — свойство полосы: Sol по кривой, Claude по прямой (решение юзера 28.08.2026).
-    limit = line_limit(progress, "sol" if key == "codex" else "claude")
+    # Линия Claude использует фактическую точку начала недельного окна.
+    lane = "sol" if key == "codex" else "claude"
+    start = NOW - progress * WEEK_SECONDS
+    limit = line_limit(
+        progress, lane,
+        window_minutes=10080 if lane == "claude" else None,
+        window_start_at=start if lane == "claude" else None,
+    )
 
     below = _decide(model, _providers(progress=progress, **{key: limit - 0.5}))
     above = _decide(model, _providers(progress=progress, **{key: limit + 0.5}))

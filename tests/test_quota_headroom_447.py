@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -77,10 +78,26 @@ async def test_quota_map_headroom_is_server_line_minus_fact(mapped):
     sol = _lane(_bucket(payload, "codex"), "sol")
     luna = _lane(_bucket(payload, "codex"), "luna")
 
-    # Frozen values keep this oracle red when line_limit is shifted by a mutant.
-    assert claude["headroom_pp"] == pytest.approx(55.5 + 91.0 * 8.0 / 168.0 - 30.0)
+    start = NOW - 0.5 * 10080 * 60
+    local_start = datetime.fromtimestamp(start, timezone.utc).astimezone(ZoneInfo("Asia/Krasnoyarsk"))
+    start_hour = local_start.hour + local_start.minute / 60.0 + local_start.second / 3600.0
+
+    def cumulative_day_hours(position):
+        full_days = int(position // 24.0)
+        local_hour = position - full_days * 24.0
+        return full_days * 16.0 + min(16.0, max(0.0, local_hour - 8.0))
+
+    elapsed_day = cumulative_day_hours(start_hour + 84.0) - cumulative_day_hours(start_hour)
+    elapsed_night = 84.0 - elapsed_day
+    expected_line = (
+        10.0 + 89.0 * 0.943 / 112.0 * elapsed_day
+        + 89.0 * 0.057 / 56.0 * elapsed_night + 91.0 * 8.0 / 168.0
+    )
+    assert claude["headroom_pp"] == pytest.approx(expected_line - 30.0)
     assert sol["headroom_pp"] == pytest.approx(81.2858283255199 - 90.0)
-    assert claude["headroom_pp"] == pytest.approx(line_limit(0.5, "claude") - 30.0)
+    assert claude["headroom_pp"] == pytest.approx(line_limit(
+        0.5, "claude", window_minutes=10080, window_start_at=start,
+    ) - 30.0)
     assert sol["headroom_pp"] == pytest.approx(line_limit(0.5, "sol") - 90.0)
     assert sol["headroom_pp"] < 0
     assert luna["headroom_pp"] is None

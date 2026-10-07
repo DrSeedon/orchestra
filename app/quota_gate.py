@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
 from typing import Awaitable, Callable, Mapping
+from zoneinfo import ZoneInfo
 
 from dotenv import dotenv_values
 
@@ -174,6 +175,7 @@ _dotenv_lock = Lock()
 _policy_history_lock = Lock()
 _last_policy_history_json: dict[str, str] = {}
 _initialized_policy_history_paths: set[str] = set()
+_KRASNOYARSK_TZ = ZoneInfo("Asia/Krasnoyarsk")
 
 
 @dataclass(frozen=True)
@@ -186,6 +188,8 @@ class QuotaPolicy:
     curved_lanes: frozenset[str]
     lane_hard_stop_pct: Mapping[str, float]
     claude_weekly_shift_hours: float = 8.0
+    claude_day_start_hour: float = 8.0
+    claude_night_quota_share: float | None = 0.057
 
     def hard_stop_for(self, lane: str | None) -> float:
         """Жёсткий стоп конкретной полосы.
@@ -321,6 +325,7 @@ def initialize_quota_policy_history(*, effective_from: float | None = None) -> i
         "gated_lanes": ["claude", "sol"],
         "curved_lanes": ["sol"],
         "claude_weekly_shift_hours": 0.0,
+        "claude_night_quota_share": None,
     })
     shifted = dict(baseline)
     shifted["claude_weekly_shift_hours"] = 8.0
@@ -415,19 +420,86 @@ def _line_progress(progress: float, lane: str | None, policy: QuotaPolicy) -> fl
     return progress
 
 
+def _day_hours_between(start_local_hour: float, elapsed_hours: float, day_start_hour: float) -> float:
+    def cumulative_day_hours(position: float) -> float:
+        full_days = math.floor(position / 24.0)
+        local_hour = position - full_days * 24.0
+        day_length = 24.0 - day_start_hour
+        return full_days * day_length + min(day_length, max(0.0, local_hour - day_start_hour))
+
+    return cumulative_day_hours(start_local_hour + elapsed_hours) - cumulative_day_hours(start_local_hour)
+
+
+def _window_start_local_hour(window_start_at: float | str | None) -> float:
+    timestamp = (
+        parse_quota_timestamp(window_start_at)
+        if isinstance(window_start_at, str)
+        else window_start_at
+    )
+    if isinstance(timestamp, (int, float)) and math.isfinite(timestamp):
+        local = datetime.fromtimestamp(float(timestamp), tz=timezone.utc).astimezone(_KRASNOYARSK_TZ)
+        return local.hour + local.minute / 60.0 + local.second / 3600.0
+    return 14.0
+
+
+def _claude_day_night_limit(
+    progress: float,
+    policy: QuotaPolicy,
+    window_minutes: float | None,
+    window_start_at: float | str | None,
+) -> float:
+    span_hours = (
+        float(window_minutes) / 60.0
+        if isinstance(window_minutes, (int, float)) and not isinstance(window_minutes, bool)
+        and math.isfinite(window_minutes) and window_minutes > 0
+        else WEEKLY_WINDOW_MINUTES / 60.0
+    )
+    elapsed_hours = min(1.0, max(0.0, progress)) * span_hours
+    start_hour = _window_start_local_hour(window_start_at)
+    day_start = min(23.999999, max(0.0, policy.claude_day_start_hour))
+    total_day_hours = _day_hours_between(start_hour, span_hours, day_start)
+    elapsed_day_hours = _day_hours_between(start_hour, elapsed_hours, day_start)
+    total_night_hours = span_hours - total_day_hours
+    elapsed_night_hours = elapsed_hours - elapsed_day_hours
+
+    rise = max(0.0, policy.hard_stop_for("claude") - policy.tolerance_start_pp)
+    night_share = min(1.0, max(0.0, float(policy.claude_night_quota_share or 0.0)))
+    day_weight = 1.0 - night_share if total_day_hours > 0 else 0.0
+    night_weight = night_share if total_night_hours > 0 else 0.0
+    weight_total = day_weight + night_weight
+    if weight_total == 0.0:
+        return policy.hard_stop_for("claude")
+    day_rate = rise * day_weight / weight_total / total_day_hours if total_day_hours else 0.0
+    night_rate = rise * night_weight / weight_total / total_night_hours if total_night_hours else 0.0
+    legacy_slope = 100.0 + policy.tolerance_end_pp - policy.tolerance_start_pp
+    headroom = legacy_slope * policy.claude_weekly_shift_hours / span_hours
+    raw = (
+        policy.tolerance_start_pp
+        + day_rate * elapsed_day_hours
+        + night_rate * elapsed_night_hours
+        + headroom
+    )
+    return min(policy.hard_stop_for("claude"), raw)
+
+
 def line_limit(
     progress: float,
     lane: str | None = None,
     policy: QuotaPolicy | None = None,
+    *,
+    window_minutes: float | None = None,
+    window_start_at: float | str | None = None,
 ) -> float:
     """Порог гейтящейся полосы: норма + допуск, но никогда выше жёсткого стопа полосы.
 
     Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
     в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
-    Claude получает прямую, рассчитанную на точке окна на `claude_weekly_shift_hours`
-    вперёд; остальные прямые и вызовы без `lane` не сдвигаются.
+    Claude распределяет прирост по часам Красноярска и добавляет постоянный запас
+    `claude_weekly_shift_hours`; остальные полосы используют прежнюю формулу.
     """
     policy = policy or quota_policy()
+    if lane == "claude" and policy.claude_night_quota_share is not None:
+        return _claude_day_night_limit(progress, policy, window_minutes, window_start_at)
     line_progress = _line_progress(progress, lane, policy)
     norm = line_progress
     if lane is not None and lane in policy.curved_lanes and line_progress > 0.0:
@@ -442,24 +514,35 @@ def line_release_progress(
     utilization: float,
     lane: str | None = None,
     policy: QuotaPolicy | None = None,
+    *,
+    window_minutes: float | None = None,
+    window_start_at: float | str | None = None,
 ) -> float:
     """Доля окна, где линия достигает `utilization`.
 
-    У кривой полосы обратной функции в замкнутом виде нет (норма степенная, допуск
-    линейный), поэтому корень ищется делением пополам. `line_limit` монотонно растёт по
-    `progress`, значит корень единственный, и прогноз «откроется через» остаётся
-    согласованным с самим порогом — иначе воркер ждал бы по чужой формуле.
+    Для степенной и day/night-линий корень ищется делением пополам. Все поддержанные
+    формы монотонно растут по `progress`, поэтому прогноз «откроется через» остаётся
+    согласованным с порогом гейта.
     """
     policy = policy or quota_policy()
-    if lane is not None and lane in policy.curved_lanes:
-        if utilization <= line_limit(0.0, lane, policy):
+    curved = lane is not None and lane in policy.curved_lanes
+    claude_day_night = lane == "claude" and policy.claude_night_quota_share is not None
+    if curved or claude_day_night:
+        if utilization <= line_limit(
+            0.0, lane, policy, window_minutes=window_minutes, window_start_at=window_start_at,
+        ):
             return 0.0
-        if utilization > line_limit(1.0, lane, policy):
+        if utilization > line_limit(
+            1.0, lane, policy, window_minutes=window_minutes, window_start_at=window_start_at,
+        ):
             return float("inf")
         low, high = 0.0, 1.0
         for _ in range(60):
             middle = (low + high) / 2.0
-            if line_limit(middle, lane, policy) < utilization:
+            if line_limit(
+                middle, lane, policy,
+                window_minutes=window_minutes, window_start_at=window_start_at,
+            ) < utilization:
                 low = middle
             else:
                 high = middle
@@ -469,7 +552,7 @@ def line_release_progress(
     if line_denominator == 0:
         return float("inf")
     progress = (utilization - policy.tolerance_start_pp) / line_denominator
-    if lane == "claude":
+    if lane == "claude" and policy.claude_night_quota_share is None:
         progress -= policy.claude_weekly_shift_hours * 60.0 / WEEKLY_WINDOW_MINUTES
         if utilization <= line_limit(0.0, lane, policy):
             return 0.0
@@ -489,6 +572,7 @@ def _line_release_in_seconds(
     now: float,
     lane: str | None = None,
     policy: QuotaPolicy | None = None,
+    window_start_at: float | str | None = None,
 ) -> tuple[str, float | None]:
     """Возвращает статус открытия и секунды до открытия/сброса окна.
 
@@ -508,7 +592,11 @@ def _line_release_in_seconds(
     if not gated_window_open(progress, window_minutes):
         return "no_data", None
 
-    p_release = line_release_progress(utilization, lane, policy)
+    p_release = line_release_progress(
+        utilization, lane, policy,
+        window_minutes=window_minutes,
+        window_start_at=window_start_at,
+    )
     if p_release <= progress:
         return "open", None
     if p_release <= 1.0:
@@ -831,7 +919,9 @@ def evaluate_worker_admission(
         else None
     )
     tolerance = None if progress is None else tolerance_pp(progress, policy)
-    limit = None if (progress is None or not gated) else line_limit(progress, lane, policy)
+    limit = None if (progress is None or not gated) else line_limit(
+        progress, lane, policy, window_minutes=window_minutes, window_start_at=started_at,
+    )
     release_status, release_in_seconds = _line_release_in_seconds(
         utilization=utilization,
         progress=progress,
@@ -842,6 +932,7 @@ def evaluate_worker_admission(
         now=checked_at,
         lane=lane,
         policy=policy,
+        window_start_at=started_at,
     )
 
     if utilization >= hard_stop:

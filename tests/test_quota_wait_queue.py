@@ -41,7 +41,11 @@ def _record(session_id, name, role="worker"):
 def _decision(utilization_above_line: float):
     """Реальное решение гейта: выше линии на заданную величину → blocked (или available)."""
     now = time.time()
-    util = line_limit(0.1, "claude") + utilization_above_line
+    window_minutes = 10080
+    window_start = now - window_minutes * 60 * 0.1
+    util = line_limit(
+        0.1, "claude", window_minutes=window_minutes, window_start_at=window_start,
+    ) + utilization_above_line
     window = {
         "id": "seven_day", "window_minutes": 10080, "utilization": util,
         "resets_at": datetime.fromtimestamp(now + 10080 * 60 * 0.9, timezone.utc).isoformat(),

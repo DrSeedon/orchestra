@@ -13,9 +13,16 @@ from app.quota_gate import QuotaGateError, evaluate_worker_admission, line_limit
 NOW = 1_770_000_000.0
 # Десятая часть окна: линия = 10 + 9.1 = 19.1 п.п.
 PROGRESS = 0.1
-# Порог теперь свойство ПОЛОСЫ: Sol идёт по кривой, Claude по прежней прямой, поэтому
-# одного общего числа больше не существует (решение юзера 28.08.2026).
-LIMIT = {lane: line_limit(PROGRESS, lane) for lane in ("sol", "claude")}
+# Порог — свойство полосы: Sol идёт по кривой, Claude по day/night-профилю, поэтому
+# одного общего числа больше не существует.
+WEEK_SECONDS = 10080 * 60
+WEEK_START = NOW - PROGRESS * WEEK_SECONDS
+LIMIT = {
+    "sol": line_limit(PROGRESS, "sol"),
+    "claude": line_limit(
+        PROGRESS, "claude", window_minutes=10080, window_start_at=WEEK_START,
+    ),
+}
 ABOVE = {lane: value + 20.0 for lane, value in LIMIT.items()}
 BELOW = {lane: value - 5.0 for lane, value in LIMIT.items()}
 # Значение, стопорящее ОБЕ гейтящиеся полосы: выше самого высокого из двух порогов.
