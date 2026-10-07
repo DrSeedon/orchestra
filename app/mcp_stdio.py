@@ -1271,7 +1271,7 @@ def _read_message_file(file_path: str) -> tuple[str, int]:
 async def send_message(
     to: str, message: str, delivery_id: str = "", file_path: str = "",
 ) -> str:
-    """Send a message to an agent by name; triggers a turn. file_path optionally appends a local UTF-8 text file (max 64 KiB). delivery_id is an optional UUID for duplicate-safe delivery. QUEUED means accepted, not delivered; resolve an ambiguous outcome with message_delivery_status using the same id, not a fresh send. A closed quota gate does not refuse the message: it is held durably (WAITING_QUOTA) and goes out by itself, in order, when the gate opens — never resend or set a timer; cancel_message_delivery withdraws it."""
+    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically; do not poll. Use message_delivery_status only when this tool call's outcome is ambiguous (for example, timeout or transport error), with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it."""
     # A message to oneself wakes a new turn that repeats the same call: the reestr
     # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
     if to.strip() == (WORKER_NAME or ROLE):
@@ -1370,8 +1370,7 @@ def _message_delivery_receipt_text(
         output = (
             f"Message accepted and QUEUED{target}; delivery_id={delivery_id}; state={state}.\n"
             f"{_safe_response_text(str(action.get('message') or ''))}\n"
-            f"Status: message_delivery_status; withdraw it: "
-            f"cancel_message_delivery(delivery_id=\"{delivery_id}\")."
+            f"Withdraw it with cancel_message_delivery(delivery_id=\"{delivery_id}\")."
         )
     elif state == "CANCELLED":
         output = f"Message cancelled{target}; delivery_id={delivery_id}; it was not sent."
@@ -1386,8 +1385,8 @@ def _message_delivery_receipt_text(
             f"Message delivery outcome is unknown{target}; delivery_id={delivery_id}; "
             f"code={code or 'DELIVERY_OUTCOME_UNKNOWN'}: "
             f"{message or 'Provider outcome is unknown'}.\n"
-            f"Check with message_delivery_status(delivery_id=\"{delivery_id}\") "
-            "before acting; if retrying, reuse the same delivery_id and never use a new id."
+            "The sender is not automatically woken for an unknown provider outcome; "
+            "verify with the target before acting or retrying."
         )
     elif state == "FAILED_BEFORE_SUBMIT":
         # Терминальный отказ ДО отправки: провайдер сообщения не видел. Печатать его как
@@ -1426,6 +1425,10 @@ def _message_delivery_receipt_text(
         )
     else:
         output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
+    output += (
+        "\nTerminal delivery failures wake the sender automatically; do not poll. "
+        "Use message_delivery_status only if this send_message call's outcome was ambiguous."
+    )
     if parent_name and parent_name != WORKER_NAME:
         output += (
             f"\n⚠️ This worker belongs to '{parent_name}'. "
@@ -1475,7 +1478,7 @@ def _ambiguous_message_delivery_error(
 
 @mcp.tool()
 async def message_delivery_status(delivery_id: str) -> dict[str, Any]:
-    """Look up one direct-message delivery by its immutable id."""
+    """Resolve a direct-message send call whose own outcome was ambiguous, such as a timeout or transport error. Do not poll routine deliveries; terminal failures wake the sender automatically."""
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     if not delivery_id:
         raise ApiToolError(
@@ -1897,7 +1900,8 @@ def _file_delivery_receipt_text(receipt: dict[str, Any]) -> str:
     state = str(receipt.get("delivery_state") or "UNKNOWN")
     return (
         f"File accepted; event_id={event_id}; state={state}. "
-        f"Check with file_delivery_status('{event_id}'); do not retry with a new id."
+        "Terminal delivery failures wake the sender automatically; do not poll. "
+        "Use file_delivery_status only if the send_file call's outcome was ambiguous."
     )
 
 
@@ -1907,7 +1911,8 @@ def _file_batch_receipt_text(receipt: dict[str, Any]) -> str:
     count = len(receipt.get("files") or [])
     return (
         f"Files accepted; event_id={event_id}; state={state}; {count} files. "
-        f"Check with file_delivery_status('{event_id}'); do not retry with a new id."
+        "Terminal delivery failures wake the sender automatically; do not poll. "
+        "Use file_delivery_status only if the send_files call's outcome was ambiguous."
     )
 
 
@@ -1950,7 +1955,7 @@ def _ambiguous_file_delivery_error(
 
 @mcp.tool()
 async def file_delivery_status(event_id: str) -> dict[str, Any]:
-    """Look up one durable Telegram file delivery by its immutable event id."""
+    """Resolve a send_file/send_files call whose own outcome was ambiguous, such as a timeout or transport error. Do not poll routine deliveries; terminal failures wake the sender automatically."""
     event_id = event_id.strip() if isinstance(event_id, str) else ""
     if not event_id:
         raise ApiToolError(
@@ -1984,7 +1989,7 @@ async def send_file(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept a local file for durable Telegram delivery; returns a status id, not delivery confirmation. Local Bot API: documents up to 2000 MB (200 MB verified); do not substitute cloud's 50 MB cap. Images above 10 485 760 bytes automatically become documents; MP4 goes as playable video, falling back to a document if Telegram rejects it; as_document forces a document. event_id is an optional UUID; use file_delivery_status after ambiguous delivery, not a new id."""
+    """Queue a local file for durable Telegram delivery. Terminal delivery failures wake the sender automatically; do not poll. Use file_delivery_status only when this tool call's outcome is ambiguous (for example, timeout or transport error), with the same event_id. Local Bot API documents allow up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 is sent as video with document fallback; as_document forces a document."""
     event_id = event_id.strip() if isinstance(event_id, str) else ""
     if event_id:
         try:
@@ -2030,8 +2035,8 @@ async def send_file(
             code="invalid_response",
             message=(
                 "Send file API returned no matching durable receipt for "
-                f"event_id={event_id}. Check file_delivery_status('{event_id}'); "
-                "do not retry with a new id."
+                f"event_id={event_id}. The send_file call returned an ambiguous receipt; "
+                "resolve it with file_delivery_status using the same event_id."
             ),
             status=200,
             outcome_unknown=True,
@@ -2054,7 +2059,7 @@ async def send_files(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Accept an ordered batch for durable Telegram album delivery; returns receipt, not completion. Local Bot API: documents up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 goes as video. Albums hold at most 10 files of one kind; longer/mixed batches split automatically. as_document forces documents. event_id is an optional UUID; resolve ambiguous delivery with file_delivery_status, not a new id."""
+    """Queue an ordered batch for durable Telegram album delivery. Terminal delivery failures wake the sender automatically; do not poll. Use file_delivery_status only when this tool call's outcome is ambiguous (for example, timeout or transport error), with the same event_id. Local Bot API documents allow up to 2000 MB (200 MB verified); albums hold up to 10 files of one kind and longer/mixed batches split automatically; as_document forces documents."""
 
     if (
         not isinstance(paths, list)
@@ -2109,8 +2114,8 @@ async def send_files(
             code="invalid_response",
             message=(
                 "Send files API returned no matching durable receipt for "
-                f"event_id={event_id}. Check file_delivery_status('{event_id}'); "
-                "do not retry with a new id."
+                f"event_id={event_id}. The send_files call returned an ambiguous receipt; "
+                "resolve it with file_delivery_status using the same event_id."
             ),
             status=200,
             outcome_unknown=True,

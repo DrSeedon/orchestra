@@ -439,6 +439,15 @@ CREATE TABLE tg_file_delivery_targets (
                 PRIMARY KEY(event_id, target_kind)
             );
 
+CREATE TABLE tg_file_delivery_failure_notices (
+                event_id TEXT PRIMARY KEY,
+                source_session_id TEXT NOT NULL,
+                file_name TEXT NOT NULL,
+                error_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                delivered_at TEXT
+            );
+
 CREATE TABLE tm_projects (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -613,6 +622,10 @@ CREATE INDEX idx_message_deliveries_source_seq
 
 CREATE INDEX idx_message_deliveries_target_seq
                 ON message_deliveries(target_session_id, accept_seq);
+
+CREATE INDEX idx_tg_file_delivery_failure_notices_pending
+                ON tg_file_delivery_failure_notices(created_at)
+                WHERE delivered_at IS NULL;
 
 CREATE INDEX idx_or_attempts_day ON openrouter_attempts(day);
 
