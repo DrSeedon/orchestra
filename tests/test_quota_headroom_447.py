@@ -3,6 +3,8 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import re
+import shutil
+import subprocess
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -214,3 +216,70 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
     value = page.locator('[data-quota-headroom="true"]').inner_text()
     assert float(re.search(r"[−-]?\d+(?:\.\d+)?", value).group().replace("−", "-")) == -8.7
     page.close()
+
+
+def test_usage_bar_formats_fractional_provider_utilization(browser):
+    utilization = 28.999999999999996
+    page = browser.new_page()
+    page.route(
+        "http://harness.local/**",
+        lambda route: route.fulfill(
+            status=200,
+            content_type="text/html",
+            body="<body><div id='usage-bar'></div></body>",
+        ),
+    )
+    page.goto("http://harness.local/")
+    page.add_script_tag(content="""
+        window.T = (key, values = {}) => Object.entries(values).reduce(
+            (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
+        );
+    """)
+    for script in ("utils.js", "connection.js", "usage.js"):
+        page.add_script_tag(path=str(ROOT / "app/static/js" / script))
+    page.evaluate(
+        """utilization => {
+            _usageData = {
+                anthropic: {five_hour: {utilization, resets_at: null}},
+                codex: {primary: {utilization, window_minutes: 300, resets_at: null}},
+            };
+            renderUsageBar();
+        }""",
+        utilization,
+    )
+
+    visible = page.locator("#usage-bar").inner_text()
+    page.close()
+
+    assert visible.count("29%") == 2
+    assert str(utilization) not in visible
+
+
+def test_usage_percent_formatter_guards_strip_without_browser():
+    utils = (ROOT / "app/static/js/utils.js").read_text()
+    usage = (ROOT / "app/static/js/usage.js").read_text()
+    formatter = re.search(
+        r"function _formatPercent\(value, digits = 0\) \{.*?\n\}",
+        utils,
+        re.DOTALL,
+    )
+    mini_bar = re.search(
+        r"function _miniBar\(pct, color\) \{.*?\n\}",
+        usage,
+        re.DOTALL,
+    )
+    node = shutil.which("node")
+    assert node, "Node.js is required to evaluate the dashboard percentage formatter"
+    assert formatter and mini_bar, "the shared percent formatter must feed the usage strip"
+
+    result = subprocess.run(
+        [node, "-e", formatter.group() + "\n" + mini_bar.group()
+         + "\nconsole.log(_miniBar(28.999999999999996, '#22c55e'));"],
+        check=True,
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
+
+    assert "29%" in result.stdout
+    assert "28.999999999999996" not in result.stdout

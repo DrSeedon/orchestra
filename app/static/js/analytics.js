@@ -351,7 +351,7 @@ function _analyticsProviderCard(provider, stats) {
         </div>
         <div class="analytics-provider-metrics">
             <div><span>${T('Turns')}</span><strong>${_analyticsNumber(stats.turns)}</strong></div>
-            <div><span>${T('Cache hit')}</span><strong>${stats.cache_hit_pct == null ? '—' : `${stats.cache_hit_pct}%`}</strong></div>
+            <div><span>${T('Cache hit')}</span><strong>${stats.cache_hit_pct == null ? '—' : `${_formatPercent(stats.cache_hit_pct)}%`}</strong></div>
             <div><span>${T('Cold starts')}</span><strong>${_analyticsNumber(stats.cold_starts)}</strong></div>
             <div><span>${T('TTL')}</span><strong>${ttl}</strong></div>
         </div>
@@ -361,10 +361,11 @@ function _analyticsProviderCard(provider, stats) {
 
 function _analyticsWindow(label, value) {
     const pct = Math.max(0, Math.min(Number(value.utilization) || 0, 100));
+    const formattedPct = _formatPercent(pct);
     const tone = pct >= 80 ? 'danger' : pct >= 55 ? 'warn' : 'ok';
     return `<div class="analytics-window">
-        <div><span>${T(label)}</span><strong class="analytics-text-${tone}">${pct}%</strong></div>
-        <div class="analytics-meter"><i class="analytics-meter-${tone}" style="width:${pct}%"></i></div>
+        <div><span>${T(label)}</span><strong class="analytics-text-${tone}">${formattedPct}%</strong></div>
+        <div class="analytics-meter"><i class="analytics-meter-${tone}" style="width:${formattedPct}%"></i></div>
         <small>${value.resets_at ? T('reset {time}', {time: _analyticsDateTime(value.resets_at)}) : T('reset unknown')}</small>
     </div>`;
 }
@@ -388,8 +389,8 @@ function _analyticsRoutingSignal() {
         tone: Math.min(claudePressure, codexPressure) >= 80 ? 'danger' : 'ok',
         title: T('{provider} — freer', {provider}),
         detail: T('Claude peak load {claude}%, Codex {codex}%. This is a pool load signal, not automatic switching.', {
-            claude: claudePressure,
-            codex: codexPressure
+            claude: _formatPercent(claudePressure),
+            codex: _formatPercent(codexPressure)
         }),
     };
 }
@@ -486,7 +487,7 @@ function _analyticsRenderEfficiency(body) {
                     const ttl = item.cache_ttl_seconds ? Math.round(item.cache_ttl_seconds / 60) : null;
                     return `<div class="analytics-cache-card">
                         <div><strong>${T(_PROVIDER_META[provider].title)}</strong><span>${T('TTL')} ${ttl == null ? '—' : `${ttl} min${item.cache_ttl_approximate ? ' ≈' : ''}`}</span></div>
-                        <b>${item.cache_hit_pct == null ? '—' : `${item.cache_hit_pct}%`}</b>
+                        <b>${item.cache_hit_pct == null ? '—' : `${_formatPercent(item.cache_hit_pct)}%`}</b>
                         <p>${T('comparable turns: {n}', {n: _analyticsNumber(item.comparable_turns)})} · ${T('cold starts: {n}', {n: _analyticsNumber(item.cold_starts)})}</p>
                     </div>`;
                 }).join('')}</div>
@@ -497,11 +498,12 @@ function _analyticsRenderEfficiency(body) {
                     const rows = models.map(model => {
                         const priced = _analyticsNumber(model.priced_turns || model.turns);
                         const unaccounted = model.unaccounted_turns ? ' · ' + T('{n} unaccounted', {n: _analyticsNumber(model.unaccounted_turns)}) : '';
-                        const pct = model.cost_share_pct == null ? '—' : Number(model.cost_share_pct).toFixed(1) + '%';
+                        const pct = model.cost_share_pct == null ? '—' : _formatPercent(model.cost_share_pct, 1) + '%';
+                        const trackPct = _formatPercent(Math.max(0, Math.min(Number(model.cost_share_pct) || 0, 100)), 1);
                         return `<div class="analytics-model-row">
                             <div><strong>${_analyticsEsc(model.model || T('unknown'))}</strong><span>${_analyticsEsc(model.provider)} · ${T('priced: {n}', {n: priced})}${unaccounted}</span></div>
                             <div class="analytics-model-value"><b>${pct}</b><span>${_analyticsMoney(model.cost_usd)}</span></div>
-                            <div class="analytics-model-track"><i class="analytics-model-${_analyticsEsc(model.provider)}" style="width:${Math.max(0, Math.min(Number(model.cost_share_pct) || 0, 100))}%"></i></div>
+                            <div class="analytics-model-track"><i class="analytics-model-${_analyticsEsc(model.provider)}" style="width:${trackPct}%"></i></div>
                         </div>`;
                     }).join('');
                     return rows || '<div class="analytics-empty">' + T('No model composition data.') + '</div>';

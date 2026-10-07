@@ -61,7 +61,7 @@ function _resetPctNum(isoStr, windowMs) {
 // Прогресс окна считается из времени, поэтому сотые тут настоящие —
 // в отличие от utilization, который провайдер отдаёт уже округлённым.
 function _resetPctText(pct) {
-    return pct.toFixed(2);
+    return _formatPercent(pct, 2);
 }
 
 // Computes how long to wait (or "ok") based on pace vs. ideal linear burn.
@@ -211,7 +211,8 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
 }
 
 function _miniBar(pct, color) {
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(pct, 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${pct}%</span></span>`;
+    const formatted = _formatPercent(pct);
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${formatted}%</span></span>`;
 }
 
 function _usageProviderAccent(providerId) {
@@ -415,7 +416,7 @@ function renderUsageBar() {
                     const eta = _etaToLimit(window.utilization, window.resets_at, windowMs);
                     const rpNum = _resetPctNum(window.resets_at, windowMs);
                     let html = `<div style="margin-bottom:9px"><div style="color:${accent};font-weight:600;margin-bottom:2px">${T('{label} window', {label})}</div>`;
-                    html += _row(T('Used'), `${window.utilization}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
+                    html += _row(T('Used'), `${_formatPercent(window.utilization)}%`, window.utilization >= 80 ? '#ef4444' : window.utilization >= 50 ? '#eab308' : '#22c55e');
                     if (cd) html += _row(T('Reset in'), cd, '#64748b');
                     // Weekly window lives in days — "in 3d 21h" doesn't read as a moment in time.
                     if (window.window_minutes >= 1440) {
@@ -818,7 +819,7 @@ function _renderSparklines(slot, providerFilter = null) {
             const newer = isAnchor && hasNewer
                 ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">▶</span>`
                 : isAnchor ? '<span style="color:#1e293b">▶</span>' : '';
-            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${T(series.windowLabel)}</span><span style="color:#64748b">${current}% · ${periodLabel}</span>${newer}</div>`;
+            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${T(series.windowLabel)}</span><span style="color:#64748b">${_formatPercent(current)}% · ${periodLabel}</span>${newer}</div>`;
             html += `<div style="font-size:8px;color:#475569;margin-bottom:2px">${T('━ usage ┈ ideal pace')}</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
         });
         html += '</div>';
