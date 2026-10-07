@@ -434,6 +434,8 @@ async def lifespan(app: FastAPI):
     app.state.v576_migration = migrate_v576(database.DB_PATH, task_repository_path())
     init_db()
     app.state.owner_activity_backfill = database.ensure_owner_activity_schema()
+    from app.quota_gate import initialize_quota_policy_history
+    app.state.quota_policy_history_backfill = initialize_quota_policy_history()
     # V-621 идёт ДО sync_catalog: тот читает `catalog()`, а до миграции общий файл
     # ещё не несёт `include_scopes` — sync_catalog должен увидеть уже разбитый вид.
     from app.catalog_migration_v621 import migrate_v621

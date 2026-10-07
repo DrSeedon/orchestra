@@ -62,6 +62,23 @@ function _qlHardStop(rule, lane) {
     return Number.isFinite(laneHard) ? Math.min(hard, laneHard) : hard;
 }
 
+function _qlRuleAt(ts, now, currentRule, history) {
+    if (ts >= now || !Array.isArray(history) || history.length === 0) {
+        return {policy: currentRule, effectiveFrom: 'current'};
+    }
+    let activeRule = currentRule;
+    let effectiveFrom = 'current';
+    for (const event of history) {
+        const effectiveAtMs = Number(event.effective_from) * 1000;
+        if (!Number.isFinite(effectiveAtMs) || effectiveAtMs > ts) break;
+        if (event.policy && typeof event.policy === 'object') {
+            activeRule = event.policy;
+            effectiveFrom = String(event.effective_from);
+        }
+    }
+    return {policy: activeRule, effectiveFrom};
+}
+
 function _qlBucket(bucketId) {
     return (_quotaLinesData?.buckets || []).find(b => b.bucket === bucketId) || null;
 }
@@ -269,8 +286,8 @@ function _qlTimelineSvg(panel, rule) {
         }
     }
 
-    // Quota policy curves restart at each provider window boundary. The prior
-    // and next boundaries use the duration and reset timestamp from the API.
+    // Quota policy curves restart at each provider window boundary. Historical
+    // intervals also split at the time each rule snapshot became effective.
     for (const bucket of panel.buckets.map(_qlBucket).filter(Boolean)) {
         const window = bucket.window;
         const reset = Date.parse(window?.resets_at);
@@ -290,18 +307,34 @@ function _qlTimelineSvg(panel, rule) {
                 baseline.push(`${x(ts)},${y(progress * 100)}`);
             }
             p.push(`<polyline class="ql-timeline-burn" points="${baseline.join(' ')}"/>`);
-            for (const lane of bucket.lanes || []) {
-                if ((rule.gated_lanes || []).includes(lane.lane)) {
-                    const coords = [];
-                    for (let i = 0; i <= 50; i++) {
-                        const ts = left + (right - left) * i / 50;
-                        coords.push(`${x(ts)},${y(_qlLimitAt(progressAt(ts), rule, lane.lane))}`);
+            const events = (_quotaLinesData?.rule_history || [])
+                .map(event => Number(event.effective_from) * 1000)
+                .filter(ts => Number.isFinite(ts) && ts > left && ts < right)
+                .sort((a, b) => a - b);
+            const cuts = [left, ...events, right];
+            const lanes = new Set((bucket.lanes || []).map(lane => lane.lane));
+            for (const event of (_quotaLinesData?.rule_history || [])) {
+                for (const lane of (event.policy?.gated_lanes || [])) lanes.add(lane);
+            }
+            for (const lane of lanes) {
+                for (let segment = 0; segment < cuts.length - 1; segment++) {
+                    const segmentLeft = cuts[segment], segmentRight = cuts[segment + 1];
+                    const active = _qlRuleAt((segmentLeft + segmentRight) / 2, now, rule,
+                        _quotaLinesData?.rule_history);
+                    const segmentRule = active.policy;
+                    const gated = (segmentRule.gated_lanes || []).includes(lane);
+                    if (gated) {
+                        const coords = [];
+                        for (let i = 0; i <= 50; i++) {
+                            const ts = segmentLeft + (segmentRight - segmentLeft) * i / 50;
+                            coords.push(`${x(ts)},${y(_qlLimitAt(progressAt(ts), segmentRule, lane))}`);
+                        }
+                        const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
+                        p.push(`<polyline class="ql-gated ${colorClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
                     }
-                    const colorClass = lane.lane === 'sol' ? 'ql-gated-sol' : '';
-                    p.push(`<polyline class="ql-gated ${colorClass}" data-ql-timeline-threshold="${_escHtml(lane.lane)}" points="${coords.join(' ')}"/>`);
+                    const stop = _qlHardStop(segmentRule, lane);
+                    p.push(`<line class="ql-hard" data-ql-timeline-hard="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" x1="${x(segmentLeft)}" y1="${y(stop)}" x2="${x(segmentRight)}" y2="${y(stop)}"/>`);
                 }
-                const stop = _qlHardStop(rule, lane.lane);
-                p.push(`<line class="ql-hard" data-ql-timeline-hard="${_escHtml(lane.lane)}" x1="${x(left)}" y1="${y(stop)}" x2="${x(right)}" y2="${y(stop)}"/>`);
             }
         }
     }

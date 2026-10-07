@@ -2339,6 +2339,108 @@ def usage_save_snapshot(five_hour_pct: float | None, seven_day_pct: float | None
         )
 
 
+def _quota_policy_history_schema(connection: sqlite3.Connection) -> None:
+    connection.executescript(
+        """CREATE TABLE IF NOT EXISTS quota_policy_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            effective_from REAL NOT NULL,
+            policy_json TEXT NOT NULL,
+            source TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_quota_policy_history_effective
+            ON quota_policy_history(effective_from, id);
+        """
+    )
+
+
+def append_quota_policy_history(
+    policy: dict,
+    effective_from: float,
+    *,
+    source: str = "observed",
+    path: Path | None = None,
+) -> bool:
+    """Append a rule snapshot only when it differs from the last known rule."""
+    policy_json = json.dumps(policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    with _conn(path) as connection:
+        _quota_policy_history_schema(connection)
+        connection.execute("BEGIN IMMEDIATE")
+        latest = connection.execute(
+            "SELECT policy_json FROM quota_policy_history ORDER BY effective_from DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if latest and latest[0] == policy_json:
+            return False
+        connection.execute(
+            "INSERT INTO quota_policy_history(effective_from, policy_json, source) VALUES (?, ?, ?)",
+            (float(effective_from), policy_json, source),
+        )
+        return True
+
+
+def initialize_quota_policy_history(
+    reconstructed: list[dict],
+    current_policy: dict,
+    *,
+    effective_from: float,
+    path: Path | None = None,
+) -> int:
+    """Seed a new history from evidenced past rules, then append the live startup rule."""
+    inserted = 0
+    with _conn(path) as connection:
+        _quota_policy_history_schema(connection)
+        connection.execute("BEGIN IMMEDIATE")
+        has_reconstruction = connection.execute(
+            "SELECT 1 FROM quota_policy_history WHERE source LIKE 'reconstructed:%' LIMIT 1"
+        ).fetchone()
+        if not has_reconstruction:
+            for item in sorted(reconstructed, key=lambda event: event["effective_from"]):
+                policy_json = json.dumps(
+                    item["policy"], sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+                )
+                connection.execute(
+                    "INSERT INTO quota_policy_history(effective_from, policy_json, source) VALUES (?, ?, ?)",
+                    (float(item["effective_from"]), policy_json, str(item["source"])),
+                )
+                inserted += 1
+        policy_json = json.dumps(
+            current_policy, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        )
+        latest = connection.execute(
+            "SELECT policy_json FROM quota_policy_history ORDER BY effective_from DESC, id DESC LIMIT 1"
+        ).fetchone()
+        if not latest or latest[0] != policy_json:
+            connection.execute(
+                "INSERT INTO quota_policy_history(effective_from, policy_json, source) VALUES (?, ?, 'startup')",
+                (float(effective_from), policy_json),
+            )
+            inserted += 1
+    return inserted
+
+
+def quota_policy_history_for_window(start: float, end: float, *, path: Path | None = None) -> list[dict]:
+    """Return the last policy at/before the window and each change through its end."""
+    with _conn(path) as connection:
+        if not connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='quota_policy_history'"
+        ).fetchone():
+            return []
+        previous = connection.execute(
+            """SELECT effective_from, policy_json, source FROM quota_policy_history
+               WHERE effective_from <= ? ORDER BY effective_from DESC, id DESC LIMIT 1""",
+            (float(start),),
+        ).fetchone()
+        changes = connection.execute(
+            """SELECT effective_from, policy_json, source FROM quota_policy_history
+               WHERE effective_from > ? AND effective_from <= ? ORDER BY effective_from, id""",
+            (float(start), float(end)),
+        ).fetchall()
+    rows = ([previous] if previous else []) + list(changes)
+    return [
+        {"effective_from": float(row[0]), "policy": json.loads(row[1]), "source": row[2]}
+        for row in rows
+    ]
+
+
 def usage_exchange_rate(hours: int = 72, min_five_hour_pct: float = 30.0) -> dict | None:
     """Сколько п.п. недельного окна съедает 1 п.п. пятичасового — по своей же истории (#162)."""
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()

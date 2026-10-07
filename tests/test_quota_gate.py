@@ -3,6 +3,7 @@
 import importlib.util
 import os
 import sys
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -114,6 +115,43 @@ def test_environment_overrides_are_honored(monkeypatch):
     assert gate.TOLERANCE_END_PP == 3.0
     assert gate.HARD_STOP_PCT == 93.0
     assert gate.GATED_LANES == frozenset({"spark", "luna"})
+
+
+def test_live_policy_change_appends_a_history_epoch(tmp_path, monkeypatch):
+    env_file = tmp_path / ".env"
+    env_file.write_text("")
+    _live_dotenv(monkeypatch, env_file, "")
+
+    initial = quota_gate.quota_policy()
+    _rewrite(env_file, "QUOTA_TOLERANCE_START_PP=12\n")
+    changed = quota_gate.quota_policy()
+
+    from app import db
+    history = db.quota_policy_history_for_window(0.0, time.time() + 1.0)
+    assert initial.tolerance_start_pp == 10.0
+    assert changed.tolerance_start_pp == 12.0
+    assert [event["policy"]["tolerance_start_pp"] for event in history] == [10.0, 12.0]
+
+
+def test_quota_policy_history_reconstruction_is_idempotent_after_process_restart(tmp_path, monkeypatch):
+    from app import db
+
+    database = tmp_path / "history.db"
+    monkeypatch.setattr(db, "DB_PATH", database)
+
+    quota_gate.initialize_quota_policy_history()
+    database_key = str(database.resolve())
+    with quota_gate._policy_history_lock:
+        quota_gate._initialized_policy_history_paths.discard(database_key)
+        quota_gate._last_policy_history_json.pop(database_key, None)
+
+    quota_gate.initialize_quota_policy_history()
+
+    history = db.quota_policy_history_for_window(0.0, time.time() + 1.0)
+    assert [event["effective_from"] for event in history] == pytest.approx([
+        1790640000.0,
+        1791261780.0,
+    ])
 
 
 def test_empty_gated_lanes_config_disables_gating(monkeypatch):

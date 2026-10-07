@@ -254,6 +254,63 @@ def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser):
     page.close()
 
 
+def test_timeline_keeps_old_claude_rule_until_v732_effective_time(browser):
+    payload = _payload(claude_progress=0.5, claude_util=50.0)
+    old_start = 1790665200.0  # 2026-09-29 07:00 UTC
+    reset = 1791874800.0  # 2026-10-13 07:00 UTC
+    old_reset = reset - 604800.0
+    effective = 1791261780.0  # 2026-10-06 04:43 UTC
+    payload["generated_at"] = "2026-10-07T05:00:00+00:00"
+    payload["rule"]["claude_weekly_shift_hours"] = 8.0
+    payload["rule_history"] = [
+        {"effective_from": 1790640000.0, "policy": {
+            **payload["rule"], "claude_weekly_shift_hours": 0.0,
+        }},
+        {"effective_from": effective, "policy": payload["rule"]},
+    ]
+    bucket = next(item for item in payload["buckets"] if item["bucket"] == "anthropic")
+    bucket["window"] = {
+        "id": "seven_day", "window_minutes": 10080, "utilization": 50.0,
+        "resets_at": "2026-10-13T07:00:00+00:00", "progress": 8 / 168,
+    }
+    page, errors = _render(browser, payload)
+    old_line = page.locator(
+        f"[data-ql-timeline='all'] [data-ql-timeline-threshold='claude'][data-ql-policy-from='1790640000'][data-ql-window-end='{int(old_reset)}']"
+    )
+    v732_tail = page.locator(
+        f"[data-ql-timeline='all'] [data-ql-timeline-threshold='claude'][data-ql-policy-from='{int(effective)}'][data-ql-window-end='{int(old_reset)}']"
+    )
+    current_line = page.locator(
+        f"[data-ql-timeline='all'] [data-ql-timeline-threshold='claude'][data-ql-policy-from='current'][data-ql-window-end='{int(reset)}']"
+    )
+    assert old_line.count() >= 1
+    assert v732_tail.count() >= 1
+    assert current_line.count() >= 1
+
+    chart_from = 1791349200.0 - 84 * 3600.0
+    def chart_point_near(line, ts):
+        target_x = 54.0 + (ts - chart_from) / (168 * 3600.0) * 886.0
+        points = [tuple(map(float, point.split(",")))
+                  for point in line.get_attribute("points").split()]
+        return min(points, key=lambda point: abs(point[0] - target_x))[1]
+
+    old_sample = 1791201600.0  # 2026-10-05 12:00 UTC, before V-732 restart
+    old_progress = (old_sample - old_start) / 604800.0
+    old_expected = 10.0 + 91.0 * old_progress
+    old_y = chart_point_near(old_line.first, old_sample)
+    expected_old_y = 18.0 + (1.0 - old_expected / 100.0) * 408.0
+
+    current_sample = 1791349200.0  # 2026-10-07 05:00 UTC
+    current_progress = (current_sample - old_reset) / 604800.0
+    shifted_expected = 10.0 + 91.0 * (current_progress + 8.0 / 168.0)
+    shifted_y = chart_point_near(current_line.first, current_sample)
+    expected_shifted_y = 18.0 + (1.0 - shifted_expected / 100.0) * 408.0
+    assert old_y == pytest.approx(expected_old_y, abs=2.0)
+    assert shifted_y == pytest.approx(expected_shifted_y, abs=2.0)
+    assert errors == []
+    page.close()
+
+
 def test_live_quota_map_history_and_two_hour_labels(browser):
     payload = json.loads((ROOT / "tests/fixtures/v654_quota_map_live_shape.json").read_text())
     page, errors = _render(browser, payload)
