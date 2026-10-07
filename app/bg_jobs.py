@@ -483,6 +483,7 @@ class BgJobManager:
         )
 
     async def cancel(self, job_id: str) -> dict:
+        row = bg_get_job(job_id) or {}
         ok = bg_cancel_job(job_id)
         if not ok:
             return {"error": "job not found or not active"}
@@ -492,6 +493,13 @@ class BgJobManager:
         proc = self._procs.pop(job_id, None)
         if proc:
             await _kill_proc(proc)
+        if row.get("type") == "run":
+            await self._interrupt_run_notify(
+                job_id, row.get("message") or "Background run", row.get("target_name") or "?",
+                row.get("target_scope") or "",
+                reason="Отменён вызывающим агентом; повторный запуск не выполнялся.",
+                output=row.get("last_output") or "",
+            )
         return {"ok": True}
 
     async def cancel_by_session(self, session_id: str) -> None:
@@ -505,6 +513,12 @@ class BgJobManager:
             proc = self._procs.pop(jid, None)
             if proc:
                 await _kill_proc(proc)
+            row = next((job for job in active if job["id"] == jid), {})
+            if row.get("type") == "run":
+                await self._report_undelivered_job(
+                    jid, row.get("target_name") or "?", row.get("target_scope") or "",
+                    "target session stopped while its run job was active",
+                )
         if cancelled_count:
             logger.info(f"bg_jobs: cancelled {cancelled_count} jobs for session {session_id}")
 
@@ -526,6 +540,17 @@ class BgJobManager:
             task = self._tasks.pop(jid, None)
             if task and not task.done():
                 task.cancel()
+            row = bg_get_job(jid)
+            if row and row.get("type") == "run":
+                timeout = max(
+                    1,
+                    (datetime.fromisoformat(row["expires_at"])
+                     - datetime.fromisoformat(row["created_at"])).total_seconds(),
+                )
+                await self._expire_notify(
+                    jid, row["message"], row["target_name"], row["target_scope"],
+                    timeout, row.get("last_output") or "",
+                )
         reset_ids = bg_reset_stale_triggering()
         if reset_ids:
             logger.info(f"bg_jobs: reset {len(reset_ids)} stale triggering jobs")
@@ -625,43 +650,64 @@ class BgJobManager:
             return None, "target session not found"
         return session, ""
 
+    async def _notify_job_target(
+        self, job_id: str, outcome: str, body: str,
+        target_name: str, target_scope: str,
+    ) -> str | None:
+        try:
+            session, failure = await self._load_job_target(job_id, target_name)
+            if not session:
+                raise RuntimeError(failure or "target session not found")
+            self._restore_report_provenance(session)
+            injected = self._terminal_message(job_id, outcome, body)
+            await self._session_manager.send(
+                session.id, injected, provenance=injected.provenance,
+            )
+            return None
+        except Exception as error:
+            reason = f"{type(error).__name__}: {error}"
+            logger.error("bg_job %s: %s notification failed: %s", job_id, outcome, reason)
+            await self._report_undelivered_job(
+                job_id, target_name, target_scope, reason,
+            )
+            return reason
+
+    async def _report_undelivered_job(
+        self, job_id: str, target_name: str, target_scope: str, reason: str,
+    ) -> None:
+        from app.notify import report_undelivered
+
+        try:
+            await report_undelivered(
+                self._session_manager,
+                scope=target_scope,
+                worker=target_name,
+                what=f"result of background job {job_id}",
+                reason=reason,
+                dedupe_key=f"bgjob:{job_id}",
+            )
+        except Exception as fallback_error:
+            logger.error(
+                "bg_job %s: undelivered report failed (%s): %s",
+                job_id, type(fallback_error).__name__, fallback_error,
+            )
+
     async def _trigger(self, job_id: str, message: str,
                        target_name: str, target_scope: str, output: str = "") -> None:
         claimed = bg_claim_trigger(job_id)
         if not claimed:
             return
-        try:
-            session, failure = await self._load_job_target(job_id, target_name)
-            if not session:
-                bg_fail_job(job_id, failure)
-                return
-            body = f"[Background job completed] {message}"
-            if output:
-                body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
-            self._restore_report_provenance(session)
-            injected = self._terminal_message(job_id, "completed", body)
-            await self._session_manager.send(
-                session.id,
-                injected,
-                provenance=injected.provenance,
-            )
+        body = f"[Background job completed] {message}"
+        if output:
+            body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
+        failure = await self._notify_job_target(
+            job_id, "completed", body, target_name, target_scope,
+        )
+        if failure is None:
             bg_finish_trigger(job_id, output)
             logger.info(f"bg_job {job_id}: triggered → {target_name}")
-        except Exception as e:
-            bg_fail_job(job_id, str(e)[:500])
-            logger.error(f"bg_job {job_id}: trigger failed: {e}")
-            # Факт в состоянии джоба виден только глазами в дашборде — это не уведомление.
-            # Адресат — оркестратор scope: он ставил джоб, ему и решать (#30).
-            from app.notify import report_undelivered
-
-            await report_undelivered(
-                self._session_manager,
-                scope=target_scope,
-                worker=target_name,
-                what=f"результат фоновой задачи {job_id}",
-                reason=f"{type(e).__name__}: {e}",
-                dedupe_key=f"bgjob:{job_id}",
-            )
+        else:
+            bg_fail_job(job_id, failure)
 
     def _expire(self, job_id: str) -> None:
         bg_expire_job(job_id)
@@ -677,67 +723,45 @@ class BgJobManager:
         err = (f"{message}\n[TIMEOUT] killed after {dur} — no completion. "
                f"The process produced no output or hung. Check the target tool "
                f"(codex auth/proxy/sandbox) and retry.")
-        try:
-            session, _failure = await self._load_job_target(job_id, target_name)
-            if not session:
-                return
-            body = f"[Background job TIMED OUT] {err}"
-            if output:
-                body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
-            self._restore_report_provenance(session)
-            injected = self._terminal_message(job_id, "timed_out", body)
-            await self._session_manager.send(
-                session.id,
-                injected,
-                provenance=injected.provenance,
-            )
+        body = f"[Background job TIMED OUT] {err}"
+        if output:
+            body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
+        failure = await self._notify_job_target(
+            job_id, "timed_out", body, target_name, target_scope,
+        )
+        if failure is None:
             logger.warning(f"bg_job {job_id}: TIMED OUT after {dur} → notified {target_name}")
-        except Exception as e:
-            logger.error(f"bg_job {job_id}: timeout-notify failed: {e}")
 
     async def _fail_notify(self, job_id, message, target_name, target_scope,
                            error, output=""):
         """Persist a failed run and wake the waiting agent with an explicit failure."""
         bg_fail_job(job_id, error)
-        try:
-            session, _failure = await self._load_job_target(job_id, target_name)
-            if not session:
-                return
-            body = f"[Background job FAILED] {message}\n{error}"
-            if output:
-                body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
-            self._restore_report_provenance(session)
-            injected = self._terminal_message(job_id, "failed", body)
-            await self._session_manager.send(
-                session.id,
-                injected,
-                provenance=injected.provenance,
-            )
+        body = f"[Background job FAILED] {message}\n{error}"
+        if output:
+            body += f"\n\nOutput (last 3000 chars):\n{output[-3000:]}"
+        failure = await self._notify_job_target(
+            job_id, "failed", body, target_name, target_scope,
+        )
+        if failure is None:
             logger.warning(f"bg_job {job_id}: FAILED → notified {target_name}: {error}")
-        except Exception as e:
-            logger.error(f"bg_job {job_id}: failure-notify failed: {e}")
 
-    async def _interrupt_run_notify(self, job_id, message, target_name, target_scope):
-        reason = "Прерван рестартом сервиса, повторный запуск не выполнялся."
+    async def _interrupt_run_notify(
+        self, job_id, message, target_name, target_scope,
+        reason="Прерван рестартом сервиса, повторный запуск не выполнялся.",
+        output="",
+    ):
         bg_fail_job(job_id, reason)
-        try:
-            session, _failure = await self._load_job_target(job_id, target_name)
-            if not session:
-                return
-            body = f"[Background job INTERRUPTED] {message}\n{reason}"
-            self._restore_report_provenance(session)
-            injected = self._terminal_message(job_id, "interrupted", body)
-            await self._session_manager.send(
-                session.id,
-                injected,
-                provenance=injected.provenance,
-            )
+        body = f"[Background job INTERRUPTED] {message}\n{reason}"
+        if output:
+            body += f"\n\nPartial output (last 3000 chars):\n{output[-3000:]}"
+        failure = await self._notify_job_target(
+            job_id, "interrupted", body, target_name, target_scope,
+        )
+        if failure is None:
             logger.warning(
-                "bg_job %s: interrupted by service restart → notified %s",
+                "bg_job %s: interrupted → notified %s",
                 job_id, target_name,
             )
-        except Exception as e:
-            logger.error(f"bg_job {job_id}: restart-interrupt notify failed: {e}")
 
     def _fail_if_active(self, job_id: str, error: str) -> None:
         bg_fail_job_if_active(job_id, error)
@@ -1138,14 +1162,28 @@ class BgJobManager:
             trigger_msg = f"{message}\nExit code: 0"
             await self._trigger(job_id, trigger_msg, target_name, target_scope, full_output)
         except asyncio.TimeoutError:
+            kill_error = ""
             if proc:
-                await _kill_proc(proc)
-            await self._expire_notify(job_id, message, target_name, target_scope,
-                                      timeout, "".join(output_buf))
+                try:
+                    await _kill_proc(proc)
+                except Exception as error:
+                    kill_error = f"; process kill failed: {type(error).__name__}: {error}"
+            output = "".join(output_buf)
+            if kill_error:
+                output += f"\n{kill_error}"
+            await self._expire_notify(
+                job_id, message, target_name, target_scope, timeout,
+                output,
+            )
+            if kill_error:
+                logger.error("bg_job %s: %s", job_id, kill_error.lstrip("; "))
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            bg_fail_job(job_id, str(e)[:500])
+            await self._fail_notify(
+                job_id, message, target_name, target_scope,
+                f"{type(e).__name__}: {e}", "".join(output_buf),
+            )
         finally:
             if reader_task and not reader_task.done():
                 reader_task.cancel()

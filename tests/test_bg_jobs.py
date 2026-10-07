@@ -602,6 +602,89 @@ class TestRunExecOutcome:
         assert "completed" not in sent.lower()
 
     @pytest.mark.asyncio
+    async def test_incomplete_workflow_manifest_wakes_caller_with_prepare_error(
+        self, db, mgr_mock, tmp_path,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+        import shlex
+
+        manifest = tmp_path / "manifest.json"
+        manifest.write_text(json.dumps({
+            "complete": False,
+            "partial_reason": "error",
+            "steps": [{
+                "call_key": "same-prompt:1",
+                "reason": "prepare_failed",
+                "error": "ValueError: worktree already exists",
+            }],
+        }))
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-prepare-failed", datetime.now(timezone.utc)))
+
+        await mgr._run_exec(
+            "run-prepare-failed", f"cat {shlex.quote(str(manifest))}",
+            "Dynamic workflow prepare test", "w1", "/s", 10,
+            success_file=str(manifest), success_pattern=r'"complete"\s*:\s*true',
+        )
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-prepare-failed")
+        assert row["status"] == "failed"
+        delivered = session.send.await_args.args[0]
+        assert "[Background job FAILED]" in delivered.text
+        assert "worktree already exists" in delivered.text
+
+    @pytest.mark.asyncio
+    async def test_manual_run_cancel_wakes_caller(self, db, mgr_mock):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_get_jobs, bg_save_job
+
+        mgr = BgJobManager()
+        manager, session = mgr_mock
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-cancel-notify", datetime.now(timezone.utc)))
+
+        assert await mgr.cancel("run-cancel-notify") == {"ok": True}
+
+        row = next(j for j in bg_get_jobs(scope="/s") if j["id"] == "run-cancel-notify")
+        assert row["status"] == "cancelled"
+        delivered = session.send.await_args.args[0]
+        assert "[Background job INTERRUPTED]" in delivered.text
+        assert "Отменён вызывающим агентом" in delivered.text
+
+    @pytest.mark.asyncio
+    async def test_failed_run_with_gone_target_reports_to_scope_orchestrator(
+        self, db, mgr_mock, monkeypatch,
+    ):
+        from app.bg_jobs import BgJobManager
+        from app.db import bg_save_job
+
+        fallback = {}
+
+        async def report_undelivered(_manager, **kwargs):
+            fallback.update(kwargs)
+            return "reported"
+
+        monkeypatch.setattr("app.notify.report_undelivered", report_undelivered)
+        mgr = BgJobManager()
+        manager, _session = mgr_mock
+        manager.ensure_loaded_by_id = AsyncMock(return_value=None)
+        mgr.set_session_manager(manager)
+        bg_save_job(self._job("run-gone-target", datetime.now(timezone.utc)))
+
+        await mgr._fail_notify(
+            "run-gone-target", "Dynamic workflow", "w1", "/s",
+            "Process exited with exit code 1", "partial manifest",
+        )
+
+        assert fallback["scope"] == "/s"
+        assert fallback["worker"] == "w1"
+        assert fallback["dedupe_key"] == "bgjob:run-gone-target"
+        assert "target session not found" in fallback["reason"]
+
+    @pytest.mark.asyncio
     async def test_local_run_executes_relative_paths_in_supplied_cwd(
         self, db, mgr_mock, tmp_path,
     ):

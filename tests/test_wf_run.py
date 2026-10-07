@@ -12,6 +12,7 @@ from scripts.wf_adapters import (
     parse_codex_output,
     persist_turn_usage,
 )
+from scripts import wf_run
 from scripts.wf_run import WorkflowEngine, _parse_and_validate, validate_pilot_manifest
 
 
@@ -230,6 +231,79 @@ async def test_parallel_writers_use_distinct_real_worktrees(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_identical_parallel_prompts_create_distinct_worktrees(tmp_path, monkeypatch):
+    import asyncio
+    from app import workspace
+
+    repo = _git_repo(tmp_path / "repo")
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
+    workspaces = []
+
+    async def adapter(_prompt, *, cwd, **_kwargs):
+        workspaces.append(Path(cwd))
+        await asyncio.sleep(0.1)
+        return _result("same result")
+
+    engine = _engine(
+        "same-prompts", tmp_path / "run", budget_usd=1, max_calls=10,
+        max_concurrency=3, adapter=adapter, workspace_repo=repo,
+        workspace_base_branch="main",
+    )
+    values = await engine.parallel([
+        lambda: engine.agent("byte-identical prompt", model="luna")
+        for _ in range(10)
+    ])
+    assert all(value is not None for value in values)
+    assert len(set(workspaces)) == 10
+    assert len({value.value_id for value in values}) == 10
+
+
+@pytest.mark.asyncio
+async def test_prepare_failure_is_recorded_and_resume_retries_it(tmp_path, monkeypatch):
+    from app import workspace
+    from scripts import wf_run
+
+    repo = _git_repo(tmp_path / "repo")
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
+    prepare_workspace = wf_run._prepare_workspace_sync
+
+    def fail_prepare(_repo, _name, _base_branch):
+        raise ValueError("controlled worktree collision")
+
+    monkeypatch.setattr(wf_run, "_prepare_workspace_sync", fail_prepare)
+
+    async def adapter(_prompt, **_kwargs):
+        return _result("recovered")
+
+    async def readiness(_model):
+        return {"state": "available"}
+
+    first = _engine(
+        "prepare-resume", tmp_path / "run", budget_usd=1, max_calls=1,
+        adapter=adapter, readiness_checker=readiness, workspace_repo=repo,
+        workspace_base_branch="main",
+    )
+    assert await first.agent("work", model="luna") is None
+    partial = first.write_manifest()
+    assert partial["partial_reason"] == "error"
+    assert partial["dispatched_calls"] == 0
+    assert partial["steps"][0]["reason"] == "prepare_failed"
+    assert "controlled worktree collision" in partial["steps"][0]["error"]
+    event = json.loads(first.journal.path.read_text().splitlines()[-1])
+    assert event["event"] == "prepare_failed"
+    assert "controlled worktree collision" in event["error"]
+
+    monkeypatch.setattr(wf_run, "_prepare_workspace_sync", prepare_workspace)
+    resumed = _engine(
+        "prepare-resume", tmp_path / "run", budget_usd=1, max_calls=1,
+        adapter=adapter, readiness_checker=readiness, workspace_repo=repo,
+        workspace_base_branch="main",
+    )
+    value = await resumed.agent("work", model="luna")
+    assert value.data == "recovered"
+
+
+@pytest.mark.asyncio
 async def test_committed_workspace_is_archived_reset_and_discarded(tmp_path):
     repo = _git_repo(tmp_path / "repo")
 
@@ -281,7 +355,7 @@ async def test_new_ignored_workspace_output_is_archived(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_workspace_setup_failure_is_retryable_not_paid_unknown(tmp_path, monkeypatch):
+async def test_workspace_setup_failure_is_recorded_retryable_and_not_paid_unknown(tmp_path, monkeypatch):
     import app.workspace as workspace
 
     repo = _git_repo(tmp_path / "repo")
@@ -295,8 +369,13 @@ async def test_workspace_setup_failure_is_retryable_not_paid_unknown(tmp_path, m
             "setup-retry", tmp_path / "run", budget_usd=1, adapter=lambda: None,
             workspace_repo=repo, workspace_base_branch="main",
         )
-        with pytest.raises(RuntimeError, match="disk full"):
-            await first.agent("work", model="luna")
+        assert await first.agent("work", model="luna") is None
+        partial = first.write_manifest()
+        assert partial["partial_reason"] == "error"
+        assert partial["dispatched_calls"] == 0
+    assert partial["steps"][0]["reason"] == "prepare_failed"
+    assert "disk full" in partial["steps"][0]["error"]
+    assert "disk full" in wf_run._notification_summary(partial)
     monkeypatch.setattr(workspace, "create_worktree", original)
 
     calls = []
