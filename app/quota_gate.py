@@ -233,7 +233,7 @@ def _live_quota_env() -> dict[str, object]:
         }
 
 
-def quota_policy(*, persist_history: bool = True) -> QuotaPolicy:
+def quota_policy() -> QuotaPolicy:
     """Return the current quota policy, including edits made to `.env` live."""
     values = _live_quota_env()
 
@@ -268,9 +268,26 @@ def quota_policy(*, persist_history: bool = True) -> QuotaPolicy:
         gated_lanes=lanes_value("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT),
         curved_lanes=lanes_value("QUOTA_CURVED_LANES", _ENV_CURVED_LANES_DEFAULT),
     )
-    if persist_history:
-        _persist_quota_policy(policy)
     return policy
+
+
+def _is_live_service_process() -> bool:
+    # systemd activation variables are inherited by child commands; only the
+    # process named by LISTEN_PID owns the live service and its history.
+    try:
+        return (
+            os.environ.get("LISTEN_PID") == str(os.getpid())
+            and int(os.environ.get("LISTEN_FDS", "0")) > 0
+        )
+    except ValueError:
+        return False
+
+
+def observe_quota_policy_history() -> bool:
+    """Persist a changed policy only when the socket-activated service observes it."""
+    if not _is_live_service_process():
+        return False
+    return _persist_quota_policy(quota_policy())
 
 
 def quota_policy_snapshot(policy: QuotaPolicy) -> dict:
@@ -306,7 +323,9 @@ def _persist_quota_policy(policy: QuotaPolicy, *, effective_from: float | None =
 
 def initialize_quota_policy_history(*, effective_from: float | None = None) -> int:
     """Seed the evidenced September baseline and record the policy active at startup."""
-    policy = quota_policy(persist_history=False)
+    if not _is_live_service_process():
+        return 0
+    policy = quota_policy()
     current = quota_policy_snapshot(policy)
     from app import db
 

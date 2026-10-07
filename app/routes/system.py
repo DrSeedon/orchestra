@@ -1755,7 +1755,7 @@ async def build_quota_map() -> dict:
         parse_quota_timestamp,
         quota_policy,
         quota_policy_snapshot,
-        initialize_quota_policy_history,
+        observe_quota_policy_history,
         tolerance_pp,
         window_progress,
     )
@@ -1764,7 +1764,7 @@ async def build_quota_map() -> dict:
     observation = _quota_observation_from_cache()
     providers = observation.get("providers") or {}
     timestamps = observation.get("observed_at_by_provider") or {}
-    initialize_quota_policy_history()
+    observe_quota_policy_history()
     now = time.time()
     policy = quota_policy()
 

@@ -119,26 +119,50 @@ def test_environment_overrides_are_honored(monkeypatch):
 
 
 def test_live_policy_change_appends_a_history_epoch(tmp_path, monkeypatch):
+    import os
+    from app import db
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "history.db")
+    monkeypatch.setenv("LISTEN_PID", str(os.getpid()))
+    monkeypatch.setenv("LISTEN_FDS", "1")
     env_file = tmp_path / ".env"
     env_file.write_text("")
     _live_dotenv(monkeypatch, env_file, "")
 
     initial = quota_gate.quota_policy()
+    assert quota_gate.observe_quota_policy_history()
     _rewrite(env_file, "QUOTA_TOLERANCE_START_PP=12\n")
     changed = quota_gate.quota_policy()
+    assert quota_gate.observe_quota_policy_history()
 
-    from app import db
     history = db.quota_policy_history_for_window(0.0, time.time() + 1.0)
     assert initial.tolerance_start_pp == 10.0
     assert changed.tolerance_start_pp == 12.0
     assert [event["policy"]["tolerance_start_pp"] for event in history] == [10.0, 12.0]
 
 
+def test_quota_policy_is_read_only_outside_the_socket_activated_service(tmp_path, monkeypatch):
+    import os
+    from app import db
+
+    database = tmp_path / "quota-policy-read.db"
+    monkeypatch.setattr(db, "DB_PATH", database)
+    monkeypatch.setenv("LISTEN_PID", str(os.getpid() + 1))
+    monkeypatch.setenv("LISTEN_FDS", "1")
+
+    assert quota_gate.initialize_quota_policy_history() == 0
+    assert quota_gate.quota_policy().tolerance_start_pp == 10.0
+    assert not database.exists()
+
+
 def test_quota_policy_history_reconstruction_is_idempotent_after_process_restart(tmp_path, monkeypatch):
+    import os
     from app import db
 
     database = tmp_path / "history.db"
     monkeypatch.setattr(db, "DB_PATH", database)
+    monkeypatch.setenv("LISTEN_PID", str(os.getpid()))
+    monkeypatch.setenv("LISTEN_FDS", "1")
 
     quota_gate.initialize_quota_policy_history()
     database_key = str(database.resolve())
