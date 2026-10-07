@@ -9,6 +9,7 @@ import base64
 import json
 import os
 import re
+import shutil
 import socket
 import subprocess
 import tempfile
@@ -466,6 +467,124 @@ def test_dashboard_loads(dashboard_page: Page):
 def test_sidebar_agents_visible(dashboard_page: Page):
     agent_list = dashboard_page.locator("#agent-list")
     expect(agent_list).to_be_visible()
+
+
+def test_tg_topic_context_menu_persists_through_frontend_api(dashboard_browser: Browser):
+    page = dashboard_browser.new_page()
+    try:
+        _route_frontend_sources(page)
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof _showAgentContextMenu === 'function'")
+        page.evaluate("currentScope = '/tmp/fe-scope'")
+
+        for enabled, label in ((True, "OFF → ON"), (False, "ON → OFF")):
+            page.evaluate("""enabled => _showAgentContextMenu(
+                {clientX: 20, clientY: 20},
+                {name: 'notify-268-probe', tg_topic: enabled},
+            )""", not enabled)
+            with page.expect_response(lambda response: (
+                response.request.method == "POST"
+                and response.url.endswith("/api/sessions/notify-268-probe/tg_topic")
+            )) as response_info:
+                page.get_by_text(f"📌 TG Topic: {label}", exact=True).click()
+
+            response = response_info.value
+            assert response.status == 200
+            assert response.json()["tg_topic"] is enabled
+
+            reloaded = page.request.get(
+                f"{_dashboard_base()}/api/sessions?scope=%2Ftmp%2Ffe-scope"
+            )
+            assert reloaded.status == 200
+            worker = next(
+                session for session in reloaded.json()
+                if session["name"] == "notify-268-probe"
+            )
+            assert bool(worker["tg_topic"]) is enabled
+    finally:
+        page.close()
+
+
+def test_tg_topic_frontend_and_route_share_the_persistent_api_contract():
+    import ast
+
+    root = Path(__file__).resolve().parent.parent
+    frontend = (root / "app/static/js/app.js").read_text()
+    start = frontend.index("function _showAgentContextMenu")
+    end = frontend.index("\nconst FILE_ICONS", start)
+    menu_function = frontend[start:end]
+    node = shutil.which("node")
+    assert node, "Node.js is required to exercise the dashboard TG topic action"
+    script = r"""
+global.window = {innerWidth: 1000, innerHeight: 800};
+let currentScope = '/test/scope';
+let _agentCtxMenu = null;
+let request = null;
+let refreshCount = 0;
+const element = () => ({
+    style: {}, children: [],
+    addEventListener(name, fn) { this['on_' + name] = fn; },
+    appendChild(child) { this.children.push(child); },
+    getBoundingClientRect() { return {right: 10, bottom: 10, width: 10, height: 10}; },
+    remove() {},
+});
+global.document = {
+    createElement: element,
+    addEventListener() {},
+    body: {appendChild(menu) { global.menu = menu; }},
+};
+global.api = async (url, opts) => { request = {url, opts}; return {}; };
+global.refreshSessions = async () => { refreshCount += 1; };
+""" + menu_function + r"""
+(async () => {
+    _showAgentContextMenu({clientX: 0, clientY: 0}, {name: 'worker', tg_topic: false});
+    menu.children[0].on_click({stopPropagation() {}});
+    await new Promise(resolve => setTimeout(resolve, 0));
+    console.log(JSON.stringify({
+        url: request.url,
+        method: request.opts.method,
+        body: request.opts.body ? JSON.parse(request.opts.body) : null,
+        refreshCount,
+    }));
+})();
+"""
+    result = subprocess.run(
+        [node, "-e", script], capture_output=True, text=True, timeout=10, check=True,
+    )
+    frontend_request = json.loads(result.stdout)
+    frontend_ok = frontend_request == {
+        "url": "/api/sessions/worker/tg_topic",
+        "method": "POST",
+        "body": {"scope": "/test/scope", "enabled": True},
+        "refreshCount": 1,
+    }
+
+    routes = ast.parse((root / "app/routes/sessions.py").read_text())
+    declared = set()
+    for node in ast.walk(routes):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call):
+                continue
+            target = decorator.func
+            if (
+                isinstance(target, ast.Attribute)
+                and isinstance(target.value, ast.Name)
+                and target.value.id == "router"
+                and target.attr in {"post", "patch"}
+                and decorator.args
+                and isinstance(decorator.args[0], ast.Constant)
+            ):
+                declared.add((target.attr, decorator.args[0].value))
+
+    route_ok = (
+        ("post", "/api/sessions/{name}/tg_topic") in declared
+        and ("patch", "/api/sessions/{name}/tg-topic") not in declared
+    )
+    assert frontend_ok and route_ok, (
+        f"frontend request={frontend_request}; route contract valid={route_ok}"
+    )
 
 
 def test_live_stream_status_updates_selected_agent_badge(dashboard_page: Page):

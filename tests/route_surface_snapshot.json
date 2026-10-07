@@ -463,12 +463,6 @@
   ]
  ],
  [
-  "/api/sessions/{name}/tg-topic",
-  [
-   "PATCH"
-  ]
- ],
- [
   "/api/sessions/{name}/tg_topic",
   [
    "POST"

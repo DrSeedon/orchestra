@@ -3523,14 +3523,3 @@ async def update_progress(name: str, req: dict):
     session.progress_status = status_text
     session._persist()
     return {"ok": True}
-
-
-@router.patch("/api/sessions/{name}/tg-topic")
-async def toggle_tg_topic(name: str, scope: str, enabled: bool):
-    from app.db import save_session
-    found = manager.get_by_name(name, scope)
-    if not found:
-        return JSONResponse({"error": "not found"}, status_code=404)
-    found.tg_topic = enabled
-    save_session(found.to_dict())
-    return {"ok": True, "name": name, "tg_topic": enabled}
