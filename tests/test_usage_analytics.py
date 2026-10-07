@@ -57,19 +57,34 @@ def usage_db(tmp_path, monkeypatch):
     return db_path
 
 
-def test_daily_usage_applies_provider_cache_ttl(usage_db):
+@pytest.mark.parametrize(("hour", "minute"), [(0, 30), (12, 0)])
+def test_daily_usage_applies_provider_cache_ttl(usage_db, hour, minute):
     from app.usage_analytics import daily_usage
 
-    base = datetime.now(timezone.utc).replace(microsecond=0) - timedelta(hours=3)
+    today = datetime.now(timezone.utc).date()
+    clock = datetime.combine(today, datetime.min.time(), timezone.utc).replace(
+        hour=hour, minute=minute
+    )
+    base = clock.replace(hour=0, minute=5)
     with sqlite3.connect(usage_db) as conn:
+        conn.row_factory = sqlite3.Row
         _seed_session(conn, "claude", "claude-opus-5[1m]", "claude")
         _seed_session(conn, "codex", "gpt-5.6-sol", "codex")
         for session_id in ("claude", "codex"):
             _seed_turn(conn, session_id, base)
             _seed_turn(conn, session_id, base + timedelta(minutes=31))
             _seed_turn(conn, session_id, base + timedelta(minutes=92))
+        conn.create_function(
+            "date",
+            -1,
+            lambda value, *_: (
+                clock.date().isoformat()
+                if value == "now"
+                else datetime.fromisoformat(value).date().isoformat()
+            ),
+        )
 
-    rows = daily_usage(days=1)
+        rows = daily_usage(days=1, conn=conn)
 
     assert len(rows) == 1
     row = rows[0]
