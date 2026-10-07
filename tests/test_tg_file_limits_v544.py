@@ -245,7 +245,8 @@ async def test_unclear_provider_failure_stays_unknown(world):
     resource = world.deliveries.get_file_delivery(EVENT, "source-544")
     assert resource["delivery_state"] == "UNKNOWN"
     assert resource["children"]["primary"]["error"]["outcome_unknown"] is True
-    assert resource["next_action"]["code"] == "CHECK_DELIVERY_STATUS"
+    assert resource["next_action"]["code"] == "REPEAT_SAME_FILE_CALL"
+    assert resource["next_action"]["arguments"]["event_id"] == EVENT
 
 
 @pytest.mark.asyncio
