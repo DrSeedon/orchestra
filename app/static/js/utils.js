@@ -22,6 +22,11 @@ const MODEL_COST_CURRENCY = '$';
 const $ = (s) => document.querySelector(s);
 const taskNum = (par) => String(par || '').replace(/^[A-Z]+-/, '');
 
+function _formatPercent(value, digits = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number.toFixed(digits) : '—';
+}
+
 const _PROVIDER_COLORS = {
     anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
     openrouter: '#a78bfa', gigachat: '#ef4444', deepseek: '#60a5fa',

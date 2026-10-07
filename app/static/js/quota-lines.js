@@ -137,10 +137,6 @@ function _qlBucket(bucketId) {
     return (_quotaLinesData?.buckets || []).find(b => b.bucket === bucketId) || null;
 }
 
-function _qlNum(value, digits = 0) {
-    return Number(value).toFixed(digits);
-}
-
 function _qlDurationFromSeconds(totalSeconds) {
     const rounded = Math.max(0, Math.round(Number(totalSeconds)));
     if (!Number.isFinite(rounded)) return '';
@@ -194,8 +190,8 @@ function _qlCeilingText(rule) {
     const own = Object.entries(rule.lane_hard_stop_pct || {})
         .filter(([, pct]) => Number.isFinite(Number(pct)))
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([lane, pct]) => `${_qlLaneLabel(lane)} ${_qlNum(pct)}%`);
-    const common = `${_qlNum(rule.hard_stop_pct)}%`;
+        .map(([lane, pct]) => `${_qlLaneLabel(lane)} ${_formatPercent(pct)}%`);
+    const common = `${_formatPercent(rule.hard_stop_pct)}%`;
     return own.length ? `${own.join(', ')}, ${T('others')} ${common}` : common;
 }
 
@@ -400,7 +396,7 @@ function _qlTimelineSvg(panel, rule) {
         const point = _qlPoint(lane.bucket);
         if (!point) continue;
         const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
-        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_qlNum(point.util)}%</title></circle>`);
+        p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_formatPercent(point.util)}%</title></circle>`);
         pointIndex++;
     }
     p.push(`<line class="ql-now" x1="${x(now)}" y1="${_QL_MT}" x2="${x(now)}" y2="${_QL_MT + _QL_PH}"/>`);
@@ -468,14 +464,14 @@ function _qlChartSvg(panel, rule) {
 
     const hard = Number(rule.hard_stop_pct);
     p.push(`<line class="ql-hard" x1="${_qlX(0)}" y1="${_qlY(hard)}" x2="${_qlX(1)}" y2="${_qlY(hard)}"/>`);
-    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">${T('hard {pct}% — stop for lanes without own ceiling', {pct: _qlNum(hard)})}</text>`);
+    p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(hard) - 7}" text-anchor="end" fill="#fdba74">${T('hard {pct}% — stop for lanes without own ceiling', {pct: _formatPercent(hard)})}</text>`);
     // Lane-specific line for lane with lower ceiling: one common line would lie
     // that the expensive lane runs to the last pool percent.
     for (const lane of _qlLanes(panel)) {
         const stop = _qlHardStop(rule, lane.lane);
         if (!(stop < hard)) continue;
         p.push(`<line class="ql-hard" data-ql-hard-lane="${_escHtml(lane.lane)}" x1="${_qlX(0)}" y1="${_qlY(stop)}" x2="${_qlX(1)}" y2="${_qlY(stop)}"/>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${T('{label} — hard {pct}%', {label: _escHtml(T(lane.label || lane.lane)), pct: _qlNum(stop)})}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + _QL_PW - 4}" y="${_qlY(stop) - 7}" text-anchor="end" fill="#fdba74">${T('{label} — hard {pct}%', {label: _escHtml(T(lane.label || lane.lane)), pct: _formatPercent(stop)})}</text>`);
     }
     p.push(`<line class="ql-orch" x1="${_qlX(0)}" y1="${_qlY(100)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(100) + 15}" fill="#c7d2fe">${T('orchestrator always runs — no limit')}</text>`);
@@ -521,7 +517,7 @@ function _qlChartSvg(panel, rule) {
         if (!point) continue;
         if (point.progress === null) {
             if (i === 0) {
-                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${T('{label}: reset time unknown — only hard {pct}%', {label: _escHtml(bucket.label || bucket.bucket), pct: _qlNum(_qlHardStop(rule, lane.lane))})}</text>`);
+                p.push(`<text class="ql-axis ql-halo" x="${_QL_ML + 6}" y="${_qlY(point.util) - 8}" fill="#e2e8f0">${T('{label}: reset time unknown — only hard {pct}%', {label: _escHtml(bucket.label || bucket.bucket), pct: _formatPercent(_qlHardStop(rule, lane.lane))})}</text>`);
             }
             continue;
         }
@@ -546,12 +542,12 @@ function _qlChartSvg(panel, rule) {
         // Luna and Spark not gated at all. Printing bucket straight next to lane curve
         // would show user the wrong limit their workers get blocked by.
         const laneLimit = Number.isFinite(lane.limit_pct) ? Number(lane.limit_pct) : null;
-        const head = T('actual {util}% · expected {expected}%', {util: _qlNum(point.util), expected: _qlNum(point.progress * 100)});
+        const head = T('actual {util}% · expected {expected}%', {util: _formatPercent(point.util), expected: _formatPercent(point.progress * 100)});
         const detail = !lane.gated
-            ? T('{head} · diagonal not applied — only hard {pct}%', {head, pct: _qlNum(_qlHardStop(rule, lane.lane))})
+            ? T('{head} · diagonal not applied — only hard {pct}%', {head, pct: _formatPercent(_qlHardStop(rule, lane.lane))})
             : laneLimit === null
             ? T('{head} · no threshold', {head})
-            : T('{head} · tolerance {tol} pp · threshold {thr}%', {head, tol: _qlNum(point.tolerance, 1), thr: _qlNum(laneLimit, 1)});
+            : T('{head} · tolerance {tol} pp · threshold {thr}%', {head, tol: _formatPercent(point.tolerance, 1), thr: _formatPercent(laneLimit, 1)});
         p.push(`<text class="ql-halo ql-point-label" data-ql-label="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedLabelY}" text-anchor="${anchor}" fill="${color}">${label}${point.fresh ? '' : T(' (telemetry stale)')}</text>`);
         p.push(`<text class="ql-axis ql-halo" data-ql-detail="${_escHtml(lane.lane)}" x="${x + dx}" y="${stackedDetailY}" text-anchor="${anchor}">${detail}</text>`);
     }
@@ -632,7 +628,7 @@ function _qlPanelHtml(panel) {
         <div class="ql-legend">
             <span><i style="background:#8595ab"></i>${T('steady burn')}</span>
             <span><i style="background:#f472b6"></i>${T('threshold for gated lanes')}</span>
-            <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _qlNum(rule.hard_stop_pct)})}</span>
+            <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _formatPercent(rule.hard_stop_pct)})}</span>
             <span><i style="background:#818cf8"></i>${T('orchestrator — no limit')}</span>
         </div>
         ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
