@@ -63,7 +63,11 @@ def _observation(**providers):
 
 @pytest.fixture
 def mapped(tmp_path, monkeypatch):
+    import os
+
     monkeypatch.setattr(db, "DB_PATH", tmp_path / "quota-map.db")
+    monkeypatch.setenv("LISTEN_PID", str(os.getpid()))
+    monkeypatch.setenv("LISTEN_FDS", "1")
     monkeypatch.setattr(system, "is_owner_mode", lambda: True)
 
     async def no_refresh(*_args, **_kwargs):
@@ -74,6 +78,7 @@ def mapped(tmp_path, monkeypatch):
 
     async def run(observation):
         monkeypatch.setattr(system, "_quota_observation_from_cache", lambda: observation)
+        quota_gate.initialize_quota_policy_history()
         return await system.quota_map()
 
     return run
@@ -248,6 +253,30 @@ def test_quota_policy_history_appends_only_changed_snapshots():
     assert [(event["effective_from"], event["policy"]) for event in history] == [
         (100.0, baseline), (300.0, shifted),
     ]
+
+
+def test_v745_corrects_only_the_known_probe_epoch_once():
+    import json
+    from app import db
+
+    policy = {
+        "claude_weekly_shift_hours": 8.0,
+        "claude_day_start_hour": 8.0,
+        "claude_night_quota_share": 0.057,
+    }
+    with db._conn() as connection:
+        db._quota_policy_history_schema(connection)
+        connection.execute(
+            "INSERT INTO quota_policy_history(id, effective_from, policy_json, source) VALUES (1, ?, ?, 'observed')",
+            (1791366137.5606716, json.dumps(policy, sort_keys=True, separators=(",", ":"))),
+        )
+
+    assert db.correct_v745_quota_policy_history_effective_from() == "corrected"
+    assert db.correct_v745_quota_policy_history_effective_from() == "already_corrected"
+    history = db.quota_policy_history_for_window(1791369761.0, 1791369762.0)
+    assert len(history) == 1
+    assert history[0]["effective_from"] == 1791369761.0
+    assert history[0]["policy"] == policy
 
 
 @pytest.mark.asyncio

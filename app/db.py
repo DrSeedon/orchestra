@@ -2417,6 +2417,48 @@ def initialize_quota_policy_history(
     return inserted
 
 
+def correct_v745_quota_policy_history_effective_from(path: Path | None = None) -> str:
+    """Correct the V-744 probe row to the V-745 owner-reported restart time."""
+    wrong_effective_from = 1791366137.5606716
+    restart_effective_from = 1791369761.0
+    with _conn(path) as connection:
+        if not connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='quota_policy_history'"
+        ).fetchone():
+            logger.info("V-745 quota history correction skipped: table is absent")
+            return "table_absent"
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT effective_from, policy_json, source FROM quota_policy_history WHERE id=1"
+        ).fetchone()
+        if row is None:
+            logger.info("V-745 quota history correction skipped: row id=1 is absent")
+            return "row_absent"
+        if float(row[0]) == restart_effective_from:
+            logger.info("V-745 quota history correction already applied: row id=1")
+            return "already_corrected"
+        policy = json.loads(row[1])
+        matches_probe = (
+            abs(float(row[0]) - wrong_effective_from) < 0.001
+            and row[2] == "observed"
+            and policy.get("claude_weekly_shift_hours") == 8.0
+            and policy.get("claude_day_start_hour") == 8.0
+            and policy.get("claude_night_quota_share") == 0.057
+        )
+        if not matches_probe:
+            logger.warning("V-745 quota history correction skipped: row id=1 did not match probe")
+            return "row_mismatch"
+        connection.execute(
+            "UPDATE quota_policy_history SET effective_from=? WHERE id=1 AND effective_from=?",
+            (restart_effective_from, float(row[0])),
+        )
+        logger.warning(
+            "V-745 quota history correction applied: id=1 effective_from %.6f -> %.0f",
+            float(row[0]), restart_effective_from,
+        )
+        return "corrected"
+
+
 def quota_policy_history_for_window(start: float, end: float, *, path: Path | None = None) -> list[dict]:
     """Return the last policy at/before the window and each change through its end."""
     with _conn(path) as connection:
