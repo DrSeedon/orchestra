@@ -579,6 +579,15 @@ def changed_test_paths(changed: list[str]) -> list[str]:
     })
 
 
+def changed_test_artifact_paths(changed: list[str]) -> list[str]:
+    """Return every changed path under tests/, including snapshots and fixtures."""
+    return sorted({
+        _normalize_repo_path(path)
+        for path in changed
+        if _normalize_repo_path(path).startswith(_TEST_PATH_PREFIX)
+    })
+
+
 def _normalize_repo_path(path: str) -> str:
     normalized = path.replace("\\", "/")
     return normalized[2:] if normalized.startswith("./") else normalized
@@ -717,8 +726,8 @@ def _copy_test_into_tree(worker: Path, target: Path, relative: str) -> None:
 
 
 @contextmanager
-def _mutation_tree(worker: str, target_commit: str, tests: list[str]):
-    """Yield a disposable target checkout overlaid with the worker's changed tests."""
+def _mutation_tree(worker: str, target_commit: str, test_artifacts: list[str]):
+    """Yield a target checkout overlaid with all changed test files and data."""
     temporary = tempfile.TemporaryDirectory(prefix="orchestra-merge-mutation-")
     root = Path(temporary.name)
     try:
@@ -736,7 +745,7 @@ def _mutation_tree(worker: str, target_commit: str, tests: list[str]):
         tree.mkdir()
         with tarfile.open(archive, "r:") as tar:
             tar.extractall(tree, filter="data")
-        for path in tests:
+        for path in test_artifacts:
             _copy_test_into_tree(Path(worker), tree, path)
         yield tree
     finally:
@@ -756,6 +765,7 @@ def evaluate_mutation_gate(
         path for path in changed_test_paths(changed)
         if (Path(worktree) / path).is_file()
     ]
+    test_artifacts = changed_test_artifact_paths(changed)
     sources = changed_source_paths(changed)
     result = {
         "status": SKIPPED,
@@ -763,6 +773,7 @@ def evaluate_mutation_gate(
         "exit_code": None,
         "output": "",
         "tests": tests,
+        "test_artifacts": test_artifacts,
         "changed_tests": tests,
         "changed_sources": sources,
         "interpreter": interpreter or _pytest_interpreter(worktree),
@@ -791,7 +802,7 @@ def evaluate_mutation_gate(
             "fallback_files": [],
         }
     try:
-        with _mutation_tree(worktree, commit, tests) as tree:
+        with _mutation_tree(worktree, commit, test_artifacts) as tree:
             second = run_pytest(
                 str(tree), selected_tests,
                 timeout=MUTATION_MAX_TIMEOUT_SECONDS,
@@ -807,6 +818,7 @@ def evaluate_mutation_gate(
     mutation = {
         **second,
         "changed_tests": tests,
+        "test_artifacts": test_artifacts,
         "changed_sources": sources,
         "target_sha": commit,
         "interpreter": result["interpreter"],

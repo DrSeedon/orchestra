@@ -152,6 +152,84 @@ def _mutation_repo(tmp_path: Path, test_body: str, *, source_changed: bool = Tru
     return repo, target
 
 
+def _snapshot_mutation_repo(
+    tmp_path: Path, *, guards_source: bool,
+) -> tuple[Path, str]:
+    repo = tmp_path / "snapshot-mutation-repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "app").mkdir()
+    (repo / "app" / "__init__.py").write_text("", encoding="utf-8")
+    for relative, content in {
+        "app/routes.py": "ROUTE = '/old'\n",
+        "tests/route_surface_snapshot.json": '{"routes": ["/old"]}\n',
+        "tests/test_route_snapshot.py": (
+            "import json\n"
+            "from pathlib import Path\n\n"
+            "def test_route_snapshot():\n"
+            "    snapshot = json.loads(Path('tests/route_surface_snapshot.json').read_text())\n"
+            "    assert snapshot['routes'] == ['/old']\n"
+        ),
+    }.items():
+        path = repo / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    target = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    _git(repo, "checkout", "-b", "worker")
+    (repo / "app" / "routes.py").write_text("ROUTE = '/new'\n", encoding="utf-8")
+    (repo / "tests" / "route_surface_snapshot.json").write_text(
+        '{"routes": ["/new"]}\n', encoding="utf-8",
+    )
+    test_body = (
+        "import json\n"
+        "from pathlib import Path\n\n"
+        "def test_route_snapshot():\n"
+        "    snapshot = json.loads(Path('tests/route_surface_snapshot.json').read_text())\n"
+        "    assert snapshot['routes']\n"
+        + (
+            "    from app.routes import ROUTE\n"
+            "    assert snapshot['routes'] == [ROUTE]\n"
+            if guards_source else ""
+        )
+    )
+    (repo / "tests" / "test_route_snapshot.py").write_text(test_body, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "worker")
+    return repo, target
+
+
+def test_mutation_gate_overlays_changed_snapshot_with_changed_test(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _snapshot_mutation_repo(tmp_path, guards_source=True)
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.PASSED, (
+        result.get("reason"), result.get("output"), result["mutation_gate"]
+    )
+    assert result["mutation_gate"]["reason"] == "guarded_source_change"
+    assert result["mutation_gate"]["test_artifacts"] == [
+        "tests/route_surface_snapshot.json", "tests/test_route_snapshot.py",
+    ]
+
+
+def test_mutation_gate_rejects_updated_snapshot_without_source_guard(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _snapshot_mutation_repo(tmp_path, guards_source=False)
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.FAILED
+    assert result["mutation_gate"]["reason"] == "tests_not_guarding_source"
+
+
 def test_mutation_gate_accepts_regression_test_that_breaks_on_target_sources(tmp_path):
     from app import merge_test_gate as gate
 

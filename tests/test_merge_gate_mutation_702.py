@@ -42,7 +42,7 @@ def test_mutation_paths_keep_dot_directories_and_drop_deleted_tests(tmp_path, mo
 
     assert result["changed_tests"] == ["tests/test_deleted.py", "tests/test_widget.py"]
     assert result["changed_sources"] == ["app/widget.py"]
-    assert observed == ["tests/test_widget.py"]
+    assert observed == ["tests/test_deleted.py", "tests/test_widget.py"]
     assert result["mutation_gate"]["status"] == gate.FAILED
     assert result["mutation_gate"]["reason"] == "tests_not_guarding_source"
 
