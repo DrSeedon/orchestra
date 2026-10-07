@@ -1843,6 +1843,7 @@ class SessionManager:
         self, *, pipeline: str, role: str, scope: str, is_orch: bool, name: str,
         owned_dirs, branch: str, stored_overlay: str | None, old_prompt: str,
         repository_path: str = "", parent_name: str | None = None,
+        allow_missing_layout: bool = False,
     ) -> tuple[str, str | None]:
         """Собрать системный промпт из файлов ролей — один владелец на двух вызывающих.
 
@@ -1900,6 +1901,7 @@ class SessionManager:
         return refresh_worker_memory(
             prompt_without_memory, name, role, scope, repository_path,
             allow_absent_project=True,
+            allow_missing_layout=allow_missing_layout,
         ), prompt_overlay
 
     async def _load_from_db(

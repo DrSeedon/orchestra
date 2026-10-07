@@ -86,6 +86,7 @@ _inflight_mutating = 0
 _inflight_streams = 0
 _mutating_admission_open = True
 _restart_inbox_drain: "asyncio.Task | None" = None
+_message_failure_notice_recovery: "asyncio.Task | None" = None
 _restart_failure = ""
 _PROCESS_GENERATION = uuid.uuid4().hex
 _PROCESS_STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -199,6 +200,33 @@ def _log_restart_inbox_drain(task: "asyncio.Task") -> None:
     error = task.exception()
     if error is not None:
         logger.error("restart inbox drain failed: %s: %s", type(error).__name__, error)
+
+
+def schedule_message_failure_notice_recovery() -> None:
+    """Retry durable sender notices after sessions have been resumed at startup."""
+    global _message_failure_notice_recovery
+    if (
+        _message_failure_notice_recovery is not None
+        and not _message_failure_notice_recovery.done()
+    ):
+        return
+    from app.message_deliveries import recover_message_delivery_failure_notices
+
+    _message_failure_notice_recovery = asyncio.create_task(
+        recover_message_delivery_failure_notices(manager)
+    )
+    _message_failure_notice_recovery.add_done_callback(_log_message_failure_notice_recovery)
+
+
+def _log_message_failure_notice_recovery(task: "asyncio.Task") -> None:
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        logger.error(
+            "message delivery failure notice recovery failed: %s: %s",
+            type(error).__name__, error,
+        )
 
 
 def mutating_admission_open() -> bool:
@@ -329,6 +357,7 @@ async def _shutdown_runtime(
     startup_tasks = {
         task for task in (
             restart_inbox_drain,
+            _message_failure_notice_recovery,
             snapshot_task,
         )
         if task is not None and not task.done()
@@ -448,6 +477,7 @@ async def lifespan(app: FastAPI):
         await resume_dashboard_voice_transcriptions()
         await recover_initial_deliveries()
         await recover_message_deliveries()
+        schedule_message_failure_notice_recovery()
         from app.fan_barrier import recover_deadlines
         recover_deadlines()
         from app.bootstrap import ensure_bootstrap

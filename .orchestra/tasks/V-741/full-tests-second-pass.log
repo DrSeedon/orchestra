@@ -1,0 +1,400 @@
+..........................sssssssssssssssssssss......................... [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+.......s................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+........................................................................ [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+......................................................................F. [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+........................................................................ [ 64%]
+........F............................................................... [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+......................................................................FF [ 94%]
+.F...................................................................... [ 97%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+___ test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves ____
+
+    def test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves():
+        checker = ROOT / "scripts" / "check_orchestra_paths.py"
+        assert checker.is_file(), "T5 missing classified live/historical/negative path checker"
+        result = subprocess.run(
+            [sys.executable, str(checker), "--root", str(ROOT), "--json"],
+            text=True,
+            capture_output=True,
+        )
+>       assert result.returncode == 0, result.stdout + result.stderr
+E       AssertionError: {"deferred_prompt_occurrences": 0, "historical_old_path_occurrences": 8404, "live_old_path_files": ["app/prompting.py"], "live_old_path_occurrences": 5, "negative_guard_occurrences": 157, "schema_version": 1, "unclassified_old_path_occurrences": 5}
+E         
+E       assert 1 == 0
+E        +  where 1 = CompletedProcess(args=['/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3', '/home/kesha/...ces": 5, "negative_guard_occurrences": 157, "schema_version": 1, "unclassified_old_path_occurrences": 5}\n', stderr='').returncode
+
+tests/test_orchestra_layout_430.py:460: AssertionError
+_________________ test_lifespan_shuts_down_owned_tasks_on_exit _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x77fdf47d14c0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_lifespan_shuts_down_owned0')
+
+    @pytest.mark.asyncio
+    async def test_lifespan_shuts_down_owned_tasks_on_exit(
+        monkeypatch, tmp_path,
+    ):
+        from contextlib import contextmanager
+        from fastapi import FastAPI
+        from app import main as app_main
+    
+        async def noop():
+            return None
+    
+        async def idle(*_args):
+            await asyncio.Event().wait()
+    
+        monkeypatch.setenv("ORCHESTRA_DB_PATH", str(tmp_path / "test.sqlite"))
+        monkeypatch.setattr(app_main, "init_db", lambda: None)
+        monkeypatch.setattr(app_main, "recover_initial_deliveries", noop)
+        monkeypatch.setattr(app_main, "recover_message_deliveries", noop)
+        monkeypatch.setattr(app_main, "schedule_restart_inbox_drain", lambda: None)
+        monkeypatch.setattr(app_main, "schedule_message_failure_notice_recovery", lambda: None)
+        monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
+        monkeypatch.setattr(app_main, "_start_bridge_background", idle)
+    
+        from app import db, startup_migration, catalog_migration_v621, tm
+        from app import orchestra_layout, task_runtime, artifacts, models
+        from app.routes import tg
+    
+        monkeypatch.setattr(db, "ensure_owner_activity_schema", lambda: None)
+        monkeypatch.setattr(startup_migration, "migrate_v576", lambda *_: {})
+        monkeypatch.setattr(task_runtime, "task_repository_path", lambda: tmp_path / "tasks")
+        monkeypatch.setattr(catalog_migration_v621, "migrate_v621", lambda *_: {})
+        monkeypatch.setattr(tm, "sync_catalog", lambda *_: {})
+        monkeypatch.setattr(orchestra_layout, "migrate_registered_project_layouts", lambda: {})
+        monkeypatch.setattr(artifacts, "cleanup_expired", lambda: None)
+        monkeypatch.setattr(models, "refresh_models", noop)
+        monkeypatch.setattr(models, "is_proxy_connected", lambda: True)
+        monkeypatch.setattr(app_main.manager, "auto_resume_all", noop)
+        monkeypatch.setattr(app_main.manager, "start_background_tasks", lambda: None)
+        monkeypatch.setattr(tg, "resume_dashboard_voice_transcriptions", noop)
+    
+        from app import fan_barrier, bootstrap, turn_signals, bg_jobs
+        monkeypatch.setattr(fan_barrier, "recover_deadlines", lambda: None)
+        monkeypatch.setattr(bootstrap, "ensure_bootstrap", noop)
+        monkeypatch.setattr(turn_signals, "start_sweeper", lambda *_: None)
+        monkeypatch.setattr(bg_jobs.bg_manager, "set_session_manager", lambda *_: None)
+        monkeypatch.setattr(bg_jobs.bg_manager, "restore_from_db", noop)
+    
+        from app.routes import system
+        from app import quota_queue, runaway_guard, merge_operations
+        monkeypatch.setattr(system, "_usage_snapshot_loop", idle)
+        monkeypatch.setattr(quota_queue, "quota_release_loop", idle)
+        monkeypatch.setattr(runaway_guard, "ensure_task", lambda *_: None)
+        monkeypatch.setattr(merge_operations, "restore_merge_operations", noop)
+        monkeypatch.setattr(app_main._fdstore, "notify_ready", lambda: False)
+    
+        @contextmanager
+        def task_mode(_runtime):
+            yield object()
+    
+        monkeypatch.setattr(task_runtime, "task_runtime_mode", task_mode)
+        monkeypatch.setattr(task_runtime, "production_runtime", lambda: object())
+    
+        calls = []
+        async def shutdown(restart, snapshot, bridge):
+            calls.append((restart, snapshot, bridge))
+            owned = [task for task in (restart, snapshot, bridge) if task is not None]
+            for task in owned:
+                task.cancel()
+            await asyncio.gather(*owned, return_exceptions=True)
+    
+        monkeypatch.setattr(app_main, "_shutdown_runtime", shutdown)
+>       async with app_main.lifespan(FastAPI()):
+
+tests/test_restart_generation_liveness.py:909: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+app/main.py:449: in lifespan
+    layout_migrations = migrate_registered_project_layouts()
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+app/orchestra_layout.py:1310: in migrate_registered_project_layouts
+    _registered_project_roots(), preserve_dirty=True,
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _registered_project_roots() -> dict[str, Path]:
+        from app.db import _conn
+    
+        with _conn() as connection:
+>           rows = connection.execute(
+                "SELECT id,scope FROM tm_projects WHERE scope IS NOT NULL AND trim(scope)!='' "
+                "ORDER BY id"
+            ).fetchall()
+E           sqlite3.OperationalError: no such table: tm_projects
+
+app/orchestra_layout.py:1296: OperationalError
+----------------------------- Captured stderr call -----------------------------
+load_dotenv skipped: running under pytest
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra:main.py:421 load_dotenv skipped: running under pytest
+____________ test_dirty_old_worktree_is_refused_and_left_untouched _____________
+
+repos = (PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt'))
+
+    def test_dirty_old_worktree_is_refused_and_left_untouched(repos):
+        base, worktree = repos
+        (worktree / "docs/tasks/1.md").write_text("edited\n", encoding="utf-8")
+        (worktree / "notes.txt").write_text("untracked\n", encoding="utf-8")
+        head_before = _git(worktree, "rev-parse", "HEAD").strip()
+        status_before = _git(worktree, "status", "--porcelain")
+        stashes_before = _git(base, "stash", "list")
+    
+        with pytest.raises(layout.LayoutMigrationError) as excinfo:
+>           _raise_worker(base, worktree)
+
+tests/test_worker_worktree_layout_v635.py:86: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_worker_worktree_layout_v635.py:45: in _raise_worker
+    return refresh_worker_memory(
+app/prompting.py:143: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:80: in load_worker_memory
+    migrate_worker_worktree(base)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+worktree = PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt')
+
+    def migrate_worker_worktree(worktree: Path) -> dict[str, Any] | None:
+        """Bring a worker's old-layout worktree to the layout its base checkout already has.
+    
+        A branch created before its project's migration keeps `docs/*` after the base
+        checkout moved on (V-634: 22 such worktrees on one machine). Only a clean linked
+        worktree over a current base is migrated, with the same commit as the base got.
+        A dirty tree is refused, never stashed: the preserve path has lost work before
+        (V-625, V-629). An old base is left to the V-611 error, which names the base.
+        Returns None when there is nothing for this function to do.
+        """
+        worktree = Path(worktree).expanduser().resolve()
+        top = _run(worktree, "rev-parse", "--show-toplevel", check=False)
+        if top.returncode != 0 or Path(top.stdout.strip()).resolve() != worktree:
+            return None
+        base = _base_checkout(worktree)
+        if base == worktree or _layout_state(worktree)[0] != "old":
+            return None
+        if _layout_state(base)[0] != "current":
+            return None
+        raw_status, dirty_paths = _status(worktree)
+        if raw_status:
+            quoted = shlex.quote(str(worktree))
+            script = Path(__file__).resolve().parents[1] / "scripts" / "migrate_orchestra_layout.py"
+>           raise LayoutMigrationError(
+                "ORCHESTRA_LAYOUT_DIRTY",
+                worktree,
+                f"worker worktree {worktree} is in the old layout and has uncommitted "
+                f"changes {dirty_paths[:5]}; it is migrated only when clean",
+                repair_command=(
+                    f"git -C {quoted} add -A && git -C {quoted} commit -m "
+                    f"'WIP before layout migration' && "
+                    f"{shlex.quote(sys.executable)} {shlex.quote(str(script))} {quoted}"
+                ),
+            )
+E           app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_DIRTY: worker worktree /tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt is in the old layout and has uncommitted changes ['docs/tasks/1.md', 'notes.txt']; it is migrated only when clean; repository=/tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt; repair: git -C /tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt add -A && git -C /tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt commit -m 'WIP before layout migration' && /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py /tmp/pytest-of-kesha/pytest-12525/test_dirty_old_worktree_is_ref0/wt
+
+app/orchestra_layout.py:1095: LayoutMigrationError
+_______________ test_the_dirty_error_command_fixes_the_worktree ________________
+
+repos = (PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt'))
+
+    def test_the_dirty_error_command_fixes_the_worktree(repos):
+        base, worktree = repos
+        (worktree / "docs/tasks/1.md").write_text("edited\n", encoding="utf-8")
+        with pytest.raises(layout.LayoutMigrationError) as excinfo:
+>           _raise_worker(base, worktree)
+
+tests/test_worker_worktree_layout_v635.py:104: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_worker_worktree_layout_v635.py:45: in _raise_worker
+    return refresh_worker_memory(
+app/prompting.py:143: in refresh_worker_memory
+    mem = load_worker_memory(
+app/prompting.py:80: in load_worker_memory
+    migrate_worker_worktree(base)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+worktree = PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt')
+
+    def migrate_worker_worktree(worktree: Path) -> dict[str, Any] | None:
+        """Bring a worker's old-layout worktree to the layout its base checkout already has.
+    
+        A branch created before its project's migration keeps `docs/*` after the base
+        checkout moved on (V-634: 22 such worktrees on one machine). Only a clean linked
+        worktree over a current base is migrated, with the same commit as the base got.
+        A dirty tree is refused, never stashed: the preserve path has lost work before
+        (V-625, V-629). An old base is left to the V-611 error, which names the base.
+        Returns None when there is nothing for this function to do.
+        """
+        worktree = Path(worktree).expanduser().resolve()
+        top = _run(worktree, "rev-parse", "--show-toplevel", check=False)
+        if top.returncode != 0 or Path(top.stdout.strip()).resolve() != worktree:
+            return None
+        base = _base_checkout(worktree)
+        if base == worktree or _layout_state(worktree)[0] != "old":
+            return None
+        if _layout_state(base)[0] != "current":
+            return None
+        raw_status, dirty_paths = _status(worktree)
+        if raw_status:
+            quoted = shlex.quote(str(worktree))
+            script = Path(__file__).resolve().parents[1] / "scripts" / "migrate_orchestra_layout.py"
+>           raise LayoutMigrationError(
+                "ORCHESTRA_LAYOUT_DIRTY",
+                worktree,
+                f"worker worktree {worktree} is in the old layout and has uncommitted "
+                f"changes {dirty_paths[:5]}; it is migrated only when clean",
+                repair_command=(
+                    f"git -C {quoted} add -A && git -C {quoted} commit -m "
+                    f"'WIP before layout migration' && "
+                    f"{shlex.quote(sys.executable)} {shlex.quote(str(script))} {quoted}"
+                ),
+            )
+E           app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_DIRTY: worker worktree /tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt is in the old layout and has uncommitted changes ['docs/tasks/1.md']; it is migrated only when clean; repository=/tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt; repair: git -C /tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt add -A && git -C /tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt commit -m 'WIP before layout migration' && /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py /tmp/pytest-of-kesha/pytest-12525/test_the_dirty_error_command_f0/wt
+
+app/orchestra_layout.py:1095: LayoutMigrationError
+___________________ test_old_base_is_left_to_the_v611_error ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12525/test_old_base_is_left_to_the_v0')
+
+    def test_old_base_is_left_to_the_v611_error(tmp_path: Path):
+        """Migrating a branch off an old base is throwaway work (V-611); the base is named."""
+        base = _old_base(tmp_path)
+        worktree = tmp_path / "wt"
+        _git(base, "worktree", "add", "-q", str(worktree), "old-worker")
+        count_before = _commit_count(worktree)
+    
+        with pytest.raises(layout.LayoutMigrationError) as excinfo:
+>           _raise_worker(base, worktree)
+
+tests/test_worker_worktree_layout_v635.py:136: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/test_worker_worktree_layout_v635.py:45: in _raise_worker
+    return refresh_worker_memory(
+app/prompting.py:143: in refresh_worker_memory
+    mem = load_worker_memory(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+name = 'w', role = 'worker'
+scope = '/tmp/pytest-of-kesha/pytest-12525/test_old_base_is_left_to_the_v0/base'
+repository_path = '/tmp/pytest-of-kesha/pytest-12525/test_old_base_is_left_to_the_v0/wt'
+allow_absent_project = True, allow_missing_layout = False
+
+    def load_worker_memory(
+        name: str,
+        role: str,
+        scope: str,
+        repository_path: str = "",
+        allow_absent_project: bool = False,
+        allow_missing_layout: bool = False,
+    ) -> str:
+        """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
+    
+        Agents keep concise personal observations here; the file survives kill/respawn/compact
+        and is re-read whenever the prompt is (re)assembled. A worker can belong to a/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x77fdfd3ead40>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+    self.write_eof()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+    self._loop.call_soon(self._call_connection_lost, None)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+    self._check_closed()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+
+        repository below its parent's scope, so its repository checkout takes precedence.
+        """
+        base = Path(repository_path or scope)
+        layout_file = base / ".orchestra" / "layout.json"
+        if not layout_file.is_file() and repository_path:
+            # Resume, auto-switch and the first message all assemble the prompt here, so this
+            # is the one place a worker branch left behind by its base's migration catches up.
+            from app.orchestra_layout import LayoutMigrationError, migrate_worker_worktree
+            try:
+                migrate_worker_worktree(base)
+            except LayoutMigrationError as error:
+                if not allow_missing_layout:
+                    raise
+                logger.warning(
+                    "worker memory skipped for %s: project layout is unavailable (%s)",
+                    base, error,
+                )
+        if not layout_file.is_file():
+            if not allow_missing_layout:
+                if allow_absent_project:
+                    managed_state_signals = (
+                        base / "docs" / "kb",
+                        base / "docs" / "tasks",
+                        base / "docs" / "workers",
+                        base / "docs" / "archive",
+                        base / "pipelines",
+                        base / ".orchestra",
+                    )
+                    if not any(path.exists() for path in managed_state_signals):
+                        return ""
+                from app.orchestra_layout import LayoutMigrationError
+>               raise LayoutMigrationError(
+                    "ORCHESTRA_LAYOUT_MISSING", base, ".orchestra/layout.json is missing"
+                )
+E               app.orchestra_layout.LayoutMigrationError: ORCHESTRA_LAYOUT_MISSING: .orchestra/layout.json is missing; repository=/tmp/pytest-of-kesha/pytest-12525/test_old_base_is_left_to_the_v0/base; repair: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py --repair /tmp/pytest-of-kesha/pytest-12525/test_old_base_is_left_to_the_v0/base
+
+app/prompting.py:102: LayoutMigrationError
+=============================== warnings summary ===============================
+tests/test_mailbox.py::test_impl1_concurrent_claim_does_not_double_deliver
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+FAILED tests/test_restart_generation_liveness.py::test_lifespan_shuts_down_owned_tasks_on_exit
+FAILED tests/test_worker_worktree_layout_v635.py::test_dirty_old_worktree_is_refused_and_left_untouched
+FAILED tests/test_worker_worktree_layout_v635.py::test_the_dirty_error_command_fixes_the_worktree
+FAILED tests/test_worker_worktree_layout_v635.py::test_old_base_is_left_to_the_v611_error
+5 failed, 2326 passed, 22 skipped, 3 deselected, 1 warning in 328.18s (0:05:28)
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x77fdfd3ead40>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

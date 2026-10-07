@@ -1422,6 +1422,7 @@ class AgentSession:
                         self._current_prompt, self.name, self.role, self.scope,
                         self.worktree_path or "",
                         allow_absent_project=True,
+                        allow_missing_layout=delivery is not None,
                     )
                 else:
                     from app.deps import manager
@@ -1435,6 +1436,7 @@ class AgentSession:
                             stored_overlay=self.prompt_overlay,
                             old_prompt=self._current_prompt,
                             repository_path=self.worktree_path or "",
+                            allow_missing_layout=delivery is not None,
                         )
                     except Exception as error:
                         # Пересборка читает .orchestra/pipelines/** на ГОРЯЧЕМ пути, а
@@ -1452,6 +1454,7 @@ class AgentSession:
                             self._current_prompt, self.name, self.role, self.scope,
                             self.worktree_path or "",
                             allow_absent_project=True,
+                            allow_missing_layout=delivery is not None,
                         )
                 message = f"[Orchestra platform note: {'your role instructions were updated.' if templates_changed else 'refreshed context (worker list, etc.).'} This is from the server, not another agent.]\n{self._current_prompt}\n\n---\n\n{message}"
                 did_inject = True

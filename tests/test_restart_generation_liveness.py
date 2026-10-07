@@ -854,6 +854,7 @@ async def test_lifespan_shuts_down_owned_tasks_on_exit(
     monkeypatch.setattr(app_main, "recover_initial_deliveries", noop)
     monkeypatch.setattr(app_main, "recover_message_deliveries", noop)
     monkeypatch.setattr(app_main, "schedule_restart_inbox_drain", lambda: None)
+    monkeypatch.setattr(app_main, "schedule_message_failure_notice_recovery", lambda: None)
     monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
     monkeypatch.setattr(app_main, "_start_bridge_background", idle)
 

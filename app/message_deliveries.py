@@ -14,13 +14,14 @@ from datetime import datetime, timezone
 from app import db
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.quota_queue import quota_wait_action, was_parked, wait_error
+from app.quota_queue import quota_wait_action, wait_error
 
 logger = logging.getLogger("orchestra.message_deliveries")
 SCHEMA_VERSION = 2
 _STEERED_PROVIDER_REF_PREFIX = "steered:"
 _target_runner_tasks: dict[str, asyncio.Task[bool]] = {}
 _target_delivery_locks: dict[str, asyncio.Lock] = {}
+_failure_notice_tasks: dict[str, asyncio.Task] = {}
 
 
 class TargetTaskChangedError(RuntimeError):
@@ -34,6 +35,19 @@ def _now() -> str:
 def _validate_id(value: str) -> str:
     value = str(value)
     return str(uuid.UUID(value))
+
+
+def _ensure_failure_notice_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS message_delivery_failure_notices (
+               delivery_id TEXT PRIMARY KEY,
+               source_session_id TEXT NOT NULL,
+               target_name TEXT NOT NULL,
+               error_json TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               delivered_at TEXT
+           )"""
+    )
 
 
 def _payload_hash(**payload: object) -> str:
@@ -407,6 +421,7 @@ def prepare_message_delivery(delivery_id: str) -> dict:
 def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = None,
                   error: dict | None = None, clear_user_log: bool = False) -> dict:
     with db._conn() as connection:
+        _ensure_failure_notice_schema(connection)
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
             "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
@@ -431,6 +446,20 @@ def _update_state(delivery_id: str, state: str, *, provider_ref: str | None = No
         row = connection.execute(
             "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,)
         ).fetchone()
+        if (
+            state == "FAILED_BEFORE_SUBMIT"
+            and row["origin"] == "agent"
+            and row["source_session_id"]
+        ):
+            connection.execute(
+                """INSERT OR IGNORE INTO message_delivery_failure_notices
+                   (delivery_id, source_session_id, target_name, error_json, created_at)
+                   VALUES (?, ?, ?, ?, ?)""",
+                (
+                    delivery_id, row["source_session_id"], row["target_name"],
+                    row["error_json"] or "{}", _now(),
+                ),
+            )
         return _resource(row, connection=connection)
 
 
@@ -831,6 +860,13 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
             mark_message_delivery_unknown(delivery_id, error)
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
+            try:
+                await notify_message_delivery_failure(delivery_id, manager=manager)
+            except Exception as notice_error:
+                logger.warning(
+                    "message delivery failure notice %s remains pending: %s",
+                    delivery_id, err_text(notice_error),
+                )
             if intercepted and intercepted["released"]:
                 fan_barrier.rearm_wake(intercepted["fan_id"])
         raise
@@ -846,36 +882,111 @@ async def run_message_delivery(delivery_id: str, manager=None) -> None:
             return
         else:
             mark_message_delivery_failed_before_submit(delivery_id, error)
+            try:
+                await notify_message_delivery_failure(delivery_id, manager=manager)
+            except Exception as notice_error:
+                logger.warning(
+                    "message delivery failure notice %s remains pending: %s",
+                    delivery_id, err_text(notice_error),
+                )
             if intercepted and intercepted["released"]:
                 fan_barrier.rearm_wake(intercepted["fan_id"])
-            if was_parked(row["error_json"]):
-                await _tell_sender_parked_failed(row, error)
         raise
 
 
-async def _tell_sender_parked_failed(row, error: BaseException) -> None:
-    """Отправитель получил «принято, уйдёт сама» — об отказе после ожидания он не узнает иначе."""
-    if not row["source_session_id"]:
-        return
-    text = (
-        f"Delivery {row['delivery_id']} to '{row['target_name']}' was queued for the quota "
-        f"gate but could NOT be delivered after it opened: {err_text(error)}. "
-        "Send a new message (new delivery_id) to the target's current task if it is still needed."
-    )
-    try:
-        from app.deps import manager
+def _failure_notice(delivery_id: str) -> dict | None:
+    with db._conn() as connection:
+        _ensure_failure_notice_schema(connection)
+        row = connection.execute(
+            "SELECT * FROM message_delivery_failure_notices WHERE delivery_id=?",
+            (delivery_id,),
+        ).fetchone()
+    return dict(row) if row else None
 
-        await manager.send(
-            row["source_session_id"], text,
-            provenance=MessageProvenance(
-                origin="platform", senders=("Orchestra",), subtype="quota_wait_failed",
-            ),
+
+async def notify_message_delivery_failure(delivery_id: str, manager=None) -> None:
+    """Drain one durable failure notice; its stable log event prevents restart duplicates."""
+    current = _failure_notice(delivery_id)
+    if current is None or current["delivered_at"]:
+        return
+    existing_task = _failure_notice_tasks.get(delivery_id)
+    if existing_task is not None and not existing_task.done():
+        await existing_task
+        return
+
+    async def deliver() -> None:
+        latest = _failure_notice(delivery_id)
+        if latest is None or latest["delivered_at"]:
+            return
+        event_id = f"message-delivery-failed:{delivery_id}"
+        with db._conn() as connection:
+            already_logged = connection.execute(
+                "SELECT 1 FROM logs WHERE session_id=? AND event_id=? LIMIT 1",
+                (latest["source_session_id"], event_id),
+            ).fetchone()
+        if already_logged:
+            with db._conn() as connection:
+                connection.execute(
+                    "UPDATE message_delivery_failure_notices SET delivered_at=? "
+                    "WHERE delivery_id=? AND delivered_at IS NULL",
+                    (_now(), delivery_id),
+                )
+            return
+        details = json.loads(latest["error_json"])
+        text = (
+            f"Message to '{latest['target_name']}' was NOT delivered; "
+            f"delivery_id={delivery_id}; code={details.get('code', 'DELIVERY_NOT_SUBMITTED')}: "
+            f"{details.get('message', 'No error details available')}"
         )
-    except Exception as notify_error:
-        logger.warning(
-            "parked-delivery failure notice to %s failed: %s",
-            row["source_name"], err_text(notify_error),
+        sender_manager = manager
+        if sender_manager is None:
+            from app.deps import manager as sender_manager
+        from app.events import InjectedMessage
+
+        provenance = MessageProvenance(
+            origin="platform", senders=("Orchestra",),
+            subtype="message_delivery_failed", ref=delivery_id,
         )
+        await sender_manager.send(
+            latest["source_session_id"],
+            InjectedMessage(text=text, provenance=provenance, event_id=event_id),
+            provenance=provenance,
+        )
+        with db._conn() as connection:
+            connection.execute(
+                "UPDATE message_delivery_failure_notices SET delivered_at=? "
+                "WHERE delivery_id=? AND delivered_at IS NULL",
+                (_now(), delivery_id),
+            )
+
+    task = asyncio.create_task(deliver())
+    _failure_notice_tasks[delivery_id] = task
+    try:
+        await task
+    finally:
+        if _failure_notice_tasks.get(delivery_id) is task:
+            _failure_notice_tasks.pop(delivery_id, None)
+
+
+async def recover_message_delivery_failure_notices(manager=None) -> int:
+    with db._conn() as connection:
+        _ensure_failure_notice_schema(connection)
+        rows = connection.execute(
+            "SELECT delivery_id FROM message_delivery_failure_notices "
+            "WHERE delivered_at IS NULL ORDER BY created_at"
+        ).fetchall()
+    sent = 0
+    for row in rows:
+        try:
+            await notify_message_delivery_failure(row["delivery_id"], manager=manager)
+        except Exception as error:
+            logger.warning(
+                "message delivery failure notice %s remains pending: %s",
+                row["delivery_id"], err_text(error),
+            )
+            continue
+        sent += 1
+    return sent
 
 
 async def run_target_message_deliveries(target_session_id: str, manager=None) -> bool:

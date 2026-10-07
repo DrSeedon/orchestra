@@ -62,6 +62,7 @@ def load_worker_memory(
     scope: str,
     repository_path: str = "",
     allow_absent_project: bool = False,
+    allow_missing_layout: bool = False,
 ) -> str:
     """Load persistent memory from .orchestra/workers/{name}.md or {role}.md.
 
@@ -74,26 +75,39 @@ def load_worker_memory(
     if not layout_file.is_file() and repository_path:
         # Resume, auto-switch and the first message all assemble the prompt here, so this
         # is the one place a worker branch left behind by its base's migration catches up.
-        from app.orchestra_layout import migrate_worker_worktree
-        migrate_worker_worktree(base)
+        from app.orchestra_layout import LayoutMigrationError, migrate_worker_worktree
+        try:
+            migrate_worker_worktree(base)
+        except LayoutMigrationError as error:
+            if not allow_missing_layout:
+                raise
+            logger.warning(
+                "worker memory skipped for %s: project layout is unavailable (%s)",
+                base, error,
+            )
     if not layout_file.is_file():
-        # LEGACY_PATH_FIXTURE: old dirs are only evidence for a loud migration error.
-        managed_state_signals = (
-            base / "docs" / "kb",
-            base / "docs" / "tasks",
-            base / "docs" / "workers",
-            base / "docs" / "archive",
-            base / "pipelines",
-            base / ".orchestra",
+        if not allow_missing_layout:
+            if allow_absent_project:
+                # LEGACY_PATH_FIXTURE: classify old paths without reading them as fallbacks.
+                managed_state_signals = (
+                    base / "docs" / "kb",
+                    base / "docs" / "tasks",
+                    base / "docs" / "workers",
+                    base / "docs" / "archive",
+                    base / "pipelines",
+                    base / ".orchestra",
+                )
+                if not any(path.exists() for path in managed_state_signals):
+                    return ""
+            from app.orchestra_layout import LayoutMigrationError
+            raise LayoutMigrationError(
+                "ORCHESTRA_LAYOUT_MISSING", base, ".orchestra/layout.json is missing"
+            )
+        logger.info(
+            "worker memory skipped for %s: .orchestra/layout.json is missing",
+            base,
         )
-        if allow_absent_project and not any(
-            path.exists() for path in managed_state_signals
-        ):
-            return ""
-        from app.orchestra_layout import LayoutMigrationError
-        raise LayoutMigrationError(
-            "ORCHESTRA_LAYOUT_MISSING", base, ".orchestra/layout.json is missing"
-        )
+        return ""
     for filename in (f"{name}.md", f"{role}.md" if role else None):
         if not filename:
             continue
@@ -117,6 +131,7 @@ def refresh_worker_memory(
     repository_path: str = "",
     *,
     allow_absent_project: bool = False,
+    allow_missing_layout: bool = False,
 ) -> str:
     """Re-read personal memory from disk and swap it into an already-assembled prompt.
 
@@ -132,6 +147,7 @@ def refresh_worker_memory(
         scope,
         repository_path,
         allow_absent_project,
+        allow_missing_layout,
     )
     block = f"<worker-memory>\n{mem}\n</worker-memory>" if mem else ""
     return f"{prompt_without_memory}\n\n{block}" if block else prompt_without_memory
