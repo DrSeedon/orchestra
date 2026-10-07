@@ -1,0 +1,316 @@
+..........................sssssssssssssssssssss......................... [  3%]
+........................................................................ [  6%]
+........................................................................ [  9%]
+........................................................................ [ 12%]
+........................................................................ [ 15%]
+........................................................................ [ 18%]
+.......s................................................................ [ 21%]
+........................................................................ [ 24%]
+........................................................................ [ 27%]
+..............................................F......................... [ 30%]
+........................................................................ [ 33%]
+........................................................................ [ 36%]
+........................................................................ [ 39%]
+........................................................................ [ 42%]
+........................................................................ [ 45%]
+........................................................................ [ 48%]
+........................................................................ [ 52%]
+.......................................................................F [ 55%]
+........................................................................ [ 58%]
+........................................................................ [ 61%]
+......................................................F................. [ 64%]
+........F............................................................... [ 67%]
+........................................................................ [ 70%]
+........................................................................ [ 73%]
+........................................................................ [ 76%]
+........................................................................ [ 79%]
+........................................................................ [ 82%]
+........................................................................ [ 85%]
+........................................................................ [ 88%]
+........................................................................ [ 91%]
+......................................................................FF [ 94%]
+.F...................................................................... [ 97%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+______ test_t2_startup_orders_recovery_before_background_delivery_sources ______
+
+    def test_t2_startup_orders_recovery_before_background_delivery_sources():
+        from app import main
+    
+        source = inspect.getsource(main.lifespan)
+        markers = [
+            "await manager.auto_resume_all()",
+            "await recover_initial_deliveries()",
+            "manager.start_background_tasks()",
+            "schedule_restart_inbox_drain()",
+        ]
+        for marker in markers:
+>           assert marker in source, f"#311 missing startup delivery marker: {marker}"
+E           AssertionError: #311 missing startup delivery marker: await manager.auto_resume_all()
+E           assert 'await manager.auto_resume_all()' in 'async def _shutdown_runtime(\n    restart_inbox_drain: "asyncio.Task | None",\n    snapshot_task: asyncio.Task,\n    ...estart_guard.note_shutdown_phase(\n        "application_teardown_complete",\n        "post_lifespan_runtime",\n    )\n'
+
+tests/test_initial_deliveries.py:622: AssertionError
+_______ test_t4_only_migrated_layout_creates_session_after_fleet_cutover _______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_t4_only_migrated_layout_c0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ef54515d1c0>
+
+    @pytest.mark.asyncio
+    async def test_t4_only_migrated_layout_creates_session_after_fleet_cutover(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ):
+        from app import db
+        from app.manager import SessionManager
+    
+        monkeypatch.setattr(db, "DB_PATH", tmp_path / "sessions.db")
+        db.init_db()
+        manager = SessionManager()
+        from app.orchestra_layout import LayoutMigrationError
+    
+        for state in ("old", "partial"):
+            name = f"{state}-agent"
+            repository = _repository(tmp_path, name, state)
+>           with pytest.raises(LayoutMigrationError, match="ORCHESTRA_LAYOUT_MISSING.*--repair"):
+E           Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+
+tests/test_orchestra_layout_compat_430.py:77: Failed
+----------------------------- Captured stderr call -----------------------------
+worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_t4_only_migrated_layout_c0/old-agent: .orchestra/layout.json is missing
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:86 worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_t4_only_migrated_layout_c0/old-agent: .orchestra/layout.json is missing
+___________ test_target_changed_task_fails_loudly_and_sender_is_told ___________
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7ef5450c90d0>, manager=<tests.test_quota_wait_queue.FakeM...at 0x7ef5450c93a0>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_target_changed_task_fails_loudly_and_sender_is_told(env):
+        from app import quota_queue
+    
+        await _accept(IDS[0], "stale", parked=True)
+        env.manager.generation = "session=other|task=999|branch=x|needs_switch=0"
+        env.gate.open()
+        await quota_queue.release_waiting()
+        await _drain()
+    
+        assert _states(env.db) == {IDS[0]: "FAILED_BEFORE_SUBMIT"}
+        assert env.manager.delivered == []
+>       assert len(env.manager.sent_to_sender) == 1 and IDS[0] in env.manager.sent_to_sender[0]
+E       AssertionError: assert (0 == 1)
+E        +  where 0 = len([])
+E        +    where [] = <tests.test_quota_wait_queue.FakeManager object at 0x7ef5450c93a0>.sent_to_sender
+E        +      where <tests.test_quota_wait_queue.FakeManager object at 0x7ef5450c93a0> = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7ef5450c90d0>, manager=<tests.test_quota_wait_queue.FakeM...at 0x7ef5450c93a0>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/app/db.py'>).manager
+
+tests/test_quota_wait_queue.py:259: AssertionError
+----------------------------- Captured stderr call -----------------------------
+quota gate open: released 1 waiting deliveries
+------------------------------ Captured log call -------------------------------
+INFO     orchestra.quota_queue:quota_queue.py:237 quota gate open: released 1 waiting deliveries
+_________________ test_lifespan_shuts_down_owned_tasks_on_exit _________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7ef54510e540>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_lifespan_shuts_down_owned0')
+
+    @pytest.mark.asyncio
+    async def test_lifespan_shuts_down_owned_tasks_on_exit(
+        monkeypatch, tmp_path,
+    ):
+        from contextlib import contextmanager
+        from fastapi import FastAPI
+        from app import main as app_main
+    
+        async def noop():
+            return None
+    
+        async def idle(*_args):
+            await asyncio.Event().wait()
+    
+        monkeypatch.setenv("ORCHESTRA_DB_PATH", str(tmp_path / "test.sqlite"))
+        monkeypatch.setattr(app_main, "init_db", lambda: None)
+        monkeypatch.setattr(app_main, "recover_initial_deliveries", noop)
+        monkeypatch.setattr(app_main, "recover_message_deliveries", noop)
+        monkeypatch.setattr(app_main, "schedule_restart_inbox_drain", lambda: None)
+        monkeypatch.setattr(app_main, "_restart_inbox_drain", None)
+        monkeypatch.setattr(app_main, "_start_bridge_background", idle)
+    
+        from app import db, startup_migration, catalog_migration_v621, tm
+        from app import orchestra_layout, task_runtime, artifacts, models
+        from app.routes import tg
+    
+        monkeypatch.setattr(db, "ensure_owner_activity_schema", lambda: None)
+        monkeypatch.setattr(startup_migration, "migrate_v576", lambda *_: {})
+        monkeypatch.setattr(task_runtime, "task_repository_path", lambda: tmp_path / "tasks")
+        monkeypatch.setattr(catalog_migration_v621, "migrate_v621", lambda *_: {})
+        monkeypatch.setattr(tm, "sync_catalog", lambda *_: {})
+        monkeypatch.setattr(orchestra_layout, "migrate_registered_project_layouts", lambda: {})
+        monkeypatch.setattr(artifacts, "cleanup_expired", lambda: None)
+        monkeypatch.setattr(models, "refresh_models", noop)
+        monkeypatch.setattr(models, "is_proxy_connected", lambda: True)
+        monkeypatch.setattr(app_main.manager, "auto_resume_all", noop)
+        monkeypatch.setattr(app_main.manager, "start_background_tasks", lambda: None)
+        monkeypatch.setattr(tg, "resume_dashboard_voice_transcriptions", noop)
+    
+        from app import fan_barrier, bootstrap, turn_signals, bg_jobs
+        monkeypatch.setattr(fan_barrier, "recover_deadlines", lambda: None)
+        monkeypatch.setattr(bootstrap, "ensure_bootstrap", noop)
+        monkeypatch.setattr(turn_signals, "start_sweeper", lambda *_: None)
+        monkeypatch.setattr(bg_jobs.bg_manager, "set_session_manager", lambda *_: None)
+        monkeypatch.setattr(bg_jobs.bg_manager, "restore_from_db", noop)
+    
+        from app.routes import system
+        from app import quota_queue, runaway_guard, merge_operations
+        monkeypatch.setattr(system, "_usage_snapshot_loop", idle)
+        monkeypatch.setattr(quota_queue, "quota_release_loop", idle)
+        monkeypatch.setattr(runaway_guard, "ensure_task", lambda *_: None)
+        monkeypatch.setattr(merge_operations, "restore_merge_operations", noop)
+        monkeypatch.setattr(app_main._fdstore, "notify_ready", lambda: False)
+    
+        @contextmanager
+        def task_mode(_runtime):
+            yield object()
+    
+        monkeypatch.setattr(task_runtime, "task_runtime_mode", task_mode)
+        monkeypatch.setattr(task_runtime, "production_runtime", lambda: object())
+    
+        calls = []
+        async def shutdown(restart, snapshot, bridge):
+            calls.append((restart, snapshot, bridge))
+            owned = [task for task in (restart, snapshot, bridge) if task is not None]
+            for task in owned:
+                task.cancel()
+            await asyncio.gather(*owned, return_exceptions=True)
+    
+        monkeypatch.setattr(app_main, "_shutdown_runtime", shutdown)
+>       async with app_main.lifespan(FastAPI()):
+
+tests/test_restart_generation_liveness.py:908: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/contextlib.py:210: in __aenter__
+    return await anext(self.gen)
+           ^^^^^^^^^^^^^^^^^^^^^
+app/main.py:423: in lifespan
+    load_dotenv()
+                  
+app/orchestra_layout.py:1310: in migrate_registered_project_layouts
+    _registered_project_roots(), preserve_dirty=True,
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    def _registered_project_roots() -> dict[str, Path]:
+        from app.db import _conn
+    
+        with _conn() as connection:
+>           rows = connection.execute(
+                "SELECT id,scope FROM tm_projects WHERE scope IS NOT NULL AND trim(scope)!='' "
+                "ORDER BY id"
+            ).fetchall()
+E           sqlite3.OperationalError: no such table: tm_projects
+
+app/orchestra_layout.py:1296: OperationalError
+----------------------------- Captured stderr call -----------------------------
+load_dotenv skipped: running under pytest
+------------------------------ Captured log call -------------------------------
+WARNING  orchestra:main.py:395 load_dotenv skipped: running under pytest
+____________ test_dirty_old_worktree_is_refused_and_left_untouched _____________
+
+repos = (PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt'))
+
+    def test_dirty_old_worktree_is_refused_and_left_untouched(repos):
+        base, worktree = repos
+        (worktree / "docs/tasks/1.md").write_text("edited\n", encoding="utf-8")
+        (worktree / "notes.txt").write_text("untracked\n", encoding="utf-8")
+        head_before = _git(worktree, "rev-parse", "HEAD").strip()
+        status_before = _git(worktree, "status", "--porcelain")
+        stashes_before = _git(base, "stash", "list")
+    
+>       with pytest.raises(layout.LayoutMigrationError) as excinfo:
+E       Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+
+tests/test_worker_worktree_layout_v635.py:85: Failed
+----------------------------- Captured stderr call -----------------------------
+worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt: project layout is unavailable (ORCHESTRA_LAYOUT_DIRTY: worker worktree /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt is in the old layout and has uncommitted changes ['docs/tasks/1.md', 'notes.txt']; it is migrated only when clean; repository=/tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt; repair: git -C /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt add -A && git -C /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt commit -m 'WIP before layout migration' && /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt)
+worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt: .orchestra/layout.json is missing
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:81 worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt: project layout is unavailable (ORCHESTRA_LAYOUT_DIRTY: worker worktree /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt is in the old layout and has uncommitted changes ['docs/tasks/1.md', 'notes.txt']; it is migrated only when clean; repository=/tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt; repair: git -C /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt add -A && git -C /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt commit -m 'WIP before layout migration' && /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt)
+INFO     app.prompting:prompting.py:86 worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_dirty_old_worktree_is_ref0/wt: .orchestra/layout.json is missing
+_______________ test_the_dirty_error_command_fixes_the_worktree ________________
+
+repos = (PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/base'), PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt'))
+
+    def test_the_dirty_error_command_fixes_the_worktree(repos):
+        base, worktree = repos
+        (worktree / "docs/tasks/1.md").write_text("edited\n", encoding="utf-8")
+>       with pytest.raises(layout.LayoutMigrationError) as excinfo:
+E       Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+
+tests/test_worker_worktree_layout_v635.py:103: Failed
+----------------------------- Captured stderr call -----------------------------
+worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt: project layout is unavailable (ORCHESTRA_LAYOUT_DIRTY: worker worktree /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt is in the old layout and has uncommitted changes ['docs/tasks/1.md']; it is migrated only when clean; repository=/tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt; repair: git -C /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt add -A && git -C /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt commit -m 'WIP before layout migration' && /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt)
+worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt: .orchestra/layout.json is missing
+------------------------------ Captured log call -------------------------------
+WARNING  app.prompting:prompting.py:81 worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt: project layout is unavailable (ORCHESTRA_LAYOUT_DIRTY: worker worktree /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt is in the old layout and has uncommitted changes ['docs/tasks/1.md']; it is migrated only when clean; repository=/tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt; repair: git -C /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt add -A && git -C /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt commit -m 'WIP before layout migration' && /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/scripts/migrate_orchestra_layout.py /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt)
+INFO     app.prompting:prompting.py:86 worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_the_dirty_error_command_f0/wt: .orchestra/layout.json is missing
+___________________ test_old_base_is_left_to_the_v611_error ____________________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-12521/test_old_base_is_left_to_the_v0')
+
+    def test_old_base_is_left_to_the_v611_error(tmp_path: Path):
+        """Migrating a branch off an old base is throwaway work (V-611); the base is named."""
+        base = _old_base(tmp_path)
+        worktree = tmp_path / "wt"
+        _git(base, "worktree", "add", "-q", str(worktree), "old-worker")
+        count_before = _commit_count(worktree)
+    
+>       with pytest.raises(layout.LayoutMigrationError) as excinfo:
+E       Failed: DID NOT RAISE <class 'app.orchestra_layout.LayoutMigrationError'>
+
+tests/test_worker_worktree_layout_v635.py/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:67: PytestUnraisableExceptionWarning: Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7ef54e3dad40>
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+    self.close()
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+    proto.pipe.close()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+    self.write_eof()
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+    self._loop.call_soon(self._call_connection_lost, None)
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+    self._check_closed()
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+    raise RuntimeError('Event loop is closed')
+RuntimeError: Event loop is closed
+
+Enable tracemalloc to get traceback where the object was allocated.
+See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+  warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))
+:135: Failed
+----------------------------- Captured stderr call -----------------------------
+worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_old_base_is_left_to_the_v0/wt: .orchestra/layout.json is missing
+------------------------------ Captured log call -------------------------------
+INFO     app.prompting:prompting.py:86 worker memory skipped for /tmp/pytest-of-kesha/pytest-12521/test_old_base_is_left_to_the_v0/wt: .orchestra/layout.json is missing
+=============================== warnings summary ===============================
+tests/test_mailbox.py::test_t3_undelivered_survives_a_dropped_continuation
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_initial_deliveries.py::test_t2_startup_orders_recovery_before_background_delivery_sources
+FAILED tests/test_orchestra_layout_compat_430.py::test_t4_only_migrated_layout_creates_session_after_fleet_cutover
+FAILED tests/test_quota_wait_queue.py::test_target_changed_task_fails_loudly_and_sender_is_told
+FAILED tests/test_restart_generation_liveness.py::test_lifespan_shuts_down_owned_tasks_on_exit
+FAILED tests/test_worker_worktree_layout_v635.py::test_dirty_old_worktree_is_refused_and_left_untouched
+FAILED tests/test_worker_worktree_layout_v635.py::test_the_dirty_error_command_fixes_the_worktree
+FAILED tests/test_worker_worktree_layout_v635.py::test_old_base_is_left_to_the_v611_error
+7 failed, 2324 passed, 22 skipped, 3 deselected, 1 warning in 310.43s (0:05:10)
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x7ef54e3dad40>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 767, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 753, in write_eof
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

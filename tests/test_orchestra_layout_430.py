@@ -129,8 +129,15 @@ def _layout_module():
     spec = importlib.util.spec_from_file_location("app.orchestra_layout", module_path)
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
+    previous = sys.modules.get(spec.name)
     sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if previous is None:
+            sys.modules.pop(spec.name, None)
+        else:
+            sys.modules[spec.name] = previous
     return module
 
 

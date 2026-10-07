@@ -196,6 +196,15 @@ CREATE TABLE message_deliveries (
                 updated_at TEXT NOT NULL
             );
 
+CREATE TABLE message_delivery_failure_notices (
+                delivery_id TEXT PRIMARY KEY,
+                source_session_id TEXT NOT NULL,
+                target_name TEXT NOT NULL,
+                error_json TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                delivered_at TEXT
+            );
+
 CREATE TABLE openrouter_attempts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 ts REAL NOT NULL,

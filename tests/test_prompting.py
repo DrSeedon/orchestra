@@ -628,6 +628,14 @@ class TestRefreshWorkerMemory:
         finally:
             (tmp_path / ".orchestra" / "workers" / "w1.md").chmod(0o644)
 
+    def test_delivery_may_skip_optional_memory_when_layout_is_missing(self, tmp_path):
+        from app.prompting import refresh_worker_memory
+
+        assert refresh_worker_memory(
+            self.PROMPT, "w1", "worker", str(tmp_path),
+            allow_missing_layout=True,
+        ) == "ROLE: worker."
+
     def test_memory_containing_regex_escapes_is_inserted_literally(self, tmp_path):
         from app.prompting import refresh_worker_memory
 
