@@ -311,6 +311,46 @@ def test_timeline_keeps_old_claude_rule_until_v732_effective_time(browser):
     page.close()
 
 
+def test_current_claude_chart_uses_day_night_profile_and_headroom(browser):
+    payload = _payload(claude_progress=0.06, claude_util=20.0)
+    now = 1791349200.0  # 2026-10-07 05:00 UTC
+    start = 1791270000.0  # 2026-10-06 07:00 UTC, Tuesday 14:00 Krasnoyarsk
+    reset = start + 604800.0
+    payload["generated_at"] = "2026-10-07T05:00:00+00:00"
+    payload["rule"].update({
+        "claude_weekly_shift_hours": 8.0,
+        "claude_day_start_hour": 8.0,
+        "claude_night_quota_share": 0.057,
+    })
+    payload["rule_history"] = [
+        {"effective_from": 1790640000.0, "policy": {
+            **payload["rule"], "claude_weekly_shift_hours": 0.0,
+            "claude_night_quota_share": None,
+        }},
+        {"effective_from": 1791261780.0, "policy": {
+            **payload["rule"], "claude_night_quota_share": None,
+        }},
+        {"effective_from": now - 3600.0, "policy": payload["rule"]},
+    ]
+    bucket = next(item for item in payload["buckets"] if item["bucket"] == "anthropic")
+    bucket["window"] = {
+        "id": "seven_day", "window_minutes": 10080, "utilization": 20.0,
+        "resets_at": "2026-10-13T07:00:00+00:00", "progress": 0.06,
+    }
+    page, errors = _render(browser, payload)
+    points = page.locator("[data-ql-chart='all'] [data-ql-threshold='claude']")
+    assert points.count() == 1
+    sample = tuple(map(float, points.first.get_attribute("points").split()[6].split(",")))
+    drawn_limit = (1.0 - (sample[1] - 18.0) / 408.0) * 100.0
+    day_rate = 89.0 * 0.943 / 112.0
+    night_rate = 89.0 * 0.057 / 56.0
+    expected = 10.0 + day_rate * 10.0 + night_rate * 0.08 + 91.0 * 8.0 / 168.0
+
+    assert drawn_limit == pytest.approx(expected, abs=0.01)
+    assert errors == []
+    page.close()
+
+
 def test_live_quota_map_history_and_two_hour_labels(browser):
     payload = json.loads((ROOT / "tests/fixtures/v654_quota_map_live_shape.json").read_text())
     page, errors = _render(browser, payload)

@@ -13,6 +13,9 @@ const _QL_PW = _QL_W - _QL_ML - _QL_MR, _QL_PH = _QL_H - _QL_MT - _QL_MB;
 const _QL_REFRESH_MS = 120000;
 const _QL_LABEL_STEP = 12;
 const _QL_LABEL_TOP_PAD = 8;
+const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Krasnoyarsk', hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+});
 
 const _QL_PANELS = [
     {key: 'all', title: T('Pool quotas'), sub: T('single scale: window progress share, 0–100%'),
@@ -41,17 +44,68 @@ const _QL_LANE_COLORS = {sol: '#f472b6', luna: '#38bdf8', spark: '#c084fc', clau
 
 // Форма диагонали допуска между началом и концом окна. Значение В ТЕКУЩЕЙ точке
 // берётся из lanes[].limit_pct сервера, а не отсюда, — иначе панель и гейт разойдутся.
-// `lane` обязателен для полос с кривой: Sol идёт по `t ** (1/exponent)`, Claude по прямой.
+// `lane` обязателен для полос с собственной формой: Sol — степенная кривая, Claude — day/night.
 // Формула обязана совпадать с `line_limit` в app/quota_gate.py — расхождение здесь означает,
 // что юзер видит на графике не тот порог, по которому его воркеров реально блокируют.
-function _qlLimitAt(t, rule, lane) {
+function _qlDayHoursBetween(startLocalHour, elapsedHours, dayStartHour) {
+    const cumulative = position => {
+        const fullDays = Math.floor(position / 24);
+        const localHour = position - fullDays * 24;
+        const dayLength = 24 - dayStartHour;
+        return fullDays * dayLength + Math.min(dayLength, Math.max(0, localHour - dayStartHour));
+    };
+    return cumulative(startLocalHour + elapsedHours) - cumulative(startLocalHour);
+}
+
+function _qlClaudeDayNightLimit(t, rule, hardStop, windowMinutes, windowStartMs) {
+    const minutes = Number.isFinite(windowMinutes) && windowMinutes > 0 ? windowMinutes : 10080;
+    const spanHours = minutes / 60;
+    let startHour = 14;
+    if (Number.isFinite(windowStartMs)) {
+        const parts = Object.fromEntries(_QL_KR_HOUR_FORMAT.formatToParts(new Date(windowStartMs))
+            .map(part => [part.type, part.value]));
+        startHour = Number(parts.hour) + Number(parts.minute) / 60;
+    }
+    const configuredDayStart = Number(rule.claude_day_start_hour);
+    const dayStart = Number.isFinite(configuredDayStart)
+        ? Math.min(23.999999, Math.max(0, configuredDayStart))
+        : 8;
+    const progress = Math.min(1, Math.max(0, t));
+    const elapsedHours = progress * spanHours;
+    const totalDay = _qlDayHoursBetween(startHour, spanHours, dayStart);
+    const elapsedDay = _qlDayHoursBetween(startHour, elapsedHours, dayStart);
+    const totalNight = spanHours - totalDay;
+    const elapsedNight = elapsedHours - elapsedDay;
+    const start = Number(rule.tolerance_start_pp);
+    const rise = Math.max(0, hardStop - start);
+    const nightShare = Math.min(1, Math.max(0, Number(rule.claude_night_quota_share)));
+    const dayWeight = totalDay > 0 ? 1 - nightShare : 0;
+    const nightWeight = totalNight > 0 ? nightShare : 0;
+    const weightTotal = dayWeight + nightWeight;
+    if (!weightTotal) return hardStop;
+    const dayRate = totalDay ? rise * dayWeight / weightTotal / totalDay : 0;
+    const nightRate = totalNight ? rise * nightWeight / weightTotal / totalNight : 0;
+    const legacySlope = 100 + Number(rule.tolerance_end_pp) - start;
+    const headroom = legacySlope * Number(rule.claude_weekly_shift_hours || 0) / spanHours;
+    const limit = start + dayRate * elapsedDay + nightRate * elapsedNight + headroom;
+    return Math.min(hardStop, limit);
+}
+
+function _qlLimitAt(t, rule, lane, windowMinutes = 10080, windowStartMs = null) {
     const start = Number(rule.tolerance_start_pp), end = Number(rule.tolerance_end_pp);
     const exponent = Number(rule.curve_exponent) || 1;
+    const hasDayNightShape = lane === 'claude'
+        && rule.claude_night_quota_share != null
+        && Number.isFinite(Number(rule.claude_night_quota_share));
+    const hardStop = _qlHardStop(rule, lane);
+    if (hasDayNightShape) {
+        return _qlClaudeDayNightLimit(t, rule, hardStop, windowMinutes, windowStartMs);
+    }
     const shiftHours = lane === 'claude' ? Number(rule.claude_weekly_shift_hours) : 0;
     const lineProgress = lane === 'claude' && Number.isFinite(shiftHours) ? t + shiftHours / 168 : t;
     const curved = lane && (rule.curved_lanes || []).includes(lane) && exponent > 1;
     const norm = (curved && lineProgress > 0) ? Math.pow(lineProgress, 1 / exponent) : lineProgress;
-    return Math.min(_qlHardStop(rule, lane), norm * 100 + start + (end - start) * lineProgress);
+    return Math.min(hardStop, norm * 100 + start + (end - start) * lineProgress);
 }
 
 // Жёсткий стоп — свойство ПОЛОСЫ: хвост пула зарезервирован под дешёвую модель,
@@ -327,7 +381,9 @@ function _qlTimelineSvg(panel, rule) {
                         const coords = [];
                         for (let i = 0; i <= 50; i++) {
                             const ts = segmentLeft + (segmentRight - segmentLeft) * i / 50;
-                            coords.push(`${x(ts)},${y(_qlLimitAt(progressAt(ts), segmentRule, lane))}`);
+                            coords.push(`${x(ts)},${y(_qlLimitAt(
+                                progressAt(ts), segmentRule, lane, span / 60000, start,
+                            ))}`);
                         }
                         const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
                         p.push(`<polyline class="ql-gated ${colorClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
@@ -365,6 +421,18 @@ function _qlTimelineSvg(panel, rule) {
 
 function _qlChartSvg(panel, rule) {
     const p = [];
+    const claudeWindow = _qlBucket('anthropic')?.window;
+    const claudeWindowMinutes = Number(claudeWindow?.window_minutes);
+    const claudeReset = Date.parse(claudeWindow?.resets_at);
+    const claudeWindowStart = Number.isFinite(claudeReset)
+        && Number.isFinite(claudeWindowMinutes) && claudeWindowMinutes > 0
+        ? claudeReset - claudeWindowMinutes * 60000
+        : null;
+    const limitAt = (t, lane) => _qlLimitAt(
+        t, rule, lane,
+        lane === 'claude' ? claudeWindowMinutes : undefined,
+        lane === 'claude' ? claudeWindowStart : null,
+    );
 
     for (let pct = 0; pct <= 100; pct += 20) {
         p.push(`<line class="ql-grid" x1="${_QL_ML}" y1="${_qlY(pct)}" x2="${_QL_ML + _QL_PW}" y2="${_qlY(pct)}"/>`);
@@ -377,14 +445,12 @@ function _qlChartSvg(panel, rule) {
     }
     p.push(`<text class="ql-axis" x="${_QL_ML + _QL_PW / 2}" y="${_QL_H - 7}" text-anchor="middle">${T('window progress share')}</text>`);
 
-    // Two thresholds now: Sol follows a curve, Claude a straight line. One shared
-    // polyline would show half the workers a foreign limit. Fill band uses the
-    // straight line — it's the lower one and means "no blocking here".
+    // Separate thresholds keep each lane's curve, cap and day/night profile accurate.
     const band = [], lineClaude = [], lineSol = [];
     for (let i = 0; i <= 100; i++) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(t * 100)}`); }
-    for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'claude'))}`); }
-    for (let i = 0; i <= 100; i++) { const t = i / 100; lineClaude.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'claude'))}`); }
-    for (let i = 0; i <= 100; i++) { const t = i / 100; lineSol.push(`${_qlX(t)},${_qlY(_qlLimitAt(t, rule, 'sol'))}`); }
+    for (let i = 100; i >= 0; i--) { const t = i / 100; band.push(`${_qlX(t)},${_qlY(limitAt(t, 'claude'))}`); }
+    for (let i = 0; i <= 100; i++) { const t = i / 100; lineClaude.push(`${_qlX(t)},${_qlY(limitAt(t, 'claude'))}`); }
+    for (let i = 0; i <= 100; i++) { const t = i / 100; lineSol.push(`${_qlX(t)},${_qlY(limitAt(t, 'sol'))}`); }
     p.push(`<polygon class="ql-band" points="${band.join(' ')}"/>`);
     p.push(`<line class="ql-diag" x1="${_qlX(0)}" y1="${_qlY(0)}" x2="${_qlX(1)}" y2="${_qlY(100)}"/>`);
     // Lifted diagonal drawn as ghost: solid line would imply a threshold that
@@ -396,8 +462,8 @@ function _qlChartSvg(panel, rule) {
         p.push(`<polyline class="ql-gated ql-gated-sol${_ghost('sol')}" data-ql-threshold="sol" points="${lineSol.join(' ')}"/>`);
         const solSuffix = gatedLanes.includes('sol') ? T(' — burning pool early') : T(' — lifted');
         const claudeSuffix = gatedLanes.includes('claude') ? '' : T(' — lifted');
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(_qlLimitAt(0.30, rule, 'sol')) - 9}" fill="#f472b6">${T('Sol threshold')}${solSuffix}</text>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(_qlLimitAt(0.62, rule, 'claude')) + 17}" fill="#fb923c">${T('Claude threshold')}${claudeSuffix}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(limitAt(0.30, 'sol')) - 9}" fill="#f472b6">${T('Sol threshold')}${solSuffix}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(limitAt(0.62, 'claude')) + 17}" fill="#fb923c">${T('Claude threshold')}${claudeSuffix}</text>`);
     }
 
     const hard = Number(rule.hard_stop_pct);

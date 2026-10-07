@@ -199,6 +199,8 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "tolerance_start_pp": 10.0,
         "tolerance_end_pp": 1.0,
         "claude_weekly_shift_hours": 8.0,
+        "claude_day_start_hour": 8.0,
+        "claude_night_quota_share": 0.057,
         # Кривизна — такая же часть правила, как допуск: панель рисует порог сама и
         # без этих двух полей нарисует ПРЯМУЮ там, где гейт блокирует по параболе.
         "curve_exponent": 2.5,
@@ -211,7 +213,7 @@ async def test_rule_constants_travel_with_the_payload(mapped):
     }
     assert payload["observation_max_age_seconds"] == 300.0
     history = payload["rule_history"]
-    assert history[-1]["effective_from"] == pytest.approx(1791261780.0)
+    assert history[-1]["policy"]["claude_night_quota_share"] == 0.057
     assert history[-1]["policy"]["claude_weekly_shift_hours"] == 8.0
 
 
@@ -226,9 +228,11 @@ async def test_quota_map_payload_includes_history_for_its_timeline(mapped, monke
     assert [event["effective_from"] for event in payload["rule_history"]] == pytest.approx([
         1790640000.0,
         1791261780.0,
+        now,
     ])
     assert payload["rule_history"][0]["policy"]["claude_weekly_shift_hours"] == 0.0
     assert payload["rule_history"][1]["policy"]["claude_weekly_shift_hours"] == 8.0
+    assert payload["rule_history"][2]["policy"]["claude_night_quota_share"] == 0.057
 
 
 def test_quota_policy_history_appends_only_changed_snapshots():
@@ -265,6 +269,8 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
         "tolerance_start_pp": 13.0,
         "tolerance_end_pp": 2.0,
         "claude_weekly_shift_hours": 8.0,
+        "claude_day_start_hour": 8.0,
+        "claude_night_quota_share": 0.057,
         "curve_exponent": 2.5,
         "curved_lanes": ["sol"],
         # Гейт снят оператором — панель обязана узнать об этом из правила, а не
@@ -538,13 +544,16 @@ async def test_line_point_is_computed_server_side_for_every_pool(mapped):
     assert claude["window"]["progress"] == pytest.approx(0.5)
     assert claude["tolerance_pp"] == pytest.approx(5.5)
     assert "limit_pct" not in claude
-    assert _lane(claude, "claude")["limit_pct"] == pytest.approx(55.5 + 91.0 * 8.0 / 168.0)
+    from app.quota_gate import line_limit
+    assert _lane(claude, "claude")["limit_pct"] == pytest.approx(line_limit(
+        0.5, "claude", window_minutes=10080,
+        window_start_at=NOW - 10080 * 60 * 0.5,
+    ))
 
     codex = _pool(payload, "codex")
     assert codex["window"]["progress"] == pytest.approx(0.25)
     assert codex["tolerance_pp"] == pytest.approx(7.75)
     assert "limit_pct" not in codex
-    from app.quota_gate import line_limit
     assert _lane(codex, "sol")["limit_pct"] == pytest.approx(line_limit(0.25, "sol"))
 
 
