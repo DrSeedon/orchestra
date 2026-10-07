@@ -172,8 +172,8 @@ async def test_send_file_200_without_matching_receipt_exposes_event_and_no_retry
     assert event_id
     assert error.code == "invalid_response"
     assert error.outcome_unknown is True
-    assert error.result["next_action"]["tool"] == "file_delivery_status"
-    assert error.result["next_action"]["arguments"] == {"event_id": event_id}
+    assert error.result["next_action"]["code"] == "REPEAT_SAME_FILE_CALL"
+    assert error.result["next_action"]["event_id"] == event_id
 
 
 @pytest.mark.asyncio
@@ -199,8 +199,8 @@ async def test_send_file_200_mismatched_receipt_keeps_structured_result(monkeypa
     event_id = error.result["event_id"]
     assert error.code == "invalid_response"
     assert error.outcome_unknown is True
-    assert error.result["next_action"]["tool"] == "file_delivery_status"
-    assert error.result["next_action"]["arguments"] == {"event_id": event_id}
+    assert error.result["next_action"]["code"] == "REPEAT_SAME_FILE_CALL"
+    assert error.result["next_action"]["event_id"] == event_id
 
 
 @pytest.mark.asyncio
@@ -231,6 +231,53 @@ async def test_t2_publish_artifact_sends_only_path_caption_and_ttl(monkeypatch):
     serialized = str(result)
     assert "/scope/report.html" not in serialized
     assert "#" not in serialized
+
+
+@pytest.mark.asyncio
+async def test_task_create_repeats_ambiguous_call_with_same_request_key(monkeypatch):
+    import app.mcp_stdio as m
+
+    request_key = "task-create-request-v750"
+    calls = []
+    tasks = {}
+    attempts = 0
+
+    async def fake_api(method, path, **kwargs):
+        nonlocal attempts
+        assert method == "POST"
+        assert path == "/api/tm/tasks"
+        assert kwargs["idempotency_key"] == request_key
+        calls.append(kwargs)
+        attempts += 1
+        tasks.setdefault(request_key, {
+            "id": 750,
+            "par": "V-750",
+            "title": kwargs["json"]["title"],
+            "request_key": request_key,
+        })
+        if attempts == 1:
+            raise m.ApiToolError(
+                code="transport_timeout",
+                message="response lost after task commit",
+                outcome_unknown=True,
+            )
+        return tasks[request_key]
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    arguments = {"title": "same task", "request_key": request_key}
+    with pytest.raises(m.ApiToolError) as caught:
+        await m.task_create(**arguments)
+
+    assert caught.value.result["request_key"] == request_key
+    assert caught.value.details["request_key"] == request_key
+    assert caught.value.result["next_action"]["code"] == (
+        "REPEAT_TASK_CREATE_SAME_KEY"
+    )
+    repeated = json.loads(await m.task_create(**arguments))
+    assert repeated["id"] == 750
+    assert repeated["request_key"] == request_key
+    assert len(calls) == 2
+    assert len(tasks) == 1
 
 
 @pytest.mark.asyncio
@@ -1306,12 +1353,10 @@ async def test_t3_spawn_unknown_delivery_preserves_mapping_and_forbids_resend(mo
         "#311 missing behavior: timeout result has no durable delivery id"
     )
     assert structured["result"]["delivery_id"]
-    assert structured["result"]["next_action"]["code"] == "CHECK_DELIVERY_STATUS"
-    assert structured["result"]["next_action"]["tool"] == "delivery_status"
-    assert structured["result"]["next_action"]["arguments"] == {
-        "delivery_id": structured["result"]["delivery_id"],
-    }
-    assert "do not resend" in structured["result"]["next_action"]["message"].lower()
+    assert structured["result"]["next_action"]["code"] == "REPEAT_SPAWN_SAME_ID"
+    assert structured["result"]["next_action"]["delivery_id"] == (
+        structured["result"]["delivery_id"]
+    )
 
 
 @pytest.mark.asyncio
@@ -1475,6 +1520,92 @@ async def test_t3_spawn_delivery_timeout_reconciles_without_second_post(monkeypa
 
 
 @pytest.mark.asyncio
+async def test_t3_spawn_repeats_same_call_after_creation_reconciliation_fails(
+    monkeypatch,
+):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000320"
+    monkeypatch.setattr(m, "SCOPE", "/s")
+    monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
+    calls = []
+    create_count = 0
+    resume_count = 0
+    accepted_deliveries = {}
+    delivery_accept_count = 0
+
+    async def fake_api(method, path, **kwargs):
+        nonlocal create_count, resume_count, delivery_accept_count
+        calls.append((method, path, kwargs))
+        if path == "/api/sessions" and method == "POST":
+            create_count += 1
+            if create_count == 1:
+                raise m.ApiToolError(
+                    code="transport_timeout",
+                    message="create response lost",
+                    outcome_unknown=True,
+                )
+            raise m.ApiToolError(
+                code="domain_error",
+                message="session 'child' already exists",
+                status=409,
+                outcome_unknown=False,
+            )
+        if path == "/api/sessions/child/spawn-resume":
+            resume_count += 1
+            if resume_count == 1:
+                raise m.ApiToolError(
+                    code="receipt_lookup_unavailable",
+                    message="spawn reconciliation temporarily unavailable",
+                    status=503,
+                    outcome_unknown=False,
+                )
+            assert kwargs["json"] == {
+                "scope": "/s", "delivery_id": delivery_id, "task": "do it",
+            }
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-750/child",
+                "repo_path": "/s",
+                "git_common_dir": "/s/.git",
+            }
+        assert path == "/api/sessions/child/initial-deliveries"
+        body = kwargs["json"]
+        assert body["delivery_id"] == delivery_id
+        delivery_accept_count += 1
+        accepted_deliveries.setdefault(delivery_id, {
+            "ok": True,
+            "delivery_id": delivery_id,
+            "delivery_state": "QUEUED",
+            "payload_hash": "same-payload",
+        })
+        return accepted_deliveries[delivery_id]
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    arguments = {
+        "name": "child",
+        "task": "do it",
+        "repo_path": "/s",
+        "model": "gpt-6-luna",
+        "delivery_id": delivery_id,
+    }
+    first = await _protocol_call(m, "spawn_worker", arguments)
+    assert first.isError is True
+    assert first.structuredContent["result"]["delivery_id"] == delivery_id
+    assert first.structuredContent["result"]["next_action"]["code"] == (
+        "REPEAT_SPAWN_SAME_ID"
+    )
+
+    repeated = await _protocol_call(m, "spawn_worker", arguments)
+    assert repeated.isError is False
+    assert delivery_id in repeated.content[0].text
+    assert create_count == 2
+    assert resume_count == 2
+    assert delivery_accept_count == 1
+    assert len(accepted_deliveries) == 1
+
+
+@pytest.mark.asyncio
 async def test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend(
     monkeypatch,
 ):
@@ -1496,7 +1627,7 @@ async def test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend(
                 "git_common_dir": "/repo/.git",
             }
         raise m.ApiToolError(
-            code="transport_timeout" if method == "POST" else "delivery_status_unavailable",
+            code="transport_timeout" if method == "POST" else "receipt_lookup_unavailable",
             message="outcome remains unknown",
             outcome_unknown=True,
         )
@@ -1515,14 +1646,8 @@ async def test_t3_spawn_delivery_unresolved_timeout_has_actionable_no_resend(
     structured = result.structuredContent
     assert structured["error"]["outcome_unknown"] is True
     assert structured["result"]["delivery_id"] == delivery_id
-    assert structured["result"]["next_action"] == {
-        "code": "CHECK_DELIVERY_STATUS",
-        "tool": "delivery_status",
-        "arguments": {"delivery_id": delivery_id},
-        "message": (
-            "Check this delivery id; do not resend the task with a new id."
-        ),
-    }
+    assert structured["result"]["next_action"]["code"] == "REPEAT_SPAWN_SAME_ID"
+    assert structured["result"]["next_action"]["delivery_id"] == delivery_id
 
 
 @pytest.mark.asyncio
@@ -1554,7 +1679,7 @@ async def test_t3_spawn_committed_then_500_unresolved_never_posts_again(
                 outcome_unknown=True,
             )
         raise m.ApiToolError(
-            code="delivery_status_unavailable",
+            code="receipt_lookup_unavailable",
             message="status response also unavailable",
             status=503,
             retryable=True,
@@ -1577,12 +1702,10 @@ async def test_t3_spawn_committed_then_500_unresolved_never_posts_again(
     ]
     assert result.isError is True
     assert result.structuredContent["error"]["outcome_unknown"] is True
-    assert result.structuredContent["result"]["next_action"] == {
-        "code": "CHECK_DELIVERY_STATUS",
-        "tool": "delivery_status",
-        "arguments": {"delivery_id": delivery_id},
-        "message": "Check this delivery id; do not resend the task with a new id.",
-    }
+    assert result.structuredContent["result"]["next_action"]["code"] == (
+        "REPEAT_SPAWN_SAME_ID"
+    )
+    assert result.structuredContent["result"]["next_action"]["delivery_id"] == delivery_id
 
 
 @pytest.mark.asyncio
@@ -1628,19 +1751,14 @@ async def test_t3_spawn_idempotency_conflict_is_actionable_and_never_retries(
     ]
     assert result.isError is True
     assert result.structuredContent["error"]["code"] == "IDEMPOTENCY_CONFLICT"
-    assert result.structuredContent["result"]["next_action"] == {
-        "code": "RESOLVE_IDEMPOTENCY_CONFLICT",
-        "tool": "delivery_status",
-        "arguments": {"delivery_id": delivery_id},
-        "message": (
-            "This delivery id belongs to another payload; inspect it and do not retry "
-            "the changed task."
-        ),
-    }
+    assert result.structuredContent["result"]["next_action"]["code"] == (
+        "RESOLVE_IDEMPOTENCY_CONFLICT"
+    )
+    assert result.structuredContent["result"]["next_action"]["delivery_id"] == delivery_id
 
 
 @pytest.mark.asyncio
-async def test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key(
+async def test_t3_retry_initial_delivery_replays_same_receipt_with_same_key(
     monkeypatch,
 ):
     import app.mcp_stdio as m
@@ -1648,28 +1766,24 @@ async def test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key(
     delivery_id = "00000000-0000-4000-8000-000000000314"
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "parent-orchestrator")
-    assert hasattr(m, "delivery_status"), (
-        "#311 missing behavior: delivery_status MCP tool is not registered"
-    )
     assert hasattr(m, "retry_initial_delivery"), (
         "#311 missing behavior: retry_initial_delivery MCP tool is not registered"
     )
     calls = []
+    created = {}
 
     async def fake_api(method, path, **kwargs):
         calls.append((method, path, kwargs))
-        return {
+        assert method == "POST"
+        receipt = {
             "ok": True,
             "delivery_id": delivery_id,
-            "delivery_state": "QUEUED",
+            "delivery_state": "FAILED_BEFORE_SUBMIT",
             "payload_hash": "hash-314",
             "status_url": f"/api/initial-deliveries/{delivery_id}",
-            "next_action": {
-                "code": "WAIT_FOR_DELIVERY",
-                "tool": "delivery_status",
-                "arguments": {"delivery_id": delivery_id},
-            },
         }
+        created.setdefault(delivery_id, receipt)
+        return created[delivery_id]
 
     monkeypatch.setattr(m, "_api", fake_api)
 
@@ -1678,7 +1792,9 @@ async def test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key(
         "task": "do it",
         "delivery_id": delivery_id,
     })
-    looked_up = await _protocol_call(m, "delivery_status", {
+    repeated = await _protocol_call(m, "retry_initial_delivery", {
+        "name": "child",
+        "task": "do it",
         "delivery_id": delivery_id,
     })
 
@@ -1692,15 +1808,14 @@ async def test_t3_delivery_status_and_known_precommit_retry_keep_the_same_key(
         "sender": "parent-orchestrator",
     }
     assert calls[1][0:2] == (
-        "GET", f"/api/initial-deliveries/{delivery_id}",
+        "POST", "/api/sessions/child/initial-deliveries",
     )
-    assert calls[1][2]["params"] == {"scope": "/s"}
+    assert calls[0][2]["json"] == calls[1][2]["json"]
     assert retried.isError is False
-    assert looked_up.isError is False
     assert retried.structuredContent["result"]["delivery_id"] == delivery_id
-    assert looked_up.structuredContent["result"]["next_action"]["code"] == (
-        "WAIT_FOR_DELIVERY"
-    )
+    assert repeated.isError is False
+    assert repeated.structuredContent["result"] == retried.structuredContent["result"]
+    assert len(created) == 1
 
 
 @pytest.mark.asyncio
@@ -2772,6 +2887,19 @@ def test_file_first_memory_tool_surface_does_not_register_legacy_knowledge_tool(
     assert "knowledge" not in registered
     assert "knowledge" not in m.READ_ONLY_MCP_TOOLS
     assert "knowledge" not in m.REDUCER_MCP_TOOLS
+
+
+def test_delivery_status_read_tools_are_not_in_the_agent_mcp_surface():
+    import app.mcp_stdio as m
+
+    tools = {tool.name for tool in m.mcp._tool_manager.list_tools()}
+    assert tools.isdisjoint({
+        "message_delivery_status",
+        "file_delivery_status",
+        "delivery_status",
+        "task_create_status",
+    })
+    assert {"cancel_message_delivery", "retry_initial_delivery"} <= tools
 
 
 @pytest.mark.asyncio

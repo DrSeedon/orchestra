@@ -29,10 +29,14 @@ def _next_action(row: sqlite3.Row | dict) -> dict | None:
     if state in {"QUEUED", "PREPARING"}:
         return {
             "code": "WAIT_FOR_DELIVERY",
-            "tool": "delivery_status",
+            "tool": None,
             "arguments": {"delivery_id": delivery_id},
             "retryable": False,
-            "message": "Wait for this accepted delivery and check the same delivery_id.",
+            "message": (
+                "This initial task is already queued. If the spawn call outcome was "
+                "unclear, repeat the same spawn_worker call with the same delivery_id; "
+                "it returns this receipt without creating another worker or task."
+            ),
         }
     if state == "WAITING_QUOTA":
         return quota_wait_action(row)
@@ -50,13 +54,14 @@ def _next_action(row: sqlite3.Row | dict) -> dict | None:
         }
     if state in {"DISPATCHING", "DELIVERY_UNKNOWN"}:
         return {
-            "code": "CHECK_DELIVERY_STATUS",
-            "tool": "delivery_status",
+            "code": "REPEAT_SPAWN_SAME_ID",
+            "tool": None,
             "arguments": {"delivery_id": delivery_id},
             "retryable": False,
             "message": (
-                "Provider acceptance may have occurred. Check this delivery_id; "
-                "do not resend the initial task automatically."
+                "Provider acceptance may have occurred. Repeat the same spawn_worker "
+                "call with the same delivery_id to get its existing receipt; do not "
+                "create a new worker or use a new id."
             ),
         }
     if state == "SUBMITTED":

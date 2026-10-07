@@ -142,22 +142,26 @@ def _next_action(event_id: str, state: str) -> dict[str, Any]:
     if state == "FAILED":
         return {
             "code": "DELIVERY_REJECTED",
-            "tool": "file_delivery_status",
+            "tool": None,
             "arguments": {"event_id": event_id},
             "retryable": False,
             "message": (
                 "Telegram rejected this delivery and nothing was delivered; "
-                "see the error, fix the payload and send it under a new event id."
+                "fix the payload and send it under a new event id."
             ),
         }
     if state not in {"SUBMITTING", "UNKNOWN"}:
         return {}
     return {
-        "code": "CHECK_DELIVERY_STATUS",
-        "tool": "file_delivery_status",
+        "code": "REPEAT_SAME_FILE_CALL",
+        "tool": None,
         "arguments": {"event_id": event_id},
         "retryable": False,
-        "message": "Provider delivery may have occurred; check this event id and do not resend it.",
+        "message": (
+            "Provider delivery may have occurred. Repeat the original send_file or "
+            "send_files call with this event_id and the same inputs to receive the "
+            "same receipt without creating a duplicate."
+        ),
     }
 
 

@@ -106,7 +106,7 @@ def _queue_block(
         return {}
     return {
         "code": "TARGET_QUEUE_BLOCKED",
-        "tool": "message_delivery_status",
+        "tool": None,
         "arguments": {"delivery_id": head["delivery_id"]},
         "blocked_since": head["updated_at"],
         "retryable": False,
@@ -114,9 +114,9 @@ def _queue_block(
             f"Message accepted but NOT delivered: the target queue has been blocked "
             f"since {head['updated_at']} by delivery {head['delivery_id']}, whose "
             "provider outcome is still unknown. Nothing queued after it moves while "
-            "that outcome could still change. Do not resend this message: the next "
-                "operator can restart only the target CLI to release the queue; "
-                "the ambiguous message will NOT be resent."
+            "that outcome could still change. Repeat the original send_message call "
+            f"with delivery_id={head['delivery_id']} to receive the same receipt; "
+            "the target queue remains blocked until the provider outcome is resolved."
         ),
     }
 
@@ -168,13 +168,14 @@ def _next_action(
         return {}
     if row["state"] in {"DISPATCHING", "DELIVERY_UNKNOWN"}:
         return {
-            "code": "CHECK_DELIVERY_STATUS",
-            "tool": "message_delivery_status",
+            "code": "REPEAT_SAME_SEND",
+            "tool": None,
             "arguments": {"delivery_id": row["delivery_id"]},
             "retryable": False,
             "message": (
-                "Provider acceptance may have occurred. Check this delivery_id; "
-                "do not resend the direct message automatically."
+                "Provider acceptance may have occurred. Repeat the original "
+                "send_message call with the same delivery_id and same text to get "
+                "the same receipt without creating a duplicate."
             ),
         }
     if row["state"] == "SUBMITTED" and row["error_json"] and "TURN_NOT_STARTED" in row["error_json"]:

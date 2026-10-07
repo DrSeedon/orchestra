@@ -119,10 +119,9 @@ async def test_target_task_changed_is_not_sent_into_a_retry_loop(monkeypatch):
         to="sol-worker", message="забери задачу #123", delivery_id=DELIVERY_ID,
     )
 
-    assert "accepted" not in output.lower()
+    assert receipt["error"]["retryable"] is False
     assert "TARGET_TASK_CHANGED" in output
-    assert "same delivery_id" not in output
-    assert "new delivery_id" in output
+    assert DELIVERY_ID in output
 
     # Повторимая причина того же состояния совет не меняет: квота уходит, и текст
     # обязан остаться прежним — иначе ветвление по коду сломало бы штатный повтор.
@@ -144,8 +143,8 @@ async def test_target_task_changed_is_not_sent_into_a_retry_loop(monkeypatch):
         to="sol-worker", message="забери задачу #123", delivery_id=DELIVERY_ID,
     )
 
-    assert f'delivery_id="{DELIVERY_ID}"' in retryable
-    assert "new delivery_id" not in retryable
+    assert quota["error"]["retryable"] is True
+    assert DELIVERY_ID in retryable
 
 
 @pytest.mark.asyncio
@@ -364,7 +363,7 @@ def _queue_blocked_receipt() -> dict:
         "error": None,
         "next_action": {
             "code": "TARGET_QUEUE_BLOCKED",
-            "tool": "message_delivery_status",
+            "tool": None,
             "arguments": {"delivery_id": HEAD_DELIVERY_ID},
             "blocked_since": "2026-08-31T09:14:00+00:00",
             "retryable": False,
@@ -372,8 +371,9 @@ def _queue_blocked_receipt() -> dict:
                 "Message accepted but NOT delivered: the target queue has been blocked "
                 f"since 2026-08-31T09:14:00+00:00 by delivery {HEAD_DELIVERY_ID} "
                 "(DELIVERY_UNKNOWN), and nothing queued after it moves until that one is "
-                "reconciled. Do not resend this message — an operator clears the barrier "
-                f"with POST /api/message-deliveries/{HEAD_DELIVERY_ID}/resolve."
+                "reconciled. Repeat that delivery's original send_message call with "
+                f"delivery_id={HEAD_DELIVERY_ID}; the same receipt is returned and the "
+                "queue remains blocked until the provider outcome is resolved."
             ),
         },
     }

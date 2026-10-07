@@ -619,23 +619,24 @@ async def test_t380_r3_mcp_timeout_reconciles_same_key_or_returns_ambiguous_id(
     assert caught.value.outcome_unknown is True
     assert caught.value.result["delivery_id"] == DELIVERY_ID
     assert caught.value.result["acceptance"] == "AMBIGUOUS"
-    warning = caught.value.result["next_action"]["message"].lower()
-    assert "new" in warning and ("do not" in warning or "never" in warning)
+    assert caught.value.result["next_action"]["code"] == (
+        "REPEAT_SAME_SEND_MESSAGE"
+    )
+    assert caught.value.result["next_action"]["delivery_id"] == DELIVERY_ID
     assert [method for method, _path, _kw in calls] == ["POST", "GET"]
 
 
 @pytest.mark.asyncio
-async def test_t380_r3_blank_key_generates_once_before_post_and_status_tool_reads_it(
+async def test_t380_ambiguous_send_message_repeats_with_same_key(
     monkeypatch,
 ):
-    """Default MCP invocation uses one pre-POST UUID through timeout reconciliation."""
+    """A caller can repeat the ambiguous send with its generated key without a duplicate."""
     import app.mcp_stdio as mcp
 
     parameters = inspect.signature(mcp.send_message).parameters
     assert "delivery_id" in parameters, (
         "#380 missing behavior: send_message has no caller-stable delivery_id"
     )
-    status_tool = _required_callable(mcp, "message_delivery_status")
     monkeypatch.setattr(mcp, "SCOPE", SCOPE)
     monkeypatch.setattr(mcp, "WORKER_NAME", SOURCE_NAME)
     generated = []
@@ -650,47 +651,55 @@ async def test_t380_r3_blank_key_generates_once_before_post_and_status_tool_read
 
     monkeypatch.setattr(mcp.uuid, "uuid4", uuid_once)
     calls = []
-    receipt = {
-        "ok": True,
-        "acceptance": "ALREADY_ACCEPTED",
-        "delivery_id": DELIVERY_ID,
-        "delivery_state": "QUEUED",
-        "payload_hash": "b" * 64,
-        "accept_seq": 8,
-        "status_url": f"/api/message-deliveries/{DELIVERY_ID}",
-    }
+    accepted: dict[str, dict] = {}
+    post_attempts = 0
 
     async def fake_api(method, path, **kwargs):
+        nonlocal post_attempts
         calls.append((method, path, kwargs))
         if method == "POST":
             assert kwargs["json"]["delivery_id"] == DELIVERY_ID
-            raise mcp.ApiToolError(
-                code="transport_timeout",
-                message="ReadTimeout",
-                outcome_unknown=True,
-                details={"request_not_sent": False},
-            )
-        return receipt
+            post_attempts += 1
+            accepted.setdefault(DELIVERY_ID, {
+                "ok": True,
+                "acceptance": "ALREADY_ACCEPTED",
+                "delivery_id": DELIVERY_ID,
+                "delivery_state": "QUEUED",
+                "payload_hash": "b" * 64,
+                "accept_seq": 8,
+                "status_url": f"/api/message-deliveries/{DELIVERY_ID}",
+            })
+            if post_attempts == 1:
+                raise mcp.ApiToolError(
+                    code="transport_timeout",
+                    message="ReadTimeout",
+                    outcome_unknown=True,
+                    details={"request_not_sent": False},
+                )
+            return accepted[DELIVERY_ID]
+        raise mcp.ApiToolError(
+            code="transport_error", message="receipt lookup unavailable",
+            outcome_unknown=False, details={"method": "GET"},
+        )
 
     monkeypatch.setattr(mcp, "_api", fake_api)
-    output = await mcp.send_message(to=TARGET_NAME, message=MESSAGE)
+    with pytest.raises(mcp.ApiToolError) as caught:
+        await mcp.send_message(to=TARGET_NAME, message=MESSAGE)
     assert generated == [DELIVERY_ID]
-    assert DELIVERY_ID in output
-    assert [(method, path) for method, path, _kwargs in calls] == [
-        ("POST", f"/api/sessions/{TARGET_NAME}/send"),
-        ("GET", f"/api/message-deliveries/{DELIVERY_ID}"),
-    ]
+    assert caught.value.result["delivery_id"] == DELIVERY_ID
+    assert caught.value.result["next_action"]["delivery_id"] == DELIVERY_ID
 
-    calls.clear()
-    status = await status_tool(DELIVERY_ID)
-    assert status == receipt
-    assert [(method, path) for method, path, _kwargs in calls] == [
-        ("GET", f"/api/message-deliveries/{DELIVERY_ID}"),
-    ]
+    output = await mcp.send_message(
+        to=TARGET_NAME, message=MESSAGE, delivery_id=DELIVERY_ID,
+    )
+    assert DELIVERY_ID in output
+    assert post_attempts == 2
+    assert len(accepted) == 1
+    assert [method for method, _path, _kwargs in calls] == ["POST", "GET", "POST"]
 
 
 @pytest.mark.asyncio
-async def test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely(
+async def test_t370_unknown_receipt_recommends_same_key_retry(
     monkeypatch,
 ):
     import app.mcp_stdio as mcp
@@ -708,13 +717,13 @@ async def test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely(
             "outcome_unknown": True,
         },
         "next_action": {
-            "code": "CHECK_DELIVERY_STATUS",
-            "tool": "message_delivery_status",
+            "code": "REPEAT_SAME_SEND",
+            "tool": None,
             "arguments": {"delivery_id": DELIVERY_ID},
         },
     }
 
-    async def provider_failure_then_status(method, path, **kwargs):
+    async def provider_failure_then_reconcile(method, path, **kwargs):
         if method == "POST":
             raise mcp.ApiToolError(
                 code="transport_timeout",
@@ -725,7 +734,7 @@ async def test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely(
         assert method == "GET"
         return unknown
 
-    monkeypatch.setattr(mcp, "_api", provider_failure_then_status)
+    monkeypatch.setattr(mcp, "_api", provider_failure_then_reconcile)
     output = await mcp.send_message(
         to=TARGET_NAME,
         message=MESSAGE,
@@ -734,10 +743,9 @@ async def test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely(
 
     assert unknown["error"]["code"] == "DELIVERY_OUTCOME_UNKNOWN"
     assert unknown["delivery_id"] == DELIVERY_ID
-    assert unknown["next_action"]["tool"] == "message_delivery_status"
+    assert unknown["next_action"]["code"] == "REPEAT_SAME_SEND"
     assert "DELIVERY_OUTCOME_UNKNOWN" in output
     assert DELIVERY_ID in output
-    assert "message_delivery_status" in output
 
 
 @pytest.mark.asyncio
@@ -756,7 +764,8 @@ async def test_t370_same_id_unknown_receipt_is_never_replayed(message_db, monkey
     assert status == 202
     assert repeated["acceptance"] == "ALREADY_ACCEPTED"
     assert repeated["delivery_state"] == "DELIVERY_UNKNOWN"
-    assert repeated["next_action"]["tool"] == "message_delivery_status"
+    assert repeated["next_action"]["code"] == "REPEAT_SAME_SEND"
+    assert repeated["next_action"]["tool"] is None
 
     manager = _ImmediateManager()
     await module.run_target_message_deliveries(TARGET_ID, manager=manager)

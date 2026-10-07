@@ -5,6 +5,7 @@ import pytest
 
 
 ROOT_EVENT = "00000000-0000-4000-8000-000000000402"
+SINGLE_EVENT = "00000000-0000-4000-8000-000000000403"
 PRIMARY_CHAT = -100402001
 PRIMARY_THREAD = 4021
 MIRROR_CHAT = -100402002
@@ -204,6 +205,64 @@ async def test_send_files_root_event_is_idempotent_for_the_ordered_manifest(batc
     conflict, conflict_status, _ = await _accept(world, paths)
     assert conflict_status == 409
     assert conflict["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_send_file_same_event_replays_one_accepted_receipt(batch_world):
+    world = batch_world
+    path = world.root / "single.pdf"
+    path.write_bytes(b"single file")
+
+    first, first_status, _ = await world.deliveries.accept_file_delivery(
+        event_id=SINGLE_EVENT,
+        source_session_id="source-402",
+        source_name="worker-402",
+        source_scope="/scope-402",
+        source_path=str(path),
+        caption="single",
+        as_document=True,
+        orch_name="orch-402",
+        targets=[{
+            "target_kind": "primary",
+            "chat_id": PRIMARY_CHAT,
+            "thread_id": PRIMARY_THREAD,
+        }],
+    )
+    repeated, repeated_status, _ = await world.deliveries.accept_file_delivery(
+        event_id=SINGLE_EVENT,
+        source_session_id="source-402",
+        source_name="worker-402",
+        source_scope="/scope-402",
+        source_path=str(path),
+        caption="single",
+        as_document=True,
+        orch_name="orch-402",
+        targets=[{
+            "target_kind": "primary",
+            "chat_id": PRIMARY_CHAT,
+            "thread_id": PRIMARY_THREAD,
+        }],
+    )
+
+    assert (first_status, repeated_status) == (202, 202)
+    assert first["acceptance"] == "ACCEPTED"
+    assert repeated["acceptance"] == "ALREADY_ACCEPTED"
+    assert first["event_id"] == repeated["event_id"] == SINGLE_EVENT
+    assert first["payload_hash"] == repeated["payload_hash"]
+    with world.db._conn() as connection:
+        assert connection.execute(
+            "SELECT count(*) FROM tg_file_deliveries WHERE event_id=?",
+            (SINGLE_EVENT,),
+        ).fetchone()[0] == 1
+        assert connection.execute(
+            "SELECT count(*) FROM tg_file_delivery_targets WHERE event_id=?",
+            (SINGLE_EVENT,),
+        ).fetchone()[0] == 1
+
+    await world.deliveries.run_chat_deliveries(PRIMARY_CHAT)
+    assert len(world.bot.singles) == 1
+    assert world.bot.singles[0][:2] == ("document", "single.pdf")
+    assert "single" in world.bot.singles[0][2]
 
 
 @pytest.mark.asyncio

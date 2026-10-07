@@ -150,7 +150,8 @@ async def test_media_group_timeout_marks_every_file_unknown_without_retry(batch_
     assert [item["delivery_state"] for item in receipt["files"]] == [
         "UNKNOWN", "UNKNOWN", "UNKNOWN",
     ]
-    assert receipt["next_action"]["tool"] == "file_delivery_status"
+    assert receipt["next_action"]["code"] == "REPEAT_SAME_FILE_CALL"
+    assert receipt["next_action"]["arguments"]["event_id"] == ROOT_EVENT
     assert calls == [(PRIMARY_CHAT, 3, 4021)]
 
     await world.deliveries.run_chat_deliveries(PRIMARY_CHAT)
