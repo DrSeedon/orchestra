@@ -13,3 +13,7 @@ The seven selected files were all six paths found by the pre-change `rg -l 'mess
 `xargs -a .orchestra/tasks/V-750/test-files.txt uv run --frozen python -m pytest -q` → **205 passed in 20.84 s**, exit code 0. The command output is preserved in [full-tests.log](full-tests.log). Focused idempotency and tool-set checks passed (11 passed). `python -m py_compile app/mcp_stdio.py app/initial_deliveries.py app/message_deliveries.py app/tg_file_deliveries.py app/stall_signals.py`, `python scripts/check_instruction_contract.py`, and `git diff --check` passed. `app.mcp_stdio` imported from `/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-api/app/mcp_stdio.py`.
 
 No service restart was performed.
+
+## CI follow-up
+
+The post-merge CI run found one test file outside the original status-tool-name search: `tests/test_tg_file_limits_v544.py` still asserted the retired `CHECK_DELIVERY_STATUS` action code. A full `rg` search of `tests/` found this one old-code occurrence; the test now expects `REPEAT_SAME_FILE_CALL` and verifies the same `event_id` is carried. `uv run --frozen python -m pytest tests/test_tg_file_limits_v544.py -q` → **12 passed**. Repeating the search for `CHECK_DELIVERY_STATUS` under `tests/` returned no matches.
