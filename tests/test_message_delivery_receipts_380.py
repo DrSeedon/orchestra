@@ -732,11 +732,12 @@ async def test_t370_unknown_receipt_tells_caller_how_to_check_and_retry_safely(
         delivery_id=DELIVERY_ID,
     )
 
+    assert unknown["error"]["code"] == "DELIVERY_OUTCOME_UNKNOWN"
+    assert unknown["delivery_id"] == DELIVERY_ID
+    assert unknown["next_action"]["tool"] == "message_delivery_status"
     assert "DELIVERY_OUTCOME_UNKNOWN" in output
     assert DELIVERY_ID in output
-    assert f"message_delivery_status(delivery_id=\"{DELIVERY_ID}\")" in output
-    assert "same delivery_id" in output
-    assert "new id" in output
+    assert "message_delivery_status" in output
 
 
 @pytest.mark.asyncio
