@@ -27,7 +27,8 @@ from __future__ import annotations
 import math
 import time
 import os
-from dataclasses import dataclass, replace
+import json
+from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from threading import Lock
@@ -170,6 +171,9 @@ _dotenv_quota_keys: frozenset[str] = frozenset()
 _dotenv_loaded = False
 _UNSET = object()
 _dotenv_lock = Lock()
+_policy_history_lock = Lock()
+_last_policy_history_json: dict[str, str] = {}
+_initialized_policy_history_paths: set[str] = set()
 
 
 @dataclass(frozen=True)
@@ -225,7 +229,7 @@ def _live_quota_env() -> dict[str, object]:
         }
 
 
-def quota_policy() -> QuotaPolicy:
+def quota_policy(*, persist_history: bool = True) -> QuotaPolicy:
     """Return the current quota policy, including edits made to `.env` live."""
     values = _live_quota_env()
 
@@ -249,7 +253,7 @@ def quota_policy() -> QuotaPolicy:
             return dict(default)
         return _parse_lane_floats(raw, name, 1.0, 100.0)
 
-    return QuotaPolicy(
+    policy = QuotaPolicy(
         hard_stop_pct=float_value("QUOTA_HARD_STOP_PCT", _ENV_HARD_STOP_DEFAULT, 1.0, 100.0),
         lane_hard_stop_pct=lane_floats_value(
             "QUOTA_LANE_HARD_STOP_PCT", _ENV_LANE_HARD_STOP_DEFAULT,
@@ -260,6 +264,89 @@ def quota_policy() -> QuotaPolicy:
         gated_lanes=lanes_value("QUOTA_GATED_LANES", _ENV_GATED_LANES_DEFAULT),
         curved_lanes=lanes_value("QUOTA_CURVED_LANES", _ENV_CURVED_LANES_DEFAULT),
     )
+    if persist_history:
+        _persist_quota_policy(policy)
+    return policy
+
+
+def quota_policy_snapshot(policy: QuotaPolicy) -> dict:
+    """Serialize every policy field so future line parameters join history automatically."""
+    snapshot = {}
+    for item in fields(policy):
+        value = getattr(policy, item.name)
+        if isinstance(value, Mapping):
+            value = dict(sorted(value.items()))
+        elif isinstance(value, (set, frozenset)):
+            value = sorted(value)
+        snapshot[item.name] = value
+    return snapshot
+
+
+def _persist_quota_policy(policy: QuotaPolicy, *, effective_from: float | None = None) -> bool:
+    snapshot = quota_policy_snapshot(policy)
+    encoded = json.dumps(snapshot, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    from app import db
+
+    database_path = str(db.DB_PATH.resolve())
+    with _policy_history_lock:
+        if _last_policy_history_json.get(database_path) == encoded:
+            return False
+        inserted = db.append_quota_policy_history(
+            snapshot,
+            time.time() if effective_from is None else effective_from,
+            source="observed",
+        )
+        _last_policy_history_json[database_path] = encoded
+        return inserted
+
+
+def initialize_quota_policy_history(*, effective_from: float | None = None) -> int:
+    """Seed the evidenced September baseline and record the policy active at startup."""
+    policy = quota_policy(persist_history=False)
+    current = quota_policy_snapshot(policy)
+    from app import db
+
+    database_path = str(db.DB_PATH.resolve())
+    with _policy_history_lock:
+        initialized = database_path in _initialized_policy_history_paths
+    if initialized:
+        return int(_persist_quota_policy(policy, effective_from=effective_from))
+    baseline = dict(current)
+    baseline.update({
+        "hard_stop_pct": 99.0,
+        "lane_hard_stop_pct": {"sol": 95.0},
+        "tolerance_start_pp": 10.0,
+        "tolerance_end_pp": 1.0,
+        "curve_exponent": 2.5,
+        "gated_lanes": ["claude", "sol"],
+        "curved_lanes": ["sol"],
+        "claude_weekly_shift_hours": 0.0,
+    })
+    shifted = dict(baseline)
+    shifted["claude_weekly_shift_hours"] = 8.0
+    reconstructed = [
+        {
+            "effective_from": datetime(2026, 9, 29, tzinfo=timezone.utc).timestamp(),
+            "policy": baseline,
+            "source": "reconstructed: baseline as of 2026-09-29; see V-743 report",
+        },
+        {
+            "effective_from": datetime(2026, 10, 6, 4, 43, tzinfo=timezone.utc).timestamp(),
+            "policy": shifted,
+            "source": "reconstructed: owner-reported restart at 11:43 Krasnoyarsk; see V-743 report",
+        },
+    ]
+    inserted = db.initialize_quota_policy_history(
+        reconstructed,
+        current,
+        effective_from=time.time() if effective_from is None else effective_from,
+    )
+    with _policy_history_lock:
+        _initialized_policy_history_paths.add(database_path)
+        _last_policy_history_json[database_path] = json.dumps(
+            current, sort_keys=True, separators=(",", ":"), ensure_ascii=False,
+        )
+    return inserted
 
 WEEKLY_WINDOW_MINUTES = 10080
 SPARK_MODEL = "gpt-5.3-codex-spark"

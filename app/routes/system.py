@@ -1754,6 +1754,8 @@ async def build_quota_map() -> dict:
         line_limit,
         parse_quota_timestamp,
         quota_policy,
+        quota_policy_snapshot,
+        initialize_quota_policy_history,
         tolerance_pp,
         window_progress,
     )
@@ -1762,6 +1764,7 @@ async def build_quota_map() -> dict:
     observation = _quota_observation_from_cache()
     providers = observation.get("providers") or {}
     timestamps = observation.get("observed_at_by_provider") or {}
+    initialize_quota_policy_history()
     now = time.time()
     policy = quota_policy()
 
@@ -2088,22 +2091,14 @@ async def build_quota_map() -> dict:
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
         "rule": {
-            "hard_stop_pct": policy.hard_stop_pct,
-            # Потолок полосы: без него панель нарисует всем общие 99% там, где гейт
-            # останавливает Sol на 95% — то самое расхождение картинки с отказом.
-            "lane_hard_stop_pct": dict(sorted(policy.lane_hard_stop_pct.items())),
-            "tolerance_start_pp": policy.tolerance_start_pp,
-            "tolerance_end_pp": policy.tolerance_end_pp,
-            "claude_weekly_shift_hours": policy.claude_weekly_shift_hours,
-            "curve_exponent": policy.curve_exponent,
-            "curved_lanes": sorted(policy.curved_lanes),
-            # Состав гейтящихся полос: без него панель не может сказать, действует
-            # правило вообще или снято со всех, — снятый гейт выглядел как обычный.
-            "gated_lanes": sorted(policy.gated_lanes),
+            **quota_policy_snapshot(policy),
             # Остаток временного снятия (#V-578): панель обязана отличать «правила
             # такие» от «владелец снял на 20 минут», иначе снятие снова забудется.
             "override_seconds_left": gate_override_remaining(),
         },
+        "rule_history": db.quota_policy_history_for_window(
+            now - 84 * 60 * 60, now + 84 * 60 * 60,
+        ),
         "buckets": buckets,
         "outside_policy": outside_policy,
     }

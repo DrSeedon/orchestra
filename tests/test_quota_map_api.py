@@ -210,6 +210,40 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "override_seconds_left": 0.0,
     }
     assert payload["observation_max_age_seconds"] == 300.0
+    history = payload["rule_history"]
+    assert history[-1]["effective_from"] == pytest.approx(1791261780.0)
+    assert history[-1]["policy"]["claude_weekly_shift_hours"] == 8.0
+
+
+@pytest.mark.asyncio
+async def test_quota_map_payload_includes_history_for_its_timeline(mapped, monkeypatch):
+    now = datetime(2026, 10, 7, 5, tzinfo=timezone.utc).timestamp()
+    monkeypatch.setattr(system.time, "time", lambda: now)
+    payload = await mapped(_observation(
+        anthropic=[_window(10080, 40, window_id="seven_day", label="7d")],
+    ))
+
+    assert [event["effective_from"] for event in payload["rule_history"]] == pytest.approx([
+        1790640000.0,
+        1791261780.0,
+    ])
+    assert payload["rule_history"][0]["policy"]["claude_weekly_shift_hours"] == 0.0
+    assert payload["rule_history"][1]["policy"]["claude_weekly_shift_hours"] == 8.0
+
+
+def test_quota_policy_history_appends_only_changed_snapshots():
+    from app import db
+
+    baseline = {"tolerance_start_pp": 10.0, "claude_weekly_shift_hours": 0.0}
+    shifted = {**baseline, "claude_weekly_shift_hours": 8.0}
+    assert db.append_quota_policy_history(baseline, 100.0, source="test")
+    assert not db.append_quota_policy_history(baseline, 200.0, source="repeat")
+    assert db.append_quota_policy_history(shifted, 300.0, source="test")
+
+    history = db.quota_policy_history_for_window(150.0, 350.0)
+    assert [(event["effective_from"], event["policy"]) for event in history] == [
+        (100.0, baseline), (300.0, shifted),
+    ]
 
 
 @pytest.mark.asyncio
