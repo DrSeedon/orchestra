@@ -111,6 +111,10 @@ class WorkflowValue:
         )
 
 
+class WorkspacePreparationError(RuntimeError):
+    pass
+
+
 class Budget:
     def __init__(self, maximum_usd: float, maximum_calls: int):
         if maximum_usd < 0:
@@ -497,6 +501,13 @@ class WorkflowEngine:
                     int(row.get("next_attempt") or 0),
                     str(row.get("error") or "schema validation failed"),
                 )
+            elif event == "prepare_failed":
+                call_key = str(row.get("call_key") or "")
+                last_state[call_key] = "prepare_failed"
+                self.budget.dispatched_calls = max(0, self.budget.dispatched_calls - 1)
+                self._step_records[call_key] = {
+                    **row, "reason": "prepare_failed", "value": None,
+                }
             elif event == "completed":
                 call_key = str(row.get("call_key") or "")
                 last_state[call_key] = "completed"
@@ -509,7 +520,8 @@ class WorkflowEngine:
         self._unknown_calls = {
             call_key
             for call_key in dispatched_calls
-            if call_key not in self._completed and last_state.get(call_key) != "schema_invalid"
+            if call_key not in self._completed
+            and last_state.get(call_key) not in {"schema_invalid", "prepare_failed"}
         }
         if self._unknown_calls:
             self.budget.spent_usd = max(self.budget.spent_usd, self.budget.maximum_usd)
@@ -682,26 +694,9 @@ class WorkflowEngine:
                 self.budget.dispatched_calls += 1
             semaphore = self._codex_semaphore if runtime == "codex" else self._semaphore
             event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
-            async with self._semaphore:
-                if semaphore is self._semaphore:
-                    result, workspace_path = await self._run_attempt(
-                        current_prompt,
-                        model=selected,
-                        runtime=runtime,
-                        scratch=scratch,
-                        timeout=timeout,
-                        call_key=call_key,
-                        attempt=attempt + 1,
-                        event_id=event_id,
-                        tools=tools,
-                        network=bool(network),
-                        mcp=effective_mcp,
-                        system_prompt=system_prompt,
-                        modules=module_names,
-                        capability_reason=capability_reason.strip(),
-                    )
-                else:
-                    async with semaphore:
+            try:
+                async with self._semaphore:
+                    if semaphore is self._semaphore:
                         result, workspace_path = await self._run_attempt(
                             current_prompt,
                             model=selected,
@@ -718,6 +713,33 @@ class WorkflowEngine:
                             modules=module_names,
                             capability_reason=capability_reason.strip(),
                         )
+                    else:
+                        async with semaphore:
+                            result, workspace_path = await self._run_attempt(
+                                current_prompt,
+                                model=selected,
+                                runtime=runtime,
+                                scratch=scratch,
+                                timeout=timeout,
+                                call_key=call_key,
+                                attempt=attempt + 1,
+                                event_id=event_id,
+                                tools=tools,
+                                network=bool(network),
+                                mcp=effective_mcp,
+                                system_prompt=system_prompt,
+                                modules=module_names,
+                                capability_reason=capability_reason.strip(),
+                            )
+            except WorkspacePreparationError as error:
+                self.partial_reason = self.partial_reason or "error"
+                self._step_records[call_key] = {
+                    "call_key": call_key,
+                    "reason": "prepare_failed",
+                    "error": str(error)[:1000],
+                    "value": None,
+                }
+                return None
             realized = float(result.cost_usd or 0)
             total_cost += realized
             async with self._state_lock:
@@ -815,7 +837,7 @@ class WorkflowEngine:
         archive = ""
         baseline_files: set[str] = set()
         if tools == "all" and self.workspace_repo is not None:
-            name = f"wf-{self.run_id[:24]}-{call_key[:12]}-a{attempt}"
+            name = f"wf-{self.run_id[:24]}-{call_key.replace(':', '-')}-a{attempt}"
             prepare_task = asyncio.create_task(asyncio.to_thread(
                 _prepare_workspace_sync,
                 self.workspace_repo,
@@ -826,15 +848,26 @@ class WorkflowEngine:
                 (prepared, baseline_files), cancellations = (
                     await _await_despite_cancellation(prepare_task)
                 )
-            except BaseException:
+            except asyncio.CancelledError:
+                async with self._state_lock:
+                    self.budget.dispatched_calls -= 1
+                    self.journal.append({
+                        "event": "prepare_cancelled",
+                        "call_key": call_key,
+                        "attempt": attempt,
+                    })
+                raise
+            except Exception as error:
+                detail = f"{type(error).__name__}: {error}"[:1000]
                 async with self._state_lock:
                     self.budget.dispatched_calls -= 1
                     self.journal.append({
                         "event": "prepare_failed",
                         "call_key": call_key,
                         "attempt": attempt,
+                        "error": detail,
                     })
-                raise
+                raise WorkspacePreparationError(detail) from error
             if cancellations:
                 cleanup_task = asyncio.create_task(asyncio.to_thread(
                     _cleanup_workspace_sync,
@@ -1188,6 +1221,12 @@ def _notification_summary(manifest: dict) -> str:
         f"complete={str(bool(manifest.get('complete'))).lower()} "
         f"manifest={ROOT / 'data' / 'workflow-runs' / str(manifest.get('run_id')) / 'manifest.json'}"
     ]
+    for step in steps:
+        if step.get("reason") != "completed" and step.get("error"):
+            detail = " ".join(str(step["error"]).split())
+            lines.append(f"FAILED {step.get('call_key', '?')}: {detail[:300]}")
+            if len(lines) >= 4:
+                break
     omitted = 0
     for index, value in enumerate(results):
         data = value.get("data") if isinstance(value, dict) else None
