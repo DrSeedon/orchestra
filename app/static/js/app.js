@@ -3272,7 +3272,10 @@ function _showAgentContextMenu(e, s) {
         tgEnabled ? '#f59e0b' : '#94a3b8',
         async () => {
             try {
-                await api(`/api/sessions/${s.name}/tg-topic?scope=${encodeURIComponent(currentScope)}&enabled=${!tgEnabled}`, { method: 'PATCH' });
+                await api(`/api/sessions/${s.name}/tg_topic`, {
+                    method: 'POST',
+                    body: JSON.stringify({ scope: currentScope, enabled: !tgEnabled }),
+                });
                 await refreshSessions();
             } catch (e) { console.error('TG topic toggle failed:', e); }
         }

@@ -3,6 +3,7 @@
 Только актуальные дефекты и пункты, где требуется решение владельца. Полная таблица по всем исходным пунктам: [.orchestra/tasks/V-698/triage.md](.orchestra/tasks/V-698/triage.md). Источник исходных номеров — `TODO.md` в `main` SHA `71a008fe`.
 
 ## CI и dashboard
+- Разобрать непадающее предупреждение `BaseSubprocessTransport.__del__: RuntimeError: Event loop is closed` после pytest и определить владельца очистки subprocess transports. Оно появилось после `tests/test_tg_bridge.py::TestTurnFoldStream::test_progress_edit_is_throttled_and_skips_identical_text` в проверке V-753 и независимо возникало в полном наборе на main и ветке в V-701; отчёты: `.orchestra/tasks/V-753/tests.log`, `.orchestra/tasks/V-701/report.md`.
 - Обновить actions/checkout@v4 и setup-uv@v4: их action.yml ещё указывает Node 20. — OPEN-DEFECT, [T001](.orchestra/tasks/V-698/triage.md#t001). Доказательство: `evidence/node20_runtime_probe.txt; evidence/node20_deprecation.txt; .github/workflows/ci.yml:36,39`.
 - Подпись полосы гейта квот не переводится: в английском интерфейсе пилюля гейта чит… — OPEN-DEFECT, [T002](.orchestra/tasks/V-698/triage.md#t002). Доказательство: `app/quota_gate.py:272-280`.
 - Даты и деньги в английском интерфейсе форматируются по-русски: «вт, 6 окт., 19:15»… — OPEN-DEFECT, [T003](.orchestra/tasks/V-698/triage.md#t003). Доказательство: `app/static/js/analytics.js:652-663; app/static/js/usage.js:46`.
