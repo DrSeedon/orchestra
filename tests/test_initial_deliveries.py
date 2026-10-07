@@ -947,14 +947,14 @@ async def test_t381_next_action_structurally_permits_only_known_safe_retry(
         )
 
     expected = {
-        "QUEUED": ("WAIT_FOR_DELIVERY", "delivery_status", False),
-        "PREPARING": ("WAIT_FOR_DELIVERY", "delivery_status", False),
+        "QUEUED": ("WAIT_FOR_DELIVERY", None, False),
+        "PREPARING": ("WAIT_FOR_DELIVERY", None, False),
         "FAILED_BEFORE_SUBMIT": (
             "RETRY_SAME_DELIVERY", "retry_initial_delivery", True,
         ),
-        "DISPATCHING": ("CHECK_DELIVERY_STATUS", "delivery_status", False),
+        "DISPATCHING": ("REPEAT_SPAWN_SAME_ID", None, False),
         "DELIVERY_UNKNOWN": (
-            "CHECK_DELIVERY_STATUS", "delivery_status", False,
+            "REPEAT_SPAWN_SAME_ID", None, False,
         ),
         "SUBMITTED": ("NONE", None, False),
     }
@@ -965,7 +965,11 @@ async def test_t381_next_action_structurally_permits_only_known_safe_retry(
         arguments = (
             {"name": WORKER, "task": MESSAGE, "delivery_id": delivery_id}
             if state == "FAILED_BEFORE_SUBMIT"
-            else ({"delivery_id": delivery_id} if tool else {})
+            else (
+                {"delivery_id": delivery_id}
+                if state in {"QUEUED", "PREPARING", "DISPATCHING", "DELIVERY_UNKNOWN"}
+                else {}
+            )
         )
         assert isinstance(action, dict), f"#381 {state} must expose a next_action object"
         assert action.get("code") == code

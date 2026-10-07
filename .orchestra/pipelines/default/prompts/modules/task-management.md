@@ -5,6 +5,7 @@ Built-in task tracker. Agents create, update, and close tasks.
 
 ### Tools
 - `task_create(title, project, price=0, description="", priority=2)` — create task. Price in exact currency units (20000 = 20 000). Priority: 0=critical, 1=high, 2=medium, 3=low
+- If a `task_create` call has an ambiguous outcome, repeat the same call with the same `request_key` and identical fields; this returns the existing task instead of creating a duplicate.
 - `task_update(par, status="", title="", price=-1, tags=[...], ...)` — update task. Only provided fields change. par: the exact returned reference, e.g. "42" or "V-42"
 - `task_list(project="", status="", assignee="", tags="a,b")` — list tasks with optional filters
 - `task_get(par)` — full task details with payment history and linked commits

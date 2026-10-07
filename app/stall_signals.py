@@ -112,7 +112,8 @@ async def watch_turn_start(s, delivery_id: str, *, grace: float | None = None) -
             f"[Orchestra] Your message to {row['target_name']} (delivery {delivery_id}) "
             f"was delivered, but no turn started within "
             f"{TURN_START_GRACE_SECONDS if grace is None else grace:.0f}s: "
-            f"agent status is {s.status.value}. See message_delivery_status."
+            f"agent status is {s.status.value}. Repeating the original send_message "
+            f"with delivery_id={delivery_id} returns the same receipt without a duplicate."
         )
         try:
             await _notify(sender, text, "delivery_stalled", delivery_id)

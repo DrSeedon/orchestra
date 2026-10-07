@@ -96,9 +96,6 @@ READ_ONLY_MCP_TOOLS = frozenset({
     "task_list",
     "task_get",
     "bg_list",
-    "delivery_status",
-    "message_delivery_status",
-    "file_delivery_status",
 })
 
 REDUCER_MCP_TOOLS = frozenset({
@@ -582,21 +579,24 @@ def _spawn_delivery_error(
     if cause.code == "IDEMPOTENCY_CONFLICT" or cause.status == 409:
         next_action = {
             "code": "RESOLVE_IDEMPOTENCY_CONFLICT",
-            "tool": "delivery_status",
-            "arguments": {"delivery_id": delivery_id},
+            "delivery_id": delivery_id,
             "message": (
-                "This delivery id belongs to another payload; inspect it and do not retry "
-                "the changed task."
+                "This delivery_id belongs to another payload. Repeat only the original "
+                "spawn_worker call with the same task and delivery_id; do not reuse this "
+                "id for changed input."
             ),
         }
         delivery = "failed"
     elif cause.outcome_unknown:
         delivery = "unknown"
         next_action = {
-            "code": "CHECK_DELIVERY_STATUS",
-            "tool": "delivery_status",
-            "arguments": {"delivery_id": delivery_id},
-            "message": "Check this delivery id; do not resend the task with a new id.",
+            "code": "REPEAT_SPAWN_SAME_ID",
+            "delivery_id": delivery_id,
+            "message": (
+                "Repeat the same spawn_worker call with the same name, task and "
+                f"delivery_id={delivery_id}; it returns the existing worker and "
+                "initial-task receipt without creating a duplicate."
+            ),
         }
     elif (
         cause.code == "DELIVERY_ACCEPT_REJECTED" and cause.status == 503
@@ -671,7 +671,6 @@ def _delivery_receipt_text(
 ) -> str:
     delivery_id = str(delivery.get("delivery_id") or "?")
     state = str(delivery.get("delivery_state") or delivery.get("state") or "UNKNOWN")
-    status_url = str(delivery.get("status_url") or _delivery_status_path(delivery_id))
     # Сверка после сбоя транспорта возвращает запись в ЛЮБОМ состоянии, включая
     # терминальный отказ до отправки. «Task accepted» на нём — молчаливая потеря:
     # воркер создан и стоит без задания, а спавнящий читает приёмку и уходит.
@@ -692,15 +691,15 @@ def _delivery_receipt_text(
         # ответ вовсе без состояния (`_normalize_delivery_receipt` подставляет UNKNOWN).
         # «Task accepted» здесь читается как доставка, которую никто не подтверждал.
         headline = (
-            "Task delivery outcome is UNKNOWN — the worker may still have no task; "
-            "check before resending and never resend with a new delivery_id."
+            "Task delivery outcome is UNKNOWN — repeat the same spawn_worker call "
+            f"with delivery_id={delivery_id}; the call resumes this worker and "
+            "returns the same initial-task receipt without a duplicate."
         )
     else:
         headline = "Task accepted."
     out = (
         f"Worker '{name}' spawned. Model: {model}. {headline} "
-        f"delivery_id={delivery_id}; state={state}. "
-        f"Check delivery status with delivery_status('{delivery_id}') or GET {status_url}."
+        f"delivery_id={delivery_id}; state={state}."
     )
     out += (
         f"\nWorktree: {mapping['worktree_path']}"
@@ -1005,6 +1004,27 @@ async def _resume_cut_off_spawn(
                 "delivery_id": delivery_id,
             }
             raise cause from verdict
+        next_action = {
+            "code": "REPEAT_SPAWN_SAME_ID",
+            "delivery_id": delivery_id,
+            "message": (
+                "The worker creation outcome could not be reconciled. Repeat the "
+                "same spawn_worker call with the same name, task and delivery_id; "
+                "it resumes an existing worker rather than creating a duplicate."
+            ),
+        }
+        verdict.details = {
+            **verdict.details,
+            "delivery_id": delivery_id,
+            "next_action": next_action,
+        }
+        verdict.result = {
+            "worker_name": name,
+            "created": "unknown",
+            "delivery_id": delivery_id,
+            "next_action": next_action,
+        }
+        verdict.message = f"{verdict.message}; {next_action['message']}"
         raise verdict from cause
 
 
@@ -1021,7 +1041,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        tg_topic: bool = False,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None) -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id preserves initial-delivery identity: after an ambiguous outcome follow the receipt/status recovery instructions; do not spawn or resend blindly. If the quota gate is closed the worker is still created and its task is held durably, then delivered automatically when the gate opens — no retry or timer."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1155,31 +1175,8 @@ async def spawn_worker(name: str, task: str, repo_path: str,
 
 
 @mcp.tool()
-async def delivery_status(delivery_id: str) -> dict[str, Any]:
-    """Look up one durable initial-task delivery by its immutable id."""
-    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
-    if not delivery_id:
-        raise ApiToolError(
-            code="invalid_argument",
-            message="delivery_id is required",
-            details={"field": "delivery_id"},
-        )
-    result = await _api(
-        "GET", _delivery_status_path(delivery_id), params={"scope": SCOPE},
-    )
-    if not isinstance(result, dict):
-        raise ApiToolError(
-            code="invalid_response",
-            message="Delivery status API returned a non-object response",
-            status=200,
-            details={"response_type": type(result).__name__},
-        )
-    return result
-
-
-@mcp.tool()
 async def retry_initial_delivery(name: str, task: str, delivery_id: str) -> dict[str, Any]:
-    """Retry one known-not-sent initial task, preserving its delivery id and payload key."""
+    """Retry a known-not-sent initial task. Repeat this exact call with the same delivery_id after an ambiguous response."""
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     if not delivery_id:
         raise ApiToolError(
@@ -1271,7 +1268,7 @@ def _read_message_file(file_path: str) -> tuple[str, int]:
 async def send_message(
     to: str, message: str, delivery_id: str = "", file_path: str = "",
 ) -> str:
-    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically; do not poll. Use message_delivery_status only when this tool call's outcome is ambiguous (for example, timeout or transport error), with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it."""
+    """Send a message to an agent and trigger a turn. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat the same send_message call with the same delivery_id. A quota-blocked message is held durably and sent in order when the gate opens; cancel_message_delivery withdraws it."""
     # A message to oneself wakes a new turn that repeats the same call: the reestr
     # stand's GigaChat orchestrator looped 32 times in 4 minutes (V-636).
     if to.strip() == (WORKER_NAME or ROLE):
@@ -1385,8 +1382,8 @@ def _message_delivery_receipt_text(
             f"Message delivery outcome is unknown{target}; delivery_id={delivery_id}; "
             f"code={code or 'DELIVERY_OUTCOME_UNKNOWN'}: "
             f"{message or 'Provider outcome is unknown'}.\n"
-            "The sender is not automatically woken for an unknown provider outcome; "
-            "verify with the target before acting or retrying."
+            "Repeat this send_message call with the same target, text and "
+            f"delivery_id={delivery_id} to receive the same receipt without a duplicate."
         )
     elif state == "FAILED_BEFORE_SUBMIT":
         # Терминальный отказ ДО отправки: провайдер сообщения не видел. Печатать его как
@@ -1427,7 +1424,7 @@ def _message_delivery_receipt_text(
         output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
     output += (
         "\nTerminal delivery failures wake the sender automatically; do not poll. "
-        "Use message_delivery_status only if this send_message call's outcome was ambiguous."
+        "After an ambiguous call outcome, repeat this send_message call with the same delivery_id."
     )
     if parent_name and parent_name != WORKER_NAME:
         output += (
@@ -1450,11 +1447,12 @@ def _ambiguous_message_delivery_error(
     else:
         reconciliation = {"status": "missing", "response": status}
     next_action = {
-        "tool": "message_delivery_status",
-        "arguments": {"delivery_id": delivery_id},
+        "code": "REPEAT_SAME_SEND_MESSAGE",
+        "delivery_id": delivery_id,
         "message": (
-            "Delivery outcome is ambiguous; inspect this delivery id or retry only "
-            "with the same id. Do not retry with a new id."
+            "Delivery outcome is ambiguous. Repeat the same send_message call with "
+            f"delivery_id={delivery_id} and the same target and text; it returns "
+            "the same receipt without creating a duplicate."
         ),
     }
     details = dict(cause.details)
@@ -1474,35 +1472,6 @@ def _ambiguous_message_delivery_error(
             "next_action": next_action,
         },
     )
-
-
-@mcp.tool()
-async def message_delivery_status(delivery_id: str) -> dict[str, Any]:
-    """Resolve a direct-message send call whose own outcome was ambiguous, such as a timeout or transport error. Do not poll routine deliveries; terminal failures wake the sender automatically."""
-    delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
-    if not delivery_id:
-        raise ApiToolError(
-            code="invalid_argument",
-            message="delivery_id is required",
-            details={"field": "delivery_id"},
-        )
-    try:
-        delivery_id = str(uuid.UUID(delivery_id))
-    except ValueError as error:
-        raise ApiToolError(
-            code="invalid_argument",
-            message="delivery_id must be a UUID",
-            details={"field": "delivery_id"},
-        ) from error
-    result = await _api("GET", _message_delivery_status_path(delivery_id))
-    if not isinstance(result, dict):
-        raise ApiToolError(
-            code="invalid_response",
-            message="Message delivery status API returned a non-object response",
-            status=200,
-            details={"response_type": type(result).__name__},
-        )
-    return result
 
 
 @mcp.tool()
@@ -1901,7 +1870,7 @@ def _file_delivery_receipt_text(receipt: dict[str, Any]) -> str:
     return (
         f"File accepted; event_id={event_id}; state={state}. "
         "Terminal delivery failures wake the sender automatically; do not poll. "
-        "Use file_delivery_status only if the send_file call's outcome was ambiguous."
+        f"If the call outcome was ambiguous, repeat send_file with event_id={event_id}."
     )
 
 
@@ -1912,7 +1881,7 @@ def _file_batch_receipt_text(receipt: dict[str, Any]) -> str:
     return (
         f"Files accepted; event_id={event_id}; state={state}; {count} files. "
         "Terminal delivery failures wake the sender automatically; do not poll. "
-        "Use file_delivery_status only if the send_files call's outcome was ambiguous."
+        f"If the call outcome was ambiguous, repeat send_files with event_id={event_id}."
     )
 
 
@@ -1945,41 +1914,15 @@ def _ambiguous_file_delivery_error(
         result={
             "event_id": event_id,
             "next_action": {
-                "tool": "file_delivery_status",
-                "arguments": {"event_id": event_id},
-                "message": "Check this event id; never retry with a fresh id.",
+                "code": "REPEAT_SAME_FILE_CALL",
+                "event_id": event_id,
+                "message": (
+                    "Repeat the same send_file or send_files call with this event_id "
+                    "and the same inputs; it returns the same receipt without a duplicate."
+                ),
             },
         },
     )
-
-
-@mcp.tool()
-async def file_delivery_status(event_id: str) -> dict[str, Any]:
-    """Resolve a send_file/send_files call whose own outcome was ambiguous, such as a timeout or transport error. Do not poll routine deliveries; terminal failures wake the sender automatically."""
-    event_id = event_id.strip() if isinstance(event_id, str) else ""
-    if not event_id:
-        raise ApiToolError(
-            code="invalid_argument",
-            message="event_id is required",
-            details={"field": "event_id"},
-        )
-    try:
-        event_id = str(uuid.UUID(event_id))
-    except ValueError as error:
-        raise ApiToolError(
-            code="invalid_argument",
-            message="event_id must be a UUID",
-            details={"field": "event_id"},
-        ) from error
-    result = await _api("GET", _file_delivery_status_path(event_id))
-    if not isinstance(result, dict):
-        raise ApiToolError(
-            code="invalid_response",
-            message="File delivery status API returned a non-object response",
-            status=200,
-            details={"response_type": type(result).__name__},
-        )
-    return result
 
 
 @mcp.tool()
@@ -1989,7 +1932,7 @@ async def send_file(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Queue a local file for durable Telegram delivery. Terminal delivery failures wake the sender automatically; do not poll. Use file_delivery_status only when this tool call's outcome is ambiguous (for example, timeout or transport error), with the same event_id. Local Bot API documents allow up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 is sent as video with document fallback; as_document forces a document."""
+    """Queue a local file for durable Telegram delivery. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat send_file with the same event_id and inputs. Local Bot API documents allow up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 is sent as video with document fallback; as_document forces a document."""
     event_id = event_id.strip() if isinstance(event_id, str) else ""
     if event_id:
         try:
@@ -2035,8 +1978,8 @@ async def send_file(
             code="invalid_response",
             message=(
                 "Send file API returned no matching durable receipt for "
-                f"event_id={event_id}. The send_file call returned an ambiguous receipt; "
-                "resolve it with file_delivery_status using the same event_id."
+                f"event_id={event_id}. Repeat the same send_file call with this "
+                "event_id and the same inputs to receive its existing receipt."
             ),
             status=200,
             outcome_unknown=True,
@@ -2044,8 +1987,8 @@ async def send_file(
             result={
                 "event_id": event_id,
                 "next_action": {
-                    "tool": "file_delivery_status",
-                    "arguments": {"event_id": event_id},
+                    "code": "REPEAT_SAME_FILE_CALL",
+                    "event_id": event_id,
                 },
             },
         )
@@ -2059,7 +2002,7 @@ async def send_files(
     as_document: bool = False,
     event_id: str = "",
 ) -> str:
-    """Queue an ordered batch for durable Telegram album delivery. Terminal delivery failures wake the sender automatically; do not poll. Use file_delivery_status only when this tool call's outcome is ambiguous (for example, timeout or transport error), with the same event_id. Local Bot API documents allow up to 2000 MB (200 MB verified); albums hold up to 10 files of one kind and longer/mixed batches split automatically; as_document forces documents."""
+    """Queue an ordered batch for durable Telegram album delivery. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat send_files with the same event_id and inputs. Local Bot API documents allow up to 2000 MB (200 MB verified); albums hold up to 10 files of one kind and longer/mixed batches split automatically; as_document forces documents."""
 
     if (
         not isinstance(paths, list)
@@ -2114,8 +2057,8 @@ async def send_files(
             code="invalid_response",
             message=(
                 "Send files API returned no matching durable receipt for "
-                f"event_id={event_id}. The send_files call returned an ambiguous receipt; "
-                "resolve it with file_delivery_status using the same event_id."
+                f"event_id={event_id}. Repeat the same send_files call with this "
+                "event_id and the same inputs to receive its existing receipt."
             ),
             status=200,
             outcome_unknown=True,
@@ -2123,8 +2066,8 @@ async def send_files(
             result={
                 "event_id": event_id,
                 "next_action": {
-                    "tool": "file_delivery_status",
-                    "arguments": {"event_id": event_id},
+                    "code": "REPEAT_SAME_FILE_CALL",
+                    "event_id": event_id,
                 },
             },
         )
@@ -3013,7 +2956,8 @@ async def task_create(title: str, project: str = "", price: int = 0,
     project: registered project scope or id; omitted uses the caller's mapped scope.
     price in exact currency units (e.g. 20000 = 20 000). 0 is valid (no price).
     priority: 0=critical, 1=high, 2=medium (default), 3=low.
-    status: lifecycle statuses (in_progress/done) are platform-owned and rejected."""
+    status: lifecycle statuses (in_progress/done) are platform-owned and rejected.
+    On an ambiguous outcome, repeat the same call with the same request_key and inputs."""
     _reject_lifecycle_status(status, "task_create")
     request_key = request_key.strip() or uuid.uuid4().hex
     command = _acceptance_command_from_caller(acceptance_command)
@@ -3028,13 +2972,33 @@ async def task_create(title: str, project: str = "", price: int = 0,
         payload["acceptance_required"] = bool(acceptance_required)
     if project:
         payload["project"] = project
-    result = await _api(
-        "POST",
-        "/api/tm/tasks",
-        json=payload,
-        request_id=request_key,
-        idempotency_key=request_key,
-    )
+    try:
+        result = await _api(
+            "POST",
+            "/api/tm/tasks",
+            json=payload,
+            request_id=request_key,
+            idempotency_key=request_key,
+        )
+    except ApiToolError as error:
+        if error.outcome_unknown:
+            error.details = {**error.details, "request_key": request_key}
+            error.result = {
+                "request_key": request_key,
+                "next_action": {
+                    "code": "REPEAT_TASK_CREATE_SAME_KEY",
+                    "request_key": request_key,
+                    "message": (
+                        "Repeat the same task_create call with this request_key and "
+                        "identical inputs; it returns the existing task without a duplicate."
+                    ),
+                },
+            }
+            error.message = (
+                f"{error.message}; repeat task_create with request_key={request_key} "
+                "and the same inputs"
+            )
+        raise
     if isinstance(result, dict) and result.get("error"):
         return f"Error: {result['error']}"
     if isinstance(result, dict):
@@ -3043,21 +3007,6 @@ async def task_create(title: str, project: str = "", price: int = 0,
         result.setdefault("assignee", assignee)
         result.setdefault("priority", priority)
         result.setdefault("task_id", result.get("id"))
-    return json.dumps(result, ensure_ascii=False)
-
-
-@mcp.tool()
-async def task_create_status(request_key: str, project: str = "") -> str:
-    """Resolve a task_create outcome after a timeout without creating another task."""
-
-    params = {"project": project} if project else {"scope": SCOPE}
-    result = await _api(
-        "GET",
-        f"/api/tm/task-create-requests/{request_key}",
-        params=params,
-    )
-    if isinstance(result, dict) and result.get("error"):
-        return f"Error: {result['error']}"
     return json.dumps(result, ensure_ascii=False)
 
 

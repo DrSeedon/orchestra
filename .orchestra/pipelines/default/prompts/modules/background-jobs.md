@@ -8,9 +8,9 @@ Types, parameters and examples live in the `bg_create` tool description; it is t
 - **Never create a timer to retry a delivery.** A message or first task that the quota gate
   holds back is accepted into a durable queue (`WAITING_QUOTA`) and goes out by itself, in
   order, when the gate opens — also after a restart. The receipt gives an estimate; do not
-  resend and do not wake yourself to "retry in N hours": each such wake is a paid turn.
-  To withdraw a queued message use `cancel_message_delivery`; read its state with
-  `message_delivery_status`.
+  wake yourself to "retry in N hours": each such wake is a paid turn. If a send call's own
+  outcome is ambiguous, repeat the same call with the same delivery id; accepted calls are
+  idempotent. To withdraw a queued message use `cancel_message_delivery`.
 - **A job you created is yours to cancel.** A recurring job outlives the reason it was created;
   when that reason is gone, `bg_cancel` it instead of letting it wake agents forever.
 - **A worker report needs no watchdog.** If a worker turn ends without a message (error,

@@ -13,6 +13,7 @@ def test_public_api_has_one_owner_and_sticky_prefix(runtime):
     assert tm.api_get_task('1', 'local-project')['title'] == 'Laptop'
     replay = tm.api_create_task('local-project', 'VPS', request_key='remote-request-0001')
     assert replay['id'] == b['id']
+    assert replay['request_key'] == b['request_key']
     assert tm.api_task_create_status('remote-request-0001', project_id='local-project')['task_id'] == b['id']
     assert tm.api_list_tasks('local-project')['count'] == 2
 
