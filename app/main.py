@@ -87,6 +87,7 @@ _inflight_streams = 0
 _mutating_admission_open = True
 _restart_inbox_drain: "asyncio.Task | None" = None
 _message_failure_notice_recovery: "asyncio.Task | None" = None
+_file_failure_notice_recovery: "asyncio.Task | None" = None
 _restart_failure = ""
 _PROCESS_GENERATION = uuid.uuid4().hex
 _PROCESS_STARTED_AT = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -225,6 +226,35 @@ def _log_message_failure_notice_recovery(task: "asyncio.Task") -> None:
     if error is not None:
         logger.error(
             "message delivery failure notice recovery failed: %s: %s",
+            type(error).__name__, error,
+        )
+
+
+def schedule_file_failure_notice_recovery() -> None:
+    """Retry durable Telegram file sender notices after agent sessions resume."""
+    global _file_failure_notice_recovery
+    if (
+        _file_failure_notice_recovery is not None
+        and not _file_failure_notice_recovery.done()
+    ):
+        return
+    from app.tg_file_deliveries import recover_file_delivery_failure_notices
+
+    _file_failure_notice_recovery = asyncio.create_task(
+        recover_file_delivery_failure_notices(manager)
+    )
+    _file_failure_notice_recovery.add_done_callback(
+        _log_file_failure_notice_recovery
+    )
+
+
+def _log_file_failure_notice_recovery(task: "asyncio.Task") -> None:
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        logger.error(
+            "TG file delivery failure notice recovery failed: %s: %s",
             type(error).__name__, error,
         )
 
@@ -481,6 +511,7 @@ async def lifespan(app: FastAPI):
         await recover_initial_deliveries()
         await recover_message_deliveries()
         schedule_message_failure_notice_recovery()
+        schedule_file_failure_notice_recovery()
         from app.fan_barrier import recover_deadlines
         recover_deadlines()
         from app.bootstrap import ensure_bootstrap

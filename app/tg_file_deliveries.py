@@ -47,6 +47,7 @@ _ACTIVE_STATES = ("QUEUED", "SUBMITTING")
 _MEDIA_GROUP_LIMIT = 10
 _chat_runner_tasks: dict[int, asyncio.Task[None]] = {}
 _maintenance_task: asyncio.Task[None] | None = None
+_failure_notice_tasks: dict[str, asyncio.Task[None]] = {}
 
 
 def _now() -> str:
@@ -59,6 +60,47 @@ def _utcnow() -> datetime:
 
 def _validate_event_id(value: str) -> str:
     return str(uuid.UUID(str(value)))
+
+
+def _ensure_failure_notice_schema(connection: sqlite3.Connection) -> None:
+    connection.execute(
+        """CREATE TABLE IF NOT EXISTS tg_file_delivery_failure_notices (
+               event_id TEXT PRIMARY KEY,
+               source_session_id TEXT NOT NULL,
+               file_name TEXT NOT NULL,
+               error_json TEXT NOT NULL,
+               created_at TEXT NOT NULL,
+               delivered_at TEXT
+           )"""
+    )
+
+
+def _record_failure_notice(
+    connection: sqlite3.Connection,
+    event_id: str,
+    target_kind: str,
+    error: dict[str, Any],
+) -> None:
+    if target_kind != "primary":
+        return
+    row = connection.execute(
+        "SELECT event_id, source_session_id, original_name, batch_id "
+        "FROM tg_file_deliveries WHERE event_id=?",
+        (event_id,),
+    ).fetchone()
+    if row is None or not row["source_session_id"]:
+        return
+    _ensure_failure_notice_schema(connection)
+    notice_id = row["batch_id"] or row["event_id"]
+    connection.execute(
+        """INSERT OR IGNORE INTO tg_file_delivery_failure_notices
+           (event_id, source_session_id, file_name, error_json, created_at)
+           VALUES (?, ?, ?, ?, ?)""",
+        (
+            notice_id, row["source_session_id"], row["original_name"],
+            json.dumps(error, ensure_ascii=False), _now(),
+        ),
+    )
 
 
 class BatchValidationError(ValueError):
@@ -1329,6 +1371,7 @@ def _mark_failed_before_submit(
                 "UPDATE tg_file_deliveries SET updated_at=? WHERE event_id=?",
                 (now.isoformat(), event_id),
             )
+            _record_failure_notice(connection, event_id, target_kind, error)
         connection.commit()
         return cursor.rowcount == 1
     except BaseException:
@@ -1425,6 +1468,8 @@ def _finish_target(
                 "UPDATE tg_file_deliveries SET updated_at=? WHERE event_id=?",
                 (now, event_id),
             )
+            if state in {"FAILED_BEFORE_SUBMIT", "FAILED"} and error:
+                _record_failure_notice(connection, event_id, target_kind, error)
         connection.commit()
         return cursor.rowcount == 1
     except BaseException:
@@ -1432,6 +1477,121 @@ def _finish_target(
         raise
     finally:
         connection.close()
+
+
+def _failure_notice(event_id: str) -> dict[str, Any] | None:
+    with db._conn() as connection:
+        _ensure_failure_notice_schema(connection)
+        row = connection.execute(
+            "SELECT * FROM tg_file_delivery_failure_notices WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+async def notify_file_delivery_failure(event_id: str, manager=None) -> None:
+    """Deliver one durable sender notice; its stable event id prevents restart duplicates."""
+    with db._conn() as connection:
+        row = connection.execute(
+            "SELECT batch_id FROM tg_file_deliveries WHERE event_id=?",
+            (event_id,),
+        ).fetchone()
+    if row is not None and row["batch_id"]:
+        event_id = row["batch_id"]
+    current = _failure_notice(event_id)
+    if current is None or current["delivered_at"]:
+        return
+    existing_task = _failure_notice_tasks.get(event_id)
+    if existing_task is not None and not existing_task.done():
+        await existing_task
+        return
+
+    async def deliver() -> None:
+        latest = _failure_notice(event_id)
+        if latest is None or latest["delivered_at"]:
+            return
+        notice_event_id = f"file-delivery-failed:{event_id}"
+        with db._conn() as connection:
+            already_logged = connection.execute(
+                "SELECT 1 FROM logs WHERE session_id=? AND event_id=? LIMIT 1",
+                (latest["source_session_id"], notice_event_id),
+            ).fetchone()
+        if already_logged:
+            with db._conn() as connection:
+                connection.execute(
+                    "UPDATE tg_file_delivery_failure_notices SET delivered_at=? "
+                    "WHERE event_id=? AND delivered_at IS NULL",
+                    (_now(), event_id),
+                )
+            return
+        details = json.loads(latest["error_json"])
+        text = (
+            f"Telegram file delivery was NOT delivered; event_id={event_id}; "
+            f"file='{latest['file_name']}'; "
+            f"code={details.get('code', 'FILE_DELIVERY_FAILED')}: "
+            f"{details.get('message', 'No error details available')}"
+        )
+        sender_manager = manager
+        if sender_manager is None:
+            from app.deps import manager as sender_manager
+        from app.events import InjectedMessage, MessageProvenance
+
+        provenance = MessageProvenance(
+            origin="platform", senders=("Orchestra",),
+            subtype="file_delivery_failed", ref=event_id,
+        )
+        await sender_manager.send(
+            latest["source_session_id"],
+            InjectedMessage(
+                text=text, provenance=provenance, event_id=notice_event_id,
+            ),
+            provenance=provenance,
+        )
+        with db._conn() as connection:
+            connection.execute(
+                "UPDATE tg_file_delivery_failure_notices SET delivered_at=? "
+                "WHERE event_id=? AND delivered_at IS NULL",
+                (_now(), event_id),
+            )
+
+    task = asyncio.create_task(deliver())
+    _failure_notice_tasks[event_id] = task
+    try:
+        await task
+    finally:
+        if _failure_notice_tasks.get(event_id) is task:
+            _failure_notice_tasks.pop(event_id, None)
+
+
+async def recover_file_delivery_failure_notices(manager=None) -> int:
+    with db._conn() as connection:
+        _ensure_failure_notice_schema(connection)
+        rows = connection.execute(
+            "SELECT event_id FROM tg_file_delivery_failure_notices "
+            "WHERE delivered_at IS NULL ORDER BY created_at"
+        ).fetchall()
+    sent = 0
+    for row in rows:
+        try:
+            await notify_file_delivery_failure(row["event_id"], manager=manager)
+        except Exception as error:
+            logger.warning(
+                "TG file delivery failure notice %s remains pending: %s",
+                row["event_id"], err_text(error),
+            )
+            continue
+        sent += 1
+    return sent
+
+
+async def _notify_file_delivery_failure_after_commit(event_id: str) -> None:
+    try:
+        await notify_file_delivery_failure(event_id)
+    except Exception as error:
+        logger.warning(
+            "TG file delivery failure notice %s remains pending: %s",
+            event_id, err_text(error),
+        )
 
 
 def _release_chat_lease(chat_id: int, owner_token: str, generation: int) -> None:
@@ -1465,6 +1625,9 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         candidate["event_id"], candidate["target_kind"], failure,
                     ):
                         return
+                    await _notify_file_delivery_failure_after_commit(
+                        candidate["event_id"]
+                    )
                 else:
                     ready.append(candidate)
             if not ready:
@@ -1494,6 +1657,9 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         candidate["event_id"], candidate["target_kind"], failure,
                     ):
                         return
+                    await _notify_file_delivery_failure_after_commit(
+                        candidate["event_id"]
+                    )
                 continue
             # Лизинг обязан пережить саму загрузку: истёк посреди отправки —
             # чужой рантайм объявит уже доставленный файл UNKNOWN (#V-544).
@@ -1565,6 +1731,10 @@ async def run_chat_deliveries(chat_id: int) -> None:
                         state="FAILED" if rejected else "UNKNOWN",
                         error=error,
                     )
+                    if rejected:
+                        await _notify_file_delivery_failure_after_commit(
+                            candidate["event_id"]
+                        )
                 if isinstance(exc, asyncio.CancelledError):
                     raise
             else:

@@ -170,9 +170,9 @@ async def test_send_file_200_without_matching_receipt_exposes_event_and_no_retry
     error = caught.value
     event_id = error.result["event_id"]
     assert event_id
-    assert f"event_id={event_id}" in error.message
-    assert f"file_delivery_status('{event_id}')" in error.message
-    assert "do not retry with a new id" in error.message
+    assert error.code == "invalid_response"
+    assert error.outcome_unknown is True
+    assert error.result["next_action"]["tool"] == "file_delivery_status"
     assert error.result["next_action"]["arguments"] == {"event_id": event_id}
 
 
@@ -197,10 +197,10 @@ async def test_send_file_200_mismatched_receipt_keeps_structured_result(monkeypa
 
     error = caught.value
     event_id = error.result["event_id"]
-    assert f"event_id={event_id}" in error.message
-    assert f"file_delivery_status('{event_id}')" in error.message
-    assert "do not retry with a new id" in error.message
+    assert error.code == "invalid_response"
+    assert error.outcome_unknown is True
     assert error.result["next_action"]["tool"] == "file_delivery_status"
+    assert error.result["next_action"]["arguments"] == {"event_id": event_id}
 
 
 @pytest.mark.asyncio
