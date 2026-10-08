@@ -51,6 +51,8 @@ class _Server:
         self._alive = False
 
     async def start(self) -> None:
+        from app.agent_cgroups import agent_process_options
+
         env = {**os.environ, **(self.cfg.get("env") or {})}
         self.proc = await asyncio.create_subprocess_exec(
             self.cfg["command"], *(self.cfg.get("args") or []),
@@ -60,6 +62,7 @@ class _Server:
             env={k: str(v) for k, v in env.items()},
             start_new_session=True,              # own process group → killpg can reap grandchildren
             limit=STDIO_LIMIT,
+            **agent_process_options(),
         )
         self._alive = True
         self._reader = asyncio.create_task(self._read_loop())

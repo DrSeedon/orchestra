@@ -13,6 +13,12 @@ from scripts import wf_run
 from tests.test_wf_run import _git_repo, _result
 
 
+async def _grant_workflow_slot(path, _payload):
+    if path.endswith("/release"):
+        return {"released": True, "active": 0, "queued": 0, "limit": 1, "reason": "test"}
+    return {"granted": True, "active": 1, "queued": 0, "limit": 1, "reason": "test"}
+
+
 @pytest.mark.asyncio
 async def test_removed_tool_is_absent_and_cannot_dispatch():
     retired = 'run' + '_fan'
@@ -65,6 +71,7 @@ async def test_cli_parallel_uses_target_repository_and_resume_preserves_it(tmp_p
     monkeypatch.setattr(wf_run, 'run_adapter', adapter)
     monkeypatch.setattr(wf_run, '_readiness', readiness)
     monkeypatch.setattr(wf_run, 'persist_turn_usage', lambda **kwargs: True)
+    monkeypatch.setattr(wf_run, '_workflow_slot_request', _grant_workflow_slot)
     assert await wf_run._main() == 0
     manifest = json.loads((runner / 'data/workflow-runs/target-check/manifest.json').read_text())
     assert manifest['complete'] and len(manifest['steps']) == 2
@@ -291,6 +298,7 @@ async def test_inline_workflow_run_writes_manifest_and_completion_summary(tmp_pa
     monkeypatch.setattr(wf_run, 'run_adapter', adapter)
     monkeypatch.setattr(wf_run, '_readiness', readiness)
     monkeypatch.setattr(wf_run, 'persist_turn_usage', lambda **_kwargs: True)
+    monkeypatch.setattr(wf_run, '_workflow_slot_request', _grant_workflow_slot)
     assert await wf_run._main() == 0
     output = capsys.readouterr().out
     manifest = json.loads((runner / 'data/workflow-runs/inline-test/manifest.json').read_text())

@@ -1088,12 +1088,16 @@ class ClaudeBackend:
         # orchestra (back-compat). expanduser — на случай "~" в config_dir.
         if self._config_dir:
             env["CLAUDE_CONFIG_DIR"] = os.path.expanduser(self._config_dir)
+        cli_path = cli
+        if os.environ.get("ORCHESTRA_AGENT_CGROUP") and not self._is_orchestrator:
+            cli_path = str(Path(__file__).with_name("agent_cli_exec.py"))
+            env["ORCHESTRA_AGENT_CLI"] = cli
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         pretooluse_hooks = None
         if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1":
             pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload, cwd=self.cwd)
         options = ClaudeAgentOptions(
-            model=self.model, cwd=self.cwd, cli_path=cli,
+            model=self.model, cwd=self.cwd, cli_path=cli_path,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
             disallowed_tools=list(self._cli_disallowed_tools),
             hooks={"PreToolUse": pretooluse_hooks} if pretooluse_hooks is not None else None,
@@ -1160,11 +1164,14 @@ class ClaudeBackend:
             )
         cli = shutil.which("claude") or os.environ.get("CLAUDE_CLI_PATH", "claude")
         try:
+            from app.agent_cgroups import agent_process_options
+
             process = await asyncio.create_subprocess_exec(
                 cli,
                 "--version",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                **agent_process_options(),
             )
         except OSError as error:
             raise NativeHistoryUnsupported(

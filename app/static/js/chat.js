@@ -2364,8 +2364,19 @@ function _renderWorkflowStatus(card, data) {
     const isPartial = Boolean(data.finished && !data.complete);
     const tone = counts.failed ? '#f87171' : isComplete ? '#4ade80' : '#38bdf8';
     status.style.color = tone;
-    status.textContent = `${isComplete ? T('✅ Complete') : isPartial ? T('⚠️ Partial') : T('⏳ In progress')} · ${T('{completed}/{total} ready', {completed: counts.completed || 0, total})} · ${T('{running} running', {running: counts.running || 0})} · ${T('{failed} failed', {failed: counts.failed || 0})} · ${MODEL_COST_CURRENCY}${Number(data.spent_usd || 0).toFixed(2)} / ${MODEL_COST_CURRENCY}${Number(data.budget_usd || 0).toFixed(2)} · ${_workflowElapsed(data.elapsed_seconds)}`;
+    status.textContent = `${isComplete ? T('✅ Complete') : isPartial ? T('⚠️ Partial') : T('⏳ In progress')} · ${T('{completed}/{total} ready', {completed: counts.completed || 0, total})} · ${T('{running} running', {running: counts.running || 0})} · ${T('{waiting} waiting', {waiting: counts.waiting || 0})} · ${T('{failed} failed', {failed: counts.failed || 0})} · ${MODEL_COST_CURRENCY}${Number(data.spent_usd || 0).toFixed(2)} / ${MODEL_COST_CURRENCY}${Number(data.budget_usd || 0).toFixed(2)} · ${_workflowElapsed(data.elapsed_seconds)}`;
     detail.replaceChildren();
+    const scheduler = data.scheduler || {};
+    if (scheduler.limit != null) {
+        const line = document.createElement('div');
+        line.style.cssText = 'margin-top:5px;color:#94a3b8;font-size:10px';
+        line.textContent = T('Shared slots {active}/{limit} · queued {queued} · {reason}', {
+            active: Number(scheduler.active || 0), limit: Number(scheduler.limit),
+            queued: Number(scheduler.queued || 0),
+            reason: String(scheduler.reason || ''),
+        });
+        detail.appendChild(line);
+    }
     for (const stage of data.stages || []) {
         const section = document.createElement('div');
         section.style.cssText = 'display:flex;flex-direction:column;gap:3px;margin-top:5px';
@@ -2378,12 +2389,12 @@ function _renderWorkflowStatus(card, data) {
         for (const task of stage.tasks || []) {
             const row = document.createElement('div');
             row.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
-            const state = {running: '🔵', completed: '✅', failed: '❌', pending: '◯'}[task.status] || '◯';
+            const state = {running: '🔵', waiting: '⏳', completed: '✅', failed: '❌', pending: '◯'}[task.status] || '◯';
             const line = document.createElement('div');
             line.style.cssText = 'display:flex;gap:7px;align-items:center';
             const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:1'; label.textContent = task.label || '';
             const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none'; model.textContent = _workflowModelLabel(task.model);
-            const badge = document.createElement('span'); badge.textContent = state; badge.title = task.status || '';
+            const badge = document.createElement('span'); badge.textContent = task.status === 'waiting' ? T('⏳ queue {position}', {position: task.position || '?'}) : state; badge.title = task.status === 'waiting' ? T('Waiting in shared queue · position {position}', {position: task.position || '?'}) : task.status || '';
             line.append(label, model, badge);
             row.appendChild(line);
             if (task.error) {

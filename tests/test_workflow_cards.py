@@ -57,7 +57,7 @@ async def test_workflow_detail_returns_live_run_data_and_rejects_outside_paths(t
         missing = client.get("/api/bg/workflows/V-776-absent")
     detail = response.json()
     assert detail["mode"] == "parallel"
-    assert detail["counts"] == {"running": 0, "completed": 1, "failed": 0, "pending": 0}
+    assert detail["counts"] == {"running": 0, "waiting": 0, "completed": 1, "failed": 0, "pending": 0}
     assert detail["stages"][0]["tasks"][0]["answer_preview"] == "First answer"
     assert detail["stages"][0]["tasks"][0]["result_url"].endswith("/results/0")
     assert detail["finished"] is True
@@ -96,15 +96,34 @@ def test_workflow_detail_maps_journal_progress_to_labeled_tasks(tmp_path, monkey
         ],
     }))
     key = "b" * 64 + ":0"
+    waiting_key = "c" * 64 + ":0"
     (run_dir / "journal.jsonl").write_text("\n".join(json.dumps(row) for row in [
         {"event": "task_started", "call_key": key, "label": "Task 1"},
         {"event": "dispatched", "call_key": key, "attempt": 1},
+        {"event": "task_started", "call_key": waiting_key, "label": "Task 2"},
+        {"event": "slot_waiting", "reason": "slot_waiting", "call_key": waiting_key,
+         "label": "Task 2", "position": 3, "limit": 2, "scheduler_reason": "CPU pressure"},
     ]) + "\n")
+    (run_dir / "manifest.json").write_text(json.dumps({
+        "scheduler": {"active": 2, "limit": 2, "reason": "CPU pressure"},
+    }))
 
     detail = bg._workflow_detail(run_id, run_dir)
 
-    assert detail["counts"] == {"running": 1, "completed": 0, "failed": 0, "pending": 1}
-    assert [task["status"] for task in detail["stages"][0]["tasks"]] == ["running", "pending"]
+    assert detail["counts"] == {"running": 1, "waiting": 1, "completed": 0, "failed": 0, "pending": 0}
+    assert [task["status"] for task in detail["stages"][0]["tasks"]] == ["running", "waiting"]
+    assert detail["stages"][0]["tasks"][1]["position"] == 3
+    assert detail["scheduler"] == {"active": 2, "limit": 2, "reason": "CPU pressure"}
+
+
+def test_intermediate_scheduler_manifest_does_not_mark_workflow_finished(tmp_path):
+    from app.routes.bg import _workflow_finished
+
+    run_dir = tmp_path / "run"
+    run_dir.mkdir()
+    (run_dir / "journal.jsonl").write_text('{"event":"slot_waiting"}\n')
+    (run_dir / "manifest.json").write_text(json.dumps({"finished": False, "complete": False}))
+    assert _workflow_finished(run_dir) is False
 
 
 def test_dynamic_workflow_call_renders_detail_card_and_expands_answer(dashboard_browser):

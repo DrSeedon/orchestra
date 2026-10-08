@@ -342,7 +342,7 @@ async def test_connect_direct_fallback_is_not_hibernate_safe(monkeypatch):
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "delegation unavailable"),
+        lambda **_kwargs: (None, "delegation unavailable"),
     )
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
     backend._read_stdout = AsyncMock()
@@ -514,7 +514,7 @@ async def test_resume_rejects_substituted_thread_before_turn(monkeypatch):
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "unsupported"),
+        lambda **_kwargs: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -582,7 +582,7 @@ async def test_history_connect_fails_before_spawn_on_version_mismatch(monkeypatc
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "unsupported"),
+        lambda **_kwargs: (None, "unsupported"),
     )
     backend = CodexBackend(
         model="gpt-5.6-sol",
@@ -632,7 +632,7 @@ async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monk
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "unsupported"),
+        lambda **_kwargs: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -721,7 +721,7 @@ async def test_resume_protocol_error_without_structured_field_is_not_summary_eli
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "unsupported"),
+        lambda **_kwargs: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -757,7 +757,7 @@ async def test_history_initialize_protocol_error_is_not_summary_eligible(monkeyp
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "unsupported"),
+        lambda **_kwargs: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
@@ -791,7 +791,7 @@ async def test_history_connect_auth_failure_is_not_summary_eligible(monkeypatch)
     monkeypatch.setattr(
         module.RuntimeProcessGroup,
         "create",
-        lambda: (None, "unsupported"),
+        lambda **_kwargs: (None, "unsupported"),
     )
     monkeypatch.setattr(
         module.asyncio,
