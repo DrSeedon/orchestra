@@ -623,10 +623,17 @@ def _spawn_delivery_error(
         "next_action": next_action,
     }
     details = dict(cause.details)
-    details.update({"phase": "initial_task_delivery", "next_action": next_action})
+    details.update({
+        "phase": "initial_task_delivery",
+        "delivery_id": delivery_id,
+        "next_action": next_action,
+    })
     return ApiToolError(
         code=cause.code,
-        message=f"Worker '{name}' was created, but initial task delivery {delivery}: {cause.message}",
+        message=(
+            f"Worker '{name}' was created, but initial task delivery {delivery}: "
+            f"{cause.message}; delivery_id={delivery_id}"
+        ),
         status=cause.status,
         retryable=False,
         request_id=cause.request_id,
@@ -774,6 +781,7 @@ async def _reconcile_initial_delivery(
                 return status_receipt, cause
         reconciliation = {"status": "missing", "response": status}
     details = dict(cause.details)
+    details["delivery_id"] = delivery_id
     details["reconciliation"] = reconciliation
     return None, ApiToolError(
         code=cause.code,
@@ -1003,13 +1011,25 @@ async def _resume_cut_off_spawn(
                 ),
                 "delivery_id": delivery_id,
             }
+            cause.details["delivery_id"] = delivery_id
+            cause.message = (
+                f"{cause.message}; delivery_id={delivery_id}. "
+                f"{cause.details['next_action']['message']}"
+            )
+            cause.result = {
+                "worker_name": name,
+                "created": "unknown",
+                "delivery_id": delivery_id,
+                "next_action": cause.details["next_action"],
+            }
             raise cause from verdict
         next_action = {
             "code": "REPEAT_SPAWN_SAME_ID",
             "delivery_id": delivery_id,
             "message": (
                 "The worker creation outcome could not be reconciled. Repeat the "
-                "same spawn_worker call with the same name, task and delivery_id; "
+                "same spawn_worker call with the same name, task and "
+                f"delivery_id={delivery_id}; "
                 "it resumes an existing worker rather than creating a duplicate."
             ),
         }
@@ -1184,7 +1204,25 @@ async def retry_initial_delivery(name: str, task: str, delivery_id: str) -> dict
             message="delivery_id is required; retry cannot mint a replacement key",
             details={"field": "delivery_id"},
         )
-    return await _post_initial_delivery(name, task, delivery_id, SCOPE)
+    try:
+        return await _post_initial_delivery(name, task, delivery_id, SCOPE)
+    except ApiToolError as error:
+        if error.outcome_unknown:
+            next_action = {
+                "code": "RETRY_INITIAL_DELIVERY_SAME_ID",
+                "delivery_id": delivery_id,
+                "message": (
+                    "Repeat the same retry_initial_delivery call with this delivery_id "
+                    "and identical inputs; it returns the same receipt without a duplicate."
+                ),
+            }
+            error.details = {**error.details, "delivery_id": delivery_id}
+            error.result = {
+                "delivery_id": delivery_id,
+                "next_action": next_action,
+            }
+            error.message = f"{error.message}; delivery_id={delivery_id}"
+        raise
 
 
 def _read_message_file(file_path: str) -> tuple[str, int]:
@@ -1456,10 +1494,14 @@ def _ambiguous_message_delivery_error(
         ),
     }
     details = dict(cause.details)
+    details["delivery_id"] = delivery_id
     details["reconciliation"] = reconciliation
     return ApiToolError(
         code=cause.code,
-        message=f"Message delivery outcome is ambiguous: {cause.message}",
+        message=(
+            f"Message delivery outcome is ambiguous: {cause.message}; "
+            f"delivery_id={delivery_id}"
+        ),
         status=cause.status,
         retryable=False,
         request_id=cause.request_id,
@@ -1898,6 +1940,7 @@ def _ambiguous_file_delivery_error(
         else {"status": "missing", "response": status}
     )
     details = dict(cause.details)
+    details["event_id"] = event_id
     details["reconciliation"] = reconciliation
     return ApiToolError(
         code="FILE_DELIVERY_OUTCOME_UNKNOWN",

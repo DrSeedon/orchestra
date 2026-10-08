@@ -2,6 +2,7 @@ import asyncio
 import json
 import inspect
 import subprocess
+import uuid
 
 import httpx
 import pytest
@@ -367,6 +368,134 @@ async def test_api_non_json_5xx_preserves_body_and_post_is_not_safe(monkeypatch)
     assert error.retryable is False
     assert error.outcome_unknown is True
     assert error.details["response_body"] == "bad gateway"
+
+
+@pytest.mark.asyncio
+async def test_send_message_transport_timeout_exposes_generated_delivery_id(monkeypatch):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000778"
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    monkeypatch.setattr(m, "WORKER_NAME", "sender")
+    monkeypatch.setattr(m.uuid, "uuid4", lambda: uuid.UUID(delivery_id))
+
+    async def fake_api(method, path, **_kwargs):
+        if method == "POST":
+            raise m._transport_error("POST", path, httpx.ReadTimeout("ReadTimeout"), "rid")
+        raise m._transport_error("GET", path, httpx.ConnectError("ConnectError"), "rid")
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await _protocol_call(m, "send_message", {"to": "target", "message": "hello"})
+    assert output.isError is True
+    assert delivery_id in output.content[0].text
+    assert output.structuredContent["error"]["details"]["delivery_id"] == delivery_id
+    assert output.structuredContent["result"]["delivery_id"] == delivery_id
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("tool_name", ["send_file", "send_files"])
+async def test_file_transport_timeout_exposes_generated_event_id(monkeypatch, tool_name):
+    import app.mcp_stdio as m
+
+    event_id = "00000000-0000-4000-8000-000000000779"
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    monkeypatch.setattr(m, "WORKER_NAME", "sender")
+    monkeypatch.setattr(m.uuid, "uuid4", lambda: uuid.UUID(event_id))
+
+    async def fake_api(method, path, **_kwargs):
+        if method == "POST":
+            raise m._transport_error("POST", path, httpx.ReadTimeout("ReadTimeout"), "rid")
+        raise m._transport_error("GET", path, httpx.ConnectError("ConnectError"), "rid")
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    arguments = (
+        {"path": "/scope/file.txt"}
+        if tool_name == "send_file"
+        else {"paths": ["/scope/file.txt"]}
+    )
+    output = await _protocol_call(m, tool_name, arguments)
+    assert output.isError is True
+    assert event_id in output.content[0].text
+    assert output.structuredContent["error"]["details"]["event_id"] == event_id
+    assert output.structuredContent["result"]["event_id"] == event_id
+
+
+@pytest.mark.asyncio
+async def test_spawn_worker_transport_timeout_exposes_generated_delivery_id(monkeypatch):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000780"
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    monkeypatch.setattr(m.uuid, "uuid4", lambda: uuid.UUID(delivery_id))
+
+    async def fake_api(method, path, **_kwargs):
+        if path == "/api/sessions":
+            return {
+                "worktree_path": "/worktrees/child",
+                "branch": "task-1/child",
+                "repo_path": "/scope",
+                "git_common_dir": "/scope/.git",
+            }
+        if method == "POST":
+            raise m._transport_error("POST", path, httpx.ReadTimeout("ReadTimeout"), "rid")
+        raise m._transport_error("GET", path, httpx.ConnectError("ConnectError"), "rid")
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await _protocol_call(m, "spawn_worker", {
+        "name": "child", "task": "task", "repo_path": "/scope", "model": "gpt-6-luna",
+    })
+    assert output.isError is True
+    assert delivery_id in output.content[0].text
+    assert output.structuredContent["error"]["details"]["delivery_id"] == delivery_id
+    assert output.structuredContent["result"]["delivery_id"] == delivery_id
+
+
+@pytest.mark.asyncio
+async def test_spawn_creation_transport_timeout_exposes_generated_delivery_id(monkeypatch):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000782"
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+    monkeypatch.setattr(m.uuid, "uuid4", lambda: uuid.UUID(delivery_id))
+
+    async def fake_api(method, path, **_kwargs):
+        if path == "/api/sessions" or path.endswith("/spawn-resume"):
+            raise m._transport_error("POST", path, httpx.ReadTimeout("ReadTimeout"), "rid")
+        raise m.ApiToolError(
+            code="not_found", message="worker spawn not found", status=404,
+            outcome_unknown=False,
+        )
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await _protocol_call(m, "spawn_worker", {
+        "name": "child", "task": "task", "repo_path": "/scope", "model": "gpt-6-luna",
+    })
+    assert output.isError is True
+    assert delivery_id in output.content[0].text
+    assert output.structuredContent["error"]["details"]["delivery_id"] == delivery_id
+    assert output.structuredContent["result"]["delivery_id"] == delivery_id
+
+
+@pytest.mark.asyncio
+async def test_retry_initial_delivery_transport_timeout_exposes_delivery_id(monkeypatch):
+    import app.mcp_stdio as m
+
+    delivery_id = "00000000-0000-4000-8000-000000000781"
+    monkeypatch.setattr(m, "SCOPE", "/scope")
+
+    async def fake_api(method, path, **_kwargs):
+        if method == "POST":
+            raise m._transport_error("POST", path, httpx.ReadTimeout("ReadTimeout"), "rid")
+        raise m._transport_error("GET", path, httpx.ConnectError("ConnectError"), "rid")
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    output = await _protocol_call(m, "retry_initial_delivery", {
+        "name": "child", "task": "task", "delivery_id": delivery_id,
+    })
+    assert output.isError is True
+    assert delivery_id in output.content[0].text
+    assert output.structuredContent["error"]["details"]["delivery_id"] == delivery_id
+    assert output.structuredContent["result"]["delivery_id"] == delivery_id
 
 
 @pytest.mark.asyncio
