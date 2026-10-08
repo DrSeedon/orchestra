@@ -61,6 +61,18 @@
   ]
  ],
  [
+  "/api/bg/workflows/{run_id}",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/bg/workflows/{run_id}/results/{index}",
+  [
+   "GET"
+  ]
+ ],
+ [
   "/api/fan/member/terminal",
   [
    "POST"

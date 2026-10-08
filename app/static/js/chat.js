@@ -2161,6 +2161,299 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
     return true;
 }
 
+function _workflowInputGroups(data) {
+    if (Array.isArray(data.tasks)) return [{title: '', tasks: data.tasks}];
+    if (!Array.isArray(data.stages)) return [];
+    return data.stages.map((stage, stageIndex) => {
+        let tasks = Array.isArray(stage.tasks) ? stage.tasks : [];
+        let template = '';
+        let items = [];
+        if (!tasks.length && typeof stage.prompt === 'string' && Array.isArray(stage.items)) {
+            template = stage.prompt;
+            items = stage.items;
+            tasks = stage.items.map(item => ({
+                prompt: stage.prompt.replaceAll('{item}', typeof item === 'string' ? item : JSON.stringify(item)),
+                model: stage.model,
+            }));
+        }
+        return {title: T('Stage {n}', {n: stageIndex + 1}), tasks, template, items};
+    });
+}
+
+function _workflowModeLabel(mode) {
+    return ({parallel: T('Parallel'), chain: T('Chain'), stages: T('Stages')})[mode] || mode || T('Parallel');
+}
+
+function _workflowModelLabel(model) {
+    const label = _modelLabel(model || 'luna');
+    return label && label === label.toLowerCase()
+        ? label[0].toUpperCase() + label.slice(1)
+        : label;
+}
+
+function _workflowShortText(value, limit = 120) {
+    const text = String(value || '').replace(/\s+/g, ' ').trim();
+    return text.length > limit ? text.slice(0, limit - 1) + '…' : text;
+}
+
+function _compactWorkflowPrompts(tasks) {
+    const prompts = tasks.map(task => String(task.prompt || ''));
+    if (!prompts.length || prompts.some(prompt => !prompt)) return null;
+    if (prompts.every(prompt => prompt === prompts[0])) {
+        return {template: prompts[0], variants: prompts.map(() => '')};
+    }
+    let prefixLength = Math.min(...prompts.map(prompt => prompt.length));
+    for (let i = 0; i < prefixLength; i++) {
+        if (!prompts.every(prompt => prompt[i] === prompts[0][i])) { prefixLength = i; break; }
+    }
+    let suffixLength = Math.min(...prompts.map(prompt => prompt.length)) - prefixLength;
+    for (let i = 1; i <= suffixLength; i++) {
+        const character = prompts[0][prompts[0].length - i];
+        if (!prompts.every(prompt => prompt[prompt.length - i] === character)) { suffixLength = i - 1; break; }
+    }
+    let variantStart = prefixLength;
+    let variantEnd = prompts[0].length - suffixLength;
+    const wordCharacter = character => /[\p{L}\p{N}_-]/u.test(character);
+    while (variantStart > 0 && wordCharacter(prompts[0][variantStart - 1])) variantStart--;
+    while (variantEnd < prompts[0].length && wordCharacter(prompts[0][variantEnd])) variantEnd++;
+    const suffixExpansion = variantEnd - (prompts[0].length - suffixLength);
+    const variants = prompts.map(prompt => prompt.slice(
+        variantStart, prompt.length - suffixLength + suffixExpansion,
+    ));
+    const sharedLength = prompts[0].length - variants[0].length;
+    const longestVariant = Math.max(...variants.map(value => value.length));
+    if (sharedLength < 40 || sharedLength < longestVariant * 2) return null;
+    return {
+        template: prompts[0].slice(0, variantStart) + (longestVariant ? '{item}' : '')
+            + prompts[0].slice(variantEnd),
+        variants,
+        sharedLength,
+    };
+}
+
+function _workflowInputCard(div, data, header) {
+    const groups = _workflowInputGroups(data);
+    const count = groups.reduce((n, group) => n + group.tasks.length, 0);
+    const mode = data.mode || (groups.length > 1 ? 'stages' : 'parallel');
+    const taskCount = count === 1 ? T('1 task') : T('{n} tasks', {n: count});
+    header.textContent = T('🧩 Workflow · {mode} · {tasks}', {
+        mode: _workflowModeLabel(mode), tasks: taskCount,
+    });
+    header.style.color = '#a78bfa';
+    div.dataset.isWorkflowCard = '1';
+    div.dataset.workflowMode = mode;
+    const summary = document.createElement('div');
+    summary.className = 'workflow-card-summary';
+    summary.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin-top:5px;font-size:10px;color:#cbd5e1';
+    const row = (label, value) => {
+        if (value == null || value === '') return;
+        const key = document.createElement('span'); key.style.color = '#64748b'; key.textContent = label;
+        const val = document.createElement('span'); val.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap'; val.textContent = String(value);
+        summary.append(key, val);
+    };
+    const models = [...new Set(groups.flatMap(group => group.tasks.map(task => _workflowModelLabel(task.model))))];
+    row(T('Mode'), _workflowModeLabel(mode));
+    row(T('Tasks / stages'), `${count}${mode === 'stages' ? ` / ${groups.length}` : ''}`);
+    row(T('Models'), models.join(', ') || _modelLabel('luna'));
+    row(T('Budget'), data.budget_usd != null ? `${MODEL_COST_CURRENCY}${data.budget_usd}` : '');
+    row(T('Call limit'), data.max_calls);
+    row(T('Concurrency'), data.max_concurrency);
+    row(T('Task'), data.task_id);
+    row(T('Repository'), data.repo);
+    div.appendChild(summary);
+
+    const list = document.createElement('div');
+    list.style.cssText = 'display:flex;flex-direction:column;gap:4px;margin-top:7px';
+    groups.forEach((group, stageIndex) => {
+        if (group.title) {
+            const title = document.createElement('div');
+            title.style.cssText = 'font-size:10px;color:#a78bfa;font-weight:600;margin-top:3px';
+            title.textContent = group.title;
+            list.appendChild(title);
+        }
+        const templateItems = group.items || [];
+        const compact = group.template
+            ? {template: group.template, variants: templateItems.map(item => typeof item === 'string' ? item : JSON.stringify(item))}
+            : group.tasks.length > 1 ? _compactWorkflowPrompts(group.tasks) : null;
+        if (compact) {
+            const item = document.createElement('div');
+            item.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
+            const promptDetails = document.createElement('details');
+            const summary = document.createElement('summary');
+            summary.style.cssText = 'cursor:pointer;display:flex;gap:7px;align-items:center';
+            const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:none';
+            label.textContent = `×${group.tasks.length}`;
+            const preview = document.createElement('span'); preview.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+            preview.textContent = _workflowShortText(compact.template, 110);
+            const models = [...new Set(group.tasks.map(task => _workflowModelLabel(task.model)))];
+            const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none';
+            model.textContent = models.join(', ');
+            summary.append(label, preview, model);
+            const full = document.createElement('div');
+            full.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:#94a3b8;margin:5px 0 0 20px';
+            full.textContent = compact.template;
+            promptDetails.append(summary, full);
+            item.appendChild(promptDetails);
+            if (templateItems.length) {
+                const values = document.createElement('div');
+                values.style.cssText = 'margin:4px 0 0 20px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere';
+                values.textContent = T('Items: {values}', {
+                    values: templateItems.map(value => _workflowShortText(typeof value === 'string' ? value : JSON.stringify(value), 80)).join(' · '),
+                });
+                item.appendChild(values);
+            } else if (compact.variants.length && compact.variants.some(value => value !== compact.variants[0])) {
+                const differences = document.createElement('div');
+                differences.style.cssText = 'margin:4px 0 0 20px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere';
+                differences.textContent = T('Differs: {values}', {
+                    values: compact.variants.map(value => _workflowShortText(value, 80)).join(' · '),
+                });
+                item.appendChild(differences);
+            } else if (compact.variants.every(value => value === compact.variants[0])) {
+                const identical = document.createElement('div');
+                identical.style.cssText = 'margin:4px 0 0 20px;color:#64748b';
+                identical.textContent = T('{n} identical prompts', {n: compact.variants.length});
+                item.appendChild(identical);
+            }
+            list.appendChild(item);
+        } else group.tasks.forEach((task, taskIndex) => {
+            const item = document.createElement('details');
+            item.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
+            const prompt = String(task.prompt || '');
+            const summary = document.createElement('summary');
+            summary.style.cssText = 'cursor:pointer;display:flex;gap:7px;align-items:center';
+            const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:none';
+            label.textContent = mode === 'stages' ? `${stageIndex + 1}.${taskIndex + 1}` : `${taskIndex + 1}.`;
+            const preview = document.createElement('span'); preview.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
+            preview.textContent = _workflowShortText(prompt, 110) || T('No prompt');
+            const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none';
+            model.textContent = _workflowModelLabel(task.model);
+            summary.append(label, preview, model);
+            const full = document.createElement('div'); full.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:#94a3b8;margin:5px 0 0 20px';
+            full.textContent = prompt;
+            item.append(summary, full);
+            list.appendChild(item);
+        });
+    });
+    div.appendChild(list);
+    const status = document.createElement('div');
+    status.dataset.role = 'workflow-status';
+    status.style.cssText = 'margin-top:7px;font-size:10px;color:#64748b';
+    status.textContent = T('Loading run status…');
+    div.appendChild(status);
+    const detail = document.createElement('div');
+    detail.dataset.role = 'workflow-detail';
+    div.appendChild(detail);
+    div.dataset.isEdit = '1';
+}
+
+function _workflowElapsed(seconds) {
+    const value = Math.max(0, Number(seconds) || 0);
+    const hours = Math.floor(value / 3600);
+    const minutes = Math.floor((value % 3600) / 60);
+    const secs = value % 60;
+    return hours ? `${hours}h ${minutes}m` : minutes ? `${minutes}m ${secs}s` : `${secs}s`;
+}
+
+function _renderWorkflowStatus(card, data) {
+    const status = card.querySelector('[data-role="workflow-status"]');
+    const detail = card.querySelector('[data-role="workflow-detail"]');
+    if (!status || !detail) return;
+    const counts = data.counts || {};
+    const total = Object.values(counts).reduce((sum, value) => sum + Number(value || 0), 0);
+    const isComplete = Boolean(data.complete && data.finished);
+    const isPartial = Boolean(data.finished && !data.complete);
+    const tone = counts.failed ? '#f87171' : isComplete ? '#4ade80' : '#38bdf8';
+    status.style.color = tone;
+    status.textContent = `${isComplete ? T('✅ Complete') : isPartial ? T('⚠️ Partial') : T('⏳ In progress')} · ${T('{completed}/{total} ready', {completed: counts.completed || 0, total})} · ${T('{running} running', {running: counts.running || 0})} · ${T('{failed} failed', {failed: counts.failed || 0})} · ${MODEL_COST_CURRENCY}${Number(data.spent_usd || 0).toFixed(2)} / ${MODEL_COST_CURRENCY}${Number(data.budget_usd || 0).toFixed(2)} · ${_workflowElapsed(data.elapsed_seconds)}`;
+    detail.replaceChildren();
+    for (const stage of data.stages || []) {
+        const section = document.createElement('div');
+        section.style.cssText = 'display:flex;flex-direction:column;gap:3px;margin-top:5px';
+        if (card.dataset.workflowMode === 'stages') {
+            const heading = document.createElement('div');
+            heading.style.cssText = 'font-size:10px;color:#a78bfa;font-weight:600';
+            heading.textContent = T('Stage {n}', {n: Number(stage.index) + 1});
+            section.appendChild(heading);
+        }
+        for (const task of stage.tasks || []) {
+            const row = document.createElement('div');
+            row.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
+            const state = {running: '🔵', completed: '✅', failed: '❌', pending: '◯'}[task.status] || '◯';
+            const line = document.createElement('div');
+            line.style.cssText = 'display:flex;gap:7px;align-items:center';
+            const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:1'; label.textContent = task.label || '';
+            const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none'; model.textContent = _workflowModelLabel(task.model);
+            const badge = document.createElement('span'); badge.textContent = state; badge.title = task.status || '';
+            line.append(label, model, badge);
+            row.appendChild(line);
+            if (task.error) {
+                const error = document.createElement('div'); error.style.cssText = 'margin:4px 0 0 22px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere'; error.textContent = task.error;
+                row.appendChild(error);
+            }
+            const answerPreview = task.answer_preview ?? task.answer;
+            if (answerPreview != null) {
+                const answer = document.createElement('details'); answer.style.margin = '4px 0 0 22px';
+                const answerSummary = document.createElement('summary'); answerSummary.style.cssText = 'cursor:pointer;color:#4ade80';
+                answerSummary.textContent = T('Answer: {preview}', {preview: _workflowShortText(typeof answerPreview === 'string' ? answerPreview : JSON.stringify(answerPreview), 100)});
+                const answerBody = document.createElement('pre'); answerBody.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:#cbd5e1;font:inherit;margin:4px 0';
+                answerBody.textContent = task.answer != null ? (typeof task.answer === 'string' ? task.answer : JSON.stringify(task.answer, null, 2)) : T('Loading…');
+                answer.append(answerSummary, answerBody); row.appendChild(answer);
+                if (task.result_url) {
+                    answer.addEventListener('toggle', async () => {
+                        if (!answer.open || answer.dataset.loaded === '1') return;
+                        answer.dataset.loaded = '1';
+                        try {
+                            const result = await api(task.result_url);
+                            const full = result && Object.hasOwn(result, 'data') ? result.data : result;
+                            answerBody.textContent = typeof full === 'string' ? full : JSON.stringify(full, null, 2);
+                        } catch {
+                            answer.dataset.loaded = '0';
+                            answerBody.textContent = T('Result is temporarily unavailable.');
+                        }
+                    });
+                    const link = document.createElement('a'); link.href = task.result_url; link.target = '_blank'; link.rel = 'noopener noreferrer';
+                    link.style.cssText = 'display:inline-block;margin:3px 0 0 22px;color:#818cf8;text-decoration:underline';
+                    link.textContent = T('📎 Open result file'); row.appendChild(link);
+                }
+            }
+            section.appendChild(row);
+        }
+        detail.appendChild(section);
+    }
+}
+
+async function _refreshWorkflowCard(card, runId) {
+    if (!card.isConnected) return false;
+    try {
+        const data = await api(`/api/bg/workflows/${encodeURIComponent(runId)}`);
+        if (!card.isConnected) return false;
+        if (data.available) _renderWorkflowStatus(card, data);
+        else {
+            const status = card.querySelector('[data-role="workflow-status"]');
+            if (status) status.textContent = T('Run files unavailable; call details are shown above.');
+        }
+        return !data.finished;
+    } catch (error) {
+        const status = card.querySelector('[data-role="workflow-status"]');
+        if (status) status.textContent = String(error.message || '').startsWith('404')
+            ? T('Run files unavailable; call details are shown above.')
+            : T('Run status is temporarily unavailable.');
+        return false;
+    }
+}
+
+function _watchWorkflowCard(card, runId) {
+    if (!runId || card.dataset.workflowRunId === runId) return;
+    card.dataset.workflowRunId = runId;
+    let timer = null;
+    const poll = async () => {
+        const again = await _refreshWorkflowCard(card, runId);
+        if (again && card.isConnected) timer = setTimeout(poll, 5000);
+    };
+    poll();
+    card.addEventListener('DOMNodeRemoved', () => { if (timer) clearTimeout(timer); }, {once: true});
+}
+
 function _renderFullToolCall(content, payload, div) {
     const colonIdx = content.indexOf(':');
     const rawName = canonicalToolName(colonIdx > 0 ? content.slice(0, colonIdx).trim() : content.slice(0, 30));
@@ -2248,6 +2541,10 @@ function _renderFullToolCall(content, payload, div) {
             _appendFullToolArguments(div, rawName, d);
             div.dataset.isEdit = '1';
         } catch {}
+    }
+    const isDynamicWorkflow = rawName === 'mcp__orchestra__dynamic_workflow';
+    if (isDynamicWorkflow) {
+        try { _workflowInputCard(div, JSON.parse(body), header); } catch {}
     }
     const isSpawnWorker = rawName === 'mcp__orchestra__spawn_worker';
     if (isSpawnWorker) {
@@ -2819,7 +3116,7 @@ function _renderFullToolCall(content, payload, div) {
                 moreEl.textContent = showing ? T('▼ {n} more lines', {n: restCount}) : T('▲ collapse');
             }
         });
-    } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool &&
+    } else if (!isSendMsg && !isNotify && !isGrepTool && !isBashTool && !isDynamicWorkflow &&
                !isAgentTool && !isSpawnWorker && !isWebSearchCall &&
                !isToolSearchCall && !isBugReport && !isWebFetch &&
                !isSendFile && !isSendFiles && !isSendChart && !isOrchSimple && !isGlob && !isSkill &&
@@ -3068,6 +3365,19 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 addTimestamp(lastTool, ts);
                 return;
             }
+        }
+        if (lastTool.dataset.isWorkflowCard) {
+            const match = content.match(/run_id=([A-Za-z0-9._-]+)/);
+            const status = lastTool.querySelector('[data-role="workflow-status"]');
+            if (match) {
+                _watchWorkflowCard(lastTool, match[1]);
+            } else if (status) {
+                status.style.color = '#f87171';
+                status.textContent = content.trim() || T('Workflow could not be queued.');
+            }
+            delete lastTool.dataset.lastTool;
+            addTimestamp(lastTool, ts);
+            return;
         }
         if (lastTool.dataset.isSpawnWorker) {
             const hdr = lastTool.querySelector('.flex.items-center');

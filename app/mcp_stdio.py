@@ -3235,6 +3235,7 @@ async def dynamic_workflow(
                 )
                 if error:
                     return f"Error: {error}"
+                normalized["label"] = f"Stage {stage_index + 1} · Task {task_index + 1}"
                 normalized_stage.append(normalized)
                 spec_payload_size += len(
                     json.dumps(normalized, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -3256,6 +3257,7 @@ async def dynamic_workflow(
             row, error = _normalize_dynamic_task(task, label=f"tasks[{index}]")
             if error:
                 return f"Error: {error}"
+            row["label"] = f"Task {index + 1}"
             normalized.append(row)
         spec_payload = {"tasks": normalized, "mode": mode}
     if (not isinstance(budget_usd, (int, float)) or isinstance(budget_usd, bool)
@@ -3275,6 +3277,14 @@ async def dynamic_workflow(
 
     runner_root = Path(__file__).resolve().parents[1]
     run_id = f"{task_id}-{uuid.uuid4().hex[:12]}"
+    spec_payload["dashboard"] = {
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "task_id": task_id,
+        "repo": str(repo_path),
+        "budget_usd": budget_usd,
+        "max_calls": max_calls,
+        "max_concurrency": max_concurrency,
+    }
     spec = json.dumps(spec_payload, ensure_ascii=False, separators=(",", ":"))
     spec_bytes = spec.encode("utf-8")
     if len(spec_bytes) > 1024 * 1024:
