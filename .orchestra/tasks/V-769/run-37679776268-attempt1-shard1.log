@@ -1,0 +1,510 @@
+test (1)	Set up job	﻿2026-10-07T20:08:39.5820238Z Current runner version: '2.337.0'
+test (1)	Set up job	2026-10-07T20:08:39.5847285Z ##[group]Runner Image Provisioner
+test (1)	Set up job	2026-10-07T20:08:39.5848688Z Hosted Compute Agent
+test (1)	Set up job	2026-10-07T20:08:39.5849946Z Version: 20260901.588
+test (1)	Set up job	2026-10-07T20:08:39.5851128Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+test (1)	Set up job	2026-10-07T20:08:39.5852560Z Build Date: 2026-09-01T19:56:44Z
+test (1)	Set up job	2026-10-07T20:08:39.5853873Z Worker ID: {f2647d0d-608a-48a7-bba3-16226ce0fa5a}
+test (1)	Set up job	2026-10-07T20:08:39.5855583Z Azure Region: southcentralus
+test (1)	Set up job	2026-10-07T20:08:39.5856936Z ##[endgroup]
+test (1)	Set up job	2026-10-07T20:08:39.5859267Z ##[group]Operating System
+test (1)	Set up job	2026-10-07T20:08:39.5860436Z Ubuntu
+test (1)	Set up job	2026-10-07T20:08:39.5861430Z 24.04.5
+test (1)	Set up job	2026-10-07T20:08:39.5862361Z LTS
+test (1)	Set up job	2026-10-07T20:08:39.5863472Z ##[endgroup]
+test (1)	Set up job	2026-10-07T20:08:39.5864511Z ##[group]Runner Image
+test (1)	Set up job	2026-10-07T20:08:39.5865845Z Image: ubuntu-24.04
+test (1)	Set up job	2026-10-07T20:08:39.5867113Z Version: 20260927.320.1
+test (1)	Set up job	2026-10-07T20:08:39.5869004Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+test (1)	Set up job	2026-10-07T20:08:39.5872079Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+test (1)	Set up job	2026-10-07T20:08:39.5874313Z ##[endgroup]
+test (1)	Set up job	2026-10-07T20:08:39.5876817Z ##[group]GITHUB_TOKEN Permissions
+test (1)	Set up job	2026-10-07T20:08:39.5879978Z Contents: read
+test (1)	Set up job	2026-10-07T20:08:39.5881051Z Metadata: read
+test (1)	Set up job	2026-10-07T20:08:39.5882042Z Packages: read
+test (1)	Set up job	2026-10-07T20:08:39.5883212Z ##[endgroup]
+test (1)	Set up job	2026-10-07T20:08:39.5886269Z Secret source: Actions
+test (1)	Set up job	2026-10-07T20:08:39.5888086Z Cache mode: write
+test (1)	Set up job	2026-10-07T20:08:39.5889834Z Prepare workflow directory
+test (1)	Set up job	2026-10-07T20:08:39.6311737Z Prepare all required actions
+test (1)	Set up job	2026-10-07T20:08:39.6359910Z Getting action download info
+test (1)	Set up job	2026-10-07T20:08:39.9198029Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+test (1)	Set up job	2026-10-07T20:08:40.0435478Z Download action repository 'astral-sh/setup-uv@v7' (SHA:37802adc94f370d6bfd71619e3f0bf239e1f3b78)
+test (1)	Set up job	2026-10-07T20:08:40.7817090Z Complete job name: test (1)
+test (1)	Run actions/checkout@v5	﻿2026-10-07T20:08:40.8555579Z ##[group]Run actions/checkout@v5
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8556609Z with:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8557085Z   fetch-depth: 0
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8557586Z   repository: DrSeedon/orchestra
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8561627Z   token: ***
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8562106Z   ssh-strict: true
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8562579Z   ssh-user: git
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8563088Z   persist-credentials: true
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8563624Z   clean: true
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8564102Z   sparse-checkout-cone-mode: true
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8564855Z   fetch-tags: false
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8565349Z   show-progress: true
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8565830Z   lfs: false
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8566288Z   submodules: false
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8566798Z   set-safe-directory: true
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8567409Z   allow-unsafe-pr-checkout: false
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8568250Z env:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8568743Z   GIT_AUTHOR_NAME: Orchestra CI
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8569365Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8570030Z   GIT_COMMITTER_NAME: Orchestra CI
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8570736Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.8571388Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9588655Z Syncing repository: DrSeedon/orchestra
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9591396Z ##[group]Getting Git version info
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9592718Z Working directory is '/home/runner/work/orchestra/orchestra'
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9594741Z [command]/usr/bin/git version
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9668728Z git version 2.55.0
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9690791Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9705505Z Temporarily overriding HOME='/home/runner/work/_temp/f52de5ce-2329-458c-9be0-ef0dafc80bed' before making global git config changes
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9708102Z Adding repository directory to the temporary git global config as a safe directory
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9711737Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9776681Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9779107Z ##[group]Initializing the repository
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9781329Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9929024Z hint: Using 'master' as the name for the initial branch. This default branch name
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9930277Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9932034Z hint: to use in all of your new repositories, which will suppress this warning,
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9933539Z hint: call:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9934419Z hint:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9935655Z hint: 	git config --global init.defaultBranch <name>
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9936381Z hint:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9937033Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9938029Z hint: 'development'. The just-created branch can be renamed via this command:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9938826Z hint:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9939281Z hint: 	git branch -m <name>
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9939799Z hint:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9940481Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9941640Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:40.9957285Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0006692Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0008213Z ##[group]Disabling automatic garbage collection
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0011542Z [command]/usr/bin/git config --local gc.auto 0
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0050711Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0052238Z ##[group]Setting up auth
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0062801Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0101018Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0528935Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0568598Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0794928Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.0831564Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.1055449Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.1096653Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.1097523Z ##[group]Fetching the repository
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:41.1106994Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5046859Z From https://github.com/DrSeedon/orchestra
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5048316Z  * [new branch]        adhoc-315170/fix-topic-flicker -> origin/adhoc-315170/fix-topic-flicker
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5049147Z  * [new branch]        adhoc-572092/research-compact-prompt -> origin/adhoc-572092/research-compact-prompt
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5049991Z  * [new branch]        adhoc-575506/research-compact-prompt -> origin/adhoc-575506/research-compact-prompt
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5051134Z  * [new branch]        adhoc-581995/research-compact-prompt -> origin/adhoc-581995/research-compact-prompt
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5051937Z  * [new branch]        fix/codex-native-state-compat -> origin/fix/codex-native-state-compat
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5052592Z  * [new branch]        fix/handoff-context-window -> origin/fix/handoff-context-window
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5053229Z  * [new branch]        fix/instruction-guard-ci -> origin/fix/instruction-guard-ci
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5053994Z  * [new branch]        fix/stability-recovery -> origin/fix/stability-recovery
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5055412Z  * [new branch]        fix/worker-autonomy    -> origin/fix/worker-autonomy
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5056749Z  * [new branch]        laptop-sync            -> origin/laptop-sync
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5057665Z  * [new branch]        main                   -> origin/main
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5058663Z  * [new branch]        refactor/knowledge-delivery -> origin/refactor/knowledge-delivery
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5059558Z  * [new branch]        simplify/storage-and-task-prefixes -> origin/simplify/storage-and-task-prefixes
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5060549Z  * [new branch]        task-106/research-compact-prompt -> origin/task-106/research-compact-prompt
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5061893Z  * [new branch]        task-515/fix-ci-green  -> origin/task-515/fix-ci-green
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5062848Z  * [new branch]        task-87/feat-wake-on-reset -> origin/task-87/feat-wake-on-reset
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5063461Z  * [new branch]        task-98/grok-test      -> origin/task-98/grok-test
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5063998Z  * [new branch]        task-V-693/fix-ci      -> origin/task-V-693/fix-ci
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5064692Z  * [new branch]        vps-cleanup-facts      -> origin/vps-cleanup-facts
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5066161Z [command]/usr/bin/git branch --list --remote origin/main
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5092912Z   origin/main
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5103127Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5129061Z 17a7d398b97ac538f4ac23bd34beb80015ded307
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5133415Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5133955Z ##[group]Determining the checkout info
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5134768Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5140270Z [command]/usr/bin/git sparse-checkout disable
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5202854Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5233253Z ##[group]Checking out the ref
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:47.5237073Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5504899Z Updating files:  82% (3601/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5526993Z Updating files:  83% (3610/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5557439Z Updating files:  84% (3654/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5605344Z Updating files:  85% (3697/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5643708Z Updating files:  86% (3741/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5715184Z Updating files:  87% (3784/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5771742Z Updating files:  88% (3828/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5850272Z Updating files:  89% (3871/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.5909332Z Updating files:  90% (3915/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6547959Z Updating files:  91% (3958/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6577923Z Updating files:  92% (4002/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6619136Z Updating files:  93% (4045/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6648353Z Updating files:  94% (4089/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6693765Z Updating files:  95% (4132/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6740072Z Updating files:  96% (4176/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6775051Z Updating files:  97% (4219/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6815574Z Updating files:  98% (4263/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6871139Z Updating files:  99% (4306/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6871730Z Updating files: 100% (4349/4349)
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6872210Z Updating files: 100% (4349/4349), done.
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6941316Z Switched to a new branch 'main'
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6948150Z branch 'main' set up to track 'origin/main'.
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.6998544Z ##[endgroup]
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.7056893Z [command]/usr/bin/git log -1 --format=%H
+test (1)	Run actions/checkout@v5	2026-10-07T20:08:48.7083795Z 17a7d398b97ac538f4ac23bd34beb80015ded307
+test (1)	Run astral-sh/setup-uv@v7	﻿2026-10-07T20:08:48.7420022Z ##[group]Run astral-sh/setup-uv@v7
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7420543Z with:
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7420922Z   activate-environment: false
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7421545Z   working-directory: /home/runner/work/orchestra/orchestra
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7427722Z   github-token: ***
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7428147Z   enable-cache: auto
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7429252Z   cache-dependency-glob: **/*requirements*.txt
+test (1)	Run astral-sh/setup-uv@v7	**/*requirements*.in
+test (1)	Run astral-sh/setup-uv@v7	**/*constraints*.txt
+test (1)	Run astral-sh/setup-uv@v7	**/*constraints*.in
+test (1)	Run astral-sh/setup-uv@v7	**/pyproject.toml
+test (1)	Run astral-sh/setup-uv@v7	**/uv.lock
+test (1)	Run astral-sh/setup-uv@v7	**/*.py.lock
+test (1)	Run astral-sh/setup-uv@v7	
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7430476Z   restore-cache: true
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7430872Z   save-cache: true
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7431554Z   prune-cache: true
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7431990Z   cache-python: false
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7432406Z   ignore-nothing-to-cache: false
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7432893Z   ignore-empty-workdir: false
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7433213Z   add-problem-matchers: true
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7433528Z   resolution-strategy: highest
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7433814Z env:
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7434053Z   GIT_AUTHOR_NAME: Orchestra CI
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7434427Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7435060Z   GIT_COMMITTER_NAME: Orchestra CI
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7435393Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.7435727Z ##[endgroup]
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.9161734Z Trying to find version for uv in: /home/runner/work/orchestra/orchestra/uv.toml
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.9162673Z Could not find file: /home/runner/work/orchestra/orchestra/uv.toml
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.9163566Z Trying to find version for uv in: /home/runner/work/orchestra/orchestra/pyproject.toml
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.9185633Z Could not determine uv version from uv.toml or pyproject.toml. Falling back to latest.
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:48.9188467Z Fetching version data from https://raw.githubusercontent.com/astral-sh/versions/main/v1/uv.ndjson ...
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.0308449Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.2530800Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/866dd8f9-12bc-4756-a495-b99c69fd7ef8 -f /home/runner/work/_temp/6b04b04b-792f-4d5c-82a6-82d8b8f73ed7
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6263252Z Added /home/runner/.local/bin to the path
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6267673Z Added /opt/hostedtoolcache/uv/0.12.23/x86_64 to the path
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6268882Z Set UV_PYTHON_INSTALL_DIR to /home/runner/work/_temp/uv-python-dir
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6269593Z Added /home/runner/work/_temp/uv-python-dir to the path
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6289377Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6289803Z Successfully installed uv version 0.12.23
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:49.6864991Z Searching files using cache dependency glob: /home/runner/work/orchestra/orchestra/**/*requirements*.txt,/home/runner/work/orchestra/orchestra/**/*requirements*.in,/home/runner/work/orchestra/orchestra/**/*constraints*.txt,/home/runner/work/orchestra/orchestra/**/*constraints*.in,/home/runner/work/orchestra/orchestra/**/pyproject.toml,/home/runner/work/orchestra/orchestra/**/uv.lock,/home/runner/work/orchestra/orchestra/**/*.py.lock
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.2707759Z /home/runner/work/orchestra/orchestra/pyproject.toml
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.3068872Z /home/runner/work/orchestra/orchestra/uv.lock
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.3084311Z Found 2 files to hash.
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.3156323Z Trying to restore cache from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-f1045d36cd5d4a901a43bec9e685cca9bb12d4b8702cd5dde7d596e2aa1ae359
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.4699538Z Cache hit for: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-f1045d36cd5d4a901a43bec9e685cca9bb12d4b8702cd5dde7d596e2aa1ae359
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.7466878Z Received 1429 of 1429 (100.0%), 0.0 MBs/sec
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.7467477Z Cache Size: ~0 MB (1429 B)
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.7498622Z [command]/usr/bin/tar -xf /home/runner/work/_temp/79d849e6-d2f1-47b7-a131-0c6c942c91e3/cache.tzst -P -C /home/runner/work/orchestra/orchestra --use-compress-program unzstd
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.7581871Z Cache restored successfully
+test (1)	Run astral-sh/setup-uv@v7	2026-10-07T20:08:50.7586619Z cache restored from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-f1045d36cd5d4a901a43bec9e685cca9bb12d4b8702cd5dde7d596e2aa1ae359
+test (1)	Run uv sync --dev	﻿2026-10-07T20:08:50.8242111Z ##[group]Run uv sync --dev
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8242450Z ^[[36;1muv sync --dev^[[0m
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8542948Z shell: /usr/bin/bash -e {0}
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8543226Z env:
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8543436Z   GIT_AUTHOR_NAME: Orchestra CI
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8543933Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8544266Z   GIT_COMMITTER_NAME: Orchestra CI
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8544824Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8545231Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8545635Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8545938Z ##[endgroup]
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8732693Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8733133Z Creating virtual environment at: .venv
+test (1)	Run uv sync --dev	2026-10-07T20:08:50.8771206Z Resolved 80 packages in 0.86ms
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0111377Z Downloading aiohttp (1.7MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0127892Z Downloading uvloop (4.2MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0134867Z Downloading pydantic-core (2.0MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0149952Z Downloading pillow (6.3MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0151458Z Downloading playwright (45.3MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0153405Z Downloading cryptography (4.5MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0157968Z Downloading pygments (1.2MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.0171867Z Downloading claude-agent-sdk (76.7MiB)
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.4339588Z  Downloaded pygments
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.4645583Z  Downloaded aiohttp
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.4760185Z  Downloaded pydantic-core
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.5412786Z  Downloaded uvloop
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.5501872Z  Downloaded cryptography
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.5675848Z  Downloaded pillow
+test (1)	Run uv sync --dev	2026-10-07T20:08:51.8625082Z  Downloaded playwright
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1340984Z  Downloaded claude-agent-sdk
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1343364Z Prepared 76 packages in 1.25s
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1973888Z Installed 76 packages in 62ms
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1975118Z  + aiofiles==25.1.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1975567Z  + aiogram==3.28.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1976000Z  + aiohappyeyeballs==2.6.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1976488Z  + aiohttp==3.13.5
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1976870Z  + aiosignal==1.4.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1977406Z  + annotated-doc==0.0.4
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1978013Z  + annotated-types==0.7.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1978508Z  + anyio==4.13.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1979015Z  + attrs==26.1.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1979588Z  + certifi==2026.5.20
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1985673Z  + cffi==2.0.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1986156Z  + charset-normalizer==3.4.7
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1986642Z  + claude-agent-sdk==0.2.114
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1987076Z  + click==8.4.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1987429Z  + croniter==6.2.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1987800Z  + cryptography==48.0.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1988190Z  + execnet==2.1.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1988552Z  + fastapi==0.136.3
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1988932Z  + frozenlist==1.8.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1989311Z  + greenlet==3.5.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1989676Z  + h11==0.16.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1990041Z  + httpcore==1.0.9
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1990410Z  + httptools==0.8.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1990798Z  + httpx==0.28.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1991172Z  + httpx-sse==0.4.3
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1991536Z  + idna==3.16
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1991879Z  + iniconfig==2.3.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1992244Z  + jinja2==3.1.6
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1992607Z  + jsonschema==4.26.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1993059Z  + jsonschema-specifications==2025.9.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1993583Z  + magic-filter==1.0.12
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1993983Z  + markdown==3.10.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1994358Z  + markupsafe==3.0.3
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1994970Z  + mcp==1.27.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1995341Z  + multidict==6.7.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1995710Z  + packaging==26.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1996073Z  + pillow==11.3.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1996438Z  + playwright==1.60.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1996828Z  + pluggy==1.6.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1997184Z  + propcache==0.5.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1997547Z  + pycparser==3.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1997908Z  + pydantic==2.13.4
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1998281Z  + pydantic-core==2.46.4
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1998720Z  + pydantic-settings==2.14.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1999456Z  + pyee==13.0.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.1999821Z  + pygments==2.20.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2000168Z  + pyjwt==2.13.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2000489Z  + pyromark==0.9.11
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2000815Z  + pytest==9.0.3
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2001370Z  + pytest-asyncio==1.4.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2001764Z  + pytest-base-url==2.1.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2002174Z  + pytest-playwright==0.8.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2002594Z  + pytest-timeout==2.4.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2002979Z  + pytest-xdist==3.8.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2003361Z  + python-dateutil==2.9.0.post0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2003798Z  + python-dotenv==1.2.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2004195Z  + python-multipart==0.0.29
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2004831Z  + python-slugify==8.0.4
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2005230Z  + pyyaml==6.0.3
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2005594Z  + referencing==0.37.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2006031Z  + requests==2.34.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2006491Z  + rpds-py==0.30.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2006897Z  + six==1.17.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2007407Z  + sniffio==1.3.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2007777Z  + sse-starlette==3.4.4
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2008159Z  + starlette==1.1.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2008568Z  + telegramify-markdown==1.1.5
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2009016Z  + text-unidecode==1.3
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2009515Z  + typing-extensions==4.15.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2009980Z  + typing-inspection==0.4.2
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2010460Z  + urllib3==2.7.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2013964Z  + uvicorn==0.48.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2014371Z  + uvloop==0.22.1
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2014952Z  + watchfiles==1.2.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2015354Z  + websockets==16.0
+test (1)	Run uv sync --dev	2026-10-07T20:08:52.2015720Z  + yarl==1.24.2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	﻿2026-10-07T20:08:52.2083535Z ##[group]Run sudo apt-get update && sudo apt-get install -y ffmpeg
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2084137Z ^[[36;1msudo apt-get update && sudo apt-get install -y ffmpeg^[[0m
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2145621Z shell: /usr/bin/bash -e {0}
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2145901Z env:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2146127Z   GIT_AUTHOR_NAME: Orchestra CI
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2146460Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2146810Z   GIT_COMMITTER_NAME: Orchestra CI
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2147143Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2147556Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2147990Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.2148317Z ##[endgroup]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.3032359Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.3359732Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.3362949Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.3375748Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.3420942Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.3445752Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.4680008Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.4791201Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [463 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.4905435Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [519 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5184461Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1375 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5326111Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [306 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5345659Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [181 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5365606Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1702 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5468828Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [341 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5507628Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5539624Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1730 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5667251Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [396 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5723976Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [13.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.5737218Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6333816Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5752 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6366020Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6605401Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1073 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6689527Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [223 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6718434Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6737699Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1218 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6873300Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [245 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6896557Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.6908609Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1566 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.7038816Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [361 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:52.7068162Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse Translation-en [11.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:58.1901827Z Fetched 12.6 MB in 1s (9232 kB/s)
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:58.9936985Z Reading package lists...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.0238800Z Reading package lists...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.1905994Z Building dependency tree...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.1912886Z Reading state information...
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3279073Z The following additional packages will be installed:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3279923Z   i965-va-driver intel-media-va-driver libaacs0 libass9 libasyncns0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3280882Z   libavc1394-0 libavcodec60 libavdevice60 libavfilter9 libavformat60
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3281883Z   libavutil58 libbdplus0 libblas3 libbluray2 libbs2b0 libcaca0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3282969Z   libcdio-cdda2t64 libcdio-paranoia2t64 libcdio19t64 libchromaprint1 libcjson1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3283908Z   libcodec2-1.2 libdav1d7 libdc1394-25 libdecor-0-0 libdecor-0-plugin-1-gtk
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3284958Z   libflac12t64 libflite1 libgbm1 libgl1-mesa-dri libglx-mesa0 libgme0 libgsm1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3286162Z   libhwy1t64 libiec61883-0 libigdgmm12 libjack-jackd2-0 libjxl0.7 liblapack3
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3287292Z   liblilv-0-0 libmbedcrypto7t64 libmp3lame0 libmpg123-0t64 libmysofa1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3288315Z   libopenal-data libopenal1 libopenmpt0t64 libopus0 libplacebo338
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3289400Z   libpocketsphinx3 libpostproc57 libpulse0 librav1e0 libraw1394-11 librist4
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3290544Z   librsvg2-2 librsvg2-common librubberband2 libsamplerate0 libsdl2-2.0-0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3291462Z   libserd-0-0 libshine3 libsndfile1 libsndio7.0 libsord-0-0 libsoxr0 libspeex1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3292092Z   libsphinxbase3t64 libsratom-0-0 libsrt1.5-gnutls libssh-gcrypt-4
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3292591Z   libsvtav1enc1d1 libswresample4 libswscale7 libtheora0 libtwolame0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3293084Z   libudfread0 libunibreak5 libva-drm2 libva-x11-2 libva2 libvdpau1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3293571Z   libvidstab1.1 libvorbisenc2 libvpl2 libvpx9 libx264-164 libx265-199
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3294070Z   libxcb-shape0 libxv1 libxvidcore4 libzimg2 libzix-0-0 libzvbi-common
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3294723Z   libzvbi0t64 mesa-libgallium mesa-va-drivers mesa-vdpau-drivers
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3295358Z   ocl-icd-libopencl1 pocketsphinx-en-us va-driver-all vdpau-driver-all
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3295783Z Suggested packages:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3296152Z   ffmpeg-doc i965-va-driver-shaders libcuda1 libnvcuvid1 libnvidia-encode1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3296712Z   libbluray-bdj jackd2 libportaudio2 opus-tools pulseaudio libraw1394-doc
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3297632Z   librsvg2-bin serdi sndiod sordi speex opencl-icd libvdpau-va-gl1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3773860Z The following NEW packages will be installed:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3775234Z   ffmpeg i965-va-driver intel-media-va-driver libaacs0 libass9 libasyncns0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3776246Z   libavc1394-0 libavcodec60 libavdevice60 libavfilter9 libavformat60
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3776872Z   libavutil58 libbdplus0 libblas3 libbluray2 libbs2b0 libcaca0
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3785447Z   libcdio-cdda2t64 libcdio-paranoia2t64 libcdio19t64 libchromaprint1 libcjson1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3786439Z   libcodec2-1.2 libdav1d7 libdc1394-25 libdecor-0-0 libdecor-0-plugin-1-gtk
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3787380Z   libflac12t64 libflite1 libgme0 libgsm1 libhwy1t64 libiec61883-0 libigdgmm12
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3788283Z   libjack-jackd2-0 libjxl0.7 liblapack3 liblilv-0-0 libmbedcrypto7t64
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3789143Z   libmp3lame0 libmpg123-0t64 libmysofa1 libopenal-data libopenal1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3790037Z   libopenmpt0t64 libopus0 libplacebo338 libpocketsphinx3 libpostproc57
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3790665Z   libpulse0 librav1e0 libraw1394-11 librist4 librsvg2-2 librsvg2-common
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3791180Z   librubberband2 libsamplerate0 libsdl2-2.0-0 libserd-0-0 libshine3
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3791697Z   libsndfile1 libsndio7.0 libsord-0-0 libsoxr0 libspeex1 libsphinxbase3t64
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3792630Z   libsratom-0-0 libsrt1.5-gnutls libssh-gcrypt-4 libsvtav1enc1d1
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3793150Z   libswresample4 libswscale7 libtheora0 libtwolame0 libudfread0 libunibreak5
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3793713Z   libva-drm2 libva-x11-2 libva2 libvdpau1 libvidstab1.1 libvorbisenc2 libvpl2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3794258Z   libvpx9 libx264-164 libx265-199 libxcb-shape0 libxv1 libxvidcore4 libzimg2
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3795030Z   libzix-0-0 libzvbi-common libzvbi0t64 mesa-va-drivers mesa-vdpau-drivers
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3795978Z   ocl-icd-libopencl1 pocketsphinx-en-us va-driver-all vdpau-driver-all
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3796727Z The following packages will be upgraded:
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3797344Z   libgbm1 libgl1-mesa-dri libglx-mesa0 mesa-libgallium
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3985416Z 4 upgraded, 99 newly installed, 0 to remove and 26 not upgraded.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3986292Z Need to get 105 MB of archives.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3986905Z After this operation, 227 MB of additional disk space will be used.
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.3987681Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:08:59.6500547Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva2 amd64 2.20.0-2ubuntu0.2 [66.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:00.4732467Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-drm2 amd64 2.20.0-2ubuntu0.2 [7124 B]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:00.9042830Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-x11-2 amd64 2.20.0-2ubuntu0.2 [12.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:01.2164799Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvdpau1 amd64 1.5-2build1 [27.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:01.6718655Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvpl2 amd64 2023.3.0-1build1 [99.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:02.7595556Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ocl-icd-libopencl1 amd64 2.3.2-1build1 [38.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:03.3379267Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavutil58 amd64 7:6.1.1-3ubuntu5 [401 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:09:07.5289856Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcodec2-1.2 amd64 1.2.0-2build1 [8998 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:10:39.2620151Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdav1d7 amd64 1.4.1-1build1 [604 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:10:46.0824274Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgsm1 amd64 1.0.22-1build1 [27.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:10:46.5942334Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libhwy1t64 amd64 1.0.7-8.1build1 [584 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:10:52.6612810Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libjxl0.7 amd64 0.7.0-10.2ubuntu6.1 [1001 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:11:03.3689855Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libmp3lame0 amd64 3.100-6build1 [142 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:11:05.0278490Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libopus0 amd64 1.4-1build1 [208 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:11:07.3415346Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librav1e0 amd64 0.7.1-2 [1022 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:11:52.7514188Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 librsvg2-2 amd64 2.58.0+dfsg-1ubuntu0.1 [2141 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:13.6683168Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libshine3 amd64 3.1.1-2build1 [23.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:14.0900176Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libspeex1 amd64 1.2.1-2ubuntu2.24.04.1 [59.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:14.8492120Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsvtav1enc1d1 amd64 1.7.0+dfsg-2build1 [2425 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:37.0459089Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsoxr0 amd64 0.1.3-4build3 [80.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:37.9647842Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswresample4 amd64 7:6.1.1-3ubuntu5 [63.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:38.8561595Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtheora0 amd64 1.1.1+dfsg.1-16.1build3 [211 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:40.9829506Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtwolame0 amd64 0.4.0-2build3 [52.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:41.7029356Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvorbisenc2 amd64 1.3.7-1build3 [80.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:42.7010682Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libvpx9 amd64 1.14.0-1ubuntu2.3 [1143 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:12:54.2076061Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx264-164 amd64 2:0.164.3108+git31e19f9-1 [604 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:13:00.5234885Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx265-199 amd64 3.5-2build1 [1226 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:13:14.4923049Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libxvidcore4 amd64 2:1.3.7-1build1 [219 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:13:17.1598177Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi-common all 0.2.42-2 [42.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:13:17.8900177Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi0t64 amd64 0.2.42-2 [261 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:13:21.0273351Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavcodec60 amd64 7:6.1.1-3ubuntu5 [5851 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:26.0522039Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libraw1394-11 amd64 2.1.2-2build3 [26.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:26.6395092Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libavc1394-0 amd64 0.5.4-5build3 [15.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:27.1330577Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libunibreak5 amd64 5.1-2build1 [25.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:27.6685095Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libass9 amd64 1:0.17.1-2build1 [104 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:29.2015679Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libudfread0 amd64 1.1.2-1build1 [19.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:29.7416111Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbluray2 amd64 1:1.3.4-1build1 [159 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:31.8417562Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libchromaprint1 amd64 1.5.1-5 [30.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:32.4182899Z Get:40 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgme0 amd64 0.6.3-7build1 [134 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:34.1217512Z Get:41 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpg123-0t64 amd64 1.32.5-1ubuntu1.1 [169 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:36.3931815Z Get:42 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenmpt0t64 amd64 0.7.3-1.1build3 [647 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:44.0522812Z Get:43 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcjson1 amd64 1.7.17-1 [24.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:44.7223207Z Get:44 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmbedcrypto7t64 amd64 2.28.8-1 [209 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:47.3473865Z Get:45 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librist4 amd64 0.2.10+dfsg-2 [74.9 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:48.4470787Z Get:46 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsrt1.5-gnutls amd64 1.5.3-1build2 [316 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:52.3443399Z Get:47 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libssh-gcrypt-4 amd64 0.10.6-2ubuntu0.5 [226 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:14:55.4268935Z Get:48 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavformat60 amd64 7:6.1.1-3ubuntu5 [1153 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:15:09.8462616Z Get:49 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbs2b0 amd64 3.1.0+dfsg-7build1 [10.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:15:10.2225887Z Get:50 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libflite1 amd64 2.2-6build3 [13.6 MB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:08.8417506Z Get:51 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libserd-0-0 amd64 0.32.2-1 [43.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:09.7350938Z Get:52 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzix-0-0 amd64 0.4.2-2build1 [23.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:10.4418445Z Get:53 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsord-0-0 amd64 0.16.16-2build1 [15.8 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:11.0554002Z Get:54 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsratom-0-0 amd64 0.6.16-1build1 [17.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:11.6172173Z Get:55 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 liblilv-0-0 amd64 0.24.22-1build1 [41.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:12.5344401Z Get:56 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmysofa1 amd64 1.3.2+dfsg-2ubuntu2 [1158 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:18:29.4383425Z Get:57 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libplacebo338 amd64 6.338.2-2build1 [2654 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:07.0980919Z Get:58 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libblas3 amd64 3.12.0-3build1.1 [238 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:10.5979974Z Get:59 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 liblapack3 amd64 3.12.0-3build1.1 [2646 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:47.7983450Z Get:60 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libasyncns0 amd64 0.8-6build4 [11.3 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:49.0185665Z Get:61 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libflac12t64 amd64 1.4.3+ds-2.1ubuntu2 [197 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:52.0377899Z Get:62 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsndfile1 amd64 1.2.2-1ubuntu5.24.04.1 [209 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:55.2038278Z Get:63 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpulse0 amd64 1:16.1+dfsg1-2ubuntu10.1 [292 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:19:59.5025392Z Get:64 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsphinxbase3t64 amd64 0.8+5prealpha+1-17build2 [126 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:02.7996037Z Get:65 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpocketsphinx3 amd64 0.8.0+real5prealpha+1-15ubuntu5 [133 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:04.9329870Z Get:66 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpostproc57 amd64 7:6.1.1-3ubuntu5 [49.9 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:05.9443073Z Get:67 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libsamplerate0 amd64 0.2.2-4build1 [1344 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:24.5336333Z Get:68 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librubberband2 amd64 3.3.0+dfsg-2build1 [130 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:26.4853379Z Get:69 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswscale7 amd64 7:6.1.1-3ubuntu5 [193 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:29.2220129Z Get:70 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvidstab1.1 amd64 1.1.0-2build1 [38.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:32.7414286Z Get:71 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzimg2 amd64 3.0.5+ds1-1build1 [254 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:20:38.9111490Z Get:72 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavfilter9 amd64 7:6.1.1-3ubuntu5 [4235 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:28.2974965Z Get:73 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libcaca0 amd64 0.99.beta20-4ubuntu0.2 [209 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:31.0780258Z Get:74 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libcdio19t64 amd64 2.1.0-4.1ubuntu1.2 [62.4 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:32.0250445Z Get:75 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdio-cdda2t64 amd64 10.2+2.0.1-1.1build2 [16.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:32.5268304Z Get:76 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdio-paranoia2t64 amd64 10.2+2.0.1-1.1build2 [16.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:33.0328592Z Get:77 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdc1394-25 amd64 2.2.6-4build1 [90.1 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:40.3058960Z Get:78 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libiec61883-0 amd64 1.2.0-6build1 [24.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:40.8120843Z Get:79 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libjack-jackd2-0 amd64 1.9.21~dfsg-3ubuntu3 [289 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:44.5408535Z Get:80 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenal-data all 1:1.23.1-4build1 [161 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:46.7188616Z Get:81 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsndio7.0 amd64 1.9.0-0.3build3 [29.6 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:48.0543397Z Get:82 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenal1 amd64 1:1.23.1-4build1 [540 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:54.4033535Z Get:83 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libdecor-0-0 amd64 0.2.2-1build2 [16.5 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:55.2699579Z Get:84 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgl1-mesa-dri amd64 25.2.8-0ubuntu0.24.04.4 [38.0 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:55.9243473Z Get:85 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libglx-mesa0 amd64 25.2.8-0ubuntu0.24.04.4 [110 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:57.8269669Z Get:86 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgbm1 amd64 25.2.8-0ubuntu0.24.04.4 [34.2 kB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:24:58.6197289Z Get:87 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 mesa-libgallium amd64 25.2.8-0ubuntu0.24.04.4 [10.8 MB]
+test (1)	Run sudo apt-get update && sudo apt-get install -y ffmpeg	2026-10-07T20:28:52.3912136Z ##[error]The operation was canceled.
+test (1)	Post Run actions/checkout@v5	﻿2026-10-07T20:28:52.4046925Z Post job cleanup.
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.4932776Z [command]/usr/bin/git version
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.4974903Z git version 2.55.0
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5017531Z Temporarily overriding HOME='/home/runner/work/_temp/70a8534d-2711-4974-ae08-1c07838f755d' before making global git config changes
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5018606Z Adding repository directory to the temporary git global config as a safe directory
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5023053Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5063846Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5099857Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5351101Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5431570Z http.https://github.com/.extraheader
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5433428Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5439306Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5715656Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (1)	Post Run actions/checkout@v5	2026-10-07T20:28:52.5766182Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (1)	Complete job	﻿2026-10-07T20:28:52.6155989Z Cleaning up orphan processes
