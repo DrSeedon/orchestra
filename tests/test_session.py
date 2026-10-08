@@ -3095,6 +3095,7 @@ class TestRateLimitClassification:
             scope="/test",
             runtime="claude",
             model="claude-sonnet-5-5[1m]",
+            billing_mode="subscription",
             task_id="",
             ok=True,
             stop_reason="end_turn",
@@ -4089,7 +4090,7 @@ class TestEnsureBackendForceFresh:
              patch.object(session._hibernate, "heartbeat_loop", AsyncMock()):
             result = await session._ensure_backend(force_fresh=True)
         disc.assert_awaited_once()
-        mk.assert_called_once_with(force_fresh=True)
+        mk.assert_called_once_with(force_fresh=True, billing_mode="subscription")
         assert result is new
 
     @pytest.mark.asyncio
@@ -5421,7 +5422,8 @@ async def test_two_db_backed_claude_connects_render_identical_history(
     monkeypatch.setattr(
         session,
         "_make_backend",
-        lambda force_fresh=False, history_import=None: Backend(history_import),
+        lambda force_fresh=False, history_import=None, billing_mode="subscription":
+        Backend(history_import),
     )
     monkeypatch.setattr(session, "_refresh_skills", AsyncMock())
     monkeypatch.setattr(session, "_refresh_codex_project_doc", AsyncMock())

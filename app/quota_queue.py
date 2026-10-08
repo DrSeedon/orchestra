@@ -56,7 +56,9 @@ def wait_error(decision, *, now: float | None = None) -> dict:
         "details": {
             "provider": decision.provider,
             "provider_label": decision.provider_label,
+            "billing_mode": decision.billing_mode,
             "utilization": decision.utilization,
+            "reason": decision.reason,
             "release_status": decision.release_status,
             "release_in_seconds": decision.release_in_seconds,
             "reset_at": decision.reset_at,

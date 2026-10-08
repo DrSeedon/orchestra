@@ -515,6 +515,7 @@ CREATE TABLE turn_usage (
                 model TEXT NOT NULL,
                 ok INTEGER NOT NULL,
                 stop_reason TEXT NOT NULL,
+                billing_mode TEXT NOT NULL DEFAULT 'subscription',
                 cost_usd REAL,
                 cost_unaccounted INTEGER NOT NULL DEFAULT 0,
                 input_tokens INTEGER NOT NULL,

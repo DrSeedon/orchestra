@@ -175,7 +175,9 @@ def no_real_exit_guard(monkeypatch):
 @pytest.fixture(autouse=True)
 def _stable_worker_quota(request, monkeypatch):
     """Ordinary tests never read live subscription telemetry."""
-    if request.node.path.name in {"test_quota_gate.py", "test_usage_readiness.py"}:
+    if request.node.path.name in {
+        "test_quota_gate.py", "test_usage_readiness.py", "test_claude_api_credits.py",
+    }:
         return
     from app import quota_gate
 

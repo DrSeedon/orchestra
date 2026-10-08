@@ -302,6 +302,66 @@ class TurnManager:
         s._turn_start = 0
         ok, sr, nt = s._cost.apply_turn_result(meta, event.usage)
         event_id = str(meta.get("event_id") or "")
+        if meta.get("billing_mode") == "api_credit" and (
+            not event_id or cost_unaccounted
+        ):
+            from app.claude_api_credits import mark_credit_usage_unresolved
+
+            try:
+                mark_credit_usage_unresolved()
+            except Exception as error:
+                logger.error(
+                    "[%s] could not persist unresolved Claude API-credit usage: %s",
+                    s.name, type(error).__name__,
+                )
+        api_credit_exhausted = (
+            not ok
+            and meta.get("api_credit_exhausted") is True
+            and meta.get("billing_mode") == "api_credit"
+        )
+        if api_credit_exhausted:
+            from dataclasses import replace
+            from app.claude_api_credits import mark_credits_exhausted
+
+            s._session_limit_hit = True
+            try:
+                mark_credits_exhausted()
+            except Exception as error:
+                logger.error(
+                    "[%s] could not persist Claude API-credit exhaustion: %s",
+                    s.name, type(error).__name__,
+                )
+            decision = getattr(s, "_last_admission_decision", None)
+            delivery = getattr(s, "_active_delivery_context", None)
+            park = getattr(delivery, "park_for_credit_exhaustion", None)
+            if decision is not None and callable(park):
+                waiting_decision = replace(
+                    decision,
+                    state="blocked",
+                    billing_mode="subscription",
+                    reason=(
+                        "Claude API credits are exhausted; this delivery waits for "
+                        "the Claude subscription window"
+                    ),
+                )
+                try:
+                    park(waiting_decision)
+                    s._log(
+                        "status",
+                        "Claude API credits exhausted; delivery parked until the "
+                        "Claude subscription quota opens",
+                    )
+                except Exception as error:
+                    logger.error(
+                        "[%s] failed to park credit-exhausted delivery: %s",
+                        s.name, type(error).__name__,
+                    )
+            else:
+                s._log(
+                    "error",
+                    "Claude API credits exhausted; the next worker turn waits for "
+                    "the Claude subscription quota",
+                )
         if ok and event_id and s.backend_type == "codex":
             from app import mailbox
 
@@ -312,7 +372,7 @@ class TurnManager:
                     f"[{s.name}] successful-turn steer cleanup failed: "
                     f"{type(error).__name__}: {error}"
                 )
-        if not ok and event_id:
+        if not ok and event_id and not api_credit_exhausted:
             from app import message_deliveries
 
             try:
@@ -366,6 +426,7 @@ class TurnManager:
                 task_id=s.task_id,
                 runtime=s.backend_type,
                 model=s.model,
+                billing_mode=str(meta.get("billing_mode") or "subscription"),
                 ok=ok,
                 stop_reason=sr,
                 **cost_fields,

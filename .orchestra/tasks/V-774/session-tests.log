@@ -1,0 +1,163 @@
+........................................................................ [ 29%]
+........................................................................ [ 58%]
+........................................................................ [ 87%]
+.........................F.....                                          [100%]
+=================================== FAILURES ===================================
+_________ test_two_db_backed_claude_connects_render_identical_history __________
+
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7d7afc905190>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-16397/test_two_db_backed_claude_conn0')
+
+    @pytest.mark.asyncio
+    async def test_two_db_backed_claude_connects_render_identical_history(
+        session, monkeypatch, tmp_path,
+    ):
+        from app import db as dbmod
+        from app.runtime_history import CLAUDE_HISTORY_SOURCE
+    
+        session.session_id = "11111111-2222-4333-8444-555555555555"
+        session.history_import_source = CLAUDE_HISTORY_SOURCE
+        session.backend_type = "claude"
+        db_path = tmp_path / "reconnect.db"
+        monkeypatch.setattr(dbmod, "DB_PATH", db_path)
+        dbmod.init_db()
+        dbmod.save_session(session._to_db_dict())
+        dbmod.add_log(
+            session.id,
+            datetime.now(timezone.utc),
+            "user_message",
+            "same history",
+            provenance=USER_PROVENANCE,
+        )
+        dbmod.add_log(
+            session.id,
+            datetime.now(timezone.utc),
+            "text",
+            "same answer",
+        )
+        rendered = []
+    
+        class Backend:
+            def __init__(self, history_import):
+                self.session_id = history_import.session_id
+                rendered.append(history_import)
+    
+            async def connect(self):
+                return None
+    
+            async def disconnect(self):
+                return None
+    
+        monkeypatch.setattr(
+            session,
+            "_make_backend",
+            lambda force_fresh=False, history_import=None: Backend(history_import),
+        )
+        monkeypatch.setattr(session, "_refresh_skills", AsyncMock())
+        monkeypatch.setattr(session, "_refresh_codex_project_doc", AsyncMock())
+        session._activate_backend_tasks = MagicMock()
+    
+>       await session._ensure_backend()
+
+tests/test_session.py:5431: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+force_fresh = False
+history_import = ClaudeHistoryImport(session_id='11111111-2222-4333-8444-555555555555', entries=({'parentUuid': None, 'isSidechain': Fa...sistants=1, tool_calls=0, tool_results=0, tool_detailed_chars=0, truncated=0, secrets_redacted=0, reasoning_omitted=0))
+exclude_history_users = (), activate = True, _allow_codex_oversize_retry = True
+billing_mode = None
+
+    async def _ensure_backend(
+        self,
+        force_fresh: bool = False,
+        history_import=None,
+        exclude_history_users: tuple[str, ...] = (),
+        activate: bool = True,
+        _allow_codex_oversize_retry: bool = True,
+        billing_mode: str | None = None,
+    ):
+        desired_billing_mode = billing_mode or self._billing_mode
+        if desired_billing_mode not in {"subscription", "api_credit"}:
+            raise ValueError("billing_mode must be subscription or api_credit")
+        if desired_billing_mode == "api_credit" and (
+            self.backend_type != "claude" or self.is_orchestrator
+        ):
+            raise ValueError("Claude API credits are restricted to Claude worker sessions")
+        if desired_billing_mode == "api_credit":
+            from app.claude_api_credits import credit_status
+    
+            if not credit_status().get("available"):
+                decision = self._last_admission_decision
+                if decision is not None and decision.billing_mode == "api_credit":
+                    from dataclasses import replace
+                    from app.quota_gate import QuotaGateError
+    
+                    raise QuotaGateError(replace(
+                        decision,
+                        state="blocked",
+                        billing_mode="subscription",
+                        reason=(
+                            "Claude API credits became unavailable before provider submission"
+                        ),
+                    ))
+                desired_billing_mode = "subscription"
+        if self._backend is not None:
+            current_billing_mode = getattr(self._backend, "billing_mode", self._billing_mode)
+            if not force_fresh and (
+                self.backend_type != "claude"
+                or current_billing_mode == desired_billing_mode
+            ):
+                if self._runtime_error:
+                    raise RuntimeError(f"runtime connection failed; reconnect this CLI before sending: {self._runtime_error}")
+                return self._backend
+            await self._disconnect_backend()
+        project_path = self.worktree_path or self.cwd
+        if self.backend_type == "codex" and project_path:
+            # Codex reads AGENTS.md, not CLAUDE.md. Refresh the mirror before the CLI starts,
+            # otherwise a long-lived worker keeps the project rules from its spawn day.
+            # Orchestrators have no worktree, so cwd must be included too; omitting it left
+            # every root Codex orchestrator without its repository's CLAUDE.md rules.
+            agents_started = time.monotonic()
+            try:
+                from app.workspace import sync_agents_md
+                await asyncio.to_thread(sync_agents_md, project_path)
+            except Exception as e:
+                logger.warning(f"[{self.name}] AGENTS.md mirror refresh failed: {e}")
+            finally:
+                self._log_codex_connect_stage("agents_sync", agents_started)
+        skills_started = time.monotonic()
+        await self._refresh_skills()
+        self._log_codex_connect_stage("skills_sync", skills_started)
+        project_doc_started = time.monotonic()
+        await self._refresh_codex_project_doc()
+        self._log_codex_connect_stage("project_doc_sync", project_doc_started)
+        if (
+            history_import is None
+            and not force_fresh
+            and self.backend_type == "claude"
+            and self.history_import_source == CLAUDE_HISTORY_SOURCE
+            and self.session_id
+        ):
+            history_import = await self._build_claude_history_import(
+                self.session_id,
+                self.model,
+                exclude_history_users,
+            )
+        if history_import is None:
+            self._backend = self._make_backend(
+                force_fresh=force_fresh, billing_mode=desired_billing_mode,
+            )
+        else:
+>           self._backend = self._make_backend(
+                force_fresh=force_fresh,
+                history_import=history_import,
+                billing_mode=desired_billing_mode,
+            )
+E           TypeError: test_two_db_backed_claude_connects_render_identical_history.<locals>.<lambda>() got an unexpected keyword argument 'billing_mode'
+
+app/session.py:2092: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::test_two_db_backed_claude_connects_render_identical_history
+1 failed, 246 passed in 10.09s

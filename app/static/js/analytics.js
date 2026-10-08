@@ -291,6 +291,13 @@ function _analyticsRenderOverview(body) {
     const observedCostDetail = T('{priced} priced turns', {priced: _analyticsNumber(pricedTurns)})
         + (unaccountedTurns ? ` · ${T('{n} unaccounted', {n: _analyticsNumber(unaccountedTurns)})}` : '');
 
+    const apiCredits = data.claude_api_credits || {};
+    const creditState = apiCredits.available
+        ? T('Fallback ready')
+        : T(({disabled: 'Fallback disabled', missing_key: 'API key not configured',
+            expired: 'Credits expired', exhausted: 'Credits exhausted',
+            unknown_usage: 'Tracking unavailable'}[apiCredits.reason]) || 'no data');
+
     body.innerHTML = `
         ${_analyticsWakePanel()}
         <section class="analytics-route analytics-route-${routing.tone}">
@@ -300,6 +307,16 @@ function _analyticsRenderOverview(body) {
         <section>
             <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Two independent pools')}</span><h3>${T('Pools and costs')}</h3></div><span>${T('Costs are virtual, limits are subscription-based')}</span></div>
             <div class="analytics-provider-grid">${providerCards || '<div class="analytics-empty">' + T('Provider data not yet accumulated.') + '</div>'}</div>
+        </section>
+        <section class="analytics-panel" data-analytics-api-credits>
+            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Claude workers')}</span><h3>${T('Claude API credits')}</h3></div><span>${creditState}</span></div>
+            <div class="analytics-reliability-stats">
+                <div><span>${T('Estimated remaining')}</span><strong>${_analyticsMoney(apiCredits.remaining_usd)}</strong></div>
+                <div><span>${T('Tracked spend')}</span><strong>${_analyticsMoney(apiCredits.tracked_spend_usd)}</strong></div>
+                <div><span>${T('Balance baseline')}</span><strong>${_analyticsDateTime(apiCredits.baseline_at)}</strong></div>
+                <div><span>${T('Credits expire')}</span><strong>${_analyticsDateTime(apiCredits.expires_at)}</strong></div>
+            </div>
+            <p class="analytics-footnote">${T('Usage estimate includes only Claude API-credit turns recorded by Orchestra; other Console clients are not included.')}</p>
         </section>
         <section class="analytics-kpi-grid">
             ${_analyticsKpi(T('For period'), _analyticsMoney(summary.observed_cost_usd), observedCostDetail)}

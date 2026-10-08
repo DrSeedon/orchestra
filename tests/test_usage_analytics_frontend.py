@@ -415,6 +415,31 @@ def test_analytics_renders_usd_when_task_currency_is_rubles(browser):
     page.close()
 
 
+def test_overview_shows_estimated_claude_api_credit_balance_and_expiry(browser):
+    page = _page(browser)
+    page.evaluate("""() => {
+        const original = window.api;
+        window.api = async url => {
+            const payload = await original(url);
+            payload.claude_api_credits = {
+                enabled: true, available: true, reason: 'available',
+                remaining_usd: 199.674904, tracked_spend_usd: 0,
+                baseline_at: '2026-10-08T09:23:30+00:00',
+                expires_at: '2026-11-04T00:00:00+00:00',
+            };
+            return payload;
+        };
+    }""")
+    page.evaluate("openAnalyticsModal()")
+
+    credit_card = page.locator("[data-analytics-api-credits]")
+    expect(credit_card).to_contain_text("$199.67")
+    expect(credit_card).to_contain_text("Fallback ready")
+    expect(credit_card).to_contain_text("Nov 04")
+    assert "sk-test" not in credit_card.inner_text()
+    page.close()
+
+
 def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):
     page = _page(browser)
 

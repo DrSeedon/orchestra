@@ -1,0 +1,242 @@
+..................F.FFFFFFF                                              [100%]
+=================================== FAILURES ===================================
+___ test_blocked_messages_wait_then_leave_in_accept_order_without_duplicates ___
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc03f20>, manager=<tests.test_quota_wait_queue.FakeM...083cc03fe0>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_blocked_messages_wait_then_leave_in_accept_order_without_duplicates(env):
+        from app import quota_queue
+    
+        # Первое отбито на приёмке (preflight), второе принято, пока гейт ещё закрыт и голова
+        # уже ждёт: обогнать её оно не вправе.
+        await _accept(IDS[0], "first", parked=True)
+        await _accept(IDS[1], "second")
+        # Повтор отправителя тем же delivery_id — не новое сообщение.
+        resource, _ = await _accept(IDS[0], "first", parked=True)
+        assert resource["acceptance"] == "ALREADY_ACCEPTED"
+    
+        await _drain()
+        assert env.manager.delivered == []
+        assert _states(env.db) == {IDS[0]: "WAITING_QUOTA", IDS[1]: "QUEUED"}
+    
+>       assert await quota_queue.release_waiting() == 0  # гейт закрыт: ничего не уходит
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_wait_queue.py:174: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def release_waiting() -> int:
+        """Один проход: всё, что гейт теперь пропускает, возвращается в обычную очередь.
+    
+        Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
+        и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
+        """
+>       from app import initial_deliveries, message_deliveries
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+app/quota_queue.py:199: IndentationError
+_ test_api_credit_refusal_reparks_submitted_delivery_until_subscription_opens __
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc0ffb0>, manager=<tests.test_quota_wait_queue.FakeM...083cc0fef0>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_api_credit_refusal_reparks_submitted_delivery_until_subscription_opens(env):
+        from app import message_deliveries, quota_queue
+    
+        env.gate.open()
+        await _accept(IDS[0], "Claude API credit probe")
+        await _drain()
+        assert _states(env.db)[IDS[0]] == "SUBMITTED"
+    
+        parked = message_deliveries.park_submitted_delivery_for_quota(
+            IDS[0], _decision(20.0),
+        )
+>       assert parked["state"] == "WAITING_QUOTA"
+               ^^^^^^^^^^^^^^^
+E       KeyError: 'state'
+
+tests/test_quota_wait_queue.py:210: KeyError
+______ test_waiting_delivery_survives_restart_and_is_released_afterwards _______
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc24860>, manager=<tests.test_quota_wait_queue.FakeM...083cc247d0>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_waiting_delivery_survives_restart_and_is_released_afterwards(env):
+        from app import message_deliveries, quota_queue
+    
+        await _accept(IDS[0], "survive", parked=True)
+        # «Рестарт»: память процесса пуста, стартовое восстановление не должно её тронуть.
+        message_deliveries._target_runner_tasks.clear()
+        await message_deliveries.recover_message_deliveries()
+        assert _states(env.db) == {IDS[0]: "WAITING_QUOTA"}
+    
+        env.gate.open()
+>       await quota_queue.release_waiting()
+
+tests/test_quota_wait_queue.py:233: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def release_waiting() -> int:
+        """Один проход: всё, что гейт теперь пропускает, возвращается в обычную очередь.
+    
+        Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
+        и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
+        """
+>       from app import initial_deliveries, message_deliveries
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+app/quota_queue.py:199: IndentationError
+______________ test_owner_override_releases_the_queue_immediately ______________
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc42c90>, manager=<tests.test_quota_wait_queue.FakeM...083cc42c00>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_owner_override_releases_the_queue_immediately(env):
+        from app import quota_gate
+        from app.routes.system import quota_override
+    
+        await _accept(IDS[0], "override", parked=True)
+        assert _decision(20.0).state == "blocked"
+    
+>       response = await quota_override({"minutes": 5})
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_wait_queue.py:246: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/routes/system.py:1753: in quota_override
+    released = await release_waiting()
+               ^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def release_waiting() -> int:
+        """Один проход: всё, что гейт теперь пропускает, возвращается в обычную очередь.
+    
+        Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
+        и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
+        """
+>       from app import initial_deliveries, message_deliveries
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+app/quota_queue.py:199: IndentationError
+_______ test_cancel_removes_waiting_message_and_unblocks_the_ones_behind _______
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc65f40>, manager=<tests.test_quota_wait_queue.FakeM...083cc65eb0>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_cancel_removes_waiting_message_and_unblocks_the_ones_behind(env):
+        from app import message_deliveries, quota_queue
+    
+        await _accept(IDS[0], "cancel-me", parked=True)
+        await _accept(IDS[1], "keep")
+    
+        body, status = message_deliveries.cancel_message_delivery(IDS[0], "someone-else")
+        assert status == 404  # чужую доставку отменить нельзя
+        body, status = message_deliveries.cancel_message_delivery(IDS[0], SOURCE_ID)
+        assert status == 200 and body["delivery_state"] == "CANCELLED"
+    
+        env.gate.open()
+>       await quota_queue.release_waiting()
+
+tests/test_quota_wait_queue.py:267: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def release_waiting() -> int:
+        """Один проход: всё, что гейт теперь пропускает, возвращается в обычную очередь.
+    
+        Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
+        и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
+        """
+>       from app import initial_deliveries, message_deliveries
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+app/quota_queue.py:199: IndentationError
+___________ test_target_changed_task_fails_loudly_and_sender_is_told ___________
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc254f0>, manager=<tests.test_quota_wait_queue.FakeM...083cc25340>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_target_changed_task_fails_loudly_and_sender_is_told(env):
+        from app import quota_queue
+    
+        await _accept(IDS[0], "stale", parked=True)
+        env.manager.generation = "session=other|task=999|branch=x|needs_switch=0"
+        env.gate.open()
+>       await quota_queue.release_waiting()
+
+tests/test_quota_wait_queue.py:282: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def release_waiting() -> int:
+        """Один проход: всё, что гейт теперь пропускает, возвращается в обычную очередь.
+    
+        Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
+        и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
+        """
+>       from app import initial_deliveries, message_deliveries
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+app/quota_queue.py:199: IndentationError
+_______ test_closed_gate_keeps_waiting_and_long_queue_goes_out_in_order ________
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc68dd0>, manager=<tests.test_quota_wait_queue.FakeM...083cc68c50>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_closed_gate_keeps_waiting_and_long_queue_goes_out_in_order(env):
+        from app import quota_queue
+    
+        for i in range(5):
+            await _accept(IDS[i], f"m{i}", parked=(i == 0))
+        await _drain()
+        assert env.manager.delivered == []
+        for _ in range(3):  # много проходов при закрытом гейте — ничего не уходит и не меняется
+>           assert await quota_queue.release_waiting() == 0
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_wait_queue.py:299: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    async def release_waiting() -> int:
+        """Один проход: всё, что гейт теперь пропускает, возвращается в обычную очередь.
+    
+        Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
+        и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
+        """
+>       from app import initial_deliveries, message_deliveries
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+app/quota_queue.py:199: IndentationError
+______ test_initial_task_waits_for_the_gate_and_precedes_direct_messages _______
+
+env = namespace(gate=<tests.test_quota_wait_queue.Gate object at 0x7d083cc66300>, manager=<tests.test_quota_wait_queue.FakeM...083cc64590>, db=<module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>)
+
+    @pytest.mark.asyncio
+    async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env):
+>       from app import initial_deliveries, quota_queue
+E         File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/initial_deliveries.py", line 471
+E           return _resource(row)
+E       IndentationError: expected an indented block after 'if' statement on line 470
+
+tests/test_quota_wait_queue.py:309: IndentationError
+=========================== short test summary info ============================
+FAILED tests/test_quota_wait_queue.py::test_blocked_messages_wait_then_leave_in_accept_order_without_duplicates
+FAILED tests/test_quota_wait_queue.py::test_api_credit_refusal_reparks_submitted_delivery_until_subscription_opens
+FAILED tests/test_quota_wait_queue.py::test_waiting_delivery_survives_restart_and_is_released_afterwards
+FAILED tests/test_quota_wait_queue.py::test_owner_override_releases_the_queue_immediately
+FAILED tests/test_quota_wait_queue.py::test_cancel_removes_waiting_message_and_unblocks_the_ones_behind
+FAILED tests/test_quota_wait_queue.py::test_target_changed_task_fails_loudly_and_sender_is_told
+FAILED tests/test_quota_wait_queue.py::test_closed_gate_keeps_waiting_and_long_queue_goes_out_in_order
+FAILED tests/test_quota_wait_queue.py::test_initial_task_waits_for_the_gate_and_precedes_direct_messages
+8 failed, 19 passed in 288.49s (0:04:48)

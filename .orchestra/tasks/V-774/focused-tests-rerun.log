@@ -1,0 +1,330 @@
+........................................................................ [ 13%]
+........................................................................ [ 27%]
+........................................................................ [ 40%]
+........................................................................ [ 54%]
+........................................................................ [ 67%]
+........................................................................ [ 81%]
+...........................F...............................F............ [ 94%]
+.........................F.                                              [100%]
+=================================== FAILURES ===================================
+______ test_overview_shows_estimated_claude_api_credit_balance_and_expiry ______
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_overview_shows_estimated_claude_api_credit_balance_and_expiry(browser):
+        page = _page(browser)
+        page.evaluate("""() => {
+            const original = window.api;
+            window.api = async url => {
+                const payload = await original(url);
+                payload.claude_api_credits = {
+                    enabled: true, available: true, reason: 'available',
+                    remaining_usd: 199.674904, tracked_spend_usd: 0,
+                    baseline_at: '2026-10-08T09:23:30+00:00',
+                    expires_at: '2026-11-04T00:00:00+00:00',
+                };
+                return payload;
+            };
+        }""")
+        page.evaluate("openAnalyticsModal()")
+    
+        credit_card = page.locator("[data-analytics-api-credits]")
+        expect(credit_card).to_contain_text("$199.67")
+        expect(credit_card).to_contain_text("Fallback ready")
+>       expect(credit_card).to_contain_text("Nov 4")
+E       AssertionError: Locator expected to contain text 'Nov 4'
+E       Actual value: 
+E                   Claude workersClaude API creditsFallback ready
+E                   
+E                       Estimated remaining$199.67
+E                       Tracked spend$0.00
+E                       Balance baselineOct 08, 11:23 AM
+E                       Credits expireNov 04, 01:00 AM
+E                   
+E                   Usage estimate includes only Claude API-credit turns recorded by Orchestra; other Console clients are not included.
+E                
+E       Call log:
+E         - Expect "to_contain_text" with timeout 5000ms
+E         - waiting for locator("[data-analytics-api-credits]")
+E           14 × locator resolved to <section class="analytics-panel" data-analytics-api-credits="">…</section>
+E              - unexpected value "
+E                   Claude workersClaude API creditsFallback ready
+E                   
+E                       Estimated remaining$199.67
+E                       Tracked spend$0.00
+E                       Balance baselineOct 08, 11:23 AM
+E                       Credits expireNov 04, 01:00 AM
+E                   
+E                   Usage estimate includes only Claude API-credit turns recorded by Orchestra; other Console clients are not included.
+E               "
+
+tests/test_usage_analytics_frontend.py:438: AssertionError
+_ test_t381_retry_after_backend_recovery_submits_once_without_duplicate_input __
+
+delivery_db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x720bcd46e2a0>
+
+    @pytest.mark.asyncio
+    async def test_t381_retry_after_backend_recovery_submits_once_without_duplicate_input(
+        delivery_db, monkeypatch,
+    ):
+        import threading
+    
+        module = _delivery_module()
+        monkeypatch.setattr(module, "ensure_delivery_runner", lambda _delivery_id: None)
+        await _accept(module)
+        failed_session = _t381_session()
+        failed_session._ensure_backend = AsyncMock(
+            side_effect=AttributeError(T381_SHARED_ERROR_TEXT),
+        )
+        with pytest.raises(AttributeError, match="NoneType"):
+            await module.run_initial_delivery(
+                DELIVERY_ID,
+                manager=_T381SessionManager(failed_session),
+            )
+        await asyncio.sleep(0)
+        failed = _delivery_row(delivery_db)
+        assert failed["state"] == "FAILED_BEFORE_SUBMIT"
+        original_user_log_id = failed["user_log_id"]
+        assert original_user_log_id is not None
+        assert len(_user_messages(delivery_db)) == 1
+    
+        conflict, conflict_status = await _accept(module, message=MESSAGE + " changed")
+        assert conflict_status == 409
+        assert conflict["error"]["code"] == "IDEMPOTENCY_CONFLICT"
+    
+        wake_attempts = []
+    
+        def lose_first_wake(delivery_id):
+            wake_attempts.append(delivery_id)
+            raise RuntimeError("simulated crash between retry claim and runner wake")
+    
+        monkeypatch.setattr(module, "ensure_delivery_runner", lose_first_wake)
+        barrier = threading.Barrier(2)
+    
+        def retry_same_delivery():
+            barrier.wait()
+            return asyncio.run(_accept(module))
+    
+        results = await asyncio.gather(
+            asyncio.to_thread(retry_same_delivery),
+            asyncio.to_thread(retry_same_delivery),
+            return_exceptions=True,
+        )
+        failures = [result for result in results if isinstance(result, Exception)]
+        receipts = [result for result in results if not isinstance(result, Exception)]
+        assert len(failures) == 1
+        assert "simulated crash" in str(failures[0])
+        assert len(receipts) == 1 and receipts[0][1] == 202
+        assert wake_attempts == [DELIVERY_ID]
+    
+        claimed = _delivery_row(delivery_db)
+        assert claimed["state"] == "PREPARING"
+        assert claimed["error_json"] is None
+        assert claimed["user_log_id"] == original_user_log_id
+    
+        recovered = []
+        monkeypatch.setattr(
+            module,
+            "ensure_delivery_runner",
+            lambda delivery_id: recovered.append(delivery_id),
+        )
+        await module.recover_initial_deliveries()
+        assert recovered == [DELIVERY_ID]
+    
+        provider_calls = []
+        prompt_preparations = []
+    
+        class _T381RecoveredBackend:
+            active_turn_id = "native-turn-381"
+    
+            async def send(self, message):
+                provider_calls.append(message)
+    
+        recovered_session = _t381_session()
+        recovered_session._ensure_backend = AsyncMock(return_value=_T381RecoveredBackend())
+    
+        def prepare_prompt(message):
+            prompt_preparations.append(message)
+            return message, []
+    
+        recovered_session._attach_pending_facts = prepare_prompt
+        await module.run_initial_delivery(
+            DELIVERY_ID,
+            manager=_T381SessionManager(recovered_session),
+        )
+        await asyncio.sleep(0)
+        row = _delivery_row(delivery_db)
+        assert row["state"] == "SUBMITTED"
+        assert row["user_log_id"] == original_user_log_id
+        assert row["provider_ref"] == "native-turn-381"
+        assert provider_calls == [MESSAGE]
+        assert prompt_preparations == [MESSAGE]
+>       assert recovered_session._ensure_backend.await_args.kwargs == {
+            "exclude_history_users": (MESSAGE,),
+        }
+E       AssertionError: assert {'billing_mod...itial task',)} == {'exclude_his...itial task',)}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Left contains 1 more item:
+E         {'billing_mode': 'subscription'}
+E         Use -v to get more diff
+
+tests/test_initial_deliveries.py:801: AssertionError
+____ test_agent_session_send_skips_missing_layout_only_for_delivery_context ____
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-16403/test_agent_session_send_skips_0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x720baf97ab10>
+
+    @pytest.mark.asyncio
+    async def test_agent_session_send_skips_missing_layout_only_for_delivery_context(
+        tmp_path, monkeypatch,
+    ):
+        from app import message_deliveries
+        from app.events import MessageProvenance
+        from app.orchestra_layout import LayoutMigrationError
+        from app.session import AgentSession
+    
+        worktree = tmp_path / "worker-worktree"
+        (worktree / ".orchestra" / "workers").mkdir(parents=True)
+        provenance = MessageProvenance(
+            origin="agent", senders=("sender-741",), subtype="direct_message",
+        )
+        backend = SimpleNamespace(send=AsyncMock(), active_turn_id="turn-741")
+        monkeypatch.setattr(
+            "app.session.get_runtime",
+            lambda _backend: SimpleNamespace(
+                capabilities=SimpleNamespace(mid_turn_inject=True, event_stream="none"),
+            ),
+        )
+        monkeypatch.setattr(
+            message_deliveries, "mark_message_delivery_dispatching", lambda _id: {},
+        )
+        monkeypatch.setattr(
+            message_deliveries, "mark_message_delivery_submitted",
+            lambda _id, provider_ref=None: {},
+        )
+    
+        def session_for_send(name):
+            target = AgentSession(
+                id=f"{name}-session-741", name=name, scope=str(tmp_path),
+                cwd=str(worktree), worktree_path=str(worktree),
+            )
+            target.session_id = "resumed-741"
+            target._current_prompt = "ROLE: worker."
+            target._prompt_injected = False
+            target.prompt_overlay = None
+            target._log = MagicMock()
+            target._persist = MagicMock()
+            target._notify_scope_running = AsyncMock()
+            target._attach_pending_facts = lambda message: (message, [])
+            target._ack_pending_facts = lambda _keys: None
+            target._worker_admission = AsyncMock(
+                return_value=SimpleNamespace(state="available", valid_until=None),
+            )
+            target._ensure_backend = AsyncMock(return_value=backend)
+            return target
+    
+        delivery_session = session_for_send("delivery-worker-741")
+        delivery = message_deliveries.MessageDeliveryContext(
+            str(uuid.uuid4()),
+            history_user_message="agent task",
+            provenance=provenance,
+        )
+>       await delivery_session.send(
+            "agent task", provenance=provenance, delivery=delivery,
+        )
+
+tests/test_message_delivery_failure_notices_741.py:276: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = AgentSession(id='delivery-worker-741-session-741', name='delivery-worker-741', scope='/tmp/pytest-of-kesha/pytest-1640...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+message = 'agent task'
+
+    async def send(
+        self, message: str | InjectedMessage, *, provenance: MessageProvenance,
+        delivery=None, retry_generation: tuple[int, int] | None = None,
+    ) -> None:
+        if isinstance(message, InjectedMessage) and message.provenance != provenance:
+            raise ValueError("injected message provenance mismatch")
+        owner_initiated = _is_owner_direct_message(provenance)
+        message_event_id = message.event_id if isinstance(message, InjectedMessage) else ""
+        message = message.text if isinstance(message, InjectedMessage) else message
+        original_user_message = message
+        history_user_message = original_user_message
+        if delivery is not None:
+            persisted_user_message = getattr(delivery, "history_user_message", None)
+            if isinstance(persisted_user_message, str) and persisted_user_message:
+                history_user_message = persisted_user_message
+        allow_running_delivery = bool(
+            delivery is not None and getattr(delivery, "allow_running", False)
+        )
+        if allow_running_delivery and self._compacting:
+            return
+        decision = None
+        admitted_model = ""
+        admitted_stop_gen = -1
+        billing_mode = "subscription"
+    
+        while True:
+            await self._lifecycle_lock.acquire()
+            # Recheck after admission too: Stop or a newer turn can win while
+            # this sender is outside the lock waiting for quota data.
+            if retry_generation is not None and (
+                retry_generation != (self._turn_gen, self._turn_start_cancel_gen)
+                or self._manually_interrupted
+                or (self._session_limit_hit and provenance.subtype in {"rate_limit_retry", "server_error_retry"})
+                or (self.status != AgentStatus.IDLE
+                    and not (provenance.subtype in {"turn_limit_continue", "runtime_reconnect"}
+                             and self.status == AgentStatus.RUNNING))
+                or self._compacting
+            ):
+                self._lifecycle_lock.release()
+                return
+            if self._handoff_recovery_required:
+                self._lifecycle_lock.release()
+                raise RuntimeError(
+                    "handoff_recovery_required: operator recovery is required before sends"
+                )
+            if (
+                self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
+                or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
+            ):
+                if self.status == AgentStatus.RUNNING or self._compacting:
+                    billing_mode = self._billing_mode
+                self._last_admission_decision = None
+                break
+            if decision is None:
+                admitted_model = self.model
+                admitted_stop_gen = self._turn_start_cancel_gen
+                self._lifecycle_lock.release()
+                decision = await self._worker_admission(admitted_model)
+                continue
+            if admitted_stop_gen != self._turn_start_cancel_gen:
+                self._lifecycle_lock.release()
+                raise RuntimeError("new worker turn cancelled by stop")
+            if self.model != admitted_model:
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            if (
+                decision.state in {"available", "blocked"}
+                and decision.valid_until is not None
+                and time.time() >= decision.valid_until
+            ):
+                decision = None
+                self._lifecycle_lock.release()
+                continue
+            try:
+                from app.quota_gate import require_worker_admission
+    
+>               if decision.billing_mode != "api_credit":
+                   ^^^^^^^^^^^^^^^^^^^^^
+E               AttributeError: 'types.SimpleNamespace' object has no attribute 'billing_mode'
+
+app/session.py:1250: AttributeError
+=========================== short test summary info ============================
+FAILED tests/test_usage_analytics_frontend.py::test_overview_shows_estimated_claude_api_credit_balance_and_expiry
+FAILED tests/test_initial_deliveries.py::test_t381_retry_after_backend_recovery_submits_once_without_duplicate_input
+FAILED tests/test_message_delivery_failure_notices_741.py::test_agent_session_send_skips_missing_layout_only_for_delivery_context
+3 failed, 528 passed in 35.90s
