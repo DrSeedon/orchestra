@@ -227,7 +227,7 @@ def ensure_turn_usage_timing_schema(path: Path | None = None) -> int:
             for row in connection.execute("PRAGMA table_info(turn_usage)").fetchall()
         }
         if not columns:
-            raise RuntimeError("turn_usage table is missing")
+            return 0
         added = 0
         for name, column_type in additions.items():
             if name in columns:
