@@ -1,0 +1,281 @@
+[
+ {
+  "id": "F1-tg_video",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/tg_video.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/tg_video.py",
+   "lines": 172,
+   "functions": 7,
+   "classes": 1,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-usage_contract",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/usage_contract.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/usage_contract.py",
+   "lines": 184,
+   "functions": 4,
+   "classes": 5,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-session_hibernate",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/session_hibernate.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/session_hibernate.py",
+   "lines": 217,
+   "functions": 0,
+   "classes": 1,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-backend_jsonrpc",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/backend_jsonrpc.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/backend_jsonrpc.py",
+   "lines": 205,
+   "functions": 2,
+   "classes": 1,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-turn_signals",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/turn_signals.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/turn_signals.py",
+   "lines": 304,
+   "functions": 18,
+   "classes": 0,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-run_receipts",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/run_receipts.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/run_receipts.py",
+   "lines": 152,
+   "functions": 2,
+   "classes": 0,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-orchestra_layout",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/orchestra_layout.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/orchestra_layout.py",
+   "lines": 1337,
+   "functions": 46,
+   "classes": 1,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-error_watch",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/error_watch.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/error_watch.py",
+   "lines": 387,
+   "functions": 17,
+   "classes": 0,
+   "main_guard": true
+  }
+ },
+ {
+  "id": "F1-secret_mask",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/secret_mask.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/secret_mask.py",
+   "lines": 128,
+   "functions": 4,
+   "classes": 0,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-openrouter_counter",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/openrouter_counter.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/openrouter_counter.py",
+   "lines": 135,
+   "functions": 12,
+   "classes": 0,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-limit_wake",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/limit_wake.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/limit_wake.py",
+   "lines": 763,
+   "functions": 14,
+   "classes": 0,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F1-catalog_migration_v621",
+  "kind": "F1",
+  "prompt": "Прочитай файл app/catalog_migration_v621.py в текущем каталоге (ничего не изменяй). Верни ОДИН JSON-объект без пояснений со схемой {\"file\": str, \"lines\": int, \"functions\": int, \"classes\": int, \"main_guard\": bool}. file — путь как дан; lines — число символов перевода строки в файле (как `wc -l`); functions — число функций верхнего уровня модуля (def и async def прямо в теле модуля, без методов классов и вложенных функций); classes — число классов верхнего уровня; main_guard — true, если на верхнем уровне есть блок `if __name__ == ...`.",
+  "oracle": {
+   "file": "app/catalog_migration_v621.py",
+   "lines": 209,
+   "functions": 6,
+   "classes": 2,
+   "main_guard": false
+  }
+ },
+ {
+  "id": "F2-00",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/orchestra_layout.py есть функция или метод _untracked_stash_paths, у которого среди параметров (позиционных или keyword-only) есть `stash_oid`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": true,
+   "file": "app/orchestra_layout.py",
+   "fn": "_untracked_stash_paths"
+  }
+ },
+ {
+  "id": "F2-01",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/orchestra_layout.py есть функция или метод _run_bytes, у которого среди параметров (позиционных или keyword-only) есть `repository`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": false,
+   "file": "app/orchestra_layout.py",
+   "fn": "_run_bytes"
+  }
+ },
+ {
+  "id": "F2-02",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/orchestra_layout.py есть функция или метод _diff_paths, у которого среди параметров (позиционных или keyword-only) есть `after`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": true,
+   "file": "app/orchestra_layout.py",
+   "fn": "_diff_paths"
+  }
+ },
+ {
+  "id": "F2-03",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/session_hibernate.py есть функция или метод _signal_silence_once, у которого среди параметров (позиционных или keyword-only) есть `worktree`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": false,
+   "file": "app/session_hibernate.py",
+   "fn": "_signal_silence_once"
+  }
+ },
+ {
+  "id": "F2-04",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/orchestra_layout.py есть функция или метод _tree_entry, у которого среди параметров (позиционных или keyword-only) есть `tree`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": true,
+   "file": "app/orchestra_layout.py",
+   "fn": "_tree_entry"
+  }
+ },
+ {
+  "id": "F2-05",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/catalog_migration_v621.py есть функция или метод _migrate_one_scope, у которого среди параметров (позиционных или keyword-only) есть `cache_create_tokens`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": false,
+   "file": "app/catalog_migration_v621.py",
+   "fn": "_migrate_one_scope"
+  }
+ },
+ {
+  "id": "F2-06",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/orchestra_layout.py есть функция или метод _verify_restored_stash, у которого среди параметров (позиционных или keyword-only) есть `repository`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": true,
+   "file": "app/orchestra_layout.py",
+   "fn": "_verify_restored_stash"
+  }
+ },
+ {
+  "id": "F2-07",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/orchestra_layout.py есть функция или метод _recover_preserved_dirty, у которого среди параметров (позиционных или keyword-only) есть `thumb_dir`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": false,
+   "file": "app/orchestra_layout.py",
+   "fn": "_recover_preserved_dirty"
+  }
+ },
+ {
+  "id": "F2-08",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/turn_signals.py есть функция или метод _already_in_parent_log, у которого среди параметров (позиционных или keyword-only) есть `signal_id`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": true,
+   "file": "app/turn_signals.py",
+   "fn": "_already_in_parent_log"
+  }
+ },
+ {
+  "id": "F2-09",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/turn_signals.py есть функция или метод _finish, у которого среди параметров (позиционных или keyword-only) есть `detail`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": false,
+   "file": "app/turn_signals.py",
+   "fn": "_finish"
+  }
+ },
+ {
+  "id": "F2-10",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/turn_signals.py есть функция или метод deliver_due, у которого среди параметров (позиционных или keyword-only) есть `only_ids`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": true,
+   "file": "app/turn_signals.py",
+   "fn": "deliver_due"
+  }
+ },
+ {
+  "id": "F2-11",
+  "kind": "F2",
+  "prompt": "Проверь утверждение по коду в текущем каталоге (ничего не изменяй): «в файле app/turn_signals.py есть функция или метод _compose, у которого среди параметров (позиционных или keyword-only) есть `root`». Верни ОДИН JSON без пояснений: {\"verdict\": true|false, \"evidence\": \"точная строка def из файла, на которой основан вывод, или \\\"\\\" если функции нет\"}.",
+  "oracle": {
+   "verdict": false,
+   "file": "app/turn_signals.py",
+   "fn": "_compose"
+  }
+ },
+ {
+  "id": "F3-reduce",
+  "kind": "F3",
+  "prompt": "В файле /home/kesha/orchestra/data/v767/fan_f3/records.json — список из 12 записей {file, lines, functions, classes, main_guard}. Сведи их (ничего не изменяй) и верни ОДИН JSON без пояснений: {\"total_lines\": int (сумма lines), \"top3\": [3 значения file с наибольшим functions по убыванию; при равенстве — по алфавиту file], \"with_main_guard\": int (сколько записей с main_guard=true), \"mean_lines\": int (среднее lines, округлённое до целого)}.",
+  "oracle": {
+   "total_lines": 4193,
+   "top3": [
+    "app/orchestra_layout.py",
+    "app/turn_signals.py",
+    "app/error_watch.py"
+   ],
+   "with_main_guard": 1,
+   "mean_lines": 349
+  }
+ }
+]
