@@ -1,0 +1,150 @@
+.....F...............F.....................F..                           [100%]
+=================================== FAILURES ===================================
+______________ test_analytics_date_windows_use_expression_indexes ______________
+
+usage_db = PosixPath('/tmp/pytest-of-kesha/pytest-16230/test_analytics_date_windows_us0/usage-analytics.db')
+
+    def test_analytics_date_windows_use_expression_indexes(usage_db):
+        queries = (
+            (
+                "turn_usage",
+                "SELECT id FROM turn_usage WHERE date(ts) >= date('now', '-6 days')",
+                "idx_turn_usage_day",
+            ),
+            (
+                "logs",
+                "SELECT id FROM logs WHERE type='status' "
+                "AND content LIKE '%turn ended%' "
+                "AND date(ts) >= date('now', '-6 days')",
+                "idx_logs_turn_end_day",
+            ),
+            (
+                "subagents",
+                "SELECT id FROM subagents "
+                "WHERE date(started_at) >= date('now', '-6 days')",
+                "idx_subagents_started_day",
+            ),
+            (
+                "tool_errors",
+                "SELECT id FROM tool_errors WHERE date(ts) >= date('now', '-6 days')",
+                "idx_tool_errors_day",
+            ),
+            (
+                "voice_costs",
+                "SELECT id FROM voice_costs WHERE date(ts) >= date('now', '-6 days')",
+                "idx_voice_costs_day",
+            ),
+            (
+                "tm_tasks",
+                "SELECT id FROM tm_tasks WHERE status IN ('done', 'paid') "
+                "AND date(completed_at) >= date('now', '-6 days')",
+                "idx_tm_tasks_completed_day",
+            ),
+        )
+        with sqlite3.connect(usage_db) as connection:
+            for table, sql, index in queries:
+                plan = " ".join(
+                    row[3] for row in connection.execute("EXPLAIN QUERY PLAN " + sql)
+                )
+>               assert index in plan, f"{table} query plan did not use {index}: {plan}"
+E               AssertionError: tm_tasks query plan did not use idx_tm_tasks_completed_day: SEARCH tm_tasks USING INDEX idx_tm_tasks_status (status=?)
+E               assert 'idx_tm_tasks_completed_day' in 'SEARCH tm_tasks USING INDEX idx_tm_tasks_status (status=?)'
+
+tests/test_usage_analytics.py:209: AssertionError
+____ test_slow_analytics_does_not_block_event_loop_or_use_default_executor _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3bc0fd0d0>
+
+    @pytest.mark.asyncio
+    async def test_slow_analytics_does_not_block_event_loop_or_use_default_executor(
+        monkeypatch,
+    ):
+        from app.routes import system
+    
+        started = threading.Event()
+        release = threading.Event()
+        executor_calls = []
+        loop = asyncio.get_running_loop()
+        original_run_in_executor = loop.run_in_executor
+    
+        def record_executor(executor, function, *args):
+            executor_calls.append(executor)
+            return original_run_in_executor(executor, function, *args)
+    
+        monkeypatch.setattr(loop, "run_in_executor", record_executor)
+    
+        def slow_snapshot(days, capacity):
+            started.set()
+            release.wait(1)
+            return {}
+    
+        monkeypatch.setattr(
+            "app.usage_analytics.build_usage_analytics", slow_snapshot
+        )
+        monkeypatch.setattr(system, "get_usage", AsyncMock(return_value={}))
+        monkeypatch.setattr(system, "build_quota_map", AsyncMock(return_value={}))
+        monkeypatch.setattr("app.limit_wake.wake_status", lambda: {})
+    
+        request = asyncio.create_task(system.usage_analytics_endpoint(days=7))
+        try:
+            await asyncio.wait_for(asyncio.to_thread(started.wait), timeout=0.5)
+            await asyncio.wait_for(asyncio.sleep(0.02), timeout=0.1)
+            assert not request.done()
+>           assert executor_calls == [system._ANALYTICS_EXECUTOR]
+E           assert [None, <concu...7fc3beb7fec0>] == [<concurrent....7fc3beb7fec0>]
+E             
+E             At index 0 diff: None != <concurrent.futures.thread.ThreadPoolExecutor object at 0x7fc3beb7fec0>
+E             Left contains one more item: <concurrent.futures.thread.ThreadPoolExecutor object at 0x7fc3beb7fec0>
+E             Use -v to get more diff
+
+tests/test_usage_analytics.py:848: AssertionError
+____________ test_analytics_snapshot_carries_the_map_in_one_request ____________
+
+mapped = <function mapped.<locals>.run at 0x7fc3bc12f6a0>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7fc3bbeae960>
+
+    @pytest.mark.asyncio
+    async def test_analytics_snapshot_carries_the_map_in_one_request(mapped, monkeypatch):
+        """Модалка держит контракт «один запрос на открытие»: карта едет тем же снимком."""
+        db.init_db()
+        monkeypatch.setattr(
+            system, "_quota_observation_from_cache",
+            lambda: _observation(anthropic=[_window(10080, 4, window_id="seven_day", label="7d")]),
+        )
+    
+        async def usage():
+            return {"anthropic": {"seven_day": {"utilization": 4}}}
+    
+        monkeypatch.setattr(system, "get_usage", usage)
+        import app.usage_analytics as usage_analytics
+    
+        monkeypatch.setattr(
+            usage_analytics, "build_usage_analytics",
+            lambda **_kwargs: {"summary": {}, "capacity": {}},
+        )
+>       payload = await system.usage_analytics_endpoint(days=1)
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_quota_map_api.py:769: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/routes/system.py:1677: in usage_analytics_endpoint
+    payload = await asyncio.get_running_loop().run_in_executor(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = None
+
+    def run(self):
+        if not self.future.set_running_or_notify_cancel():
+            return
+    
+        try:
+>           result = self.fn(*self.args, **self.kwargs)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           TypeError: test_analytics_snapshot_carries_the_map_in_one_request.<locals>.<lambda>() takes 0 positional arguments but 2 were given
+
+/usr/lib/python3.12/concurrent/futures/thread.py:58: TypeError
+=========================== short test summary info ============================
+FAILED tests/test_usage_analytics.py::test_analytics_date_windows_use_expression_indexes
+FAILED tests/test_usage_analytics.py::test_slow_analytics_does_not_block_event_loop_or_use_default_executor
+FAILED tests/test_quota_map_api.py::test_analytics_snapshot_carries_the_map_in_one_request
+3 failed, 43 passed in 21.72s

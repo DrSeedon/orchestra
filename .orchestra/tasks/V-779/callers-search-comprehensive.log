@@ -1,0 +1,80 @@
+/home/kesha/projects/comfy-image-pipeline/.orchestra/kb/kiosk-backend.md:32:- `/api/stats` remains intentionally public only as anonymous `{"total": N}`. Adding photo IDs, filenames, projects, timestamps or any other fields requires moving it behind dashboard Basic Auth in the same change · `.orchestra/tasks/72/report.md` · 30.08.2026, #72
+/home/kesha/projects/seedon/groom-demo-bot/groom_demo/dashboard_server.py:18:DASHBOARD_API_PATH = "/demo/groom/api/stats"
+/home/kesha/projects/seedon/groom-demo-bot/tests/test_dashboard.py:336:                    elif url.endswith("/api/stats"):
+/home/kesha/projects/seedon/groom-demo-bot/dashboard/DEPLOY.md:13:- APIs: `/demo/groom/api/stats`, `/demo/groom/api/conversations`, and
+/home/kesha/projects/seedon/groom-demo-bot/dashboard/DEPLOY.md:101:2. Anonymous requests to `/demo/groom`, `/demo/groom/`, its PNG, `/api/stats`, `/api/conversations`,
+/home/kesha/projects/mfm-2026-infra/.orchestra/kb/kiosk-backend.md:32:- `/api/stats` remains intentionally public only as anonymous `{"total": N}`. Adding photo IDs, filenames, projects, timestamps or any other fields requires moving it behind dashboard Basic Auth in the same change · `.orchestra/tasks/72/report.md` · 30.08.2026, #72
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/88/experiments/transport_probe_server.py:151:        elif path == "/api/stats":
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/88/experiments/transport_probe_browser.py:67:        stats = (sender.context.request.get(f"{args.base}/api/stats")).json()
+/home/kesha/projects/dnd-game-master/.orchestra/tasks/frontend-migration-blueprint.md:146:- Polled, not pushed: `refreshSessions()` every **3s** (`app.js:151-156`) → `GET /api/sessions?scope=…` + `/api/stats`.
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/V-94/check-portraits.py:27:            with urlopen(origin+'/api/stats',timeout=.2):break
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/72/report.md:31:- `/api/stats` публичен по замыслу текущего PhotoServer и отдаёт только обезличенный
+/home/kesha/projects/comfy-image-pipeline/projects/photobooth/.orchestra/kb/kiosk-backend.md:32:- `/api/stats` remains intentionally public only as anonymous `{"total": N}`. Adding photo IDs, filenames, projects, timestamps or any other fields requires moving it behind dashboard Basic Auth in the same change · `.orchestra/tasks/72/report.md` · 30.08.2026, #72
+/home/kesha/projects/dnd-game-master.rsync-old/docs/tasks/frontend-migration-blueprint.md:146:- Polled, not pushed: `refreshSessions()` every **3s** (`app.js:151-156`) → `GET /api/sessions?scope=…` + `/api/stats`.
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/typing-extensions/4.15.0-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/ruff/0.15.7-py3-none-manylinux_2_17_x86_64.manylinux2014_x86_64: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/pathspec/1.0.4-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/identify/2.6.18-py2.py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/distlib/0.4.0-py2.py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/playwright/1.61.0-py3-none-manylinux1_x86_64: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/mypy-extensions/1.1.0-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/packaging/26.2-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/mypy/1.19.1-516d0c2242d49034: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/filelock/3.25.2-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/wheel/0.47.0-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/greenlet/3.5.3-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/pre-commit/4.5.1-py2.py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/pyee/13.0.1-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/platformdirs/4.9.4-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/pytokens/0.4.1-516d0c2242d49034: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/virtualenv/21.2.0-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/librt/0.8.1-516d0c2242d49034: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/cfgv/3.5.0-py2.py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/setuptools/83.0.0-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/black/26.3.1-516d0c2242d49034: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/nodeenv/1.10.0-py2.py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/wheels-v5/pypi/python-discovery/1.2.0-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/sdists-v9/editable/53d24b3341d27549/EuLj1-r7yK2eZLoqYLYAB/dm_claude-0.2.0-0.editable-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/sdists-v9/editable/53d24b3341d27549/WeXVrcSwdRjMJaXAmrchG/dm_claude-0.2.0-0.editable-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/sdists-v9/editable/53d24b3341d27549/zf96jZwvs6-8orfi32nZg/dm_claude-0.2.0-0.editable-py3-none-any: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/sdists-v9/editable/53d24b3341d27549/yMK1xAgijUGLAV0bBt8QZ/dm_claude-0.2.0-0.editable-py3-none-any: No such file or directory (os error 2)
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/88/experiments/transport_probe_server.py:151:        elif path == "/api/stats":
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/88/experiments/transport_probe_browser.py:67:        stats = (sender.context.request.get(f"{args.base}/api/stats")).json()
+/home/kesha/projects/comfy-image-pipeline/projects/globe/.orchestra/kb/kiosk-backend.md:32:- `/api/stats` remains intentionally public only as anonymous `{"total": N}`. Adding photo IDs, filenames, projects, timestamps or any other fields requires moving it behind dashboard Basic Auth in the same change · `.orchestra/tasks/72/report.md` · 30.08.2026, #72
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/V-94/check-portraits.py:27:            with urlopen(origin+'/api/stats',timeout=.2):break
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/archive-v0/03oHR0LvyH2MSVfwt7LY1/bin/python: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/archive-v0/03oHR0LvyH2MSVfwt7LY1/bin/python3: No such file or directory (os error 2)
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/archive-v0/03oHR0LvyH2MSVfwt7LY1/bin/python3.11: No such file or directory (os error 2)
+/home/kesha/projects/comfy-image-pipeline/projects/voice/.orchestra/kb/kiosk-backend.md:32:- `/api/stats` remains intentionally public only as anonymous `{"total": N}`. Adding photo IDs, filenames, projects, timestamps or any other fields requires moving it behind dashboard Basic Auth in the same change · `.orchestra/tasks/72/report.md` · 30.08.2026, #72
+rg: /home/kesha/projects/dnd-game-master.rsync-old/.uv-cache/environments-v2/e548c20e586a81b7/dbf098c6e0594318: No such file or directory (os error 2)
+/home/kesha/projects/comfy-image-pipeline/projects/oil-paint/.orchestra/kb/kiosk-backend.md:32:- `/api/stats` remains intentionally public only as anonymous `{"total": N}`. Adding photo IDs, filenames, projects, timestamps or any other fields requires moving it behind dashboard Basic Auth in the same change · `.orchestra/tasks/72/report.md` · 30.08.2026, #72
+rg: /home/kesha/projects/seedon/.orchestra/tasks/V-131/webdemo/_tools/cal: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/73/research.md: No such file or directory (os error 2)
+/home/kesha/projects/seedon/.orchestra/tasks/207/research.md:95:- Текущий anonymous read-back `/demo/groom/`, `/api/stats`, `/api/conversations` возвращает 200.
+rg: /home/kesha/projects/seedon/.orchestra/tasks/95/research.md: No such file or directory (os error 2)
+/home/kesha/projects/seedon/.orchestra/tasks/V-183/report.md:9:- **Наполнение groom:** 8 выдуманных диалогов (4 Telegram, 4 MAX) по 4–8 сообщений: 7 записей (4 записаны, 2 перенесены, 1 отменена), одна консультация по цене без записи; породы шпиц, йорк, корги, длинношёрстная кошка, лабрадор, пудель, мальтезе, мальтипу, услуги разные, мастера Алина, Мария, Олег (из каталога салона). Дашборд после записи: сессий 11 (8 новых + 3 прежних), посетителей 8, сообщений 57, вызовов инструментов 41, записей 7, сумма 15 200 ₽ (`/demo/groom/api/stats`). Все 8 в списке под именами «Гость N», в ответах API нет `username` и `preview`; в сообщениях нет телефонов, адресов и ников (проверяется тестом).
+rg: /home/kesha/projects/seedon/.orchestra/tasks/83/research.md: No such file or directory (os error 2)
+/home/kesha/projects/seedon/.orchestra/tasks/249/report.md:24:- `live_stats` (`/api/stats`) — персональные поля не формирует; общий сериализатор применён,
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/72/report.md:31:- `/api/stats` публичен по замыслу текущего PhotoServer и отдаёт только обезличенный
+/home/kesha/projects/seedon/.orchestra/tasks/108/report.md:35:`GET /demo/groom/api/stats`. JSON имеет строгий верхний allowlist:
+rg: /home/kesha/projects/seedon/.orchestra/tasks/57/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/55/research.md: No such file or directory (os error 2)
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:14:`/api/stats` handler took **20–160 ms** through local Uvicorn and **59–139 ms** through local
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:42:| H4 upstream app | direct authenticated Uvicorn `/api/stats` and SSE first byte slow | direct Uvicorn and local Contabo TLS fast while public mirror is slow |
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:109:## Authenticated `/api/stats` timing
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:120:  <target>/api/stats
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:159:authenticated series above does additionally prove that the real `/api/stats` handler completes
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:179:The three target substitutions were the same as for `/api/stats`; the local-TLS case included
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:391:with the load it shows that the upstream was not idle, and one `/api/stats` request took 160 ms.
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:413:  | rg '"GET /api/stats' \
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:418:127.0.0.1 - - [16/Aug/2026:14:35:02 +0200] "GET /api/stats?scope=<scope> HTTP/1.1" 200 198 "-" "curl/8.5.0"
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:419:127.0.0.1 - - [16/Aug/2026:14:35:03 +0200] "GET /api/stats?scope=<scope> HTTP/1.1" 200 198 "-" "curl/8.5.0"
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:420:89.23.102.244 - - [16/Aug/2026:14:35:06 +0200] "GET /api/stats?scope=<scope> HTTP/1.1" 200 198 "-" "curl/8.5.0"
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:421:89.23.102.244 - - [16/Aug/2026:14:35:16 +0200] "GET /api/stats?scope=<scope> HTTP/1.1" 200 198 "-" "curl/8.5.0"
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:437:| local Uvicorn `/api/stats` | 25–99 ms | 20, 160, 20 ms | same order; one current outlier |
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:457:| H4 upstream app | `ps` reported 65.2% lifetime-normalized CPU and one stats request took 160 ms | other stats requests 20 ms; local SSE 7–23 ms; local TLS 47–139 ms while public had seconds/timeouts | **REFUTED as the primary cause of the measured seconds-scale `/api/stats`/SSE delay** |
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:497:- **CONFIRMED — tier 1 direct measurement:** public `/api/stats` and SSE are intermittently
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:515:4. Contabo Uvicorn had `ps %CPU=65.2` and produced one 160 ms `/api/stats` outlier.
+/home/kesha/projects/seedon/.orchestra/tasks/206/report.md:550:  '## Authenticated `/api/stats` timing', '## SSE handshake and first bytes',
+rg: /home/kesha/projects/seedon/.orchestra/tasks/65/research.md: No such file or directory (os error 2)
+rg_exit=2

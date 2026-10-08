@@ -1,0 +1,11 @@
+retention_all
+  SCAN logs USING INDEX idx_logs_turn_end_day
+retention_window
+  SEARCH logs USING INDEX idx_logs_turn_end_day (<expr>>?)
+last_turn_map
+  SCAN logs USING INDEX idx_logs_turn_end_day
+  USE TEMP B-TREE FOR GROUP BY
+turn_usage_window
+  SEARCH turn_usage USING INDEX idx_turn_usage_day (<expr>>?)
+subagents_window
+  SEARCH subagents USING INDEX idx_subagents_started_day (<expr>>?)

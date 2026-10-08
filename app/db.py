@@ -63,12 +63,35 @@ def _conn(path: Path | None = None) -> sqlite3.Connection:
 
 SCHEMA_VERSION = 3
 
+_USAGE_ANALYTICS_INDEXES = (
+    "CREATE INDEX IF NOT EXISTS idx_turn_usage_day "
+    "ON turn_usage(date(ts))",
+    "CREATE INDEX IF NOT EXISTS idx_logs_turn_end_day "
+    "ON logs(date(ts), session_id, ts) "
+    "WHERE type='status' AND content LIKE '%turn ended%'",
+    "CREATE INDEX IF NOT EXISTS idx_logs_last_turn "
+    "ON logs(session_id, ts) "
+    "WHERE type='status' AND content LIKE 'turn ended%'",
+    "CREATE INDEX IF NOT EXISTS idx_subagents_started_day "
+    "ON subagents(date(started_at))",
+    "CREATE INDEX IF NOT EXISTS idx_tool_errors_day "
+    "ON tool_errors(date(ts))",
+    "CREATE INDEX IF NOT EXISTS idx_voice_costs_day "
+    "ON voice_costs(date(ts))",
+)
+
+
+def _ensure_usage_analytics_indexes(connection: sqlite3.Connection) -> None:
+    for statement in _USAGE_ANALYTICS_INDEXES:
+        connection.execute(statement)
+
 
 
 def init_db(path: Path | None = None) -> None:
     with _conn(path) as connection:
         version = connection.execute('PRAGMA user_version').fetchone()[0]
         if version == SCHEMA_VERSION:
+            _ensure_usage_analytics_indexes(connection)
             return
         if version or connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").fetchone():
             raise RuntimeError('database schema needs offline migration before starting Orchestra')
@@ -78,6 +101,7 @@ def init_db(path: Path | None = None) -> None:
         now = datetime.now(timezone.utc).isoformat()
         connection.executemany('INSERT INTO kv(key,value) VALUES(?,?)',
             [(key, now) for key in ('tool_error_collector_started_at','turn_usage_collector_started_at')])
+        _ensure_usage_analytics_indexes(connection)
         connection.execute(f'PRAGMA user_version={SCHEMA_VERSION}')
 
 
@@ -1506,13 +1530,6 @@ def get_stats(scope: str | None = None) -> dict:
         cost = c.execute(
             f"SELECT COALESCE(SUM(cost_usd), 0) FROM sessions {where}", params
         ).fetchone()[0]
-        logs_where = (
-            f"WHERE session_id IN (SELECT id FROM sessions {where})"
-            if where else ""
-        )
-        total_logs = c.execute(
-            f"SELECT COUNT(*) FROM logs {logs_where}", params
-        ).fetchone()[0]
         agg = c.execute(
             f"""SELECT COALESCE(SUM(total_turns), 0),
                        COALESCE(SUM(total_input_tokens), 0),
@@ -1526,7 +1543,6 @@ def get_stats(scope: str | None = None) -> dict:
             "active": active,
             "archived": archived,
             "total_cost_usd": round(cost, 4),
-            "total_logs": total_logs,
             "total_turns": agg[0],
             "total_input_tokens": agg[1],
             "total_output_tokens": agg[2],
