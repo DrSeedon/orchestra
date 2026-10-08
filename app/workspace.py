@@ -310,7 +310,7 @@ def _worktree_registered(repo: Path, worktree: Path) -> bool:
 
 
 def validate_repo_root(repo_path: str) -> Path:
-    """Return the exact primary Git repository root or fail before Git discovery can climb."""
+    """Return the primary Git root for a primary checkout or a linked worktree."""
     repo = Path(repo_path).resolve()
     if not repo.is_dir():
         raise ValueError(f"repo_path does not exist: {repo_path}")
@@ -355,17 +355,75 @@ def validate_repo_root(repo_path: str) -> Path:
     common_dir = Path(common_check.stdout.strip())
     if not common_dir.is_absolute():
         common_dir = repo / common_dir
-    if (
-        not expected_common.is_dir()
-        or expected_common.is_symlink()
-        or common_dir.resolve() != expected_common.resolve()
-    ):
-        raise ValueError(
-            "repo_path must be a primary Git repository root; "
-            "linked worktrees, gitfile repositories, and external Git directories "
-            f"are not supported: {repo_path}"
+    if expected_common.is_dir() and not expected_common.is_symlink():
+        if common_dir.resolve() == expected_common.resolve():
+            return repo
+    elif expected_common.is_file() and not expected_common.is_symlink():
+        primary = common_dir.parent
+        primary_git = primary / ".git"
+        worktree_git_check = _git_cmd(
+            ["git", "rev-parse", "--git-dir"],
+            cwd=str(repo), capture_output=True, text=True,
         )
-    return repo
+        worktree_git_dir = Path(worktree_git_check.stdout.strip())
+        if not worktree_git_dir.is_absolute():
+            worktree_git_dir = repo / worktree_git_dir
+        try:
+            worktree_git_dir.resolve().relative_to((common_dir / "worktrees").resolve())
+            linked_gitfile = worktree_git_check.returncode == 0
+        except ValueError:
+            linked_gitfile = False
+        primary_top = _git_cmd(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=str(primary), capture_output=True, text=True,
+        )
+        worktrees_check = _git_cmd(
+            ["git", "worktree", "list", "--porcelain"],
+            cwd=str(repo), capture_output=True, text=True,
+        )
+        registered_paths = {
+            Path(line.removeprefix("worktree ")).resolve()
+            for line in worktrees_check.stdout.splitlines()
+            if line.startswith("worktree ")
+        }
+        if (
+            linked_gitfile
+            and primary.is_dir()
+            and primary_git.is_dir()
+            and not primary_git.is_symlink()
+            and common_dir.resolve() == primary_git.resolve()
+            and primary_top.returncode == 0
+            and Path(primary_top.stdout.strip()).resolve() == primary.resolve()
+            and worktrees_check.returncode == 0
+            and primary.resolve() in registered_paths
+            and repo.resolve() in registered_paths
+        ):
+            return primary.resolve()
+    raise ValueError(
+        "repo_path must be a primary Git root or a linked worktree backed by its .git directory; "
+        f"separate gitfile repositories and external Git directories are not supported: {repo_path}"
+    )
+
+
+def resolve_worktree_context(repo_path: str) -> tuple[Path, str]:
+    """Resolve a checkout to its primary root and pinned HEAD."""
+    source = Path(repo_path).expanduser().resolve()
+    primary = validate_repo_root(str(source))
+    top = _git_cmd(
+        ["git", "rev-parse", "--show-toplevel"], cwd=str(source),
+        capture_output=True, text=True,
+    )
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != source:
+        detail = top.stderr.strip() or top.stdout.strip()
+        raise ValueError(f"repo_path must be a Git working tree root: {repo_path}: {detail}")
+    head = _git_cmd(
+        ["git", "rev-parse", "--verify", "HEAD^{commit}"], cwd=str(source),
+        capture_output=True, text=True,
+    )
+    if head.returncode != 0:
+        detail = head.stderr.strip() or head.stdout.strip()
+        raise ValueError(f"cannot resolve repo_path HEAD at {repo_path}: {detail}")
+    return primary, head.stdout.strip()
 
 
 def resolve_base_branch(repo_path: str, requested: str = "") -> str:
@@ -560,10 +618,16 @@ def _exclude_worktree_artifacts(
 
 def create_worktree(repo_path: str, name: str, task_id: str = "",
                     base_branch: str = "",
-                    worktree_cfg: "WorktreeCfg | None" = None) -> Worktree:
+                    worktree_cfg: "WorktreeCfg | None" = None,
+                    base_commit: str = "") -> Worktree:
     repo = validate_repo_root(repo_path)
+    if base_branch and base_commit:
+        raise ValueError("pass either base_branch or base_commit, not both")
     with repo_mutation_lock(repo):
-        base_branch = resolve_base_branch(str(repo), base_branch)
+        if base_commit:
+            base_ref = _resolve_commit_oid(repo, base_commit)
+        else:
+            base_ref = resolve_base_branch(str(repo), base_branch)
 
         # Слаг от repo root, НЕ от scope сессии: родитель может спавнить в чужой проект,
         # и тогда scope-имя папки/ветки врёт про то, какому репозиторию worktree принадлежит.
@@ -588,7 +652,7 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
         branch_initial_oid = _inspect_branch_ref(repo, branch)
         branch_created = branch_initial_oid is None
         if branch_created:
-            branch_initial_oid = _resolve_commit_oid(repo, base_branch)
+            branch_initial_oid = _resolve_commit_oid(repo, base_ref)
             result = _git_cmd(
                 ["git", "worktree", "add", "--detach", str(wt_path), branch_initial_oid],
                 cwd=str(repo), capture_output=True, text=True,

@@ -2,6 +2,7 @@
 import asyncio
 import json
 import shlex
+import subprocess
 import sys
 from pathlib import Path
 
@@ -88,6 +89,7 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     fake_install = tmp_path / 'install'
     (fake_install / 'app').mkdir(parents=True)
     monkeypatch.setattr(mcp_stdio, '__file__', str(fake_install / 'app' / 'mcp_stdio.py'))
+    repo_path = _git_repo(tmp_path / 'repo')
     large_prompt = 'context ' * 9000
     response = await mcp_stdio.dynamic_workflow(
         stages=[{
@@ -96,7 +98,7 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
             'schema': {'type': 'object'},
         }],
         mode='stages', budget_usd=1, max_calls=2, max_concurrency=2,
-        task_id='V-720', repo=str(tmp_path),
+        task_id='V-720', repo=str(repo_path),
     )
     assert 'queued' in response
     body = captured['body']
@@ -104,12 +106,17 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     assert body['type'] == 'run'
     assert body['target_name'] == 'test-orchestrator'
     assert body['target_scope'] == 'test-scope'
-    assert body['config']['cwd'] == str(tmp_path.resolve())
+    assert body['config']['cwd'] == str(repo_path.resolve())
     assert body['config']['success_file'].endswith('/manifest.json')
     assert body['config']['success_pattern'] == r'"complete"\s*:\s*true'
     args = shlex.split(body['config']['command'])
     assert args[:3] == ['env', 'ORCHESTRA_TASK_ID=V-720', 'ORCHESTRA_SCOPE=test-scope']
     assert '--spec' in args and '--run-id' in args and '--repo' in args
+    assert args[args.index('--repo') + 1] == str(repo_path.resolve())
+    assert args[args.index('--base-commit') + 1] == subprocess.run(
+        ['git', 'rev-parse', 'HEAD'], cwd=repo_path, capture_output=True,
+        text=True, check=True,
+    ).stdout.strip()
     assert '--tasks-b64' not in args and large_prompt not in body['config']['command']
     spec_path = Path(args[args.index('--spec') + 1])
     assert spec_path.stat().st_size > 64 * 1024
@@ -139,12 +146,70 @@ async def test_dynamic_workflow_resolves_haiku_alias(tmp_path, monkeypatch):
     monkeypatch.setattr(mcp_stdio, '_api', fake_api)
     response = await mcp_stdio.dynamic_workflow(
         budget_usd=1, max_calls=1, max_concurrency=1, task_id='V-766',
-        repo=str(tmp_path), tasks=[{'prompt': 'extract facts', 'model': 'haiku'}],
+        repo=str(_git_repo(tmp_path / 'repo')), tasks=[{'prompt': 'extract facts', 'model': 'haiku'}],
     )
     assert 'queued' in response
     args = shlex.split(captured['config']['command'])
     spec = json.loads(Path(args[args.index('--spec') + 1]).read_text())
     assert spec['tasks'][0]['model'] == 'claude-haiku-5-5'
+
+
+@pytest.mark.asyncio
+async def test_dynamic_workflow_accepts_linked_worktree_and_pins_its_head(tmp_path, monkeypatch):
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs['json'])
+        return {'id': 'bg-linked'}
+
+    repo = _git_repo(tmp_path / 'repo')
+    linked = tmp_path / 'worker-checkout'
+    subprocess.run(
+        ['git', 'worktree', 'add', '-b', 'caller-branch', str(linked)],
+        cwd=repo, capture_output=True, check=True,
+    )
+    (linked / 'commit.txt').write_text('caller branch commit\n')
+    subprocess.run(['git', 'add', 'commit.txt'], cwd=linked, capture_output=True, check=True)
+    subprocess.run(
+        ['git', 'commit', '-m', 'caller branch commit'], cwd=linked,
+        capture_output=True, check=True,
+    )
+    head = subprocess.run(
+        ['git', 'rev-parse', 'HEAD'], cwd=linked, capture_output=True,
+        text=True, check=True,
+    ).stdout.strip()
+    fake_install = tmp_path / 'install'
+    (fake_install / 'app').mkdir(parents=True)
+    monkeypatch.setattr(mcp_stdio, '__file__', str(fake_install / 'app' / 'mcp_stdio.py'))
+    monkeypatch.setattr(mcp_stdio, '_api', fake_api)
+
+    response = await mcp_stdio.dynamic_workflow(
+        budget_usd=1, max_calls=1, max_concurrency=1, task_id='V-780',
+        repo=str(linked), tasks=[{'prompt': 'inspect current code'}],
+    )
+
+    assert 'queued' in response
+    args = shlex.split(captured['config']['command'])
+    assert args[args.index('--repo') + 1] == str(repo.resolve())
+    assert args[args.index('--base-commit') + 1] == head
+
+
+@pytest.mark.asyncio
+async def test_dynamic_workflow_rejects_external_git_dir_before_queueing(tmp_path, monkeypatch):
+    async def unexpected_api(*_args, **_kwargs):
+        pytest.fail('unsupported git-dir must be rejected before queueing')
+
+    repo = tmp_path / 'separate-git-dir'
+    subprocess.run(
+        ['git', 'init', '--separate-git-dir', str(tmp_path / 'external.git'), str(repo)],
+        capture_output=True, check=True,
+    )
+    monkeypatch.setattr(mcp_stdio, '_api', unexpected_api)
+    response = await mcp_stdio.dynamic_workflow(
+        budget_usd=1, max_calls=1, max_concurrency=1, task_id='V-780',
+        repo=str(repo), tasks=[{'prompt': 'inspect'}],
+    )
+    assert 'separate gitfile repositories' in response
 
 
 @pytest.mark.asyncio
@@ -161,7 +226,7 @@ async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypa
     monkeypatch.setattr(mcp_stdio, '__file__', str(fake_install / 'app' / 'mcp_stdio.py'))
     monkeypatch.setattr(mcp_stdio, '_api', fake_api)
     response = await mcp_stdio.dynamic_workflow(
-        budget_usd=1, max_calls=2, max_concurrency=2, task_id='V-738', repo=str(tmp_path),
+        budget_usd=1, max_calls=2, max_concurrency=2, task_id='V-738', repo=str(_git_repo(tmp_path / 'repo')),
         tasks=[{'prompt': 'legacy task'}], mode=mode,
     )
     assert 'queued' in response
