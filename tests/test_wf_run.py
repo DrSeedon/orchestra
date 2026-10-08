@@ -267,7 +267,7 @@ async def test_prepare_failure_is_recorded_and_resume_retries_it(tmp_path, monke
     monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
     prepare_workspace = wf_run._prepare_workspace_sync
 
-    def fail_prepare(_repo, _name, _base_branch):
+    def fail_prepare(_repo, _name, _base_branch, _base_commit=""):
         raise ValueError("controlled worktree collision")
 
     monkeypatch.setattr(wf_run, "_prepare_workspace_sync", fail_prepare)
@@ -390,6 +390,37 @@ async def test_workspace_setup_failure_is_recorded_retryable_and_not_paid_unknow
     )
     assert await resumed.agent("work", model="luna") is not None
     assert calls == ["work"]
+
+
+def test_workspace_preparation_uses_pinned_commit_from_linked_checkout(tmp_path, monkeypatch):
+    import app.workspace as workspace
+
+    repo = _git_repo(tmp_path / "source")
+    linked = tmp_path / "linked"
+    subprocess.run(
+        ["git", "worktree", "add", "-b", "caller-head", str(linked)],
+        cwd=repo, capture_output=True, check=True,
+    )
+    (linked / "caller-only.txt").write_text("visible at pinned HEAD\n")
+    subprocess.run(["git", "add", "caller-only.txt"], cwd=linked, capture_output=True, check=True)
+    subprocess.run(
+        ["git", "commit", "-m", "caller snapshot"], cwd=linked,
+        capture_output=True, check=True,
+    )
+    head = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=linked, capture_output=True,
+        text=True, check=True,
+    ).stdout.strip()
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "generated")
+
+    prepared, _ = wf_run._prepare_workspace_sync(
+        repo, "workflow-pinned", "", head,
+    )
+    try:
+        assert prepared.initial_head == head
+        assert (Path(prepared.path) / "caller-only.txt").read_text() == "visible at pinned HEAD\n"
+    finally:
+        workspace.discard_prepared_worktree(str(repo), prepared)
 
 
 @pytest.mark.asyncio

@@ -376,11 +376,13 @@ def _reset_prepared_worktree(repository: Path, prepared: Any) -> None:
 
 
 def _prepare_workspace_sync(
-    repository: Path, name: str, base_branch: str,
+    repository: Path, name: str, base_branch: str, base_commit: str = "",
 ) -> tuple[Any, set[str]]:
     from app.workspace import create_worktree, discard_prepared_worktree
 
-    prepared = create_worktree(str(repository), name, "", base_branch)
+    prepared = create_worktree(
+        str(repository), name, "", base_branch, base_commit=base_commit,
+    )
     try:
         return prepared, _workspace_files(Path(prepared.path))
     except BaseException:
@@ -427,6 +429,7 @@ class WorkflowEngine:
         task_id: str | None = None,
         workspace_repo: Path | None = None,
         workspace_base_branch: str = "",
+        workspace_base_commit: str = "",
         pipeline_name: str = "default",
         default_modules: Iterable[str] = DEFAULT_WORKFLOW_MODULES,
     ):
@@ -460,11 +463,12 @@ class WorkflowEngine:
             self.workspace_repo = (
                 Path(workspace_repo).resolve() if workspace_repo is not None else None
             )
+        self.workspace_base_commit = workspace_base_commit
         self.workspace_base_branch = workspace_base_branch or (
             _current_branch(
                 ROOT if workspace_repo is None and adapter is None else self.workspace_repo
             )
-            if self.workspace_repo is not None
+            if self.workspace_repo is not None and not self.workspace_base_commit
             else ""
         )
         self.pipeline_name = pipeline_name
@@ -849,6 +853,7 @@ class WorkflowEngine:
                 self.workspace_repo,
                 name,
                 self.workspace_base_branch,
+                self.workspace_base_commit,
             ))
             try:
                 (prepared, baseline_files), cancellations = (
@@ -1149,6 +1154,7 @@ def _args() -> argparse.Namespace:
     parser.add_argument("--max-calls", type=int, default=100)
     parser.add_argument("--max-concurrency", type=int, default=None)
     parser.add_argument("--repo", type=Path, help="Target repository for isolated writable calls")
+    parser.add_argument("--base-commit", default="", help="Pin task worktrees to this commit")
     parser.add_argument("--spec", type=Path, help="JSON workflow specification file")
     parser.add_argument("--tasks-b64", help="Base64-encoded declarative tasks; avoids a workflow file")
     return parser.parse_args()
@@ -1181,6 +1187,8 @@ async def _main() -> int:
         command_parts.extend(["--tasks-b64", encoded_spec])
     if args.repo:
         command_parts.extend(["--repo", str(args.repo.resolve())])
+    if args.base_commit:
+        command_parts.extend(["--base-commit", args.base_commit])
     if spec is not None:
         command_parts.extend(["--resume", run_id])
     command = shlex.join(command_parts) if command_parts else ""
@@ -1192,6 +1200,7 @@ async def _main() -> int:
         max_calls=args.max_calls,
         max_concurrency=args.max_concurrency,
         workspace_repo=args.repo,
+        workspace_base_commit=args.base_commit,
         resume_command_override=command,
     )
     resume = engine.resume_command()

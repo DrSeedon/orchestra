@@ -80,16 +80,21 @@ class TestValidateRepoRoot:
         assert str(nested) in str(exc.value)
         assert str(git_repo) in str(exc.value)
 
-    def test_linked_worktree_raises(self, git_repo, tmp_path):
-        from app.workspace import validate_repo_root
+    def test_linked_worktree_resolves_to_primary_root(self, git_repo, tmp_path):
+        from app.workspace import resolve_worktree_context, validate_repo_root
 
         linked = tmp_path / "linked"
         subprocess.run(
             ["git", "worktree", "add", "-b", "linked-test", str(linked)],
             cwd=git_repo, capture_output=True, check=True,
         )
-        with pytest.raises(ValueError, match="primary Git repository root"):
-            validate_repo_root(str(linked))
+        assert validate_repo_root(str(linked)) == git_repo.resolve()
+        root, head = resolve_worktree_context(str(linked))
+        assert root == git_repo.resolve()
+        assert head == subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=linked,
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
 
     def test_primary_worktree_with_separate_git_dir_is_rejected(self, tmp_path):
         from app.workspace import validate_repo_root
@@ -102,9 +107,32 @@ class TestValidateRepoRoot:
         )
 
         with pytest.raises(
-            ValueError, match="primary Git repository root.*gitfile repositories",
+            ValueError, match="separate gitfile repositories.*external Git directories",
         ):
             validate_repo_root(str(repo))
+
+    def test_linked_worktree_from_external_git_dir_is_rejected(self, tmp_path):
+        from app.workspace import validate_repo_root
+
+        git_dir = tmp_path / "external-git-dir"
+        primary = tmp_path / "actual-checkout"
+        subprocess.run(
+            ["git", "init", "--separate-git-dir", str(git_dir), str(primary)],
+            capture_output=True, check=True,
+        )
+        subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=primary, check=True)
+        subprocess.run(["git", "config", "user.name", "Test"], cwd=primary, check=True)
+        (primary / "README.md").write_text("external gitdir\n")
+        subprocess.run(["git", "add", "README.md"], cwd=primary, check=True)
+        subprocess.run(["git", "commit", "-m", "initial"], cwd=primary, check=True, capture_output=True)
+        linked = tmp_path / "external-linked"
+        subprocess.run(
+            ["git", "worktree", "add", "-b", "external-linked", str(linked)],
+            cwd=primary, capture_output=True, check=True,
+        )
+
+        with pytest.raises(ValueError, match="separate gitfile repositories.*external Git directories"):
+            validate_repo_root(str(linked))
 
     def test_symlinked_git_dir_is_rejected(self, git_repo, tmp_path):
         from app.workspace import validate_repo_root
@@ -114,7 +142,7 @@ class TestValidateRepoRoot:
         (git_repo / ".git").symlink_to(external_git_dir, target_is_directory=True)
 
         with pytest.raises(
-            ValueError, match="primary Git repository root.*external Git directories",
+            ValueError, match="primary Git root.*external Git directories",
         ):
             validate_repo_root(str(git_repo))
 
@@ -134,6 +162,21 @@ class TestCreateWorktree:
         assert Path(wt.path).exists()
         assert Path(wt.path).is_dir()
         assert wt.branch.startswith("feat/")
+
+    def test_linked_repo_path_creates_worktree_from_primary(self, git_repo, wt_root, tmp_path):
+        from app.workspace import create_worktree
+
+        linked = tmp_path / "caller"
+        subprocess.run(
+            ["git", "worktree", "add", "-b", "caller-branch", str(linked)],
+            cwd=git_repo, capture_output=True, check=True,
+        )
+        worktree = create_worktree(str(linked), "child", base_branch="caller-branch")
+        assert Path(worktree.path).is_dir()
+        assert worktree.initial_head == subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=linked, capture_output=True,
+            text=True, check=True,
+        ).stdout.strip()
 
     def test_repo_namespaced_path(self, git_repo, wt_root):
         from app.workspace import _slugify, create_worktree

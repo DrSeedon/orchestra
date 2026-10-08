@@ -3166,7 +3166,7 @@ async def dynamic_workflow(
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna) and JSON schema. Completion wakes the caller with answers and result paths. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna) and JSON schema. Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst
@@ -3271,9 +3271,11 @@ async def dynamic_workflow(
         return "Error: task_id is required"
     if re.fullmatch(r"[A-Za-z0-9._-]+", task_id) is None:
         return "Error: task_id may contain only letters, digits, dot, underscore, and dash"
-    repo_path = Path(repo).expanduser().resolve()
-    if not repo_path.is_dir():
-        return f"Error: repository directory not found: {repo_path}"
+    from app.workspace import resolve_worktree_context
+    try:
+        repo_path, base_commit = resolve_worktree_context(repo)
+    except (OSError, ValueError, RuntimeError) as error:
+        return f"Error: invalid workflow repository: {error}"
 
     runner_root = Path(__file__).resolve().parents[1]
     run_id = f"{task_id}-{uuid.uuid4().hex[:12]}"
@@ -3301,6 +3303,7 @@ async def dynamic_workflow(
         "--spec", str(run_dir / "request.json"), "--run-id", run_id,
         "--budget-usd", f"{budget_usd:g}", "--max-calls", str(max_calls),
         "--max-concurrency", str(max_concurrency), "--repo", str(repo_path),
+        "--base-commit", base_commit,
     ]
     command = shlex.join(command_parts)
     manifest_path = runner_root / "data" / "workflow-runs" / run_id / "manifest.json"
