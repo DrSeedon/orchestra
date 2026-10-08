@@ -1,0 +1,54 @@
+## /etc/cron.d/seedon-delivery-watchdog
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+HOME=/home/kesha
+MAILTO=""
+
+* * * * * kesha /usr/local/sbin/seedon-delivery-watchdog 2>&1 | /usr/bin/logger -t seedon-delivery-watchdog; exit ${PIPESTATUS[0]}
+## /etc/cron.d/staticroute
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+@reboot root ip route replace $(ip route list dev eth0 scope link | head -n1 | awk '{ print $1 }') via $(ip route list dev eth0 | awk '/default/{ print $3 }') dev eth0 &>/dev/null
+## /etc/cron.d/sysstat
+PATH=/usr/lib/sysstat:/usr/sbin:/usr/sbin:/usr/bin:/sbin:/bin
+
+5-55/10 * * * * root command -v debian-sa1 > /dev/null && debian-sa1 1 1
+
+59 23 * * * root command -v debian-sa1 > /dev/null && debian-sa1 60 2
+## /etc/cron.d/certbot
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+0 */12 * * * root test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(43200))' && certbot -q renew --no-random-sleep-on-renew
+## crontab kesha
+*/30 * * * * out=$(curl -sS --max-time 20 "https://www.duckdns.org/update?domains=dnd-game-master&token=$(cat /home/kesha/projects/dnd-game-master/.duckdns_token)&ip=" 2>&1); [ "$out" = OK ] || echo "$(date -Is) duckdns update FAILED: $out" >> /home/kesha/projects/dnd-game-master/world-state/duckdns.log
+15 */4 * * * cd /home/kesha/projects/seedon && G=$(grep -q -- "--group" tools/tender-collector/tender_collector/collector.py && echo "--group core"); TENDER_RTS_MARKET_BUDGET_S=240 /home/kesha/.local/share/seedon/tender-cron.sh last /home/kesha/.local/share/seedon/tender.lock 600 1800 $G
+20 2,6,10,14,18 * * * cd /home/kesha/projects/seedon && grep -q -- "--group" tools/tender-collector/tender_collector/collector.py && /home/kesha/.local/share/seedon/tender-cron.sh big /home/kesha/.local/share/seedon/tender-big.lock 900 3000 --group big
+50 0,4,8,12,16,20 * * * cd /home/kesha/projects/seedon && grep -q -- "roseltorg" tools/tender-collector/tender_collector/roseltorg.py && /home/kesha/.local/share/seedon/tender-cron.sh roseltorg /home/kesha/.local/share/seedon/tender-roseltorg.lock 900 2700 --group roseltorg
+5 1,5,9,13,17,21 * * * cd /home/kesha/projects/seedon && grep -q "_RB" tools/tender-collector/tender_collector/collector.py && { TENDER_RTS_MARKET_BUDGET_S=700 flock -n /home/kesha/.local/share/seedon/tender-rts.lock timeout 900 python3 tools/tender-collector/run.py --transport auto --source РТС-Маркет --db /home/kesha/.local/share/seedon/tender-collector.sqlite3 > /home/kesha/.local/share/seedon/tender-rts.tmp 2>&1; mv /home/kesha/.local/share/seedon/tender-rts.tmp /home/kesha/.local/share/seedon/tender-rts.out; }
+25 * * * * cd /home/kesha/projects/seedon && grep -q "RtsTenderSearchAdapter" tools/tender-collector/tender_collector/collector.py && { flock -n /home/kesha/.local/share/seedon/tender-poisk.lock timeout 1200 python3 tools/tender-collector/run.py --transport auto --source "РТС-тендер (поиск)" --db /home/kesha/.local/share/seedon/tender-collector.sqlite3 > /home/kesha/.local/share/seedon/tender-poisk.tmp 2>&1; mv /home/kesha/.local/share/seedon/tender-poisk.tmp /home/kesha/.local/share/seedon/tender-poisk.out; }
+0 22 * * * cd /home/kesha/projects/seedon && TENDER_RTS_MARKET_LOOKBACK_HOURS=0 TENDER_RTS_MARKET_BUDGET_S=1700 flock -n /home/kesha/.local/share/seedon/tender.lock timeout 1800 python3 tools/tender-collector/run.py --transport auto --db /home/kesha/.local/share/seedon/tender-collector.sqlite3 --source РТС-Маркет > /home/kesha/.local/share/seedon/tender-rts-night.log 2>&1
+45 * * * * cd /home/kesha/projects/seedon && grep -q -- '--watch' tools/tender-collector/tender_collector/collector.py && /home/kesha/.local/share/seedon/tender-cron.sh watch /home/kesha/.local/share/seedon/tender.lock 600 900 --watch
+59 * * * * /home/kesha/.local/share/seedon/tender-accumulate.sh
+*/30 * * * * /home/kesha/.local/share/seedon/ops-cron.sh
+30 3,9 * * * /home/kesha/.local/share/seedon/tender-cron.sh eis44 /home/kesha/.local/share/seedon/tender-eis.lock 600 1500 --source "ЕИС 44-ФЗ"
+0 4,10 * * * /home/kesha/.local/share/seedon/tender-cron.sh eis223 /home/kesha/.local/share/seedon/tender-eis.lock 600 1500 --source "ЕИС 223-ФЗ"
+## journal count per command (24h)
+   1439 CMD (/usr/local/sbin/seedon-delivery-watchdog 2>&1 | /usr/bin/logger -t seedon-delivery-watchdog; exit ${PIPESTATUS[0]})
+    132 CMD (command -v debian-sa1 > /dev/null && debian-sa1 1 1)
+     48 CMD (out=$(curl -sS --max-time 20 "https://www.duckdns.org/update?domains=dnd-game-master&token=$(cat /home/kesha/projects/dnd-game-master/.
+     48 CMD (/home/kesha/.local/share/seedon/ops-cron.sh)
+     24 CMD (cd /home/kesha/projects/seedon && grep -q -- '--watch' tools/tender-collector/tender_collector/collector.py && /home/kesha/.local/share
+     24 CMD (cd /home/kesha/projects/seedon && grep -q "RtsTenderSearchAdapter" tools/tender-collector/tender_collector/collector.py && { flock -n /
+     24 CMD (cd / && run-parts --report /etc/cron.hourly)
+     24 CMD (/home/kesha/.local/share/seedon/tender-accumulate.sh)
+      6 CMD (cd /home/kesha/projects/seedon && grep -q -- "roseltorg" tools/tender-collector/tender_collector/roseltorg.py && /home/kesha/.local/sha
+      6 CMD (cd /home/kesha/projects/seedon && grep -q "_RB" tools/tender-collector/tender_collector/collector.py && { TENDER_RTS_MARKET_BUDGET_S=70
+      6 CMD (cd /home/kesha/projects/seedon && G=$(grep -q -- "--group" tools/tender-collector/tender_collector/collector.py && echo "--group core")
+      5 CMD (cd /home/kesha/projects/seedon && grep -q -- "--group" tools/tender-collector/tender_collector/collector.py && /home/kesha/.local/share
+      2 CMD (test -x /usr/bin/certbot -a \! -d /run/systemd/system && perl -e 'sleep int(rand(N))' && certbot -q renew --no-random-sleep-on-renew)
+      2 CMD (/home/kesha/.local/share/seedon/tender-cron.sh eis44 /home/kesha/.local/share/seedon/tender-eis.lock 600 N --source "\320\225\320\230\3
+      2 CMD (/home/kesha/.local/share/seedon/tender-cron.sh eis223 /home/kesha/.local/share/seedon/tender-eis.lock 600 N --source "\320\225\320\230\
+      1 CMD (test -x /usr/sbin/anacron || { cd / && run-parts --report /etc/cron.daily; })
+      1 CMD (command -v debian-sa1 > /dev/null && debian-sa1 60 2)
+      1 CMD (cd /home/kesha/projects/seedon && TENDER_RTS_MARKET_LOOKBACK_HOURS=0 TENDER_RTS_MARKET_BUDGET_S=N flock -n /home/kesha/.local/share/see
