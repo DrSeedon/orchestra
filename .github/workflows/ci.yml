@@ -41,11 +41,37 @@ jobs:
       # На образе ubuntu-latest ffmpeg не предустановлен, а тест длительности
       # аудио обязан звать НАСТОЯЩИЙ ffprobe — подменять бинарь значило бы
       # проверять заглушку вместо разбора контейнера.
-      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
-      # `uv sync` ставит пакет playwright, но не бинарники браузеров. Без этого
-      # шага все браузерные тесты молча скипались бы, и CI был бы зелёным, ничего
-      # про фронт не проверив.
-      - run: uv run playwright install --with-deps chromium
+      - name: Install ffmpeg and ffprobe
+        timeout-minutes: 8
+        run: |
+          for attempt in 1 2; do
+            if sudo timeout --kill-after=5s 60s apt-get \
+              -o Acquire::Retries=2 \
+              -o Acquire::http::Timeout=20 \
+              -o Acquire::https::Timeout=20 update; then
+              break
+            fi
+            if [ "$attempt" -eq 2 ]; then exit 1; fi
+            echo "apt-get update timed out or failed; retrying"
+          done
+          for attempt in 1 2; do
+            if sudo timeout --kill-after=5s 150s apt-get \
+              -o Acquire::Retries=2 \
+              -o Acquire::http::Timeout=20 \
+              -o Acquire::https::Timeout=20 \
+              install -y --no-install-recommends ffmpeg; then
+              ffprobe -version || exit 1
+              exit 0
+            fi
+            if [ "$attempt" -eq 2 ]; then exit 1; fi
+            if ! sudo timeout --kill-after=5s 60s dpkg --configure -a; then
+              echo "dpkg recovery failed; not retrying ffmpeg install"
+              exit 1
+            fi
+            echo "ffmpeg install timed out or failed; retrying"
+          done
+      # Эти шарды deselect браузерные тесты выше; ставить их системные пакеты здесь
+      # бессмысленно. Chromium и его зависимости ставит только browser job ниже.
       # Полный сьют в ОДИН процесс на этом репозитории не проходит физически:
       # прогон 33893200040 убит `exit code 137` (OOM) на 81%, тот же RC=137
       # около 80% воспроизводится локально. Течёт не отдельный тест, а
