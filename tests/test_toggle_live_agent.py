@@ -70,4 +70,4 @@ def test_t6_switching_away_from_disabled_model_is_allowed(vendor_model):
     """The escape hatch: a session ON the disabled model may change to any
     dashboard-visible model — only the TARGET model's level is checked."""
     registry.set_model_flags("test/vendor-x:free", dashboard=False, agents=False)
-    registry.ensure_dashboard_visible("claude-haiku-4-5")  # target is fine → change proceeds
+    registry.ensure_dashboard_visible("claude-haiku-5-5")  # target is fine → change proceeds

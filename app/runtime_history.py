@@ -13,8 +13,8 @@ from dataclasses import asdict, dataclass, replace
 from typing import Any, Callable, Iterable, Sequence
 
 
-CLAUDE_CLI_HISTORY_VERSION = "2.1.197"
-CLAUDE_SDK_HISTORY_VERSION = "0.2.114"
+CLAUDE_CLI_HISTORY_VERSION = "2.1.293"
+CLAUDE_SDK_HISTORY_VERSION = "0.2.164"
 CLAUDE_HISTORY_SOURCE = "logs:claude"
 # Synthetic history payloads were accepted by CLI 0.156.1 (V-703) and 0.160.0 (V-726)
 # through `thread/resume` in isolated CODEX_HOME directories; no live thread was resumed.

@@ -85,7 +85,7 @@ def test_t4_catalog_list_carries_flags(vendor_model, client):
     assert entry["flags"] == {"dashboard": False, "agents": True}
     assert entry["price_prompt"] == 0.0
     assert entry["context_length"] == 128000
-    manifest_entry = next(m for m in body["catalog"] if m["id"] == "claude-haiku-4-5")
+    manifest_entry = next(m for m in body["catalog"] if m["id"] == "claude-haiku-5-5")
     assert manifest_entry["flags"] == {"dashboard": True, "agents": True}
 
 

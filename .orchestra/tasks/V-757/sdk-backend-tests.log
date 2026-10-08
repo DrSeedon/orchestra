@@ -1,0 +1,58 @@
+........................................................................ [ 13%]
+........................................................................ [ 26%]
+........................................................................ [ 40%]
+........................................................................ [ 53%]
+.........F.............................................................. [ 67%]
+........................................................................ [ 80%]
+........................................................................ [ 94%]
+................................                                         [100%]
+=================================== FAILURES ===================================
+_ TestRuntimeCapabilities.test_in_place_switch_refuses_context_that_target_cannot_fit[claude-claude-opus-5[1m]-claude-haiku-5-5] _
+
+self = <tests.test_session.TestRuntimeCapabilities object at 0x730ac1a99070>
+session = AgentSession(id='test-001', name='w1', scope='/test', cwd='/tmp', model='claude-haiku-5-5', system_prompt='test', prom...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x730abe5f3a40>
+live_harness_route = <function live_harness_route.<locals>.seed at 0x730abc4d8d60>
+runtime = 'claude', old_model = 'claude-opus-5[1m]'
+new_model = 'claude-haiku-5-5'
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
+        ("claude", "claude-opus-5[1m]", "claude-haiku-5-5"),
+        ("harness", "vendor/wide:free", "vendor/narrow:free"),
+    ])
+    async def test_in_place_switch_refuses_context_that_target_cannot_fit(
+            self, session, monkeypatch, live_harness_route, runtime, old_model, new_model):
+        from app.session import AgentStatus
+    
+        if runtime == "harness":
+            live_harness_route(old_model, context_length=1_000_000)
+            live_harness_route(new_model, context_length=256_000)
+        session.model = old_model
+        session.backend_type = runtime
+        session.session_id = f"native-{runtime}-session"
+        session.status = AgentStatus.IDLE
+        session._last_context = {
+            "percentage": 30,
+            "total_tokens": 300_000,
+            "max_tokens": 1_000_000,
+        }
+        source = SimpleNamespace(
+            active_turn_id=None,
+            _events_active=False,
+            _turn_active=False,
+            retarget_model=AsyncMock(),
+        )
+        session._backend = source
+        save = MagicMock()
+        monkeypatch.setattr("app.session.save_session", save)
+    
+        result = await session.change_model(new_model)
+    
+>       assert result["ok"] is False
+E       assert True is False
+
+tests/test_session.py:4801: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_session.py::TestRuntimeCapabilities::test_in_place_switch_refuses_context_that_target_cannot_fit[claude-claude-opus-5[1m]-claude-haiku-5-5]
+1 failed, 535 passed, 3 deselected in 96.81s (0:01:36)

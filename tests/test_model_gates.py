@@ -55,7 +55,7 @@ def test_t3_api_models_hides_dashboard_off(vendor_model, monkeypatch):
     with TestClient(app) as client:
         ids = {m["id"] for m in client.get("/api/models").json()["models"]}
     assert "test/vendor-x:free" not in ids
-    assert "claude-haiku-4-5" in ids
+    assert "claude-haiku-5-5" in ids
 
     registry.set_model_flags("test/vendor-x:free", dashboard=True)
     with TestClient(app) as client:
@@ -67,7 +67,7 @@ def test_t3_worker_spawn_rejected_on_agents_off(vendor_model):
     registry.set_model_flags("test/vendor-x:free", agents=False)
     with pytest.raises(ValueError, match="agents"):
         registry.ensure_spawn_allowed("test/vendor-x:free")
-    registry.ensure_spawn_allowed("claude-haiku-4-5")
+    registry.ensure_spawn_allowed("claude-haiku-5-5")
 
 
 @pytest.mark.asyncio

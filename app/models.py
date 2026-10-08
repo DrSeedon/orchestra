@@ -75,9 +75,9 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         context_length=1000000, price_input=2.0, price_output=10.0,
     ),
     ModelSpec(
-        id="claude-haiku-4-5", name="Haiku 4.5",
+        id="claude-haiku-5-5", name="Haiku 5.5",
         runtime="claude", provider="anthropic",
-        context_length=200000, price_input=0.80, price_output=4.0,
+        context_length=1000000, price_input=0.10, price_output=0.50,
     ),
     # The plain id is retained for persisted-session recovery; only the [1m] id
     # remains in the selectable catalog.
@@ -177,7 +177,7 @@ ALIASES = {
     "sonnet5": "claude-sonnet-5-5[1m]",
     "claude-sonnet-4-6": "claude-sonnet-5-5[1m]",
     "claude-sonnet-4-5": "claude-sonnet-5-5[1m]",
-    "haiku": "claude-haiku-4-5",
+    "haiku": "claude-haiku-5-5",
     "spark": "gpt-5.3-codex-spark",
     "codexspark": "gpt-5.3-codex-spark",
     "gpt5.3spark": "gpt-5.3-codex-spark",
