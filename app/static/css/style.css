@@ -872,6 +872,15 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .analytics-kpi-grid strong { margin: 5px 0 4px; overflow: hidden; color: #edf2f8; font: 700 16px/1 var(--font-mono); text-overflow: ellipsis; }
 .analytics-kpi-grid small { color: #63758d; font-size: 8px; }
 .analytics-overview-grid, .analytics-efficiency-grid, .analytics-reliability-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .7fr); gap: 10px; }
+.analytics-speed-grid { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(320px, .8fr); gap: 10px; }
+.analytics-speed-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 7px; }
+.analytics-speed-card { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 9px; border: 1px solid #202e40; background: #0a111b; }
+.analytics-speed-card > div:first-child strong, .analytics-speed-card > div:first-child span, .analytics-speed-value b, .analytics-speed-value small { display: block; }
+.analytics-speed-card > div:first-child strong { overflow: hidden; color: #dce5ef; font-size: 9px; text-overflow: ellipsis; }
+.analytics-speed-card > div:first-child span, .analytics-speed-value small, .analytics-speed-basis { margin-top: 3px; color: #64758b; font-size: 7px; }
+.analytics-speed-value { text-align: right; }
+.analytics-speed-value b { color: #e8edf5; font: 700 9px/1.2 var(--font-mono); }
+.analytics-speed-basis { grid-column: 1 / -1; }
 .analytics-panel { min-width: 0; padding: 13px; border: 1px solid #243247; border-radius: 7px; background: #0d1621; }
 .analytics-chart-wrap { height: 250px; position: relative; }
 .analytics-signal-list { display: flex; flex-direction: column; }
@@ -956,7 +965,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
   .analytics-close { grid-column: 2; grid-row: 1; }
   .analytics-provider-metrics { grid-template-columns: repeat(2, 1fr); }
   .analytics-kpi-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .analytics-overview-grid { grid-template-columns: 1fr; }
+  .analytics-overview-grid, .analytics-speed-grid { grid-template-columns: 1fr; }
   .analytics-chart-wrap { height: 220px; }
 }
 

@@ -16,6 +16,7 @@ const _analyticsPeriods = {
 
 const _analyticsViews = {
     overview: T('Pools & costs'),
+    speeds: T('Model speed'),
     agents: T('Agents'),
     efficiency: T('Efficiency'),
     reliability: T('Reliability'),
@@ -151,6 +152,8 @@ function _analyticsRender() {
     _analyticsDestroyChart();
     if (_analyticsView === 'agents') {
         _analyticsRenderAgents(body);
+    } else if (_analyticsView === 'speeds') {
+        _analyticsRenderSpeeds(body);
     } else if (_analyticsView === 'efficiency') {
         _analyticsRenderEfficiency(body);
     } else if (_analyticsView === 'reliability') {
@@ -158,6 +161,99 @@ function _analyticsRender() {
     } else {
         _analyticsRenderOverview(body);
     }
+}
+
+function _analyticsRenderSpeeds(body) {
+    const speeds = _analyticsPayload.model_speeds || {};
+    const current = speeds.current || {};
+    const lastHour = current.last_hour || [];
+    const lastDay = current.last_day || [];
+    const models = [...new Map([...lastHour, ...lastDay].map(item => [
+        `${item.runtime}:${item.model}`, item,
+    ])).values()].sort((a, b) => a.model.localeCompare(b.model));
+    const hourByModel = new Map(lastHour.map(item => [`${item.runtime}:${item.model}`, item]));
+    const dayByModel = new Map(lastDay.map(item => [`${item.runtime}:${item.model}`, item]));
+    const cards = models.map(item => {
+        const key = `${item.runtime}:${item.model}`;
+        const hour = hourByModel.get(key);
+        const day = dayByModel.get(key);
+        const basis = _analyticsDurationBasis((hour || day || {}).duration_basis);
+        return `<article class="analytics-speed-card" data-analytics-speed-model="${_analyticsEsc(item.model)}">
+            <div><strong>${_analyticsEsc(item.model)}</strong><span>${_analyticsEsc(item.runtime)}</span></div>
+            <div class="analytics-speed-value"><b>${_analyticsSpeed((hour || {}).median_tokens_per_second)}</b><small>${T('last hour')} · ${T('{n} turns', {n: _analyticsNumber((hour || {}).samples || 0)})}</small></div>
+            <div class="analytics-speed-value"><b>${_analyticsSpeed((day || {}).median_tokens_per_second)}</b><small>${T('last 24 hours')} · ${T('{n} turns', {n: _analyticsNumber((day || {}).samples || 0)})}</small></div>
+            <span class="analytics-speed-basis">${basis}</span>
+        </article>`;
+    }).join('');
+    body.innerHTML = `<section class="analytics-speed-grid">
+        <article class="analytics-panel">
+            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Generation')}</span><h3>${T('Model speed')}</h3></div><span>${T('Median output tokens per second')}</span></div>
+            <div class="analytics-speed-cards">${cards || `<div class="analytics-empty">${T('No timed model turns in this period.')}</div>`}</div>
+            <p class="analytics-footnote">${T('API duration is used when the provider reports it; otherwise the full turn duration is used. Old turns without timing are not estimated.')}</p>
+        </article>
+        <article class="analytics-panel">
+            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Trend')}</span><h3>${T('Generation speed over time')}</h3></div><span>${Number(speeds.bucket_seconds) === 3600 ? T('hourly') : T('daily')}</span></div>
+            ${(speeds.series || []).length ? '<div class="analytics-chart-wrap"><canvas id="analytics-speed-chart"></canvas></div>' : `<div class="analytics-empty">${T('No timed model turns in this period.')}</div>`}
+        </article>
+    </section>`;
+    _analyticsRenderSpeedChart(speeds.series || []);
+}
+
+function _analyticsSpeed(value) {
+    return value == null ? T('no data') : `${_analyticsNumber(value)} ${T('tokens/s')}`;
+}
+
+function _analyticsDurationBasis(basis) {
+    if (basis === 'api') return T('API time');
+    if (basis === 'model_estimate') return T('Estimated model time (tool intervals removed)');
+    if (basis === 'turn') return T('Turn time');
+    return basis === 'mixed' ? T('Mixed duration basis') : T('no data');
+}
+
+async function _analyticsRenderSpeedChart(series) {
+    const canvas = document.getElementById('analytics-speed-chart');
+    if (!canvas || !series.length) return;
+    try {
+        await _ensureChartJs();
+    } catch (e) {
+        canvas.replaceWith(Object.assign(document.createElement('div'), {
+            className: 'analytics-text-warn', textContent: T('Chart not rendered: {error}', {error: e.message}),
+        }));
+        return;
+    }
+    const labels = [...new Set(series.map(point => point.bucket))].sort();
+    const models = [...new Map(series.map(point => [
+        `${point.runtime}:${point.model}`, point,
+    ])).values()];
+    const colors = ['#a78bfa', '#22d3ee', '#f59e0b', '#4ade80', '#fb7185', '#60a5fa', '#e879f9'];
+    const datasets = models.map((item, index) => {
+        const key = `${item.runtime}:${item.model}`;
+        const points = new Map(series.filter(point => `${point.runtime}:${point.model}` === key)
+            .map(point => [point.bucket, point]));
+        return {
+            label: `${item.model} (${item.runtime})`,
+            data: labels.map(label => points.get(label)?.median_tokens_per_second ?? null),
+            borderColor: colors[index % colors.length],
+            backgroundColor: colors[index % colors.length],
+            pointRadius: 2,
+            tension: .2,
+            spanGaps: false,
+        };
+    });
+    _analyticsChart = new Chart(canvas, {
+        type: 'line',
+        data: { labels: labels.map(label => _analyticsDateTime(label)), datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', boxWidth: 10, font: { size: 9 } } } },
+            scales: {
+                x: { ticks: { color: '#64748b', maxTicksLimit: 10, font: { size: 8 } }, grid: { display: false } },
+                y: { beginAtZero: true, title: { display: true, text: T('tokens/s'), color: '#94a3b8' }, ticks: { color: '#64748b', font: { size: 8 } }, grid: { color: 'rgba(51, 65, 85, .35)' } },
+            },
+        },
+    });
 }
 
 function _analyticsRenderOverview(body) {

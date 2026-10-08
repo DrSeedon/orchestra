@@ -91,6 +91,10 @@ CODEX_OVERSIZE_READLINE_ERRORS = frozenset({
     CODEX_OVERSIZE_READLINE_ERROR,
     "Separator is found, but chunk is longer than limit",
 })
+_CODEX_TOOL_ITEM_TYPES = frozenset({
+    "commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall",
+    "webSearch", "imageView", "imageGeneration", "sleep", "collabAgentToolCall",
+})
 
 
 class CodexOversizedRecordError(RuntimeError):
@@ -203,6 +207,13 @@ def _read_rollout_totals(path: Path) -> dict[str, int] | None:
                     ),
                     "output_tokens": max(0, int(total.get("output_tokens") or 0)),
                 }
+                reasoning_tokens = total.get("reasoning_tokens")
+                if (
+                    isinstance(reasoning_tokens, int)
+                    and not isinstance(reasoning_tokens, bool)
+                    and reasoning_tokens >= 0
+                ):
+                    latest["reasoning_tokens"] = reasoning_tokens
     except (FileNotFoundError, OSError, ValueError, TypeError):
         return None
     return latest
@@ -217,6 +228,14 @@ def _usage_delta(current: dict[str, int], baseline: dict[str, int] | None) -> di
         value = max(0, int(current.get(key) or 0))
         before = max(0, int(baseline.get(key) or 0))
         result[key] = value - before if value >= before else value
+    if "reasoning_tokens" in current or "reasoning_tokens" in baseline:
+        value = current.get("reasoning_tokens")
+        before = baseline.get("reasoning_tokens")
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            if isinstance(before, int) and not isinstance(before, bool) and before >= 0:
+                result["reasoning_tokens"] = value - before if value >= before else value
+            else:
+                result["reasoning_tokens"] = value
     return result
 
 
@@ -454,6 +473,11 @@ class CodexBackend(JsonRpcStdioTransport):
         self._request_seq = 0
         self._write_lock = asyncio.Lock()
         self._active_turn_id: str | None = None
+        self._active_turn_started_monotonic: float | None = None
+        self._tool_item_started_monotonic: dict[str, float] = {}
+        self._tool_item_intervals: list[tuple[float, float]] = []
+        self._tool_item_completed_ids: set[str] = set()
+        self._tool_item_intervals_missing = 0
         self._events_active = False
         self._deferred_control: dict | None = None
         self._deferred_control_turn_id: str | None = None
@@ -772,11 +796,16 @@ class CodexBackend(JsonRpcStdioTransport):
         self._last_turn_error = {}
         self._last_call_usage = None
         self._started_items.clear()
+        self._tool_item_started_monotonic.clear()
+        self._tool_item_intervals.clear()
+        self._tool_item_completed_ids.clear()
+        self._tool_item_intervals_missing = 0
         self._usage_baseline = (
             dict(self._thread_usage_total)
             if self._thread_usage_total is not None
             else (self._runtime_totals() if self._thread_id else None)
         )
+        self._active_turn_started_monotonic = time.monotonic()
         result = await self._request("turn/start", {
             "threadId": self._thread_id,
             "input": user_input,
@@ -931,6 +960,7 @@ class CodexBackend(JsonRpcStdioTransport):
         self, stop_reason: str, message: str,
     ) -> list[AgentEvent]:
         turn_id = self._deferred_control_turn_id or self._active_turn_id or ""
+        timing = self._finish_turn_timing()
         control = dict(self._deferred_control or {})
         self._active_turn_id = None
         self._clear_deferred_control()
@@ -955,6 +985,7 @@ class CodexBackend(JsonRpcStdioTransport):
             "stop_reason": stop_reason,
             "cost_usd": 0,
             "cost_unaccounted": True,
+            **timing,
             **usage.metadata(),
             "model_error": "error",
             "errors": [detail],
@@ -1364,6 +1395,8 @@ class CodexBackend(JsonRpcStdioTransport):
             turn_id = ((params.get("turn") or {}).get("id"))
             if turn_id:
                 self._active_turn_id = turn_id
+                if self._active_turn_started_monotonic is None:
+                    self._active_turn_started_monotonic = time.monotonic()
             return [AgentEvent("status", f"codex turn={turn_id} started")]
 
         if method == "thread/tokenUsage/updated":
@@ -1453,10 +1486,15 @@ class CodexBackend(JsonRpcStdioTransport):
             item_id = str(item.get("id") or "")
             if item_id:
                 self._started_items.add(item_id)
+            if self._item_belongs_to_active_turn(params):
+                self._record_tool_item_started(item)
             return self._item_started(item)
 
         if method == "item/completed":
-            return self._item_completed(params.get("item") or {})
+            item = params.get("item") or {}
+            if self._item_belongs_to_active_turn(params):
+                self._record_tool_item_completed(item, time.monotonic())
+            return self._item_completed(item)
 
         if method == "item/mcpToolCall/progress":
             return [AgentEvent(
@@ -1519,6 +1557,7 @@ class CodexBackend(JsonRpcStdioTransport):
         if method == "_process/exited":
             event_id = self._active_turn_id or ""
             self._active_turn_id = None
+            timing = self._finish_turn_timing()
             reader_failure = params.get("reader_failure") or ""
             model_error = "reader_failure" if reader_failure else "server_error"
             normalized_usage = TurnUsage(
@@ -1540,6 +1579,7 @@ class CodexBackend(JsonRpcStdioTransport):
                 "errors": [model_error],
                 "reader_failure": reader_failure,
                 "cost_usd": 0,
+                **timing,
                 **normalized_usage.metadata(),
             }, usage=normalized_usage)]
 
@@ -1838,6 +1878,8 @@ class CodexBackend(JsonRpcStdioTransport):
         return events
 
     def _turn_completed(self, turn: dict) -> list[AgentEvent]:
+        provider_api_duration_ms = self._optional_nonnegative_int(turn.get("duration_api_ms"))
+        timing = self._finish_turn_timing(provider_api_duration_ms)
         status = turn.get("status", "failed")
         error = turn.get("error") or self._last_turn_error or {}
         turn_id = str(turn.get("id") or "")
@@ -1910,6 +1952,8 @@ class CodexBackend(JsonRpcStdioTransport):
             "cost_usd": cost,
             "cost_usd_cached": cost,
             "cost_is_delta": True,
+            **timing,
+            "reasoning_tokens": delta.get("reasoning_tokens"),
             "cache_hit": int(turn_cached * 100 / turn_input) if turn_input else 0,
             **normalized_usage.metadata(),
             "model_error": model_error,
@@ -1947,12 +1991,126 @@ class CodexBackend(JsonRpcStdioTransport):
 
     @staticmethod
     def _usage_breakdown(data: dict) -> dict[str, int]:
-        return {
+        result = {
             "input_tokens": max(0, int(data.get("inputTokens") or 0)),
             "cached_input_tokens": max(0, int(data.get("cachedInputTokens") or 0)),
             "cache_write_input_tokens": max(0, int(data.get("cacheWriteInputTokens") or 0)),
             "output_tokens": max(0, int(data.get("outputTokens") or 0)),
         }
+        reasoning_tokens = data.get("reasoningTokens")
+        if reasoning_tokens is None:
+            reasoning_tokens = data.get("reasoning_tokens")
+        if (
+            isinstance(reasoning_tokens, int)
+            and not isinstance(reasoning_tokens, bool)
+            and reasoning_tokens >= 0
+        ):
+            result["reasoning_tokens"] = reasoning_tokens
+        return result
+
+    def _item_belongs_to_active_turn(self, params: dict) -> bool:
+        active_turn_id = self._active_turn_id
+        event_turn_id = params.get("turnId")
+        return bool(active_turn_id) and (
+            not event_turn_id or str(event_turn_id) == active_turn_id
+        )
+
+    def _record_tool_item_started(self, item: dict) -> None:
+        item_type = item.get("type")
+        if not isinstance(item_type, str) or item_type not in _CODEX_TOOL_ITEM_TYPES:
+            return
+        item_id = str(item.get("id") or "")
+        if not item_id:
+            self._tool_item_intervals_missing += 1
+            return
+        if (
+            item_id not in self._tool_item_started_monotonic
+            and item_id not in self._tool_item_completed_ids
+        ):
+            self._tool_item_started_monotonic[item_id] = time.monotonic()
+
+    def _record_tool_item_completed(self, item: dict, completed_at: float) -> None:
+        item_type = item.get("type")
+        if not isinstance(item_type, str) or item_type not in _CODEX_TOOL_ITEM_TYPES:
+            return
+        item_id = str(item.get("id") or "")
+        if not item_id:
+            self._tool_item_intervals_missing += 1
+            return
+        if item_id in self._tool_item_completed_ids:
+            return
+        started_at = self._tool_item_started_monotonic.pop(item_id, None)
+        self._tool_item_completed_ids.add(item_id)
+        if started_at is None:
+            self._tool_item_intervals_missing += 1
+            return
+        self._tool_item_intervals.append((started_at, completed_at))
+
+    def _finish_turn_timing(self, provider_api_duration_ms: int | None = None) -> dict:
+        started = self._active_turn_started_monotonic
+        self._active_turn_started_monotonic = None
+        ended = time.monotonic()
+        turn_duration_ms = (
+            max(0, int((ended - started) * 1000)) if started is not None else None
+        )
+        intervals = list(self._tool_item_intervals)
+        intervals.extend(
+            (item_started, ended)
+            for item_started in self._tool_item_started_monotonic.values()
+        )
+        self._tool_item_started_monotonic.clear()
+        self._tool_item_intervals.clear()
+        self._tool_item_completed_ids.clear()
+
+        clipped = []
+        if started is not None:
+            for item_started, item_ended in intervals:
+                item_started = max(started, item_started)
+                item_ended = min(ended, item_ended)
+                if item_ended > item_started:
+                    clipped.append((item_started, item_ended))
+        tool_duration_sum_ms = int(sum(end - start for start, end in clipped) * 1000)
+        merged = []
+        for start, end in sorted(clipped):
+            if not merged or start > merged[-1][1]:
+                merged.append([start, end])
+            else:
+                merged[-1][1] = max(merged[-1][1], end)
+        tool_union_duration_ms = int(sum(end - start for start, end in merged) * 1000)
+        model_estimate_duration_ms = (
+            max(0, turn_duration_ms - tool_union_duration_ms)
+            if turn_duration_ms is not None
+            else None
+        )
+        provider_api_duration_ms = self._optional_nonnegative_int(provider_api_duration_ms)
+        if provider_api_duration_ms and provider_api_duration_ms > 0:
+            api_duration_ms = provider_api_duration_ms
+            duration_basis = "api"
+        elif self._tool_item_intervals_missing:
+            api_duration_ms = None
+            duration_basis = "incomplete"
+        else:
+            api_duration_ms = model_estimate_duration_ms
+            duration_basis = "model_estimate" if model_estimate_duration_ms is not None else None
+        result = {
+            "turn_duration_ms": turn_duration_ms,
+            "api_duration_ms": api_duration_ms,
+            "duration_basis": duration_basis,
+            "provider_api_duration_ms": provider_api_duration_ms,
+            "model_estimate_duration_ms": model_estimate_duration_ms,
+            "tool_duration_sum_ms": tool_duration_sum_ms,
+            "tool_union_duration_ms": tool_union_duration_ms,
+            "tool_intervals_count": len(clipped),
+            "tool_intervals_missing": self._tool_item_intervals_missing,
+        }
+        self._tool_item_intervals_missing = 0
+        return result
+
+    @staticmethod
+    def _optional_nonnegative_int(value) -> int | None:
+        if isinstance(value, int) and not isinstance(value, bool) and value >= 0:
+            return value
+        return None
 
     @staticmethod
     def _classify_error(error: dict) -> str:

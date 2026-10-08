@@ -1430,6 +1430,17 @@ class ClaudeBackend:
 
             cost = getattr(msg, "total_cost_usd", 0) or 0
             usage = getattr(msg, "usage", None)
+            turn_duration_ms = getattr(msg, "duration_ms", None)
+            provider_api_duration_ms = getattr(msg, "duration_api_ms", None)
+            if not isinstance(turn_duration_ms, int) or isinstance(turn_duration_ms, bool) or turn_duration_ms < 0:
+                turn_duration_ms = None
+            if (
+                not isinstance(provider_api_duration_ms, int)
+                or isinstance(provider_api_duration_ms, bool)
+                or provider_api_duration_ms < 0
+            ):
+                provider_api_duration_ms = None
+            reasoning_tokens = None
             max_tokens = 200000
             cache_hit = 0
             cache_read = 0
@@ -1439,6 +1450,16 @@ class ClaudeBackend:
             cost_cached = 0.0
 
             if usage and isinstance(usage, dict):
+                output_details = usage.get("output_tokens_details") or {}
+                raw_reasoning_tokens = usage.get("reasoning_tokens")
+                if raw_reasoning_tokens is None and isinstance(output_details, dict):
+                    raw_reasoning_tokens = output_details.get("reasoning_tokens")
+                if (
+                    isinstance(raw_reasoning_tokens, int)
+                    and not isinstance(raw_reasoning_tokens, bool)
+                    and raw_reasoning_tokens >= 0
+                ):
+                    reasoning_tokens = raw_reasoning_tokens
                 cache_create = usage.get("cache_creation_input_tokens", 0) or 0
                 cache_read = usage.get("cache_read_input_tokens", 0) or 0
                 input_tokens = usage.get("input_tokens", 0) or 0
@@ -1482,6 +1503,11 @@ class ClaudeBackend:
                 "model_error": model_error,
                 "stop_reason": sr,
                 "num_turns": nt,
+                "turn_duration_ms": turn_duration_ms,
+                "api_duration_ms": provider_api_duration_ms,
+                "duration_basis": "api" if provider_api_duration_ms else "turn" if turn_duration_ms else None,
+                "provider_api_duration_ms": provider_api_duration_ms,
+                "reasoning_tokens": reasoning_tokens,
                 "cost_usd": cost,
                 "cost_usd_cached": round(cost_cached, 6),
                 "cache_hit": cache_hit,
