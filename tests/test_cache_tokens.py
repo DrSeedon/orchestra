@@ -127,8 +127,10 @@ class TestRecompute:
         r = self._row(total_input_tokens=1000, total_output_tokens=500,
                       total_cache_read_tokens=2000, total_cache_create_tokens=100,
                       cost_usd_cached=999.0)  # stored is stale/wrong
-        expected = (1000 * p["input"] + 2000 * p["input"] * 0.1
-                    + 100 * p["input"] * 1.25 + 500 * p["output"]) / 1_000_000
+        expected = (1000 * p["input"]
+                    + 2000 * p["input"] * p["cache_read_multiplier"]
+                    + 100 * p["input"] * p["cache_write_1h_multiplier"]
+                    + 500 * p["output"]) / 1_000_000
         assert _cost_cached_for(r) == pytest.approx(expected)
 
     def test_price_change_reprices_history(self, monkeypatch):
@@ -138,7 +140,8 @@ class TestRecompute:
                       total_cache_read_tokens=2000, total_cache_create_tokens=100)
         before = _cost_cached_for(r)
         monkeypatch.setitem(models.TOKEN_PRICES, "claude-opus-5[1m]",
-                            {"input": 15.0, "output": 75.0})
+                            {**models.TOKEN_PRICES["claude-opus-5[1m]"],
+                             "input": 15.0, "output": 75.0})
         after = _cost_cached_for(r)
         assert after > before  # raw tokens repriced under new prices
 
@@ -152,3 +155,39 @@ class TestRecompute:
         # gpt-5.5 not in TOKEN_PRICES → must not KeyError, fallback to stored
         r = self._row(model="gpt-5.5", total_cache_read_tokens=5000, cost_usd_cached=1.23)
         assert _cost_cached_for(r) == 1.23
+
+    def test_dashboard_keeps_backend_haiku_request_price_for_aggregated_turn(self, db):
+        from app.db import _conn, save_session, turn_usage_add
+        from app.routes.system import _get_agents_cost
+
+        save_session(_session(
+            model="claude-haiku-5-5",
+            cost_usd=1.0,
+            cost_usd_cached=0.012242,
+            total_input_tokens=120000,
+            total_output_tokens=484,
+            total_cache_read_tokens=0,
+            total_cache_create_tokens=0,
+        ))
+        turn_usage_add(
+            event_id="haiku-tier-turn",
+            session_id="s1",
+            runtime="claude",
+            model="claude-haiku-5-5",
+            ok=True,
+            stop_reason="end_turn",
+            cost_usd=0.123,
+            input_tokens=120000,
+            output_tokens=484,
+            cache_read_tokens=0,
+            cache_create_tokens=0,
+        )
+
+        result = _get_agents_cost()
+
+        assert result["agents"][0]["cost_usd_cached"] == pytest.approx(0.0122)
+        with _conn() as conn:
+            persisted_cost = conn.execute(
+                "SELECT cost_usd FROM turn_usage WHERE event_id='haiku-tier-turn'"
+            ).fetchone()[0]
+        assert persisted_cost == pytest.approx(0.123)

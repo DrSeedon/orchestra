@@ -31,6 +31,11 @@ class ModelSpec:
     default_dashboard: bool = True
     default_agents: bool = True
     available: bool = True
+    cache_read_multiplier: float = 0.1
+    cache_write_5m_multiplier: float = 1.25
+    cache_write_1h_multiplier: float = 2.0
+    prompt_price_threshold: int | None = None
+    prompt_over_threshold_multiplier: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -63,21 +68,26 @@ SELECTABLE_MODEL_SPECS: tuple[ModelSpec, ...] = (
         id="claude-fable-5-1[1m]", name="Fable 5.1 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=10.0, price_output=50.0,
+        cache_read_multiplier=0.025,
     ),
     ModelSpec(
         id="claude-opus-5-5[1m]", name="Opus 5.5 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=4.0, price_output=20.0,
+        cache_read_multiplier=0.05,
     ),
     ModelSpec(
         id="claude-sonnet-5-5[1m]", name="Sonnet 5.5 (1M)",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=2.0, price_output=10.0,
+        cache_read_multiplier=0.05,
     ),
     ModelSpec(
         id="claude-haiku-5-5", name="Haiku 5.5",
         runtime="claude", provider="anthropic",
         context_length=1000000, price_input=0.10, price_output=0.50,
+        prompt_price_threshold=100000,
+        prompt_over_threshold_multiplier=5.0,
     ),
     # The plain id is retained for persisted-session recovery; only the [1m] id
     # remains in the selectable catalog.
@@ -271,6 +281,55 @@ def cache_policy_for_runtime(runtime: str) -> dict[str, int | bool]:
 # this view, and their prices live in backend_codex.py / backend_grok.py.
 TOKEN_PRICES: dict[str, dict[str, float]] = {}
 
+
+def calculate_cached_cost_usd(
+    model_id: str,
+    *,
+    input_tokens: int,
+    output_tokens: int,
+    cache_read_tokens: int,
+    cache_write_5m_tokens: int,
+    cache_write_1h_tokens: int,
+    apply_prompt_tier: bool = True,
+) -> float | None:
+    prices = TOKEN_PRICES.get(model_id)
+    if not prices or "cache_read_multiplier" not in prices:
+        return None
+
+    prompt_tokens = (
+        input_tokens + cache_read_tokens + cache_write_5m_tokens + cache_write_1h_tokens
+    )
+    threshold = prices["prompt_price_threshold"]
+    tier = (
+        prices["prompt_over_threshold_multiplier"]
+        if apply_prompt_tier and threshold and prompt_tokens > threshold
+        else 1.0
+    )
+    input_price = prices["input"]
+    return tier * (
+        input_tokens * input_price
+        + cache_read_tokens * input_price * prices["cache_read_multiplier"]
+        + cache_write_5m_tokens * input_price * prices["cache_write_5m_multiplier"]
+        + cache_write_1h_tokens * input_price * prices["cache_write_1h_multiplier"]
+        + output_tokens * prices["output"]
+    ) / 1_000_000
+
+
+def _token_prices_for(spec: ModelSpec) -> dict[str, float]:
+    prices = {
+        "input": float(spec.price_input or 0),
+        "output": float(spec.price_output or 0),
+    }
+    if spec.runtime == "claude":
+        prices.update({
+            "cache_read_multiplier": spec.cache_read_multiplier,
+            "cache_write_5m_multiplier": spec.cache_write_5m_multiplier,
+            "cache_write_1h_multiplier": spec.cache_write_1h_multiplier,
+            "prompt_price_threshold": float(spec.prompt_price_threshold or 0),
+            "prompt_over_threshold_multiplier": spec.prompt_over_threshold_multiplier,
+        })
+    return prices
+
 DEFAULT_MODEL = "claude-sonnet-5-5[1m]"
 MODEL_SPECS: dict[str, ModelSpec] = {}
 
@@ -379,10 +438,7 @@ def _apply_derived_views(spec: ModelSpec) -> None:
     BACKENDS[spec.id] = spec.runtime
     MODEL_PROVIDERS[spec.id] = spec.provider
     if spec.price_input is not None or spec.price_output is not None:
-        TOKEN_PRICES[spec.id] = {
-            "input": float(spec.price_input or 0),
-            "output": float(spec.price_output or 0),
-        }
+        TOKEN_PRICES[spec.id] = _token_prices_for(spec)
 
 
 def register_model(spec: ModelSpec, *, replace: bool = False) -> None:
@@ -603,10 +659,7 @@ def _seed_model_specs() -> None:
 def _restore_compatibility_prices() -> None:
     for spec in COMPAT_MODEL_SPECS.values():
         if spec.price_input is not None or spec.price_output is not None:
-            TOKEN_PRICES[spec.id] = {
-                "input": float(spec.price_input or 0),
-                "output": float(spec.price_output or 0),
-            }
+            TOKEN_PRICES[spec.id] = _token_prices_for(spec)
 
 
 _seed_model_specs()
@@ -741,6 +794,18 @@ def _proxy_model_spec(raw: dict) -> ModelSpec | None:
     pricing = raw.get("pricing") or {}
     prompt_price = float(pricing.get("prompt", "0")) * 1_000_000
     completion_price = float(pricing.get("completion", "0")) * 1_000_000
+    pricing_spec = next(
+        (spec for spec in SELECTABLE_MODEL_SPECS if spec.id == model_id), None
+    )
+    cache_pricing = {}
+    if runtime == "claude" and pricing_spec is not None:
+        cache_pricing = {
+            "cache_read_multiplier": pricing_spec.cache_read_multiplier,
+            "cache_write_5m_multiplier": pricing_spec.cache_write_5m_multiplier,
+            "cache_write_1h_multiplier": pricing_spec.cache_write_1h_multiplier,
+            "prompt_price_threshold": pricing_spec.prompt_price_threshold,
+            "prompt_over_threshold_multiplier": pricing_spec.prompt_over_threshold_multiplier,
+        }
     if "/" in model_id:
         default_name = model_id.rsplit("/", 1)[1].replace("-", " ").title()
     else:
@@ -753,6 +818,7 @@ def _proxy_model_spec(raw: dict) -> ModelSpec | None:
         context_length=context_length,
         price_input=round(prompt_price, 4) if prompt_price else None,
         price_output=round(completion_price, 4) if completion_price else None,
+        **cache_pricing,
         supported_parameters=tuple(sorted({
             str(item) for item in (raw.get("supported_parameters") or []) if item
         })),

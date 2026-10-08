@@ -55,3 +55,28 @@ async def test_turn_ended_line_has_cost_and_ctx_but_no_quota_percents(
     assert "5h:" not in ended
     assert "7d:" not in ended
     assert " reset " not in ended
+
+
+@pytest.mark.asyncio
+async def test_turn_ended_line_marks_a_potentially_understated_api_price(
+    session, monkeypatch,
+):
+    from app.events import AgentEvent
+
+    logs = []
+    session.backend_type = "claude"
+    session.model = "claude-haiku-5-5"
+    session._cost.update_context_from_turn = lambda *_a, **_k: (True, None)
+    session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+    session._spawn_bg = lambda coro: coro.close()
+    session._hibernate.schedule = MagicMock()
+
+    session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+        "ok": True,
+        "stop_reason": "end_turn",
+        "num_turns": 4,
+        "price_may_be_understated": True,
+    }))
+
+    ended = next(c for k, c in logs if k == "status" and c.startswith("turn ended"))
+    assert "цена API-эквивалента может быть занижена" in ended

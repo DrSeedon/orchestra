@@ -511,6 +511,189 @@ def test_result_uses_deferred_context_without_losing_aggregate_usage():
     assert event.metadata["context_known"] is False
 
 
+def test_cached_cost_uses_sonnet_model_rates_and_cli_cache_ttls():
+    backend = _backend()
+    event = backend._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=1,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={
+            "input_tokens": 100,
+            "output_tokens": 500,
+            "cache_read_input_tokens": 200,
+            "cache_creation_input_tokens": 400,
+            "cache_creation": {
+                "ephemeral_5m_input_tokens": 100,
+                "ephemeral_1h_input_tokens": 300,
+            },
+        },
+    ))[-1]
+
+    assert event.usage.aggregate.cache_create_tokens == 400
+    assert event.metadata["cost_usd_cached"] == pytest.approx(0.00667)
+
+
+def test_haiku_threshold_uses_each_unique_assistant_message_usage():
+    backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp")
+    first_usage = {
+        "input_tokens": 60000,
+        "output_tokens": 20,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+    }
+    backend._convert(AssistantMessage(
+        content=[ToolUseBlock(id="read-1", name="Read", input={})],
+        model="claude-haiku-5-5",
+        message_id="haiku-request-1",
+        usage=first_usage,
+    ))
+    backend._convert(AssistantMessage(
+        content=[ToolUseBlock(id="read-2", name="Read", input={})],
+        model="claude-haiku-5-5",
+        message_id="haiku-request-1",
+        usage=first_usage,
+    ))
+    backend._convert(AssistantMessage(
+        content=[ToolUseBlock(id="read-3", name="Read", input={})],
+        model="claude-haiku-5-5",
+        message_id="haiku-request-2",
+        usage={**first_usage},
+    ))
+    event = backend._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=4,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={
+            "input_tokens": 120000,
+            "output_tokens": 484,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+            "iterations": [{"input_tokens": 60000, "output_tokens": 57}],
+        },
+    ))[-1]
+
+    assert event.metadata["cost_usd_cached"] == pytest.approx(0.012242)
+    assert event.metadata["price_may_be_understated"] is False
+
+
+def test_haiku_tier_with_unreconciled_output_uses_base_output_and_marks_uncertain():
+    backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp")
+    backend._convert(AssistantMessage(
+        content=[TextBlock(text="done")],
+        model="claude-haiku-5-5",
+        message_id="haiku-request-1",
+        usage={
+            "input_tokens": 120001,
+            "output_tokens": 20,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+        },
+    ))
+    event = backend._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=2,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={
+            "input_tokens": 120001,
+            "output_tokens": 484,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+        },
+    ))[-1]
+
+    assert event.metadata["cost_usd_cached"] == pytest.approx(0.060242)
+    assert event.metadata["price_may_be_understated"] is True
+
+
+def test_haiku_long_prompt_tier_applies_to_all_token_categories():
+    backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp")
+    request_usage = {
+        "input_tokens": 100001,
+        "output_tokens": 30,
+        "cache_read_input_tokens": 10,
+        "cache_creation_input_tokens": 20,
+        "cache_creation": {
+            "ephemeral_5m_input_tokens": 0,
+            "ephemeral_1h_input_tokens": 20,
+        },
+    }
+    backend._convert(AssistantMessage(
+        content=[TextBlock(text="done")],
+        model="claude-haiku-5-5",
+        message_id="haiku-long-request",
+        usage=request_usage,
+    ))
+    event = backend._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=1,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage=request_usage,
+    ))[-1]
+
+    assert event.metadata["cost_usd_cached"] == pytest.approx(0.050096)
+    assert event.metadata["price_may_be_understated"] is False
+
+
+def test_haiku_prompt_at_tier_boundary_keeps_base_rates():
+    backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp")
+    event = backend._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=1,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={
+            "input_tokens": 100000,
+            "output_tokens": 30,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+        },
+    ))[-1]
+
+    assert event.metadata["cost_usd_cached"] == pytest.approx(0.010015)
+    assert event.metadata["price_may_be_understated"] is False
+
+
+def test_haiku_aggregate_without_per_request_usage_uses_base_and_marks_uncertain():
+    backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp")
+    event = backend._convert(ResultMessage(
+        subtype="result",
+        duration_ms=10,
+        duration_api_ms=10,
+        is_error=False,
+        num_turns=2,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={
+            "input_tokens": 120000,
+            "output_tokens": 40,
+            "cache_read_input_tokens": 0,
+            "cache_creation_input_tokens": 0,
+        },
+    ))[-1]
+
+    assert event.metadata["cost_usd_cached"] == pytest.approx(0.01202)
+    assert event.metadata["price_may_be_understated"] is True
+
+
 def test_tool_failure_preserves_stable_use_id_and_explicit_error():
     backend = _backend()
     started = backend._convert(AssistantMessage(

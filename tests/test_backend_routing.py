@@ -55,7 +55,8 @@ def test_opus5_registry_and_aliases():
     assert spec.runtime == "claude"
     assert spec.provider == "anthropic"
     assert spec.context_length == 1_000_000
-    assert TOKEN_PRICES[model_id] == {"input": 5.0, "output": 25.0}
+    assert TOKEN_PRICES[model_id]["input"] == 5.0
+    assert TOKEN_PRICES[model_id]["output"] == 25.0
     assert resolve_model("opus") == "claude-opus-5-5[1m]"
     for retired_alias in ("opus5", "claude-opus-5", model_id):
         with pytest.raises(ValueError, match="unknown model"):
@@ -168,6 +169,24 @@ def test_proxy_refresh_does_not_promote_retired_ids_to_selectable_routes():
             ))
 
 
+def test_proxy_spec_keeps_model_specific_claude_cache_pricing():
+    import app.models as registry
+
+    spec = registry._proxy_model_spec({
+        "id": "claude-haiku-5-5",
+        "runtime": "claude",
+        "provider": "anthropic",
+        "pricing": {"prompt": "0.0000001", "completion": "0.0000005"},
+    })
+
+    assert spec is not None
+    assert spec.cache_read_multiplier == 0.1
+    assert spec.cache_write_5m_multiplier == 1.25
+    assert spec.cache_write_1h_multiplier == 2.0
+    assert spec.prompt_price_threshold == 100000
+    assert spec.prompt_over_threshold_multiplier == 5.0
+
+
 def test_declaring_one_spec_populates_every_derived_view(isolated_model_registry):
     """Adding a model must mean editing SELECTABLE_MODEL_SPECS and nothing else.
 
@@ -193,7 +212,8 @@ def test_declaring_one_spec_populates_every_derived_view(isolated_model_registry
     assert registry.CONTEXT_LIMITS[spec.id] == 333000
     assert registry.BACKENDS[spec.id] == "claude"
     assert registry.MODEL_PROVIDERS[spec.id] == "anthropic"
-    assert registry.TOKEN_PRICES[spec.id] == {"input": 1.25, "output": 6.5}
+    assert registry.TOKEN_PRICES[spec.id]["input"] == 1.25
+    assert registry.TOKEN_PRICES[spec.id]["output"] == 6.5
     assert registry.get_model_spec(spec.id) is spec
     registry.validate_model_registry()
 
@@ -228,7 +248,8 @@ def test_opus46_legacy_session_is_compatible_and_priced():
     assert spec.provider == "anthropic"
     assert spec.context_length == 200000
     assert get_model_spec("claude-opus-4-6[1m]").context_length == 1_000_000
-    assert TOKEN_PRICES["claude-opus-4-6"] == {"input": 5.0, "output": 25.0}
+    assert TOKEN_PRICES["claude-opus-4-6"]["input"] == 5.0
+    assert TOKEN_PRICES["claude-opus-4-6"]["output"] == 25.0
     with pytest.raises(ValueError, match="unknown model"):
         resolve_model("claude-opus-4-6")
     assert resolve_model("claude-opus-4-6[1m]") == "claude-opus-4-6[1m]"

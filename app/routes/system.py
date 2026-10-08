@@ -1072,29 +1072,39 @@ async def _refresh_oauth_token(refresh_token: str) -> str | None:
 def _cost_cached_for(r) -> float:
     """Cached cost recomputed from RAW tokens + current TOKEN_PRICES, so a price
     change reprices history. Fallback to stored cost_usd_cached when we can't
-    recompute (no price for model, or no raw cache tokens = old/no-cache rows).
-    Mirrors backend_claude.py:396 (cache_read=10% input, cache_create=125% input)."""
-    from app.models import TOKEN_PRICES
+    recompute because prices are absent or turn history is incomplete."""
+    from app.models import TOKEN_PRICES, calculate_cached_cost_usd
+
     stored = r["cost_usd_cached"] or 0
     prices = TOKEN_PRICES.get(r["model"])
+    if not prices or "cache_read_multiplier" not in prices:
+        return stored
+
+    # Session token totals and turn_usage rows aggregate multiple API requests,
+    # so neither can safely reconstruct Haiku's per-request prompt tier.
+    if prices["prompt_price_threshold"]:
+        return stored
     cache_read = r["total_cache_read_tokens"] or 0
     cache_create = r["total_cache_create_tokens"] or 0
-    if not prices or (cache_read == 0 and cache_create == 0):
+    if cache_read == 0 and cache_create == 0:
         return stored
-    p_in = prices["input"]
-    p_out = prices["output"]
-    return ((r["total_input_tokens"] or 0) * p_in
-            + cache_read * p_in * 0.1
-            + cache_create * p_in * 1.25
-            + (r["total_output_tokens"] or 0) * p_out) / 1_000_000
+    return calculate_cached_cost_usd(
+        r["model"],
+        input_tokens=r["total_input_tokens"] or 0,
+        output_tokens=r["total_output_tokens"] or 0,
+        cache_read_tokens=cache_read,
+        cache_write_5m_tokens=0,
+        cache_write_1h_tokens=cache_create,
+    ) or 0.0
 
 
 def _get_agents_cost() -> dict:
     """Get per-agent cost breakdown from DB."""
     from app.db import _conn
+
     with _conn() as c:
         rows = c.execute(
-            "SELECT name, model, cost_usd, cost_usd_cached, "
+            "SELECT id, name, model, cost_usd, cost_usd_cached, "
             "total_input_tokens, total_output_tokens, "
             "total_cache_read_tokens, total_cache_create_tokens "
             "FROM sessions ORDER BY cost_usd DESC"

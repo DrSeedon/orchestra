@@ -1,0 +1,51 @@
+.......................F................................................ [ 12%]
+........................................................................ [ 25%]
+........................................................................ [ 37%]
+........................................................................ [ 50%]
+........................................................................ [ 62%]
+........................................................................ [ 75%]
+........................................................................ [ 87%]
+.......................................................................  [100%]
+=================================== FAILURES ===================================
+_ test_haiku_tier_with_unreconciled_output_uses_base_output_and_marks_uncertain _
+
+    def test_haiku_tier_with_unreconciled_output_uses_base_output_and_marks_uncertain():
+        backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp")
+        backend._convert(AssistantMessage(
+            content=[TextBlock(text="done")],
+            model="claude-haiku-5-5",
+            message_id="haiku-request-1",
+            usage={
+                "input_tokens": 120001,
+                "output_tokens": 20,
+                "cache_read_input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+            },
+        ))
+        event = backend._convert(ResultMessage(
+            subtype="result",
+            duration_ms=10,
+            duration_api_ms=10,
+            is_error=False,
+            num_turns=2,
+            session_id="sdk-session",
+            stop_reason="end_turn",
+            usage={
+                "input_tokens": 120001,
+                "output_tokens": 484,
+                "cache_read_input_tokens": 0,
+                "cache_creation_input_tokens": 0,
+            },
+        ))[-1]
+    
+>       assert event.metadata["cost_usd_cached"] == pytest.approx(0.0602425)
+E       assert 0.060242 == 0.0602425 ± 6.0e-08
+E         
+E         comparison failed
+E         Obtained: 0.060242
+E         Expected: 0.0602425 ± 6.0e-08
+
+tests/test_backend_claude.py:598: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_backend_claude.py::test_haiku_tier_with_unreconciled_output_uses_base_output_and_marks_uncertain
+1 failed, 574 passed in 78.42s (0:01:18)
