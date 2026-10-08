@@ -263,6 +263,23 @@ def test_mutation_gate_rejects_test_that_stays_green_on_target_sources(tmp_path)
     assert "no regression is guarded" in result["mutation_gate"]["output"]
 
 
+def test_mutation_gate_treats_pytest_missing_text_in_assertion_as_real_failure(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "from app.widget import VALUE\n\n"
+        "def test_widget():\n"
+        "    assert VALUE == 2, 'No module named pytest'\n",
+    )
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.PASSED
+    assert result["mutation_gate"]["status"] == gate.PASSED
+    assert result["mutation_gate"]["reason"] == "guarded_source_change"
+    assert "No module named pytest" in result["mutation_gate"]["output"]
+
+
 def test_mutation_gate_skips_test_only_change(tmp_path):
     from app import merge_test_gate as gate
 
@@ -750,7 +767,7 @@ def test_run_pytest_reports_project_pytest_missing_without_fallback(tmp_path, mo
     def fake_run(argv, **_kwargs):
         calls.append(argv)
         return subprocess.CompletedProcess(
-            argv, 1, "", "/bin/python: No module named pytest",
+            argv, 1, "", f"{argv[0]}: No module named pytest",
         )
 
     monkeypatch.setattr(gate.subprocess, "run", fake_run)
