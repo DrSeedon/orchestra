@@ -2852,7 +2852,9 @@ def test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff(
         file_mode["value"] = "timeout"
         page.evaluate("() => _pollRegister('files', refreshOpenFolders, 10000)")
         page.wait_for_function(
-            "() => (_pollFailures.get('files') || 0) > 0", timeout=10000
+            "() => (_pollFailures.get('files') || 0) > 0 "
+            "&& window.__pollDelays301.some(delay => delay > 10000)",
+            timeout=10000,
         )
         timeout_state = page.evaluate("""() => ({
             failures: _pollFailures.get('files') || 0,

@@ -84,6 +84,15 @@ def test_turn_usage_timing_migration_adds_nullable_columns_once(tmp_path, monkey
     assert row["reasoning_tokens"] is None
 
 
+def test_turn_usage_timing_migration_is_a_noop_before_table_creation(tmp_path, monkeypatch):
+    from app import db
+
+    path = tmp_path / "not-initialized.db"
+    monkeypatch.setattr(db, "DB_PATH", path)
+
+    assert db.ensure_turn_usage_timing_schema() == 0
+
+
 @pytest.mark.parametrize(
     (
         "runtime", "model", "turn_duration_ms", "api_duration_ms",

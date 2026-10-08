@@ -1,0 +1,168 @@
+........................................................................ [  8%]
+........................................................................ [ 16%]
+.................................................................F...... [ 24%]
+......................................s................................. [ 33%]
+........................................................................ [ 41%]
+........................................................................ [ 49%]
+........................................................................ [ 58%]
+........................................................................ [ 66%]
+........................................................................ [ 74%]
+........................................................................ [ 83%]
+........................................................................ [ 91%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff ___
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff(
+        dashboard_browser: Browser,
+    ):
+        page = dashboard_browser.new_page()
+        page.add_init_script("""() => {
+            window.EventSource = class StableEventSource {
+                constructor(url) { this.url = url; this.readyState = 1; }
+                close() { this.readyState = 2; }
+            };
+        }""")
+        _route_frontend_sources(page)
+        file_mode = {"value": "ok"}
+    
+        def api_route(route):
+            path = route.request.url.split("?", 1)[0].split("/api", 1)[-1]
+            path = "/api" + path
+            if path == "/api/files":
+                if file_mode["value"] == "503":
+                    route.fulfill(
+                        status=503,
+                        content_type="application/json",
+                        body=json.dumps({"detail": "temporary file service failure"}),
+                    )
+                    return
+                if file_mode["value"] == "timeout":
+                    return
+                payload = [{"path": "/tmp/fe-scope/ok.txt", "name": "ok.txt", "is_dir": False}]
+            elif path == "/api/orchestrators":
+                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope"}]
+            elif path == "/api/sessions":
+                payload = [{"id": "fe-orch-id", "name": "fe-orch", "scope": "/tmp/fe-scope", "status": "idle", "model": "claude-opus-5[1m]"}]
+            elif path == "/api/stats":
+                payload = {"active": 0, "total_sessions": 1, "total_cost_usd": 0}
+            elif path == "/api/models":
+                payload = {"models": [], "proxy_connected": False}
+            elif path.endswith("/stream"):
+                route.fulfill(status=200, content_type="text/event-stream", body="")
+                return
+            elif path.endswith("/logs"):
+                payload = []
+            elif path.endswith("/context"):
+                payload = {"percentage": 0, "total_tokens": 0, "max_tokens": 1}
+            elif path == "/api/logs/sync":
+                payload = {"logs": [], "max_log_id": 0, "live_sessions": []}
+            else:
+                payload = {}
+            route.fulfill(status=200, content_type="application/json", body=json.dumps(payload))
+    
+        page.route(re.compile(r"/api/"), api_route)
+        _goto_dashboard(page)
+        try:
+            page.wait_for_function("() => selectedAgent === 'fe-orch'", timeout=8000)
+            page.evaluate("""() => {
+                _pollStop('scheduler-oracle-301');
+                window.__schedulerCalls301 = 0;
+                window.__releaseScheduler301 = null;
+                _pollRegister('scheduler-oracle-301', () => {
+                    window.__schedulerCalls301++;
+                    return new Promise(resolve => { window.__releaseScheduler301 = resolve; });
+                }, 30);
+            }""")
+            page.wait_for_function("() => window.__schedulerCalls301 === 1", timeout=5000)
+            page.evaluate("""() => {
+                for (let i = 0; i < 8; i++) {
+                    document.dispatchEvent(new Event('visibilitychange'));
+                    window.dispatchEvent(new Event('online'));
+                }
+            }""")
+            page.wait_for_timeout(150)
+            assert page.evaluate("() => window.__schedulerCalls301") == 1
+            page.evaluate("() => window.__releaseScheduler301()")
+            page.wait_for_function("() => window.__schedulerCalls301 === 2", timeout=5000)
+            page.evaluate("() => _pollStop('scheduler-oracle-301')")
+    
+            page.wait_for_function(
+                "() => document.querySelector('#file-tree')?.innerText.includes('ok.txt')",
+                timeout=5000,
+            )
+            file_mode["value"] = "503"
+            page.evaluate("""() => {
+                _pollStop('files');
+                _pollRegister('files', refreshOpenFolders, 10000);
+            }""")
+            page.wait_for_function(
+                "() => (_pollFailures.get('files') || 0) > 0", timeout=5000
+            )
+            file_state = page.evaluate("""() => ({
+                failures: _pollFailures.get('files') || 0,
+                nextDelay: _pollDelay('files', 10000),
+                treeText: document.querySelector('#file-tree')?.innerText || '',
+            })""")
+            page.evaluate("""() => {
+                _pollStop('files');
+                _pollFailures.delete('files');
+                window.__pollDelays301 = [];
+                const nativeSetTimeout = window.setTimeout;
+                window.setTimeout = (fn, ms, ...args) => {
+                    if (ms >= 10000) window.__pollDelays301.push(ms);
+                    return nativeSetTimeout(fn, ms, ...args);
+                };
+                const nativeFetch = window.fetch;
+                window.fetch = (url, options = {}) => {
+                    if (!String(url).includes('/api/files')) return nativeFetch(url, options);
+                    return new Promise((resolve, reject) => {
+                        const signal = options.signal;
+                        if (signal?.aborted) {
+                            reject(new DOMException('timed out', 'TimeoutError'));
+                            return;
+                        }
+                        signal?.addEventListener('abort', () => {
+                            reject(new DOMException('timed out', 'TimeoutError'));
+                        }, {once: true});
+                    });
+                };
+            }""")
+            file_mode["value"] = "timeout"
+            page.evaluate("() => _pollRegister('files', refreshOpenFolders, 10000)")
+            page.wait_for_function(
+                "() => (_pollFailures.get('files') || 0) > 0", timeout=10000
+            )
+            timeout_state = page.evaluate("""() => ({
+                failures: _pollFailures.get('files') || 0,
+                delays: window.__pollDelays301,
+                treeText: document.querySelector('#file-tree')?.innerText || '',
+            })""")
+        finally:
+            page.close()
+    
+        assert file_state["failures"] >= 1
+        assert file_state["nextDelay"] > 10000
+        assert "ok.txt" in file_state["treeText"]
+        assert timeout_state["failures"] >= 1
+>       assert any(delay > 10000 for delay in timeout_state["delays"])
+E       assert False
+E        +  where False = any(<generator object test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff.<locals>.<genexpr> at 0x769ab2eb39f0>)
+
+tests/test_frontend.py:2869: AssertionError
+=============================== warnings summary ===============================
+tests/test_static_compression.py::test_sse_arrives_incrementally_and_is_not_compressed
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_static_compression.py::test_sse_arrives_incrementally_and_is_not_compressed
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-ratelimit/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff
+1 failed, 863 passed, 1 skipped, 2 warnings in 624.84s (0:10:24)
