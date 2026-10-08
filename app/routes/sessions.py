@@ -1194,27 +1194,82 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                 )
             from app import tm as _tm
             title = re.sub(r"^\s*#\d+\s*:\s*", "", req.message).strip() or req.message.strip()
+            worktree_path = getattr(session, "worktree_path", "") or ""
+            branch = str(getattr(session, "branch", "") or "")
+            start_task_branch = bool(
+                worktree_path and (
+                    getattr(session, "needs_switch", False)
+                    or branch.startswith(("task-adhoc/", "adhoc-"))
+                )
+            )
+            assignment_base = ""
             try:
                 created = await asyncio.to_thread(_tm.create_task_for_scope, req.scope, title)
+                if start_task_branch:
+                    from app.workspace import branch_wip_status, resolve_base_branch
+
+                    try:
+                        assignment_base = await asyncio.to_thread(
+                            resolve_base_branch, worktree_path, "main",
+                        )
+                        branch_state = await asyncio.to_thread(
+                            branch_wip_status, worktree_path, assignment_base,
+                        )
+                    except (OSError, RuntimeError, ValueError) as error:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    "worker base is stale relative to current main; "
+                                    f"branch left unchanged: {error}"
+                                )
+                            },
+                            status_code=409,
+                        )
+                    if branch_state.get("error"):
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    "worker base is stale relative to current main; "
+                                    f"branch left unchanged: {branch_state['error']}"
+                                )
+                            },
+                            status_code=409,
+                        )
+                    if branch_state["uncommitted"] or branch_state["unmerged_commits"]:
+                        return JSONResponse(
+                            {
+                                "error": (
+                                    "worker base is stale relative to current main; "
+                                    f"branch left unchanged ({len(branch_state['uncommitted'])} "
+                                    "uncommitted file(s), "
+                                    f"{len(branch_state['unmerged_commits'])} unmerged commit(s)). "
+                                    "Merge or resolve the existing work before assigning a new task."
+                                )
+                            },
+                            status_code=409,
+                        )
                 # Taskless workers created before task binding are on an adhoc branch.
                 # Switch before the binding CAS so a failed switch leaves an honest new task.
-                if getattr(session, "worktree_path", "") and (
-                    getattr(session, "needs_switch", False)
-                    or str(getattr(session, "branch", "")).startswith("task-adhoc/")
-                ):
+                if start_task_branch:
                     from app.workspace import switch_worktree_branch
                     switched = await asyncio.to_thread(
                         switch_worktree_branch, session.worktree_path,
                         f"task-{created.get('par') or created['par_number']}/{session.name}",
-                        getattr(session, "base_branch", "") or "main",
-                        force=True, expect_absent=True,
+                        assignment_base,
+                        expect_absent=True,
                     )
                     if not switched.get("ok"):
                         return JSONResponse(
-                            {"error": switched.get("error") or "task branch switch failed"},
+                            {
+                                "error": (
+                                    "worker base is stale or task branch switch failed; "
+                                    f"original branch was preserved: {switched.get('error') or 'no detail'}"
+                                )
+                            },
                             status_code=409,
                         )
                     session.needs_switch = False
+                    session.base_branch = assignment_base
                     session.branch = switched.get("branch") or (
                         f"task-{created.get('par') or created['par_number']}/{session.name}"
                     )
@@ -1223,7 +1278,7 @@ async def send_message(name: str, req: SendRequest, request: Request = None):
                         update_session_lifecycle,
                         session.id,
                         branch=session.branch,
-                        base_branch=getattr(session, "base_branch", "") or "main",
+                        base_branch=assignment_base,
                         task_id="",
                         needs_switch=False,
                     )

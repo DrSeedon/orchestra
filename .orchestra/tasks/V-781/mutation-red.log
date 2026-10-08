@@ -1,0 +1,99 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+____________ test_taskless_send_assignment_starts_from_current_main ____________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x795f14eed310>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-16257/test_taskless_send_assignment_0')
+
+    @pytest.mark.asyncio
+    async def test_taskless_send_assignment_starts_from_current_main(monkeypatch, tmp_path):
+        from app.db import get_session
+    
+        routes, repo, wt, target, deliver = _taskless_adhoc_worker(monkeypatch, tmp_path)
+        main_head = _git(repo, "rev-parse", "main")
+    
+        result = await routes.send_message(
+            target.name,
+            routes.SendRequest(
+                scope=target.scope, sender="orchestrator", message="Implement next task",
+            ),
+        )
+    
+        assert not isinstance(result, JSONResponse)
+        assigned = result["task"]
+>       assert _git(Path(wt.path), "branch", "--show-current") == (
+            f"task-{assigned['par_number']}/{target.name}"
+        )
+E       AssertionError: assert 'adhoc-180000...1/idle-worker' == 'task-1/idle-worker'
+E         
+E         - task-1/idle-worker
+E         + adhoc-1800000000-1/idle-worker
+
+tests/test_stale_task_assignment_781.py:82: AssertionError
+___ test_taskless_send_refuses_to_move_branch_with_unlanded_work[True-False] ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x795f14d1cfe0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-16257/test_taskless_send_refuses_to_0')
+dirty = True, commit = False
+
+    @pytest.mark.parametrize(("dirty", "commit"), [(True, False), (False, True)])
+    @pytest.mark.asyncio
+    async def test_taskless_send_refuses_to_move_branch_with_unlanded_work(
+        monkeypatch, tmp_path, dirty, commit,
+    ):
+        from app.db import get_session
+    
+        routes, repo, wt, target, deliver = _taskless_adhoc_worker(
+            monkeypatch, tmp_path, dirty=dirty, commit=commit,
+        )
+        branch = _git(Path(wt.path), "branch", "--show-current")
+        head = _git(Path(wt.path), "rev-parse", "HEAD")
+    
+        result = await routes.send_message(
+            target.name,
+            routes.SendRequest(
+                scope=target.scope, sender="orchestrator", message="Implement next task",
+            ),
+        )
+    
+>       assert isinstance(result, JSONResponse)
+E       AssertionError: assert False
+E        +  where False = isinstance({'ok': True, 'parent_name': 'orchestrator', 'task': {'auto_created': True, 'id': 1, 'par_number': 1, 'project_id': 'project', ...}}, JSONResponse)
+
+tests/test_stale_task_assignment_781.py:111: AssertionError
+___ test_taskless_send_refuses_to_move_branch_with_unlanded_work[False-True] ___
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x795f14eed0d0>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-16257/test_taskless_send_refuses_to_1')
+dirty = False, commit = True
+
+    @pytest.mark.parametrize(("dirty", "commit"), [(True, False), (False, True)])
+    @pytest.mark.asyncio
+    async def test_taskless_send_refuses_to_move_branch_with_unlanded_work(
+        monkeypatch, tmp_path, dirty, commit,
+    ):
+        from app.db import get_session
+    
+        routes, repo, wt, target, deliver = _taskless_adhoc_worker(
+            monkeypatch, tmp_path, dirty=dirty, commit=commit,
+        )
+        branch = _git(Path(wt.path), "branch", "--show-current")
+        head = _git(Path(wt.path), "rev-parse", "HEAD")
+    
+        result = await routes.send_message(
+            target.name,
+            routes.SendRequest(
+                scope=target.scope, sender="orchestrator", message="Implement next task",
+            ),
+        )
+    
+>       assert isinstance(result, JSONResponse)
+E       AssertionError: assert False
+E        +  where False = isinstance({'ok': True, 'parent_name': 'orchestrator', 'task': {'auto_created': True, 'id': 1, 'par_number': 1, 'project_id': 'project', ...}}, JSONResponse)
+
+tests/test_stale_task_assignment_781.py:111: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_stale_task_assignment_781.py::test_taskless_send_assignment_starts_from_current_main
+FAILED tests/test_stale_task_assignment_781.py::test_taskless_send_refuses_to_move_branch_with_unlanded_work[True-False]
+FAILED tests/test_stale_task_assignment_781.py::test_taskless_send_refuses_to_move_branch_with_unlanded_work[False-True]
+3 failed in 8.53s
