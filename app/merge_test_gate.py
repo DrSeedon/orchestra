@@ -433,7 +433,11 @@ def run_pytest(
             "status": SKIPPED, "reason": "no_tests_after_deselect",
             "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
         }
-    if re.search(r"No module named ['\"]?pytest['\"]?", output):
+    missing_pytest = f"{argv[0]}: No module named pytest"
+    missing_pytest_by_name = f"{Path(argv[0]).name}: No module named pytest"
+    if not proc.stdout.strip() and proc.stderr.strip() in {
+        missing_pytest, missing_pytest_by_name,
+    }:
         return {
             "status": INCONCLUSIVE, "reason": "pytest_unavailable",
             "exit_code": proc.returncode, "output": diagnostic, "tests": tests,

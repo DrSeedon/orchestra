@@ -1,0 +1,28 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+__ test_mutation_gate_treats_pytest_missing_text_in_assertion_as_real_failure __
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-16300/test_mutation_gate_treats_pyte0')
+
+    def test_mutation_gate_treats_pytest_missing_text_in_assertion_as_real_failure(tmp_path):
+        from app import merge_test_gate as gate
+    
+        repo, target = _mutation_repo(
+            tmp_path,
+            "from app.widget import VALUE\n\n"
+            "def test_widget():\n"
+            "    assert VALUE == 2, 'No module named pytest'\n",
+        )
+        result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+    
+        assert result["status"] == gate.PASSED
+>       assert result["mutation_gate"]["status"] == gate.PASSED
+E       AssertionError: assert 'inconclusive' == 'passed'
+E         
+E         - passed
+E         + inconclusive
+
+tests/test_merge_test_gate.py:278: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_merge_test_gate.py::test_mutation_gate_treats_pytest_missing_text_in_assertion_as_real_failure
+1 failed in 2.70s
