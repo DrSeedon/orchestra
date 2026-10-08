@@ -495,6 +495,67 @@ async def test_t2_restart_recovers_queued_or_preparing_once(
 
 
 @pytest.mark.asyncio
+async def test_v788_quota_release_loads_initial_target_missing_from_manager(
+    delivery_db, monkeypatch,
+):
+    from app import deps, initial_deliveries, quota_queue
+    from app.manager import SessionManager
+
+    ensure_runner = initial_deliveries.ensure_delivery_runner
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda _id: None)
+    resource, _ = await _accept(initial_deliveries)
+    assert resource["delivery_state"] == "QUEUED"
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", ensure_runner)
+    initial_deliveries.prepare_initial_delivery(DELIVERY_ID)
+    blocked = SimpleNamespace(
+        provider="anthropic", provider_label="Claude", billing_mode="subscription",
+        utilization=100.0, reason="test gate", release_status="reset",
+        release_in_seconds=None, reset_at=None,
+    )
+    initial_deliveries.mark_initial_delivery_waiting_quota(DELIVERY_ID, blocked)
+
+    manager = SessionManager()
+    delivered = []
+
+    class LoadedSession:
+        id = SESSION_ID
+
+        async def send(self, message, *, delivery=None, provenance):
+            assert manager.get_session_lock(self.id).locked()
+            assert provenance == PROVENANCE
+            await delivery.before_submit()
+            delivered.append(message)
+            await delivery.mark_submitted(provider_ref="turn-788")
+
+    async def load_from_db(row):
+        assert row["id"] == SESSION_ID
+        session = LoadedSession()
+        manager.sessions[session.id] = session
+        return session
+
+    async def auto_switch(_session):
+        return None
+
+    monkeypatch.setattr(manager, "_load_from_db", load_from_db)
+    monkeypatch.setattr(manager, "_auto_switch_before_delivery", auto_switch)
+    monkeypatch.setattr(deps, "manager", manager)
+    monkeypatch.setattr(quota_queue, "_admission_allows", AsyncMock(return_value=(True, None)))
+
+    assert SESSION_ID not in manager.sessions
+    assert await quota_queue.release_waiting() == 1
+    for _ in range(100):
+        if _delivery_row(delivery_db)["state"] in {"SUBMITTED", "FAILED_BEFORE_SUBMIT"}:
+            break
+        await asyncio.sleep(0.01)
+
+    row = _delivery_row(delivery_db)
+    assert row["state"] == "SUBMITTED"
+    assert manager.sessions[SESSION_ID].id == SESSION_ID
+    assert delivered == [MESSAGE]
+    assert [entry["content"] for entry in _user_messages(delivery_db)] == [MESSAGE]
+
+
+@pytest.mark.asyncio
 async def test_t2_prepare_commit_is_atomic_with_the_single_user_log(
     delivery_db, monkeypatch,
 ):
