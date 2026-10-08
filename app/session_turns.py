@@ -22,6 +22,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("app.session")
 
+PRICE_MAY_BE_UNDERSTATED_MARKER = "[price_may_be_understated]"
+
 # Leave room for the CLI's own compaction and any in-flight context growth.
 CRITICAL_AUTO_COMPACT_PCT = 95
 CLI_AUTO_COMPACT_SAFETY_MARGIN_PCT = 1
@@ -467,7 +469,10 @@ class TurnManager:
                 f"${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total"
             )
         if meta.get("price_may_be_understated") is True:
-            cost_summary += " (цена API-эквивалента может быть занижена)"
+            cost_summary += (
+                f" {PRICE_MAY_BE_UNDERSTATED_MARKER}"
+                " (цена API-эквивалента может быть занижена)"
+            )
         s._log(
             "status",
             f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s})",
