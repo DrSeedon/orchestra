@@ -1,0 +1,5 @@
+zstd-5 elapsed=23.91 sec
+zstd-long27-5 elapsed=24.54 sec
+/home/kesha/orchestra/data/backups/orchestra-db-2026-10-08.sqlite.zst 1464034358 bytes
+/home/kesha/orchestra/data/backups/.V-772-zstd-5.zst 1437603705 bytes
+/home/kesha/orchestra/data/backups/.V-772-zstd-long27-5.zst 1339946988 bytes
