@@ -42,6 +42,12 @@ _NOISE = (
     ("restart graceful-shutdown timeout", re.compile(r"Cancel (?:\d+|<N>) running task\(s\), timeout graceful shutdown exceeded", re.I)),
     ("traceback chaining line", re.compile(r"^During handling of the above exception, another exception occurred:$", re.I)),
 )
+_KNOWN_SERIES = {
+    "<PATH>: No module named pytest": {"baseline": 10, "tasks": ("V-783",)},
+    "transport_timeout: Message delivery outcome is ambiguous: ReadTimeout": {
+        "baseline": 10, "tasks": ("V-778", "V-782"),
+    },
+}
 _UUID = re.compile(r"\b[0-9a-f]{8}-[0-9a-f-]{27,}\b", re.I)
 _LONG_HEX = re.compile(r"\b(?:0x)?[0-9a-f]{12,}\b", re.I)
 _PATH = re.compile(r"(?<![\w])(?:/(?:[^\s:'\"<>]+/?)+)")
@@ -160,6 +166,15 @@ def deduplicate_events(events: list[dict]) -> list[dict]:
                 seen_journal_records.add(duplicate_key)
             unique.append(event)
     return unique
+
+
+def _known_series_counts(events: list[dict]) -> dict[str, int]:
+    counts = dict.fromkeys(_KNOWN_SERIES, 0)
+    for event in events:
+        signature = normalize_signature(event["message"])
+        if signature in counts:
+            counts[signature] += 1
+    return counts
 
 
 def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD) -> tuple[list[dict], list[dict]]:
@@ -287,11 +302,26 @@ def scan(args) -> int:
     candidates, noise = aggregate(deduped_events, now, threshold=args.threshold)
     state_path = _state_path(Path(args.db))
     state = _load_state(state_path) if not args.dry_run else {"alerts": {}, "fixes": {}}
+    known_counts = _known_series_counts(deduped_events)
+    known_state = state.setdefault("known_series", {})
+    known_previous = {
+        signature: known_state.get(signature, known["baseline"])
+        for signature, known in _KNOWN_SERIES.items()
+    }
+    known_state.update(known_counts)
     active = {item["signature"] for item in candidates + noise}
     state["alerts"] = {key: value for key, value in state.get("alerts", {}).items() if key in active}
     signals = []
     for item in candidates:
         key = item["signature"]
+        known = _KNOWN_SERIES.get(key)
+        if known:
+            state["alerts"].pop(key, None)
+            if known_counts[key] <= known["baseline"] or known_counts[key] <= known_previous[key]:
+                continue
+            item["known"] = {"known": {"tasks": list(known["tasks"])}}
+            signals.append(item)
+            continue
         if key in state["alerts"]:
             continue
         refs = _existing_refs(key)

@@ -102,6 +102,44 @@ def test_scan_deduplicates_repeated_runs_without_new_events(tmp_path, monkeypatc
     assert second == "No new error-watch findings\n"
 
 
+def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, monkeypatch, capsys):
+    series = [
+        ("/usr/bin/python: No module named pytest", ("V-783",)),
+        ("transport_timeout: Message delivery outcome is ambiguous: ReadTimeout", ("V-778", "V-782")),
+    ]
+    current = {"events": []}
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: [])
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: current["events"])
+
+    for index, (message, tasks) in enumerate(series):
+        args = SimpleNamespace(
+            db=str(tmp_path / f"{index}.db"), window_hours=168, threshold=10,
+            dry_run=False,
+        )
+        current["events"] = [_event(message, i) for i in range(10)]
+        watch.scan(args)
+        assert capsys.readouterr().out == "No new error-watch findings\n"
+
+        current["events"] = [_event(message, i) for i in range(11)]
+        watch.scan(args)
+        growth = capsys.readouterr().out
+        assert "11 раз" in growth
+        assert all(task in growth for task in tasks)
+
+        watch.scan(args)
+        assert capsys.readouterr().out == "No new error-watch findings\n"
+
+        current["events"] = [_event(message, i) for i in range(9)]
+        watch.scan(args)
+        assert capsys.readouterr().out == "No new error-watch findings\n"
+
+        current["events"] = [_event(message, i) for i in range(11)]
+        watch.scan(args)
+        growth_after_decline = capsys.readouterr().out
+        assert "11 раз" in growth_after_decline
+        assert all(task in growth_after_decline for task in tasks)
+
+
 def test_post_fix_verdict_reports_recurrence_and_open_window():
     start = datetime(2026, 9, 27, 11, 0, tzinfo=timezone.utc)
     events = [_event("ImportError: cannot import name '_fire_sync'", 30)]

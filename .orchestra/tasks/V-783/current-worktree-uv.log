@@ -1,0 +1,10 @@
+.venv absent before uv run
+uv 0.11.28 (x86_64-unknown-linux-gnu)
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 149ms
+............                                                             [100%]
+12 passed in 11.70s
+.venv exists after uv run
+app import path: /home/kesha/orchestra/worktrees/home-kesha-orchestra/todo-triage/app/__init__.py
+todo-triage: app.error_watch=/home/kesha/orchestra/worktrees/home-kesha-orchestra/todo-triage/app/error_watch.py
