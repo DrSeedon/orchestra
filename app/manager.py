@@ -1011,7 +1011,9 @@ class SessionManager:
         provenance: MessageProvenance,
     ) -> None:
         session = self.sessions.get(session_id)
-        if not session:
+        if session is None:
+            session = await self.ensure_loaded_by_id(session_id)
+        if session is None:
             raise KeyError(f"session not found: {session_id}")
 
         async def deliver() -> None:

@@ -1,0 +1,83 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_v788_quota_release_loads_initial_target_missing_from_manager _______
+
+delivery_db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7604a222bb60>
+
+    @pytest.mark.asyncio
+    async def test_v788_quota_release_loads_initial_target_missing_from_manager(
+        delivery_db, monkeypatch,
+    ):
+        from app import deps, initial_deliveries, quota_queue
+        from app.manager import SessionManager
+    
+        ensure_runner = initial_deliveries.ensure_delivery_runner
+        monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda _id: None)
+        resource, _ = await _accept(initial_deliveries)
+        assert resource["delivery_state"] == "QUEUED"
+        monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", ensure_runner)
+        initial_deliveries.prepare_initial_delivery(DELIVERY_ID)
+        blocked = SimpleNamespace(
+            provider="anthropic", provider_label="Claude", billing_mode="subscription",
+            utilization=100.0, reason="test gate", release_status="reset",
+            release_in_seconds=None, reset_at=None,
+        )
+        initial_deliveries.mark_initial_delivery_waiting_quota(DELIVERY_ID, blocked)
+    
+        manager = SessionManager()
+        delivered = []
+    
+        class LoadedSession:
+            id = SESSION_ID
+    
+            async def send(self, message, *, delivery=None, provenance):
+                assert manager.get_session_lock(self.id).locked()
+                assert provenance == PROVENANCE
+                await delivery.before_submit()
+                delivered.append(message)
+                await delivery.mark_submitted(provider_ref="turn-788")
+    
+        async def load_from_db(row):
+            assert row["id"] == SESSION_ID
+            session = LoadedSession()
+            manager.sessions[session.id] = session
+            return session
+    
+        async def auto_switch(_session):
+            return None
+    
+        monkeypatch.setattr(manager, "_load_from_db", load_from_db)
+        monkeypatch.setattr(manager, "_auto_switch_before_delivery", auto_switch)
+        monkeypatch.setattr(deps, "manager", manager)
+        monkeypatch.setattr(quota_queue, "_admission_allows", AsyncMock(return_value=(True, None)))
+    
+        assert SESSION_ID not in manager.sessions
+        assert await quota_queue.release_waiting() == 1
+        for _ in range(100):
+            if _delivery_row(delivery_db)["state"] in {"SUBMITTED", "FAILED_BEFORE_SUBMIT"}:
+                break
+            await asyncio.sleep(0.01)
+    
+        row = _delivery_row(delivery_db)
+>       assert row["state"] == "SUBMITTED"
+E       AssertionError: assert 'FAILED_BEFORE_SUBMIT' == 'SUBMITTED'
+E         
+E         - SUBMITTED
+E         + FAILED_BEFORE_SUBMIT
+
+tests/test_initial_deliveries.py:552: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    orchestra.initial_deliveries:initial_deliveries.py:695 initial delivery runner failed
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/initial_deliveries.py", line 693, in _observe_runner
+    task.result()
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/initial_deliveries.py", line 649, in run_initial_delivery
+    await manager.send_initial_delivery(
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/manager.py", line 1015, in send_initial_delivery
+    raise KeyError(f"session not found: {session_id}")
+KeyError: 'session not found: session-311'
+=========================== short test summary info ============================
+FAILED tests/test_initial_deliveries.py::test_v788_quota_release_loads_initial_target_missing_from_manager
+1 failed in 2.05s
+pytest_exit=1
