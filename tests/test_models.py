@@ -55,7 +55,7 @@ def test_selectable_models_match_the_curated_catalog():
     expected = {
         "claude-opus-5-5[1m]", "claude-sonnet-5-5[1m]", "gpt-6-luna",
         "gpt-5.3-codex-spark", "grok-4.6", "claude-opus-4-6[1m]",
-        "claude-haiku-4-5", "claude-fable-5-1[1m]", "gpt-6-astra",
+        "claude-haiku-5-5", "claude-fable-5-1[1m]", "gpt-6-astra",
         "gpt-6.1-sol", "GigaChat-2", "GigaChat-2-Max", "GigaChat-3-Ultra",
         "GigaChat-2-Pro", "GigaChat-3-Lightning", "GigaChat-3-Pro",
     }
@@ -68,6 +68,17 @@ def test_selectable_models_match_the_curated_catalog():
     assert get_model_flags("gpt-6.1-sol") == {"dashboard": True, "agents": False}
     assert resolve_model("grok") == "grok-4.6"
     assert resolve_model("sol") == "gpt-6.1-sol"
+
+
+def test_haiku_55_replaces_haiku_45_in_the_selectable_registry():
+    model_id = "claude-haiku-5-5"
+    assert resolve_model("haiku") == model_id
+    assert model_id in MODELS
+    assert "claude-haiku-4-5" not in MODELS
+    assert CONTEXT_LIMITS[model_id] == 1_000_000
+    assert TOKEN_PRICES[model_id] == {"input": 0.10, "output": 0.50}
+    with pytest.raises(ValueError, match="unknown model"):
+        resolve_model("claude-haiku-4-5")
 
 
 @pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol"])

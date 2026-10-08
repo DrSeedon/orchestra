@@ -43,7 +43,7 @@ def test_t1_kv_set_and_delete_roundtrip():
 
 
 def test_t1_manifest_models_default_to_visible_and_allowed():
-    assert registry.get_model_flags("claude-haiku-4-5") == {
+    assert registry.get_model_flags("claude-haiku-5-5") == {
         "dashboard": True,
         "agents": True,
     }
@@ -70,11 +70,11 @@ def test_t1_registered_catalog_model_defaults_to_hidden_and_forbidden():
 def test_t1_set_flags_roundtrip_and_unknown_rejected():
     with pytest.raises(ValueError):
         registry.set_model_flags("no/such-model", agents=False)
-    out = registry.set_model_flags("claude-haiku-4-5", agents=False)
+    out = registry.set_model_flags("claude-haiku-5-5", agents=False)
     assert out == {"dashboard": True, "agents": False}
-    assert registry.get_model_flags("claude-haiku-4-5") == {
+    assert registry.get_model_flags("claude-haiku-5-5") == {
         "dashboard": True,
         "agents": False,
     }
-    out = registry.set_model_flags("claude-haiku-4-5", agents=True, dashboard=False)
+    out = registry.set_model_flags("claude-haiku-5-5", agents=True, dashboard=False)
     assert out == {"dashboard": False, "agents": True}

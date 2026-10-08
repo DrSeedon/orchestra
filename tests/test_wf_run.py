@@ -1042,7 +1042,7 @@ async def test_claude_full_capability_loads_scoped_mcp_without_project_rules(tmp
 
     monkeypatch.setattr(adapters, "_run_process", fake_process)
     await adapters.run_claude(
-        "work", model="claude-haiku-4-5", cwd=tmp_path, timeout=30,
+        "work", model="claude-haiku-5-5", cwd=tmp_path, timeout=30,
         tools="all", network=True, mcp=True, system_prompt="RULE",
     )
     argv = captured["argv"]

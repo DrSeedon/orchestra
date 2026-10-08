@@ -4767,10 +4767,10 @@ class TestRuntimeCapabilities:
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(("runtime", "old_model", "new_model"), [
-        ("claude", "claude-opus-5[1m]", "claude-haiku-4-5"),
+        ("claude", "claude-opus-5[1m]", "claude-haiku-5-5"),
         ("harness", "vendor/wide:free", "vendor/narrow:free"),
     ])
-    async def test_in_place_switch_refuses_context_that_target_cannot_fit(
+    async def test_in_place_switch_respects_target_context_window(
             self, session, monkeypatch, live_harness_route, runtime, old_model, new_model):
         from app.session import AgentStatus
 
@@ -4797,6 +4797,14 @@ class TestRuntimeCapabilities:
         monkeypatch.setattr("app.session.save_session", save)
 
         result = await session.change_model(new_model)
+
+        if runtime == "claude":
+            assert result["ok"] is True
+            assert session.model == new_model
+            assert session.session_id == f"native-{runtime}-session"
+            source.retarget_model.assert_awaited_once()
+            save.assert_called_once()
+            return
 
         assert result["ok"] is False
         assert result["error_code"] == "handoff_context_overflow"

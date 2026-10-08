@@ -604,11 +604,11 @@ class TestEffortByModel:
 
     def test_unknown_model_falls_back_to_default(self, pipelines_root):
         eff = self._role(pipelines_root, "{gpt-6.1-sol: xhigh, default: medium}")
-        assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") == "medium"
+        assert P.resolve_effort(eff, "claude-haiku-5-5", "claude") == "medium"
 
     def test_no_default_and_no_match_gives_none(self, pipelines_root):
         eff = self._role(pipelines_root, "{gpt-6.1-sol: xhigh}")
-        assert P.resolve_effort(eff, "claude-haiku-4-5", "claude") is None
+        assert P.resolve_effort(eff, "claude-haiku-5-5", "claude") is None
 
     def test_runtime_key_covers_whole_runtime(self, pipelines_root):
         eff = self._role(pipelines_root, "{codex: max, default: low}")

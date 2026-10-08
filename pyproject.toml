@@ -3,7 +3,7 @@ name = "orchestra"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
-    "claude-agent-sdk==0.2.114",
+    "claude-agent-sdk==0.2.164",
     "fastapi>=0.115,<1.0",
     "uvicorn[standard]>=0.34,<1.0",
     "jinja2>=3.1,<4.0",
@@ -47,7 +47,7 @@ dev = [
 # (проверено: uvicorn 0.48 → 0.52.1, aiogram 3.28.2 → 3.30.0). Двигать эту дату — значит
 # осознанно обновлять зависимости: меняешь дату, гоняешь `uv lock`, гоняешь тесты, коммитишь
 # лок и дату ОДНИМ коммитом.
-exclude-newer = "2026-07-09T10:16:55.018333899Z"
+exclude-newer = "2026-10-07T00:00:00Z"
 
 [tool.pytest.ini_options]
 # Живые пробы сняты со ВСЯКОГО прогона, а не только с команды merge-gate (#328 закрыл

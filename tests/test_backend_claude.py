@@ -139,7 +139,7 @@ async def test_history_import_requires_exact_cli_version():
     process.returncode = 0
 
     with (
-        patch("app.backend_claude.importlib.metadata.version", return_value="0.2.114"),
+        patch("app.backend_claude.importlib.metadata.version", return_value="0.2.164"),
         patch(
             "app.backend_claude.asyncio.create_subprocess_exec",
             new=AsyncMock(return_value=process),
