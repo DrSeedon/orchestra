@@ -44,32 +44,23 @@ jobs:
       - name: Install ffmpeg and ffprobe
         timeout-minutes: 8
         run: |
-          for attempt in 1 2; do
-            if sudo timeout --kill-after=5s 60s apt-get \
-              -o Acquire::Retries=2 \
-              -o Acquire::http::Timeout=20 \
-              -o Acquire::https::Timeout=20 update; then
-              break
-            fi
-            if [ "$attempt" -eq 2 ]; then exit 1; fi
-            echo "apt-get update timed out or failed; retrying"
-          done
-          for attempt in 1 2; do
-            if sudo timeout --kill-after=5s 150s apt-get \
-              -o Acquire::Retries=2 \
-              -o Acquire::http::Timeout=20 \
-              -o Acquire::https::Timeout=20 \
-              install -y --no-install-recommends ffmpeg; then
-              ffprobe -version || exit 1
-              exit 0
-            fi
-            if [ "$attempt" -eq 2 ]; then exit 1; fi
-            if ! sudo timeout --kill-after=5s 60s dpkg --configure -a; then
-              echo "dpkg recovery failed; not retrying ffmpeg install"
-              exit 1
-            fi
-            echo "ffmpeg install timed out or failed; retrying"
-          done
+          release=autobuild-2026-09-30-13-08
+          archive=ffmpeg-N-127032-g6ae491a26c-linux64-lgpl.tar.xz
+          sha256=82ccd41f4c04ac6f1633920c83eb4c73c6c9dc954d64da10a2410c1277b83647
+          curl --fail --location --retry 3 --connect-timeout 20 --max-time 240 \
+            "https://github.com/BtbN/FFmpeg-Builds/releases/download/${release}/${archive}" \
+            --output "$RUNNER_TEMP/$archive"
+          printf '%s  %s\n' "$sha256" "$RUNNER_TEMP/$archive" | sha256sum --check
+          mkdir -p "$RUNNER_TEMP/ffmpeg"
+          tar -xJf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/ffmpeg" \
+            --wildcards '*/bin/ffmpeg' '*/bin/ffprobe'
+          bin_dir="$RUNNER_TEMP/ffmpeg/bin"
+          mkdir -p "$bin_dir"
+          install -m 0755 "$(find "$RUNNER_TEMP/ffmpeg" -type f -path '*/bin/ffmpeg' -print -quit)" "$bin_dir/ffmpeg"
+          install -m 0755 "$(find "$RUNNER_TEMP/ffmpeg" -type f -path '*/bin/ffprobe' -print -quit)" "$bin_dir/ffprobe"
+          export PATH="$bin_dir:$PATH"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          ffprobe -version || exit 1
       # Некоторые не помеченные browser тесты всё же запускают Chromium напрямую.
       # Здесь скачиваем только браузер; apt-зависимости остаются в отдельной browser job.
       - name: Install Chromium for shard tests
