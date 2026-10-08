@@ -14,8 +14,9 @@ Luna и Spark диагональ не проходят вовсе — они д�
 Оркестраторы гейт не проходят никогда: это свойство ВЫЗЫВАЮЩЕГО, и здесь его нет —
 `is_orchestrator` проверяется в `app/session.py` и `app/manager.py` до вызова гейта.
 
-Правило смотрит ТОЛЬКО на текущую точку и истории не помнит: обнуление счётчика оно
-переживает само, потому что после сброса и расход, и доля окна начинаются заново.
+Порог Claude сохраняет максимум кривых правил, записанных в текущем недельном
+окне; на сбросе окна огибающая начинается заново. Остальные полосы используют
+текущее правило напрямую.
 
 Неизвестная квота ПРОПУСКАЕТ. Это сквозное решение, а не послабление одного вызова:
 отказ на `unknown` при спавне создавал сессию, которую следующий обязательный `/send`
@@ -501,22 +502,43 @@ def _claude_day_night_limit(
     return min(policy.hard_stop_for("claude"), raw)
 
 
-def line_limit(
-    progress: float,
-    lane: str | None = None,
-    policy: QuotaPolicy | None = None,
-    *,
-    window_minutes: float | None = None,
-    window_start_at: float | str | None = None,
-) -> float:
-    """Порог гейтящейся полосы: норма + допуск, но никогда выше жёсткого стопа полосы.
+def _policy_from_snapshot(snapshot: Mapping) -> QuotaPolicy:
+    return QuotaPolicy(
+        hard_stop_pct=float(snapshot.get("hard_stop_pct", _ENV_HARD_STOP_DEFAULT)),
+        tolerance_start_pp=float(snapshot.get("tolerance_start_pp", _ENV_TOLERANCE_START_DEFAULT)),
+        tolerance_end_pp=float(snapshot.get("tolerance_end_pp", _ENV_TOLERANCE_END_DEFAULT)),
+        curve_exponent=float(snapshot.get("curve_exponent", _ENV_CURVE_EXPONENT_DEFAULT)),
+        gated_lanes=frozenset(snapshot.get("gated_lanes", _ENV_GATED_LANES_DEFAULT)),
+        curved_lanes=frozenset(snapshot.get("curved_lanes", _ENV_CURVED_LANES_DEFAULT)),
+        lane_hard_stop_pct=dict(snapshot.get("lane_hard_stop_pct", _ENV_LANE_HARD_STOP_DEFAULT)),
+        claude_weekly_shift_hours=float(snapshot.get("claude_weekly_shift_hours", 8.0)),
+        claude_day_start_hour=float(snapshot.get("claude_day_start_hour", 8.0)),
+        claude_night_quota_share=snapshot.get("claude_night_quota_share"),
+    )
 
-    Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
-    в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
-    Claude распределяет прирост по часам Красноярска и добавляет постоянный запас
-    `claude_weekly_shift_hours`; остальные полосы используют прежнюю формулу.
-    """
-    policy = policy or quota_policy()
+
+def _claude_policy_history(
+    window_start_at: float | str | None,
+    window_minutes: float | None,
+    progress: float,
+) -> list[dict]:
+    start = parse_quota_timestamp(window_start_at)
+    if (start is None or isinstance(window_minutes, bool)
+            or not isinstance(window_minutes, (int, float)) or window_minutes <= 0):
+        return []
+    at = start + min(1.0, max(0.0, progress)) * float(window_minutes) * 60.0
+    from app import db
+
+    return db.quota_policy_history_for_window(start, at)
+
+
+def _line_limit_for_policy(
+    progress: float,
+    lane: str | None,
+    policy: QuotaPolicy,
+    window_minutes: float | None,
+    window_start_at: float | str | None,
+) -> float:
     if lane == "claude" and policy.claude_night_quota_share is not None:
         return _claude_day_night_limit(progress, policy, window_minutes, window_start_at)
     line_progress = _line_progress(progress, lane, policy)
@@ -529,6 +551,51 @@ def line_limit(
     )
 
 
+def line_limit(
+    progress: float,
+    lane: str | None = None,
+    policy: QuotaPolicy | None = None,
+    *,
+    window_minutes: float | None = None,
+    window_start_at: float | str | None = None,
+    policy_history: list[dict] | None = None,
+) -> float:
+    """Порог гейтящейся полосы: норма + допуск, но никогда выше жёсткого стопа полосы.
+
+    Норма для полос из `CURVED_LANES` — не диагональ, а `progress ** (1/CURVE_EXPONENT)`:
+    в начале окна порог взлетает, к сбросу сходится с диагональю в той же точке 100%.
+    Claude распределяет прирост по часам Красноярска и добавляет постоянный запас
+    `claude_weekly_shift_hours`; в Claude добавляется огибающая исторических правил
+    этого недельного окна. Остальные полосы используют прежнюю формулу.
+    """
+    policy = policy or quota_policy()
+    active = _line_limit_for_policy(
+        progress, lane, policy, window_minutes, window_start_at,
+    )
+    if lane != "claude" or window_start_at is None:
+        return active
+    history = policy_history
+    if history is None:
+        history = _claude_policy_history(window_start_at, window_minutes, progress)
+    start = parse_quota_timestamp(window_start_at)
+    at = None
+    if (start is not None and isinstance(window_minutes, (int, float))
+            and not isinstance(window_minutes, bool) and window_minutes > 0):
+        at = start + min(1.0, max(0.0, progress)) * float(window_minutes) * 60.0
+    values = [active]
+    for event in history:
+        effective_from = event.get("effective_from")
+        if at is not None and isinstance(effective_from, (int, float)) and effective_from > at:
+            continue
+        snapshot = event.get("policy")
+        if isinstance(snapshot, Mapping) and "claude" in snapshot.get("gated_lanes", ()):
+            values.append(_line_limit_for_policy(
+                progress, lane, _policy_from_snapshot(snapshot),
+                window_minutes, window_start_at,
+            ))
+    return max(values)
+
+
 def line_release_progress(
     utilization: float,
     lane: str | None = None,
@@ -536,6 +603,7 @@ def line_release_progress(
     *,
     window_minutes: float | None = None,
     window_start_at: float | str | None = None,
+    policy_history: list[dict] | None = None,
 ) -> float:
     """Доля окна, где линия достигает `utilization`.
 
@@ -544,15 +612,20 @@ def line_release_progress(
     согласованным с порогом гейта.
     """
     policy = policy or quota_policy()
+    if lane == "claude" and window_start_at is not None and policy_history is None:
+        policy_history = _claude_policy_history(window_start_at, window_minutes, 1.0)
     curved = lane is not None and lane in policy.curved_lanes
     claude_day_night = lane == "claude" and policy.claude_night_quota_share is not None
-    if curved or claude_day_night:
+    claude_policy_history = lane == "claude" and bool(policy_history)
+    if curved or claude_day_night or claude_policy_history:
         if utilization <= line_limit(
             0.0, lane, policy, window_minutes=window_minutes, window_start_at=window_start_at,
+            policy_history=policy_history,
         ):
             return 0.0
         if utilization > line_limit(
             1.0, lane, policy, window_minutes=window_minutes, window_start_at=window_start_at,
+            policy_history=policy_history,
         ):
             return float("inf")
         low, high = 0.0, 1.0
@@ -561,6 +634,7 @@ def line_release_progress(
             if line_limit(
                 middle, lane, policy,
                 window_minutes=window_minutes, window_start_at=window_start_at,
+                policy_history=policy_history,
             ) < utilization:
                 low = middle
             else:
@@ -592,6 +666,7 @@ def _line_release_in_seconds(
     lane: str | None = None,
     policy: QuotaPolicy | None = None,
     window_start_at: float | str | None = None,
+    policy_history: list[dict] | None = None,
 ) -> tuple[str, float | None]:
     """Возвращает статус открытия и секунды до открытия/сброса окна.
 
@@ -615,6 +690,7 @@ def _line_release_in_seconds(
         utilization, lane, policy,
         window_minutes=window_minutes,
         window_start_at=window_start_at,
+        policy_history=policy_history,
     )
     if p_release <= progress:
         return "open", None
@@ -938,8 +1014,13 @@ def evaluate_worker_admission(
         else None
     )
     tolerance = None if progress is None else tolerance_pp(progress, policy)
+    policy_history = (
+        _claude_policy_history(started_at, window_minutes, 1.0)
+        if lane == "claude" and gated else None
+    )
     limit = None if (progress is None or not gated) else line_limit(
-        progress, lane, policy, window_minutes=window_minutes, window_start_at=started_at,
+        progress, lane, policy, window_minutes=window_minutes,
+        window_start_at=started_at, policy_history=policy_history,
     )
     release_status, release_in_seconds = _line_release_in_seconds(
         utilization=utilization,
@@ -952,6 +1033,7 @@ def evaluate_worker_admission(
         lane=lane,
         policy=policy,
         window_start_at=started_at,
+        policy_history=policy_history,
     )
 
     if utilization >= hard_stop:

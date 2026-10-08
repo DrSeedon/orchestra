@@ -6,6 +6,8 @@
 
 import pytest
 import json
+import sys
+from dataclasses import replace
 from datetime import datetime, timezone
 
 import app.db as db
@@ -238,6 +240,57 @@ async def test_quota_map_payload_includes_history_for_its_timeline(mapped, monke
     assert payload["rule_history"][0]["policy"]["claude_weekly_shift_hours"] == 0.0
     assert payload["rule_history"][1]["policy"]["claude_weekly_shift_hours"] == 8.0
     assert payload["rule_history"][2]["policy"]["claude_night_quota_share"] == 0.057
+
+
+@pytest.mark.asyncio
+async def test_quota_map_claude_threshold_stays_above_prior_rule_curve(mapped, monkeypatch):
+    start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
+    now = start + 90 * 3600
+    monkeypatch.setattr(system.time, "time", lambda: now)
+    monkeypatch.setattr(sys.modules[__name__], "NOW", now)
+    current = replace(
+        quota_gate.quota_policy(), hard_stop_pct=99.0,
+        tolerance_start_pp=10.0, tolerance_end_pp=1.0,
+        gated_lanes=frozenset({"claude", "sol"}), curved_lanes=frozenset({"sol"}),
+        lane_hard_stop_pct={"sol": 95.0}, claude_weekly_shift_hours=8.0,
+        claude_day_start_hour=8.0, claude_night_quota_share=0.057,
+    )
+    monkeypatch.setattr(quota_gate, "quota_policy", lambda: current)
+    baseline = replace(current, claude_weekly_shift_hours=0.0, claude_night_quota_share=None)
+    shifted = replace(current, claude_night_quota_share=None)
+    for policy, effective_from, source in (
+        (baseline, 1790640000.0, "reconstructed: baseline as of 2026-09-29"),
+        (shifted, 1791261780.0, "reconstructed: owner-reported 2026-10-06 restart"),
+        (current, 1791369761.0, "observed"),
+    ):
+        assert db.append_quota_policy_history(
+            quota_gate.quota_policy_snapshot(policy), effective_from, source=source,
+        )
+
+    payload = await mapped(_observation(anthropic=[_window(
+        10080, 62.0, window_id="seven_day", label="7d", progress=90 / 168,
+    )]))
+    history = payload["rule_history"]
+    assert [event["effective_from"] for event in history] == pytest.approx([
+        1791261780.0, 1791369761.0,
+    ])
+    claude = _lane(_pool(payload, "anthropic"), "claude")
+    assert claude["limit_pct"] == pytest.approx(63.0833333333)
+    assert claude["blocked"] is False
+
+    values = []
+    for hour in range(169):
+        progress = hour / 168
+        event_time = start + hour * 3600
+        active = quota_gate._policy_from_snapshot(
+            next(event["policy"] for event in reversed(history)
+                 if event["effective_from"] <= event_time)
+        )
+        values.append(quota_gate.line_limit(
+            progress, "claude", active, window_minutes=10080,
+            window_start_at=start, policy_history=history,
+        ))
+    assert all(right >= left for left, right in zip(values, values[1:]))
 
 
 def test_quota_policy_history_appends_only_changed_snapshots():

@@ -450,6 +450,65 @@ def test_claude_day_night_rates_use_the_actual_window_length():
     assert line(11) - line(10) == pytest.approx(expected_night_rate)
 
 
+def test_claude_threshold_keeps_the_highest_curve_from_real_policy_history(tmp_path, monkeypatch):
+    from app import db
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "v768-quota.db")
+    current = replace(
+        quota_gate.quota_policy(), hard_stop_pct=99.0,
+        tolerance_start_pp=10.0, tolerance_end_pp=1.0,
+        gated_lanes=frozenset({"claude", "sol"}),
+        curved_lanes=frozenset({"sol"}),
+        lane_hard_stop_pct={"sol": 95.0},
+        claude_weekly_shift_hours=8.0,
+        claude_day_start_hour=8.0,
+        claude_night_quota_share=0.057,
+    )
+    baseline = replace(current, claude_weekly_shift_hours=0.0, claude_night_quota_share=None)
+    shifted = replace(current, claude_night_quota_share=None)
+    for policy, effective_from, source in (
+        (baseline, 1790640000.0, "reconstructed: baseline as of 2026-09-29"),
+        (shifted, 1791261780.0, "reconstructed: owner-reported 2026-10-06 restart"),
+        (current, 1791369761.0, "observed"),
+    ):
+        assert db.append_quota_policy_history(
+            quota_gate.quota_policy_snapshot(policy), effective_from, source=source,
+        )
+
+    start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
+    elapsed_hours = 90.0
+    progress = elapsed_hours / 168.0
+    prior_curve = quota_gate._line_limit_for_policy(
+        progress, "claude", shifted, 10080, start,
+    )
+    day_night_curve = quota_gate._line_limit_for_policy(
+        progress, "claude", current, 10080, start,
+    )
+    assert prior_curve == pytest.approx(63.0833333333)
+    assert day_night_curve == pytest.approx(60.6943869048)
+    assert line_limit(
+        progress, "claude", current, window_minutes=10080, window_start_at=start,
+    ) == pytest.approx(prior_curve)
+
+    sampled = [line_limit(
+        hour / 168.0, "claude", current,
+        window_minutes=10080, window_start_at=start,
+    ) for hour in range(169)]
+    assert all(right >= left for left, right in zip(sampled, sampled[1:]))
+
+    now = start + elapsed_hours * 3600
+    decision = evaluate_worker_admission(
+        "claude-sonnet-4-5",
+        {"anthropic": {"label": "Claude", "windows": [{
+            "id": "seven_day", "window_minutes": 10080, "utilization": 62.0,
+            "resets_at": _iso(start + WEEK_SECONDS),
+        }]}},
+        {"anthropic": now - 1}, now=now, policy=current,
+    )
+    assert decision.limit_pct == pytest.approx(prior_curve)
+    assert decision.state == "available"
+
+
 def test_claude_release_prediction_inverts_the_smooth_line_across_night():
     policy = quota_gate.quota_policy()
     start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
