@@ -290,7 +290,10 @@ async def _workflow_slot_request(path: str, payload: dict) -> dict | None:
                 f"{base}{path}", data=body, headers=headers, method="POST",
             ), timeout=10) as response:
                 result = json.loads(response.read())
-        except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
+        except urllib.error.HTTPError as error:
+            # 404 = the running Orchestra predates the scheduler route; it will never appear.
+            return {"scheduler_missing": True} if error.code == 404 else None
+        except (OSError, urllib.error.URLError, json.JSONDecodeError):
             return None
         return result if isinstance(result, dict) else None
 
@@ -499,6 +502,7 @@ class WorkflowEngine:
         self.session_id = f"wf:{run_id}"
         self.partial_reason = ""
         self.scheduler_status: dict[str, Any] = {}
+        self._scheduler_missing = False
         self._slot_wait_state: dict[str, tuple] = {}
         self.scheduler_owner_id = uuid.uuid4().hex
         self._occurrences: dict[str, int] = {}
@@ -565,13 +569,20 @@ class WorkflowEngine:
         return f"{digest}:{occurrence}"
 
     async def _acquire_workflow_slot(self, call_key: str, attempt: int, label: str) -> str:
-        if self._injected_adapter:
+        if self._injected_adapter or self._scheduler_missing:
             return ""
         request_id = f"{self.run_id}:{self.scheduler_owner_id}:{call_key}:{attempt}"
         payload = {"request_id": request_id, "run_id": self.run_id, "label": label}
         retry_delay = 1
         while True:
             status = await _workflow_slot_request("/api/bg/workflow-scheduler/acquire", payload)
+            if status and status.get("scheduler_missing"):
+                self._scheduler_missing = True
+                self.scheduler_status = {"reason": "scheduler route absent (Orchestra older than this script); running without central admission"}
+                self.journal.append({"event": "scheduler_absent", "call_key": call_key,
+                                     "attempt": attempt, "label": label})
+                self.write_manifest(in_progress=True)
+                return ""
             if status and status.get("granted"):
                 self.scheduler_status = status
                 self._slot_wait_state.pop(request_id, None)
