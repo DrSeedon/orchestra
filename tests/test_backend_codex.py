@@ -1385,6 +1385,162 @@ def test_turn_usage_keeps_codex_delta_and_last_call_context_distinct():
     assert end.metadata["context_known"] is True
 
 
+def test_turn_result_keeps_wall_api_and_separate_reasoning_durations(monkeypatch):
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._active_turn_started_monotonic = 100.0
+    backend._thread_usage_total = backend._usage_breakdown({
+        "inputTokens": 100,
+        "cachedInputTokens": 0,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 80,
+        "reasoningTokens": 30,
+    })
+    backend._usage_baseline = backend._usage_breakdown({
+        "inputTokens": 40,
+        "cachedInputTokens": 0,
+        "cacheWriteInputTokens": 0,
+        "outputTokens": 20,
+        "reasoningTokens": 10,
+    })
+    backend._last_call_usage = {"input_tokens": 60, "model_context_window": 258_400}
+    monkeypatch.setattr("app.backend_codex.time.monotonic", lambda: 105.0)
+
+    end = backend._turn_completed({
+        "id": "turn-timing",
+        "status": "completed",
+        "duration_api_ms": 2_500,
+    })[-1]
+
+    assert end.metadata["turn_duration_ms"] == 5_000
+    assert end.metadata["api_duration_ms"] == 2_500
+    assert end.metadata["output_tokens"] == 60
+    assert end.metadata["reasoning_tokens"] == 20
+    assert end.metadata["duration_basis"] == "api"
+    assert end.metadata["model_estimate_duration_ms"] == 5_000
+
+
+def test_codex_model_time_subtracts_union_of_long_tool_intervals(monkeypatch):
+    import app.backend_codex as backend_codex
+
+    ticks = iter((10.0, 20.0, 25.0, 60.0, 100.0, 110.0, 130.0))
+    monkeypatch.setattr(backend_codex.time, "monotonic", lambda: next(ticks))
+    with_tools = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    with_tools._thread_id = "thread-tools"
+    with_tools._active_turn_id = "turn-tools"
+    with_tools._active_turn_started_monotonic = 0.0
+    with_tools._thread_usage_total = with_tools._usage_breakdown({
+        "inputTokens": 100,
+        "outputTokens": 2_000,
+    })
+    with_tools._usage_baseline = with_tools._usage_breakdown({})
+    with_tools._last_call_usage = {"input_tokens": 100, "model_context_window": 258_400}
+    with_tools._convert_notification({
+        "method": "item/started",
+        "params": {"item": {"id": "reasoning", "type": "reasoning"}},
+    })
+    with_tools._convert_notification({
+        "method": "item/completed",
+        "params": {"item": {"id": "reasoning", "type": "reasoning", "summary": ["think"]}},
+    })
+    with_tools._convert_notification({
+        "method": "item/started",
+        "params": {"item": {"id": "command", "type": "commandExecution"}},
+    })
+    with_tools._convert_notification({
+        "method": "item/started",
+        "params": {"item": {"id": "message", "type": "agentMessage"}},
+    })
+    with_tools._convert_notification({
+        "method": "item/completed",
+        "params": {"item": {"id": "message", "type": "agentMessage", "text": "answer"}},
+    })
+    with_tools._convert_notification({
+        "method": "item/started",
+        "params": {"item": {"id": "mcp", "type": "mcpToolCall"}},
+    })
+    with_tools._convert_notification({
+        "method": "item/completed",
+        "params": {"item": {"id": "command", "type": "commandExecution"}},
+    })
+    with_tools._convert_notification({
+        "method": "item/completed",
+        "params": {"item": {"id": "mcp", "type": "mcpToolCall"}},
+    })
+    tool_end = with_tools._turn_completed({"id": "turn-tools", "status": "completed"})[-1]
+
+    without_tools = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    without_tools._thread_id = "thread-plain"
+    without_tools._active_turn_id = "turn-plain"
+    without_tools._active_turn_started_monotonic = 0.0
+    without_tools._thread_usage_total = with_tools._thread_usage_total
+    without_tools._usage_baseline = with_tools._usage_baseline
+    without_tools._last_call_usage = with_tools._last_call_usage
+    monkeypatch.setattr(backend_codex.time, "monotonic", lambda: 40.0)
+    plain_end = without_tools._turn_completed({"id": "turn-plain", "status": "completed"})[-1]
+
+    assert tool_end.metadata["turn_duration_ms"] == 130_000
+    assert tool_end.metadata["tool_duration_sum_ms"] == 130_000
+    assert tool_end.metadata["tool_union_duration_ms"] == 90_000
+    assert tool_end.metadata["api_duration_ms"] == 40_000
+    assert tool_end.metadata["duration_basis"] == "model_estimate"
+    assert tool_end.metadata["output_tokens"] == plain_end.metadata["output_tokens"]
+    tool_rate = tool_end.metadata["output_tokens"] / (tool_end.metadata["api_duration_ms"] / 1000)
+    plain_rate = plain_end.metadata["output_tokens"] / (plain_end.metadata["api_duration_ms"] / 1000)
+    assert tool_rate == pytest.approx(plain_rate)
+
+
+def test_codex_model_time_is_not_published_when_a_tool_interval_is_missing(monkeypatch):
+    import app.backend_codex as backend_codex
+
+    ticks = iter((30.0, 31.0))
+    monkeypatch.setattr(backend_codex.time, "monotonic", lambda: next(ticks))
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._thread_id = "thread-missing"
+    backend._active_turn_id = "turn-missing"
+    backend._active_turn_started_monotonic = 0.0
+    backend._thread_usage_total = backend._usage_breakdown({
+        "inputTokens": 100,
+        "outputTokens": 2_000,
+    })
+    backend._usage_baseline = backend._usage_breakdown({})
+    backend._last_call_usage = {"input_tokens": 100, "model_context_window": 258_400}
+
+    backend._convert_notification({
+        "method": "item/completed",
+        "params": {"item": {"id": "command-missing-start", "type": "commandExecution"}},
+    })
+    end = backend._turn_completed({"id": "turn-missing", "status": "completed"})[-1]
+
+    assert end.metadata["duration_basis"] == "incomplete"
+    assert end.metadata["api_duration_ms"] is None
+    assert end.metadata["tool_intervals_missing"] == 1
+
+
+def test_late_tool_event_from_another_turn_does_not_contaminate_timing(monkeypatch):
+    import app.backend_codex as backend_codex
+
+    backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
+    backend._active_turn_id = "current-turn"
+    monkeypatch.setattr(
+        backend_codex.time,
+        "monotonic",
+        lambda: (_ for _ in ()).throw(AssertionError("ignored turn must not be timed")),
+    )
+
+    for method in ("item/started", "item/completed"):
+        backend._convert_notification({
+            "method": method,
+            "params": {
+                "turnId": "previous-turn",
+                "item": {"id": "old-command", "type": "commandExecution"},
+            },
+        })
+
+    assert backend._tool_item_started_monotonic == {}
+    assert backend._tool_item_intervals == []
+    assert backend._tool_item_intervals_missing == 0
+
+
 def test_explicit_codex_tool_failures_keep_identity_and_tool_name():
     backend = CodexBackend(model="gpt-5.6-sol", cwd="/tmp")
 

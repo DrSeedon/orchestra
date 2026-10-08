@@ -463,6 +463,7 @@ async def lifespan(app: FastAPI):
     from app.task_runtime import task_repository_path
     app.state.v576_migration = migrate_v576(database.DB_PATH, task_repository_path())
     init_db()
+    app.state.turn_usage_timing_schema_columns_added = database.ensure_turn_usage_timing_schema()
     app.state.owner_activity_backfill = database.ensure_owner_activity_schema()
     from app.quota_gate import initialize_quota_policy_history
     app.state.quota_policy_history_backfill = initialize_quota_policy_history()

@@ -207,6 +207,36 @@ def ensure_owner_activity_schema(path: Path | None = None) -> dict[str, int]:
     return {"inserted": inserted, "scanned": len(rows)}
 
 
+def ensure_turn_usage_timing_schema(path: Path | None = None) -> int:
+    """Add nullable timing and reasoning fields without changing historical rows."""
+    additions = {
+        "turn_duration_ms": "INTEGER",
+        "api_duration_ms": "INTEGER",
+        "reasoning_tokens": "INTEGER",
+        "duration_basis": "TEXT",
+        "provider_api_duration_ms": "INTEGER",
+        "model_estimate_duration_ms": "INTEGER",
+        "tool_duration_sum_ms": "INTEGER",
+        "tool_union_duration_ms": "INTEGER",
+        "tool_intervals_count": "INTEGER",
+        "tool_intervals_missing": "INTEGER",
+    }
+    with _conn(path) as connection:
+        columns = {
+            str(row[1])
+            for row in connection.execute("PRAGMA table_info(turn_usage)").fetchall()
+        }
+        if not columns:
+            raise RuntimeError("turn_usage table is missing")
+        added = 0
+        for name, column_type in additions.items():
+            if name in columns:
+                continue
+            connection.execute(f"ALTER TABLE turn_usage ADD COLUMN {name} {column_type}")
+            added += 1
+        return added
+
+
 
 def kv_get(key: str, default: str = "") -> str:
     with _conn() as c:
@@ -2222,6 +2252,16 @@ def turn_usage_add(
     quota_seven_day_pct: float | None = None,
     quota_primary_pct: float | None = None,
     quota_sampled_at: str | None = None,
+    turn_duration_ms: int | None = None,
+    api_duration_ms: int | None = None,
+    reasoning_tokens: int | None = None,
+    duration_basis: str | None = None,
+    provider_api_duration_ms: int | None = None,
+    model_estimate_duration_ms: int | None = None,
+    tool_duration_sum_ms: int | None = None,
+    tool_union_duration_ms: int | None = None,
+    tool_intervals_count: int | None = None,
+    tool_intervals_missing: int | None = None,
     native_session_id: str | None = None,
     provider_cost_usd: float | None = None,
     ts: str | None = None,
@@ -2247,6 +2287,23 @@ def turn_usage_add(
         raise ValueError("quota_sampled_at is required with quota percentages")
     if all(value is None for value in quota_pcts):
         quota_sampled_at = None
+    for name, value in (
+        ("turn_duration_ms", turn_duration_ms),
+        ("api_duration_ms", api_duration_ms),
+        ("reasoning_tokens", reasoning_tokens),
+        ("provider_api_duration_ms", provider_api_duration_ms),
+        ("model_estimate_duration_ms", model_estimate_duration_ms),
+        ("tool_duration_sum_ms", tool_duration_sum_ms),
+        ("tool_union_duration_ms", tool_union_duration_ms),
+        ("tool_intervals_count", tool_intervals_count),
+        ("tool_intervals_missing", tool_intervals_missing),
+    ):
+        if value is not None and (
+            isinstance(value, bool) or not isinstance(value, int) or value < 0
+        ):
+            raise ValueError(f"{name} must be a nonnegative integer or None")
+    if duration_basis not in {None, "api", "model_estimate", "turn", "incomplete"}:
+        raise ValueError("unsupported duration_basis")
     observed_at = ts or datetime.now(timezone.utc).isoformat()
     with _conn() as c:
         cursor = c.execute(
@@ -2256,8 +2313,12 @@ def turn_usage_add(
                 cost_usd, cost_unaccounted, input_tokens, output_tokens,
                 cache_read_tokens, cache_create_tokens,
                 quota_five_hour_pct, quota_seven_day_pct,
+                turn_duration_ms, api_duration_ms, reasoning_tokens, duration_basis,
+                provider_api_duration_ms, model_estimate_duration_ms,
+                tool_duration_sum_ms, tool_union_duration_ms,
+                tool_intervals_count, tool_intervals_missing,
                 quota_primary_pct, quota_sampled_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -2276,6 +2337,16 @@ def turn_usage_add(
                 max(0, int(cache_create_tokens or 0)),
                 quota_five_hour_pct,
                 quota_seven_day_pct,
+                turn_duration_ms,
+                api_duration_ms,
+                reasoning_tokens,
+                duration_basis,
+                provider_api_duration_ms,
+                model_estimate_duration_ms,
+                tool_duration_sum_ms,
+                tool_union_duration_ms,
+                tool_intervals_count,
+                tool_intervals_missing,
                 quota_primary_pct,
                 quota_sampled_at,
             ),

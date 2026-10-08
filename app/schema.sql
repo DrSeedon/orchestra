@@ -524,7 +524,17 @@ CREATE TABLE turn_usage (
                 quota_five_hour_pct REAL,
                 quota_seven_day_pct REAL,
                 quota_primary_pct REAL,
-                quota_sampled_at TEXT
+                quota_sampled_at TEXT,
+                turn_duration_ms INTEGER,
+                api_duration_ms INTEGER,
+                reasoning_tokens INTEGER,
+                duration_basis TEXT,
+                provider_api_duration_ms INTEGER,
+                model_estimate_duration_ms INTEGER,
+                tool_duration_sum_ms INTEGER,
+                tool_union_duration_ms INTEGER,
+                tool_intervals_count INTEGER,
+                tool_intervals_missing INTEGER
             );
 
 CREATE TABLE undelivered_facts (

@@ -650,6 +650,119 @@ def test_cost_average_uses_only_priced_turns_and_marks_partial_group(usage_db):
     assert payload["summary"]["unaccounted_turns"] == 1
 
 
+def test_model_speed_prefers_api_duration_and_leaves_untimed_history_empty(usage_db):
+    from app.db import turn_usage_add
+    from app.usage_analytics import build_usage_analytics
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    common = {
+        "session_id": "speed-session",
+        "scope": "/scope",
+        "ok": True,
+        "stop_reason": "end_turn",
+        "cost_usd": 0.0,
+        "input_tokens": 100,
+        "cache_read_tokens": 0,
+        "cache_create_tokens": 0,
+        "ts": (now - timedelta(minutes=5)).isoformat(),
+    }
+    assert turn_usage_add(
+        event_id="claude-speed",
+        runtime="claude",
+        model="claude-sonnet-5-5",
+        output_tokens=500,
+        turn_duration_ms=120_000,
+        api_duration_ms=10_000,
+        reasoning_tokens=45,
+        **common,
+    )
+    assert turn_usage_add(
+        event_id="codex-speed",
+        runtime="codex",
+        model="gpt-5.6-sol",
+        output_tokens=200,
+        turn_duration_ms=60_000,
+        api_duration_ms=20_000,
+        duration_basis="model_estimate",
+        model_estimate_duration_ms=20_000,
+        provider_api_duration_ms=None,
+        tool_duration_sum_ms=130_000,
+        tool_union_duration_ms=40_000,
+        tool_intervals_count=2,
+        tool_intervals_missing=0,
+        reasoning_tokens=None,
+        **common,
+    )
+    assert turn_usage_add(
+        event_id="legacy-speed",
+        runtime="codex",
+        model="gpt-5.6-luna",
+        output_tokens=999,
+        turn_duration_ms=None,
+        api_duration_ms=None,
+        reasoning_tokens=None,
+        **common,
+    )
+    assert turn_usage_add(
+        event_id="incomplete-speed",
+        runtime="codex",
+        model="gpt-5.6-terra",
+        output_tokens=1_500,
+        turn_duration_ms=10_000,
+        api_duration_ms=None,
+        duration_basis="incomplete",
+        tool_intervals_missing=1,
+        reasoning_tokens=None,
+        **common,
+    )
+
+    payload = build_usage_analytics(days=1, now=now)
+    speeds = payload["model_speeds"]
+    hour = {(row["runtime"], row["model"]): row for row in speeds["current"]["last_hour"]}
+
+    assert hour[("claude", "claude-sonnet-5-5")]["median_tokens_per_second"] == 50.0
+    assert hour[("claude", "claude-sonnet-5-5")]["duration_basis"] == "api"
+    assert hour[("codex", "gpt-5.6-sol")]["median_tokens_per_second"] == 10.0
+    assert hour[("codex", "gpt-5.6-sol")]["duration_basis"] == "model_estimate"
+    assert ("codex", "gpt-5.6-luna") not in hour
+    assert ("codex", "gpt-5.6-terra") not in hour
+
+
+@pytest.mark.asyncio
+async def test_analytics_api_exposes_model_speed_fields(usage_db, monkeypatch):
+    from app import db
+    from app.routes import system
+
+    now = datetime.now(timezone.utc).replace(microsecond=0)
+    db.turn_usage_add(
+        event_id="api-speed",
+        session_id="api-speed-session",
+        scope="/scope",
+        runtime="claude",
+        model="claude-opus-5",
+        ok=True,
+        stop_reason="end_turn",
+        cost_usd=0.0,
+        input_tokens=100,
+        output_tokens=900,
+        cache_read_tokens=0,
+        cache_create_tokens=0,
+        turn_duration_ms=90_000,
+        api_duration_ms=9_000,
+        reasoning_tokens=200,
+        ts=(now - timedelta(minutes=3)).isoformat(),
+    )
+    monkeypatch.setattr(system, "get_usage", AsyncMock(return_value={}))
+
+    payload = await system.usage_analytics_endpoint(days=1)
+    point = payload["model_speeds"]["current"]["last_hour"][0]
+
+    assert point["model"] == "claude-opus-5"
+    assert point["median_tokens_per_second"] == 100.0
+    assert point["duration_basis"] == "api"
+    assert point["samples"] == 1
+
+
 def test_unaccounted_linked_turn_hides_task_cost(usage_db):
     from app.usage_analytics import build_usage_analytics
 

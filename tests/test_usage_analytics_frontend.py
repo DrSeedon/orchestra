@@ -229,6 +229,46 @@ def _payload():
                 "cost_share_pct": 39.2,
             },
         ],
+        "model_speeds": {
+            "current": {
+                "last_hour": [
+                    {
+                        "model": "claude-opus-5[1m]",
+                        "runtime": "claude",
+                        "median_tokens_per_second": 62.5,
+                        "samples": 3,
+                        "duration_basis": "api",
+                    },
+                    {
+                        "model": "gpt-5.6-sol",
+                        "runtime": "codex",
+                        "median_tokens_per_second": 18.2,
+                        "samples": 2,
+                        "duration_basis": "model_estimate",
+                    },
+                ],
+                "last_day": [],
+            },
+            "series": [
+                {
+                    "bucket": "2026-07-25T07:00:00+00:00",
+                    "model": "claude-opus-5[1m]",
+                    "runtime": "claude",
+                    "median_tokens_per_second": 62.5,
+                    "samples": 3,
+                    "duration_basis": "api",
+                },
+                {
+                    "bucket": "2026-07-25T07:00:00+00:00",
+                    "model": "gpt-5.6-sol",
+                    "runtime": "codex",
+                    "median_tokens_per_second": 18.2,
+                    "samples": 2,
+                    "duration_basis": "model_estimate",
+                },
+            ],
+            "bucket_seconds": 3600,
+        },
         "reliability": {
             "subagents": {
                 "completed": 221,
@@ -283,12 +323,13 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
             window.DOMPurify = { addHook() {} };
             window.MODEL_COST_CURRENCY = '$';
             window.analyticsCalls = [];
+            window.analyticsChartConfigs = [];
             window.api = async url => {
                 window.analyticsCalls.push(url);
                 return structuredClone(payload);
             };
             window.Chart = class {
-                constructor() { this.destroyed = false; }
+                constructor(_canvas, config) { this.destroyed = false; window.analyticsChartConfigs.push(config); }
                 destroy() { this.destroyed = true; }
             };
         }""",
@@ -394,6 +435,22 @@ def test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch(browser):
     page.locator('[data-analytics-view="agents"]').click()
     expect(page.locator("#analytics-agent-table tr")).to_have_count(2)
     assert len(page.evaluate("analyticsCalls")) == 2
+    page.close()
+
+
+def test_model_speed_view_renders_current_values_and_history_chart(browser):
+    page = _page(browser)
+    page.evaluate("openAnalyticsModal()")
+    page.locator('[data-analytics-view="speeds"]').click()
+
+    expect(page.locator("[data-analytics-speed-model]")).to_have_count(2)
+    expect(page.locator('[data-analytics-speed-model="claude-opus-5[1m]"]')).to_contain_text("62.5 tokens/s")
+    expect(page.locator('[data-analytics-speed-model="claude-opus-5[1m]"]')).to_contain_text("API time")
+    expect(page.locator('[data-analytics-speed-model="gpt-5.6-sol"]')).to_contain_text(
+        "Estimated model time (tool intervals removed)"
+    )
+    assert page.evaluate("analyticsChartConfigs.at(-1).type") == "line"
+    assert len(page.evaluate("analyticsChartConfigs.at(-1).data.datasets")) == 2
     page.close()
 
 
@@ -743,6 +800,7 @@ def test_unaccounted_cost_is_visible_and_never_rendered_as_zero(browser):
 
 def test_new_frontend_remains_compatible_with_old_analytics_payload(browser):
     payload = _payload()
+    payload.pop("model_speeds")
     for key in ("priced_turns", "unaccounted_turns"):
         payload["summary"].pop(key)
     payload["summary"].pop("fully_costed_linked_tasks")
@@ -774,6 +832,12 @@ def test_new_frontend_remains_compatible_with_old_analytics_payload(browser):
 
     page.locator('[data-analytics-view="efficiency"]').click()
     expect(page.locator(".analytics-model-list")).to_contain_text("60.8%")
+
+    page.locator('[data-analytics-view="speeds"]').click()
+    expect(page.locator("#analytics-body")).to_contain_text(
+        "No timed model turns in this period."
+    )
+    expect(page.locator("#analytics-speed-chart")).to_have_count(0)
     page.close()
 
 
@@ -782,6 +846,11 @@ def test_modal_has_no_document_overflow_at_390px(browser):
     page.evaluate("openAnalyticsModal()")
     expect(page.locator("#analytics-modal")).to_be_visible()
 
+    assert page.locator("body").evaluate("el => el.scrollWidth <= el.clientWidth")
+    assert page.locator(".analytics-shell").evaluate(
+        "el => el.getBoundingClientRect().right <= innerWidth"
+    )
+    page.locator('[data-analytics-view="speeds"]').click()
     assert page.locator("body").evaluate("el => el.scrollWidth <= el.clientWidth")
     assert page.locator(".analytics-shell").evaluate(
         "el => el.getBoundingClientRect().right <= innerWidth"

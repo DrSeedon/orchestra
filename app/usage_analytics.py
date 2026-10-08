@@ -287,6 +287,109 @@ def _provider_rollup(daily: list[dict]) -> dict:
     return providers
 
 
+def _duration_basis(values: list[str]) -> str:
+    kinds = set(values)
+    return next(iter(kinds)) if len(kinds) == 1 else "mixed"
+
+
+def _speed_summary(model: str, runtime: str, turns: list[dict]) -> dict:
+    return {
+        "model": model,
+        "runtime": runtime,
+        "median_tokens_per_second": round(median(row["speed"] for row in turns), 2),
+        "samples": len(turns),
+        "duration_basis": _duration_basis([row["basis"] for row in turns]),
+        "last_turn_at": max(row["ts"] for row in turns),
+    }
+
+
+def _model_speed_analytics(
+    conn: sqlite3.Connection,
+    *,
+    days: int,
+    now: datetime,
+) -> dict:
+    now = (
+        now.replace(tzinfo=timezone.utc)
+        if now.tzinfo is None
+        else now.astimezone(timezone.utc)
+    )
+    since = now - timedelta(days=days)
+    rows = conn.execute(
+        """SELECT model, runtime, ts, output_tokens, api_duration_ms,
+                  duration_basis,
+                  turn_duration_ms,
+                  CASE WHEN api_duration_ms > 0 THEN api_duration_ms
+                       WHEN duration_basis = 'incomplete' THEN NULL
+                       ELSE turn_duration_ms END AS speed_duration_ms,
+                  CASE WHEN duration_basis IS NOT NULL THEN duration_basis
+                       WHEN api_duration_ms > 0 THEN 'api' ELSE 'turn' END AS effective_basis
+             FROM turn_usage
+            WHERE ts >= ? AND ok = 1 AND output_tokens > 0
+              AND (api_duration_ms > 0 OR (
+                   turn_duration_ms > 0 AND COALESCE(duration_basis, 'turn') <> 'incomplete'
+              ))
+            ORDER BY ts""",
+        (since.isoformat(),),
+    ).fetchall()
+
+    turns = []
+    for row in rows:
+        duration_ms = int(row["speed_duration_ms"] or 0)
+        if duration_ms <= 0:
+            continue
+        turns.append({
+            "model": str(row["model"] or "unknown"),
+            "runtime": str(row["runtime"] or "unknown"),
+            "ts": str(row["ts"]),
+            "speed": int(row["output_tokens"]) * 1000.0 / duration_ms,
+            "basis": str(row["effective_basis"]),
+        })
+
+    def current(cutoff: datetime) -> list[dict]:
+        grouped: dict[tuple[str, str], list[dict]] = {}
+        for turn in turns:
+            try:
+                ts = datetime.fromisoformat(turn["ts"].replace("Z", "+00:00"))
+            except ValueError:
+                continue
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+            if ts.astimezone(timezone.utc) < cutoff:
+                continue
+            grouped.setdefault((turn["runtime"], turn["model"]), []).append(turn)
+        return [
+            _speed_summary(model, runtime, entries)
+            for (runtime, model), entries in sorted(grouped.items())
+        ]
+
+    bucket_seconds = 3600 if days <= 30 else 86400
+    buckets: dict[tuple[int, str, str], list[dict]] = {}
+    for turn in turns:
+        try:
+            ts = datetime.fromisoformat(turn["ts"].replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        bucket = int(ts.timestamp()) // bucket_seconds * bucket_seconds
+        buckets.setdefault((bucket, turn["runtime"], turn["model"]), []).append(turn)
+
+    series = []
+    for (bucket, runtime, model), entries in sorted(buckets.items()):
+        point = _speed_summary(model, runtime, entries)
+        point["bucket"] = datetime.fromtimestamp(bucket, timezone.utc).isoformat()
+        series.append(point)
+    return {
+        "current": {
+            "last_hour": current(now - timedelta(hours=1)),
+            "last_day": current(now - timedelta(days=1)),
+        },
+        "series": series,
+        "bucket_seconds": bucket_seconds,
+    }
+
+
 def _agent_rows(conn: sqlite3.Connection, since: str) -> list[dict]:
     rows = conn.execute(
         _OBSERVED_TURNS_CTE
@@ -647,6 +750,7 @@ def build_usage_analytics(
             providers = _provider_rollup(daily)
             agents = _agent_rows(conn, since)
             models = _model_rows(conn, since)
+            model_speeds = _model_speed_analytics(conn, days=days, now=now)
             tasks = _task_summary(conn, since)
             lifetime = _lifetime_summary(conn)
             reliability = _reliability(conn, since, tasks)
@@ -688,5 +792,6 @@ def build_usage_analytics(
         "daily": daily,
         "agents": agents,
         "models": models,
+        "model_speeds": model_speeds,
         "reliability": reliability,
     }

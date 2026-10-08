@@ -467,6 +467,24 @@ def test_result_uuid_is_carried_as_durable_turn_event_id():
     assert event.metadata["event_id"] == "result-uuid-1"
 
 
+def test_result_preserves_provider_api_duration_and_separate_reasoning_tokens():
+    event = _backend()._convert(ResultMessage(
+        subtype="result",
+        duration_ms=120_000,
+        duration_api_ms=10_000,
+        is_error=False,
+        num_turns=2,
+        session_id="sdk-session",
+        stop_reason="end_turn",
+        usage={"input_tokens": 20, "output_tokens": 500, "reasoning_tokens": 45},
+        uuid="timed-result",
+    ))[-1]
+
+    assert event.metadata["turn_duration_ms"] == 120_000
+    assert event.metadata["api_duration_ms"] == 10_000
+    assert event.metadata["reasoning_tokens"] == 45
+
+
 def test_result_uses_deferred_context_without_losing_aggregate_usage():
     from app.usage_contract import DeferredContext
 
