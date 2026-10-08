@@ -46,7 +46,8 @@ def test_sonnet_aliases_and_retired_ids_resolve_to_sonnet_55():
     assert "claude-sonnet-5[1m]" not in MODELS
     assert MODELS[model_id] == "Sonnet 5.5 (1M)"
     assert CONTEXT_LIMITS[model_id] == 1_000_000
-    assert TOKEN_PRICES[model_id] == {"input": 2.0, "output": 10.0}
+    assert TOKEN_PRICES[model_id]["input"] == 2.0
+    assert TOKEN_PRICES[model_id]["output"] == 10.0
     assert BACKENDS[model_id] == "claude"
     assert DEFAULT_MODEL == model_id
 
@@ -76,9 +77,29 @@ def test_haiku_55_replaces_haiku_45_in_the_selectable_registry():
     assert model_id in MODELS
     assert "claude-haiku-4-5" not in MODELS
     assert CONTEXT_LIMITS[model_id] == 1_000_000
-    assert TOKEN_PRICES[model_id] == {"input": 0.10, "output": 0.50}
+    assert TOKEN_PRICES[model_id]["input"] == 0.10
+    assert TOKEN_PRICES[model_id]["output"] == 0.50
     with pytest.raises(ValueError, match="unknown model"):
         resolve_model("claude-haiku-4-5")
+
+
+def test_claude_cache_rates_and_prompt_tier_are_registry_data():
+    from app.models import TOKEN_PRICES
+
+    for model_id in (
+        "claude-fable-5-1[1m]", "claude-opus-5-5[1m]",
+        "claude-sonnet-5-5[1m]", "claude-haiku-5-5",
+        "claude-opus-4-6[1m]",
+    ):
+        assert TOKEN_PRICES[model_id]["cache_write_5m_multiplier"] == 1.25
+        assert TOKEN_PRICES[model_id]["cache_write_1h_multiplier"] == 2.0
+
+    assert TOKEN_PRICES["claude-fable-5-1[1m]"]["cache_read_multiplier"] == 0.025
+    assert TOKEN_PRICES["claude-opus-5-5[1m]"]["cache_read_multiplier"] == 0.05
+    assert TOKEN_PRICES["claude-sonnet-5-5[1m]"]["cache_read_multiplier"] == 0.05
+    assert TOKEN_PRICES["claude-opus-4-6[1m]"]["cache_read_multiplier"] == 0.1
+    assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_price_threshold"] == 100000
+    assert TOKEN_PRICES["claude-haiku-5-5"]["prompt_over_threshold_multiplier"] == 5.0
 
 
 @pytest.mark.parametrize("model_id", ["gpt-6-astra", "gpt-6.1-sol"])

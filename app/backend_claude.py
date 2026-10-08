@@ -539,6 +539,8 @@ class ClaudeBackend:
         self.resume_failed = False
         self._stderr_tail = ""
         self._pending_model_error = ""
+        self._assistant_usage_by_message_id: dict[str, dict] = {}
+        self._assistant_usage_incomplete = False
         # SDK content events point at parent tool_use_id, while Task* lifecycle
         # messages use task_id. Keep the bridge so live output and persisted
         # lifecycle records address the same UI card.
@@ -1125,6 +1127,8 @@ class ClaudeBackend:
     async def send(self, message: str) -> None:
         if not self._client:
             raise RuntimeError("ClaudeBackend not connected")
+        self._assistant_usage_by_message_id.clear()
+        self._assistant_usage_incomplete = False
         await self._client.query(message)
 
     async def events(self) -> AsyncIterator[AgentEvent]:
@@ -1269,6 +1273,7 @@ class ClaudeBackend:
             return events
 
         if isinstance(msg, AssistantMessage):
+            self._remember_assistant_usage(msg)
             # Subagent messages carry parent_tool_use_id → tag events so the UI groups
             # them under the sub-agent block instead of mixing with the parent's stream.
             sub_id = self._resolve_subagent_id(
@@ -1422,6 +1427,10 @@ class ClaudeBackend:
 
             model_error = self._pending_model_error
             self._pending_model_error = ""
+            request_usages = list(self._assistant_usage_by_message_id.values())
+            request_usage_incomplete = self._assistant_usage_incomplete
+            self._assistant_usage_by_message_id.clear()
+            self._assistant_usage_incomplete = False
             is_err = bool(getattr(msg, "is_error", False) or model_error)
             err_list = list(getattr(msg, "errors", None) or [])
             if model_error and model_error not in err_list:
@@ -1448,6 +1457,7 @@ class ClaudeBackend:
             input_tokens = 0
             output_tokens = 0
             cost_cached = 0.0
+            price_may_be_understated = False
 
             if usage and isinstance(usage, dict):
                 output_details = usage.get("output_tokens_details") or {}
@@ -1464,22 +1474,159 @@ class ClaudeBackend:
                 cache_read = usage.get("cache_read_input_tokens", 0) or 0
                 input_tokens = usage.get("input_tokens", 0) or 0
                 output_tokens = usage.get("output_tokens", 0) or 0
+                cache_creation = usage.get("cache_creation")
+                cache_create_5m = 0
+                cache_create_1h = 0
+                if isinstance(cache_creation, dict) and (
+                    "ephemeral_5m_input_tokens" in cache_creation
+                    or "ephemeral_1h_input_tokens" in cache_creation
+                ):
+                    cache_create_5m = int(
+                        cache_creation.get("ephemeral_5m_input_tokens", 0) or 0
+                    )
+                    cache_create_1h = int(
+                        cache_creation.get("ephemeral_1h_input_tokens", 0) or 0
+                    )
+                    cache_create_1h += max(
+                        0, cache_create - cache_create_5m - cache_create_1h
+                    )
+                    cache_create = max(
+                        cache_create, cache_create_5m + cache_create_1h
+                    )
+                else:
+                    cache_create_1h = cache_create
                 cache_total = cache_create + cache_read
 
-                from app.models import CONTEXT_LIMITS, TOKEN_PRICES
+                from app.models import CONTEXT_LIMITS, calculate_cached_cost_usd
                 max_tokens = CONTEXT_LIMITS.get(self.model, 200000)
                 cache_hit = int(cache_read * 100 / cache_total) if cache_total else 0
+                from app.models import TOKEN_PRICES
+                prices = TOKEN_PRICES.get(self.model) or {}
+                threshold = prices.get("prompt_price_threshold", 0)
+                if threshold:
+                    request_prompt_totals = {
+                        key: sum(request[key] for request in request_usages)
+                        for key in (
+                            "input_tokens", "cache_read_tokens", "cache_create_tokens",
+                        )
+                    }
+                    result_prompt_totals = {
+                        "input_tokens": input_tokens,
+                        "cache_read_tokens": cache_read,
+                        "cache_create_tokens": cache_create,
+                    }
+                    request_prompt_usage_complete = (
+                        bool(request_usages)
+                        and not request_usage_incomplete
+                        and request_prompt_totals == result_prompt_totals
+                    )
+                    if request_prompt_usage_complete:
+                        request_output_tokens = sum(
+                            request["output_tokens"] for request in request_usages
+                        )
+                        if request_output_tokens == output_tokens:
+                            request_costs = [
+                                calculate_cached_cost_usd(
+                                    request["model"],
+                                    input_tokens=request["input_tokens"],
+                                    output_tokens=request["output_tokens"],
+                                    cache_read_tokens=request["cache_read_tokens"],
+                                    cache_write_5m_tokens=request["cache_write_5m_tokens"],
+                                    cache_write_1h_tokens=request["cache_write_1h_tokens"],
+                                )
+                                for request in request_usages
+                            ]
+                            if all(cost is not None for cost in request_costs):
+                                cost_cached = sum(request_costs)
+                            else:
+                                request_prompt_usage_complete = False
+                        else:
+                            # Per-request prompt sizes still decide Haiku's tier, but
+                            # aggregate output tokens cannot be assigned to a tier.
+                            output_prices = {
+                                (TOKEN_PRICES.get(request["model"]) or {}).get("output")
+                                for request in request_usages
+                            }
+                            input_cache_costs = [
+                                calculate_cached_cost_usd(
+                                    request["model"],
+                                    input_tokens=request["input_tokens"],
+                                    output_tokens=0,
+                                    cache_read_tokens=request["cache_read_tokens"],
+                                    cache_write_5m_tokens=request["cache_write_5m_tokens"],
+                                    cache_write_1h_tokens=request["cache_write_1h_tokens"],
+                                )
+                                for request in request_usages
+                            ]
+                            if (
+                                len(output_prices) == 1
+                                and None not in output_prices
+                                and all(cost is not None for cost in input_cache_costs)
+                            ):
+                                cost_cached = (
+                                    sum(input_cache_costs)
+                                    + output_tokens * next(iter(output_prices)) / 1_000_000
+                                )
+                                price_may_be_understated = any(
+                                    request["input_tokens"]
+                                    + request["cache_read_tokens"]
+                                    + request["cache_create_tokens"] > threshold
+                                    for request in request_usages
+                                )
+                            else:
+                                request_prompt_usage_complete = False
 
-                prices = TOKEN_PRICES.get(self.model)
-                if prices:
-                    p_in = prices["input"]
-                    p_out = prices["output"]
-                    # Recalculate cost from real TOKEN_PRICES (SDK uses hardcoded Claude prices)
-                    real_cost = (input_tokens * p_in + output_tokens * p_out) / 1_000_000
-                    if not self.model.startswith("claude-"):
-                        cost = real_cost
-                    # Anthropic cache pricing: cache_read = 10% of input, cache_create = 125%
-                    cost_cached = (input_tokens * p_in + cache_read * p_in * 0.1 + cache_create * p_in * 1.25 + output_tokens * p_out) / 1_000_000
+                    if not request_prompt_usage_complete:
+                        cost_cached = calculate_cached_cost_usd(
+                            self.model,
+                            input_tokens=input_tokens,
+                            output_tokens=output_tokens,
+                            cache_read_tokens=cache_read,
+                            cache_write_5m_tokens=cache_create_5m,
+                            cache_write_1h_tokens=cache_create_1h,
+                            apply_prompt_tier=False,
+                        ) or 0.0
+                        prompt_tokens = input_tokens + cache_read + cache_create
+                        if request_usages:
+                            prompt_tokens = max(
+                                prompt_tokens,
+                                max(
+                                    request["input_tokens"] + request["cache_read_tokens"]
+                                    + request["cache_create_tokens"]
+                                    for request in request_usages
+                                ),
+                            )
+                        price_may_be_understated = prompt_tokens > threshold
+                else:
+                    cost_cached = calculate_cached_cost_usd(
+                        self.model,
+                        input_tokens=input_tokens,
+                        output_tokens=output_tokens,
+                        cache_read_tokens=cache_read,
+                        cache_write_5m_tokens=cache_create_5m,
+                        cache_write_1h_tokens=cache_create_1h,
+                    ) or 0.0
+            elif request_usages:
+                from app.models import TOKEN_PRICES, calculate_cached_cost_usd
+
+                prices = TOKEN_PRICES.get(self.model) or {}
+                threshold = prices.get("prompt_price_threshold", 0)
+                request_costs = [
+                    calculate_cached_cost_usd(
+                        request["model"],
+                        input_tokens=request["input_tokens"],
+                        output_tokens=request["output_tokens"],
+                        cache_read_tokens=request["cache_read_tokens"],
+                        cache_write_5m_tokens=request["cache_write_5m_tokens"],
+                        cache_write_1h_tokens=request["cache_write_1h_tokens"],
+                        apply_prompt_tier=not request_usage_incomplete,
+                    )
+                    for request in request_usages
+                ]
+                if all(cost is not None for cost in request_costs):
+                    cost_cached = sum(request_costs)
+                if threshold and request_usage_incomplete:
+                    price_may_be_understated = True
 
             if denials:
                 logger.info(f"[{self.model}] {len(denials)} permission denial(s) this turn")
@@ -1510,6 +1657,7 @@ class ClaudeBackend:
                 "reasoning_tokens": reasoning_tokens,
                 "cost_usd": cost,
                 "cost_usd_cached": round(cost_cached, 6),
+                "price_may_be_understated": price_may_be_understated,
                 "cache_hit": cache_hit,
                 **turn_usage.metadata(),
             }, usage=turn_usage))
@@ -1528,3 +1676,52 @@ class ClaudeBackend:
                 f"CLI auto-compacted ({trigger}): {pre:,}→{post:,} tokens"))
 
         return events
+
+    def _remember_assistant_usage(self, msg: AssistantMessage) -> None:
+        message_id = getattr(msg, "message_id", None)
+        usage = getattr(msg, "usage", None)
+        if not message_id or not isinstance(usage, dict):
+            self._assistant_usage_incomplete = True
+            return
+
+        required = (
+            "input_tokens", "output_tokens", "cache_read_input_tokens",
+            "cache_creation_input_tokens",
+        )
+        if any(key not in usage for key in required):
+            self._assistant_usage_incomplete = True
+            return
+
+        cache_create = int(usage.get("cache_creation_input_tokens", 0) or 0)
+        cache_creation = usage.get("cache_creation")
+        cache_create_5m = 0
+        cache_create_1h = cache_create
+        if isinstance(cache_creation, dict) and (
+            "ephemeral_5m_input_tokens" in cache_creation
+            or "ephemeral_1h_input_tokens" in cache_creation
+        ):
+            cache_create_5m = int(
+                cache_creation.get("ephemeral_5m_input_tokens", 0) or 0
+            )
+            cache_create_1h = int(
+                cache_creation.get("ephemeral_1h_input_tokens", 0) or 0
+            )
+            cache_create_1h += max(
+                0, cache_create - cache_create_5m - cache_create_1h
+            )
+            cache_create = max(cache_create, cache_create_5m + cache_create_1h)
+
+        request_usage = {
+            "model": str(getattr(msg, "model", "") or ""),
+            "input_tokens": int(usage.get("input_tokens", 0) or 0),
+            "output_tokens": int(usage.get("output_tokens", 0) or 0),
+            "cache_read_tokens": int(usage.get("cache_read_input_tokens", 0) or 0),
+            "cache_create_tokens": cache_create,
+            "cache_write_5m_tokens": cache_create_5m,
+            "cache_write_1h_tokens": cache_create_1h,
+        }
+        previous = self._assistant_usage_by_message_id.get(str(message_id))
+        if previous is None:
+            self._assistant_usage_by_message_id[str(message_id)] = request_usage
+        elif previous != request_usage:
+            self._assistant_usage_incomplete = True

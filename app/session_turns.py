@@ -466,6 +466,8 @@ class TurnManager:
                 f"${_fc(s._turn_cost)} turn, ${_fc(s._context_cost)} ctx, "
                 f"${_fc(s._session_cost)} session, ${_fc(s.cost_usd)} total"
             )
+        if meta.get("price_may_be_understated") is True:
+            cost_summary += " (цена API-эквивалента может быть занижена)"
         s._log(
             "status",
             f"turn ended ({sr}, {nt} turns, {cost_summary} {ctx_s})",
