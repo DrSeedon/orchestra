@@ -61,7 +61,7 @@ from app.usage_contract import AggregateUsage, TurnUsage, deferred_context
 logger = logging.getLogger(__name__)
 
 CLAUDE_INTERRUPT_TIMEOUT = 5.0
-_BASH_CLASSIFIER_TIMEOUT = 0.1
+_BASH_CLASSIFIER_MAX_BYTES = 1_048_576
 
 _BLOCKED_TOOLS = {"AskUserQuestion", "Monitor"}
 _ORCH_BLOCKED_TOOLS = {"AskUserQuestion", "Agent", "Monitor"}
@@ -182,9 +182,16 @@ def _make_auto_approve(is_orchestrator: bool = False):
 
 _BASH_CLASSIFICATIONS = {
     "recursive_rm",
+    "unparsed_rm",
+    "find_delete",
+    "xargs_recursive_rm",
+    "rmdir_parents",
+    "shred",
+    "git_clean",
     "world_writable",
     "curl_pipe_shell",
     "regex_blowup",
+    "command_too_large",
 }
 _BASH_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
 _BASH_PUNCTUATION = set("();<>|&\n")
@@ -344,7 +351,7 @@ def _bash_segments(tokens: list[str]) -> tuple[list[list[str]], list[str | None]
     return segments, leading_separators
 
 
-def _classify_bash_payload(tool_input: dict) -> str | None:
+def _classify_bash_payload(tool_input: dict, cwd: str | None = None) -> str | None:
     """Classify the small, deliberately conservative Bash grammar used by the pilot."""
     if not isinstance(tool_input, dict):
         return None
@@ -352,16 +359,33 @@ def _classify_bash_payload(tool_input: dict) -> str | None:
     if not isinstance(command, str):
         return None
     command = _without_heredoc_bodies(command)
-    lexer = shlex.shlex(command, posix=True, punctuation_chars="();<>|&\n")
-    lexer.whitespace_split = True
-    lexer.whitespace = " \t\r"
-    lexer.commenters = ""
-    tokens = _split_bash_punctuation(list(lexer))
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars="();<>|&\n")
+        lexer.whitespace_split = True
+        lexer.whitespace = " \t\r"
+        lexer.commenters = ""
+        tokens = _split_bash_punctuation(list(lexer))
+    except ValueError:
+        return _classify_unparsed_bash(command, cwd=cwd)
     segments, leading_separators = _bash_segments(tokens)
 
+    current_cwd = cwd
     for segment in segments:
         name = _command_basename(segment)
-        if name == "rm":
+        if name in {"cd", "pushd"}:
+            targets = [token for token in segment[1:] if not token.startswith("-")]
+            if name == "cd" and not segment[1:]:
+                current_cwd = str(Path.home())
+            elif len(targets) == 1 and not any(
+                marker in targets[0] for marker in ("$", "*", "?", "`")
+            ) and current_cwd:
+                destination = Path(targets[0]).expanduser()
+                if not destination.is_absolute():
+                    destination = Path(current_cwd) / destination
+                current_cwd = str(destination.resolve())
+            else:
+                current_cwd = None
+        elif name == "rm":
             for token in segment[1:]:
                 if token == "--":
                     break
@@ -371,6 +395,47 @@ def _classify_bash_payload(tool_input: dict) -> str | None:
                     continue
                 if token.startswith("-") and "r" in token[1:].lower():
                     return "recursive_rm"
+        elif name == "xargs":
+            rm_index = next(
+                (i for i, token in enumerate(segment[1:], 1)
+                 if _command_basename([token]) == "rm"),
+                None,
+            )
+            if rm_index is not None and any(
+                token.startswith("-") and "r" in token[1:].lower()
+                for token in segment[rm_index + 1:]
+                if token != "--"
+            ):
+                return "xargs_recursive_rm"
+        elif name == "find":
+            if "-delete" in segment[1:]:
+                return "find_delete"
+        elif name == "rmdir":
+            if any(token in {"-p", "--parents"} for token in segment[1:]):
+                targets = [
+                    token for token in segment[1:]
+                    if token != "--" and not token.startswith("-")
+                ]
+                if not current_cwd or any(
+                    any(marker in target for marker in ("$", "*", "?", "`"))
+                    or not _path_is_within_workspace(target, cwd or current_cwd, current_cwd)
+                    for target in targets
+                ):
+                    return "rmdir_parents"
+        elif name == "shred":
+            return "shred"
+        elif name == "git" and len(segment) > 1 and segment[1] == "clean":
+            clean_args = segment[2:]
+            dry_run = any(
+                token == "--dry-run"
+                or (token.startswith("-") and not token.startswith("--") and "n" in token[1:])
+                for token in clean_args
+            )
+            if not dry_run and any(
+                token.startswith("-") and "f" in token[1:].lower()
+                for token in clean_args
+            ):
+                return "git_clean"
         elif name == "chmod":
             options_done = False
             for token in segment[1:]:
@@ -399,11 +464,80 @@ def _classify_bash_payload(tool_input: dict) -> str | None:
     return None
 
 
+def _path_is_within_workspace(path: str, workspace_cwd: str, base_cwd: str | None = None) -> bool:
+    try:
+        workspace = Path(workspace_cwd).resolve()
+        candidate = Path(path).expanduser()
+        if not candidate.is_absolute():
+            candidate = Path(base_cwd or workspace) / candidate
+        candidate.resolve().relative_to(workspace)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return True
+
+
+def _classify_unparsed_bash(command: str, cwd: str | None = None) -> str | None:
+    """Block recognizable destructive forms when shell quoting is malformed."""
+    command_start = r"(?:^|[;&|()\n]\s*)(?:(?:sudo|command|env)\s+)*(?:\S*/)?"
+    checks = (
+        (command_start + r"rm\s+(?:--recursive\b|-[^\s;&|]*r[^\s;&|]*)", "recursive_rm"),
+        (command_start + r"rm\b", "unparsed_rm"),
+        (command_start + r"find\b[^\n;&|]*\s-delete\b", "find_delete"),
+        (command_start + r"xargs\b[^\n;&|]*\brm\b[^\n;&|]*\s-[^\n;&|]*r", "xargs_recursive_rm"),
+        (command_start + r"shred\b", "shred"),
+        (command_start + r"git\s+clean\b[^\n;&|]*\s-[^\n;&|]*f", "git_clean"),
+        (command_start + r"chmod\b[^\n;&|]*\s(?:0777|777)(?:\s|$)", "world_writable"),
+        (command_start + r"curl\b[^\n]*\|\s*(?:sh|bash)\b", "curl_pipe_shell"),
+    )
+    for pattern, classification in checks:
+        if re.search(pattern, command):
+            return classification
+    rmdir_commands = re.compile(
+        command_start + r"rmdir\b(?P<args>[^\n;&|]*)", re.IGNORECASE,
+    )
+    for match in rmdir_commands.finditer(command):
+        args = match.group("args")
+        if not re.search(r"(?:^|\s)(?:-p\b|--parents\b)", args):
+            continue
+        target = next(
+            (token.strip("'\"") for token in args.split()
+             if not token.startswith("-") and token.strip("'\"")),
+            None,
+        )
+        changed_cwd = re.search(r"(?:^|[;&|])\s*(?:cd|pushd)\b", command[:match.start()])
+        if (
+            not cwd or changed_cwd or not target
+            or not _path_is_within_workspace(target, cwd)
+        ):
+            return "rmdir_parents"
+    grep_commands = re.compile(
+        command_start + r"(?:grep|egrep|ugrep|rg)\b[^;&|\n]*", re.IGNORECASE,
+    )
+    if any(
+        _has_large_bounded_quantifier(match.group(0))
+        for match in grep_commands.finditer(command)
+    ):
+        return "regex_blowup"
+    return None
+
+
 def _pretool_output(classification: str | None = None) -> dict:
     decision: dict = {"hookEventName": "PreToolUse"}
     reasons = {
         "background": "run_in_background is blocked; use bg_create(type=run) instead.",
         "recursive_rm": "Recursive rm is blocked; move targets to trash instead.",
+        "unparsed_rm": "rm is blocked because the Bash command could not be parsed safely.",
+        "find_delete": "find -delete is blocked; inspect matches and remove files explicitly.",
+        "xargs_recursive_rm": (
+            "Recursive rm through xargs is blocked; move targets to trash instead."
+        ),
+        "rmdir_parents": (
+            "rmdir -p outside the session worktree is blocked; remove targets explicitly."
+        ),
+        "shred": "shred is blocked; use a reversible deletion method instead.",
+        "git_clean": (
+            "Destructive git clean is blocked; inspect untracked files and remove them explicitly."
+        ),
         "world_writable": "World-writable chmod is blocked; use a least-privilege mode.",
         "curl_pipe_shell": "Direct curl-to-shell is blocked; inspect downloaded content first.",
         "regex_blowup": (
@@ -412,6 +546,7 @@ def _pretool_output(classification: str | None = None) -> dict:
             "60 KB file (claude-code#54394). Use `grep -aboF '<literal>' <file>` "
             "and slice context by byte offset in Python."
         ),
+        "command_too_large": "Bash command exceeds the managed classifier size limit (1 MiB).",
     }
     if classification in reasons:
         decision["permissionDecision"] = "deny"
@@ -419,7 +554,7 @@ def _pretool_output(classification: str | None = None) -> dict:
     return {"hookSpecificOutput": decision}
 
 
-def _make_pretooluse_hooks(classifier):
+def _make_pretooluse_hooks(classifier, *, cwd: str | None = None):
     if not callable(classifier):
         logger.error("managed Bash PreToolUse hook unavailable; failed open: classifier is not callable")
         return None
@@ -433,29 +568,42 @@ def _make_pretooluse_hooks(classifier):
         try:
             if isinstance(tool_input, dict) and tool_input.get("run_in_background") is True:
                 return _pretool_output("background")
-            active_classifier = globals().get("_classify_bash_payload") if uses_module_classifier else classifier
-            result = await asyncio.wait_for(
-                asyncio.to_thread(active_classifier, tool_input),
-                timeout=_BASH_CLASSIFIER_TIMEOUT,
+            command = tool_input.get("command") if isinstance(tool_input, dict) else None
+            if (
+                isinstance(command, str)
+                and len(command.encode("utf-8", errors="replace")) > _BASH_CLASSIFIER_MAX_BYTES
+            ):
+                return _pretool_output("command_too_large")
+            active_classifier = (
+                globals().get("_classify_bash_payload") if uses_module_classifier else classifier
+            )
+            result = (
+                active_classifier(tool_input, cwd=cwd)
+                if uses_module_classifier else active_classifier(tool_input)
             )
             if result is not None and (
                 not isinstance(result, str) or result not in _BASH_CLASSIFICATIONS
             ):
                 raise _InvalidBashClassification
             return _pretool_output(result)
-        except asyncio.TimeoutError as exc:
-            logger.error(
-                "managed Bash PreToolUse failed open (%s): classifier deadline exceeded",
-                type(exc).__name__,
-            )
         except _InvalidBashClassification:
-            logger.error("managed Bash PreToolUse failed open: invalid classifier result")
+            logger.error("managed Bash PreToolUse returned invalid classification")
+            command = tool_input.get("command") if isinstance(tool_input, dict) else None
+            return _pretool_output(
+                _classify_unparsed_bash(command, cwd=cwd)
+                if isinstance(command, str) else None
+            )
         except Exception as exc:
             logger.error(
-                "managed Bash PreToolUse failed open (%s): classifier failure",
+                "managed Bash PreToolUse classifier failure (%s)",
                 type(exc).__name__,
             )
-        return _pretool_output()
+            command = tool_input.get("command") if isinstance(tool_input, dict) else None
+            return _pretool_output(
+                _classify_unparsed_bash(command, cwd=cwd)
+                if isinstance(command, str) else None
+            )
+        return _pretool_output(result)
 
     return [HookMatcher(matcher="Bash", hooks=[_bash_pretooluse])]
 
@@ -928,7 +1076,7 @@ class ClaudeBackend:
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
         pretooluse_hooks = None
         if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1":
-            pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload)
+            pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload, cwd=self.cwd)
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
