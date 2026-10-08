@@ -1,0 +1,1484 @@
+test (3)	Set up job	﻿2026-10-08T08:02:08.4672154Z Current runner version: '2.337.0'
+test (3)	Set up job	2026-10-08T08:02:08.4710786Z ##[group]Runner Image Provisioner
+test (3)	Set up job	2026-10-08T08:02:08.4712699Z Hosted Compute Agent
+test (3)	Set up job	2026-10-08T08:02:08.4713812Z Version: 20261002.596
+test (3)	Set up job	2026-10-08T08:02:08.4714873Z Commit: c3d12f3313a95f25162a1503be624f3b0617f8c0
+test (3)	Set up job	2026-10-08T08:02:08.4716662Z Build Date: 2026-10-02T22:28:27Z
+test (3)	Set up job	2026-10-08T08:02:08.4717970Z Worker ID: {c431a643-2bd3-4e0d-ac27-d6dd7ed5cea1}
+test (3)	Set up job	2026-10-08T08:02:08.4719449Z Region: eastus2
+test (3)	Set up job	2026-10-08T08:02:08.4720548Z Cloud: Azure
+test (3)	Set up job	2026-10-08T08:02:08.4721537Z ##[endgroup]
+test (3)	Set up job	2026-10-08T08:02:08.4724009Z ##[group]Operating System
+test (3)	Set up job	2026-10-08T08:02:08.4725137Z Ubuntu
+test (3)	Set up job	2026-10-08T08:02:08.4727134Z 24.04.5
+test (3)	Set up job	2026-10-08T08:02:08.4728161Z LTS
+test (3)	Set up job	2026-10-08T08:02:08.4728998Z ##[endgroup]
+test (3)	Set up job	2026-10-08T08:02:08.4730029Z ##[group]Runner Image
+test (3)	Set up job	2026-10-08T08:02:08.4731150Z Image: ubuntu-24.04
+test (3)	Set up job	2026-10-08T08:02:08.4732136Z Version: 20261004.327.1
+test (3)	Set up job	2026-10-08T08:02:08.4734222Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261004.327/images/ubuntu/Ubuntu2404-Readme.md
+test (3)	Set up job	2026-10-08T08:02:08.4737645Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261004.327
+test (3)	Set up job	2026-10-08T08:02:08.4739472Z ##[endgroup]
+test (3)	Set up job	2026-10-08T08:02:08.4741778Z ##[group]GITHUB_TOKEN Permissions
+test (3)	Set up job	2026-10-08T08:02:08.4744903Z Contents: read
+test (3)	Set up job	2026-10-08T08:02:08.4746477Z Metadata: read
+test (3)	Set up job	2026-10-08T08:02:08.4747573Z Packages: read
+test (3)	Set up job	2026-10-08T08:02:08.4748615Z ##[endgroup]
+test (3)	Set up job	2026-10-08T08:02:08.4751604Z Secret source: Actions
+test (3)	Set up job	2026-10-08T08:02:08.4753250Z Cache mode: write
+test (3)	Set up job	2026-10-08T08:02:08.4755002Z Prepare workflow directory
+test (3)	Set up job	2026-10-08T08:02:08.5352131Z Prepare all required actions
+test (3)	Set up job	2026-10-08T08:02:08.5428686Z Getting action download info
+test (3)	Set up job	2026-10-08T08:02:08.7492557Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+test (3)	Set up job	2026-10-08T08:02:08.8731622Z Download action repository 'astral-sh/setup-uv@v7' (SHA:37802adc94f370d6bfd71619e3f0bf239e1f3b78)
+test (3)	Set up job	2026-10-08T08:02:09.2371268Z Complete job name: test (3)
+test (3)	Run actions/checkout@v5	﻿2026-10-08T08:02:09.3113022Z ##[group]Run actions/checkout@v5
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3113968Z with:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3114430Z   fetch-depth: 0
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3114922Z   repository: DrSeedon/orchestra
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3118944Z   token: ***
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3119418Z   ssh-strict: true
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3119883Z   ssh-user: git
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3120368Z   persist-credentials: true
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3120874Z   clean: true
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3121340Z   sparse-checkout-cone-mode: true
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3121893Z   fetch-tags: false
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3122360Z   show-progress: true
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3122821Z   lfs: false
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3123250Z   submodules: false
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3123715Z   set-safe-directory: true
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3124249Z   allow-unsafe-pr-checkout: false
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3125043Z env:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3125663Z   GIT_AUTHOR_NAME: Orchestra CI
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3126276Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3126906Z   GIT_COMMITTER_NAME: Orchestra CI
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3127592Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.3128204Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4196193Z Syncing repository: DrSeedon/orchestra
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4199287Z ##[group]Getting Git version info
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4200459Z Working directory is '/home/runner/work/orchestra/orchestra'
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4202297Z [command]/usr/bin/git version
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4290970Z git version 2.55.0
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4326616Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4344710Z Temporarily overriding HOME='/home/runner/work/_temp/007d2c04-e6e0-4f32-92fb-8e9261dc2691' before making global git config changes
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4347989Z Adding repository directory to the temporary git global config as a safe directory
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4356355Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4415631Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4430477Z ##[group]Initializing the repository
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4435508Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4557395Z hint: Using 'master' as the name for the initial branch. This default branch name
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4561075Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4562711Z hint: to use in all of your new repositories, which will suppress this warning,
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4563978Z hint: call:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4564611Z hint:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4565620Z hint: 	git config --global init.defaultBranch <name>
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4566647Z hint:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4567645Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4569181Z hint: 'development'. The just-created branch can be renamed via this command:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4570424Z hint:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4571080Z hint: 	git branch -m <name>
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4571875Z hint:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4572978Z hint: Disable this message with "git config set advice.defaultBranchName false"
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4574726Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4590830Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4646019Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4647652Z ##[group]Disabling automatic garbage collection
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4658126Z [command]/usr/bin/git config --local gc.auto 0
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4705617Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4707166Z ##[group]Setting up auth
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4718297Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.4769737Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5215756Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5278751Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5551779Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5598345Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5854579Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5907870Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5909388Z ##[group]Fetching the repository
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:09.5920883Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3639140Z From https://github.com/DrSeedon/orchestra
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3640586Z  * [new branch]        adhoc-315170/fix-topic-flicker -> origin/adhoc-315170/fix-topic-flicker
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3641916Z  * [new branch]        adhoc-572092/research-compact-prompt -> origin/adhoc-572092/research-compact-prompt
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3643326Z  * [new branch]        adhoc-575506/research-compact-prompt -> origin/adhoc-575506/research-compact-prompt
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3646051Z  * [new branch]        adhoc-581995/research-compact-prompt -> origin/adhoc-581995/research-compact-prompt
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3648007Z  * [new branch]        fix/codex-native-state-compat -> origin/fix/codex-native-state-compat
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3650057Z  * [new branch]        fix/handoff-context-window -> origin/fix/handoff-context-window
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3652061Z  * [new branch]        fix/instruction-guard-ci -> origin/fix/instruction-guard-ci
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3653879Z  * [new branch]        fix/stability-recovery -> origin/fix/stability-recovery
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3655861Z  * [new branch]        fix/worker-autonomy    -> origin/fix/worker-autonomy
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3658014Z  * [new branch]        laptop-sync            -> origin/laptop-sync
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3659564Z  * [new branch]        main                   -> origin/main
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3661256Z  * [new branch]        refactor/knowledge-delivery -> origin/refactor/knowledge-delivery
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3663680Z  * [new branch]        simplify/storage-and-task-prefixes -> origin/simplify/storage-and-task-prefixes
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3666676Z  * [new branch]        task-106/research-compact-prompt -> origin/task-106/research-compact-prompt
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3668843Z  * [new branch]        task-515/fix-ci-green  -> origin/task-515/fix-ci-green
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3670530Z  * [new branch]        task-87/feat-wake-on-reset -> origin/task-87/feat-wake-on-reset
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3672431Z  * [new branch]        task-98/grok-test      -> origin/task-98/grok-test
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3674155Z  * [new branch]        task-V-693/fix-ci      -> origin/task-V-693/fix-ci
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3676899Z  * [new branch]        vps-cleanup-facts      -> origin/vps-cleanup-facts
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3679605Z [command]/usr/bin/git branch --list --remote origin/main
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3712068Z   origin/main
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3734736Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3758104Z 24c54163adbc6881c654590c75e92cd6d07ecb7e
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3769151Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3770202Z ##[group]Determining the checkout info
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3771356Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3773733Z [command]/usr/bin/git sparse-checkout disable
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3839080Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3874939Z ##[group]Checking out the ref
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:15.3879083Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4278196Z Updating files:  81% (3600/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4346877Z Updating files:  82% (3604/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4377127Z Updating files:  83% (3648/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4426658Z Updating files:  84% (3692/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4470412Z Updating files:  85% (3736/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4512249Z Updating files:  86% (3780/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4581544Z Updating files:  87% (3824/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4641192Z Updating files:  88% (3868/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4714252Z Updating files:  89% (3912/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.4786803Z Updating files:  90% (3956/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5439528Z Updating files:  91% (4000/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5470833Z Updating files:  92% (4044/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5511475Z Updating files:  93% (4088/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5543298Z Updating files:  94% (4132/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5582760Z Updating files:  95% (4176/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5629548Z Updating files:  96% (4220/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5665848Z Updating files:  97% (4264/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5707037Z Updating files:  98% (4308/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5765965Z Updating files:  99% (4352/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5767402Z Updating files: 100% (4395/4395)
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5768856Z Updating files: 100% (4395/4395), done.
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5832862Z Switched to a new branch 'main'
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5840739Z branch 'main' set up to track 'origin/main'.
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5892594Z ##[endgroup]
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5951119Z [command]/usr/bin/git log -1 --format=%H
+test (3)	Run actions/checkout@v5	2026-10-08T08:02:16.5981492Z 24c54163adbc6881c654590c75e92cd6d07ecb7e
+test (3)	Run astral-sh/setup-uv@v7	﻿2026-10-08T08:02:16.6507699Z ##[group]Run astral-sh/setup-uv@v7
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6509697Z with:
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6510910Z   activate-environment: false
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6512929Z   working-directory: /home/runner/work/orchestra/orchestra
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6528851Z   github-token: ***
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6529799Z   enable-cache: auto
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6532153Z   cache-dependency-glob: **/*requirements*.txt
+test (3)	Run astral-sh/setup-uv@v7	**/*requirements*.in
+test (3)	Run astral-sh/setup-uv@v7	**/*constraints*.txt
+test (3)	Run astral-sh/setup-uv@v7	**/*constraints*.in
+test (3)	Run astral-sh/setup-uv@v7	**/pyproject.toml
+test (3)	Run astral-sh/setup-uv@v7	**/uv.lock
+test (3)	Run astral-sh/setup-uv@v7	**/*.py.lock
+test (3)	Run astral-sh/setup-uv@v7	
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6535036Z   restore-cache: true
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6536221Z   save-cache: true
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6537090Z   prune-cache: true
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6537969Z   cache-python: false
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6538930Z   ignore-nothing-to-cache: false
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6540019Z   ignore-empty-workdir: false
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6541080Z   add-problem-matchers: true
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6542111Z   resolution-strategy: highest
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6543112Z env:
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6543888Z   GIT_AUTHOR_NAME: Orchestra CI
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6545104Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6546624Z   GIT_COMMITTER_NAME: Orchestra CI
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6547860Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.6549117Z ##[endgroup]
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.8482518Z Trying to find version for uv in: /home/runner/work/orchestra/orchestra/uv.toml
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.8485993Z Could not find file: /home/runner/work/orchestra/orchestra/uv.toml
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.8488974Z Trying to find version for uv in: /home/runner/work/orchestra/orchestra/pyproject.toml
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.8492402Z Could not determine uv version from uv.toml or pyproject.toml. Falling back to latest.
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.8497425Z Fetching version data from https://raw.githubusercontent.com/astral-sh/versions/main/v1/uv.ndjson ...
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:16.9689411Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.1520207Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/861005de-102a-458a-810e-080f2e84cc21 -f /home/runner/work/_temp/e6ec5686-0e59-4326-8861-2dbab3f148e7
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.5379052Z Added /home/runner/.local/bin to the path
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.5382993Z Added /opt/hostedtoolcache/uv/0.12.23/x86_64 to the path
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.5384743Z Set UV_PYTHON_INSTALL_DIR to /home/runner/work/_temp/uv-python-dir
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.5386108Z Added /home/runner/work/_temp/uv-python-dir to the path
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.5406828Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.5407251Z Successfully installed uv version 0.12.23
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:17.6029956Z Searching files using cache dependency glob: /home/runner/work/orchestra/orchestra/**/*requirements*.txt,/home/runner/work/orchestra/orchestra/**/*requirements*.in,/home/runner/work/orchestra/orchestra/**/*constraints*.txt,/home/runner/work/orchestra/orchestra/**/*constraints*.in,/home/runner/work/orchestra/orchestra/**/pyproject.toml,/home/runner/work/orchestra/orchestra/**/uv.lock,/home/runner/work/orchestra/orchestra/**/*.py.lock
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.2000172Z /home/runner/work/orchestra/orchestra/pyproject.toml
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.2342694Z /home/runner/work/orchestra/orchestra/uv.lock
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.2360692Z Found 2 files to hash.
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.2437052Z Trying to restore cache from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.3103006Z Cache hit for: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.3973472Z Received 1402 of 1402 (100.0%), 0.0 MBs/sec
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.3974186Z Cache Size: ~0 MB (1402 B)
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.4002175Z [command]/usr/bin/tar -xf /home/runner/work/_temp/f41fe8ad-236b-4693-b11b-17d508cf08af/cache.tzst -P -C /home/runner/work/orchestra/orchestra --use-compress-program unzstd
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.4087570Z Cache restored successfully
+test (3)	Run astral-sh/setup-uv@v7	2026-10-08T08:02:18.4091967Z cache restored from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e
+test (3)	Run uv sync --dev	﻿2026-10-08T08:02:18.4765182Z ##[group]Run uv sync --dev
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.4765887Z ^[[36;1muv sync --dev^[[0m
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5038776Z shell: /usr/bin/bash -e {0}
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5039150Z env:
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5039682Z   GIT_AUTHOR_NAME: Orchestra CI
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5040016Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5040385Z   GIT_COMMITTER_NAME: Orchestra CI
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5040725Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5041165Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5041609Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5041956Z ##[endgroup]
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5710291Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5711000Z Creating virtual environment at: .venv
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.5753077Z Resolved 80 packages in 1ms
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6752828Z Downloading pygments (1.2MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6842469Z Downloading pydantic-core (2.0MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6844656Z Downloading uvloop (4.2MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6848943Z Downloading pillow (6.3MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6871199Z Downloading claude-agent-sdk (102.3MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6874111Z Downloading cryptography (4.5MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6875969Z Downloading playwright (45.3MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.6903984Z Downloading aiohttp (1.7MiB)
+test (3)	Run uv sync --dev	2026-10-08T08:02:18.9883493Z  Downloaded pygments
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.0122840Z  Downloaded aiohttp
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.0178359Z  Downloaded pydantic-core
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.0727127Z  Downloaded uvloop
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.0859019Z  Downloaded pillow
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.0986576Z  Downloaded cryptography
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.4370883Z  Downloaded playwright
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.7793183Z  Downloaded claude-agent-sdk
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.7795618Z Prepared 76 packages in 1.20s
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8181625Z Installed 76 packages in 38ms
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8182194Z  + aiofiles==25.1.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8182568Z  + aiogram==3.28.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8182959Z  + aiohappyeyeballs==2.6.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8183429Z  + aiohttp==3.13.5
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8183802Z  + aiosignal==1.4.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8184175Z  + annotated-doc==0.0.4
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8184598Z  + annotated-types==0.7.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8184998Z  + anyio==4.13.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8185615Z  + attrs==26.1.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8185975Z  + certifi==2026.5.20
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8186341Z  + cffi==2.0.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8186710Z  + charset-normalizer==3.4.7
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8187155Z  + claude-agent-sdk==0.2.164
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8187563Z  + click==8.4.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8187908Z  + croniter==6.2.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8188272Z  + cryptography==48.0.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8196298Z  + execnet==2.1.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8196905Z  + fastapi==0.136.3
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8197297Z  + frozenlist==1.8.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8197673Z  + greenlet==3.5.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8198022Z  + h11==0.16.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8198382Z  + httpcore==1.0.9
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8198750Z  + httptools==0.8.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8199138Z  + httpx==0.28.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8199503Z  + httpx-sse==0.4.3
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8199874Z  + idna==3.16
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8200241Z  + iniconfig==2.3.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8200604Z  + jinja2==3.1.6
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8200954Z  + jsonschema==4.26.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8201413Z  + jsonschema-specifications==2025.9.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8201897Z  + magic-filter==1.0.12
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8202276Z  + markdown==3.10.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8202636Z  + markupsafe==3.0.3
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8202999Z  + mcp==1.27.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8203333Z  + multidict==6.7.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8203712Z  + packaging==26.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8204125Z  + pillow==11.3.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8204472Z  + playwright==1.60.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8204847Z  + pluggy==1.6.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8205189Z  + propcache==0.5.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8205766Z  + pycparser==3.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8206120Z  + pydantic==2.13.4
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8206358Z  + pydantic-core==2.46.4
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8206653Z  + pydantic-settings==2.14.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8207162Z  + pyee==13.0.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8207362Z  + pygments==2.20.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8207566Z  + pyjwt==2.13.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8207756Z  + pyromark==0.9.11
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8208188Z  + pytest==9.0.3
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8208585Z  + pytest-asyncio==1.4.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8209086Z  + pytest-base-url==2.1.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8209515Z  + pytest-playwright==0.8.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8209948Z  + pytest-timeout==2.4.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8210384Z  + pytest-xdist==3.8.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8210777Z  + python-dateutil==2.9.0.post0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8211173Z  + python-dotenv==1.2.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8211547Z  + python-multipart==0.0.29
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8211950Z  + python-slugify==8.0.4
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8212370Z  + pyyaml==6.0.3
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8212788Z  + referencing==0.37.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8213239Z  + requests==2.34.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8213646Z  + rpds-py==0.30.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8214086Z  + six==1.17.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8214623Z  + sniffio==1.3.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8215024Z  + sse-starlette==3.4.4
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8215705Z  + starlette==1.1.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8218726Z  + telegramify-markdown==1.1.5
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8219037Z  + text-unidecode==1.3
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8219286Z  + typing-extensions==4.15.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8219548Z  + typing-inspection==0.4.2
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8219820Z  + urllib3==2.7.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8220025Z  + uvicorn==0.48.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8220243Z  + uvloop==0.22.1
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8220448Z  + watchfiles==1.2.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8220661Z  + websockets==16.0
+test (3)	Run uv sync --dev	2026-10-08T08:02:19.8220866Z  + yarl==1.24.2
+test (3)	Install ffmpeg and ffprobe	﻿2026-10-08T08:02:19.8299991Z ##[group]Run for attempt in 1 2; do
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8300379Z ^[[36;1mfor attempt in 1 2; do^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8300710Z ^[[36;1m  if sudo timeout --kill-after=5s 60s apt-get \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8301061Z ^[[36;1m    -o Acquire::Retries=2 \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8301355Z ^[[36;1m    -o Acquire::http::Timeout=20 \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8301700Z ^[[36;1m    -o Acquire::https::Timeout=20 update; then^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8302009Z ^[[36;1m    break^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8302214Z ^[[36;1m  fi^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8302444Z ^[[36;1m  if [ "$attempt" -eq 2 ]; then exit 1; fi^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8302816Z ^[[36;1m  echo "apt-get update timed out or failed; retrying"^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8303137Z ^[[36;1mdone^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8303339Z ^[[36;1mfor attempt in 1 2; do^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8303636Z ^[[36;1m  if sudo timeout --kill-after=5s 150s apt-get \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8303972Z ^[[36;1m    -o Acquire::Retries=2 \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8304255Z ^[[36;1m    -o Acquire::http::Timeout=20 \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8304586Z ^[[36;1m    -o Acquire::https::Timeout=20 \^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8304930Z ^[[36;1m    install -y --no-install-recommends ffmpeg; then^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8305591Z ^[[36;1m    ffprobe -version || exit 1^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8305892Z ^[[36;1m    exit 0^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8306104Z ^[[36;1m  fi^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8306340Z ^[[36;1m  if [ "$attempt" -eq 2 ]; then exit 1; fi^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8306740Z ^[[36;1m  if ! sudo timeout --kill-after=5s 60s dpkg --configure -a; then^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8307204Z ^[[36;1m    echo "dpkg recovery failed; not retrying ffmpeg install"^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8307561Z ^[[36;1m    exit 1^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8307764Z ^[[36;1m  fi^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8308034Z ^[[36;1m  echo "ffmpeg install timed out or failed; retrying"^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8308363Z ^[[36;1mdone^[[0m
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8374411Z shell: /usr/bin/bash -e {0}
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8374674Z env:
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8374887Z   GIT_AUTHOR_NAME: Orchestra CI
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8375194Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8375796Z   GIT_COMMITTER_NAME: Orchestra CI
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8376112Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8376506Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8376893Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.8377198Z ##[endgroup]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.9239227Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.9568775Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.9604619Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.9626563Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.9648658Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:19.9696780Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.0911340Z Get:7 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [475 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1059053Z Get:8 https://packages.microsoft.com/ubuntu/24.04/prod noble/main all Packages [640 B]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1085694Z Get:9 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.3 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1113081Z Get:10 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [530 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1460543Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1375 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1551648Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [306 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1567473Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1702 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1660647Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [341 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1707333Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1761 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1796774Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [401 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1830410Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [55.0 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.1836587Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [14.3 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.2881021Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1074 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.2945054Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [223 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.3379721Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1218 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.3444898Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [245 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:20.3460442Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse Translation-en [11.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:23.4547429Z Fetched 10.1 MB in 1s (9433 kB/s)
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.4584171Z Reading package lists...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.4913711Z Reading package lists...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.7305212Z Building dependency tree...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.7313112Z Reading state information...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9828094Z The following additional packages will be installed:
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9829115Z   libass9 libasyncns0 libavc1394-0 libavcodec60 libavdevice60 libavfilter9
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9829815Z   libavformat60 libavutil58 libblas3 libbluray2 libbs2b0 libcaca0
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9830543Z   libcdio-cdda2t64 libcdio-paranoia2t64 libcdio19t64 libchromaprint1 libcjson1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9831239Z   libcodec2-1.2 libdav1d7 libdc1394-25 libdecor-0-0 libflac12t64 libflite1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9831906Z   libgme0 libgsm1 libhwy1t64 libiec61883-0 libjack-jackd2-0 libjxl0.7
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9836485Z   liblapack3 liblilv-0-0 libmbedcrypto7t64 libmp3lame0 libmpg123-0t64
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9837441Z   libmysofa1 libopenal-data libopenal1 libopenmpt0t64 libopus0 libplacebo338
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9838352Z   libpocketsphinx3 libpostproc57 libpulse0 librav1e0 libraw1394-11 librist4
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9839250Z   librsvg2-2 librubberband2 libsamplerate0 libsdl2-2.0-0 libserd-0-0 libshine3
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9840151Z   libsndfile1 libsndio7.0 libsord-0-0 libsoxr0 libspeex1 libsphinxbase3t64
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9840969Z   libsratom-0-0 libsrt1.5-gnutls libssh-gcrypt-4 libsvtav1enc1d1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9841809Z   libswresample4 libswscale7 libtheora0 libtwolame0 libudfread0 libunibreak5
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9842845Z   libva-drm2 libva-x11-2 libva2 libvdpau1 libvidstab1.1 libvorbisenc2 libvpl2
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9843387Z   libvpx9 libx264-164 libx265-199 libxcb-shape0 libxv1 libxvidcore4 libzimg2
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9843873Z   libzix-0-0 libzvbi-common libzvbi0t64 ocl-icd-libopencl1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9847342Z Suggested packages:
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9848043Z   ffmpeg-doc libcuda1 libnvcuvid1 libnvidia-encode1 libbluray-bdj jackd2
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9848957Z   libportaudio2 opus-tools pulseaudio libraw1394-doc librsvg2-bin serdi sndiod
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9849394Z   sordi speex opencl-icd
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9849642Z Recommended packages:
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9849957Z   libaacs0 default-libdecor-0-plugin-1 | libdecor-0-plugin-1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9850574Z   pocketsphinx-en-us librsvg2-common va-driver-all | va-driver
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:24.9851148Z   vdpau-driver-all | vdpau-driver
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0290522Z The following NEW packages will be installed:
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0291724Z   ffmpeg libass9 libasyncns0 libavc1394-0 libavcodec60 libavdevice60
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0292838Z   libavfilter9 libavformat60 libavutil58 libblas3 libbluray2 libbs2b0 libcaca0
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0294002Z   libcdio-cdda2t64 libcdio-paranoia2t64 libcdio19t64 libchromaprint1 libcjson1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0295103Z   libcodec2-1.2 libdav1d7 libdc1394-25 libdecor-0-0 libflac12t64 libflite1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0296420Z   libgme0 libgsm1 libhwy1t64 libiec61883-0 libjack-jackd2-0 libjxl0.7
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0297766Z   liblapack3 liblilv-0-0 libmbedcrypto7t64 libmp3lame0 libmpg123-0t64
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0298629Z   libmysofa1 libopenal-data libopenal1 libopenmpt0t64 libopus0 libplacebo338
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0299560Z   libpocketsphinx3 libpostproc57 libpulse0 librav1e0 libraw1394-11 librist4
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0300464Z   librsvg2-2 librubberband2 libsamplerate0 libsdl2-2.0-0 libserd-0-0 libshine3
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0301363Z   libsndfile1 libsndio7.0 libsord-0-0 libsoxr0 libspeex1 libsphinxbase3t64
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0302202Z   libsratom-0-0 libsrt1.5-gnutls libssh-gcrypt-4 libsvtav1enc1d1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0302857Z   libswresample4 libswscale7 libtheora0 libtwolame0 libudfread0 libunibreak5
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0303450Z   libva-drm2 libva-x11-2 libva2 libvdpau1 libvidstab1.1 libvorbisenc2 libvpl2
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0304307Z   libvpx9 libx264-164 libx265-199 libxcb-shape0 libxv1 libxvidcore4 libzimg2
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0305102Z   libzix-0-0 libzvbi-common libzvbi0t64 ocl-icd-libopencl1
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0544292Z 0 upgraded, 87 newly installed, 0 to remove and 17 not upgraded.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0545002Z Need to get 62.8 MB of archives.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0545690Z After this operation, 173 MB of additional disk space will be used.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.0546144Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.1611874Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva2 amd64 2.20.0-2ubuntu0.2 [66.4 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.2598691Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-drm2 amd64 2.20.0-2ubuntu0.2 [7124 B]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.3526143Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libva-x11-2 amd64 2.20.0-2ubuntu0.2 [12.0 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.4421178Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvdpau1 amd64 1.5-2build1 [27.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.5362063Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvpl2 amd64 2023.3.0-1build1 [99.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.6371087Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ocl-icd-libopencl1 amd64 2.3.2-1build1 [38.5 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.7301376Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavutil58 amd64 7:6.1.1-3ubuntu5 [401 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:25.8783748Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcodec2-1.2 amd64 1.2.0-2build1 [8998 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.0031597Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdav1d7 amd64 1.4.1-1build1 [604 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.1541929Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgsm1 amd64 1.0.22-1build1 [27.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.2450528Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libhwy1t64 amd64 1.0.7-8.1build1 [584 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.3867754Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 libjxl0.7 amd64 0.7.0-10.2ubuntu6.1 [1001 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.5688987Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libmp3lame0 amd64 3.100-6build1 [142 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.6667065Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libopus0 amd64 1.4-1build1 [208 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.7689578Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librav1e0 amd64 0.7.1-2 [1022 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:27.9507155Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 librsvg2-2 amd64 2.58.0+dfsg-1ubuntu0.1 [2141 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.1962008Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libshine3 amd64 3.1.1-2build1 [23.2 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.2888604Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libspeex1 amd64 1.2.1-2ubuntu2.24.04.1 [59.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.3804242Z Get:20 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsvtav1enc1d1 amd64 1.7.0+dfsg-2build1 [2425 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.6623482Z Get:21 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsoxr0 amd64 0.1.3-4build3 [80.0 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.7587687Z Get:22 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswresample4 amd64 7:6.1.1-3ubuntu5 [63.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.8550512Z Get:23 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtheora0 amd64 1.1.1+dfsg.1-16.1build3 [211 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:28.9591601Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libtwolame0 amd64 0.4.0-2build3 [52.3 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.0493444Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libvorbisenc2 amd64 1.3.7-1build3 [80.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.1416756Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libvpx9 amd64 1.14.0-1ubuntu2.3 [1143 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.3106681Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx264-164 amd64 2:0.164.3108+git31e19f9-1 [604 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.4466005Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libx265-199 amd64 3.5-2build1 [1226 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.6162244Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libxvidcore4 amd64 2:1.3.7-1build1 [219 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.7189317Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi-common all 0.2.42-2 [42.4 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.8088653Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzvbi0t64 amd64 0.2.42-2 [261 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:29.9171134Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavcodec60 amd64 7:6.1.1-3ubuntu5 [5851 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.3944153Z Get:33 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libraw1394-11 amd64 2.1.2-2build3 [26.2 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.4810205Z Get:34 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libavc1394-0 amd64 0.5.4-5build3 [15.4 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.5681032Z Get:35 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libunibreak5 amd64 5.1-2build1 [25.0 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.6548832Z Get:36 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libass9 amd64 1:0.17.1-2build1 [104 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.7422529Z Get:37 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libudfread0 amd64 1.1.2-1build1 [19.0 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.8281082Z Get:38 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbluray2 amd64 1:1.3.4-1build1 [159 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:30.9172753Z Get:39 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libchromaprint1 amd64 1.5.1-5 [30.5 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.0033248Z Get:40 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libgme0 amd64 0.6.3-7build1 [134 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.0910930Z Get:41 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpg123-0t64 amd64 1.32.5-1ubuntu1.1 [169 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.1804760Z Get:42 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenmpt0t64 amd64 0.7.3-1.1build3 [647 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.2957872Z Get:43 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libcjson1 amd64 1.7.17-1 [24.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.3831949Z Get:44 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmbedcrypto7t64 amd64 2.28.8-1 [209 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.4804870Z Get:45 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librist4 amd64 0.2.10+dfsg-2 [74.9 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.5710226Z Get:46 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsrt1.5-gnutls amd64 1.5.3-1build2 [316 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.6706706Z Get:47 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libssh-gcrypt-4 amd64 0.10.6-2ubuntu0.5 [226 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.7688026Z Get:48 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavformat60 amd64 7:6.1.1-3ubuntu5 [1153 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.9122000Z Get:49 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libbs2b0 amd64 3.1.0+dfsg-7build1 [10.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:31.9997399Z Get:50 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libflite1 amd64 2.2-6build3 [13.6 MB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:32.7179209Z Get:51 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libserd-0-0 amd64 0.32.2-1 [43.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:32.8069626Z Get:52 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzix-0-0 amd64 0.4.2-2build1 [23.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:32.8938024Z Get:53 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsord-0-0 amd64 0.16.16-2build1 [15.8 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:32.9802354Z Get:54 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsratom-0-0 amd64 0.6.16-1build1 [17.3 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.0673880Z Get:55 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 liblilv-0-0 amd64 0.24.22-1build1 [41.0 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.1559673Z Get:56 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libmysofa1 amd64 1.3.2+dfsg-2ubuntu2 [1158 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.2904783Z Get:57 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libplacebo338 amd64 6.338.2-2build1 [2654 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.4822033Z Get:58 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libblas3 amd64 3.12.0-3build1.1 [238 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.5773037Z Get:59 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 liblapack3 amd64 3.12.0-3build1.1 [2646 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.7706547Z Get:60 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libasyncns0 amd64 0.8-6build4 [11.3 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.8575150Z Get:61 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libflac12t64 amd64 1.4.3+ds-2.1ubuntu2 [197 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:33.9530312Z Get:62 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsndfile1 amd64 1.2.2-1ubuntu5.24.04.1 [209 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.0488196Z Get:63 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libpulse0 amd64 1:16.1+dfsg1-2ubuntu10.1 [292 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.1479314Z Get:64 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsphinxbase3t64 amd64 0.8+5prealpha+1-17build2 [126 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.2405662Z Get:65 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpocketsphinx3 amd64 0.8.0+real5prealpha+1-15ubuntu5 [133 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.3324850Z Get:66 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libpostproc57 amd64 7:6.1.1-3ubuntu5 [49.9 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.4207918Z Get:67 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libsamplerate0 amd64 0.2.2-4build1 [1344 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.5560023Z Get:68 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 librubberband2 amd64 3.3.0+dfsg-2build1 [130 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.6469629Z Get:69 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libswscale7 amd64 7:6.1.1-3ubuntu5 [193 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.7396570Z Get:70 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libvidstab1.1 amd64 1.1.0-2build1 [38.5 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.8273695Z Get:71 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libzimg2 amd64 3.0.5+ds1-1build1 [254 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:34.9242974Z Get:72 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavfilter9 amd64 7:6.1.1-3ubuntu5 [4235 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.1750258Z Get:73 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libcaca0 amd64 0.99.beta20-4ubuntu0.2 [209 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.2695790Z Get:74 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libcdio19t64 amd64 2.1.0-4.1ubuntu1.2 [62.4 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.3581912Z Get:75 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdio-cdda2t64 amd64 10.2+2.0.1-1.1build2 [16.5 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.4447895Z Get:76 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libcdio-paranoia2t64 amd64 10.2+2.0.1-1.1build2 [16.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.5313330Z Get:77 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libdc1394-25 amd64 2.2.6-4build1 [90.1 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.6201510Z Get:78 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libiec61883-0 amd64 1.2.0-6build1 [24.5 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.7064810Z Get:79 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libjack-jackd2-0 amd64 1.9.21~dfsg-3ubuntu3 [289 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.8005852Z Get:80 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenal-data all 1:1.23.1-4build1 [161 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.8909125Z Get:81 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libsndio7.0 amd64 1.9.0-0.3build3 [29.6 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:35.9771345Z Get:82 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libopenal1 amd64 1:1.23.1-4build1 [540 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.0796727Z Get:83 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libdecor-0-0 amd64 0.2.2-1build2 [16.5 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.1667138Z Get:84 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libsdl2-2.0-0 amd64 2.30.0+dfsg-1ubuntu3.1 [686 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.2726241Z Get:85 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libxcb-shape0 amd64 1.15-1ubuntu2 [6100 B]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.3586795Z Get:86 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 libxv1 amd64 2:1.0.11-1.1build1 [10.7 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.4453733Z Get:87 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 libavdevice60 amd64 7:6.1.1-3ubuntu5 [82.3 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.5344053Z Get:88 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 ffmpeg amd64 7:6.1.1-3ubuntu5 [1879 kB]
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9228614Z Fetched 62.8 MB in 12s (5442 kB/s)
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9483947Z Selecting previously unselected package libva2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9758781Z (Reading database ... 
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9759336Z (Reading database ... 5%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9759939Z (Reading database ... 10%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9760508Z (Reading database ... 15%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9760988Z (Reading database ... 20%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9761683Z (Reading database ... 25%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9762306Z (Reading database ... 30%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9762846Z (Reading database ... 35%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9763388Z (Reading database ... 40%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9763932Z (Reading database ... 45%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9764496Z (Reading database ... 50%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:36.9807152Z (Reading database ... 55%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:37.0672424Z (Reading database ... 60%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:37.3108264Z (Reading database ... 65%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:37.4644980Z (Reading database ... 70%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:37.6625234Z (Reading database ... 75%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:37.8156736Z (Reading database ... 80%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:37.9598622Z (Reading database ... 85%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.1193518Z (Reading database ... 90%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.2588260Z (Reading database ... 95%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.2589342Z (Reading database ... 100%
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.2589988Z (Reading database ... 203191 files and directories currently installed.)
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.2633841Z Preparing to unpack .../00-libva2_2.20.0-2ubuntu0.2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.2671954Z Unpacking libva2:amd64 (2.20.0-2ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.2906241Z Selecting previously unselected package libva-drm2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3034100Z Preparing to unpack .../01-libva-drm2_2.20.0-2ubuntu0.2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3044236Z Unpacking libva-drm2:amd64 (2.20.0-2ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3264699Z Selecting previously unselected package libva-x11-2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3394103Z Preparing to unpack .../02-libva-x11-2_2.20.0-2ubuntu0.2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3402737Z Unpacking libva-x11-2:amd64 (2.20.0-2ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3622602Z Selecting previously unselected package libvdpau1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3753163Z Preparing to unpack .../03-libvdpau1_1.5-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3762093Z Unpacking libvdpau1:amd64 (1.5-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.3995945Z Selecting previously unselected package libvpl2.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4123033Z Preparing to unpack .../04-libvpl2_2023.3.0-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4133368Z Unpacking libvpl2 (2023.3.0-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4368622Z Selecting previously unselected package ocl-icd-libopencl1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4500153Z Preparing to unpack .../05-ocl-icd-libopencl1_2.3.2-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4510067Z Unpacking ocl-icd-libopencl1:amd64 (2.3.2-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4785780Z Selecting previously unselected package libavutil58:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4917172Z Preparing to unpack .../06-libavutil58_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.4929787Z Unpacking libavutil58:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.5204471Z Selecting previously unselected package libcodec2-1.2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.5336590Z Preparing to unpack .../07-libcodec2-1.2_1.2.0-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.5345153Z Unpacking libcodec2-1.2:amd64 (1.2.0-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6114449Z Selecting previously unselected package libdav1d7:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6246618Z Preparing to unpack .../08-libdav1d7_1.4.1-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6256277Z Unpacking libdav1d7:amd64 (1.4.1-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6538897Z Selecting previously unselected package libgsm1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6666613Z Preparing to unpack .../09-libgsm1_1.0.22-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6675449Z Unpacking libgsm1:amd64 (1.0.22-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.6898743Z Selecting previously unselected package libhwy1t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7026792Z Preparing to unpack .../10-libhwy1t64_1.0.7-8.1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7036198Z Unpacking libhwy1t64:amd64 (1.0.7-8.1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7381765Z Selecting previously unselected package libjxl0.7:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7513523Z Preparing to unpack .../11-libjxl0.7_0.7.0-10.2ubuntu6.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7522950Z Unpacking libjxl0.7:amd64 (0.7.0-10.2ubuntu6.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7866432Z Selecting previously unselected package libmp3lame0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.7996878Z Preparing to unpack .../12-libmp3lame0_3.100-6build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8005412Z Unpacking libmp3lame0:amd64 (3.100-6build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8251795Z Selecting previously unselected package libopus0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8386437Z Preparing to unpack .../13-libopus0_1.4-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8394383Z Unpacking libopus0:amd64 (1.4-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8632933Z Selecting previously unselected package librav1e0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8764237Z Preparing to unpack .../14-librav1e0_0.7.1-2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.8772042Z Unpacking librav1e0:amd64 (0.7.1-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.9118413Z Selecting previously unselected package librsvg2-2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.9249843Z Preparing to unpack .../15-librsvg2-2_2.58.0+dfsg-1ubuntu0.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.9258302Z Unpacking librsvg2-2:amd64 (2.58.0+dfsg-1ubuntu0.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.9745548Z Selecting previously unselected package libshine3:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.9874840Z Preparing to unpack .../16-libshine3_3.1.1-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:38.9883768Z Unpacking libshine3:amd64 (3.1.1-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.0092401Z Selecting previously unselected package libspeex1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.0222770Z Preparing to unpack .../17-libspeex1_1.2.1-2ubuntu2.24.04.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.0231250Z Unpacking libspeex1:amd64 (1.2.1-2ubuntu2.24.04.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.0458875Z Selecting previously unselected package libsvtav1enc1d1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.0589428Z Preparing to unpack .../18-libsvtav1enc1d1_1.7.0+dfsg-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.0598967Z Unpacking libsvtav1enc1d1:amd64 (1.7.0+dfsg-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1103566Z Selecting previously unselected package libsoxr0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1234757Z Preparing to unpack .../19-libsoxr0_0.1.3-4build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1242954Z Unpacking libsoxr0:amd64 (0.1.3-4build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1459559Z Selecting previously unselected package libswresample4:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1589212Z Preparing to unpack .../20-libswresample4_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1596647Z Unpacking libswresample4:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1815756Z Selecting previously unselected package libtheora0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1942923Z Preparing to unpack .../21-libtheora0_1.1.1+dfsg.1-16.1build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.1949677Z Unpacking libtheora0:amd64 (1.1.1+dfsg.1-16.1build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2189000Z Selecting previously unselected package libtwolame0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2321071Z Preparing to unpack .../22-libtwolame0_0.4.0-2build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2330346Z Unpacking libtwolame0:amd64 (0.4.0-2build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2555864Z Selecting previously unselected package libvorbisenc2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2691511Z Preparing to unpack .../23-libvorbisenc2_1.3.7-1build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2700016Z Unpacking libvorbisenc2:amd64 (1.3.7-1build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.2942185Z Selecting previously unselected package libvpx9:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.3073125Z Preparing to unpack .../24-libvpx9_1.14.0-1ubuntu2.3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.3080898Z Unpacking libvpx9:amd64 (1.14.0-1ubuntu2.3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.3430308Z Selecting previously unselected package libx264-164:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.3562201Z Preparing to unpack .../25-libx264-164_2%3a0.164.3108+git31e19f9-1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.3571388Z Unpacking libx264-164:amd64 (2:0.164.3108+git31e19f9-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.3873098Z Selecting previously unselected package libx265-199:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.4005929Z Preparing to unpack .../26-libx265-199_3.5-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.4013617Z Unpacking libx265-199:amd64 (3.5-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.4684761Z Selecting previously unselected package libxvidcore4:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.4818350Z Preparing to unpack .../27-libxvidcore4_2%3a1.3.7-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.4839877Z Unpacking libxvidcore4:amd64 (2:1.3.7-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.5078863Z Selecting previously unselected package libzvbi-common.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.5211082Z Preparing to unpack .../28-libzvbi-common_0.2.42-2_all.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.5219139Z Unpacking libzvbi-common (0.2.42-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.6121515Z Selecting previously unselected package libzvbi0t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.6255967Z Preparing to unpack .../29-libzvbi0t64_0.2.42-2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.6264230Z Unpacking libzvbi0t64:amd64 (0.2.42-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.6523991Z Selecting previously unselected package libavcodec60:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.6656489Z Preparing to unpack .../30-libavcodec60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.6664729Z Unpacking libavcodec60:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.7538454Z Selecting previously unselected package libraw1394-11:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.7669315Z Preparing to unpack .../31-libraw1394-11_2.1.2-2build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.7678407Z Unpacking libraw1394-11:amd64 (2.1.2-2build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.7893099Z Selecting previously unselected package libavc1394-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8022191Z Preparing to unpack .../32-libavc1394-0_0.5.4-5build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8032143Z Unpacking libavc1394-0:amd64 (0.5.4-5build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8259738Z Selecting previously unselected package libunibreak5:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8390830Z Preparing to unpack .../33-libunibreak5_5.1-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8399638Z Unpacking libunibreak5:amd64 (5.1-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8619338Z Selecting previously unselected package libass9:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8752571Z Preparing to unpack .../34-libass9_1%3a0.17.1-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.8762036Z Unpacking libass9:amd64 (1:0.17.1-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9001265Z Selecting previously unselected package libudfread0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9133682Z Preparing to unpack .../35-libudfread0_1.1.2-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9141804Z Unpacking libudfread0:amd64 (1.1.2-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9371546Z Selecting previously unselected package libbluray2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9502711Z Preparing to unpack .../36-libbluray2_1%3a1.3.4-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9511640Z Unpacking libbluray2:amd64 (1:1.3.4-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9748912Z Selecting previously unselected package libchromaprint1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9878737Z Preparing to unpack .../37-libchromaprint1_1.5.1-5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:39.9887858Z Unpacking libchromaprint1:amd64 (1.5.1-5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0110723Z Selecting previously unselected package libgme0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0241549Z Preparing to unpack .../38-libgme0_0.6.3-7build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0250268Z Unpacking libgme0:amd64 (0.6.3-7build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0485660Z Selecting previously unselected package libmpg123-0t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0619581Z Preparing to unpack .../39-libmpg123-0t64_1.32.5-1ubuntu1.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0627832Z Unpacking libmpg123-0t64:amd64 (1.32.5-1ubuntu1.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.0870154Z Selecting previously unselected package libopenmpt0t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1003893Z Preparing to unpack .../40-libopenmpt0t64_0.7.3-1.1build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1011629Z Unpacking libopenmpt0t64:amd64 (0.7.3-1.1build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1301882Z Selecting previously unselected package libcjson1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1431120Z Preparing to unpack .../41-libcjson1_1.7.17-1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1452033Z Unpacking libcjson1:amd64 (1.7.17-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1665937Z Selecting previously unselected package libmbedcrypto7t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1793716Z Preparing to unpack .../42-libmbedcrypto7t64_2.28.8-1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.1801285Z Unpacking libmbedcrypto7t64:amd64 (2.28.8-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2036739Z Selecting previously unselected package librist4:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2166257Z Preparing to unpack .../43-librist4_0.2.10+dfsg-2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2175463Z Unpacking librist4:amd64 (0.2.10+dfsg-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2395731Z Selecting previously unselected package libsrt1.5-gnutls:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2528562Z Preparing to unpack .../44-libsrt1.5-gnutls_1.5.3-1build2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2537900Z Unpacking libsrt1.5-gnutls:amd64 (1.5.3-1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2789687Z Selecting previously unselected package libssh-gcrypt-4:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2918605Z Preparing to unpack .../45-libssh-gcrypt-4_0.10.6-2ubuntu0.5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.2927667Z Unpacking libssh-gcrypt-4:amd64 (0.10.6-2ubuntu0.5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.3163218Z Selecting previously unselected package libavformat60:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.3291107Z Preparing to unpack .../46-libavformat60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.3299389Z Unpacking libavformat60:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.3628558Z Selecting previously unselected package libbs2b0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.3758704Z Preparing to unpack .../47-libbs2b0_3.1.0+dfsg-7build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.3767681Z Unpacking libbs2b0:amd64 (3.1.0+dfsg-7build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.4008795Z Selecting previously unselected package libflite1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.4142889Z Preparing to unpack .../48-libflite1_2.2-6build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.4150757Z Unpacking libflite1:amd64 (2.2-6build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5275628Z Selecting previously unselected package libserd-0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5407545Z Preparing to unpack .../49-libserd-0-0_0.32.2-1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5417096Z Unpacking libserd-0-0:amd64 (0.32.2-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5638223Z Selecting previously unselected package libzix-0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5772036Z Preparing to unpack .../50-libzix-0-0_0.4.2-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5779829Z Unpacking libzix-0-0:amd64 (0.4.2-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.5993329Z Selecting previously unselected package libsord-0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6121468Z Preparing to unpack .../51-libsord-0-0_0.16.16-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6130030Z Unpacking libsord-0-0:amd64 (0.16.16-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6342363Z Selecting previously unselected package libsratom-0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6474077Z Preparing to unpack .../52-libsratom-0-0_0.6.16-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6481285Z Unpacking libsratom-0-0:amd64 (0.6.16-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6692844Z Selecting previously unselected package liblilv-0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6822920Z Preparing to unpack .../53-liblilv-0-0_0.24.22-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.6830722Z Unpacking liblilv-0-0:amd64 (0.24.22-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.7046984Z Selecting previously unselected package libmysofa1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.7177544Z Preparing to unpack .../54-libmysofa1_1.3.2+dfsg-2ubuntu2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.7186016Z Unpacking libmysofa1:amd64 (1.3.2+dfsg-2ubuntu2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.7450421Z Selecting previously unselected package libplacebo338:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.7580194Z Preparing to unpack .../55-libplacebo338_6.338.2-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.7587644Z Unpacking libplacebo338:amd64 (6.338.2-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.8157656Z Selecting previously unselected package libblas3:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.8287278Z Preparing to unpack .../56-libblas3_3.12.0-3build1.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.8322582Z Unpacking libblas3:amd64 (3.12.0-3build1.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.8573226Z Selecting previously unselected package liblapack3:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.8703581Z Preparing to unpack .../57-liblapack3_3.12.0-3build1.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.8741509Z Unpacking liblapack3:amd64 (3.12.0-3build1.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9241744Z Selecting previously unselected package libasyncns0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9370978Z Preparing to unpack .../58-libasyncns0_0.8-6build4_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9379104Z Unpacking libasyncns0:amd64 (0.8-6build4) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9590370Z Selecting previously unselected package libflac12t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9720256Z Preparing to unpack .../59-libflac12t64_1.4.3+ds-2.1ubuntu2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9728839Z Unpacking libflac12t64:amd64 (1.4.3+ds-2.1ubuntu2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:40.9964354Z Selecting previously unselected package libsndfile1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.0094824Z Preparing to unpack .../60-libsndfile1_1.2.2-1ubuntu5.24.04.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.0102759Z Unpacking libsndfile1:amd64 (1.2.2-1ubuntu5.24.04.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.0879291Z Selecting previously unselected package libpulse0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1008899Z Preparing to unpack .../61-libpulse0_1%3a16.1+dfsg1-2ubuntu10.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1079639Z Unpacking libpulse0:amd64 (1:16.1+dfsg1-2ubuntu10.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1328279Z Selecting previously unselected package libsphinxbase3t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1458066Z Preparing to unpack .../62-libsphinxbase3t64_0.8+5prealpha+1-17build2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1466844Z Unpacking libsphinxbase3t64:amd64 (0.8+5prealpha+1-17build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1695962Z Selecting previously unselected package libpocketsphinx3:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1824063Z Preparing to unpack .../63-libpocketsphinx3_0.8.0+real5prealpha+1-15ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.1831585Z Unpacking libpocketsphinx3:amd64 (0.8.0+real5prealpha+1-15ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2053657Z Selecting previously unselected package libpostproc57:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2181070Z Preparing to unpack .../64-libpostproc57_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2192352Z Unpacking libpostproc57:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2419382Z Selecting previously unselected package libsamplerate0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2550136Z Preparing to unpack .../65-libsamplerate0_0.2.2-4build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2557913Z Unpacking libsamplerate0:amd64 (0.2.2-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2833556Z Selecting previously unselected package librubberband2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2962402Z Preparing to unpack .../66-librubberband2_3.3.0+dfsg-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.2970429Z Unpacking librubberband2:amd64 (3.3.0+dfsg-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3196945Z Selecting previously unselected package libswscale7:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3327995Z Preparing to unpack .../67-libswscale7_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3336325Z Unpacking libswscale7:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3581713Z Selecting previously unselected package libvidstab1.1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3710900Z Preparing to unpack .../68-libvidstab1.1_1.1.0-2build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3719290Z Unpacking libvidstab1.1:amd64 (1.1.0-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.3938475Z Selecting previously unselected package libzimg2:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.4067731Z Preparing to unpack .../69-libzimg2_3.0.5+ds1-1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.4080229Z Unpacking libzimg2:amd64 (3.0.5+ds1-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.4334104Z Selecting previously unselected package libavfilter9:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.4466425Z Preparing to unpack .../70-libavfilter9_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.4474457Z Unpacking libavfilter9:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5211737Z Selecting previously unselected package libcaca0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5345870Z Preparing to unpack .../71-libcaca0_0.99.beta20-4ubuntu0.2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5353775Z Unpacking libcaca0:amd64 (0.99.beta20-4ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5608082Z Selecting previously unselected package libcdio19t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5741711Z Preparing to unpack .../72-libcdio19t64_2.1.0-4.1ubuntu1.2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5750511Z Unpacking libcdio19t64:amd64 (2.1.0-4.1ubuntu1.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.5982580Z Selecting previously unselected package libcdio-cdda2t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6116297Z Preparing to unpack .../73-libcdio-cdda2t64_10.2+2.0.1-1.1build2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6124706Z Unpacking libcdio-cdda2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6350301Z Selecting previously unselected package libcdio-paranoia2t64:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6484498Z Preparing to unpack .../74-libcdio-paranoia2t64_10.2+2.0.1-1.1build2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6492186Z Unpacking libcdio-paranoia2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6717232Z Selecting previously unselected package libdc1394-25:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6848592Z Preparing to unpack .../75-libdc1394-25_2.2.6-4build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.6856092Z Unpacking libdc1394-25:amd64 (2.2.6-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7101007Z Selecting previously unselected package libiec61883-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7232394Z Preparing to unpack .../76-libiec61883-0_1.2.0-6build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7242971Z Unpacking libiec61883-0:amd64 (1.2.0-6build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7456145Z Selecting previously unselected package libjack-jackd2-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7587325Z Preparing to unpack .../77-libjack-jackd2-0_1.9.21~dfsg-3ubuntu3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7596637Z Unpacking libjack-jackd2-0:amd64 (1.9.21~dfsg-3ubuntu3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7864510Z Selecting previously unselected package libopenal-data.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.7994027Z Preparing to unpack .../78-libopenal-data_1%3a1.23.1-4build1_all.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8001952Z Unpacking libopenal-data (1:1.23.1-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8243985Z Selecting previously unselected package libsndio7.0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8372716Z Preparing to unpack .../79-libsndio7.0_1.9.0-0.3build3_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8381272Z Unpacking libsndio7.0:amd64 (1.9.0-0.3build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8596373Z Selecting previously unselected package libopenal1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8724578Z Preparing to unpack .../80-libopenal1_1%3a1.23.1-4build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8733004Z Unpacking libopenal1:amd64 (1:1.23.1-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.8998063Z Selecting previously unselected package libdecor-0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.9128160Z Preparing to unpack .../81-libdecor-0-0_0.2.2-1build2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.9147712Z Unpacking libdecor-0-0:amd64 (0.2.2-1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.9395935Z Selecting previously unselected package libsdl2-2.0-0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.9526102Z Preparing to unpack .../82-libsdl2-2.0-0_2.30.0+dfsg-1ubuntu3.1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:41.9534631Z Unpacking libsdl2-2.0-0:amd64 (2.30.0+dfsg-1ubuntu3.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0142390Z Selecting previously unselected package libxcb-shape0:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0276022Z Preparing to unpack .../83-libxcb-shape0_1.15-1ubuntu2_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0283426Z Unpacking libxcb-shape0:amd64 (1.15-1ubuntu2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0498571Z Selecting previously unselected package libxv1:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0631372Z Preparing to unpack .../84-libxv1_2%3a1.0.11-1.1build1_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0639333Z Unpacking libxv1:amd64 (2:1.0.11-1.1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0863902Z Selecting previously unselected package libavdevice60:amd64.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.0996481Z Preparing to unpack .../85-libavdevice60_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.1003711Z Unpacking libavdevice60:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.1225764Z Selecting previously unselected package ffmpeg.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.1358467Z Preparing to unpack .../86-ffmpeg_7%3a6.1.1-3ubuntu5_amd64.deb ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.1366089Z Unpacking ffmpeg (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.1966109Z Setting up libgme0:amd64 (0.6.3-7build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.1988171Z Setting up libchromaprint1:amd64 (1.5.1-5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2007745Z Setting up libssh-gcrypt-4:amd64 (0.10.6-2ubuntu0.5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2026140Z Setting up libhwy1t64:amd64 (1.0.7-8.1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2044364Z Setting up libudfread0:amd64 (1.1.2-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2063655Z Setting up libraw1394-11:amd64 (2.1.2-2build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2082252Z Setting up libspeex1:amd64 (1.2.1-2ubuntu2.24.04.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2099886Z Setting up libshine3:amd64 (3.1.1-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2131558Z Setting up libcaca0:amd64 (0.99.beta20-4ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2150935Z Setting up libvpl2 (2023.3.0-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2169085Z Setting up libx264-164:amd64 (2:0.164.3108+git31e19f9-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2185913Z Setting up libtwolame0:amd64 (0.4.0-2build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2205745Z Setting up libmbedcrypto7t64:amd64 (2.28.8-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2230289Z Setting up libgsm1:amd64 (1.0.22-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2249817Z Setting up libsoxr0:amd64 (0.1.3-4build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2270945Z Setting up libzix-0-0:amd64 (0.4.2-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2294840Z Setting up libcodec2-1.2:amd64 (1.2.0-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2314858Z Setting up libmysofa1:amd64 (1.3.2+dfsg-2ubuntu2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2335154Z Setting up libxcb-shape0:amd64 (1.15-1ubuntu2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2359076Z Setting up libcdio19t64:amd64 (2.1.0-4.1ubuntu1.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2379855Z Setting up libsvtav1enc1d1:amd64 (1.7.0+dfsg-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2406286Z Setting up libmpg123-0t64:amd64 (1.32.5-1ubuntu1.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2441852Z Setting up libcjson1:amd64 (1.7.17-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2464311Z Setting up libxvidcore4:amd64 (2:1.3.7-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2489983Z Setting up librav1e0:amd64 (0.7.1-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2511509Z Setting up libcdio-cdda2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2534848Z Setting up librist4:amd64 (0.2.10+dfsg-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2556234Z Setting up librsvg2-2:amd64 (2.58.0+dfsg-1ubuntu0.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2575403Z Setting up libblas3:amd64 (3.12.0-3build1.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2649717Z update-alternatives: using /usr/lib/x86_64-linux-gnu/blas/libblas.so.3 to provide /usr/lib/x86_64-linux-gnu/libblas.so.3 (libblas.so.3-x86_64-linux-gnu) in auto mode
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2665791Z Setting up libplacebo338:amd64 (6.338.2-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2684642Z Setting up libva2:amd64 (2.20.0-2ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2707341Z Setting up libopus0:amd64 (1.4-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2727186Z Setting up libcdio-paranoia2t64:amd64 (10.2+2.0.1-1.1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2749336Z Setting up libdc1394-25:amd64 (2.2.6-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2767805Z Setting up libxv1:amd64 (2:1.0.11-1.1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2786380Z Setting up libunibreak5:amd64 (5.1-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2808725Z Setting up libjxl0.7:amd64 (0.7.0-10.2ubuntu6.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2829304Z Setting up libx265-199:amd64 (3.5-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2851259Z Setting up libsndio7.0:amd64 (1.9.0-0.3build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2870967Z Setting up libvidstab1.1:amd64 (1.1.0-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2888196Z Setting up libvpx9:amd64 (1.14.0-1ubuntu2.3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2912813Z Setting up libsrt1.5-gnutls:amd64 (1.5.3-1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2933165Z Setting up libflite1:amd64 (2.2-6build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2955936Z Setting up libdav1d7:amd64 (1.4.1-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2975521Z Setting up libva-drm2:amd64 (2.20.0-2ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.2996101Z Setting up ocl-icd-libopencl1:amd64 (2.3.2-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3014639Z Setting up libasyncns0:amd64 (0.8-6build4) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3032727Z Setting up libvdpau1:amd64 (1.5-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3065451Z Setting up libbs2b0:amd64 (3.1.0+dfsg-7build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3086949Z Setting up libtheora0:amd64 (1.1.1+dfsg.1-16.1build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3108359Z Setting up libdecor-0-0:amd64 (0.2.2-1build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3126229Z Setting up libzimg2:amd64 (3.0.5+ds1-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3148143Z Setting up libopenal-data (1:1.23.1-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3171879Z Setting up libflac12t64:amd64 (1.4.3+ds-2.1ubuntu2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3190384Z Setting up libbluray2:amd64 (1:1.3.4-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3209867Z Setting up libsamplerate0:amd64 (0.2.2-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3230859Z Setting up libva-x11-2:amd64 (2.20.0-2ubuntu0.2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3253023Z Setting up libopenmpt0t64:amd64 (0.7.3-1.1build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3272954Z Setting up libzvbi-common (0.2.42-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3293117Z Setting up libmp3lame0:amd64 (3.100-6build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3313461Z Setting up libvorbisenc2:amd64 (1.3.7-1build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3333165Z Setting up libiec61883-0:amd64 (1.2.0-6build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3354735Z Setting up libserd-0-0:amd64 (0.32.2-1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3377019Z Setting up libavc1394-0:amd64 (0.5.4-5build3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3399812Z Setting up liblapack3:amd64 (3.12.0-3build1.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3463682Z update-alternatives: using /usr/lib/x86_64-linux-gnu/lapack/liblapack.so.3 to provide /usr/lib/x86_64-linux-gnu/liblapack.so.3 (liblapack.so.3-x86_64-linux-gnu) in auto mode
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3479180Z Setting up libzvbi0t64:amd64 (0.2.42-2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3499765Z Setting up libavutil58:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3519927Z Setting up libopenal1:amd64 (1:1.23.1-4build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3572522Z Setting up libass9:amd64 (1:0.17.1-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3593645Z Setting up libswresample4:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3613622Z Setting up libavcodec60:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3634934Z Setting up librubberband2:amd64 (3.3.0+dfsg-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3654285Z Setting up libjack-jackd2-0:amd64 (1.9.21~dfsg-3ubuntu3) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3674477Z Setting up libsord-0-0:amd64 (0.16.16-2build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3695794Z Setting up libpostproc57:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3712920Z Setting up libsratom-0-0:amd64 (0.6.16-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3731807Z Setting up libsndfile1:amd64 (1.2.2-1ubuntu5.24.04.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3748822Z Setting up liblilv-0-0:amd64 (0.24.22-1build1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3766702Z Setting up libswscale7:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3784490Z Setting up libpulse0:amd64 (1:16.1+dfsg1-2ubuntu10.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3860962Z Setting up libavformat60:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3880818Z Setting up libsphinxbase3t64:amd64 (0.8+5prealpha+1-17build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.3899029Z Setting up libsdl2-2.0-0:amd64 (2.30.0+dfsg-1ubuntu3.1) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4178891Z Setting up libpocketsphinx3:amd64 (0.8.0+real5prealpha+1-15ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4198882Z Setting up libavfilter9:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4220182Z Setting up libavdevice60:amd64 (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4236559Z Setting up ffmpeg (7:6.1.1-3ubuntu5) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4260249Z Processing triggers for man-db (2.12.0-4build2) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4287089Z Not building database; man-db/auto-update is not 'true'.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:42.4300837Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1123637Z 
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1124209Z Running kernel seems to be up-to-date.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1124493Z 
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1124611Z No services need to be restarted.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1124802Z 
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1124914Z No containers need to be restarted.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1125131Z 
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1125464Z No user sessions are running outdated binaries.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1125705Z 
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:43.1125913Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8732103Z ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8732874Z built with gcc 13 (Ubuntu 13.2.0-23ubuntu3)
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8739247Z configuration: --prefix=/usr --extra-version=3ubuntu5 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcaca --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --disable-libmfx --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8745671Z libavutil      58. 29.100 / 58. 29.100
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8745959Z libavcodec     60. 31.102 / 60. 31.102
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8746243Z libavformat    60. 16.100 / 60. 16.100
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8746529Z libavdevice    60.  3.100 / 60.  3.100
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8746799Z libavfilter     9. 12.100 /  9. 12.100
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8747069Z libswscale      7.  5.100 /  7.  5.100
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8747345Z libswresample   4. 12.100 /  4. 12.100
+test (3)	Install ffmpeg and ffprobe	2026-10-08T08:02:44.8747612Z libpostproc    57.  3.100 / 57.  3.100
+test (3)	pytest shard 3 of 6	﻿2026-10-08T08:02:44.9283247Z ##[group]Run mapfile -t files < <(git ls-files 'tests/test_*.py' | sort \
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9283828Z ^[[36;1mmapfile -t files < <(git ls-files 'tests/test_*.py' | sort \^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9284246Z ^[[36;1m  | awk -v s='3' -v n=6 '(NR - 1) % n == s')^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9284572Z ^[[36;1mecho "shard 3/6: ${#files[@]} files"^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9284864Z ^[[36;1mtest "${#files[@]}" -gt 0^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9285230Z ^[[36;1m# `-v` и небуферизованный вывод обязательны: при зависании `-q` не печатает^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9286249Z ^[[36;1m# НИЧЕГО (буфер не сбрасывается), и в логе остаётся только процент. С `-v`^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9286664Z ^[[36;1m# последняя строка называет тест, на котором встали.^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9287091Z ^[[36;1m# `-m "not browser"` — тот же набор, которым блокирует merge-гейт. Браузерные^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9287544Z ^[[36;1m# тесты гоняются отдельной джобой ниже: одно их зависание не должно съедать^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9287964Z ^[[36;1m# потолок шарда и прятать состав СОСЕДЕЙ по нему (07.09 так и вышло —^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9288528Z ^[[36;1m# `test_orchestra_layout_430` не успел отработать за `test_frontend.py`).^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9289077Z ^[[36;1mPYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9289542Z ^[[36;1m  -m "not live_probe and not browser" "${files[@]}"^[[0m
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9353029Z shell: /usr/bin/bash -e {0}
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9353310Z env:
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9353525Z   GIT_AUTHOR_NAME: Orchestra CI
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9353820Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9354139Z   GIT_COMMITTER_NAME: Orchestra CI
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9354437Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9354831Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9355223Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9355806Z ##[endgroup]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:44.9479067Z shard 3/6: 48 files
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9788097Z ============================= test session starts ==============================
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9790859Z platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/runner/work/orchestra/orchestra/.venv/bin/python
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9833955Z cachedir: .pytest_cache
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9834501Z rootdir: /home/runner/work/orchestra/orchestra
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9835080Z configfile: pyproject.toml
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9836151Z plugins: asyncio-1.4.0, timeout-2.4.0, playwright-0.8.0, anyio-4.13.0, base-url-2.1.0, xdist-3.8.0
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9837526Z asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9838533Z timeout: 30.0s
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9838922Z timeout method: signal
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:45.9839349Z timeout func_only: False
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:52.5028464Z collecting ... collected 546 items / 108 deselected / 438 selected
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:52.5046531Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.1282462Z tests/test_agentic_compact_650.py::test_prepare_journal_writes_python_grep_source PASSED [  0%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.1312298Z tests/test_agentic_compact_650.py::test_sandbox_root_is_next_to_database PASSED [  0%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2042918Z tests/test_agentic_compact_650.py::test_final_replaces_draft_in_ack_and_pass_cost_is_accounted PASSED [  0%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2092577Z tests/test_agentic_compact_650.py::test_audit_failure_uses_draft_and_logs_reason PASSED [  0%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2187533Z tests/test_agentic_compact_650.py::test_timeout_empty_and_oversized_final_fall_back_to_draft PASSED [  1%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2234068Z tests/test_agentic_compact_650.py::test_stop_after_audit_prevents_final_and_aborts_compaction PASSED [  1%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2271722Z tests/test_agentic_compact_650.py::test_switch_off_uses_native_draft_without_agentic_passes PASSED [  1%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2340466Z tests/test_agentic_compact_650.py::test_limit_warning_during_audit_keeps_final_but_rejection_falls_back PASSED [  1%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2519237Z tests/test_artifacts.py::test_t1_private_registry_is_present_before_snapshot PASSED [  2%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2740451Z tests/test_artifacts.py::test_t1_snapshot_copies_the_authorized_inode_and_stores_no_bearer PASSED [  2%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.2874815Z tests/test_artifacts.py::test_t1_snapshot_rejects_paths_outside_registered_roots[outside] PASSED [  2%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.3015827Z tests/test_artifacts.py::test_t1_snapshot_rejects_paths_outside_registered_roots[symlink] PASSED [  2%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.3194103Z tests/test_artifacts.py::test_t2_open_returns_the_verified_immutable_buffer_after_path_retarget PASSED [  2%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.3348212Z tests/test_artifacts.py::test_t2_open_rejects_an_inode_changed_after_descriptor_open PASSED [  3%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.8401272Z tests/test_artifacts.py::test_t2_grant_is_bound_to_locator_secret_and_exact_iframe_destination PASSED [  3%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:55.9424903Z tests/test_artifacts.py::test_t2_wrapper_is_fixed_trusted_top_level_and_artifact_is_only_the_child PASSED [  3%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.0408668Z tests/test_artifacts.py::test_t2_revocation_blocks_both_an_existing_grant_and_fragment PASSED [  3%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.1342451Z tests/test_artifacts.py::test_t2_content_head_and_raw_file_route_remain_authenticated PASSED [  4%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.2796110Z tests/test_artifacts.py::test_t2_publish_binds_mcp_proof_and_keeps_capability_only_in_telegram PASSED [  4%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.4343331Z tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file[exception] PASSED [  4%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.5912545Z tests/test_artifacts.py::test_t2_failed_telegram_delivery_never_activates_or_auto_sends_file[cancelled-after-dispatch] PASSED [  4%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.7480870Z tests/test_artifacts.py::test_t2_activation_failure_after_telegram_success_leaves_a_dead_link PASSED [  5%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8446892Z tests/test_audit0901_mcp.py::test_failed_before_submit_is_never_reported_as_accepted PASSED [  5%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8483369Z tests/test_audit0901_mcp.py::test_target_task_changed_is_not_sent_into_a_retry_loop PASSED [  5%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8515776Z tests/test_audit0901_mcp.py::test_spawn_does_not_report_undelivered_task_as_accepted PASSED [  5%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8552225Z tests/test_audit0901_mcp.py::test_recovered_failed_merge_keeps_its_confirmed_cause PASSED [  5%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8583566Z tests/test_audit0901_mcp.py::test_spawn_retry_guidance_keeps_cross_repo_warning PASSED [  6%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8613881Z tests/test_audit0901_mcp.py::test_queue_blocked_acceptance_is_not_printed_as_delivery PASSED [  6%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8645991Z tests/test_audit0901_mcp.py::test_cleared_barrier_is_not_reported_as_delivered PASSED [  6%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8678019Z tests/test_audit0901_mcp.py::test_spawn_does_not_report_unknown_delivery_as_accepted PASSED [  6%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8740436Z tests/test_auto_report_send_result.py::test_explicit_send_message_counts_only_after_success[True-False] PASSED [  7%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8797752Z tests/test_auto_report_send_result.py::test_explicit_send_message_counts_only_after_success[False-True] PASSED [  7%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8824567Z tests/test_backend_stream.py::test_text_delta_emits_stream_event PASSED  [  7%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8851099Z tests/test_backend_stream.py::test_empty_text_delta_emits_nothing PASSED [  7%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8878217Z tests/test_backend_stream.py::test_thinking_delta_dropped PASSED         [  7%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8903804Z tests/test_backend_stream.py::test_input_json_delta_dropped PASSED       [  8%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8929407Z tests/test_backend_stream.py::test_signature_delta_dropped PASSED        [  8%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8955827Z tests/test_backend_stream.py::test_subagent_text_delta_becomes_subagent_stream PASSED [  8%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.8981474Z tests/test_backend_stream.py::test_subagent_stream_resolves_parent_tool_use_to_task_id PASSED [  8%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.9008004Z tests/test_backend_stream.py::test_subagent_lifecycle_keeps_stable_id_type_and_description PASSED [  9%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.9046191Z tests/test_backend_stream.py::test_non_delta_events_dropped PASSED       [  9%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:56.9072507Z tests/test_backend_stream.py::test_tag_sub_marks_only_subagent_events PASSED [  9%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.0209519Z tests/test_catalog_api.py::test_t4_catalog_list_carries_flags PASSED     [  9%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.1143608Z tests/test_catalog_api.py::test_t4_patch_flags_persists PASSED           [ 10%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.1971824Z tests/test_catalog_api.py::test_t4_cannot_enable_unsuffixed_harness_route PASSED [ 10%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.2854092Z tests/test_catalog_api.py::test_t4_refresh_refetches_and_reregisters PASSED [ 10%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.2884519Z tests/test_claude_env_hook.py::test_hook_is_only_the_two_function_unsets PASSED [ 10%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.2997625Z tests/test_claude_env_hook.py::test_hook_runs_after_vendor_functions_and_restores_gnu_semantics PASSED [ 10%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.3618294Z tests/test_claude_env_hook.py::test_rollback_recovers_after_install_fails_between_files PASSED [ 11%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.3725160Z tests/test_claude_env_hook.py::test_manager_rejects_malformed_hook_before_install PASSED [ 11%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.4219981Z tests/test_claude_env_hook.py::test_rollback_rejects_malformed_saved_hook_before_claiming PASSED [ 11%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.4926718Z tests/test_claude_env_hook.py::test_rollback_refuses_to_nest_state_in_existing_archive PASSED [ 11%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.6331539Z tests/test_claude_env_hook.py::test_manager_installs_without_restart_and_rolls_back_existing_file PASSED [ 12%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.7834441Z tests/test_codex_managed_state.py::test_managed_home_lock_serializes_another_process PASSED [ 12%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8096543Z tests/test_codex_managed_state.py::test_same_managed_home_connect_is_single_flight_and_repeatable PASSED [ 12%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8165841Z tests/test_codex_managed_state.py::test_cancelled_managed_home_connect_releases_single_flight_waiter PASSED [ 12%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8201189Z tests/test_compact_chat_672.py::test_compact_events_and_statuses_do_not_reach_telegram_or_mirror PASSED [ 13%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8466916Z tests/test_compact_chat_672.py::test_compact_event_cap_preserves_json_pair_and_full_db_payload PASSED [ 13%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8565827Z tests/test_cross_repo_warning.py::test_same_repository_stays_silent PASSED [ 13%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8576457Z tests/test_cross_repo_warning.py::test_foreign_repository_is_named_with_both_sides PASSED [ 13%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8577754Z tests/test_cross_repo_warning.py::test_note_compares_repositories_not_path_strings PASSED [ 13%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8610566Z tests/test_cross_repo_warning.py::test_missing_scope_or_common_dir_never_warns PASSED [ 14%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8663465Z tests/test_delivery_head_of_line_block.py::test_terminal_failure_at_head_does_not_hide_later_queued_messages PASSED [ 14%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8712725Z tests/test_delivery_head_of_line_block.py::test_queue_still_reports_empty_when_everything_is_terminal PASSED [ 14%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8766210Z tests/test_delivery_head_of_line_block.py::test_delivery_unknown_still_blocks_on_purpose PASSED [ 14%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8821809Z tests/test_delivery_head_of_line_block.py::test_delivery_unknown_head_does_not_send_later_message PASSED [ 15%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8874547Z tests/test_delivery_head_of_line_block.py::test_in_flight_states_are_not_skipped PASSED [ 15%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8910326Z tests/test_delivery_head_of_line_block.py::test_runner_continues_after_delivery_failed_before_submit PASSED [ 15%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8944854Z tests/test_delivery_head_of_line_block.py::test_runner_does_not_cross_delivery_unknown_barrier PASSED [ 15%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.8975885Z tests/test_disconnect_dead_process.py::test_missing_process_is_a_successful_release PASSED [ 15%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.9009344Z tests/test_disconnect_dead_process.py::test_real_failure_still_propagates PASSED [ 16%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.9041476Z tests/test_explainer_video.py::test_deepgram_digits_latin_and_glued_words_match_screen_text PASSED [ 16%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.9069001Z tests/test_explainer_video.py::test_missing_word_is_reported_per_phrase PASSED [ 16%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:57.9098135Z tests/test_explainer_video.py::test_manual_stress_marker_is_ignored_by_deepgram_word_matching PASSED [ 16%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.4875039Z tests/test_explainer_video.py::test_manual_stress_marker_is_removed_from_scene_caption FAILED [ 17%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.4911146Z tests/test_explainer_video.py::test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step PASSED [ 17%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.4938669Z tests/test_explainer_video.py::test_say_rejects_latin_and_digits_before_synthesis PASSED [ 17%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.4968352Z tests/test_explainer_video.py::test_english_voice_reads_latin_and_digits_but_rejects_cyrillic PASSED [ 17%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5014969Z tests/test_explainer_video.py::test_ruaccent_marks_text_before_it_reaches_vosk_synthesis PASSED [ 18%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5054060Z tests/test_explainer_video.py::test_manual_plus_words_are_not_sent_through_automatic_accenting PASSED [ 18%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5089490Z tests/test_explainer_video.py::test_no_stress_flag_disables_ruaccent_in_cli PASSED [ 18%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5147997Z tests/test_explainer_video.py::test_stress_only_shows_marked_phrases_without_synthesis PASSED [ 18%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5182321Z tests/test_explainer_video.py::test_english_cli_branch_does_not_load_or_run_ruaccent PASSED [ 18%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5215447Z tests/test_explainer_video.py::test_missing_ruaccent_fails_with_install_command PASSED [ 19%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.5257457Z tests/test_explainer_video.py::test_cache_key_changes_when_accented_text_changes PASSED [ 19%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.8279516Z tests/test_fan_enable.py::test_t1_open_fan_route_exists_and_buffers_children PASSED [ 19%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.8523061Z tests/test_fan_enable.py::test_t1_caller_deadline_is_actually_used PASSED [ 19%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.8871460Z tests/test_fan_enable.py::test_t6_children_release_to_reducer_not_parent PASSED [ 20%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.9284581Z tests/test_fan_enable.py::test_t6_parent_payload_survives_a_silent_reducer PASSED [ 20%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.9568468Z tests/test_fan_enable.py::test_t6_explicit_report_with_pending_mailbox_does_not_release PASSED [ 20%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:58.9961266Z tests/test_fan_enable.py::test_t6_manifest_is_glued_exactly_once PASSED  [ 20%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.0379338Z tests/test_fan_enable.py::test_impl4_silent_child_with_pending_mailbox_does_not_release PASSED [ 21%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.0647375Z tests/test_fan_enable.py::test_impl5_silent_completion_wakes_reducer_not_parent PASSED [ 21%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.0924261Z tests/test_fan_enable.py::test_impl5_exact_silent_marker_completes_fan_without_manifest_noise PASSED [ 21%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.1286703Z tests/test_fan_enable.py::test_impl6_manifest_survives_a_failed_delivery PASSED [ 21%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.1323758Z tests/test_frontend.py::test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result PASSED [ 21%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.1403141Z tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.html] PASSED [ 22%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.1439625Z tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.HTM] PASSED [ 22%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.1476113Z tests/test_frontend.py::test_raw_non_html_response_has_no_artifact_csp PASSED [ 22%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.3259503Z tests/test_frontend.py::test_raw_image_preview_is_bounded_webp_and_original_stays_untouched PASSED [ 22%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.3521259Z tests/test_frontend.py::test_raw_video_supports_range_and_full_download PASSED [ 23%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.5873042Z tests/test_frontend.py::test_tg_topic_frontend_and_route_share_the_persistent_api_contract PASSED [ 23%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.5910285Z tests/test_frontend.py::test_api_retry_spaces_attempts_with_jitter PASSED [ 23%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.5943379Z tests/test_handoff_effect_classification.py::test_result_row_written_before_its_own_call_still_completes_the_effect PASSED [ 23%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.5974234Z tests/test_handoff_effect_classification.py::test_legacy_rows_without_ids_pair_in_event_order_not_insert_order PASSED [ 23%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6003737Z tests/test_handoff_effect_classification.py::test_call_the_transcript_continued_past_is_unresolved_and_does_not_block PASSED [ 24%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6032879Z tests/test_handoff_effect_classification.py::test_call_with_nothing_logged_after_it_still_blocks_and_names_itself PASSED [ 24%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6063715Z tests/test_handoff_effect_classification.py::test_block_decision_reads_the_last_EVENT_not_the_last_inserted_row PASSED [ 24%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6092402Z tests/test_handoff_effect_classification.py::test_snapshot_refs_and_recent_messages_stay_in_insert_order PASSED [ 24%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6286425Z tests/test_handoff_effect_classification.py::test_prepare_moves_a_session_whose_lost_result_can_never_arrive PASSED [ 25%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6477210Z tests/test_handoff_effect_classification.py::test_first_preparation_journals_what_it_lets_through PASSED [ 25%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6663736Z tests/test_handoff_effect_classification.py::test_prepare_refuses_a_call_that_may_still_be_running_and_names_it PASSED [ 25%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6731110Z tests/test_handoff_effect_classification.py::test_native_resume_refusal_names_the_blocking_call_not_only_its_code PASSED [ 25%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.6772802Z tests/test_handoff_effect_classification.py::test_refusal_on_settling_turn_carries_a_machine_readable_code PASSED [ 26%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.7096187Z tests/test_hot_apply.py::test_t1_reinjected_prompt_rebuilds_role_text_from_disk PASSED [ 26%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.7278960Z tests/test_hot_apply.py::test_t1_guard_custom_full_prompt_is_not_overwritten_by_rebuild PASSED [ 26%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.7438677Z tests/test_hot_apply.py::test_t1_broken_role_file_falls_back_to_the_startup_prompt PASSED [ 26%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.7490415Z tests/test_hot_apply.py::test_t2_new_turn_is_refused_loudly_while_draining PASSED [ 26%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:02:59.7534954Z tests/test_hot_apply.py::test_t2_gate_closes_atomically_against_turn_start PASSED [ 27%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:00.0596468Z tests/test_hot_apply.py::test_t2_internal_starter_queues_a_fact_instead_of_starting[_flush_pending] PASSED [ 27%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0666864Z tests/test_hot_apply.py::test_t2_internal_starter_queues_a_fact_instead_of_starting[_auto_continue] PASSED [ 27%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0714777Z tests/test_hot_apply.py::test_t2_internal_starter_queues_a_fact_instead_of_starting[_rate_limit_retry] PASSED [ 27%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0760484Z tests/test_hot_apply.py::test_t2_internal_starter_queues_a_fact_instead_of_starting[_retry_after_server_error] PASSED [ 28%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0798576Z tests/test_hot_apply.py::test_t3_restart_signals_without_waiting_for_live_turns PASSED [ 28%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0865385Z tests/test_hot_apply.py::test_t3_restart_cuts_blocking_turns_without_grace PASSED [ 28%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0928847Z tests/test_hot_apply.py::test_t3_restart_never_attempts_live_turn_handover PASSED [ 28%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.0967410Z tests/test_hot_apply.py::test_t3_drain_outcome_is_persisted_before_the_signal PASSED [ 28%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1009948Z tests/test_hot_apply.py::test_t3_broken_recorder_does_not_cancel_the_signal PASSED [ 29%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1066781Z tests/test_hot_apply.py::test_guard_failed_restart_never_leaves_the_agent_gate_closed PASSED [ 29%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1243373Z tests/test_hot_apply.py::test_guard_watchdog_reopens_admission_after_aborting_guard PASSED [ 29%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1272619Z tests/test_hot_apply.py::test_guard_watchdog_outlasts_mutating_drain_and_response_flush PASSED [ 29%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1307308Z tests/test_hot_apply.py::test_guard_aborted_attempt_disarms_its_watchdog_but_a_signalling_one_does_not PASSED [ 30%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1448532Z tests/test_hot_apply.py::test_guard_watchdog_of_a_superseded_attempt_stands_down PASSED [ 30%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1489911Z tests/test_hot_apply.py::test_t4_tg_restart_goes_through_drain_not_systemctl PASSED [ 30%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.1660797Z tests/test_hot_apply.py::test_resume_preserves_saved_parent_identity PASSED [ 30%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.2146479Z tests/test_instruction_contract.py::test_symlink_beside_the_source_passes PASSED [ 31%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.2605204Z tests/test_instruction_contract.py::test_copy_instead_of_symlink_is_rejected PASSED [ 31%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.3049537Z tests/test_instruction_contract.py::test_missing_link_is_rejected PASSED [ 31%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.3497413Z tests/test_instruction_contract.py::test_link_pointing_elsewhere_is_rejected PASSED [ 31%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.3943320Z tests/test_instruction_contract.py::test_oversized_rules_are_rejected PASSED [ 31%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.4423912Z tests/test_instruction_contract.py::test_unindexed_kb_topic_is_rejected PASSED [ 32%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.4488161Z tests/test_layout_batch_v704.py::test_t014_run_job_uses_callers_worktree_for_local_relative_paths[worktree] PASSED [ 32%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.4527559Z tests/test_layout_batch_v704.py::test_t014_run_job_uses_callers_worktree_for_local_relative_paths[cwd] PASSED [ 32%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.4567684Z tests/test_layout_batch_v704.py::test_t014_run_job_uses_callers_worktree_for_local_relative_paths[scope] PASSED [ 32%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.4655653Z tests/test_layout_batch_v704.py::test_t075_pycache_under_orchestra_is_ignored_after_unignore_rules PASSED [ 33%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5293074Z tests/test_layout_batch_v704.py::test_t147_path_check_runs_without_historical_blob_inventory PASSED [ 33%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5333096Z tests/test_live_broker.py::test_subscribe_publish_get PASSED             [ 33%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5367639Z tests/test_live_broker.py::test_fanout_to_multiple_subscribers PASSED    [ 33%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5400537Z tests/test_live_broker.py::test_publish_to_unknown_session_is_noop PASSED [ 34%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5437990Z tests/test_live_broker.py::test_drop_oldest_when_full PASSED             [ 34%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5470386Z tests/test_live_broker.py::test_unsubscribe_stops_delivery_and_cleans_up PASSED [ 34%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5503215Z tests/test_live_broker.py::test_unsubscribe_one_of_two_keeps_other PASSED [ 34%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5537268Z tests/test_live_broker.py::test_isolated_sessions PASSED                 [ 34%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5565598Z tests/test_live_broker.py::test_close_subscribers_wakes_every_current_stream PASSED [ 35%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5596998Z tests/test_live_broker.py::test_close_subscribers_makes_room_in_full_queue PASSED [ 35%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5626214Z tests/test_live_broker.py::test_subscribe_after_shutdown_closes_immediately PASSED [ 35%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5661137Z tests/test_mcp_config_isolation.py::test_t3_claude_passes_config_path_not_dict PASSED [ 35%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5705426Z tests/test_mcp_config_isolation.py::test_t3_claude_config_file_is_0600_and_roundtrips PASSED [ 36%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5738208Z tests/test_mcp_config_isolation.py::test_t3_secret_value_absent_from_option_string PASSED [ 36%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5770842Z tests/test_mcp_config_isolation.py::test_t3_every_server_and_field_survives_the_move PASSED [ 36%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5804767Z tests/test_mcp_config_isolation.py::test_t3_config_dir_is_private_and_outside_worktree_and_tmp PASSED [ 36%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5840545Z tests/test_mcp_config_isolation.py::test_t3_repeated_make_client_reuses_one_file PASSED [ 36%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5874715Z tests/test_mcp_config_isolation.py::test_t3_disconnect_removes_the_config_file PASSED [ 37%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5906280Z tests/test_mcp_config_isolation.py::test_t7_sdk_server_refuses_file_route_loudly PASSED [ 37%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5936030Z tests/test_mcp_config_isolation.py::test_t4_missing_session_id_fails_loudly PASSED [ 37%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5964554Z tests/test_mcp_config_isolation.py::test_t4_no_env_fragment_in_codex_argv PASSED [ 37%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.5995165Z tests/test_mcp_config_isolation.py::test_t4_no_secret_anywhere_in_the_full_codex_command PASSED [ 38%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6033873Z tests/test_mcp_config_isolation.py::test_t4_config_written_to_own_codex_home PASSED [ 38%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6075704Z tests/test_mcp_config_isolation.py::test_t4_foreign_global_servers_not_copied PASSED [ 38%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6116967Z tests/test_mcp_config_isolation.py::test_t4_trusts_canonical_cwd_and_escapes_it_as_toml_key PASSED [ 38%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6153185Z tests/test_mcp_config_isolation.py::test_t4_child_env_points_at_the_same_home PASSED [ 39%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6194347Z tests/test_mcp_config_isolation.py::test_t4_home_is_stable_across_reconnect PASSED [ 39%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6237688Z tests/test_mcp_config_isolation.py::test_t4_custom_server_cannot_hijack_the_identity PASSED [ 39%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6267342Z tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[../../etc] PASSED [ 39%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6297900Z tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[a/../../../tmp/x] PASSED [ 39%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6328385Z tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[] PASSED [ 40%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6357694Z tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[   ] PASSED [ 40%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6387280Z tests/test_mcp_config_isolation.py::test_t4_malformed_session_id_fails_loudly[a\x00b] PASSED [ 40%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6427518Z tests/test_mcp_config_isolation.py::test_t4_every_server_and_field_survives_into_config_toml PASSED [ 40%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6460644Z tests/test_mcp_config_isolation.py::test_t4_hostile_server_name_cannot_inject_toml PASSED [ 41%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6495513Z tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x00-NUL] PASSED [ 41%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6531397Z tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x07-BEL] PASSED [ 41%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6564957Z tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x1f-US] PASSED [ 41%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6599302Z tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x7f-DEL] PASSED [ 42%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6635319Z tests/test_mcp_config_isolation.py::test_t4_control_characters_do_not_break_config_parsing[\x85-C1] PASSED [ 42%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6677489Z tests/test_mcp_config_isolation.py::test_t3_disconnect_does_not_delete_a_newer_backends_config PASSED [ 42%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6715523Z tests/test_mcp_config_isolation.py::test_t4_existing_threads_keep_their_rollouts PASSED [ 42%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6753326Z tests/test_mcp_config_isolation.py::test_t4_rollout_found_via_backend_home_not_parent_environ PASSED [ 42%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6783625Z tests/test_mcp_config_isolation.py::test_t5_pipeline_default_denies_user_mcp_servers PASSED [ 43%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:01.6844097Z tests/test_merge_completion_watch.py::test_merge_mcp_waits_for_the_outcome_before_leaning_on_the_job PASSED [ 43%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:03.7188327Z tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[SUCCEEDED] PASSED [ 43%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:05.7496126Z tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[FAILED] PASSED [ 43%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:07.7823622Z tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[PARTIAL] PASSED [ 44%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:09.8136862Z tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[UNKNOWN] PASSED [ 44%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.8458066Z tests/test_merge_completion_watch.py::test_watch_delivers_terminal_state_to_pinned_session[RUNNING] PASSED [ 44%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.8591604Z tests/test_merge_completion_watch.py::test_watch_rejects_other_scope PASSED [ 44%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.8949871Z tests/test_merge_completion_watch.py::test_watch_restores_after_restart PASSED [ 44%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.9089858Z tests/test_merge_completion_watch.py::test_slow_status_request_cannot_exceed_merge_wait_budget PASSED [ 45%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.9134949Z tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery[/other-False] PASSED [ 45%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.9198072Z tests/test_merge_completion_watch.py::test_watch_not_confirmed_keeps_synchronous_recovery[/s-True] PASSED [ 45%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.9228999Z tests/test_merge_reason_preservation_416.py::test_t1_noop_preserves_existing_error_or_uses_default[existing-raw-error] PASSED [ 45%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:11.9261907Z tests/test_merge_reason_preservation_416.py::test_t1_noop_preserves_existing_error_or_uses_default[empty-raw-error] PASSED [ 46%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.0189357Z tests/test_merge_reason_preservation_416.py::test_t2_dirty_target_path_files_and_action_reach_merge_caller PASSED [ 46%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.0624434Z tests/test_merge_worker_lifecycle_702.py::test_merge_refuses_the_workers_own_branch PASSED [ 46%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.0780193Z tests/test_model_catalog.py::test_t2_normalize_maps_openrouter_fields PASSED [ 46%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.0904858Z tests/test_model_catalog.py::test_t2_normalize_free_and_no_tools PASSED  [ 47%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.1029144Z tests/test_model_catalog.py::test_t2_zero_token_price_without_free_suffix_is_not_harness_eligible PASSED [ 47%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.1154924Z tests/test_model_catalog.py::test_t2_normalize_rejects_empty_id PASSED   [ 47%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.1328903Z tests/test_model_catalog.py::test_t2_catalog_survives_enterprise_proxy_refresh PASSED [ 47%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.1532245Z tests/test_model_catalog.py::test_t2_apply_retains_disappeared_model_as_unavailable_compatibility_route PASSED [ 47%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.1689668Z tests/test_model_catalog.py::test_t2_legacy_cache_row_stays_usable_with_conservative_tools_only_capability PASSED [ 48%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.1898920Z tests/test_model_catalog.py::test_t2_apply_never_registers_zero_token_unsuffixed_route PASSED [ 48%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2111029Z tests/test_model_catalog.py::test_t2_refresh_retains_vanished_route_for_resume_but_marks_it_unavailable PASSED [ 48%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2299092Z tests/test_model_catalog.py::test_t2_admission_refuses_route_the_live_catalog_no_longer_backs PASSED [ 48%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2472590Z tests/test_model_catalog.py::test_t2_admission_passes_route_the_live_catalog_still_backs PASSED [ 49%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2685795Z tests/test_model_catalog.py::test_blocked_route_is_refused_and_never_registered PASSED [ 49%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2722959Z tests/test_models.py::test_resolve_model_aliases[sol-gpt-6.1-sol] PASSED [ 49%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2752356Z tests/test_models.py::test_resolve_model_aliases[luna-gpt-6-luna] PASSED [ 49%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2784579Z tests/test_models.py::test_create_session_request_resolves_model_alias[sol-gpt-6.1-sol] PASSED [ 50%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2814613Z tests/test_models.py::test_create_session_request_resolves_model_alias[luna-gpt-6-luna] PASSED [ 50%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2862344Z tests/test_models.py::test_sonnet_aliases_and_retired_ids_resolve_to_sonnet_55 PASSED [ 50%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2951971Z tests/test_models.py::test_selectable_models_match_the_curated_catalog PASSED [ 50%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.2991925Z tests/test_models.py::test_haiku_55_replaces_haiku_45_in_the_selectable_registry PASSED [ 50%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.3030543Z tests/test_models.py::test_claude_cache_rates_and_prompt_tier_are_registry_data PASSED [ 51%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.3069079Z tests/test_models.py::test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents[gpt-6-astra] PASSED [ 51%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.3098247Z tests/test_models.py::test_astra_and_sol_are_manual_only_even_if_stored_flags_allow_agents[gpt-6.1-sol] PASSED [ 51%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.3127159Z tests/test_models.py::test_retired_models_keep_explicit_session_compatibility_without_becoming_selectable PASSED [ 51%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.3158561Z tests/test_models.py::test_reducer_role_uses_the_selectable_luna_model PASSED [ 52%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.4022100Z tests/test_orchestra_layout_430.py::test_t1_forced_project_migration_is_committed_and_idempotent PASSED [ 52%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:12.9737331Z tests/test_orchestra_layout_430.py::test_t1_partial_missing_and_dirty_states_are_loud_and_repairable PASSED [ 52%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:13.0658004Z tests/test_orchestra_layout_430.py::test_t146_mixed_state_repair_gives_manual_resolution_instead_of_loop PASSED [ 52%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:13.0894094Z tests/test_orchestra_layout_430.py::test_t1_dirty_check_occurs_inside_repository_mutation_lock PASSED [ 52%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:13.0969309Z tests/test_orchestra_layout_430.py::test_t4_startup_runs_layout_migration_before_task_runtime PASSED [ 53%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:13.1023784Z tests/test_orchestra_layout_430.py::test_t3_pipeline_and_worker_memory_use_only_dot_orchestra PASSED [ 53%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:14.5637268Z tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots PASSED [ 53%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:19.5969142Z tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves PASSED [ 53%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:19.7043746Z tests/test_orchestrators_payload.py::test_db_path_has_no_prompt PASSED   [ 54%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:19.8174672Z tests/test_orchestrators_payload.py::test_active_session_path_has_no_prompt PASSED [ 54%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:19.9230350Z tests/test_orchestrators_payload.py::test_other_fields_survive PASSED    [ 54%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.0439310Z tests/test_orchestrators_payload.py::test_wire_weight_drops_below_the_envelope PASSED [ 54%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1529610Z tests/test_orchestrators_payload.py::test_full_prompt_still_available_by_its_own_door PASSED [ 55%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1565008Z tests/test_p4_cost.py::test_delta_cost_accumulates PASSED                [ 55%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1622601Z tests/test_p4_cost.py::test_session_id_change_resets_baseline PASSED     [ 55%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1654236Z tests/test_p4_cost.py::test_negative_delta_clamped PASSED                [ 55%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1687350Z tests/test_p4_cost.py::test_cached_cost_tracked_separately PASSED        [ 55%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1719516Z tests/test_p4_cost.py::test_failed_turn_flags PASSED                     [ 56%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1750634Z tests/test_p4_cost.py::test_delta_cost_is_added_directly_across_resume PASSED [ 56%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.1914848Z tests/test_p4_cost.py::test_provider_baseline_survives_process_restart PASSED [ 56%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.2096038Z tests/test_p4_cost.py::test_terminal_usage_keeps_baseline_and_usage_row_atomic PASSED [ 56%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.2255595Z tests/test_p4_cost.py::test_persisted_baseline_after_missing_usage_row_is_bounded PASSED [ 57%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.2288670Z tests/test_p4_cost.py::test_context_update PASSED                        [ 57%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.2323809Z tests/test_p4_cost.py::test_explicit_unknown_context_clears_previous PASSED [ 57%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.2354052Z tests/test_production_db_isolation.py::test_production_db_guard_is_autouse PASSED [ 57%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.2390713Z tests/test_production_db_isolation.py::test_production_db_guard_rejects_before_connect PASSED [ 57%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.3763048Z tests/test_quota_admission_e2e.py::test_gated_worker_is_still_created_above_the_line[claude-claude-opus-5-5[1m]] PASSED [ 58%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.5150572Z tests/test_quota_admission_e2e.py::test_gated_worker_is_created_below_the_line[claude-claude-opus-5-5[1m]] PASSED [ 58%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.6637733Z tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[luna-gpt-6-luna] PASSED [ 58%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.8063356Z tests/test_quota_admission_e2e.py::test_luna_and_spark_are_created_at_the_value_that_stops_sol[spark-gpt-5.3-codex-spark] PASSED [ 58%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:20.9494670Z tests/test_quota_admission_e2e.py::test_luna_and_spark_are_still_created_at_the_hard_stop[luna-gpt-6-luna] PASSED [ 59%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.0885754Z tests/test_quota_admission_e2e.py::test_luna_and_spark_are_still_created_at_the_hard_stop[spark-gpt-5.3-codex-spark] PASSED [ 59%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.1261309Z tests/test_quota_admission_e2e.py::test_orchestrator_is_created_at_a_hundred_percent PASSED [ 59%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.2682107Z tests/test_quota_admission_e2e.py::test_unknown_quota_admits_the_spawn_and_the_following_send PASSED [ 59%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.2714735Z tests/test_rate_limit_exact_v707.py::test_codex_usage_preserves_fractional_percent_and_source_payload PASSED [ 60%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.2746907Z tests/test_rate_limit_exact_v707.py::test_claude_cli_fractional_windows_reach_cache_api_and_quota PASSED [ 60%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.2901359Z tests/test_rate_limit_exact_v707.py::test_usage_snapshot_database_round_trips_fractional_windows_and_raw PASSED [ 60%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.3857935Z tests/test_return_to_merged_branch.py::test_without_proof_platform_does_not_touch_the_branch PASSED [ 60%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.4853520Z tests/test_return_to_merged_branch.py::test_proof_makes_it_benign PASSED [ 60%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.6088804Z tests/test_return_to_merged_branch.py::test_work_after_merge_is_fatal_and_names_both_heads PASSED [ 61%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.7124000Z tests/test_return_to_merged_branch.py::test_failed_merge_operation_is_not_a_proof PASSED [ 61%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.8439013Z tests/test_return_to_merged_branch.py::test_return_to_squash_merged_branch_now_succeeds PASSED [ 61%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.9895575Z tests/test_return_to_merged_branch.py::test_old_path_still_conflicts_without_recreate PASSED [ 61%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.9940568Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-review-orchestrator-False] PASSED [ 62%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:21.9982598Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-review-sub-orchestrator-False] PASSED [ 62%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0022552Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-review-worker-True] PASSED [ 62%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0062879Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-review-reducer-False] PASSED [ 62%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0102628Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-review--False] PASSED [ 63%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0140714Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-exec-orchestrator-False] PASSED [ 63%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0180671Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-exec-sub-orchestrator-False] PASSED [ 63%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0218807Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-exec-worker-True] PASSED [ 63%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0259193Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-exec-reducer-False] PASSED [ 63%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0299731Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-exec--False] PASSED [ 64%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0342542Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-implementation-orchestrator-False] PASSED [ 64%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0394589Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-implementation-sub-orchestrator-False] PASSED [ 64%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0432764Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-implementation-worker-True] PASSED [ 64%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0472433Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-implementation-reducer-False] PASSED [ 65%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0511803Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[False-implementation--False] PASSED [ 65%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0549723Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-review-orchestrator-False] PASSED [ 65%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0588952Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-review-sub-orchestrator-False] PASSED [ 65%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0626472Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-review-worker-True] PASSED [ 65%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0672214Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-review-reducer-False] PASSED [ 66%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0709575Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-review--False] PASSED [ 66%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0749116Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-exec-orchestrator-False] PASSED [ 66%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0788748Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-exec-sub-orchestrator-False] PASSED [ 66%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0825796Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-exec-worker-True] PASSED [ 67%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0865063Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-exec-reducer-False] PASSED [ 67%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0903517Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-exec--False] PASSED [ 67%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0943075Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-implementation-orchestrator-False] PASSED [ 67%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.0982343Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-implementation-sub-orchestrator-False] PASSED [ 68%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1019610Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-implementation-worker-True] PASSED [ 68%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1058365Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-implementation-reducer-False] PASSED [ 68%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1094992Z tests/test_review_requester_roles.py::test_non_executor_cannot_start_or_resume_review[True-implementation--False] PASSED [ 68%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1133430Z tests/test_review_requester_roles.py::test_executor_reaches_review_validation[worker] PASSED [ 68%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1171104Z tests/test_review_requester_roles.py::test_executor_reaches_review_validation[full-cycle] PASSED [ 69%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1206885Z tests/test_review_requester_roles.py::test_executor_cannot_order_another_workers_review[worker] PASSED [ 69%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1245191Z tests/test_review_requester_roles.py::test_executor_cannot_order_another_workers_review[full-cycle] PASSED [ 69%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1479549Z tests/test_runtime_handoff_v2.py::test_t1_packet_ledger_is_additive_deterministic_and_cannot_launder_authority PASSED [ 69%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1688920Z tests/test_runtime_handoff_v2.py::test_t1_prepare_drains_pending_log_before_atomic_snapshot PASSED [ 70%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1721211Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[system_prompt] PASSED [ 70%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1760819Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[developer_prompt] PASSED [ 70%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1791730Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[project_docs] PASSED [ 70%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1822757Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[runtime_project_doc] PASSED [ 71%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1860724Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[tool_schemas] PASSED [ 71%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1890927Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[skill_index] PASSED [ 71%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1923871Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[packet] PASSED [ 71%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1956243Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[recent_delta] PASSED [ 71%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.1986534Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[validation_profile] PASSED [ 72%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2016939Z tests/test_runtime_handoff_v2.py::test_t2_total_context_preflight_counts_each_staged_component[canary] PASSED [ 72%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2211717Z tests/test_runtime_handoff_v2.py::test_t2_attempt_ledger_allows_one_fallback_and_retains_cleanup_locators PASSED [ 72%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2406517Z tests/test_runtime_handoff_v2.py::test_t2_confirmation_updates_session_and_ledger_in_one_transaction PASSED [ 72%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2475251Z tests/test_runtime_handoff_v2.py::test_t5_same_provider_native_resume_preflights_smaller_target_window PASSED [ 73%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2534208Z tests/test_runtime_handoff_v2.py::test_t5_pending_effect_does_not_block_in_place_codex_retarget PASSED [ 73%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2565572Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[anthropic] PASSED [ 73%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2596735Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[bearer] PASSED [ 73%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2629189Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[github] PASSED [ 73%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2659720Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[github-pat] PASSED [ 74%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2689931Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[google-api-key] PASSED [ 74%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2721219Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[google-oauth] PASSED [ 74%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2751262Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[openrouter] PASSED [ 74%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2781309Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[pem-private-key] PASSED [ 75%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2812708Z tests/test_secret_commit_gate.py::test_value_of_provider_format_is_caught[yandex-oauth] PASSED [ 75%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2842855Z tests/test_secret_commit_gate.py::test_known_evasions_are_caught[escaped-pem] PASSED [ 75%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2872934Z tests/test_secret_commit_gate.py::test_known_evasions_are_caught[placeholder-inside-valid-token] PASSED [ 75%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2919768Z tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[tests/test_secret_mask.py] PASSED [ 76%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.2962498Z tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json] PASSED [ 76%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.3004166Z tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[CLAUDE.md] PASSED [ 76%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.3051146Z tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/kb/runtimes.md] PASSED [ 76%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.3141841Z tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[app/runtime_history.py] PASSED [ 76%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.3180459Z tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[app/secret_mask.py] PASSED [ 77%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.3212581Z tests/test_secret_commit_gate.py::test_findings_never_print_the_value PASSED [ 77%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.4208221Z tests/test_secret_commit_gate.py::test_hook_blocks_commit_of_a_secret PASSED [ 77%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.5627910Z tests/test_secret_commit_gate.py::test_hook_lets_a_mention_through PASSED [ 77%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.6735974Z tests/test_secret_commit_gate.py::test_hook_from_common_dir_covers_linked_worktree PASSED [ 78%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.7399262Z tests/test_secret_commit_gate.py::test_missing_scanner_fails_closed_and_names_the_cause PASSED [ 78%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:22.8726063Z tests/test_secret_commit_gate.py::test_pre_push_catches_what_no_verify_committed PASSED [ 78%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:23.0089218Z tests/test_secret_commit_gate.py::test_commit_msg_hook_blocks_a_secret_in_the_message PASSED [ 78%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:23.1545022Z tests/test_secret_commit_gate.py::test_pre_push_scans_every_published_commit_not_the_net_diff PASSED [ 78%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:23.3336111Z tests/test_secret_commit_gate.py::test_typechange_to_symlink_is_scanned PASSED [ 79%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:23.4769671Z tests/test_secret_commit_gate.py::test_gitlink_and_non_utf8_path_do_not_block_an_honest_commit PASSED [ 79%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:23.5791021Z tests/test_secret_commit_gate.py::test_installer_refuses_when_git_uses_another_hooks_dir PASSED [ 79%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:23.5986456Z tests/test_secret_commit_gate.py::test_repo_gitignore_covers_every_env_derivative PASSED [ 79%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:26.1920653Z tests/test_service_process_tree_537.py::test_systemd_retires_whole_generation_before_replacement[restart] PASSED [ 80%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:28.9424964Z tests/test_service_process_tree_537.py::test_systemd_retires_whole_generation_before_replacement[supervisor-crash] PASSED [ 80%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:36.8244627Z tests/test_sigterm_sse_shutdown_v630.py::test_sigterm_exits_with_open_dashboard_sse PASSED [ 80%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:36.8400161Z tests/test_static_js_globals.py::test_no_global_name_is_declared_in_two_scripts PASSED [ 80%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:37.2843531Z tests/test_switch_after_continue_620.py::test_switch_releases_clean_worker_and_requeues_previous_task PASSED [ 81%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:37.7355820Z tests/test_switch_after_continue_620.py::test_switch_with_complete_previous_closes_task_as_done_with_note PASSED [ 81%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:38.0929897Z tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-uncommitted] PASSED [ 81%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:38.4643936Z tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[plain-unmerged_commit] PASSED [ 81%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:38.8191410Z tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-uncommitted] PASSED [ 81%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:39.2605248Z tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[force-unmerged_commit] PASSED [ 82%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:39.5974555Z tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-uncommitted] PASSED [ 82%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:39.9467074Z tests/test_switch_after_continue_620.py::test_switch_keeps_binding_while_worker_holds_unlanded_work[complete_previous-unmerged_commit] PASSED [ 82%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:39.9506402Z tests/test_task_binding_refusal.py::test_busy_task_names_the_holder_and_the_way_out PASSED [ 82%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:39.9541606Z tests/test_task_binding_refusal.py::test_free_task_reports_a_revision_race_instead_of_a_fake_holder PASSED [ 83%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:39.9581618Z tests/test_task_binding_refusal.py::test_missing_task_row_does_not_crash_the_refusal PASSED [ 83%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.3268425Z tests/test_taskless_merge_no_id_702.py::test_taskless_merge_without_task_id_returns_promotion_action PASSED [ 83%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.3375723Z tests/test_tg_file_batch_route.py::test_tg_send_file_route_dispatches_paths_to_batch_with_mirror PASSED [ 83%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.3465750Z tests/test_tg_file_batch_route.py::test_tg_send_file_route_reports_atomic_batch_validation_failure PASSED [ 84%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.3947682Z tests/test_tg_file_batch_route.py::test_media_group_timeout_marks_every_file_unknown_without_retry PASSED [ 84%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.4650222Z tests/test_tg_file_batch_route.py::test_batch_retries_only_pre_submit_failure_with_same_root_event PASSED [ 84%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.4902679Z tests/test_tg_file_batch_route.py::test_batch_root_collision_with_single_delivery_returns_conflict PASSED [ 84%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.4947206Z tests/test_tg_large_file_timeout.py::test_local_api_session_raises_the_default_timeout PASSED [ 84%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.4986321Z tests/test_tg_large_file_timeout.py::test_session_timeout_is_the_value_requests_actually_use PASSED [ 85%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.5054234Z tests/test_turn_ended_no_quota_suffix.py::test_turn_ended_line_has_cost_and_ctx_but_no_quota_percents PASSED [ 85%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.5117957Z tests/test_turn_ended_no_quota_suffix.py::test_turn_end_price_uncertainty_flag_reaches_status_marker[False] PASSED [ 85%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.5180641Z tests/test_turn_ended_no_quota_suffix.py::test_turn_end_price_uncertainty_flag_reaches_status_marker[True] PASSED [ 85%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.5680500Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.claude-orchestrator] PASSED [ 86%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.5990011Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.claude-sub-orchestrator] PASSED [ 86%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.6260273Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.claude-worker] PASSED [ 86%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.6535692Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.claude-full-cycle] PASSED [ 86%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.6771169Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.claude-reducer] PASSED [ 86%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.7116091Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.codex-orchestrator] PASSED [ 87%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.7430520Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.codex-sub-orchestrator] PASSED [ 87%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.7700262Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.codex-worker] PASSED [ 87%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.7971619Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.codex-full-cycle] PASSED [ 87%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8205240Z tests/test_unified_html_skill.py::test_every_role_receives_the_same_native_html_skill[.codex-reducer] PASSED [ 88%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8309289Z tests/test_usage_readiness.py::test_anthropic_refresh_is_target_isolated_and_singleflight PASSED [ 88%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8351088Z tests/test_usage_readiness.py::test_singleflight_waiters_recheck_clock_after_newer_refresh PASSED [ 88%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8415976Z tests/test_usage_readiness.py::test_spark_refresh_uses_one_codex_fetch_but_keeps_buckets_separate PASSED [ 88%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8454125Z tests/test_usage_readiness.py::test_refresh_failure_preserves_stale_observation_timestamp PASSED [ 89%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8490491Z tests/test_usage_readiness.py::test_fresh_cache_does_not_fetch_at_age_299_9 PASSED [ 89%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8546986Z tests/test_usage_readiness.py::test_age_300_refreshes_exactly_at_boundary PASSED [ 89%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8583608Z tests/test_usage_readiness.py::test_readiness_endpoint_returns_the_execution_time_decision PASSED [ 89%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8627388Z tests/test_usage_readiness.py::test_readiness_endpoint_blocks_above_the_line PASSED [ 89%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8663942Z tests/test_usage_readiness.py::test_unknown_model_endpoint_fails_open_without_refresh PASSED [ 90%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8694617Z tests/test_wf_run.py::test_string_schema_accepts_plain_text_and_json_string PASSED [ 90%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8778912Z tests/test_wf_run.py::test_resume_ignores_a_truncated_tail_and_continues_after_completed_calls PASSED [ 90%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8841433Z tests/test_wf_run.py::test_budget_exhaustion_returns_none_and_marks_manifest_partial PASSED [ 90%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8912573Z tests/test_wf_run.py::test_full_tools_network_and_mcp_are_default_per_agent_call PASSED [ 91%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.8968895Z tests/test_wf_run.py::test_agent_modules_use_the_canonical_pipeline_builder PASSED [ 91%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.9008288Z tests/test_wf_run.py::test_build_system_prompt_still_flows_through_public_module_builder PASSED [ 91%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.9052620Z tests/test_wf_run.py::test_build_system_prompt_keeps_every_configured_worker_module PASSED [ 91%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.9084224Z tests/test_wf_run.py::test_missing_prompt_module_fails_loud PASSED       [ 92%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:40.9114515Z tests/test_wf_run.py::test_default_workflow_module_interface_is_frozen PASSED [ 92%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:41.0344441Z tests/test_wf_run.py::test_parallel_writers_use_distinct_real_worktrees PASSED [ 92%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:41.9326311Z tests/test_wf_run.py::test_identical_parallel_prompts_create_distinct_worktrees PASSED [ 92%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.0143206Z tests/test_wf_run.py::test_prepare_failure_is_recorded_and_resume_retries_it PASSED [ 92%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.1071624Z tests/test_wf_run.py::test_committed_workspace_is_archived_reset_and_discarded PASSED [ 93%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.1936385Z tests/test_wf_run.py::test_new_ignored_workspace_output_is_archived PASSED [ 93%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.2742873Z tests/test_wf_run.py::test_workspace_setup_failure_is_recorded_retryable_and_not_paid_unknown PASSED [ 93%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.3543739Z tests/test_wf_run.py::test_cancellation_during_worktree_create_discards_late_result PASSED [ 93%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4357880Z tests/test_wf_run.py::test_cancellation_during_snapshot_still_resets_and_discards PASSED [ 94%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4423062Z tests/test_wf_run.py::test_parallel_calls_reserve_max_call_budget_before_dispatch PASSED [ 94%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4498510Z tests/test_wf_run.py::test_schema_retries_twice_with_validation_error_then_returns_none PASSED [ 94%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4564209Z tests/test_wf_run.py::test_schema_retry_accepts_a_later_valid_response PASSED [ 94%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4620239Z tests/test_wf_run.py::test_dispatched_is_fsynced_before_adapter_invocation PASSED [ 94%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4681099Z tests/test_wf_run.py::test_engine_persists_usage_before_terminal_journal_record PASSED [ 95%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4751975Z tests/test_wf_run.py::test_usage_is_persisted_for_full_and_restricted_capabilities PASSED [ 95%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.4790542Z tests/test_wf_run.py::test_restricted_capabilities_require_an_inline_reason PASSED [ 95%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5230996Z tests/test_wf_run.py::test_harness_read_capability_rejects_a_hallucinated_write PASSED [ 95%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5415072Z tests/test_wf_run.py::test_standalone_harness_default_is_not_writable PASSED [ 96%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5659858Z tests/test_wf_run.py::test_free_output_requires_a_verify_step_before_synthesis PASSED [ 96%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5719557Z tests/test_wf_run.py::test_dispatched_without_terminal_event_resumes_as_unknown_not_a_second_charge PASSED [ 96%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5787928Z tests/test_wf_run.py::test_attempt_finished_without_completed_resumes_as_unknown PASSED [ 96%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5868530Z tests/test_wf_run.py::test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt PASSED [ 97%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.5929000Z tests/test_wf_run.py::test_unknown_spend_conservatively_exhausts_dollar_budget PASSED [ 97%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6010729Z tests/test_wf_run.py::test_crash_after_final_schema_checkpoint_restores_schema_failure PASSED [ 97%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6077368Z tests/test_wf_run.py::test_transient_quota_skip_is_rechecked_on_resume PASSED [ 97%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6143997Z tests/test_wf_run.py::test_historical_budget_skip_clears_after_larger_budget_resume PASSED [ 97%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6179828Z tests/test_wf_run.py::test_adapter_parsers_use_captured_real_cli_outputs PASSED [ 98%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6236015Z tests/test_wf_run.py::test_codex_capability_flags_make_full_network_the_default PASSED [ 98%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6281876Z tests/test_wf_run.py::test_codex_mcp_uses_private_scope_config_not_global_home PASSED [ 98%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6321952Z tests/test_wf_run.py::test_claude_full_capability_loads_scoped_mcp_without_project_rules PASSED [ 98%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6492428Z tests/test_wf_run.py::test_sessionless_usage_is_written_immediately_and_is_replay_safe PASSED [ 99%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6575983Z tests/test_wf_run.py::test_manifest_contains_ready_resume_command PASSED [ 99%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6646626Z tests/test_wf_run.py::test_manifest_can_use_a_runner_specific_resume_command PASSED [ 99%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.6743955Z tests/test_wf_run.py::test_executes_a_top_level_await_workflow PASSED    [ 99%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7037647Z tests/test_wf_run.py::test_pilot_gate_requires_twenty_distinct_closed_ticket_results PASSED [100%]
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7038961Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7039260Z =================================== FAILURES ===================================
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7040193Z ___________ test_manual_stress_marker_is_removed_from_scene_caption ____________
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7040875Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7041246Z     def test_manual_stress_marker_is_removed_from_scene_caption():
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7042026Z         import json
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7042464Z     
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7042965Z         with make.sync_playwright() as playwright:
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7043723Z >           browser = playwright.chromium.launch()
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7044428Z                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7044844Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7045085Z tests/test_explainer_video.py:48: 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7048055Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7049407Z .venv/lib/python3.12/site-packages/playwright/sync_api/_generated.py:16269: in launch
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7050233Z     self._sync(
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7050846Z .venv/lib/python3.12/site-packages/playwright/_impl/_browser_type.py:98: in launch
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7051618Z     await self._channel.send(
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7052271Z .venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:69: in send
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7053050Z     return await self._connection.wrap_api_call(
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7053662Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7054083Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7054431Z self = <playwright._impl._connection.Connection object at 0x7fc6e23dbbf0>
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7055478Z cb = <function Channel.send.<locals>.<lambda> at 0x7fc6e24d77e0>
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7056101Z is_internal = False, title = None
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7056388Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7056555Z     async def wrap_api_call(
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7057137Z         self, cb: Callable[[], Any], is_internal: bool = False, title: str = None
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7057814Z     ) -> Any:
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7058161Z         if self._api_zone.get():
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7058568Z             return await cb()
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7058857Z         task = asyncio.current_task(self._loop)
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7059190Z         st: List[inspect.FrameInfo] = getattr(
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7059488Z             task, "__pw_stack__", None
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7059756Z         ) or inspect.stack(0)
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7059989Z     
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7060326Z         parsed_st = _extract_stack_trace_information_from_stack(st, is_internal, title)
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7060755Z         self._api_zone.set(parsed_st)
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7061019Z         try:
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7061221Z             return await cb()
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7061490Z         except Exception as error:
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7061876Z >           raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7062853Z E           playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7064300Z E           ╔════════════════════════════════════════════════════════════╗
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7064787Z E           ║ Looks like Playwright was just installed or updated.       ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7065534Z E           ║ Please run the following command to download new browsers: ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7066023Z E           ║                                                            ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7066447Z E           ║     playwright install                                     ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7066861Z E           ║                                                            ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7067279Z E           ║ <3 Playwright Team                                         ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7067733Z E           ╚════════════════════════════════════════════════════════════╝
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7068143Z 
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7068374Z .venv/lib/python3.12/site-packages/playwright/_impl/_connection.py:559: Error
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7068856Z =========================== short test summary info ============================
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7070099Z FAILED tests/test_explainer_video.py::test_manual_stress_marker_is_removed_from_scene_caption - playwright._impl._errors.Error: BrowserType.launch: Executable doesn't exist at /home/runner/.cache/ms-playwright/chromium_headless_shell-1223/chrome-headless-shell-linux64/chrome-headless-shell
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7071480Z ╔════════════════════════════════════════════════════════════╗
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7071921Z ║ Looks like Playwright was just installed or updated.       ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7072380Z ║ Please run the following command to download new browsers: ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7072785Z ║                                                            ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7073164Z ║     playwright install                                     ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7073552Z ║                                                            ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7073933Z ║ <3 Playwright Team                                         ║
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7074368Z ╚════════════════════════════════════════════════════════════╝
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:42.7074745Z ================ 1 failed, 437 passed, 108 deselected in 56.73s ================
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8683609Z Command exited with non-zero status 1
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8693409Z 	Command being timed: "uv run pytest -v -rf --timeout=30 -m not live_probe and not browser tests/test_agentic_compact_650.py tests/test_artifacts.py tests/test_audit0901_mcp.py tests/test_auto_report_send_result.py tests/test_backend_stream.py tests/test_catalog_api.py tests/test_claude_env_hook.py tests/test_codex_managed_state.py tests/test_compact_chat_672.py tests/test_cross_repo_warning.py tests/test_delivery_head_of_line_block.py tests/test_disconnect_dead_process.py tests/test_explainer_video.py tests/test_fan_enable.py tests/test_frontend.py tests/test_handoff_effect_classification.py tests/test_hot_apply.py tests/test_instruction_contract.py tests/test_layout_batch_v704.py tests/test_live_broker.py tests/test_mcp_config_isolation.py tests/test_merge_completion_watch.py tests/test_merge_reason_preservation_416.py tests/test_merge_worker_lifecycle_702.py tests/test_model_catalog.py tests/test_models.py tests/test_orchestra_layout_430.py tests/test_orchestrators_payload.py tests/test_p4_cost.py tests/test_production_db_isolation.py tests/test_quota_admission_e2e.py tests/test_rate_limit_exact_v707.py tests/test_return_to_merged_branch.py tests/test_review_requester_roles.py tests/test_runtime_handoff_v2.py tests/test_secret_commit_gate.py tests/test_service_process_tree_537.py tests/test_sigterm_sse_shutdown_v630.py tests/test_static_js_globals.py tests/test_switch_after_continue_620.py tests/test_task_binding_refusal.py tests/test_taskless_merge_no_id_702.py tests/test_tg_file_batch_route.py tests/test_tg_large_file_timeout.py tests/test_turn_ended_no_quota_suffix.py tests/test_unified_html_skill.py tests/test_usage_readiness.py tests/test_wf_run.py"
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8700813Z 	User time (seconds): 28.20
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8701306Z 	System time (seconds): 8.25
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8701569Z 	Percent of CPU this job got: 61%
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8701887Z 	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:58.89
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8702209Z 	Average shared text size (kbytes): 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8702489Z 	Average unshared data size (kbytes): 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8702770Z 	Average stack size (kbytes): 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8703020Z 	Average total size (kbytes): 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8703287Z 	Maximum resident set size (kbytes): 228928
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8703584Z 	Average resident set size (kbytes): 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8703875Z 	Major (requiring I/O) page faults: 524
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8704184Z 	Minor (reclaiming a frame) page faults: 1040243
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8704491Z 	Voluntary context switches: 48879
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8704758Z 	Involuntary context switches: 1107
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8705160Z 	Swaps: 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8705606Z 	File system inputs: 90672
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8705854Z 	File system outputs: 414432
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8706103Z 	Socket messages sent: 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8706345Z 	Socket messages received: 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8706579Z 	Signals delivered: 0
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8706800Z 	Page size (bytes): 4096
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8707021Z 	Exit status: 1
+test (3)	pytest shard 3 of 6	2026-10-08T08:03:43.8718057Z ##[error]Process completed with exit code 1.
+test (3)	Post Run actions/checkout@v5	﻿2026-10-08T08:03:43.8870998Z Post job cleanup.
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9766217Z [command]/usr/bin/git version
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9807680Z git version 2.55.0
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9852604Z Temporarily overriding HOME='/home/runner/work/_temp/17265836-db38-4b11-b7ce-f90d6e72ef2a' before making global git config changes
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9853942Z Adding repository directory to the temporary git global config as a safe directory
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9860654Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9901198Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:43.9935581Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:44.0194280Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:44.0219744Z http.https://github.com/.extraheader
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:44.0233115Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:44.0277043Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:44.0575128Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+test (3)	Post Run actions/checkout@v5	2026-10-08T08:03:44.0618919Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+test (3)	Complete job	﻿2026-10-08T08:03:44.1080880Z Cleaning up orphan processes

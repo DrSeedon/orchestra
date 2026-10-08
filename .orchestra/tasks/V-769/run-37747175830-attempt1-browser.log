@@ -1,0 +1,828 @@
+browser	Set up job	﻿2026-10-08T08:02:08.8406708Z Current runner version: '2.337.0'
+browser	Set up job	2026-10-08T08:02:08.8430954Z ##[group]Runner Image Provisioner
+browser	Set up job	2026-10-08T08:02:08.8431882Z Hosted Compute Agent
+browser	Set up job	2026-10-08T08:02:08.8432453Z Version: 20260901.588
+browser	Set up job	2026-10-08T08:02:08.8433131Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+browser	Set up job	2026-10-08T08:02:08.8433932Z Build Date: 2026-09-01T19:56:44Z
+browser	Set up job	2026-10-08T08:02:08.8434591Z Worker ID: {a5f180f2-4053-46ae-9015-3c1c95b15cf5}
+browser	Set up job	2026-10-08T08:02:08.8435573Z Azure Region: southcentralus
+browser	Set up job	2026-10-08T08:02:08.8436184Z ##[endgroup]
+browser	Set up job	2026-10-08T08:02:08.8437832Z ##[group]Operating System
+browser	Set up job	2026-10-08T08:02:08.8438455Z Ubuntu
+browser	Set up job	2026-10-08T08:02:08.8438944Z 24.04.5
+browser	Set up job	2026-10-08T08:02:08.8439484Z LTS
+browser	Set up job	2026-10-08T08:02:08.8439985Z ##[endgroup]
+browser	Set up job	2026-10-08T08:02:08.8440551Z ##[group]Runner Image
+browser	Set up job	2026-10-08T08:02:08.8441146Z Image: ubuntu-24.04
+browser	Set up job	2026-10-08T08:02:08.8441701Z Version: 20260927.320.1
+browser	Set up job	2026-10-08T08:02:08.8442741Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+browser	Set up job	2026-10-08T08:02:08.8444421Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+browser	Set up job	2026-10-08T08:02:08.8445701Z ##[endgroup]
+browser	Set up job	2026-10-08T08:02:08.8446986Z ##[group]GITHUB_TOKEN Permissions
+browser	Set up job	2026-10-08T08:02:08.8449123Z Contents: read
+browser	Set up job	2026-10-08T08:02:08.8449709Z Metadata: read
+browser	Set up job	2026-10-08T08:02:08.8450881Z Packages: read
+browser	Set up job	2026-10-08T08:02:08.8451474Z ##[endgroup]
+browser	Set up job	2026-10-08T08:02:08.8454369Z Secret source: Actions
+browser	Set up job	2026-10-08T08:02:08.8455879Z Cache mode: write
+browser	Set up job	2026-10-08T08:02:08.8457143Z Prepare workflow directory
+browser	Set up job	2026-10-08T08:02:08.8880068Z Prepare all required actions
+browser	Set up job	2026-10-08T08:02:08.8936529Z Getting action download info
+browser	Set up job	2026-10-08T08:02:09.1800026Z Download action repository 'actions/checkout@v5' (SHA:fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09)
+browser	Set up job	2026-10-08T08:02:09.2952535Z Download action repository 'astral-sh/setup-uv@v7' (SHA:37802adc94f370d6bfd71619e3f0bf239e1f3b78)
+browser	Set up job	2026-10-08T08:02:10.0017518Z Complete job name: browser
+browser	Run actions/checkout@v5	﻿2026-10-08T08:02:10.0736443Z ##[group]Run actions/checkout@v5
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0737480Z with:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0738101Z   fetch-depth: 0
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0738701Z   repository: DrSeedon/orchestra
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0743267Z   token: ***
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0743836Z   ssh-strict: true
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0744431Z   ssh-user: git
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0745281Z   persist-credentials: true
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0745932Z   clean: true
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0746508Z   sparse-checkout-cone-mode: true
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0747287Z   fetch-tags: false
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0747868Z   show-progress: true
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0748462Z   lfs: false
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0749001Z   submodules: false
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0749600Z   set-safe-directory: true
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0750286Z   allow-unsafe-pr-checkout: false
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0751146Z env:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0751701Z   GIT_AUTHOR_NAME: Orchestra CI
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0752428Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0753197Z   GIT_COMMITTER_NAME: Orchestra CI
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0754099Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.0754953Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1788039Z Syncing repository: DrSeedon/orchestra
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1790234Z ##[group]Getting Git version info
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1791225Z Working directory is '/home/runner/work/orchestra/orchestra'
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1792564Z [command]/usr/bin/git version
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1864162Z git version 2.55.0
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1886102Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1900248Z Temporarily overriding HOME='/home/runner/work/_temp/ae0e7a08-9004-422d-a850-8c0b2c9b89e4' before making global git config changes
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1903074Z Adding repository directory to the temporary git global config as a safe directory
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1908117Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1973055Z Deleting the contents of '/home/runner/work/orchestra/orchestra'
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1976145Z ##[group]Initializing the repository
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.1981140Z [command]/usr/bin/git init /home/runner/work/orchestra/orchestra
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2107576Z hint: Using 'master' as the name for the initial branch. This default branch name
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2109562Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2111866Z hint: to use in all of your new repositories, which will suppress this warning,
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2113322Z hint: call:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2114218Z hint:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2115521Z hint: 	git config --global init.defaultBranch <name>
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2117004Z hint:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2118430Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2120451Z hint: 'development'. The just-created branch can be renamed via this command:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2122119Z hint:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2123167Z hint: 	git branch -m <name>
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2124294Z hint:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2125846Z hint: Disable this message with "git config set advice.defaultBranchName false"
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2127946Z Initialized empty Git repository in /home/runner/work/orchestra/orchestra/.git/
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2131757Z [command]/usr/bin/git remote add origin https://github.com/DrSeedon/orchestra
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2188335Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2190294Z ##[group]Disabling automatic garbage collection
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2191791Z [command]/usr/bin/git config --local gc.auto 0
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2255467Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2257285Z ##[group]Setting up auth
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2260327Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2296412Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2677897Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2710880Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2900253Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.2930991Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.3117860Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.3157626Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.3158807Z ##[group]Fetching the repository
+browser	Run actions/checkout@v5	2026-10-08T08:02:10.3168682Z [command]/usr/bin/git -c protocol.version=2 fetch --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3532906Z From https://github.com/DrSeedon/orchestra
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3535244Z  * [new branch]        adhoc-315170/fix-topic-flicker -> origin/adhoc-315170/fix-topic-flicker
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3536519Z  * [new branch]        adhoc-572092/research-compact-prompt -> origin/adhoc-572092/research-compact-prompt
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3537805Z  * [new branch]        adhoc-575506/research-compact-prompt -> origin/adhoc-575506/research-compact-prompt
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3539183Z  * [new branch]        adhoc-581995/research-compact-prompt -> origin/adhoc-581995/research-compact-prompt
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3540082Z  * [new branch]        fix/codex-native-state-compat -> origin/fix/codex-native-state-compat
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3540944Z  * [new branch]        fix/handoff-context-window -> origin/fix/handoff-context-window
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3541795Z  * [new branch]        fix/instruction-guard-ci -> origin/fix/instruction-guard-ci
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3542531Z  * [new branch]        fix/stability-recovery -> origin/fix/stability-recovery
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3543298Z  * [new branch]        fix/worker-autonomy    -> origin/fix/worker-autonomy
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3544488Z  * [new branch]        laptop-sync            -> origin/laptop-sync
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3545507Z  * [new branch]        main                   -> origin/main
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3546332Z  * [new branch]        refactor/knowledge-delivery -> origin/refactor/knowledge-delivery
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3547217Z  * [new branch]        simplify/storage-and-task-prefixes -> origin/simplify/storage-and-task-prefixes
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3548095Z  * [new branch]        task-106/research-compact-prompt -> origin/task-106/research-compact-prompt
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3548882Z  * [new branch]        task-515/fix-ci-green  -> origin/task-515/fix-ci-green
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3549512Z  * [new branch]        task-87/feat-wake-on-reset -> origin/task-87/feat-wake-on-reset
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3550194Z  * [new branch]        task-98/grok-test      -> origin/task-98/grok-test
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3551026Z  * [new branch]        task-V-693/fix-ci      -> origin/task-V-693/fix-ci
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3551857Z  * [new branch]        vps-cleanup-facts      -> origin/vps-cleanup-facts
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3554566Z [command]/usr/bin/git branch --list --remote origin/main
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3571218Z   origin/main
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3580305Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3602566Z 24c54163adbc6881c654590c75e92cd6d07ecb7e
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3607443Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3608459Z ##[group]Determining the checkout info
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3609478Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3615100Z [command]/usr/bin/git sparse-checkout disable
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3677004Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3705563Z ##[group]Checking out the ref
+browser	Run actions/checkout@v5	2026-10-08T08:02:18.3708327Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.4625959Z Updating files:  79% (3490/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.5503203Z Updating files:  80% (3516/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6277923Z Updating files:  81% (3560/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6356447Z Updating files:  82% (3604/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6377390Z Updating files:  83% (3648/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6418813Z Updating files:  84% (3692/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6451272Z Updating files:  85% (3736/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6487741Z Updating files:  86% (3780/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6558581Z Updating files:  87% (3824/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6619331Z Updating files:  88% (3868/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6694390Z Updating files:  89% (3912/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.6769204Z Updating files:  90% (3956/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7646486Z Updating files:  91% (4000/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7677351Z Updating files:  92% (4044/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7726826Z Updating files:  93% (4088/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7762730Z Updating files:  94% (4132/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7810540Z Updating files:  95% (4176/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7857683Z Updating files:  96% (4220/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7886963Z Updating files:  97% (4264/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7924047Z Updating files:  98% (4308/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7982223Z Updating files:  99% (4352/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7982866Z Updating files: 100% (4395/4395)
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.7983229Z Updating files: 100% (4395/4395), done.
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.8047971Z Switched to a new branch 'main'
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.8053859Z branch 'main' set up to track 'origin/main'.
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.8086833Z ##[endgroup]
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.8132446Z [command]/usr/bin/git log -1 --format=%H
+browser	Run actions/checkout@v5	2026-10-08T08:02:19.8171976Z 24c54163adbc6881c654590c75e92cd6d07ecb7e
+browser	Run astral-sh/setup-uv@v7	﻿2026-10-08T08:02:19.8421648Z ##[group]Run astral-sh/setup-uv@v7
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8422115Z with:
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8422577Z   activate-environment: false
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8423090Z   working-directory: /home/runner/work/orchestra/orchestra
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8427251Z   github-token: ***
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8427604Z   enable-cache: auto
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8428277Z   cache-dependency-glob: **/*requirements*.txt
+browser	Run astral-sh/setup-uv@v7	**/*requirements*.in
+browser	Run astral-sh/setup-uv@v7	**/*constraints*.txt
+browser	Run astral-sh/setup-uv@v7	**/*constraints*.in
+browser	Run astral-sh/setup-uv@v7	**/pyproject.toml
+browser	Run astral-sh/setup-uv@v7	**/uv.lock
+browser	Run astral-sh/setup-uv@v7	**/*.py.lock
+browser	Run astral-sh/setup-uv@v7	
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8429193Z   restore-cache: true
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8429520Z   save-cache: true
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8430238Z   prune-cache: true
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8430563Z   cache-python: false
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8430913Z   ignore-nothing-to-cache: false
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8431352Z   ignore-empty-workdir: false
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8431710Z   add-problem-matchers: true
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8432069Z   resolution-strategy: highest
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8432411Z env:
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8432723Z   GIT_AUTHOR_NAME: Orchestra CI
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8433274Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8433668Z   GIT_COMMITTER_NAME: Orchestra CI
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8434091Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:19.8434514Z ##[endgroup]
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.0107908Z Trying to find version for uv in: /home/runner/work/orchestra/orchestra/uv.toml
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.0109668Z Could not find file: /home/runner/work/orchestra/orchestra/uv.toml
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.0110829Z Trying to find version for uv in: /home/runner/work/orchestra/orchestra/pyproject.toml
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.0114820Z Could not determine uv version from uv.toml or pyproject.toml. Falling back to latest.
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.0117527Z Fetching version data from https://raw.githubusercontent.com/astral-sh/versions/main/v1/uv.ndjson ...
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.1264045Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.12.23/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.3854462Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/05a9a911-aa14-417f-be75-53ade73497ad -f /home/runner/work/_temp/bdaf8730-c51f-4222-b67c-cb3a9f09fc85
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.9372892Z Added /home/runner/.local/bin to the path
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.9375933Z Added /opt/hostedtoolcache/uv/0.12.23/x86_64 to the path
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.9376854Z Set UV_PYTHON_INSTALL_DIR to /home/runner/work/_temp/uv-python-dir
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.9377747Z Added /home/runner/work/_temp/uv-python-dir to the path
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.9409559Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:20.9410210Z Successfully installed uv version 0.12.23
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:21.1078432Z Searching files using cache dependency glob: /home/runner/work/orchestra/orchestra/**/*requirements*.txt,/home/runner/work/orchestra/orchestra/**/*requirements*.in,/home/runner/work/orchestra/orchestra/**/*constraints*.txt,/home/runner/work/orchestra/orchestra/**/*constraints*.in,/home/runner/work/orchestra/orchestra/**/pyproject.toml,/home/runner/work/orchestra/orchestra/**/uv.lock,/home/runner/work/orchestra/orchestra/**/*.py.lock
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:21.5638412Z /home/runner/work/orchestra/orchestra/pyproject.toml
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:21.5921662Z /home/runner/work/orchestra/orchestra/uv.lock
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:21.5938209Z Found 2 files to hash.
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:21.6001390Z Trying to restore cache from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:21.7470785Z Cache hit for: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:22.0689995Z Received 1402 of 1402 (100.0%), 0.0 MBs/sec
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:22.0690918Z Cache Size: ~0 MB (1402 B)
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:22.0713839Z [command]/usr/bin/tar -xf /home/runner/work/_temp/72b3d74c-bb7d-4d5b-a7b5-9c3d31bfcd6c/cache.tzst -P -C /home/runner/work/orchestra/orchestra --use-compress-program unzstd
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:22.0784402Z Cache restored successfully
+browser	Run astral-sh/setup-uv@v7	2026-10-08T08:02:22.0789053Z cache restored from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e
+browser	Run uv sync --dev	﻿2026-10-08T08:02:22.1462218Z ##[group]Run uv sync --dev
+browser	Run uv sync --dev	2026-10-08T08:02:22.1462704Z ^[[36;1muv sync --dev^[[0m
+browser	Run uv sync --dev	2026-10-08T08:02:22.4142589Z shell: /usr/bin/bash -e {0}
+browser	Run uv sync --dev	2026-10-08T08:02:22.4143173Z env:
+browser	Run uv sync --dev	2026-10-08T08:02:22.4143503Z   GIT_AUTHOR_NAME: Orchestra CI
+browser	Run uv sync --dev	2026-10-08T08:02:22.4143921Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+browser	Run uv sync --dev	2026-10-08T08:02:22.4144363Z   GIT_COMMITTER_NAME: Orchestra CI
+browser	Run uv sync --dev	2026-10-08T08:02:22.4145039Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+browser	Run uv sync --dev	2026-10-08T08:02:22.4145663Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+browser	Run uv sync --dev	2026-10-08T08:02:22.4146190Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+browser	Run uv sync --dev	2026-10-08T08:02:22.4146570Z ##[endgroup]
+browser	Run uv sync --dev	2026-10-08T08:02:22.4455979Z Using CPython 3.12.3 interpreter at: /usr/bin/python3
+browser	Run uv sync --dev	2026-10-08T08:02:22.4456716Z Creating virtual environment at: .venv
+browser	Run uv sync --dev	2026-10-08T08:02:22.4494142Z Resolved 80 packages in 0.94ms
+browser	Run uv sync --dev	2026-10-08T08:02:22.5745866Z Downloading pygments (1.2MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5747040Z Downloading cryptography (4.5MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5749248Z Downloading pillow (6.3MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5762502Z Downloading aiohttp (1.7MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5774561Z Downloading pydantic-core (2.0MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5775743Z Downloading uvloop (4.2MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5783774Z Downloading claude-agent-sdk (102.3MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:22.5788774Z Downloading playwright (45.3MiB)
+browser	Run uv sync --dev	2026-10-08T08:02:23.1001634Z  Downloaded pygments
+browser	Run uv sync --dev	2026-10-08T08:02:23.1294546Z  Downloaded aiohttp
+browser	Run uv sync --dev	2026-10-08T08:02:23.1441329Z  Downloaded pydantic-core
+browser	Run uv sync --dev	2026-10-08T08:02:23.2119249Z  Downloaded uvloop
+browser	Run uv sync --dev	2026-10-08T08:02:23.2214446Z  Downloaded cryptography
+browser	Run uv sync --dev	2026-10-08T08:02:23.2396582Z  Downloaded pillow
+browser	Run uv sync --dev	2026-10-08T08:02:23.6022010Z  Downloaded playwright
+browser	Run uv sync --dev	2026-10-08T08:02:24.0801065Z  Downloaded claude-agent-sdk
+browser	Run uv sync --dev	2026-10-08T08:02:24.0907814Z Prepared 76 packages in 1.63s
+browser	Run uv sync --dev	2026-10-08T08:02:24.3687441Z Installed 76 packages in 277ms
+browser	Run uv sync --dev	2026-10-08T08:02:24.3688302Z  + aiofiles==25.1.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3688713Z  + aiogram==3.28.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3689191Z  + aiohappyeyeballs==2.6.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3689661Z  + aiohttp==3.13.5
+browser	Run uv sync --dev	2026-10-08T08:02:24.3690154Z  + aiosignal==1.4.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3690574Z  + annotated-doc==0.0.4
+browser	Run uv sync --dev	2026-10-08T08:02:24.3691051Z  + annotated-types==0.7.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3691505Z  + anyio==4.13.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3691948Z  + attrs==26.1.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3692313Z  + certifi==2026.5.20
+browser	Run uv sync --dev	2026-10-08T08:02:24.3692680Z  + cffi==2.0.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3693066Z  + charset-normalizer==3.4.7
+browser	Run uv sync --dev	2026-10-08T08:02:24.3693513Z  + claude-agent-sdk==0.2.164
+browser	Run uv sync --dev	2026-10-08T08:02:24.3693972Z  + click==8.4.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3694339Z  + croniter==6.2.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3694865Z  + cryptography==48.0.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3695310Z  + execnet==2.1.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3695777Z  + fastapi==0.136.3
+browser	Run uv sync --dev	2026-10-08T08:02:24.3696210Z  + frozenlist==1.8.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3696622Z  + greenlet==3.5.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3697026Z  + h11==0.16.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3697451Z  + httpcore==1.0.9
+browser	Run uv sync --dev	2026-10-08T08:02:24.3697929Z  + httptools==0.8.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3698375Z  + httpx==0.28.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3698791Z  + httpx-sse==0.4.3
+browser	Run uv sync --dev	2026-10-08T08:02:24.3699256Z  + idna==3.16
+browser	Run uv sync --dev	2026-10-08T08:02:24.3699616Z  + iniconfig==2.3.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3700040Z  + jinja2==3.1.6
+browser	Run uv sync --dev	2026-10-08T08:02:24.3700471Z  + jsonschema==4.26.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3701203Z  + jsonschema-specifications==2025.9.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3702303Z  + magic-filter==1.0.12
+browser	Run uv sync --dev	2026-10-08T08:02:24.3702795Z  + markdown==3.10.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3703259Z  + markupsafe==3.0.3
+browser	Run uv sync --dev	2026-10-08T08:02:24.3703693Z  + mcp==1.27.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3704123Z  + multidict==6.7.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3704599Z  + packaging==26.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3705132Z  + pillow==11.3.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3705656Z  + playwright==1.60.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3705958Z  + pluggy==1.6.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3706352Z  + propcache==0.5.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3706731Z  + pycparser==3.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3707239Z  + pydantic==2.13.4
+browser	Run uv sync --dev	2026-10-08T08:02:24.3707880Z  + pydantic-core==2.46.4
+browser	Run uv sync --dev	2026-10-08T08:02:24.3708220Z  + pydantic-settings==2.14.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3709398Z  + pyee==13.0.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3709873Z  + pygments==2.20.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3710549Z  + pyjwt==2.13.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3711079Z  + pyromark==0.9.11
+browser	Run uv sync --dev	2026-10-08T08:02:24.3711454Z  + pytest==9.0.3
+browser	Run uv sync --dev	2026-10-08T08:02:24.3712101Z  + pytest-asyncio==1.4.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3713324Z  + pytest-base-url==2.1.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3713824Z  + pytest-playwright==0.8.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3714257Z  + pytest-timeout==2.4.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3714929Z  + pytest-xdist==3.8.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3715502Z  + python-dateutil==2.9.0.post0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3715859Z  + python-dotenv==1.2.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3716237Z  + python-multipart==0.0.29
+browser	Run uv sync --dev	2026-10-08T08:02:24.3716618Z  + python-slugify==8.0.4
+browser	Run uv sync --dev	2026-10-08T08:02:24.3716935Z  + pyyaml==6.0.3
+browser	Run uv sync --dev	2026-10-08T08:02:24.3717256Z  + referencing==0.37.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3717593Z  + requests==2.34.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3717908Z  + rpds-py==0.30.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3718241Z  + six==1.17.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3718539Z  + sniffio==1.3.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3718917Z  + sse-starlette==3.4.4
+browser	Run uv sync --dev	2026-10-08T08:02:24.3719370Z  + starlette==1.1.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3719725Z  + telegramify-markdown==1.1.5
+browser	Run uv sync --dev	2026-10-08T08:02:24.3720075Z  + text-unidecode==1.3
+browser	Run uv sync --dev	2026-10-08T08:02:24.3720403Z  + typing-extensions==4.15.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3720796Z  + typing-inspection==0.4.2
+browser	Run uv sync --dev	2026-10-08T08:02:24.3721137Z  + urllib3==2.7.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3721521Z  + uvicorn==0.48.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3721823Z  + uvloop==0.22.1
+browser	Run uv sync --dev	2026-10-08T08:02:24.3722286Z  + watchfiles==1.2.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3722595Z  + websockets==16.0
+browser	Run uv sync --dev	2026-10-08T08:02:24.3722903Z  + yarl==1.24.2
+browser	Run uv run playwright install --with-deps chromium	﻿2026-10-08T08:02:24.4090928Z ##[group]Run uv run playwright install --with-deps chromium
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4091507Z ^[[36;1muv run playwright install --with-deps chromium^[[0m
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4134130Z shell: /usr/bin/bash -e {0}
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4134634Z env:
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4135065Z   GIT_AUTHOR_NAME: Orchestra CI
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4135554Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4135984Z   GIT_COMMITTER_NAME: Orchestra CI
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4136403Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4136893Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4137410Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.4137838Z ##[endgroup]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.7727080Z Installing dependencies...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:24.7783153Z Switching to root user to install dependencies...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.0585582Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.1409863Z Hit:2 http://azure.archive.ubuntu.com/ubuntu noble InRelease
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.1426770Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble-updates InRelease [126 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.1659379Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble-backports InRelease [126 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.1769213Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble-security InRelease [126 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.1770492Z Get:6 https://packages.microsoft.com/ubuntu/24.04/prod noble InRelease [3600 B]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.4125998Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Packages [1375 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.4746586Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/main Translation-en [306 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5147383Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 Components [181 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5264424Z Get:20 https://packages.microsoft.com/ubuntu/24.04/prod noble/main armhf Packages [12.3 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5454146Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Packages [1702 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5527608Z Get:21 https://packages.microsoft.com/ubuntu/24.04/prod noble/main all Packages [640 B]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5554642Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe Translation-en [341 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5590467Z Get:22 https://packages.microsoft.com/ubuntu/24.04/prod noble/main amd64 Packages [530 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5635997Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble-updates/universe amd64 Components [388 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5682917Z Get:23 https://packages.microsoft.com/ubuntu/24.04/prod noble/main arm64 Packages [475 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.5847005Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted amd64 Packages [1761 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.6348174Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble-updates/restricted Translation-en [401 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.6641213Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Packages [55.0 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.7028213Z Get:16 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse Translation-en [14.3 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.7556991Z Get:17 http://azure.archive.ubuntu.com/ubuntu noble-updates/multiverse amd64 Components [940 B]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.8134501Z Get:18 http://azure.archive.ubuntu.com/ubuntu noble-backports/main amd64 Components [5764 B]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.8533164Z Get:19 http://azure.archive.ubuntu.com/ubuntu noble-backports/universe amd64 Components [12.6 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.9516410Z Get:24 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Packages [1074 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:25.9829747Z Get:25 http://azure.archive.ubuntu.com/ubuntu noble-security/main Translation-en [223 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.0017930Z Get:26 http://azure.archive.ubuntu.com/ubuntu noble-security/main amd64 Components [46.3 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.0028493Z Get:27 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Packages [1218 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.0512684Z Get:28 http://azure.archive.ubuntu.com/ubuntu noble-security/universe Translation-en [245 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.0813518Z Get:29 http://azure.archive.ubuntu.com/ubuntu noble-security/universe amd64 Components [76.3 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.0817791Z Get:30 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted amd64 Packages [1566 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.1121358Z Get:31 http://azure.archive.ubuntu.com/ubuntu noble-security/restricted Translation-en [361 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:26.1814578Z Get:32 http://azure.archive.ubuntu.com/ubuntu noble-security/multiverse Translation-en [11.6 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:30.6326327Z Fetched 12.8 MB in 2s (7369 kB/s)
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:31.5307645Z Reading package lists...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:31.6523460Z Reading package lists...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:31.8588154Z Building dependency tree...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:31.8595198Z Reading state information...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0409969Z libasound2t64 is already the newest version (1.2.11-1ubuntu0.3).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0411378Z libasound2t64 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0412241Z libatk-bridge2.0-0t64 is already the newest version (2.52.0-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0413058Z libatk-bridge2.0-0t64 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0413830Z libatk1.0-0t64 is already the newest version (2.52.0-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0414534Z libatk1.0-0t64 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0415522Z libatspi2.0-0t64 is already the newest version (2.52.0-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0416216Z libatspi2.0-0t64 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0416996Z libcairo2 is already the newest version (1.18.0-3build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0417689Z libcairo2 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0418362Z libcups2t64 is already the newest version (2.4.7-1.2ubuntu7.14).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0419242Z libcups2t64 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0420038Z libdbus-1-3 is already the newest version (1.14.10-4ubuntu4.1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0420889Z libdbus-1-3 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0421696Z libdrm2 is already the newest version (2.4.125-1ubuntu0.1~24.04.2).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0422633Z libdrm2 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0423422Z libglib2.0-0t64 is already the newest version (2.80.0-6ubuntu3.9).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0424238Z libglib2.0-0t64 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0425198Z libnspr4 is already the newest version (2:4.35-1.1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0426070Z libnspr4 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0427108Z libnss3 is already the newest version (2:3.98-1ubuntu0.2).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0427647Z libnss3 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0428145Z libpango-1.0-0 is already the newest version (1.52.1+ds-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0429273Z libpango-1.0-0 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0429718Z libx11-6 is already the newest version (2:1.8.7-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0430136Z libx11-6 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0430553Z libxcb1 is already the newest version (1.15-1ubuntu2).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0430986Z libxcb1 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0431575Z libxcomposite1 is already the newest version (1:0.4.5-1build3).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0432144Z libxcomposite1 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0432660Z libxdamage1 is already the newest version (1:1.1.6-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0433149Z libxdamage1 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0433547Z libxext6 is already the newest version (2:1.3.4-1build2).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0434019Z libxext6 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0434474Z libxfixes3 is already the newest version (1:6.0.0-2build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0435138Z libxfixes3 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0435703Z libxkbcommon0 is already the newest version (1.6.0-1build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0436129Z libxkbcommon0 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0436646Z libxrandr2 is already the newest version (2:1.5.2-2build1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0437071Z libxrandr2 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0437499Z xvfb is already the newest version (2:21.1.12-1ubuntu1.8).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0438208Z fonts-noto-color-emoji is already the newest version (2.047-0ubuntu0.24.04.1).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0439042Z libfontconfig1 is already the newest version (2.15.0-1.1ubuntu2).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0439627Z libfontconfig1 set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0440199Z fonts-liberation is already the newest version (1:2.1.5-3).
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0440805Z fonts-liberation set to manually installed.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0441450Z The following additional packages will be installed:
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0442077Z   libgl1-mesa-dri libglx-mesa0 mesa-libgallium xfonts-encodings xfonts-utils
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0442574Z Recommended packages:
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0442945Z   fonts-ipafont-mincho fonts-tlwg-loma
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0626019Z The following NEW packages will be installed:
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0626866Z   fonts-freefont-ttf fonts-ipafont-gothic fonts-tlwg-loma-otf fonts-unifont
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0634664Z   fonts-wqy-zenhei xfonts-cyrillic xfonts-encodings xfonts-scalable
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0635893Z   xfonts-utils
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0640145Z The following packages will be upgraded:
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0646573Z   libfreetype6 libgbm1 libgl1-mesa-dri libglx-mesa0 mesa-libgallium
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0874155Z 5 upgraded, 9 newly installed, 0 to remove and 31 not upgraded.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0875171Z Need to get 32.5 MB of archives.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0877119Z After this operation, 79.5 MB of additional disk space will be used.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.0877670Z Get:1 file:/etc/apt/apt-mirrors.txt Mirrorlist [144 B]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:02:32.3794611Z Get:2 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-ipafont-gothic all 00303-21ubuntu1 [3513 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:03:01.0017058Z Get:3 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 fonts-freefont-ttf all 20211204+svn4273-2 [5641 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:03:46.7959598Z Get:4 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-tlwg-loma-otf all 1:0.7.3-1 [107 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:03:48.0191188Z Get:5 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-unifont all 1:15.1.01-1build1 [2993 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:04:12.5655782Z Get:6 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 fonts-wqy-zenhei all 0.9.45-8 [7472 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:05:13.4981947Z Get:7 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libfreetype6 amd64 2.13.2+dfsg-1ubuntu0.2 [403 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:05:17.6456025Z Get:8 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgl1-mesa-dri amd64 25.2.8-0ubuntu0.24.04.4 [38.0 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:05:18.1236457Z Get:9 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libglx-mesa0 amd64 25.2.8-0ubuntu0.24.04.4 [110 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:05:19.2844300Z Get:10 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 libgbm1 amd64 25.2.8-0ubuntu0.24.04.4 [34.2 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:05:19.7519347Z Get:11 http://azure.archive.ubuntu.com/ubuntu noble-updates/main amd64 mesa-libgallium amd64 25.2.8-0ubuntu0.24.04.4 [10.8 MB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:22.8873996Z Get:12 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-encodings all 1:1.0.5-0ubuntu2 [578 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:27.4949293Z Get:13 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-utils amd64 1:7.7+6build3 [94.4 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:28.3973578Z Get:14 http://azure.archive.ubuntu.com/ubuntu noble/universe amd64 xfonts-cyrillic all 1:1.0.5+nmu1 [384 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:31.5686130Z Get:15 http://azure.archive.ubuntu.com/ubuntu noble/main amd64 xfonts-scalable all 1:1.0.3-1.3 [304 kB]
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7451686Z Fetched 32.5 MB in 5min 2s (107 kB/s)
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7693449Z Selecting previously unselected package fonts-ipafont-gothic.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7941528Z (Reading database ... 
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7942461Z (Reading database ... 5%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7943012Z (Reading database ... 10%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7943587Z (Reading database ... 15%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7944075Z (Reading database ... 20%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7944581Z (Reading database ... 25%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7946201Z (Reading database ... 30%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7946769Z (Reading database ... 35%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7947474Z (Reading database ... 40%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7947836Z (Reading database ... 45%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7948184Z (Reading database ... 50%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.7988413Z (Reading database ... 55%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:34.9190767Z (Reading database ... 60%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:35.1241650Z (Reading database ... 65%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:35.3169626Z (Reading database ... 70%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:35.5155599Z (Reading database ... 75%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:35.6733259Z (Reading database ... 80%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:35.8623271Z (Reading database ... 85%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.0671199Z (Reading database ... 90%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.2244538Z (Reading database ... 95%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.2245876Z (Reading database ... 100%
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.2246549Z (Reading database ... 202296 files and directories currently installed.)
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.2291495Z Preparing to unpack .../00-fonts-ipafont-gothic_00303-21ubuntu1_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.2377055Z Unpacking fonts-ipafont-gothic (00303-21ubuntu1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.5375878Z Selecting previously unselected package fonts-freefont-ttf.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.5505826Z Preparing to unpack .../01-fonts-freefont-ttf_20211204+svn4273-2_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.5518911Z Unpacking fonts-freefont-ttf (20211204+svn4273-2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.6565011Z Selecting previously unselected package fonts-tlwg-loma-otf.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.6692802Z Preparing to unpack .../02-fonts-tlwg-loma-otf_1%3a0.7.3-1_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.6705255Z Unpacking fonts-tlwg-loma-otf (1:0.7.3-1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.6903191Z Selecting previously unselected package fonts-unifont.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.7030082Z Preparing to unpack .../03-fonts-unifont_1%3a15.1.01-1build1_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.7039252Z Unpacking fonts-unifont (1:15.1.01-1build1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.9076382Z Selecting previously unselected package fonts-wqy-zenhei.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.9203274Z Preparing to unpack .../04-fonts-wqy-zenhei_0.9.45-8_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:36.9301475Z Unpacking fonts-wqy-zenhei (0.9.45-8) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.5455644Z Preparing to unpack .../05-libfreetype6_2.13.2+dfsg-1ubuntu0.2_amd64.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.5493708Z Unpacking libfreetype6:amd64 (2.13.2+dfsg-1ubuntu0.2) over (2.13.2+dfsg-1ubuntu0.1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.5890563Z Preparing to unpack .../06-libgl1-mesa-dri_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.6034287Z Unpacking libgl1-mesa-dri:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.6490309Z Preparing to unpack .../07-libglx-mesa0_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.6517697Z Unpacking libglx-mesa0:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.6882819Z Preparing to unpack .../08-libgbm1_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.6911558Z Unpacking libgbm1:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.7279923Z Preparing to unpack .../09-mesa-libgallium_25.2.8-0ubuntu0.24.04.4_amd64.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:37.7308843Z Unpacking mesa-libgallium:amd64 (25.2.8-0ubuntu0.24.04.4) over (25.2.8-0ubuntu0.24.04.2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.1282937Z Selecting previously unselected package xfonts-encodings.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.1410139Z Preparing to unpack .../10-xfonts-encodings_1%3a1.0.5-0ubuntu2_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.1422160Z Unpacking xfonts-encodings (1:1.0.5-0ubuntu2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.1673805Z Selecting previously unselected package xfonts-utils.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.1799683Z Preparing to unpack .../11-xfonts-utils_1%3a7.7+6build3_amd64.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.1811960Z Unpacking xfonts-utils (1:7.7+6build3) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.2173013Z Selecting previously unselected package xfonts-cyrillic.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.2302367Z Preparing to unpack .../12-xfonts-cyrillic_1%3a1.0.5+nmu1_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.2313952Z Unpacking xfonts-cyrillic (1:1.0.5+nmu1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.2569909Z Selecting previously unselected package xfonts-scalable.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.2698419Z Preparing to unpack .../13-xfonts-scalable_1%3a1.0.3-1.3_all.deb ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.2710495Z Unpacking xfonts-scalable (1:1.0.3-1.3) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3162120Z Setting up mesa-libgallium:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3195533Z Setting up libgbm1:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3219062Z Setting up libgl1-mesa-dri:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3296701Z Setting up fonts-wqy-zenhei (0.9.45-8) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3408105Z Setting up fonts-freefont-ttf (20211204+svn4273-2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3429878Z Setting up fonts-tlwg-loma-otf (1:0.7.3-1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3452419Z Setting up libfreetype6:amd64 (2.13.2+dfsg-1ubuntu0.2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3472663Z Setting up xfonts-encodings (1:1.0.5-0ubuntu2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3492495Z Setting up fonts-ipafont-gothic (00303-21ubuntu1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3555453Z update-alternatives: using /usr/share/fonts/opentype/ipafont-gothic/ipag.ttf to provide /usr/share/fonts/truetype/fonts-japanese-gothic.ttf (fonts-japanese-gothic.ttf) in auto mode
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3576707Z Setting up fonts-unifont (1:15.1.01-1build1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3597877Z Setting up libglx-mesa0:amd64 (25.2.8-0ubuntu0.24.04.4) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3618597Z Setting up xfonts-utils (1:7.7+6build3) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3662647Z Setting up xfonts-cyrillic (1:1.0.5+nmu1) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.3930853Z Setting up xfonts-scalable (1:1.0.3-1.3) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.4173679Z Processing triggers for libc-bin (2.39-0ubuntu8.9) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.4481683Z Processing triggers for man-db (2.12.0-4build2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.4505880Z Not building database; man-db/auto-update is not 'true'.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:38.4522672Z Processing triggers for fontconfig (2.15.0-1.1ubuntu2) ...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.1748870Z 
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.1750042Z Running kernel seems to be up-to-date.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.1750747Z 
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.1751111Z Restarting services...
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.1816014Z  systemctl restart php8.3-fpm.service
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.2649768Z 
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.2651430Z No containers need to be restarted.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.2651891Z 
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.2652157Z No user sessions are running outdated binaries.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.2652514Z 
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:39.2652862Z No VM guests are running outdated hypervisor (qemu) binaries on this host.
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:40.2759146Z Downloading Chrome for Testing 148.0.7778.96 (playwright chromium v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-linux64.zip
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.3275916Z |                                                                                |   0% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.5804263Z |■■■■■■■■                                                                        |  10% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.6448873Z |■■■■■■■■■■■■■■■■                                                                |  20% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.7223979Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.7865260Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.8629879Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.9253342Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:41.9806211Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:42.0522223Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:42.1366779Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:42.2012229Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 175.4 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:45.3608340Z Chrome for Testing 148.0.7778.96 (playwright chromium v1223) downloaded to /home/runner/.cache/ms-playwright/chromium-1223
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:45.3613013Z Downloading FFmpeg (playwright ffmpeg v1011) from https://cdn.playwright.dev/dbazure/download/playwright/builds/ffmpeg/1011/ffmpeg-linux.zip
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.3675864Z |                                                                                |   0% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.3862956Z |■■■■■■■■                                                                        |  10% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.3991965Z |■■■■■■■■■■■■■■■■                                                                |  20% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4070747Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4086922Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4163546Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4176468Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4241572Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4254651Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4265061Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4316653Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 2.3 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4884197Z FFmpeg (playwright ffmpeg v1011) downloaded to /home/runner/.cache/ms-playwright/ffmpeg-1011
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:46.4886988Z Downloading Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) from https://cdn.playwright.dev/builds/cft/148.0.7778.96/linux64/chrome-headless-shell-linux64.zip
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.5032672Z |                                                                                |   0% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.7130173Z |■■■■■■■■                                                                        |  10% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.7559270Z |■■■■■■■■■■■■■■■■                                                                |  20% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.7971520Z |■■■■■■■■■■■■■■■■■■■■■■■■                                                        |  30% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.8558632Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                                |  40% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.8911211Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                        |  50% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.9253490Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                                |  60% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:47.9756934Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                        |  70% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:48.0016321Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■                |  80% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:48.0342102Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■        |  90% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:48.0842174Z |■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■| 100% of 113.2 MiB
+browser	Run uv run playwright install --with-deps chromium	2026-10-08T08:07:50.4301955Z Chrome Headless Shell 148.0.7778.96 (playwright chromium-headless-shell v1223) downloaded to /home/runner/.cache/ms-playwright/chromium_headless_shell-1223
+browser	pytest browser	﻿2026-10-08T08:07:50.4576404Z ##[group]Run PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+browser	pytest browser	2026-10-08T08:07:50.4577138Z ^[[36;1mPYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \^[[0m
+browser	pytest browser	2026-10-08T08:07:50.4577682Z ^[[36;1m  -m "browser" tests/^[[0m
+browser	pytest browser	2026-10-08T08:07:50.4618329Z shell: /usr/bin/bash -e {0}
+browser	pytest browser	2026-10-08T08:07:50.4618821Z env:
+browser	pytest browser	2026-10-08T08:07:50.4619213Z   GIT_AUTHOR_NAME: Orchestra CI
+browser	pytest browser	2026-10-08T08:07:50.4619628Z   GIT_AUTHOR_EMAIL: orchestra-ci@example.invalid
+browser	pytest browser	2026-10-08T08:07:50.4620060Z   GIT_COMMITTER_NAME: Orchestra CI
+browser	pytest browser	2026-10-08T08:07:50.4620460Z   GIT_COMMITTER_EMAIL: orchestra-ci@example.invalid
+browser	pytest browser	2026-10-08T08:07:50.4620992Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+browser	pytest browser	2026-10-08T08:07:50.4621495Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+browser	pytest browser	2026-10-08T08:07:50.4622086Z ##[endgroup]
+browser	pytest browser	2026-10-08T08:07:51.5690958Z ============================= test session starts ==============================
+browser	pytest browser	2026-10-08T08:07:51.5692690Z platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/runner/work/orchestra/orchestra/.venv/bin/python
+browser	pytest browser	2026-10-08T08:07:51.5730033Z cachedir: .pytest_cache
+browser	pytest browser	2026-10-08T08:07:51.5730895Z rootdir: /home/runner/work/orchestra/orchestra
+browser	pytest browser	2026-10-08T08:07:51.5731558Z configfile: pyproject.toml
+browser	pytest browser	2026-10-08T08:07:51.5732489Z plugins: asyncio-1.4.0, timeout-2.4.0, playwright-0.8.0, anyio-4.13.0, base-url-2.1.0, xdist-3.8.0
+browser	pytest browser	2026-10-08T08:07:51.5733721Z asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+browser	pytest browser	2026-10-08T08:07:51.5734653Z timeout: 30.0s
+browser	pytest browser	2026-10-08T08:07:51.5735457Z timeout method: signal
+browser	pytest browser	2026-10-08T08:07:51.5735936Z timeout func_only: False
+browser	pytest browser	2026-10-08T08:08:05.0902333Z collecting ... collected 4340 items / 4149 deselected / 191 selected
+browser	pytest browser	2026-10-08T08:08:05.0910805Z 
+browser	pytest browser	2026-10-08T08:08:05.0921911Z tests/test_antigravity_usage_frontend.py::test_t4_two_distinct_antigravity_groups_render_in_contract_order SKIPPED [  0%]
+browser	pytest browser	2026-10-08T08:08:05.0927965Z tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity0-gemini-weekly] SKIPPED [  1%]
+browser	pytest browser	2026-10-08T08:08:05.0933294Z tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity1-gemini-weekly] SKIPPED [  1%]
+browser	pytest browser	2026-10-08T08:08:05.0938868Z tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[antigravity2-3p-weekly] SKIPPED [  2%]
+browser	pytest browser	2026-10-08T08:08:05.0944024Z tests/test_antigravity_usage_frontend.py::test_t4_null_or_missing_group_is_explicitly_unavailable_not_zero[None-gemini-weekly] SKIPPED [  2%]
+browser	pytest browser	2026-10-08T08:08:05.0950824Z tests/test_antigravity_usage_frontend.py::test_t4_antigravity_does_not_regress_desktop_usage_bar_overflow SKIPPED [  3%]
+browser	pytest browser	2026-10-08T08:08:09.0887922Z tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block PASSED [  3%]
+browser	pytest browser	2026-10-08T08:08:09.7888066Z tests/test_dashboard_i18n_formatting.py::test_dashboard_numbers_and_dates_follow_the_selected_language PASSED [  4%]
+browser	pytest browser	2026-10-08T08:08:13.6452985Z tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox PASSED [  4%]
+browser	pytest browser	2026-10-08T08:08:14.2737660Z tests/test_frontend.py::test_dashboard_loads PASSED                      [  5%]
+browser	pytest browser	2026-10-08T08:08:14.2828489Z tests/test_frontend.py::test_sidebar_agents_visible PASSED               [  5%]
+browser	pytest browser	2026-10-08T08:08:14.7889213Z tests/test_frontend.py::test_tg_topic_context_menu_persists_through_frontend_api PASSED [  6%]
+browser	pytest browser	2026-10-08T08:08:14.8422054Z tests/test_frontend.py::test_live_stream_status_updates_selected_agent_badge PASSED [  6%]
+browser	pytest browser	2026-10-08T08:08:14.8509194Z tests/test_frontend.py::test_chat_input_exists PASSED                    [  7%]
+browser	pytest browser	2026-10-08T08:08:15.0710782Z tests/test_frontend.py::test_internal_telemetry_status_is_not_rendered_in_chat PASSED [  7%]
+browser	pytest browser	2026-10-08T08:08:15.0805245Z tests/test_frontend.py::test_send_button_exists PASSED                   [  8%]
+browser	pytest browser	2026-10-08T08:08:15.0865032Z tests/test_frontend.py::test_usage_bar_visible PASSED                    [  8%]
+browser	pytest browser	2026-10-08T08:08:15.2156765Z tests/test_frontend.py::test_stream_updates_preserve_chat_selection PASSED [  9%]
+browser	pytest browser	2026-10-08T08:08:15.3423212Z tests/test_frontend.py::test_model_xml_is_displayed_without_execution_verdict PASSED [  9%]
+browser	pytest browser	2026-10-08T08:08:15.5886789Z tests/test_frontend.py::test_header_has_orch_tabs PASSED                 [ 10%]
+browser	pytest browser	2026-10-08T08:08:15.6595416Z tests/test_frontend.py::test_orchestrator_unread_tracks_own_turn_only PASSED [ 10%]
+browser	pytest browser	2026-10-08T08:08:15.7276640Z tests/test_frontend.py::test_json_preview_keeps_long_numbers_verbatim PASSED [ 11%]
+browser	pytest browser	2026-10-08T08:08:15.8043843Z tests/test_frontend.py::test_dropped_path_lands_at_caret_not_at_end PASSED [ 12%]
+browser	pytest browser	2026-10-08T08:08:15.9446885Z tests/test_frontend.py::test_chat_drop_handles_files_tree_paths_and_upload_errors PASSED [ 12%]
+browser	pytest browser	2026-10-08T08:08:15.9553935Z tests/test_frontend.py::test_left_panel_has_tabs PASSED                  [ 13%]
+browser	pytest browser	2026-10-08T08:08:15.9612569Z tests/test_frontend.py::test_agent_info_panel_exists PASSED              [ 13%]
+browser	pytest browser	2026-10-08T08:08:18.1730512Z tests/test_frontend.py::test_no_js_errors PASSED                         [ 14%]
+browser	pytest browser	2026-10-08T08:08:18.2585437Z tests/test_frontend.py::test_codex_cache_pill_is_approximate_and_expires_to_unknown PASSED [ 14%]
+browser	pytest browser	2026-10-08T08:08:18.3332319Z tests/test_frontend.py::test_claude_cache_pill_keeps_exact_thresholds PASSED [ 15%]
+browser	pytest browser	2026-10-08T08:08:18.9729799Z tests/test_frontend.py::test_photo_batch_renders_as_compact_expandable_gallery PASSED [ 15%]
+browser	pytest browser	2026-10-08T08:08:19.2826517Z tests/test_frontend.py::test_single_chat_photo_keeps_plain_preview PASSED [ 16%]
+browser	pytest browser	2026-10-08T08:08:19.6095783Z tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt[False] PASSED [ 16%]
+browser	pytest browser	2026-10-08T08:08:19.9047843Z tests/test_frontend.py::test_send_chart_result_renders_image_and_keeps_delivery_receipt[True] PASSED [ 17%]
+browser	pytest browser	2026-10-08T08:08:22.1654554Z tests/test_frontend.py::test_user_message_renders_display_only_payload_without_durable_timestamp PASSED [ 17%]
+browser	pytest browser	2026-10-08T08:08:22.4387235Z tests/test_frontend.py::test_document_upload_card_appears_immediately_and_reports_progress PASSED [ 18%]
+browser	pytest browser	2026-10-08T08:08:22.7120677Z tests/test_frontend.py::test_pasted_image_previews_use_one_bounded_square_size PASSED [ 18%]
+browser	pytest browser	2026-10-08T08:08:22.9879356Z tests/test_frontend.py::test_document_upload_card_cancels_xhr_without_inserting_path PASSED [ 19%]
+browser	pytest browser	2026-10-08T08:08:25.2780222Z tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions PASSED [ 19%]
+browser	pytest browser	2026-10-08T08:08:27.5606889Z tests/test_frontend.py::test_send_files_batch_renders_image_preview_and_lightbox PASSED [ 20%]
+browser	pytest browser	2026-10-08T08:08:29.9307071Z tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files PASSED [ 20%]
+browser	pytest browser	2026-10-08T08:08:32.1859514Z tests/test_frontend.py::test_send_file_single_keeps_existing_rendering PASSED [ 21%]
+browser	pytest browser	2026-10-08T08:08:32.5236721Z tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers[normal] PASSED [ 21%]
+browser	pytest browser	2026-10-08T08:08:32.8436834Z tests/test_frontend.py::test_parallel_tool_results_follow_tool_use_id_in_both_renderers[compact] PASSED [ 22%]
+browser	pytest browser	2026-10-08T08:08:33.1565454Z tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[claude-normal] PASSED [ 23%]
+browser	pytest browser	2026-10-08T08:08:33.4601137Z tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[claude-compact] PASSED [ 23%]
+browser	pytest browser	2026-10-08T08:08:33.7720207Z tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_column-normal] PASSED [ 24%]
+browser	pytest browser	2026-10-08T08:08:34.0943323Z tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_column-compact] PASSED [ 24%]
+browser	pytest browser	2026-10-08T08:08:34.4113137Z tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_item_id_in_body-normal] PASSED [ 25%]
+browser	pytest browser	2026-10-08T08:08:34.7291228Z tests/test_frontend.py::test_split_history_page_pairs_results_with_calls_that_arrive_later[codex_item_id_in_body-compact] PASSED [ 25%]
+browser	pytest browser	2026-10-08T08:08:35.0930459Z tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[normal] PASSED [ 26%]
+browser	pytest browser	2026-10-08T08:08:35.4760415Z tests/test_frontend.py::test_notify_user_call_is_highlighted_and_navigable_from_the_timeline[compact] PASSED [ 26%]
+browser	pytest browser	2026-10-08T08:08:35.7873223Z tests/test_frontend.py::test_notify_nav_hides_itself_when_no_calls_are_present[normal] PASSED [ 27%]
+browser	pytest browser	2026-10-08T08:08:36.1061584Z tests/test_frontend.py::test_notify_nav_hides_itself_when_no_calls_are_present[compact] PASSED [ 27%]
+browser	pytest browser	2026-10-08T08:08:36.4866942Z tests/test_frontend.py::test_restart_button_shows_current_attempt_failure PASSED [ 28%]
+browser	pytest browser	2026-10-08T08:08:36.8714422Z tests/test_frontend.py::test_restart_button_shows_journal_loss_before_reboot PASSED [ 28%]
+browser	pytest browser	2026-10-08T08:08:45.6519939Z tests/test_frontend.py::test_restart_signal_failure_reaches_frontend_on_heartbeat PASSED [ 29%]
+browser	pytest browser	2026-10-08T08:08:46.1950418Z tests/test_frontend.py::test_connection_state_confirms_external_restart_by_process_generation PASSED [ 29%]
+browser	pytest browser	2026-10-08T08:08:46.4756059Z tests/test_frontend.py::test_restart_owns_one_status_and_suppresses_component_diagnoses PASSED [ 30%]
+browser	pytest browser	2026-10-08T08:08:46.7624067Z tests/test_frontend.py::test_connection_recovery_refreshes_every_visible_data_surface PASSED [ 30%]
+browser	pytest browser	2026-10-08T08:08:47.0605831Z tests/test_frontend.py::test_chat_transient_state_has_one_complete_reset_owner PASSED [ 31%]
+browser	pytest browser	2026-10-08T08:08:49.3961052Z tests/test_frontend.py::test_user_message_stays_before_agent_entries_arriving_during_stream PASSED [ 31%]
+browser	pytest browser	2026-10-08T08:08:49.7039164Z tests/test_frontend.py::test_silent_turn_marker_is_hidden_only_when_exact_text_in_history PASSED [ 32%]
+browser	pytest browser	2026-10-08T08:08:50.0721816Z tests/test_frontend.py::test_silent_turn_marker_is_hidden_from_live_sse_but_telemetry_survives PASSED [ 32%]
+browser	pytest browser	2026-10-08T08:08:51.3207723Z tests/test_frontend.py::test_dashboard_polling_pauses_hidden_and_resumes_after_visibility_and_online PASSED [ 33%]
+browser	pytest browser	2026-10-08T08:08:51.5942881Z tests/test_frontend.py::test_dashboard_polling_coalesces_same_inflight_request PASSED [ 34%]
+browser	pytest browser	2026-10-08T08:08:59.9018600Z tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff PASSED [ 34%]
+browser	pytest browser	2026-10-08T08:09:00.2216422Z tests/test_frontend.py::test_dashboard_polling_resume_refreshes_status_after_hidden PASSED [ 35%]
+browser	pytest browser	2026-10-08T08:09:00.4982498Z tests/test_frontend.py::test_hidden_dashboard_stops_polling_and_resumes_when_visible PASSED [ 35%]
+browser	pytest browser	2026-10-08T08:09:00.8578854Z tests/test_frontend.py::test_live_call_notifies_once_while_history_and_replays_stay_silent PASSED [ 36%]
+browser	pytest browser	2026-10-08T08:09:01.1592536Z tests/test_frontend.py::test_history_failure_is_fail_loud_and_never_streams_archive_row_by_row PASSED [ 36%]
+browser	pytest browser	2026-10-08T08:09:01.5258165Z tests/test_frontend.py::test_notification_permission_is_asked_by_click_and_never_on_load PASSED [ 37%]
+browser	pytest browser	2026-10-08T08:09:01.8496276Z tests/test_frontend.py::test_legacy_rows_without_tool_use_id_pair_by_adjacency[normal] PASSED [ 37%]
+browser	pytest browser	2026-10-08T08:09:02.1453076Z tests/test_frontend.py::test_legacy_rows_without_tool_use_id_pair_by_adjacency[compact] PASSED [ 38%]
+browser	pytest browser	2026-10-08T08:09:02.4563198Z tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call[normal] PASSED [ 38%]
+browser	pytest browser	2026-10-08T08:09:02.7613407Z tests/test_frontend.py::test_unmatched_tool_result_is_visible_and_never_attaches_to_another_call[compact] PASSED [ 39%]
+browser	pytest browser	2026-10-08T08:09:03.0897815Z tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls[normal] PASSED [ 39%]
+browser	pytest browser	2026-10-08T08:09:03.3831229Z tests/test_frontend.py::test_load_more_keeps_tool_use_id_for_old_parallel_calls[compact] PASSED [ 40%]
+browser	pytest browser	2026-10-08T08:09:05.0046643Z tests/test_frontend.py::test_load_more_increases_visible_cards PASSED    [ 40%]
+browser	pytest browser	2026-10-08T08:09:05.4039250Z tests/test_frontend.py::test_short_snapshot_offers_one_shot_previous_100_without_cache PASSED [ 41%]
+browser	pytest browser	2026-10-08T08:09:05.9072344Z tests/test_frontend.py::test_full_previous_page_keeps_offering_older_history PASSED [ 41%]
+browser	pytest browser	2026-10-08T08:09:06.2491529Z tests/test_frontend.py::test_tool_view_mode_is_visible_without_desktop_header_overflow PASSED [ 42%]
+browser	pytest browser	2026-10-08T08:09:06.5704102Z tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details[normal] PASSED [ 42%]
+browser	pytest browser	2026-10-08T08:09:06.9027752Z tests/test_frontend.py::test_task_result_leads_with_action_and_keeps_raw_details[compact] PASSED [ 43%]
+browser	pytest browser	2026-10-08T08:09:07.2156198Z tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title[normal] PASSED [ 43%]
+browser	pytest browser	2026-10-08T08:09:07.5388162Z tests/test_frontend.py::test_live_task_tool_rows_show_russian_labels_and_escaped_title[compact] PASSED [ 44%]
+browser	pytest browser	2026-10-08T08:09:07.8619417Z tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback[normal] PASSED [ 45%]
+browser	pytest browser	2026-10-08T08:09:08.1857308Z tests/test_frontend.py::test_task_tool_rows_from_history_keep_raw_details_and_fallback[compact] PASSED [ 45%]
+browser	pytest browser	2026-10-08T08:09:08.4997945Z tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details[normal] PASSED [ 46%]
+browser	pytest browser	2026-10-08T08:09:08.8580049Z tests/test_frontend.py::test_agent_result_summarizes_statuses_and_keeps_raw_details[compact] PASSED [ 46%]
+browser	pytest browser	2026-10-08T08:09:09.1321843Z tests/test_frontend.py::test_task_card_uses_real_long_description_and_shared_expandable_body PASSED [ 47%]
+browser	pytest browser	2026-10-08T08:09:09.2782409Z tests/test_frontend.py::test_chat_restores_last_read_boundary_only_when_unread PASSED [ 47%]
+browser	pytest browser	2026-10-08T08:09:10.6668921Z tests/test_frontend.py::test_chat_timeline_navigates_events_and_cycles_user_messages PASSED [ 48%]
+browser	pytest browser	2026-10-08T08:09:10.9467216Z tests/test_frontend.py::test_chat_timeline_marker_height_tracks_message_height PASSED [ 48%]
+browser	pytest browser	2026-10-08T08:09:11.5534005Z tests/test_frontend.py::test_chat_timeline_navigates_final_agent_answers_only PASSED [ 49%]
+browser	pytest browser	2026-10-08T08:09:11.8038046Z tests/test_frontend.py::test_codex_successful_mcp_startup_status_is_hidden PASSED [ 49%]
+browser	pytest browser	2026-10-08T08:09:12.0924407Z tests/test_frontend.py::test_native_codex_compact_renders_one_result_badge PASSED [ 50%]
+browser	pytest browser	2026-10-08T08:09:12.3870859Z tests/test_frontend.py::test_subagent_lifecycle_updates_one_existing_card PASSED [ 50%]
+browser	pytest browser	2026-10-08T08:09:12.6874957Z tests/test_frontend.py::test_codex_web_search_renders_queries_without_transport_json PASSED [ 51%]
+browser	pytest browser	2026-10-08T08:09:13.0099327Z tests/test_frontend.py::test_codex_spawn_worker_renders_task_model_and_completion PASSED [ 51%]
+browser	pytest browser	2026-10-08T08:09:13.2969370Z tests/test_frontend.py::test_codex_file_change_renders_structured_kind PASSED [ 52%]
+browser	pytest browser	2026-10-08T08:09:13.8766796Z tests/test_frontend.py::test_codex_view_image_retries_after_initial_load_failure PASSED [ 52%]
+browser	pytest browser	2026-10-08T08:09:15.2334444Z tests/test_frontend.py::test_truncated_read_image_restores_full_log_when_source_file_is_gone PASSED [ 53%]
+browser	pytest browser	2026-10-08T08:09:15.6127637Z tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry PASSED [ 53%]
+browser	pytest browser	2026-10-08T08:09:16.0042030Z tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows PASSED [ 54%]
+browser	pytest browser	2026-10-08T08:09:16.4081928Z tests/test_frontend.py::test_authoritative_snapshot_has_no_post_paint_history_staircase PASSED [ 54%]
+browser	pytest browser	2026-10-08T08:09:16.7586525Z tests/test_frontend.py::test_chat_open_waits_for_authoritative_snapshot_and_paints_once PASSED [ 55%]
+browser	pytest browser	2026-10-08T08:09:17.0647238Z tests/test_frontend.py::test_rapid_chat_switch_aborts_old_snapshot_before_render PASSED [ 56%]
+browser	pytest browser	2026-10-08T08:09:17.3728952Z tests/test_frontend.py::test_selecting_worker_does_not_refresh_whole_sidebar PASSED [ 56%]
+browser	pytest browser	2026-10-08T08:09:17.7086653Z tests/test_frontend.py::test_chat_expanding_one_message_keeps_neighbor_state PASSED [ 57%]
+browser	pytest browser	2026-10-08T08:09:18.9980935Z tests/test_frontend.py::test_truncated_image_generation_history_recovers_without_server_restart PASSED [ 57%]
+browser	pytest browser	2026-10-08T08:09:18.9985184Z tests/test_frontend.py::test_mobile_voice_input_records_transcribes_and_cancels SKIPPED [ 58%]
+browser	pytest browser	2026-10-08T08:09:20.7085028Z tests/test_frontend.py::test_dashboard_survives_lossy_channel_from_snapshot PASSED [ 58%]
+browser	pytest browser	2026-10-08T08:09:21.7514100Z tests/test_frontend.py::test_dashboard_shows_error_class_when_nothing_cached PASSED [ 59%]
+browser	pytest browser	2026-10-08T08:09:22.2161651Z tests/test_frontend.py::test_chat_request_uses_reserved_slot_ahead_of_background_gets PASSED [ 59%]
+browser	pytest browser	2026-10-08T08:09:25.5430325Z tests/test_frontend_context_panel_468.py::test_live_stream_completion_refreshes_selected_agent_context PASSED [ 60%]
+browser	pytest browser	2026-10-08T08:09:26.0976841Z tests/test_grok_usage_frontend.py::test_compact_bar_replaces_spark_with_grok PASSED [ 60%]
+browser	pytest browser	2026-10-08T08:09:26.2191296Z tests/test_grok_usage_frontend.py::test_usage_bar_shows_spark_label_and_release_statuses PASSED [ 61%]
+browser	pytest browser	2026-10-08T08:09:26.6701579Z tests/test_grok_usage_frontend.py::test_usage_bar_renders_each_provider_as_two_columns PASSED [ 61%]
+browser	pytest browser	2026-10-08T08:09:27.2244181Z tests/test_grok_usage_frontend.py::test_usage_controls_stay_visible_across_desktop_widths PASSED [ 62%]
+browser	pytest browser	2026-10-08T08:09:27.6519671Z tests/test_grok_usage_frontend.py::test_usage_control_keeps_spark_and_adds_grok_third_column PASSED [ 62%]
+browser	pytest browser	2026-10-08T08:09:28.0716451Z tests/test_grok_usage_frontend.py::test_missing_grok_data_is_visible_and_never_rendered_as_zero PASSED [ 63%]
+browser	pytest browser	2026-10-08T08:09:28.1879804Z tests/test_grok_usage_frontend.py::test_usage_fetch_failure_stays_visible_and_logs_exception PASSED [ 63%]
+browser	pytest browser	2026-10-08T08:09:28.2828069Z tests/test_grok_usage_frontend.py::test_usage_refresh_uses_one_long_budget_for_external_aggregation PASSED [ 64%]
+browser	pytest browser	2026-10-08T08:09:28.7089168Z tests/test_grok_usage_frontend.py::test_usage_info_click_opens_details_without_refreshing_usage PASSED [ 64%]
+browser	pytest browser	2026-10-08T08:09:29.0633665Z tests/test_grok_usage_frontend.py::test_usage_refreshes_on_click_and_stale_tab_return_without_request_storm PASSED [ 65%]
+browser	pytest browser	2026-10-08T08:09:29.1962503Z tests/test_grok_usage_frontend.py::test_history_period_requires_two_points PASSED [ 65%]
+browser	pytest browser	2026-10-08T08:09:32.3283446Z tests/test_i18n_dashboard.py::test_dictionary_reaches_static_markup PASSED [ 66%]
+browser	pytest browser	2026-10-08T08:09:32.7644828Z tests/test_i18n_dashboard.py::test_dictionary_reaches_marked_attributes PASSED [ 67%]
+browser	pytest browser	2026-10-08T08:09:33.4576566Z tests/test_i18n_dashboard.py::test_language_choice_survives_reload PASSED [ 67%]
+browser	pytest browser	2026-10-08T08:09:33.6657434Z tests/test_i18n_dashboard.py::test_language_switch_works_before_login PASSED [ 68%]
+browser	pytest browser	2026-10-08T08:09:33.9726199Z tests/test_i18n_dashboard.py::test_missing_key_falls_back_to_source_string PASSED [ 68%]
+browser	pytest browser	2026-10-08T08:09:36.0096365Z tests/test_i18n_dashboard.py::test_dashboard_loads_without_script_errors PASSED [ 69%]
+browser	pytest browser	2026-10-08T08:09:37.0535662Z tests/test_model_catalog_frontend.py::test_catalog_free_filter_and_admission_work_with_new_and_old_api_payloads PASSED [ 69%]
+browser	pytest browser	2026-10-08T08:09:37.6230235Z tests/test_quota_headroom_447.py::test_usage_bar_renders_worker_headroom_from_quota_map PASSED [ 70%]
+browser	pytest browser	2026-10-08T08:09:37.7759158Z tests/test_quota_headroom_447.py::test_usage_bar_formats_fractional_provider_utilization PASSED [ 70%]
+browser	pytest browser	2026-10-08T08:09:40.8902151Z tests/test_system_chat_entry.py::test_system_entry_is_not_an_agent_bubble PASSED [ 71%]
+browser	pytest browser	2026-10-08T08:09:41.4649622Z tests/test_system_chat_entry.py::test_dashboard_channel_renders_as_chat_without_hiding_unknown_api_sender PASSED [ 71%]
+browser	pytest browser	2026-10-08T08:09:42.1953568Z tests/test_t344_quota_lines_browser.py::test_claude_lane_label_follows_dashboard_language PASSED [ 72%]
+browser	pytest browser	2026-10-08T08:09:42.5001617Z tests/test_t344_quota_lines_browser.py::test_unified_panel_has_four_points_without_console_errors PASSED [ 72%]
+browser	pytest browser	2026-10-08T08:09:42.8033341Z tests/test_t344_quota_lines_browser.py::test_panel_renders_when_api_returns_object_payload PASSED [ 73%]
+browser	pytest browser	2026-10-08T08:09:43.2705442Z tests/test_t344_quota_lines_browser.py::test_timeline_centers_now_repeats_thresholds_and_shades_nights PASSED [ 73%]
+browser	pytest browser	2026-10-08T08:09:43.5786118Z tests/test_t344_quota_lines_browser.py::test_timeline_keeps_old_claude_rule_until_v732_effective_time PASSED [ 74%]
+browser	pytest browser	2026-10-08T08:09:43.8735205Z tests/test_t344_quota_lines_browser.py::test_current_claude_chart_uses_day_night_profile_and_headroom PASSED [ 74%]
+browser	pytest browser	2026-10-08T08:09:44.6243087Z tests/test_t344_quota_lines_browser.py::test_live_quota_map_history_and_two_hour_labels PASSED [ 75%]
+browser	pytest browser	2026-10-08T08:09:44.9164388Z tests/test_t344_quota_lines_browser.py::test_panel_curve_matches_the_limit_the_server_computed PASSED [ 75%]
+browser	pytest browser	2026-10-08T08:09:45.2026228Z tests/test_t344_quota_lines_browser.py::test_claude_shift_matches_lane_limit_and_legacy_rule_falls_back PASSED [ 76%]
+browser	pytest browser	2026-10-08T08:09:45.5219483Z tests/test_t344_quota_lines_browser.py::test_lane_ceiling_is_drawn_and_capped_like_the_gate PASSED [ 76%]
+browser	pytest browser	2026-10-08T08:09:45.8315731Z tests/test_t344_quota_lines_browser.py::test_gate_state_names_the_lanes_the_diagonal_holds PASSED [ 77%]
+browser	pytest browser	2026-10-08T08:09:46.4023720Z tests/test_t344_quota_lines_browser.py::test_gate_lifted_from_every_lane_does_not_look_like_a_working_gate PASSED [ 78%]
+browser	pytest browser	2026-10-08T08:09:46.9824824Z tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization PASSED [ 78%]
+browser	pytest browser	2026-10-08T08:09:47.2681492Z tests/test_t344_quota_lines_browser.py::test_calm_window_says_everyone_works PASSED [ 79%]
+browser	pytest browser	2026-10-08T08:09:47.5570132Z tests/test_t344_quota_lines_browser.py::test_above_the_curve_stops_sol_but_not_luna_and_spark PASSED [ 79%]
+browser	pytest browser	2026-10-08T08:09:47.8622769Z tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works PASSED [ 80%]
+browser	pytest browser	2026-10-08T08:09:48.1576315Z tests/test_t344_quota_lines_browser.py::test_spark_is_drawn_by_its_own_counter_not_together_with_sol PASSED [ 80%]
+browser	pytest browser	2026-10-08T08:09:48.4335443Z tests/test_t344_quota_lines_browser.py::test_spark_point_does_not_advertise_a_threshold_that_does_not_bind_it PASSED [ 81%]
+browser	pytest browser	2026-10-08T08:09:48.7205504Z tests/test_t344_quota_lines_browser.py::test_missing_telemetry_says_no_data_not_works PASSED [ 81%]
+browser	pytest browser	2026-10-08T08:09:49.0208578Z tests/test_t344_quota_lines_browser.py::test_unknown_reset_time_drops_the_diagonal_and_keeps_hard_stop PASSED [ 82%]
+browser	pytest browser	2026-10-08T08:09:49.2955005Z tests/test_t344_quota_lines_browser.py::test_old_payload_without_rule_block_says_no_data PASSED [ 82%]
+browser	pytest browser	2026-10-08T08:09:49.5540416Z tests/test_t344_quota_lines_browser.py::test_summary_without_rule_block_says_no_data_not_works PASSED [ 83%]
+browser	pytest browser	2026-10-08T08:09:49.8541250Z tests/test_t344_quota_lines_browser.py::test_summary_repeats_the_body_verdict_when_the_rule_arrives PASSED [ 83%]
+browser	pytest browser	2026-10-08T08:09:50.1369906Z tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_and_history_empty_notice PASSED [ 84%]
+browser	pytest browser	2026-10-08T08:09:50.4234652Z tests/test_t344_quota_lines_browser.py::test_unified_panel_renders_trace_when_present PASSED [ 84%]
+browser	pytest browser	2026-10-08T08:09:50.6936366Z tests/test_t344_quota_lines_browser.py::test_failed_request_says_no_data_and_does_not_pretend_to_work PASSED [ 85%]
+browser	pytest browser	2026-10-08T08:09:50.9652886Z tests/test_t344_quota_lines_browser.py::test_panel_is_absent_outside_owner_mode PASSED [ 85%]
+browser	pytest browser	2026-10-08T08:09:51.4563532Z tests/test_usage_analytics_frontend.py::test_model_cost_and_task_money_have_separate_currency_sources PASSED [ 86%]
+browser	pytest browser	2026-10-08T08:09:51.6602720Z tests/test_usage_analytics_frontend.py::test_analytics_renders_usd_when_task_currency_is_rubles PASSED [ 86%]
+browser	pytest browser	2026-10-08T08:09:51.8965912Z tests/test_usage_analytics_frontend.py::test_modal_uses_one_snapshot_request_and_tabs_do_not_refetch PASSED [ 87%]
+browser	pytest browser	2026-10-08T08:09:52.0937825Z tests/test_usage_analytics_frontend.py::test_model_speed_view_renders_current_values_and_history_chart PASSED [ 87%]
+browser	pytest browser	2026-10-08T08:09:52.2878184Z tests/test_usage_analytics_frontend.py::test_wake_button_schedules_once_and_renders_post_decision PASSED [ 88%]
+browser	pytest browser	2026-10-08T08:09:52.4485220Z tests/test_usage_analytics_frontend.py::test_monthly_limit_panel_requires_manual_action PASSED [ 89%]
+browser	pytest browser	2026-10-08T08:09:52.6100207Z tests/test_usage_analytics_frontend.py::test_wake_panel_renders_all_decision_groups_together PASSED [ 89%]
+browser	pytest browser	2026-10-08T08:09:52.8013820Z tests/test_usage_analytics_frontend.py::test_wake_click_with_no_action_is_explicitly_acknowledged PASSED [ 90%]
+browser	pytest browser	2026-10-08T08:09:53.0575620Z tests/test_usage_analytics_frontend.py::test_period_change_ignores_stale_snapshot_response PASSED [ 90%]
+browser	pytest browser	2026-10-08T08:09:53.3448467Z tests/test_usage_analytics_frontend.py::test_agent_filters_drilldown_and_reliability_are_honest PASSED [ 91%]
+browser	pytest browser	2026-10-08T08:09:53.5186056Z tests/test_usage_analytics_frontend.py::test_partial_tool_error_coverage_does_not_claim_zero PASSED [ 91%]
+browser	pytest browser	2026-10-08T08:09:53.6713601Z tests/test_usage_analytics_frontend.py::test_partial_task_cost_coverage_does_not_show_exact_price PASSED [ 92%]
+browser	pytest browser	2026-10-08T08:09:53.9583147Z tests/test_usage_analytics_frontend.py::test_unaccounted_cost_is_visible_and_never_rendered_as_zero PASSED [ 92%]
+browser	pytest browser	2026-10-08T08:09:54.2206599Z tests/test_usage_analytics_frontend.py::test_new_frontend_remains_compatible_with_old_analytics_payload PASSED [ 93%]
+browser	pytest browser	2026-10-08T08:09:54.4696423Z tests/test_usage_analytics_frontend.py::test_modal_has_no_document_overflow_at_390px PASSED [ 93%]
+browser	pytest browser	2026-10-08T08:09:57.5736263Z tests/test_usage_history_frontend.py::test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure PASSED [ 94%]
+browser	pytest browser	2026-10-08T08:09:57.6708263Z tests/test_usage_history_frontend.py::test_empty_history_says_what_is_missing PASSED [ 94%]
+browser	pytest browser	2026-10-08T08:09:57.7531431Z tests/test_usage_history_frontend.py::test_failed_request_surfaces_the_error PASSED [ 95%]
+browser	pytest browser	2026-10-08T08:09:57.8591782Z tests/test_usage_history_frontend.py::test_provider_absent_from_history_does_not_get_a_chart PASSED [ 95%]
+browser	pytest browser	2026-10-08T08:09:57.9607380Z tests/test_usage_history_frontend.py::test_real_data_draws_a_chart_not_a_stub PASSED [ 96%]
+browser	pytest browser	2026-10-08T08:09:58.1589753Z tests/test_usage_history_frontend.py::test_hole_in_data_breaks_the_line_instead_of_bridging_it PASSED [ 96%]
+browser	pytest browser	2026-10-08T08:09:58.3534602Z tests/test_usage_history_frontend.py::test_null_pct_is_a_hole_not_a_zero PASSED [ 97%]
+browser	pytest browser	2026-10-08T08:09:58.4549022Z tests/test_usage_history_frontend.py::test_real_zero_without_reset_metadata_draws_a_chart PASSED [ 97%]
+browser	pytest browser	2026-10-08T08:09:58.6438398Z tests/test_usage_history_frontend.py::test_older_period_is_fetched_on_demand PASSED [ 98%]
+browser	pytest browser	2026-10-08T08:09:58.7461226Z tests/test_usage_history_frontend.py::test_series_order_does_not_depend_on_which_chunk_loaded_first PASSED [ 98%]
+browser	pytest browser	2026-10-08T08:09:58.8764263Z tests/test_usage_history_frontend.py::test_history_request_gets_its_own_timeout PASSED [ 99%]
+browser	pytest browser	2026-10-08T08:09:59.0843261Z tests/test_usage_history_frontend.py::test_history_timeout_survives_a_caller_signal PASSED [100%]
+browser	pytest browser	2026-10-08T08:09:59.0847126Z 
+browser	pytest browser	2026-10-08T08:09:59.0847435Z ========= 184 passed, 7 skipped, 4149 deselected in 127.52s (0:02:07) ==========
+browser	pytest browser	2026-10-08T08:10:00.8802386Z 	Command being timed: "uv run pytest -v -rf --timeout=30 -m browser tests/"
+browser	pytest browser	2026-10-08T08:10:00.8803290Z 	User time (seconds): 75.22
+browser	pytest browser	2026-10-08T08:10:00.8803920Z 	System time (seconds): 12.07
+browser	pytest browser	2026-10-08T08:10:00.8804378Z 	Percent of CPU this job got: 66%
+browser	pytest browser	2026-10-08T08:10:00.8804997Z 	Elapsed (wall clock) time (h:mm:ss or m:ss): 2:10.35
+browser	pytest browser	2026-10-08T08:10:00.8805610Z 	Average shared text size (kbytes): 0
+browser	pytest browser	2026-10-08T08:10:00.8806136Z 	Average unshared data size (kbytes): 0
+browser	pytest browser	2026-10-08T08:10:00.8806705Z 	Average stack size (kbytes): 0
+browser	pytest browser	2026-10-08T08:10:00.8807152Z 	Average total size (kbytes): 0
+browser	pytest browser	2026-10-08T08:10:00.8807744Z 	Maximum resident set size (kbytes): 286088
+browser	pytest browser	2026-10-08T08:10:00.8808277Z 	Average resident set size (kbytes): 0
+browser	pytest browser	2026-10-08T08:10:00.8808757Z 	Major (requiring I/O) page faults: 5254
+browser	pytest browser	2026-10-08T08:10:00.8809302Z 	Minor (reclaiming a frame) page faults: 1947404
+browser	pytest browser	2026-10-08T08:10:00.8809790Z 	Voluntary context switches: 352945
+browser	pytest browser	2026-10-08T08:10:00.8810171Z 	Involuntary context switches: 66755
+browser	pytest browser	2026-10-08T08:10:00.8810542Z 	Swaps: 0
+browser	pytest browser	2026-10-08T08:10:00.8811319Z 	File system inputs: 85888
+browser	pytest browser	2026-10-08T08:10:00.8811700Z 	File system outputs: 729960
+browser	pytest browser	2026-10-08T08:10:00.8812057Z 	Socket messages sent: 0
+browser	pytest browser	2026-10-08T08:10:00.8812396Z 	Socket messages received: 0
+browser	pytest browser	2026-10-08T08:10:00.8812762Z 	Signals delivered: 0
+browser	pytest browser	2026-10-08T08:10:00.8813128Z 	Page size (bytes): 4096
+browser	pytest browser	2026-10-08T08:10:00.8813445Z 	Exit status: 0
+browser	Post Run astral-sh/setup-uv@v7	﻿2026-10-08T08:10:00.8950122Z Post job cleanup.
+browser	Post Run astral-sh/setup-uv@v7	2026-10-08T08:10:01.0021779Z UV_CACHE_DIR is already set to /home/runner/work/_temp/setup-uv-cache
+browser	Post Run astral-sh/setup-uv@v7	2026-10-08T08:10:01.0026869Z UV_PYTHON_INSTALL_DIR is already set to /home/runner/work/_temp/uv-python-dir
+browser	Post Run astral-sh/setup-uv@v7	2026-10-08T08:10:01.0028288Z Cache hit occurred on key setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.12.3-pruned-b550b1ca37c06ca468ccdf87696f390836b07c342c46b90c18f6d261e4d0210e, not saving cache.
+browser	Post Run actions/checkout@v5	﻿2026-10-08T08:10:01.0722408Z Post job cleanup.
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1585131Z [command]/usr/bin/git version
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1623594Z git version 2.55.0
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1656526Z Temporarily overriding HOME='/home/runner/work/_temp/30598aa1-710f-4e65-9e54-d17810862342' before making global git config changes
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1658500Z Adding repository directory to the temporary git global config as a safe directory
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1662596Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/orchestra/orchestra
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1698958Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1730049Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.1945810Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.2000563Z http.https://github.com/.extraheader
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.2015206Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.2052277Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.2319117Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+browser	Post Run actions/checkout@v5	2026-10-08T08:10:01.2352284Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+browser	Complete job	﻿2026-10-08T08:10:01.2826544Z Cleaning up orphan processes

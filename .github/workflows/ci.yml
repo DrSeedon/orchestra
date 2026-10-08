@@ -70,8 +70,18 @@ jobs:
             fi
             echo "ffmpeg install timed out or failed; retrying"
           done
-      # Эти шарды deselect браузерные тесты выше; ставить их системные пакеты здесь
-      # бессмысленно. Chromium и его зависимости ставит только browser job ниже.
+      # Некоторые не помеченные browser тесты всё же запускают Chromium напрямую.
+      # Здесь скачиваем только браузер; apt-зависимости остаются в отдельной browser job.
+      - name: Install Chromium for shard tests
+        timeout-minutes: 5
+        run: |
+          for attempt in 1 2; do
+            if timeout --kill-after=10s 120s uv run playwright install chromium; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 2 ]; then exit 1; fi
+            echo "Chromium download timed out or failed; retrying"
+          done
       # Полный сьют в ОДИН процесс на этом репозитории не проходит физически:
       # прогон 33893200040 убит `exit code 137` (OOM) на 81%, тот же RC=137
       # около 80% воспроизводится локально. Течёт не отдельный тест, а
