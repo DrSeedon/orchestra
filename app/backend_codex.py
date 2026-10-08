@@ -106,11 +106,14 @@ async def _run_process(
     env: dict[str, str] | None = None,
     timeout: float = CODEX_PROCESS_TIMEOUT_SECONDS,
 ) -> tuple[int, str, str]:
+    from app.agent_cgroups import agent_process_options
+
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
         env=env,
+        **agent_process_options(),
     )
     try:
         stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
@@ -657,19 +660,22 @@ class CodexBackend(JsonRpcStdioTransport):
         codex_cmd = self._codex_command()
 
         env = self._build_env()
-        self._process_group, self._scope_reason = RuntimeProcessGroup.create()
+        self._process_group, self._scope_reason = RuntimeProcessGroup.create(orchestrator=self._is_orchestrator)
         self._hibernate_safe = self._process_group is not None
         if self._process_group is None:
             logger.warning("Codex hibernation unavailable: %s", self._scope_reason)
         cmd = self._process_group.command(codex_cmd) if self._process_group else codex_cmd
         child_stdin = child_stdout = our_stdin = our_stdout = None
         try:
+            from app.agent_cgroups import agent_process_options
+
             child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
             spawn_started = time.monotonic()
             self._proc = await asyncio.create_subprocess_exec(
                 *cmd, stdin=child_stdin, stdout=child_stdout,
                 stderr=asyncio.subprocess.PIPE, env=env, cwd=self.cwd,
                 limit=CODEX_STREAM_LIMIT,
+                **agent_process_options(self._is_orchestrator),
             )
             self._log_connect_stage("cli_spawn", spawn_started)
             if our_stdin is not None:

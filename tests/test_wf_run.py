@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import subprocess
@@ -1169,3 +1170,39 @@ def test_pilot_gate_requires_twenty_distinct_closed_ticket_results():
         + [{"ticket_id": "19", "status": "completed", "schema_valid": True}]
     }
     validate_pilot_manifest(twenty)
+
+
+@pytest.mark.asyncio
+async def test_waiting_for_global_slot_does_not_dispatch_or_spend(tmp_path):
+    entered = asyncio.Event()
+    grant = asyncio.Event()
+    calls = []
+
+    async def adapter(prompt, **_kwargs):
+        calls.append(prompt)
+        return _result("answer", cost=0.25)
+
+    engine = _engine("global-slot-budget", tmp_path / "run", budget_usd=1,
+                     max_calls=1, adapter=adapter)
+
+    async def wait_for_slot(_call_key, _attempt, _label):
+        entered.set()
+        await grant.wait()
+        return "lease"
+
+    async def release_slot(_request_id):
+        return None
+
+    engine._acquire_workflow_slot = wait_for_slot
+    engine._release_workflow_slot = release_slot
+    task = asyncio.create_task(engine.agent("queued work", model="luna"))
+    await asyncio.wait_for(entered.wait(), timeout=2)
+    assert engine.budget.dispatched_calls == 0
+    assert engine.budget.spent_usd == 0
+    assert calls == []
+    grant.set()
+    result = await task
+    assert result.data == "answer"
+    assert engine.budget.dispatched_calls == 1
+    assert engine.budget.spent_usd == 0.25
+    assert calls == ["queued work"]

@@ -71,6 +71,9 @@ def _workflow_finished(run_dir: Path) -> bool:
     manifest = run_dir / "manifest.json"
     journal = run_dir / "journal.jsonl"
     try:
+        data = _read_workflow_json(manifest, default={})
+        if isinstance(data, dict) and isinstance(data.get("finished"), bool):
+            return data["finished"]
         return manifest.is_file() and (
             not journal.exists() or manifest.stat().st_mtime_ns >= journal.stat().st_mtime_ns
         )
@@ -125,9 +128,11 @@ def _workflow_detail(run_id: str, run_dir: Path) -> dict:
             reason = event.get("reason") or event.get("event")
             if reason == "completed":
                 status = "completed" if event.get("value") is not None else "failed"
+            elif reason == "slot_waiting":
+                status = "waiting"
             elif reason in {"prepare_failed", "schema_invalid", "skipped", "accounting_failed"}:
                 status = "failed"
-            elif reason in {"task_started", "dispatched", "attempt_finished"}:
+            elif reason in {"task_started", "dispatched", "attempt_finished", "slot_acquired"}:
                 status = "running"
             value = flat_results[global_index] if global_index < len(flat_results) else None
             if value is not None:
@@ -143,6 +148,7 @@ def _workflow_detail(run_id: str, run_dir: Path) -> dict:
                 "model": str(task.get("model") or "gpt-6-luna"),
                 "status": status,
                 "reason": str(event.get("reason") or (event.get("event") if status == "failed" else "") or ""),
+                "position": event.get("position"),
                 "error": str(event.get("error") or ""),
                 "answer_preview": _workflow_answer_preview(value.get("data")) if finished and isinstance(value, dict) else None,
                 "result_url": result_url if finished and value is not None else "",
@@ -153,7 +159,7 @@ def _workflow_detail(run_id: str, run_dir: Path) -> dict:
 
     tasks = [task for stage in stages for task in stage["tasks"]]
     counts = {state: sum(task["status"] == state for task in tasks)
-              for state in ("running", "completed", "failed", "pending")}
+              for state in ("running", "waiting", "completed", "failed", "pending")}
     created_at = request.get("dashboard", {}).get("created_at")
     if not created_at:
         try:
@@ -180,6 +186,7 @@ def _workflow_detail(run_id: str, run_dir: Path) -> dict:
         "budget_usd": request.get("dashboard", {}).get("budget_usd", manifest.get("budget_usd")),
         "max_calls": request.get("dashboard", {}).get("max_calls"),
         "max_concurrency": request.get("dashboard", {}).get("max_concurrency"),
+        "scheduler": manifest.get("scheduler") or {},
         "spent_usd": manifest.get("spent_usd", 0),
         "complete": bool(manifest.get("complete", False)),
         "finished": finished,
@@ -191,15 +198,61 @@ def _workflow_detail(run_id: str, run_dir: Path) -> dict:
     }
 
 
+class WorkflowSlotRequest(BaseModel):
+    request_id: str
+    run_id: str
+    label: str = ""
+
+
+class WorkflowSlotRelease(BaseModel):
+    request_id: str
+
+
+@router.post("/workflow-scheduler/acquire")
+async def bg_workflow_slot_acquire(req: WorkflowSlotRequest, request: Request):
+    if not req.request_id or len(req.request_id) > 512 or not req.run_id or len(req.run_id) > 128:
+        return JSONResponse({"error": "invalid workflow slot identity"}, status_code=400)
+    if not getattr(request.app.state, "agent_cgroup", ""):
+        return JSONResponse({"error": "agent cgroup unavailable", "detail": getattr(request.app.state, "agent_cgroup_error", "")}, status_code=503)
+    try:
+        from app.workflow_scheduler import get_scheduler
+        return get_scheduler().acquire(req.request_id, req.run_id, req.label)
+    except (OSError, RuntimeError, ValueError) as error:
+        return JSONResponse({"error": f"workflow scheduler unavailable: {error}"}, status_code=503)
+
+
+@router.post("/workflow-scheduler/release")
+async def bg_workflow_slot_release(req: WorkflowSlotRelease):
+    from app.workflow_scheduler import get_scheduler
+    scheduler = get_scheduler()
+    scheduler.release(req.request_id)
+    return {"released": True, **scheduler.snapshot()}
+
+
+@router.get("/workflow-scheduler")
+async def bg_workflow_scheduler_status(request: Request):
+    if not getattr(request.app.state, "agent_cgroup", ""):
+        return JSONResponse({"error": "agent cgroup unavailable"}, status_code=503)
+    from app.workflow_scheduler import get_scheduler
+    return get_scheduler().snapshot()
+
+
 @router.get("/workflows/{run_id}")
-async def bg_workflow_detail(run_id: str):
+async def bg_workflow_detail(run_id: str, request: Request):
     run_dir = _workflow_run_dir(run_id)
     if run_dir is None:
         return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
     if not run_dir.is_dir():
         return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
     try:
-        return JSONResponse(_workflow_detail(run_id, run_dir), headers=_WORKFLOW_HEADERS)
+        detail = _workflow_detail(run_id, run_dir)
+        if getattr(request.app.state, "agent_cgroup", ""):
+            try:
+                from app.workflow_scheduler import get_scheduler
+                detail["scheduler"] = get_scheduler().snapshot()
+            except (OSError, RuntimeError, ValueError):
+                pass
+        return JSONResponse(detail, headers=_WORKFLOW_HEADERS)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return JSONResponse(
             {"error": "workflow data unavailable"},

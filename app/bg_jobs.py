@@ -341,6 +341,14 @@ class BgJobManager:
 
     async def _spawn_managed_process(self, job_id, command, *, shell, **kwargs):
         """Register a process or kill it if the owner is cancelled during spawn."""
+        agent_workload = kwargs.pop("agent_workload", False)
+        if agent_workload:
+            cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
+            if not cgroup or not (Path(cgroup) / "cgroup.procs").exists():
+                raise RuntimeError("delegated agent cgroup is unavailable; workflow task remains queued")
+            env = dict(kwargs.pop("env", os.environ))
+            env["ORCHESTRA_AGENT_CGROUP"] = cgroup
+            kwargs["env"] = env
         spawn_task = asyncio.create_task(
             _spawn_bg_process(command, shell=shell, **kwargs)
         )
@@ -457,7 +465,8 @@ class BgJobManager:
                                   target_scope, timeout, host=host,
                                   cwd=config.get("cwd"),
                                   success_file=config.get("success_file"),
-                                  success_pattern=config.get("success_pattern", ""))
+                                  success_pattern=config.get("success_pattern", ""),
+                                  agent_workload=bool(config.get("agent_workload")))
         elif job_type == "merge":
             coro = self._run_merge_watch(job_id, config["operation_id"], message,
                                          target_name, target_scope, timeout)
@@ -1060,7 +1069,7 @@ class BgJobManager:
 
     async def _run_exec(self, job_id, command, message, target_name,
                         target_scope, timeout, host=None, success_file=None,
-                        success_pattern="", cwd=None):
+                        success_pattern="", cwd=None, agent_workload=False):
         proc = None
         reader_task = None
         output_buf = []
@@ -1072,12 +1081,14 @@ class BgJobManager:
                 proc = await self._spawn_managed_process(
                     job_id, ["ssh", *_SSH_OPTS, host, command],
                     shell=False,
+                    agent_workload=agent_workload,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
                     limit=_STREAM_LIMIT,
                 )
             else:
                 proc = await self._spawn_managed_process(
                     job_id, command, shell=True,
+                    agent_workload=agent_workload,
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
                     limit=_STREAM_LIMIT, cwd=cwd,
                 )

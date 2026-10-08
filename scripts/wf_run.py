@@ -19,6 +19,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Iterable
@@ -275,6 +276,27 @@ async def _readiness(model: str) -> dict:
     return await asyncio.to_thread(request)
 
 
+async def _workflow_slot_request(path: str, payload: dict) -> dict | None:
+    base = os.environ.get("ORCHESTRA_URL", "http://127.0.0.1:8888").rstrip("/")
+    headers = {"Content-Type": "application/json"}
+    token = os.environ.get("INTERNAL_TOKEN", "")
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+
+    def request() -> dict | None:
+        body = json.dumps(payload).encode("utf-8")
+        try:
+            with urllib.request.urlopen(urllib.request.Request(
+                f"{base}{path}", data=body, headers=headers, method="POST",
+            ), timeout=10) as response:
+                result = json.loads(response.read())
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError):
+            return None
+        return result if isinstance(result, dict) else None
+
+    return await asyncio.to_thread(request)
+
+
 async def _await_despite_cancellation(task: asyncio.Task) -> tuple[Any, int]:
     cancellations = 0
     current = asyncio.current_task()
@@ -443,6 +465,7 @@ class WorkflowEngine:
         self.workflow_path = Path(workflow_path) if workflow_path is not None else None
         self.resume_command_override = resume_command_override.strip()
         self.journal = Journal(self.run_dir / "journal.jsonl")
+        self._injected_adapter = adapter is not None
         self.adapter = adapter or run_adapter
         self.usage_writer = usage_writer if usage_writer is not None else (
             persist_turn_usage if adapter is None else None
@@ -475,6 +498,9 @@ class WorkflowEngine:
         self.default_modules = tuple(default_modules)
         self.session_id = f"wf:{run_id}"
         self.partial_reason = ""
+        self.scheduler_status: dict[str, Any] = {}
+        self._slot_wait_state: dict[str, tuple] = {}
+        self.scheduler_owner_id = uuid.uuid4().hex
         self._occurrences: dict[str, int] = {}
         self._completed: dict[str, WorkflowValue | None] = {}
         self._completed_reason: dict[str, str] = {}
@@ -537,6 +563,61 @@ class WorkflowEngine:
             occurrence = self._occurrences.get(digest, 0)
             self._occurrences[digest] = occurrence + 1
         return f"{digest}:{occurrence}"
+
+    async def _acquire_workflow_slot(self, call_key: str, attempt: int, label: str) -> str:
+        if self._injected_adapter:
+            return ""
+        request_id = f"{self.run_id}:{self.scheduler_owner_id}:{call_key}:{attempt}"
+        payload = {"request_id": request_id, "run_id": self.run_id, "label": label}
+        retry_delay = 1
+        while True:
+            status = await _workflow_slot_request("/api/bg/workflow-scheduler/acquire", payload)
+            if status and status.get("granted"):
+                self.scheduler_status = status
+                self._slot_wait_state.pop(request_id, None)
+                self.journal.append({"event": "slot_acquired", "call_key": call_key,
+                                     "attempt": attempt, "label": label, **status})
+                self.write_manifest(in_progress=True)
+                return request_id
+            if status:
+                self.scheduler_status = status
+                state = (status.get("position"), status.get("limit"), status.get("reason"),
+                         status.get("active"), status.get("queued"))
+            else:
+                state = (None, None, "Orchestra scheduler unavailable; waiting", None, None)
+            if self._slot_wait_state.get(request_id) != state:
+                self._slot_wait_state[request_id] = state
+                retry_delay = 1
+                event = {"event": "slot_waiting", "reason": "slot_waiting", "call_key": call_key,
+                         "attempt": attempt, "label": label, "position": state[0],
+                         "limit": state[1], "scheduler_reason": state[2], "active": state[3],
+                         "queued": state[4]}
+                self.journal.append(event)
+                self.scheduler_status = {"position": state[0], "limit": state[1],
+                                         "reason": state[2], "active": state[3], "queued": state[4]}
+                self.write_manifest(in_progress=True)
+            else:
+                retry_delay = min(10, retry_delay * 2)
+            await asyncio.sleep(retry_delay)
+
+    async def _release_workflow_slot(self, request_id: str) -> None:
+        if not request_id:
+            return
+        payload = {"request_id": request_id}
+        status = await _workflow_slot_request("/api/bg/workflow-scheduler/release", payload)
+        if status and status.get("released"):
+            self.scheduler_status = {key: value for key, value in status.items() if key != "released"}
+            self.write_manifest(in_progress=True)
+
+    async def _renew_workflow_slot(self, request_id: str, label: str) -> None:
+        while True:
+            await asyncio.sleep(30)
+            status = await _workflow_slot_request("/api/bg/workflow-scheduler/acquire", {
+                "request_id": request_id, "run_id": self.run_id, "label": label,
+            })
+            if status and status.get("granted"):
+                self.scheduler_status = status
+                self.write_manifest(in_progress=True)
 
     @staticmethod
     def _candidates(model: str | Iterable[str] | None, purpose: str, escalate: bool, hard: bool) -> list[str]:
@@ -687,22 +768,27 @@ class WorkflowEngine:
             return None
         deferred_budget = False
         for attempt in range(start_attempt, 3):
-            async with self._state_lock:
-                if self.budget.exhausted():
-                    self.partial_reason = "budget"
-                    deferred_budget = True
-                    self.journal.append({
-                        "event": "retry_deferred",
-                        "call_key": call_key,
-                        "reason": "budget",
-                        "next_attempt": attempt,
-                    })
-                    break
-                self.budget.dispatched_calls += 1
             semaphore = self._codex_semaphore if runtime == "codex" else self._semaphore
             event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
-            try:
-                async with self._semaphore:
+            async with self._semaphore:
+                slot_id = await self._acquire_workflow_slot(call_key, attempt + 1, label)
+                renewal = (
+                    asyncio.create_task(self._renew_workflow_slot(slot_id, label))
+                    if slot_id else None
+                )
+                try:
+                    async with self._state_lock:
+                        if self.budget.exhausted():
+                            self.partial_reason = "budget"
+                            deferred_budget = True
+                            self.journal.append({
+                                "event": "retry_deferred",
+                                "call_key": call_key,
+                                "reason": "budget",
+                                "next_attempt": attempt,
+                            })
+                            break
+                        self.budget.dispatched_calls += 1
                     if semaphore is self._semaphore:
                         result, workspace_path = await self._run_attempt(
                             current_prompt,
@@ -738,16 +824,21 @@ class WorkflowEngine:
                                 modules=module_names,
                                 capability_reason=capability_reason.strip(),
                             )
-            except WorkspacePreparationError as error:
-                self.partial_reason = self.partial_reason or "error"
-                self._step_records[call_key] = {
-                    "call_key": call_key,
-                    "label": label,
-                    "reason": "prepare_failed",
-                    "error": str(error)[:1000],
-                    "value": None,
-                }
-                return None
+                except WorkspacePreparationError as error:
+                    self.partial_reason = self.partial_reason or "error"
+                    self._step_records[call_key] = {
+                        "call_key": call_key,
+                        "label": label,
+                        "reason": "prepare_failed",
+                        "error": str(error)[:1000],
+                        "value": None,
+                    }
+                    return None
+                finally:
+                    if renewal:
+                        renewal.cancel()
+                        await asyncio.gather(renewal, return_exceptions=True)
+                    await self._release_workflow_slot(slot_id)
             realized = float(result.cost_usd or 0)
             total_cost += realized
             async with self._state_lock:
@@ -1035,15 +1126,17 @@ class WorkflowEngine:
             *(["--repo", str(self.workspace_repo)] if self.workspace_repo is not None else []),
         ])
 
-    def write_manifest(self) -> dict:
+    def write_manifest(self, *, in_progress: bool = False) -> dict:
         resume = self.resume_command()
         manifest = {
             "run_id": self.run_id,
-            "complete": not bool(self.partial_reason),
+            "complete": not in_progress and not bool(self.partial_reason),
+            "finished": not in_progress,
             "partial_reason": self.partial_reason or None,
             "spent_usd": round(self.budget.spent_usd, 9),
             "budget_usd": self.budget.maximum_usd,
             "dispatched_calls": self.budget.dispatched_calls,
+            "scheduler": self.scheduler_status,
             "steps": [
                 {
                     "call_key": key,
@@ -1163,6 +1256,8 @@ def _args() -> argparse.Namespace:
 async def _main() -> int:
     args = _args()
     run_id = args.resume or args.run_id
+    from app.agent_cgroups import enter_workflow_cgroup
+    enter_workflow_cgroup(run_id)
     if sum(bool(value) for value in (args.workflow, args.tasks_b64, args.spec)) != 1:
         raise ValueError("provide exactly one of workflow, --spec, or --tasks-b64")
     workflow = args.workflow.resolve() if args.workflow else None

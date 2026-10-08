@@ -61,6 +61,24 @@
   ]
  ],
  [
+  "/api/bg/workflow-scheduler",
+  [
+   "GET"
+  ]
+ ],
+ [
+  "/api/bg/workflow-scheduler/acquire",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/bg/workflow-scheduler/release",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/bg/workflows/{run_id}",
   [
    "GET"

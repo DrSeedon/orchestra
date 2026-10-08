@@ -3312,6 +3312,7 @@ async def dynamic_workflow(
         "config": {
             "command": command,
             "cwd": str(repo_path),
+            "agent_workload": True,
             "success_file": str(manifest_path),
             "success_pattern": r'"complete"\s*:\s*true',
         },

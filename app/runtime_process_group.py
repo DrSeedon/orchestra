@@ -14,12 +14,16 @@ class RuntimeProcessGroup:
         self.path = path
 
     @classmethod
-    def create(cls) -> tuple['RuntimeProcessGroup | None', str]:
+    def create(cls, orchestrator: bool = False) -> tuple['RuntimeProcessGroup | None', str]:
         path = None
         try:
-            row = next(line for line in Path('/proc/self/cgroup').read_text().splitlines()
-                       if line.startswith('0::'))
-            parent = Path('/sys/fs/cgroup') / row[3:].lstrip('/')
+            delegated_agents = None if orchestrator else os.environ.get('ORCHESTRA_AGENT_CGROUP')
+            if delegated_agents:
+                parent = Path(delegated_agents)
+            else:
+                row = next(line for line in Path('/proc/self/cgroup').read_text().splitlines()
+                           if line.startswith('0::'))
+                parent = Path('/sys/fs/cgroup') / row[3:].lstrip('/')
             path = parent / f'runtime-{uuid.uuid4().hex}'
             path.mkdir()
             # Only process ownership is delegated; we do not enable controllers.

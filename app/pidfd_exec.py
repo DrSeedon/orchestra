@@ -6,6 +6,7 @@ import errno
 import os
 import socket
 import sys
+from pathlib import Path
 
 
 PIDFD_SIGNAL_PROCESS_GROUP = 1 << 2
@@ -124,6 +125,13 @@ def main() -> int:
         return 64
     control = socket.socket(fileno=int(sys.argv[1]))
     try:
+        try:
+            cgroup = os.environ.get("ORCHESTRA_AGENT_CGROUP", "")
+            if cgroup:
+                (Path(cgroup) / "cgroup.procs").write_text(str(os.getpid()))
+        except OSError as exc:
+            control.send((f"E{exc.errno}:{exc.strerror}").encode())
+            return 70
         try:
             pidfd = pidfd_open_self()
         except OSError as exc:

@@ -454,6 +454,30 @@ async def lifespan(app: FastAPI):
         load_dotenv()
     from app import db as database
     database.DB_PATH = database._db_path_from_env()
+    from app.agent_cgroups import configure_agent_cgroup
+    if "pytest" in _sys.modules:
+        agent_cgroup = None
+        os.environ.pop("ORCHESTRA_AGENT_CGROUP", None)
+        os.environ.pop("ORCHESTRA_AGENT_ROOT", None)
+        os.environ.pop("ORCHESTRA_AGENT_CGROUP_REQUIRED", None)
+        agent_cgroup_error = "disabled under pytest"
+    else:
+        try:
+            agent_cgroup = configure_agent_cgroup()
+        except (OSError, RuntimeError, ValueError) as error:
+            agent_cgroup = None
+            agent_cgroup_error = str(error)
+            os.environ.pop("ORCHESTRA_AGENT_CGROUP", None)
+            os.environ.pop("ORCHESTRA_AGENT_ROOT", None)
+            os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] = "1"
+            logger.error("dynamic workflow cgroup setup failed: %s", error)
+        else:
+            os.environ["ORCHESTRA_AGENT_ROOT"] = str(agent_cgroup)
+            os.environ["ORCHESTRA_AGENT_CGROUP"] = str(agent_cgroup / "workers")
+            os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] = "1"
+            agent_cgroup_error = ""
+    app.state.agent_cgroup = str(agent_cgroup) if agent_cgroup else ""
+    app.state.agent_cgroup_error = agent_cgroup_error
     from app.session import validate_auto_compact_window_config
     validate_auto_compact_window_config()
     # Миграция V-576 идёт ДО init_db: тот отказывается стартовать на базе чужой

@@ -438,6 +438,8 @@ class GrokBackend(JsonRpcStdioTransport):
         # ничего не защищая.
         child_stdin, child_stdout, our_stdin, our_stdout = self.new_child_pipes()
         try:
+            from app.agent_cgroups import agent_process_options
+
             self._proc = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdin=child_stdin,
@@ -447,6 +449,7 @@ class GrokBackend(JsonRpcStdioTransport):
                 cwd=self.cwd,
                 # Codex hit asyncio's default 64KB StreamReader cap on long JSONL lines.
                 limit=16 * 1024 * 1024,
+                **agent_process_options(self._is_orchestrator),
             )
         except BaseException:
             for fd in (child_stdin, child_stdout, our_stdin, our_stdout):
