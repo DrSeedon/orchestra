@@ -2,6 +2,8 @@
 
 import asyncio
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
@@ -857,12 +859,105 @@ def test_classify_bash_payload_keeps_narrow_pattern_boundary():
         assert _classify_bash_payload({"command": command}) is None, command
 
 
+def test_classify_bash_payload_blocks_destructive_delete_variants():
+    commands = {
+        "find . -type f -delete": "find_delete",
+        "printf '%s\\0' file | xargs -0 rm -rf --": "xargs_recursive_rm",
+        "rmdir -p old/tree": "rmdir_parents",
+        "shred -u secret.txt": "shred",
+        "git clean -fd": "git_clean",
+    }
+    for command, expected in commands.items():
+        assert _classify_bash_payload({"command": command}) == expected, command
+
+    for command in (
+        "rmdir empty-dir", "git clean -nd", "git clean -nfdx",
+        "printf x | xargs rm -- file",
+    ):
+        assert _classify_bash_payload({"command": command}) is None, command
+
+
+def test_rmdir_parents_is_only_blocked_when_target_escapes_workspace(tmp_path):
+    workspace = tmp_path / "worktree"
+    workspace.mkdir()
+    (workspace / "subdir").mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    assert _classify_bash_payload(
+        {"command": "rmdir -p docs/tasks/23"}, cwd=str(workspace),
+    ) is None
+    assert _classify_bash_payload(
+        {"command": "rmdir -p ../../outside/tree"}, cwd=str(workspace),
+    ) == "rmdir_parents"
+    assert _classify_bash_payload(
+        {"command": "cd subdir && rmdir -p docs"}, cwd=str(workspace),
+    ) is None
+    assert _classify_bash_payload(
+        {"command": f"cd {outside} && rmdir -p tree"}, cwd=str(workspace),
+    ) == "rmdir_parents"
+    assert _classify_bash_payload(
+        {"command": "cd $TARGET && rmdir -p tree"}, cwd=str(workspace),
+    ) == "rmdir_parents"
+
+
+def test_malformed_bash_only_blocks_when_destructive_command_is_recognizable():
+    assert _classify_bash_payload({"command": 'rm -rf "/tmp/unfinished'}) == "recursive_rm"
+    assert _classify_bash_payload({"command": 'rm "/tmp/unfinished'}) == "unparsed_rm"
+    assert _classify_bash_payload({"command": "printf 'unfinished"}) is None
+
+
 @pytest.mark.asyncio
-async def test_classify_fail_open_on_classifier_exception():
+async def test_malformed_bash_hook_denies_rm_but_allows_non_destructive_command():
+    hook = backend_claude._make_pretooluse_hooks(_classify_bash_payload)[0].hooks[0]
+
+    blocked = await hook({"tool_input": {"command": 'rm "/tmp/unfinished'}})
+    allowed = await hook({"tool_input": {"command": "printf 'unfinished"}})
+
+    assert blocked["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert allowed["hookSpecificOutput"].get("permissionDecision") is None
+
+
+@pytest.mark.asyncio
+async def test_saturated_default_executor_does_not_fail_open_destructive_bash():
+    pool = ThreadPoolExecutor(max_workers=1)
+    loop = asyncio.get_running_loop()
+    loop.set_default_executor(pool)
+    started = threading.Event()
+    release = threading.Event()
+
+    def occupy_executor():
+        started.set()
+        release.wait()
+
+    blocker = loop.run_in_executor(None, occupy_executor)
+    try:
+        await asyncio.sleep(0.01)
+        assert started.is_set()
+        hook = backend_claude._make_pretooluse_hooks(_classify_bash_payload)[0].hooks[0]
+        result = await hook({"tool_input": {"command": "rm -rf /tmp/example"}})
+        assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+    finally:
+        release.set()
+        await blocker
+        pool.shutdown(wait=True)
+
+
+@pytest.mark.asyncio
+async def test_oversized_bash_command_is_denied_with_a_size_limit():
+    hook = backend_claude._make_pretooluse_hooks(_classify_bash_payload)[0].hooks[0]
+    command = "echo x" * (backend_claude._BASH_CLASSIFIER_MAX_BYTES // 5 + 1)
+    result = await hook({"tool_input": {"command": command}})
+    assert result["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+@pytest.mark.asyncio
+async def test_classifier_exception_blocks_only_recognizable_dangerous_input():
     hook = backend_claude._make_pretooluse_hooks(
         lambda _tool_input: (_ for _ in ()).throw(RuntimeError("fail"))
     )[0].hooks[0]
 
-    result = await hook({"tool_input": {"command": "grep -oE '.{0,100}школа.{0,100}' f.txt"}})
+    blocked = await hook({"tool_input": {"command": "grep -oE '.{0,100}школа.{0,100}' f.txt"}})
+    allowed = await hook({"tool_input": {"command": "printf 'unfinished"}})
 
-    assert result["hookSpecificOutput"].get("permissionDecision") is None
+    assert blocked["hookSpecificOutput"]["permissionDecision"] == "deny"
+    assert allowed["hookSpecificOutput"].get("permissionDecision") is None
