@@ -1,0 +1,5 @@
+Ответь на четыре вопроса по коду этого репозитория, ничего не меняя в файлах. Ответ — только JSON-объект в последнем сообщении (без пояснений), ключи:
+- "paid_routes": сколько платных OpenRouter-маршрутов перечислено в PAID_HARNESS_ROUTES (app/models.py);
+- "admission_fn": имя функции в app/models.py, которая решает, разрешён ли маршрут по строке model_id;
+- "min_len_line": номер строки в app/secret_mask.py, где задана константа _MIN_LEN, и "min_len_value": её значение;
+- "secret_words": сколько элементов в кортеже _SECRET_WORDS в app/secret_mask.py.
