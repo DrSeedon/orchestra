@@ -1,5 +1,8 @@
 """Background Jobs API routes."""
 
+import json
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import APIRouter, Request
@@ -9,6 +12,222 @@ from pydantic import BaseModel
 from app.deps import manager
 
 router = APIRouter(prefix="/api/bg", tags=["bg-jobs"])
+_WORKFLOW_RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
+_WORKFLOW_HEADERS = {"Cache-Control": "no-store, private, max-age=0"}
+WORKFLOW_RUNS_DIR = Path(__file__).resolve().parents[2] / "data" / "workflow-runs"
+
+
+def _workflow_run_dir(run_id: str) -> Path | None:
+    if not _WORKFLOW_RUN_ID.fullmatch(run_id):
+        return None
+    root = WORKFLOW_RUNS_DIR.resolve()
+    run_dir = (root / run_id).resolve()
+    try:
+        run_dir.relative_to(root)
+    except ValueError:
+        return None
+    return run_dir
+
+
+def _read_workflow_json(path: Path, *, default=None):
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return default
+
+
+def _workflow_journal(path: Path) -> list[dict]:
+    try:
+        raw = path.read_bytes()
+    except FileNotFoundError:
+        return []
+    rows = []
+    lines = raw.splitlines(keepends=True)
+    for index, line in enumerate(lines):
+        try:
+            event = json.loads(line)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            if index == len(lines) - 1 and not line.endswith(b"\n"):
+                break
+            raise
+        if isinstance(event, dict):
+            rows.append(event)
+    return rows
+
+
+def _workflow_tasks(request: dict) -> list[list[dict]]:
+    if request.get("mode") == "stages":
+        return [stage.get("tasks", []) for stage in request.get("stages", [])]
+    return [request.get("tasks", [])]
+
+
+def _workflow_answer_preview(value) -> str:
+    text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False)
+    text = " ".join(str(text).split())
+    return text[:280] + ("…" if len(text) > 280 else "")
+
+
+def _workflow_finished(run_dir: Path) -> bool:
+    manifest = run_dir / "manifest.json"
+    journal = run_dir / "journal.jsonl"
+    try:
+        return manifest.is_file() and (
+            not journal.exists() or manifest.stat().st_mtime_ns >= journal.stat().st_mtime_ns
+        )
+    except OSError:
+        return manifest.is_file()
+
+
+def _workflow_detail(run_id: str, run_dir: Path) -> dict:
+    request = _read_workflow_json(run_dir / "request.json", default={}) or {}
+    manifest = _read_workflow_json(run_dir / "manifest.json", default={}) or {}
+    events = _workflow_journal(run_dir / "journal.jsonl")
+    finished = _workflow_finished(run_dir)
+    latest_by_key = {}
+    for event in events:
+        key = event.get("call_key")
+        if key:
+            previous = latest_by_key.get(str(key), {})
+            latest_by_key[str(key)] = {**previous, **event, "label": event.get("label") or previous.get("label", "")}
+
+    result = manifest.get("result")
+    flat_results = []
+    def flatten(value):
+        if isinstance(value, list):
+            for item in value:
+                flatten(item)
+        else:
+            flat_results.append(value)
+    flatten(result or [])
+
+    stages = []
+    tasks_flat = [task for group in _workflow_tasks(request) for task in group]
+    task_states = {}
+    for label, event in latest_by_key.items():
+        if event.get("label"):
+            task_states[str(event["label"])] = event
+    for step in manifest.get("steps", []):
+        if isinstance(step, dict) and step.get("label"):
+            task_states[str(step["label"])] = step
+    all_steps = [step for step in manifest.get("steps", []) if isinstance(step, dict)]
+    if len(all_steps) == len(tasks_flat):
+        for index, step in enumerate(all_steps):
+            label = str(tasks_flat[index].get("label") or f"Task {index + 1}")
+            task_states.setdefault(label, step)
+
+    global_index = 0
+    for stage_no, group in enumerate(_workflow_tasks(request)):
+        items = []
+        for task_no, task in enumerate(group):
+            label = str(task.get("label") or f"Task {task_no + 1}")
+            event = task_states.get(label, {})
+            status = "pending"
+            reason = event.get("reason") or event.get("event")
+            if reason == "completed":
+                status = "completed" if event.get("value") is not None else "failed"
+            elif reason in {"prepare_failed", "schema_invalid", "skipped", "accounting_failed"}:
+                status = "failed"
+            elif reason in {"task_started", "dispatched", "attempt_finished"}:
+                status = "running"
+            value = flat_results[global_index] if global_index < len(flat_results) else None
+            if value is not None:
+                status = "completed"
+            elif manifest and (manifest.get("complete") or manifest.get("partial_reason")) and status == "pending":
+                status = "failed"
+            call_key = str(value.get("value_id")) if isinstance(value, dict) else str(event.get("call_key") or "")
+            result_url = f"/api/bg/workflows/{run_id}/results/{global_index}"
+            items.append({
+                "index": task_no,
+                "global_index": global_index,
+                "label": label,
+                "model": str(task.get("model") or "gpt-6-luna"),
+                "status": status,
+                "reason": str(event.get("reason") or (event.get("event") if status == "failed" else "") or ""),
+                "error": str(event.get("error") or ""),
+                "answer_preview": _workflow_answer_preview(value.get("data")) if finished and isinstance(value, dict) else None,
+                "result_url": result_url if finished and value is not None else "",
+                "call_key": call_key,
+            })
+            global_index += 1
+        stages.append({"index": stage_no, "tasks": items})
+
+    tasks = [task for stage in stages for task in stage["tasks"]]
+    counts = {state: sum(task["status"] == state for task in tasks)
+              for state in ("running", "completed", "failed", "pending")}
+    created_at = request.get("dashboard", {}).get("created_at")
+    if not created_at:
+        try:
+            created_at = datetime.fromtimestamp((run_dir / "request.json").stat().st_mtime, timezone.utc).isoformat()
+        except FileNotFoundError:
+            created_at = ""
+    ended_at = ""
+    if manifest:
+        try:
+            ended_at = datetime.fromtimestamp((run_dir / "manifest.json").stat().st_mtime, timezone.utc).isoformat()
+        except FileNotFoundError:
+            pass
+    try:
+        started = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+        ended = datetime.fromisoformat(ended_at.replace("Z", "+00:00")) if ended_at else datetime.now(timezone.utc)
+        elapsed_seconds = max(0, int((ended - started).total_seconds()))
+    except (AttributeError, TypeError, ValueError):
+        elapsed_seconds = None
+    return {
+        "run_id": run_id,
+        "mode": request.get("mode", "parallel"),
+        "task_id": request.get("dashboard", {}).get("task_id", ""),
+        "repo": request.get("dashboard", {}).get("repo", ""),
+        "budget_usd": request.get("dashboard", {}).get("budget_usd", manifest.get("budget_usd")),
+        "max_calls": request.get("dashboard", {}).get("max_calls"),
+        "max_concurrency": request.get("dashboard", {}).get("max_concurrency"),
+        "spent_usd": manifest.get("spent_usd", 0),
+        "complete": bool(manifest.get("complete", False)),
+        "finished": finished,
+        "partial_reason": manifest.get("partial_reason"),
+        "elapsed_seconds": elapsed_seconds,
+        "counts": counts,
+        "stages": stages,
+        "available": bool(tasks_flat),
+    }
+
+
+@router.get("/workflows/{run_id}")
+async def bg_workflow_detail(run_id: str):
+    run_dir = _workflow_run_dir(run_id)
+    if run_dir is None:
+        return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
+    if not run_dir.is_dir():
+        return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
+    try:
+        return JSONResponse(_workflow_detail(run_id, run_dir), headers=_WORKFLOW_HEADERS)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return JSONResponse(
+            {"error": "workflow data unavailable"},
+            status_code=500,
+            headers=_WORKFLOW_HEADERS,
+        )
+
+
+@router.get("/workflows/{run_id}/results/{index}")
+async def bg_workflow_result(run_id: str, index: int):
+    run_dir = _workflow_run_dir(run_id)
+    if run_dir is None or not run_dir.is_dir() or index < 0:
+        return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
+    try:
+        detail = _workflow_detail(run_id, run_dir)
+        task = next((item for stage in detail["stages"] for item in stage["tasks"]
+                     if item["global_index"] == index), None)
+        call_key = (task or {}).get("call_key", "")
+        if not re.fullmatch(r"[0-9a-f]{64}:[0-9]+", call_key):
+            return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
+        path = (run_dir / "steps" / f"{call_key.replace(':', '-')}.json").resolve()
+        path.relative_to(run_dir.resolve())
+        value = _read_workflow_json(path)
+        if value is None:
+            return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
+        return JSONResponse(value, headers=_WORKFLOW_HEADERS)
+    except (OSError, ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return JSONResponse({"error": "not found"}, status_code=404, headers=_WORKFLOW_HEADERS)
 
 
 class BgJobCreateRequest(BaseModel):

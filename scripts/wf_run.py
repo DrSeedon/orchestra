@@ -633,6 +633,9 @@ class WorkflowEngine:
             })
             return None
 
+        if label:
+            self.journal.append({"event": "task_started", "call_key": call_key, "label": label})
+
         async with self._state_lock:
             if self.budget.exhausted():
                 self.partial_reason = "budget"
@@ -735,6 +738,7 @@ class WorkflowEngine:
                 self.partial_reason = self.partial_reason or "error"
                 self._step_records[call_key] = {
                     "call_key": call_key,
+                    "label": label,
                     "reason": "prepare_failed",
                     "error": str(error)[:1000],
                     "value": None,
@@ -786,6 +790,7 @@ class WorkflowEngine:
                 call_key,
                 None,
                 reason=reason,
+                label=label,
                 cost_usd=total_cost,
                 error=result.error if result is not None else "",
             )
@@ -808,6 +813,7 @@ class WorkflowEngine:
             call_key,
             value,
             reason="completed",
+            label=label,
             cost_usd=total_cost,
             model=selected,
             runtime=runtime,
@@ -953,6 +959,7 @@ class WorkflowEngine:
         value: WorkflowValue | None,
         *,
         reason: str,
+        label: str = "",
         cost_usd: float = 0,
         model: str = "",
         runtime: str = "",
@@ -961,6 +968,7 @@ class WorkflowEngine:
         row = {
             "event": "completed",
             "call_key": call_key,
+            "label": label,
             "reason": reason,
             "cost_usd": cost_usd,
             "model": model,
@@ -1034,6 +1042,7 @@ class WorkflowEngine:
             "steps": [
                 {
                     "call_key": key,
+                    "label": row.get("label") or "",
                     "reason": row.get("reason"),
                     "error": row.get("error") or None,
                     "result_path": (
@@ -1084,6 +1093,7 @@ class WorkflowEngine:
             return await self.agent(
                 task["prompt"], model=task.get("model", "luna"),
                 schema=task.get("schema"), inputs=inputs,
+                label=task.get("label", ""),
             )
 
         if mode == "parallel":
@@ -1112,6 +1122,7 @@ class WorkflowEngine:
                 lambda task=task, prior=tuple(previous): self.agent(
                     task["prompt"], model=task.get("model", "luna"),
                     schema=task.get("schema"), inputs=prior,
+                    label=task.get("label", ""),
                 )
                 for task in stage_tasks
             ])

@@ -116,9 +116,13 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     spec = json.loads(spec_path.read_text())
     assert spec['mode'] == 'stages' and len(spec['stages'][0]['tasks']) == 2
     assert spec['stages'][0]['tasks'] == [
-        {'prompt': large_prompt + 'persona={"id": 1, "profile": "first"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}},
-        {'prompt': large_prompt + 'persona={"id": 2, "profile": "second"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}},
+        {'prompt': large_prompt + 'persona={"id": 1, "profile": "first"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}, 'label': 'Stage 1 · Task 1'},
+        {'prompt': large_prompt + 'persona={"id": 2, "profile": "second"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}, 'label': 'Stage 1 · Task 2'},
     ]
+    assert spec['dashboard']['task_id'] == 'V-720'
+    assert spec['dashboard']['budget_usd'] == 1
+    assert spec['dashboard']['max_calls'] == 2
+    assert spec['dashboard']['max_concurrency'] == 2
 
 
 @pytest.mark.asyncio
@@ -163,7 +167,9 @@ async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypa
     assert 'queued' in response
     args = shlex.split(captured['config']['command'])
     spec = json.loads(Path(args[args.index('--spec') + 1]).read_text())
-    assert spec == {'tasks': [{'prompt': 'legacy task', 'model': 'gpt-6-luna'}], 'mode': mode}
+    assert spec['tasks'] == [{'prompt': 'legacy task', 'model': 'gpt-6-luna', 'label': 'Task 1'}]
+    assert spec['mode'] == mode
+    assert spec['dashboard']['task_id'] == 'V-738'
 
 
 @pytest.mark.asyncio
@@ -273,10 +279,19 @@ async def test_stages_give_every_next_stage_task_all_previous_results(tmp_path):
         default_modules=(),
     )
     result = await engine.execute_stages([
-        {'tasks': [{'prompt': 'first'}, {'prompt': 'second'}]},
-        {'tasks': [{'prompt': 'third'}, {'prompt': 'fourth'}]},
+        {'tasks': [
+            {'prompt': 'first', 'label': 'Stage 1 · Task 1'},
+            {'prompt': 'second', 'label': 'Stage 1 · Task 2'},
+        ]},
+        {'tasks': [
+            {'prompt': 'third', 'label': 'Stage 2 · Task 1'},
+            {'prompt': 'fourth', 'label': 'Stage 2 · Task 2'},
+        ]},
     ])
     assert len(result) == 2 and len(result[0]) == len(result[1]) == 2
+    assert [step['label'] for step in engine.write_manifest()['steps']] == [
+        'Stage 1 · Task 1', 'Stage 1 · Task 2', 'Stage 2 · Task 1', 'Stage 2 · Task 2',
+    ]
     assert prompts[2].startswith('third\n\nStructured inputs:\n["result-1", "result-2"]')
     assert prompts[3].startswith('fourth\n\nStructured inputs:\n["result-1", "result-2"]')
 
