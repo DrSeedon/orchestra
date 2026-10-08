@@ -1,4 +1,6 @@
+import asyncio
 import sqlite3
+import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
 
@@ -160,6 +162,45 @@ def test_daily_usage_empty_database_returns_legacy_empty_list(usage_db):
     from app.usage_analytics import daily_usage
 
     assert daily_usage(days=7) == []
+
+
+def test_analytics_date_windows_use_expression_indexes(usage_db):
+    queries = (
+        (
+            "turn_usage",
+            "SELECT id FROM turn_usage WHERE date(ts) >= date('now', '-6 days')",
+            "idx_turn_usage_day",
+        ),
+        (
+            "logs",
+            "SELECT id FROM logs WHERE type='status' "
+            "AND content LIKE '%turn ended%' "
+            "AND date(ts) >= date('now', '-6 days')",
+            "idx_logs_turn_end_day",
+        ),
+        (
+            "subagents",
+            "SELECT id FROM subagents "
+            "WHERE date(started_at) >= date('now', '-6 days')",
+            "idx_subagents_started_day",
+        ),
+        (
+            "tool_errors",
+            "SELECT id FROM tool_errors WHERE date(ts) >= date('now', '-6 days')",
+            "idx_tool_errors_day",
+        ),
+        (
+            "voice_costs",
+            "SELECT id FROM voice_costs WHERE date(ts) >= date('now', '-6 days')",
+            "idx_voice_costs_day",
+        ),
+    )
+    with sqlite3.connect(usage_db) as connection:
+        for table, sql, index in queries:
+            plan = " ".join(
+                row[3] for row in connection.execute("EXPLAIN QUERY PLAN " + sql)
+            )
+            assert index in plan, f"{table} query plan did not use {index}: {plan}"
 
 
 def test_today_window_excludes_yesterday_boundary_date(usage_db):
@@ -761,6 +802,50 @@ async def test_analytics_api_exposes_model_speed_fields(usage_db, monkeypatch):
     assert point["median_tokens_per_second"] == 100.0
     assert point["duration_basis"] == "api"
     assert point["samples"] == 1
+
+
+@pytest.mark.asyncio
+async def test_slow_analytics_does_not_block_event_loop_or_use_default_executor(
+    monkeypatch,
+):
+    from app.routes import system
+
+    started = threading.Event()
+    release = threading.Event()
+    executor_calls = []
+    loop = asyncio.get_running_loop()
+    original_run_in_executor = loop.run_in_executor
+
+    def record_executor(executor, function, *args):
+        executor_calls.append(executor)
+        return original_run_in_executor(executor, function, *args)
+
+    monkeypatch.setattr(loop, "run_in_executor", record_executor)
+
+    def slow_snapshot(days, capacity):
+        started.set()
+        release.wait(1)
+        return {}
+
+    monkeypatch.setattr(
+        "app.usage_analytics.build_usage_analytics", slow_snapshot
+    )
+    monkeypatch.setattr(system, "get_usage", AsyncMock(return_value={}))
+    monkeypatch.setattr(system, "build_quota_map", AsyncMock(return_value={}))
+    monkeypatch.setattr("app.limit_wake.wake_status", lambda: {})
+
+    request = asyncio.create_task(system.usage_analytics_endpoint(days=7))
+    try:
+        deadline = loop.time() + 0.5
+        while not started.is_set() and loop.time() < deadline:
+            await asyncio.sleep(0.001)
+        assert started.is_set()
+        await asyncio.wait_for(asyncio.sleep(0.02), timeout=0.1)
+        assert not request.done()
+        assert executor_calls == [system._ANALYTICS_EXECUTOR]
+    finally:
+        release.set()
+    await request
 
 
 def test_unaccounted_linked_turn_hides_task_cost(usage_db):

@@ -2,6 +2,7 @@
 orchestrators, test-lock, restart, GitHub webhook."""
 
 import asyncio
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
 import json
@@ -19,7 +20,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from email.utils import formatdate, parsedate_to_datetime
 from datetime import datetime, timedelta, timezone
-from functools import lru_cache
+from functools import lru_cache, partial
 from io import BytesIO
 from pathlib import Path
 from typing import Optional
@@ -57,6 +58,10 @@ from app.runtime_registry import get_runtime
 logger = logging.getLogger("orchestra.system")
 
 router = APIRouter()
+_ANALYTICS_EXECUTOR = ThreadPoolExecutor(
+    max_workers=1,
+    thread_name_prefix="usage-analytics",
+)
 
 
 class ProfileRequest(BaseModel):
@@ -1669,7 +1674,10 @@ async def usage_analytics_endpoint(days: int = 7):
     capacity = current if isinstance(current, dict) and any(
         key in current for key in ("anthropic", "codex", "orchestra")
     ) else {}
-    payload = build_usage_analytics(days=days, capacity=capacity)
+    payload = await asyncio.get_running_loop().run_in_executor(
+        _ANALYTICS_EXECUTOR,
+        partial(build_usage_analytics, days=days, capacity=capacity),
+    )
     # Карта едет в том же снимке: модалка держит контракт «один запрос на
     # открытие», а телеметрия уже прогрета вызовом get_usage() выше.
     try:

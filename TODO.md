@@ -3,6 +3,7 @@
 Только актуальные дефекты и пункты, где требуется решение владельца. Полная таблица по всем исходным пунктам: [.orchestra/tasks/V-698/triage.md](.orchestra/tasks/V-698/triage.md). Источник исходных номеров — `TODO.md` в `main` SHA `71a008fe`.
 
 ## CI и dashboard
+- Перед следующим перезапуском сверить loaded unit Orchestra с файлом на диске: `systemctl show` сообщил `TimeoutStartUSec=15min`, а `systemctl cat` предупредил, что загруженная версия устарела; фрагмент на диске содержит другие `ExecStart`/`TimeoutStartSec` (read-only проверка V-779, 08.10.2026). Решить, нужен ли `daemon-reload`, только вместе с владельцем запуска.
 - Разобрать непадающее предупреждение `BaseSubprocessTransport.__del__: RuntimeError: Event loop is closed` после pytest и определить владельца очистки subprocess transports. Оно появилось после `tests/test_tg_bridge.py::TestTurnFoldStream::test_progress_edit_is_throttled_and_skips_identical_text` в проверке V-753 и независимо возникало в полном наборе на main и ветке в V-701; отчёты: `.orchestra/tasks/V-753/tests.log`, `.orchestra/tasks/V-701/report.md`.
 - Обновить actions/checkout@v4 и setup-uv@v4: их action.yml ещё указывает Node 20. — OPEN-DEFECT, [T001](.orchestra/tasks/V-698/triage.md#t001). Доказательство: `evidence/node20_runtime_probe.txt; evidence/node20_deprecation.txt; .github/workflows/ci.yml:36,39`.
 - Подпись полосы гейта квот не переводится: в английском интерфейсе пилюля гейта чит… — OPEN-DEFECT, [T002](.orchestra/tasks/V-698/triage.md#t002). Доказательство: `app/quota_gate.py:272-280`.

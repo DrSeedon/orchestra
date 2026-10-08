@@ -1,0 +1,19 @@
+.F...                                                                    [100%]
+=================================== FAILURES ===================================
+_________ TestLastTurnMap.test_query_uses_terminal_turn_partial_index __________
+
+self = <tests.test_db.TestLastTurnMap object at 0x799a966dbad0>
+db = PosixPath('/tmp/pytest-of-kesha/pytest-16252/test_query_uses_terminal_turn_0/test.db')
+
+    def test_query_uses_terminal_turn_partial_index(self, db):
+        """The terminal-turn partial index keeps this per-poll query within turn rows."""
+        with sqlite3.connect(db) as c:
+            plan = " ".join(str(r) for r in c.execute("EXPLAIN QUERY PLAN " + self.QUERY))
+>       assert "idx_logs_turn_end_day" in plan, plan
+E       AssertionError: (7, 0, 0, 'SCAN logs USING INDEX idx_logs_status')
+E       assert 'idx_logs_turn_end_day' in "(7, 0, 0, 'SCAN logs USING INDEX idx_logs_status')"
+
+tests/test_db.py:1066: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_db.py::TestLastTurnMap::test_query_uses_terminal_turn_partial_index
+1 failed, 4 passed in 7.17s

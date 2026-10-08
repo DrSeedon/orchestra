@@ -1,0 +1,19 @@
+helper=_daily_usage seconds=0.045
+helper=_agent_rows seconds=0.026
+helper=_model_rows seconds=0.017
+helper=_model_speed_analytics seconds=0.003
+helper=_task_summary seconds=0.046
+helper=_lifetime_summary seconds=0.027
+helper=_reliability seconds=0.081
+helper=_retention seconds=0.069
+days=7 total_seconds=0.320 daily=7 agents=153 models=6 lifetime_agents=918 speed_points=14
+query_seconds~=0.071 sql=SELECT e.runtime, e.tool_name, COUNT(*) AS error_count, MAX(e.ts) AS last_seen, ( SELECT recent.error_text FROM tool_errors recent WHERE recent.runtime = e.runtime AND recent.tool_
+query_seconds~=0.062 sql=SELECT MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM logs WHERE type = 'status' AND content LIKE '%turn ended%'
+query_seconds~=0.042 sql=WITH linked_tasks AS ( SELECT t.id, t.created_at, SUM(u.cost_usd) AS cost_usd, COUNT(*) AS turns, COUNT(u.cost_usd) AS priced_turns, datetime(t.created_at) >= datetime(( SELECT val
+query_seconds~=0.027 sql=SELECT COUNT(*) AS agents, COUNT(*) FILTER ( WHERE status IN ('running', 'starting') ) AS active_agents, COALESCE(SUM(cost_usd), 0) AS cost_usd, COALESCE(SUM(total_turns), 0) AS tu
+query_seconds~=0.026 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.025 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.020 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.018 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.008 sql=SELECT task_type, status, COUNT(*) AS count FROM subagents WHERE date(started_at) >= date('now', '-6 days') GROUP BY task_type, status
+query_seconds~=0.007 sql=SELECT MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM logs WHERE type = 'status' AND content LIKE '%turn ended%' AND date(ts) >= date('now', '-6 days')

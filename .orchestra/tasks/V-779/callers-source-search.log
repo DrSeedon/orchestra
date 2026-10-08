@@ -1,0 +1,16 @@
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/88/experiments/transport_probe_server.py:151:        elif path == "/api/stats":
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/88/experiments/transport_probe_browser.py:67:        stats = (sender.context.request.get(f"{args.base}/api/stats")).json()
+/home/kesha/projects/seedon/groom-demo-bot/groom_demo/dashboard_server.py:18:DASHBOARD_API_PATH = "/demo/groom/api/stats"
+/home/kesha/projects/seedon/groom-demo-bot/tests/test_dashboard.py:336:                    elif url.endswith("/api/stats"):
+/home/kesha/projects/comfy-image-pipeline/.orchestra/tasks/V-94/check-portraits.py:27:            with urlopen(origin+'/api/stats',timeout=.2):break
+rg: /home/kesha/projects/seedon/.orchestra/tasks/83/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/57/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/95/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/73/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/65/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/55/research.md: No such file or directory (os error 2)
+rg: /home/kesha/projects/seedon/.orchestra/tasks/V-131/webdemo/_tools/cal: No such file or directory (os error 2)
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/88/experiments/transport_probe_server.py:151:        elif path == "/api/stats":
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/V-94/check-portraits.py:27:            with urlopen(origin+'/api/stats',timeout=.2):break
+/home/kesha/projects/mfm-2026-infra/.orchestra/tasks/88/experiments/transport_probe_browser.py:67:        stats = (sender.context.request.get(f"{args.base}/api/stats")).json()
+rg_exit=2

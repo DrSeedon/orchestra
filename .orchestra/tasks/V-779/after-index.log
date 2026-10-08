@@ -1,0 +1,22 @@
+days=7 total_seconds=1.718 daily=7 agents=153 models=6
+query_seconds~=1.250 sql=SELECT COUNT(*) AS agents, COUNT(*) FILTER ( WHERE status IN ('running', 'starting') ) AS active_agents, COALESCE(SUM(cost_usd), 0) AS cost_usd, COALESCE(SUM(total_turns), 0) AS tu
+query_seconds~=0.116 sql=WITH linked_tasks AS ( SELECT t.id, t.created_at, SUM(u.cost_usd) AS cost_usd, COUNT(*) AS turns, COUNT(u.cost_usd) AS priced_turns, datetime(t.created_at) >= datetime(( SELECT val
+query_seconds~=0.078 sql=SELECT e.runtime, e.tool_name, COUNT(*) AS error_count, MAX(e.ts) AS last_seen, ( SELECT recent.error_text FROM tool_errors recent WHERE recent.runtime = e.runtime AND recent.tool_
+query_seconds~=0.065 sql=SELECT MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM logs WHERE type = 'status' AND content LIKE '%turn ended%'
+query_seconds~=0.050 sql=SELECT model, runtime, ts, output_tokens, api_duration_ms, duration_basis, turn_duration_ms, CASE WHEN api_duration_ms > 0 THEN api_duration_ms WHEN duration_basis = 'incomplete' T
+query_seconds~=0.040 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.029 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.028 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.025 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.016 sql=SELECT task_type, status, COUNT(*) AS count FROM subagents WHERE date(started_at) >= date('now', '-6 days') GROUP BY task_type, status
+days=1 total_seconds=0.220 daily=1 agents=45 models=5
+query_seconds~=0.068 sql=SELECT MIN(ts) AS first_ts, MAX(ts) AS last_ts FROM logs WHERE type = 'status' AND content LIKE '%turn ended%'
+query_seconds~=0.064 sql=WITH linked_tasks AS ( SELECT t.id, t.created_at, SUM(u.cost_usd) AS cost_usd, COUNT(*) AS turns, COUNT(u.cost_usd) AS priced_turns, datetime(t.created_at) >= datetime(( SELECT val
+query_seconds~=0.045 sql=SELECT COUNT(*) AS agents, COUNT(*) FILTER ( WHERE status IN ('running', 'starting') ) AS active_agents, COALESCE(SUM(cost_usd), 0) AS cost_usd, COALESCE(SUM(total_turns), 0) AS tu
+query_seconds~=0.007 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.006 sql=SELECT model, runtime, ts, output_tokens, api_duration_ms, duration_basis, turn_duration_ms, CASE WHEN api_duration_ms > 0 THEN api_duration_ms WHEN duration_basis = 'incomplete' T
+query_seconds~=0.006 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.004 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod
+query_seconds~=0.004 sql=SELECT COUNT(*) AS recorded_rows, COUNT(cost_usd) AS priced_rows, COUNT(*) - COUNT(cost_usd) AS unaccounted_rows, MIN(ts) AS observed_from FROM turn_usage WHERE date(ts) >= date('n
+query_seconds~=0.004 sql=SELECT COUNT(*) FROM tm_tasks WHERE status IN ('done', 'paid') AND date(completed_at) >= date('now', '-0 days')
+query_seconds~=0.004 sql=WITH observed_turns AS ( SELECT u.ts, u.session_id, COALESCE(s.name, u.session_id) AS name, COALESCE(NULLIF(u.scope, ''), s.scope, '') AS scope, COALESCE(NULLIF(u.model, ''), s.mod

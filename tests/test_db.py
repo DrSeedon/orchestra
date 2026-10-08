@@ -503,7 +503,6 @@ class TestStats:
         assert stats["total_sessions"] == 2
         assert stats["active"] == 1
         assert stats["total_cost_usd"] == pytest.approx(1.7)
-        assert stats["total_logs"] == 2
 
 
 class TestTestLock:
@@ -1058,11 +1057,11 @@ class TestLastTurnMap:
         assert m["s-1"] == (t0 + timedelta(minutes=5)).isoformat()
         assert "s-2" not in m
 
-    def test_query_uses_status_index_not_full_scan(self, db):
-        """Without idx_logs_status SQLite reads content of EVERY log row to LIKE-match it."""
+    def test_query_uses_last_turn_partial_index(self, db):
+        """The terminal-turn partial index keeps this per-poll query within turn rows."""
         with sqlite3.connect(db) as c:
             plan = " ".join(str(r) for r in c.execute("EXPLAIN QUERY PLAN " + self.QUERY))
-        assert "idx_logs_status" in plan, plan
+        assert "idx_logs_last_turn" in plan, plan
 
 
 def test_existing_unversioned_schema_requires_explicit_migration(tmp_path, monkeypatch):

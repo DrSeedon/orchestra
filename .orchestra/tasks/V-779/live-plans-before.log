@@ -1,0 +1,10 @@
+retention_all
+  SCAN logs USING INDEX idx_logs_status
+retention_window
+  SCAN logs USING INDEX idx_logs_status
+last_turn_map
+  SCAN logs USING INDEX idx_logs_status
+turn_usage_window
+  SCAN turn_usage USING COVERING INDEX idx_turn_usage_ts
+subagents_window
+  SCAN subagents

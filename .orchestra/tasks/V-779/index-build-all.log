@@ -1,0 +1,7 @@
+idx_turn_usage_day seconds=0.002
+idx_logs_turn_end_day seconds=0.027
+idx_logs_turn_end_day seconds=88.652
+idx_logs_last_turn seconds=1.048
+idx_subagents_started_day seconds=0.000
+idx_tool_errors_day seconds=0.000
+idx_voice_costs_day seconds=0.000
