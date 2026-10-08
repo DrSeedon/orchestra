@@ -800,6 +800,7 @@ async def test_t381_retry_after_backend_recovery_submits_once_without_duplicate_
     assert prompt_preparations == [MESSAGE]
     assert recovered_session._ensure_backend.await_args.kwargs == {
         "exclude_history_users": (MESSAGE,),
+        "billing_mode": "subscription",
     }
     assert [entry["content"] for entry in _user_messages(delivery_db)] == [MESSAGE]
 

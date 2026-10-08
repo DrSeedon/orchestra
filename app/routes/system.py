@@ -1678,6 +1678,15 @@ async def usage_analytics_endpoint(days: int = 7):
         _ANALYTICS_EXECUTOR,
         partial(build_usage_analytics, days=days, capacity=capacity),
     )
+    if is_owner_mode():
+        from app.claude_api_credits import credit_status
+
+        payload["claude_api_credits"] = credit_status()
+    else:
+        payload["claude_api_credits"] = {
+            "available": False, "remaining_usd": None,
+            "expires_at": None, "reason": "owner_mode_only",
+        }
     # Карта едет в том же снимке: модалка держит контракт «один запрос на
     # открытие», а телеметрия уже прогрета вызовом get_usage() выше.
     try:
@@ -1766,6 +1775,7 @@ async def build_quota_map() -> dict:
     from app.quota_gate import (
         QUOTA_OBSERVATION_MAX_AGE,
         LANE_LABELS,
+        apply_claude_api_credit_fallback,
         deciding_window,
         evaluate_worker_admission,
         gate_override_remaining,
@@ -1778,6 +1788,7 @@ async def build_quota_map() -> dict:
         window_progress,
     )
     import app.db as db
+    from app.claude_api_credits import credit_status
 
     observation = _quota_observation_from_cache()
     providers = observation.get("providers") or {}
@@ -1785,6 +1796,7 @@ async def build_quota_map() -> dict:
     observe_quota_policy_history()
     now = time.time()
     policy = quota_policy()
+    credits = credit_status(now=datetime.fromtimestamp(now, timezone.utc))
 
     bucket_labels = {
         "anthropic": "Claude", "codex": "Codex", "codex_spark": "Codex Spark",
@@ -1797,6 +1809,7 @@ async def build_quota_map() -> dict:
         decision = evaluate_worker_admission(
             model_id, providers, timestamps, now=now, policy=policy,
         )
+        decision = apply_claude_api_credit_fallback(decision, status=credits)
         item = {
             **decision.to_dict(),
             "label": model_label,
@@ -2119,6 +2132,7 @@ async def build_quota_map() -> dict:
         ),
         "buckets": buckets,
         "outside_policy": outside_policy,
+        "claude_api_credits": credits,
     }
 
 

@@ -847,6 +847,9 @@ class AgentSession:
         self._cost = CostTracker(self)
         self._turns = TurnManager(self)
         self._hibernate = HibernateManager(self)
+        self._billing_mode = "subscription"
+        self._last_admission_decision = None
+        self._active_delivery_context = None
 
     @property
     def is_orchestrator(self) -> bool:
@@ -867,9 +870,14 @@ class AgentSession:
         config_dir_override: str | None = None,
         model_override: str | None = None,
         resume_session_id: str | None = None,
+        billing_mode: str = "subscription",
     ):
         model = model_override or self.model
         runtime = get_model_spec(model).runtime
+        if billing_mode not in {"subscription", "api_credit"}:
+            raise ValueError("billing_mode must be subscription or api_credit")
+        if billing_mode == "api_credit" and (runtime != "claude" or self.is_orchestrator):
+            raise ValueError("Claude API credits are restricted to Claude worker sessions")
         spec = get_model_spec(model)
         system_prompt = self.system_prompt
         project_doc_instruction = getattr(self, "_codex_project_doc_instruction", "")
@@ -898,6 +906,7 @@ class AgentSession:
             ),
             history_import=history_import,
             validation_profile=validation_profile,
+            billing_mode=billing_mode,
             config_dir_override=(
                 self._handoff_config_dir
                 if config_dir_override is None
@@ -1058,12 +1067,19 @@ class AgentSession:
         started = time.monotonic()
         try:
             if self._admission_service is not None:
-                return await self._admission_service(model)
-            from app.quota_gate import get_worker_admission
+                decision = await self._admission_service(model)
+            else:
+                from app.quota_gate import get_worker_admission
 
-            return await get_worker_admission(model)
+                decision = await get_worker_admission(model)
         finally:
             self._log_codex_connect_stage("quota_gate", started)
+        return decision
+
+    async def _restore_subscription_backend(self) -> None:
+        if self.backend_type == "claude" and self._billing_mode == "api_credit":
+            await self._disconnect_backend()
+            self._billing_mode = "subscription"
 
     def codex_writer_error(self):
         if self.backend_type != "codex" or not self.session_id:
@@ -1116,6 +1132,10 @@ class AgentSession:
             try:
                 from app.quota_gate import require_worker_admission
 
+                if (
+                    getattr(decision, "billing_mode", "subscription") != "api_credit"
+                ):
+                    await self._restore_subscription_backend()
                 require_worker_admission(decision)
             finally:
                 self._lifecycle_lock.release()
@@ -1175,6 +1195,7 @@ class AgentSession:
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
+        billing_mode = "subscription"
 
         while True:
             await self._lifecycle_lock.acquire()
@@ -1200,6 +1221,9 @@ class AgentSession:
                 self._compacting or self.status == AgentStatus.RUNNING or self.is_orchestrator
                 or provenance.origin in QUOTA_GATE_EXEMPT_ORIGINS
             ):
+                if self.status == AgentStatus.RUNNING or self._compacting:
+                    billing_mode = self._billing_mode
+                self._last_admission_decision = None
                 break
             if decision is None:
                 admitted_model = self.model
@@ -1225,7 +1249,13 @@ class AgentSession:
             try:
                 from app.quota_gate import require_worker_admission
 
+                if (
+                    getattr(decision, "billing_mode", "subscription") != "api_credit"
+                ):
+                    await self._restore_subscription_backend()
                 require_worker_admission(decision)
+                billing_mode = getattr(decision, "billing_mode", "subscription")
+                self._last_admission_decision = decision
             except BaseException:
                 self._lifecycle_lock.release()
                 raise
@@ -1472,6 +1502,7 @@ class AgentSession:
                 try:
                     backend = await self._ensure_backend(
                         exclude_history_users=(history_user_message,),
+                        billing_mode=billing_mode,
                     )
                 except NativeHistoryImportError as error:
                     backend = await self._fallback_db_backed_claude(
@@ -1531,9 +1562,11 @@ class AgentSession:
                 provider_send = getattr(backend, "send", None)
                 if not callable(provider_send):
                     raise RuntimeError("backend is unavailable before provider submission")
+                self._active_delivery_context = None
                 if delivery is not None:
                     await delivery.before_submit()
                     dispatch_started = True
+                    self._active_delivery_context = delivery
                 await provider_send(outbound_message)
                 if delivery is not None:
                     provider_ref = getattr(backend, "active_turn_id", None)
@@ -1986,9 +2019,42 @@ class AgentSession:
         exclude_history_users: tuple[str, ...] = (),
         activate: bool = True,
         _allow_codex_oversize_retry: bool = True,
+        billing_mode: str | None = None,
     ):
+        desired_billing_mode = billing_mode or self._billing_mode
+        if desired_billing_mode not in {"subscription", "api_credit"}:
+            raise ValueError("billing_mode must be subscription or api_credit")
+        if desired_billing_mode == "api_credit" and (
+            self.backend_type != "claude" or self.is_orchestrator
+        ):
+            raise ValueError("Claude API credits are restricted to Claude worker sessions")
+        if desired_billing_mode == "api_credit":
+            from app.claude_api_credits import credit_status
+
+            if not credit_status().get("available"):
+                decision = self._last_admission_decision
+                if (
+                    decision is not None
+                    and getattr(decision, "billing_mode", "subscription") == "api_credit"
+                ):
+                    from dataclasses import replace
+                    from app.quota_gate import QuotaGateError
+
+                    raise QuotaGateError(replace(
+                        decision,
+                        state="blocked",
+                        billing_mode="subscription",
+                        reason=(
+                            "Claude API credits became unavailable before provider submission"
+                        ),
+                    ))
+                desired_billing_mode = "subscription"
         if self._backend is not None:
-            if not force_fresh:
+            current_billing_mode = getattr(self._backend, "billing_mode", self._billing_mode)
+            if not force_fresh and (
+                self.backend_type != "claude"
+                or current_billing_mode == desired_billing_mode
+            ):
                 if self._runtime_error:
                     raise RuntimeError(f"runtime connection failed; reconnect this CLI before sending: {self._runtime_error}")
                 return self._backend
@@ -2026,11 +2092,14 @@ class AgentSession:
                 exclude_history_users,
             )
         if history_import is None:
-            self._backend = self._make_backend(force_fresh=force_fresh)
+            self._backend = self._make_backend(
+                force_fresh=force_fresh, billing_mode=desired_billing_mode,
+            )
         else:
             self._backend = self._make_backend(
                 force_fresh=force_fresh,
                 history_import=history_import,
+                billing_mode=desired_billing_mode,
             )
         candidate = self._backend
         try:
@@ -2068,6 +2137,7 @@ class AgentSession:
                     exclude_history_users=exclude_history_users,
                     activate=activate,
                     _allow_codex_oversize_retry=False,
+                    billing_mode=desired_billing_mode,
                 )
             if oversized_failure:
                 for message in exclude_history_users:
@@ -2083,6 +2153,7 @@ class AgentSession:
             raise RuntimeError("backend changed while connection was being established")
         self._runtime_error = ""
         self._codex_writer_error = None
+        self._billing_mode = desired_billing_mode
         if activate:
             self._activate_backend_tasks()
         return candidate
@@ -2495,7 +2566,9 @@ class AgentSession:
             # Сколько обращений к модели было в ходе: расход хода — их сумма, и компакт
             # делит на это число, чтобы получить размер контекста ОДНОГО обращения.
             self._last_turn_api_calls = max(1, int(event.metadata.get("num_turns") or 1))
+            event.metadata.setdefault("billing_mode", self._billing_mode)
             self._turns.handle_turn_end(event)
+            self._active_delivery_context = None
         elif event.type == "error":
             if event.metadata.get("codex_quota_exhausted"):
                 self._session_limit_hit = True
@@ -2576,6 +2649,7 @@ class AgentSession:
         decision = None
         admitted_model = ""
         admitted_stop_gen = -1
+        billing_mode = "subscription"
         while True:
             await self._lifecycle_lock.acquire()
             if self._compacting or self.status == AgentStatus.RUNNING:
@@ -2610,7 +2684,13 @@ class AgentSession:
             try:
                 from app.quota_gate import QuotaGateError, require_worker_admission
 
+                if (
+                    getattr(decision, "billing_mode", "subscription") != "api_credit"
+                ):
+                    await self._restore_subscription_backend()
                 require_worker_admission(decision)
+                billing_mode = getattr(decision, "billing_mode", "subscription")
+                self._last_admission_decision = decision
             except QuotaGateError as error:
                 retained = len(self._pending_messages)
                 signature = json.dumps({
@@ -2662,6 +2742,7 @@ class AgentSession:
                 try:
                     backend = await self._ensure_backend(
                         exclude_history_users=tuple(msgs),
+                        billing_mode=billing_mode,
                     )
                 except NativeHistoryImportError as error:
                     backend = await self._fallback_db_backed_claude(

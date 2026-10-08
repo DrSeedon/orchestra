@@ -660,8 +660,14 @@ class ClaudeBackend:
                  user_mcp_servers: dict | None = None,
                  effort: str | None = None,
                  history_import: object | None = None,
-                 validation_profile: bool = False):
+                 validation_profile: bool = False,
+                 billing_mode: str = "subscription"):
+        if billing_mode not in {"subscription", "api_credit"}:
+            raise ValueError("billing_mode must be subscription or api_credit")
+        if billing_mode == "api_credit" and is_orchestrator:
+            raise ValueError("orchestrators cannot use Claude API credits")
         self.model = model
+        self.billing_mode = billing_mode
         self.cwd = cwd
         self.system_prompt = system_prompt
         self._resume_id = resume_session_id
@@ -1068,6 +1074,15 @@ class ClaudeBackend:
         # #56: kill non-essential background haiku calls (tips/banter/flavor) + telemetry
         env["DISABLE_NON_ESSENTIAL_MODEL_CALLS"] = "1"
         env["DISABLE_TELEMETRY"] = "1"
+        env["ORCHESTRA_CLAUDE_CREDIT_API_KEY"] = ""
+        env["ANTHROPIC_API_KEY"] = ""
+        if self.billing_mode == "api_credit":
+            from app.claude_api_credits import API_KEY_ENV
+
+            api_key = os.environ.get(API_KEY_ENV, "").strip()
+            if not api_key:
+                raise RuntimeError("Claude API-credit route is missing its configured key")
+            env["ANTHROPIC_API_KEY"] = api_key
         # Профиль: переопределяем CLAUDE_CONFIG_DIR подпроцесса (SDK строит
         # env как {**os.environ, **options.env}). Пусто → наследуем env процесса
         # orchestra (back-compat). expanduser — на случай "~" в config_dir.
@@ -1583,6 +1598,11 @@ class ClaudeBackend:
             err_list = list(getattr(msg, "errors", None) or [])
             if model_error and model_error not in err_list:
                 err_list.append(model_error)
+            from app.claude_api_credits import is_credit_exhaustion_error
+
+            api_credit_exhausted = self.billing_mode == "api_credit" and (
+                is_credit_exhaustion_error(*err_list)
+            )
             denials = getattr(msg, "permission_denials", None) or []
 
             cost = getattr(msg, "total_cost_usd", 0) or 0
@@ -1796,6 +1816,8 @@ class ClaudeBackend:
                 "is_error": is_err,
                 "errors": err_list,
                 "model_error": model_error,
+                "api_credit_exhausted": api_credit_exhausted,
+                "billing_mode": self.billing_mode,
                 "stop_reason": sr,
                 "num_turns": nt,
                 "turn_duration_ms": turn_duration_ms,

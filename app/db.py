@@ -232,7 +232,7 @@ def ensure_owner_activity_schema(path: Path | None = None) -> dict[str, int]:
 
 
 def ensure_turn_usage_timing_schema(path: Path | None = None) -> int:
-    """Add nullable timing and reasoning fields without changing historical rows."""
+    """Add nullable timing and reasoning fields and a subscription default for billing mode."""
     additions = {
         "turn_duration_ms": "INTEGER",
         "api_duration_ms": "INTEGER",
@@ -244,6 +244,7 @@ def ensure_turn_usage_timing_schema(path: Path | None = None) -> int:
         "tool_union_duration_ms": "INTEGER",
         "tool_intervals_count": "INTEGER",
         "tool_intervals_missing": "INTEGER",
+        "billing_mode": "TEXT NOT NULL DEFAULT 'subscription'",
     }
     with _conn(path) as connection:
         columns = {
@@ -2256,6 +2257,7 @@ def turn_usage_add(
     task_id: str = "",
     runtime: str,
     model: str,
+    billing_mode: str = "subscription",
     ok: bool,
     stop_reason: str,
     cost_usd: float | None,
@@ -2285,6 +2287,8 @@ def turn_usage_add(
     """Persist one provider-identified terminal turn; return false on replay."""
     if not event_id:
         return False
+    if billing_mode not in {"subscription", "api_credit"}:
+        raise ValueError("billing_mode must be subscription or api_credit")
     quota_pcts = (
         quota_five_hour_pct,
         quota_seven_day_pct,
@@ -2326,6 +2330,7 @@ def turn_usage_add(
             """INSERT OR IGNORE INTO turn_usage
                (event_id, ts, session_id, scope, task_id,
                 runtime, model, ok, stop_reason,
+                billing_mode,
                 cost_usd, cost_unaccounted, input_tokens, output_tokens,
                 cache_read_tokens, cache_create_tokens,
                 quota_five_hour_pct, quota_seven_day_pct,
@@ -2334,7 +2339,7 @@ def turn_usage_add(
                 tool_duration_sum_ms, tool_union_duration_ms,
                 tool_intervals_count, tool_intervals_missing,
                 quota_primary_pct, quota_sampled_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 event_id,
                 observed_at,
@@ -2345,6 +2350,7 @@ def turn_usage_add(
                 model,
                 int(bool(ok)),
                 stop_reason,
+                billing_mode,
                 None if cost_unaccounted else max(0.0, float(cost_usd or 0)),
                 int(bool(cost_unaccounted)),
                 max(0, int(input_tokens or 0)),

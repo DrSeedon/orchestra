@@ -71,6 +71,7 @@ class BackendBuildContext:
     history_import: object | None = None
     validation_profile: bool = False
     config_dir_override: str = ""
+    billing_mode: str = "subscription"
 
 
 @dataclass(frozen=True)
@@ -205,6 +206,7 @@ def _claude_factory(context: BackendBuildContext) -> BackendLike:
         effort=context.effort,
         history_import=context.history_import,
         validation_profile=context.validation_profile,
+        billing_mode=context.billing_mode,
     )
 
 
