@@ -1206,3 +1206,59 @@ async def test_waiting_for_global_slot_does_not_dispatch_or_spend(tmp_path):
     assert engine.budget.dispatched_calls == 1
     assert engine.budget.spent_usd == 0.25
     assert calls == ["queued work"]
+
+
+def _scheduler_server(status):
+    import http.server
+    import threading
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.send_response(status)
+            self.send_header("Content-Length", "2")
+            self.end_headers()
+            self.wfile.write(b"{}")
+
+        def log_message(self, *_args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
+@pytest.mark.asyncio
+async def test_missing_scheduler_route_runs_without_admission(tmp_path, monkeypatch):
+    # Orchestra started before the scheduler existed answers 404 forever.
+    server = _scheduler_server(404)
+    monkeypatch.setenv("ORCHESTRA_URL", f"http://127.0.0.1:{server.server_port}")
+    try:
+        engine = _engine("no-scheduler", tmp_path / "run", budget_usd=1, max_calls=1)
+        engine._injected_adapter = False
+        assert await asyncio.wait_for(engine._acquire_workflow_slot("k", 1, "t"), 5) == ""
+        assert await asyncio.wait_for(engine._acquire_workflow_slot("k2", 1, "t"), 5) == ""
+        events = [row.get("event") for row in engine.journal.load()]
+        assert events.count("scheduler_absent") == 1
+    finally:
+        server.shutdown()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [503, None])
+async def test_unavailable_scheduler_keeps_waiting(tmp_path, monkeypatch, status):
+    server = _scheduler_server(status or 200)
+    port = server.server_port
+    if status is None:
+        server.shutdown()
+        server.server_close()  # connection refused
+    monkeypatch.setenv("ORCHESTRA_URL", f"http://127.0.0.1:{port}")
+    try:
+        engine = _engine("scheduler-down", tmp_path / "run", budget_usd=1, max_calls=1)
+        engine._injected_adapter = False
+        task = asyncio.create_task(engine._acquire_workflow_slot("k", 1, "t"))
+        done, _ = await asyncio.wait({task}, timeout=2.5)
+        assert not done
+        task.cancel()
+    finally:
+        if status is not None:
+            server.shutdown()
