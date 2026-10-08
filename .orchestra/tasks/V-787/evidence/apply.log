@@ -1,0 +1,11 @@
+ok: system.slice MemoryMin=2G MemoryLow=10G
+ok: kesha-bot-vps.service MemoryMin=1536M MemoryLow=4G CPUWeight=500 IOWeight=500
+ok: orchestra.service MemoryLow=4G CPUWeight=200 IOWeight=200
+ok: nginx.service MemoryLow=256M CPUWeight=150 IOWeight=150
+ok: ssh.service MemoryLow=128M CPUWeight=150 IOWeight=150
+ok: telegram-bot-api.service MemoryLow=512M CPUWeight=150 IOWeight=150
+ok: orchestra-proxy.service MemoryLow=128M CPUWeight=150 IOWeight=150
+ok: xray.service MemoryLow=128M CPUWeight=150 IOWeight=150
+ok: hysteria-server.service MemoryLow=128M CPUWeight=150 IOWeight=150
+ok: mtg.service MemoryLow=128M CPUWeight=150 IOWeight=150
+ok: tinyproxy.service MemoryLow=128M CPUWeight=150 IOWeight=150

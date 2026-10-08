@@ -1,0 +1,27 @@
+mem=573972480 high=max peak=1512558592
+    PID    PPID ELAPSED %CPU   RSS USER       COMMAND
+3169879       1 2361065  0.0  2268 root       /usr/sbin/cron -f -P
+---
+/etc/cron.d:
+total 40
+drwxr-xr-x   2 root root  4096 Aug 12 08:48 .
+drwxr-xr-x 133 root root 12288 Oct  7 06:33 ..
+-rw-r--r--   1 root root   102 Mar 31  2024 .placeholder
+-rw-r--r--   1 root root   802 Apr 16  2023 certbot
+-rw-r--r--   1 root root   201 Apr  8  2024 e2scrub_all
+-rw-r--r--   1 root root   241 Aug 12 08:48 seedon-delivery-watchdog
+-rw-r--r--   1 root root   263 Jun 30 09:58 staticroute
+-rw-r--r--   1 root root   396 Jan  9  2024 sysstat
+ls: cannot open directory '/var/spool/cron/crontabs': Permission denied
+● cron.service - Regular background program processing daemon
+     Loaded: loaded (/usr/lib/systemd/system/cron.service; enabled; preset: enabled)
+     Active: active (running) since Fri 2026-09-11 06:11:50 CEST; 3 weeks 6 days ago
+       Docs: man:cron(8)
+   Main PID: 3169879 (cron)
+      Tasks: 1 (limit: 28792)
+     Memory: 547.3M (peak: 1.4G swap: 164.0K swap peak: 164.0K)
+        CPU: 3d 7h 42min 45.324s
+     CGroup: /system.slice/cron.service
+             └─3169879 /usr/sbin/cron -f -P
+
+Oct 08 13:53:02 vmi3407579 seedon-delivery-watchdog[3206173]: нет новых сбоев
