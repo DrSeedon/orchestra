@@ -1,0 +1,15 @@
+df before:
+/dev/sda1      310911414272 263532400640 47362236416  85% /
+keep (fresh): /tmp/pytest-of-kesha/pytest-17225
+keep (fresh): /tmp/pytest-of-kesha/pytest-17226
+keep (fresh): /tmp/pytest-of-kesha/pytest-17227
+keep (fresh): /tmp/pytest-of-kesha/pytest-current
+moved 71 dirs, 5431259136 bytes into /tmp/v789-262f4b1d-0819-48a6-86f9-965ad0f67e4a
+trashed-and-removed
+/dev/sda1      310911414272 258101256192 52793380864  84% /
+4
+0
+/dev/sda1      310911414272 258106290176 52788346880  84% /
+bytes 587272192
+removed
+/dev/sda1      310911414272 257519022080 53375614976  83% /
