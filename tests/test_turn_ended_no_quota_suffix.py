@@ -58,10 +58,12 @@ async def test_turn_ended_line_has_cost_and_ctx_but_no_quota_percents(
 
 
 @pytest.mark.asyncio
-async def test_turn_ended_line_marks_a_potentially_understated_api_price(
-    session, monkeypatch,
+@pytest.mark.parametrize("price_may_be_understated", [False, True])
+async def test_turn_end_price_uncertainty_flag_reaches_status_marker(
+    session, monkeypatch, price_may_be_understated,
 ):
     from app.events import AgentEvent
+    from app.session_turns import PRICE_MAY_BE_UNDERSTATED_MARKER
 
     logs = []
     session.backend_type = "claude"
@@ -75,8 +77,8 @@ async def test_turn_ended_line_marks_a_potentially_understated_api_price(
         "ok": True,
         "stop_reason": "end_turn",
         "num_turns": 4,
-        "price_may_be_understated": True,
+        "price_may_be_understated": price_may_be_understated,
     }))
 
     ended = next(c for k, c in logs if k == "status" and c.startswith("turn ended"))
-    assert "цена API-эквивалента может быть занижена" in ended
+    assert (PRICE_MAY_BE_UNDERSTATED_MARKER in ended) is price_may_be_understated
