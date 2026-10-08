@@ -1,0 +1,33 @@
+127.0.0.1:8765 users:(("python3",pid=1545102,fd=3))
+127.0.0.1:41541 users:(("python",pid=881271,fd=27))
+127.0.0.1:42197 users:(("python3",pid=1823080,fd=3))
+127.0.0.1:10822 users:(("xray",pid=1764588,fd=3))
+127.0.0.1:44865 users:(("python",pid=865393,fd=21))
+127.0.0.1:45221 users:(("python3",pid=736,fd=3))
+127.0.0.1:33535 users:(("python3",pid=4131256,fd=3))
+127.0.0.1:18102 users:(("python3",pid=2338767,fd=3))
+127.0.0.1:18112 users:(("python3",pid=1256326,fd=3))
+127.0.0.1:18113 users:(("python3",pid=2334703,fd=3))
+127.0.0.1:18121 users:(("python3",pid=1332343,fd=3))
+127.0.0.1:18122 users:(("python3",pid=1336221,fd=3))
+127.0.0.1:18123 users:(("python3",pid=1340650,fd=3))
+127.0.0.1:19080 users:(("ssh",pid=578260,fd=4))
+0.0.0.0:8785 users:(("python3",pid=2079424,fd=3))
+0.0.0.0:8899 users:(("jupyter-lab",pid=2682938,fd=6))
+---
+LISTEN 0      128        127.0.0.1:19080 0.0.0.0:* users:(("ssh",pid=578260,fd=4))                                                                                                                                                                                                                                   
+LISTEN 0      128          0.0.0.0:8899  0.0.0.0:* users:(("jupyter-lab",pid=2682938,fd=6))                                                                                                                                                                                                                          
+---xray
+lrwxrwxrwx 1 kesha kesha 0 Oct  8 06:30 /proc/1764588/cwd -> /tmp
+lrwxrwxrwx 1 kesha kesha 0 Oct  8 06:31 /proc/1764588/exe -> /usr/local/bin/xray
+ls: cannot access '/tmp/d443.json': No such file or directory
+/tmp/hyp_sheet1.xml.json
+/tmp/x.json
+/tmp/x1.json
+
+Status: active
+-P INPUT DROP
+-A INPUT -j ufw-before-logging-input
+-A INPUT -j ufw-before-input
+-A INPUT -j ufw-after-input
+-A INPUT -j ufw-after-logging-input

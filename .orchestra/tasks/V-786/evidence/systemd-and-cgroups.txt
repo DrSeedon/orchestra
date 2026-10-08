@@ -1,0 +1,597 @@
+===HOST===
+2026-10-08T13:34:15+02:00
+Linux 6.8.0-136-generic x86_64 GNU/Linux
+systemd 255 (255.4-1ubuntu8.17)
+               total        used        free      shared  buff/cache   available
+Mem:     25199181824  5358694400 13021278208    35020800  7302774784 19840487424
+Swap:    17179865088  1597644800 15582220288
+8
+NAME      TYPE        SIZE       USED PRIO
+/swapfile file 17179865088 1597644800   -2
+Filesystem        1B-blocks         Used   Available Use% Mounted on
+/dev/sda1      310911414272 260824895488 50069741568  84% /
+===PSI===
+some avg10=1.01 avg60=1.14 avg300=2.40 total=159663148286
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+some avg10=0.00 avg60=0.00 avg300=0.00 total=7275105107
+full avg10=0.00 avg60=0.00 avg300=0.00 total=5455303257
+some avg10=0.00 avg60=0.00 avg300=0.09 total=67528704861
+full avg10=0.00 avg60=0.00 avg300=0.05 total=50328279221
+===ORCHESTRA_UNIT===
+MainPID=3181164
+Slice=system.slice
+MemoryCurrent=5982965760
+MemoryPeak=15034626048
+CPUUsageNSec=143413424000
+TasksCurrent=380
+Delegate=yes
+CPUWeight=[not set]
+CPUQuotaPerSecUSec=infinity
+MemoryMin=0
+MemoryLow=0
+MemoryHigh=15032385536
+MemoryMax=17179869184
+TasksMax=28792
+User=kesha
+ActiveState=active
+SubState=running
+FragmentPath=/etc/systemd/system/orchestra.service
+===CORE_CGROUP===
+cgroup.controllers: cpu io memory pids
+cgroup.subtree_control: cpu io memory
+memory.current: 5982965760
+memory.peak: 15034626048
+memory.high: 15032385536
+memory.max: 17179869184
+memory.min: 0
+memory.low: 0
+memory.events: low 0
+high 2618464
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0
+cpu.weight: 100
+cpu.max: max 100000
+cpu.stat: usage_usec 2447527611268
+user_usec 1769560820786
+system_usec 677966790482
+core_sched.force_idle_usec 0
+nr_periods 0
+nr_throttled 0
+throttled_usec 0
+nr_bursts 0
+burst_usec 0
+cpu.pressure: some avg10=1.11 avg60=0.90 avg300=2.58 total=77962039310
+full avg10=0.00 avg60=0.06 avg300=0.44 total=30876025242
+memory.pressure: some avg10=0.00 avg60=0.00 avg300=0.00 total=3166600588
+full avg10=0.00 avg60=0.00 avg300=0.00 total=2555468881
+===ORCHESTRA_CGROUP_CHILDREN===
+/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api
+/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api/runtime-2253b032e4ae4ff9885caa66af7b62a0
+/sys/fs/cgroup/system.slice/orchestra.service/orchestra-api/runtime-bd83c75a96f44ce59b0b4aa396c35bfe
+/sys/fs/cgroup/system.slice/orchestra.service/agents
+===SERVICE_UNITS===
+  ai-table-i1.service                            loaded    active     running       AI Table I1 owner checkpoint (isolated, owner-only)
+  apparmor.service                               loaded    active     exited        Load AppArmor profiles
+  apport-autoreport.service                      loaded    inactive   dead          Process error reports when automatic reporting is enabled
+  apport.service                                 loaded    active     exited        automatic crash report generation
+  apt-daily-upgrade.service                      loaded    inactive   dead          Daily apt upgrade and clean activities
+  apt-daily.service                              loaded    inactive   dead          Daily apt download activities
+● auditd.service                                 not-found inactive   dead          auditd.service
+  blk-availability.service                       loaded    active     exited        Availability of block devices
+  certbot.service                                loaded    inactive   dead          Certbot
+  cloud-init-local.service                       loaded    inactive   dead          Cloud-init: Local Stage (pre-network)
+● connman.service                                not-found inactive   dead          connman.service
+● console-screen.service                         not-found inactive   dead          console-screen.service
+  console-setup.service                          loaded    active     exited        Set console font and keymap
+  cron.service                                   loaded    active     running       Regular background program processing daemon
+  dbus.service                                   loaded    active     running       D-Bus System Message Bus
+● display-manager.service                        not-found inactive   dead          display-manager.service
+  dm-event.service                               loaded    inactive   dead          Device-mapper event daemon
+  dmesg.service                                  loaded    inactive   dead          Save initial kernel messages after boot
+  dnd-game-master.service                        loaded    active     running       DnD Game Master (AI DM)
+  dpkg-db-backup.service                         loaded    inactive   dead          Daily dpkg database backup service
+  e2scrub_all.service                            loaded    inactive   dead          Online ext4 Metadata Check for All Filesystems
+  e2scrub_reap.service                           loaded    inactive   dead          Remove Stale Online ext4 Metadata Check Snapshots
+  emergency.service                              loaded    inactive   dead          Emergency Shell
+  fail2ban.service                               loaded    active     running       Fail2Ban Service
+● fcoe.service                                   not-found inactive   dead          fcoe.service
+  finalrd.service                                loaded    active     exited        Create final runtime dir for shutdown pivot root
+● firewalld.service                              not-found inactive   dead          firewalld.service
+  fstrim.service                                 loaded    inactive   dead          Discard unused blocks on filesystems from /etc/fstab
+  fwupd-refresh.service                          loaded    inactive   dead          Refresh fwupd metadata and update motd
+  fwupd.service                                  loaded    active     running       Firmware update daemon
+  getty-static.service                           loaded    inactive   dead          getty on tty2-tty6 if dbus and logind are not available
+  getty@tty1.service                             loaded    active     running       Getty on tty1
+  grub-common.service                            loaded    inactive   dead          Record successful boot for GRUB
+  grub-initrd-fallback.service                   loaded    inactive   dead          GRUB failed boot detection
+● hv_kvp_daemon.service                          not-found inactive   dead          hv_kvp_daemon.service
+  hysteria-server.service                        loaded    active     running       Hysteria2 Server
+  initrd-cleanup.service                         loaded    inactive   dead          Cleaning Up and Shutting Down Daemons
+  initrd-parse-etc.service                       loaded    inactive   dead          Mountpoints Configured in the Real Root
+  initrd-switch-root.service                     loaded    inactive   dead          Switch Root
+  initrd-udevadm-cleanup-db.service              loaded    inactive   dead          Cleanup udev Database
+● ip6tables.service                              not-found inactive   dead          ip6tables.service
+● ipset.service                                  not-found inactive   dead          ipset.service
+● iptables.service                               not-found inactive   dead          iptables.service
+● iscsi-shutdown.service                         not-found inactive   dead          iscsi-shutdown.service
+  iscsid.service                                 loaded    inactive   dead          iSCSI initiator daemon (iscsid)
+● kbd.service                                    not-found inactive   dead          kbd.service
+  kesha-bot-vps.service                          loaded    active     running       Kesha Telegram Bot (Contabo)
+  keyboard-setup.service                         loaded    active     exited        Set the console keyboard layout
+  kiosk-heartbeat.service                        loaded    active     running       Kiosk heartbeat receiver
+  kmod-static-nodes.service                      loaded    active     exited        Create List of Static Device Nodes
+  ldconfig.service                               loaded    inactive   dead          Rebuild Dynamic Linker Cache
+  logrotate.service                              loaded    inactive   dead          Rotate log files
+● lvm2-activation-early.service                  not-found inactive   dead          lvm2-activation-early.service
+  lvm2-lvmpolld.service                          loaded    inactive   dead          LVM2 poll daemon
+  lvm2-monitor.service                           loaded    active     exited        Monitoring of LVM2 mirrors, snapshots etc. using dmeventd or progress polling
+  man-db.service                                 loaded    inactive   dead          Daily man-db regeneration
+  ModemManager.service                           loaded    active     running       Modem Manager
+  modprobe@configfs.service                      loaded    inactive   dead          Load Kernel Module configfs
+  modprobe@dm_mod.service                        loaded    inactive   dead          Load Kernel Module dm_mod
+  modprobe@drm.service                           loaded    inactive   dead          Load Kernel Module drm
+  modprobe@efi_pstore.service                    loaded    inactive   dead          Load Kernel Module efi_pstore
+  modprobe@fuse.service                          loaded    inactive   dead          Load Kernel Module fuse
+  modprobe@loop.service                          loaded    inactive   dead          Load Kernel Module loop
+  modprobe@sd_mod.service                        loaded    inactive   dead          Load Kernel Module sd_mod
+  motd-news.service                              loaded    inactive   dead          Message of the Day
+  mtg.service                                    loaded    active     running       MTProto Proxy for Telegram
+  multipathd.service                             loaded    active     running       Device-Mapper Multipath Device Controller
+  netplan-ovs-cleanup.service                    loaded    inactive   dead          OpenVSwitch configuration for cleanup
+  networkd-dispatcher.service                    loaded    inactive   dead          Dispatcher daemon for systemd-networkd
+● NetworkManager.service                         not-found inactive   dead          NetworkManager.service
+  nftables.service                               loaded    inactive   dead          nftables
+  nginx.service                                  loaded    active     running       A high performance web server and a reverse proxy server
+  oil-paint-exhibit.service                      loaded    inactive   dead          MFM oil paint exhibit (painter tablet + wall)
+  open-iscsi.service                             loaded    inactive   dead          Login to default iSCSI targets
+  open-vm-tools.service                          loaded    inactive   dead          Service for virtual machines hosted on VMware
+  orchestra-proxy.service                        loaded    active     running       Orchestra API Proxy
+  orchestra.service                              loaded    active     running       Orchestra AI Agent Orchestrator
+● ovsdb-server.service                           not-found inactive   dead          ovsdb-server.service
+  photobooth-enroll-web.service                  loaded    active     running       Photobooth HTTPS enrollment spool
+  photobooth-enroll-worker.service               loaded    inactive   dead          Photobooth root enrollment writer
+  photobooth-mirror-sync.service                 loaded    activating start   start Sync private photobooth release branch into the read-only VPS mirror
+  photobooth-tunnel-watchdog@ssk2.service        loaded    inactive   dead          Photobooth reverse tunnel banner watchdog (ssk2)
+  photobooth-tunnel-watchdog@ssk3.service        loaded    inactive   dead          Photobooth reverse tunnel banner watchdog (ssk3)
+  photoserver.service                            loaded    active     running       Photobooth QR PhotoServer
+  plymouth-quit-wait.service                     loaded    active     exited        Hold until boot process finishes up
+  plymouth-quit.service                          loaded    active     exited        Terminate Plymouth Boot Screen
+  plymouth-read-write.service                    loaded    active     exited        Tell Plymouth To Write Out Runtime Data
+  plymouth-start.service                         loaded    inactive   dead          Show Plymouth Boot Screen
+  plymouth-switch-root.service                   loaded    inactive   dead          Plymouth switch root service
+  polkit.service                                 loaded    active     running       Authorization Manager
+  pollinate.service                              loaded    inactive   dead          Pollinate to seed the pseudo random number generator
+● rbdmap.service                                 not-found inactive   dead          rbdmap.service
+  rc-local.service                               loaded    inactive   dead          /etc/rc.local Compatibility
+  rescue.service                                 loaded    inactive   dead          Rescue Shell
+  rsyslog.service                                loaded    active     running       System Logging Service
+  secureboot-db.service                          loaded    inactive   dead          Secure Boot updates for DB and DBX
+  seedon-lead-audit.service                      loaded    inactive   dead          Сверка заявок в базе против фактически отправленных уведомлений (#56)
+  serial-getty@ttyS0.service                     loaded    active     running       Serial Getty on ttyS0
+  setvtrgb.service                               loaded    active     exited        Set console scheme
+  snapd.apparmor.service                         loaded    active     exited        Load AppArmor profiles managed internally by snapd
+  snapd.autoimport.service                       loaded    inactive   dead          Auto import assertions from block devices
+  snapd.core-fixup.service                       loaded    inactive   dead          Automatically repair incorrect owner/permissions on core devices
+  snapd.failure.service                          loaded    inactive   dead          Failure handling of the snapd snap
+  snapd.recovery-chooser-trigger.service         loaded    inactive   dead          Wait for the Ubuntu Core chooser trigger
+  snapd.seeded.service                           loaded    active     exited        Wait until snapd is fully seeded
+  snapd.service                                  loaded    inactive   dead          Snap Daemon
+  snapd.snap-repair.service                      loaded    inactive   dead          Automatically fetch and run repair assertions
+  snapd.system-shutdown.service                  loaded    inactive   dead          Ubuntu core (all-snaps) system shutdown helper setup service
+  ssh.service                                    loaded    active     running       OpenBSD Secure Shell server
+  sysstat-collect.service                        loaded    inactive   dead          system activity accounting tool
+  sysstat-summary.service                        loaded    inactive   dead          Generate a daily summary of process accounting
+  sysstat.service                                loaded    active     exited        Resets System Activity Logs
+  systemd-ask-password-console.service           loaded    inactive   dead          Dispatch Password Requests to Console
+  systemd-ask-password-plymouth.service          loaded    inactive   dead          Forward Password Requests to Plymouth
+  systemd-ask-password-wall.service              loaded    inactive   dead          Forward Password Requests to Wall
+  systemd-battery-check.service                  loaded    inactive   dead          Check battery level during early boot
+  systemd-binfmt.service                         loaded    active     exited        Set Up Additional Binary Formats
+  systemd-bsod.service                           loaded    inactive   dead          Displays emergency message in full screen.
+  systemd-firstboot.service                      loaded    inactive   dead          First Boot Wizard
+  systemd-fsck-root.service                      loaded    inactive   dead          File System Check on Root Device
+  systemd-fsck@dev-disk-by\x2dlabel-BOOT.service loaded    active     exited        File System Check on /dev/disk/by-label/BOOT
+  systemd-fsck@dev-disk-by\x2dlabel-UEFI.service loaded    active     exited        File System Check on /dev/disk/by-label/UEFI
+  systemd-fsckd.service                          loaded    inactive   dead          File System Check Daemon to report status
+  systemd-hibernate-resume.service               loaded    inactive   dead          Resume from hibernation
+  systemd-hibernate.service                      loaded    inactive   dead          System Hibernate
+  systemd-hwdb-update.service                    loaded    inactive   dead          Rebuild Hardware Database
+  systemd-hybrid-sleep.service                   loaded    inactive   dead          System Hybrid Suspend+Hibernate
+  systemd-initctl.service                        loaded    inactive   dead          initctl Compatibility Daemon
+  systemd-journal-catalog-update.service         loaded    inactive   dead          Rebuild Journal Catalog
+  systemd-journal-flush.service                  loaded    active     exited        Flush Journal to Persistent Storage
+  systemd-journald.service                       loaded    active     running       Journal Service
+  systemd-logind.service                         loaded    active     running       User Login Management
+  systemd-machine-id-commit.service              loaded    inactive   dead          Commit a transient machine-id on disk
+  systemd-modules-load.service                   loaded    active     exited        Load Kernel Modules
+  systemd-networkd-wait-online.service           loaded    inactive   dead          Wait for Network to be Configured
+  systemd-networkd.service                       loaded    active     running       Network Configuration
+● systemd-oomd.service                           not-found inactive   dead          systemd-oomd.service
+  systemd-pcrmachine.service                     loaded    inactive   dead          TPM2 PCR Machine ID Measurement
+  systemd-pcrphase-initrd.service                loaded    inactive   dead          TPM2 PCR Barrier (initrd)
+  systemd-pcrphase-sysinit.service               loaded    inactive   dead          TPM2 PCR Barrier (Initialization)
+  systemd-pcrphase.service                       loaded    inactive   dead          TPM2 PCR Barrier (User)
+  systemd-pstore.service                         loaded    inactive   dead          Platform Persistent Storage Archival
+  systemd-quotacheck.service                     loaded    inactive   dead          File System Quota Check
+  systemd-random-seed.service                    loaded    active     exited        Load/Save OS Random Seed
+  systemd-remount-fs.service                     loaded    active     exited        Remount Root and Kernel File Systems
+  systemd-repart.service                         loaded    inactive   dead          Repartition Root Disk
+  systemd-resolved.service                       loaded    active     running       Network Name Resolution
+  systemd-rfkill.service                         loaded    inactive   dead          Load/Save RF Kill Switch Status
+  systemd-soft-reboot.service                    loaded    inactive   dead          Reboot System Userspace
+  systemd-suspend-then-hibernate.service         loaded    inactive   dead          System Suspend then Hibernate
+  systemd-suspend.service                        loaded    inactive   dead          System Suspend
+  systemd-sysctl.service                         loaded    active     exited        Apply Kernel Variables
+  systemd-sysext.service                         loaded    inactive   dead          Merge System Extension Images into /usr/ and /opt/
+  systemd-sysusers.service                       loaded    inactive   dead          Create System Users
+  systemd-timesyncd.service                      loaded    active     running       Network Time Synchronization
+  systemd-tmpfiles-clean.service                 loaded    inactive   dead          Cleanup of Temporary Directories
+  systemd-tmpfiles-setup-dev-early.service       loaded    active     exited        Create Static Device Nodes in /dev gracefully
+  systemd-tmpfiles-setup-dev.service             loaded    active     exited        Create Static Device Nodes in /dev
+  systemd-tmpfiles-setup.service                 loaded    active     exited        Create Volatile Files and Directories
+  systemd-tpm2-setup-early.service               loaded    inactive   dead          TPM2 SRK Setup (Early)
+  systemd-tpm2-setup.service                     loaded    inactive   dead          TPM2 SRK Setup
+  systemd-udev-settle.service                    loaded    inactive   dead          Wait for udev To Complete Device Initialization
+  systemd-udev-trigger.service                   loaded    active     exited        Coldplug All udev Devices
+  systemd-udevd.service                          loaded    active     running       Rule-based Manager for Device Events and Files
+  systemd-update-done.service                    loaded    inactive   dead          Update is Completed
+  systemd-update-utmp-runlevel.service           loaded    inactive   dead          Record Runlevel Change in UTMP
+  systemd-update-utmp.service                    loaded    active     exited        Record System Boot/Shutdown in UTMP
+  systemd-user-sessions.service                  loaded    active     exited        Permit User Sessions
+● systemd-vconsole-setup.service                 not-found inactive   dead          systemd-vconsole-setup.service
+  tailscaled.service                             loaded    active     running       Tailscale node agent
+  telegram-bot-api.service                       loaded    active     running       Telegram Bot API Server
+  tinyproxy.service                              loaded    active     running       Tinyproxy lightweight HTTP Proxy
+  tpm-udev.service                               loaded    inactive   dead          Handle dynamically added tpm devices
+● ua-auto-attach.service                         not-found inactive   dead          ua-auto-attach.service
+  ua-reboot-cmds.service                         loaded    inactive   dead          Ubuntu Pro reboot cmds
+  ua-timer.service                               loaded    inactive   dead          Ubuntu Pro Timer for running repeated jobs
+● ubuntu-advantage-cloud-id-shim.service         not-found inactive   dead          ubuntu-advantage-cloud-id-shim.service
+  ubuntu-advantage.service                       loaded    inactive   dead          Ubuntu Pro Background Auto Attach
+  udisks2.service                                loaded    active     running       Disk Manager
+  ufw.service                                    loaded    active     exited        Uncomplicated firewall
+  unattended-upgrades.service                    loaded    active     running       Unattended Upgrades Shutdown
+  update-notifier-download.service               loaded    inactive   dead          Download data for packages that failed at package install time
+  update-notifier-motd.service                   loaded    inactive   dead          Check to see whether there is a new version of Ubuntu available
+  user-runtime-dir@0.service                     loaded    active     exited        User Runtime Directory /run/user/0
+  user-runtime-dir@1001.service                  loaded    active     exited        User Runtime Directory /run/user/1001
+  user-runtime-dir@1002.service                  loaded    active     exited        User Runtime Directory /run/user/1002
+  user@0.service                                 loaded    active     running       User Manager for UID 0
+  user@1001.service                              loaded    active     running       User Manager for UID 1001
+  user@1002.service                              loaded    active     running       User Manager for UID 1002
+  uuidd.service                                  loaded    inactive   dead          Daemon for generating UUIDs
+  vgauth.service                                 loaded    inactive   dead          Authentication service for virtual machines hosted on VMware
+  xray.service                                   loaded    active     running       Xray Service
+● zfs-mount.service                              not-found inactive   dead          zfs-mount.service
+===SYSTEM_UNITFILES===
+ai-table-i1.service                          enabled         enabled
+apparmor.service                             enabled         enabled
+apport-autoreport.service                    static          -
+apport-coredump-hook@.service                static          -
+apport-forward@.service                      static          -
+apport.service                               enabled         enabled
+apt-daily-upgrade.service                    static          -
+apt-daily.service                            static          -
+apt-news.service                             static          -
+autovt@.service                              alias           -
+blk-availability.service                     enabled         enabled
+bolt.service                                 static          -
+certbot.service                              static          -
+cloud-config.service                         enabled         enabled
+cloud-final.service                          enabled         enabled
+cloud-init-hotplugd.service                  static          -
+cloud-init-local.service                     enabled         enabled
+cloud-init.service                           enabled         enabled
+console-getty.service                        disabled        disabled
+console-setup.service                        enabled         enabled
+container-getty@.service                     static          -
+cron.service                                 enabled         enabled
+cryptdisks-early.service                     masked          enabled
+cryptdisks.service                           masked          enabled
+dbus-org.freedesktop.hostname1.service       alias           -
+dbus-org.freedesktop.locale1.service         alias           -
+dbus-org.freedesktop.login1.service          alias           -
+dbus-org.freedesktop.ModemManager1.service   alias           -
+dbus-org.freedesktop.resolve1.service        alias           -
+dbus-org.freedesktop.timedate1.service       alias           -
+dbus-org.freedesktop.timesync1.service       alias           -
+dbus.service                                 static          -
+debug-shell.service                          disabled        disabled
+dm-event.service                             static          -
+dmesg.service                                enabled         enabled
+dnd-game-master.service                      enabled         enabled
+dpkg-db-backup.service                       static          -
+e2scrub@.service                             static          -
+e2scrub_all.service                          static          -
+e2scrub_fail@.service                        static          -
+e2scrub_reap.service                         enabled         enabled
+emergency.service                            static          -
+esm-cache.service                            static          -
+fail2ban.service                             enabled         enabled
+finalrd.service                              enabled         enabled
+friendly-recovery.service                    static          -
+fstrim.service                               static          -
+fwupd-refresh.service                        static          -
+fwupd.service                                static          -
+getty-static.service                         static          -
+getty@.service                               enabled         enabled
+grub-common.service                          enabled         enabled
+grub-initrd-fallback.service                 enabled         enabled
+hwclock.service                              masked          enabled
+hysteria-server.service                      enabled         enabled
+initrd-cleanup.service                       static          -
+initrd-parse-etc.service                     static          -
+initrd-switch-root.service                   static          -
+initrd-udevadm-cleanup-db.service            static          -
+iscsi.service                                alias           -
+iscsid.service                               disabled        enabled
+kesha-bot-vps.service                        enabled         enabled
+keyboard-setup.service                       enabled         enabled
+kiosk-heartbeat.service                      enabled         enabled
+kmod-static-nodes.service                    static          -
+kmod.service                                 alias           -
+ldconfig.service                             static          -
+logrotate.service                            static          -
+lvm2-lvmpolld.service                        static          -
+lvm2-monitor.service                         enabled         enabled
+lxd-agent.service                            static          -
+lxd-installer@.service                       static          -
+man-db.service                               static          -
+mdadm-grow-continue@.service                 static          -
+mdadm-last-resort@.service                   static          -
+mdcheck_continue.service                     static          -
+mdcheck_start.service                        static          -
+mdmon@.service                               static          -
+mdmonitor-oneshot.service                    static          -
+mdmonitor.service                            static          -
+ModemManager.service                         enabled         enabled
+modprobe@.service                            static          -
+motd-news.service                            static          -
+mtg.service                                  enabled         enabled
+multipath-tools-boot.service                 masked          enabled
+multipath-tools.service                      alias           -
+multipathd.service                           enabled         enabled
+netplan-ovs-cleanup.service                  enabled-runtime enabled
+networkd-dispatcher.service                  enabled         enabled
+nftables.service                             disabled        enabled
+nginx.service                                enabled         enabled
+oil-paint-exhibit.service                    enabled         enabled
+open-iscsi.service                           enabled         enabled
+open-vm-tools.service                        enabled         enabled
+orchestra-proxy.service                      enabled         enabled
+orchestra.service                            enabled         enabled
+packagekit-offline-update.service            static          -
+packagekit.service                           static          -
+pam_namespace.service                        static          -
+photobooth-enroll-web.service                enabled         enabled
+photobooth-enroll-worker.service             static          -
+photobooth-mirror-sync.service               static          -
+photobooth-tunnel-watchdog@.service          disabled        enabled
+photoserver.service                          enabled         enabled
+plymouth-halt.service                        static          -
+plymouth-kexec.service                       static          -
+plymouth-log.service                         alias           -
+plymouth-poweroff.service                    static          -
+plymouth-quit-wait.service                   static          -
+plymouth-quit.service                        static          -
+plymouth-read-write.service                  static          -
+plymouth-reboot.service                      static          -
+plymouth-start.service                       static          -
+plymouth-switch-root-initramfs.service       static          -
+plymouth-switch-root.service                 static          -
+plymouth.service                             alias           -
+polkit.service                               static          -
+pollinate.service                            enabled         enabled
+procps.service                               alias           -
+quotaon.service                              static          -
+rc-local.service                             static          -
+rescue.service                               static          -
+rsync.service                                disabled        enabled
+rsyslog.service                              enabled         enabled
+screen-cleanup.service                       masked          enabled
+secureboot-db.service                        enabled         enabled
+seedon-1c-postgresql.service                 disabled        enabled
+seedon-1c-server.service                     disabled        enabled
+seedon-1c-web.service                        disabled        enabled
+seedon-lead-audit.service                    static          -
+serial-getty@.service                        indirect        enabled
+setvtrgb.service                             enabled         enabled
+snapd.apparmor.service                       enabled         enabled
+snapd.autoimport.service                     enabled         enabled
+snapd.core-fixup.service                     enabled         enabled
+snapd.failure.service                        static          -
+snapd.recovery-chooser-trigger.service       enabled         enabled
+snapd.seeded.service                         enabled         enabled
+snapd.service                                enabled         enabled
+snapd.snap-repair.service                    static          -
+snapd.system-shutdown.service                enabled         enabled
+ssh.service                                  disabled        enabled
+sudo.service                                 masked          enabled
+syslog.service                               alias           -
+sysstat-collect.service                      static          -
+sysstat-summary.service                      static          -
+sysstat.service                              enabled         enabled
+system-update-cleanup.service                static          -
+systemd-ask-password-console.service         static          -
+systemd-ask-password-plymouth.service        static          -
+systemd-ask-password-wall.service            static          -
+systemd-backlight@.service                   static          -
+systemd-battery-check.service                static          -
+systemd-binfmt.service                       static          -
+systemd-boot-check-no-failures.service       disabled        disabled
+systemd-bsod.service                         static          -
+systemd-confext.service                      disabled        enabled
+systemd-exit.service                         static          -
+systemd-firstboot.service                    static          -
+systemd-fsck-root.service                    enabled-runtime enabled
+systemd-fsck@.service                        static          -
+systemd-fsckd.service                        static          -
+systemd-growfs-root.service                  static          -
+systemd-growfs@.service                      static          -
+systemd-halt.service                         static          -
+systemd-hibernate-resume.service             static          -
+systemd-hibernate.service                    static          -
+systemd-hostnamed.service                    static          -
+systemd-hwdb-update.service                  static          -
+systemd-hybrid-sleep.service                 static          -
+systemd-initctl.service                      static          -
+systemd-journal-catalog-update.service       static          -
+systemd-journal-flush.service                static          -
+systemd-journald.service                     static          -
+systemd-journald@.service                    static          -
+systemd-kexec.service                        static          -
+systemd-localed.service                      static          -
+systemd-logind.service                       static          -
+systemd-machine-id-commit.service            static          -
+systemd-modules-load.service                 static          -
+systemd-network-generator.service            disabled        enabled
+systemd-networkd-wait-online.service         enabled         enabled
+systemd-networkd-wait-online@.service        disabled        enabled
+systemd-networkd.service                     enabled         enabled
+systemd-pcrextend@.service                   static          -
+systemd-pcrfs-root.service                   static          -
+systemd-pcrfs@.service                       static          -
+systemd-pcrlock-file-system.service          disabled        enabled
+systemd-pcrlock-firmware-code.service        disabled        enabled
+systemd-pcrlock-firmware-config.service      disabled        enabled
+systemd-pcrlock-machine-id.service           disabled        enabled
+systemd-pcrlock-make-policy.service          disabled        enabled
+systemd-pcrlock-secureboot-authority.service disabled        enabled
+systemd-pcrlock-secureboot-policy.service    disabled        enabled
+systemd-pcrmachine.service                   static          -
+systemd-pcrphase-initrd.service              static          -
+systemd-pcrphase-sysinit.service             static          -
+systemd-pcrphase.service                     static          -
+systemd-poweroff.service                     static          -
+systemd-pstore.service                       enabled         enabled
+systemd-quotacheck.service                   static          -
+systemd-random-seed.service                  static          -
+systemd-reboot.service                       static          -
+systemd-remount-fs.service                   enabled-runtime enabled
+systemd-repart.service                       static          -
+systemd-resolved.service                     enabled         enabled
+systemd-rfkill.service                       static          -
+systemd-soft-reboot.service                  static          -
+systemd-storagetm.service                    static          -
+systemd-suspend-then-hibernate.service       static          -
+systemd-suspend.service                      static          -
+systemd-sysctl.service                       static          -
+systemd-sysext.service                       disabled        enabled
+systemd-sysext@.service                      static          -
+systemd-sysupdate-reboot.service             indirect        enabled
+systemd-sysupdate.service                    indirect        enabled
+systemd-sysusers.service                     static          -
+systemd-time-wait-sync.service               disabled        disabled
+systemd-timedated.service                    static          -
+systemd-timesyncd.service                    enabled         enabled
+systemd-tmpfiles-clean.service               static          -
+systemd-tmpfiles-setup-dev-early.service     static          -
+systemd-tmpfiles-setup-dev.service           static          -
+systemd-tmpfiles-setup.service               static          -
+systemd-tpm2-setup-early.service             static          -
+systemd-tpm2-setup.service                   static          -
+systemd-udev-settle.service                  static          -
+systemd-udev-trigger.service                 static          -
+systemd-udevd.service                        static          -
+systemd-update-done.service                  static          -
+systemd-update-utmp-runlevel.service         static          -
+systemd-update-utmp.service                  static          -
+systemd-user-sessions.service                static          -
+systemd-volatile-root.service                static          -
+tailscale-wait-online.service                disabled        enabled
+tailscaled.service                           enabled         enabled
+telegram-bot-api.service                     enabled         enabled
+tinyproxy.service                            enabled         enabled
+tpm-udev.service                             static          -
+ua-reboot-cmds.service                       enabled         enabled
+ua-timer.service                             static          -
+ubuntu-advantage.service                     enabled         enabled
+udev.service                                 alias           -
+udisks2.service                              enabled         enabled
+ufw.service                                  enabled         enabled
+unattended-upgrades.service                  enabled         enabled
+update-notifier-download.service             static          -
+update-notifier-motd.service                 static          -
+usb_modeswitch@.service                      static          -
+user-runtime-dir@.service                    static          -
+user@.service                                static          -
+uuidd.service                                indirect        enabled
+vgauth.service                               enabled         enabled
+vmtoolsd.service                             alias           -
+x11-common.service                           masked          enabled
+xfs_scrub@.service                           static          -
+xfs_scrub_all.service                        static          -
+xfs_scrub_fail@.service                      static          -
+xray.service                                 enabled         enabled
+xray@.service                                disabled        enabled
+===USER_UNITS===
+  dbus.service                     loaded    active   running D-Bus User Message Bus
+  dirmngr.service                  loaded    inactive dead    GnuPG network certificate management daemon
+  gpg-agent.service                loaded    inactive dead    GnuPG cryptographic agent and passphrase cache
+  keyboxd.service                  loaded    inactive dead    GnuPG public key management service
+  launchpadlib-cache-clean.service loaded    inactive dead    Clean up old files in the Launchpadlib cache
+  pk-debconf-helper.service        loaded    inactive dead    debconf communication service
+  snapd.session-agent.service      loaded    inactive dead    snapd user session agent
+● systemd-remount-fs.service       not-found inactive dead    systemd-remount-fs.service
+===USER_UNITFILES===
+app-snap\x2duserd\x2dautostart@autostart.service generated -
+app-xdg\x2duser\x2ddirs@autostart.service        generated -
+dbus.service                                     static    -
+dconf.service                                    static    -
+dirmngr.service                                  static    -
+gpg-agent.service                                static    -
+keyboxd.service                                  static    -
+launchpadlib-cache-clean.service                 static    -
+pk-debconf-helper.service                        static    -
+snapd.session-agent.service                      static    -
+ssh-agent.service                                static    -
+systemd-exit.service                             static    -
+systemd-tmpfiles-clean.service                   static    -
+systemd-tmpfiles-setup.service                   disabled  enabled
+===TIMERS===
+Thu 2026-10-08 13:34:29 CEST      12s Thu 2026-10-08 13:34:14 CEST       2s ago photobooth-mirror-sync.timer          photobooth-mirror-sync.service
+Thu 2026-10-08 13:34:34 CEST      17s Thu 2026-10-08 13:34:14 CEST       2s ago photobooth-tunnel-watchdog@ssk2.timer photobooth-tunnel-watchdog@ssk2.service
+Thu 2026-10-08 13:34:34 CEST      17s Thu 2026-10-08 13:34:14 CEST       2s ago photobooth-tunnel-watchdog@ssk3.timer photobooth-tunnel-watchdog@ssk3.service
+Thu 2026-10-08 13:40:00 CEST     5min Thu 2026-10-08 13:30:00 CEST 4min 16s ago sysstat-collect.timer                 sysstat-collect.service
+Thu 2026-10-08 14:01:37 CEST    27min Thu 2026-10-08 13:03:43 CEST    30min ago seedon-lead-audit.timer               seedon-lead-audit.service
+Thu 2026-10-08 14:10:48 CEST    36min Thu 2026-10-08 13:23:41 CEST    10min ago fwupd-refresh.timer                   fwupd-refresh.service
+Thu 2026-10-08 14:54:55 CEST 1h 20min Thu 2026-10-08 11:15:34 CEST 2h 18min ago certbot.timer                         certbot.service
+Thu 2026-10-08 23:49:43 CEST      10h Thu 2026-10-08 05:13:33 CEST       8h ago motd-news.timer                       motd-news.service
+Fri 2026-10-09 00:00:00 CEST      10h Thu 2026-10-08 00:00:01 CEST      13h ago dpkg-db-backup.timer                  dpkg-db-backup.service
+Fri 2026-10-09 00:00:00 CEST      10h Thu 2026-10-08 00:00:01 CEST      13h ago logrotate.timer                       logrotate.service
+Fri 2026-10-09 00:07:00 CEST      10h Thu 2026-10-08 00:07:01 CEST      13h ago sysstat-summary.timer                 sysstat-summary.service
+Fri 2026-10-09 02:38:38 CEST      13h Thu 2026-10-08 12:53:20 CEST    40min ago apt-daily.timer                       apt-daily.service
+Fri 2026-10-09 06:11:41 CEST      16h Thu 2026-10-08 06:31:01 CEST       7h ago apt-daily-upgrade.timer               apt-daily-upgrade.service
+Fri 2026-10-09 11:32:53 CEST      21h Thu 2026-10-08 11:32:51 CEST  2h 1min ago update-notifier-download.timer        update-notifier-download.service
+Fri 2026-10-09 11:42:11 CEST      22h Thu 2026-10-08 11:42:11 CEST 1h 52min ago systemd-tmpfiles-clean.timer          systemd-tmpfiles-clean.service
+Fri 2026-10-09 11:44:40 CEST      22h Thu 2026-10-08 04:10:16 CEST       9h ago man-db.timer                          man-db.service
+Sun 2026-10-11 03:10:25 CEST   2 days Sun 2026-10-04 03:10:16 CEST   4 days ago e2scrub_all.timer                     e2scrub_all.service
+Sun 2026-10-11 10:24:02 CEST   2 days Thu 2026-10-08 02:10:42 CEST      11h ago update-notifier-motd.timer            update-notifier-motd.service
+Mon 2026-10-12 00:07:57 CEST   3 days Mon 2026-10-05 00:50:01 CEST   3 days ago fstrim.timer                          fstrim.service
+-                                   - -                                       - apport-autoreport.timer               apport-autoreport.service
+-                                   - -                                       - snapd.snap-repair.timer               snapd.snap-repair.service
+-                                   - -                                       - ua-timer.timer                        ua-timer.service
+===USER_TIMERS===
+Fri 2026-10-09 11:09:21 CEST 21h Thu 2026-10-08 11:09:20 CEST 2h 24min ago launchpadlib-cache-clean.timer launchpadlib-cache-clean.service
+===TOOLS===
+/usr/bin/sar
+/usr/bin/pidstat
+sa01
+sa02
+sa03
+sa04
+sa05
+sa06
+sa07
+sa08
+sa30
+sar01
+sar02
+sar03
+sar04
+sar05
+sar06
+sar07
+sar30

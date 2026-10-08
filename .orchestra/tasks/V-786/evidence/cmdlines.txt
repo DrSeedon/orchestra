@@ -1,0 +1,44 @@
+736: python3 /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-geometry/oil-paint/windows/server.py --root /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-geometry/oil-paint/.t88-oracle-data/t104-dist-
+
+4131256: python3 /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-geometry/oil-paint/windows/server.py --root /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-geometry/oil-paint/dist --data /home/kesha/orc
+
+1823051: node --test tests/t4_offline_windows.test.mjs 
+
+1823057: /usr/bin/node /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-wall-v2/oil-paint/tests/t4_offline_windows.test.mjs 
+
+1823080: python3 /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-wall-v2/oil-paint/windows/server.py --root /home/kesha/orchestra/worktrees/home-kesha-projects-comfy-image-pipeline/painter-wall-v2/oil-paint/dist --data /tmp/oil-paint-t4
+
+865393: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 44865 --log-level warning 
+
+881271: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-ci-green/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 41541 --log-level warning 
+
+1256326: python3 -m http.server 18112 --bind 127.0.0.1 
+
+1332343: python3 -m http.server 18121 --bind 127.0.0.1 
+
+1336221: python3 -m http.server 18122 --bind 127.0.0.1 
+
+1340650: python3 -m http.server 18123 --bind 127.0.0.1 
+
+2338767: python3 -m http.server 18102 --bind 127.0.0.1 
+
+2334703: python3 -m http.server 18113 --bind 127.0.0.1 
+
+1545102: python3 -m http.server 8765 --bind 127.0.0.1 
+
+2079424: python3 -m http.server 8785 
+
+2682938: /home/kesha/projects/University/.venv/bin/python3 /home/kesha/projects/University/.venv/bin/jupyter-lab --no-browser --ip=0.0.0.0 --port=8899 --ServerApp.token=<redacted> --ServerApp.allow_origin=* --ServerApp.root_dir=/home/kesha/komando
+
+2688110: /home/kesha/projects/University/.venv/bin/python3 -m ipykernel_launcher -f /home/kesha/.local/share/jupyter/runtime/kernel-931380a1-9ea3-477c-a9f6-16b1a431d048.json 
+
+2697550: /home/kesha/projects/University/.venv/bin/python3 -m ipykernel_launcher -f /home/kesha/.local/share/jupyter/runtime/kernel-6bba0645-7123-4660-a5b7-3a812f9e397a.json 
+
+1764588: xray run -c d443.json 
+
+578260: ssh -o BatchMode=yes -o ConnectTimeout=10 -N -D 127.0.0.1:19080 root@72.56.235.40 
+
+1544432: ssh -o BatchMode=yes -fN -D 127.0.0.1:19080 root@72.56.235.40 
+
+3185421: ssh -o BatchMode=yes -fN -D 127.0.0.1:19080 root@72.56.235.40 
+
