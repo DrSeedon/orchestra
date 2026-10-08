@@ -108,6 +108,20 @@ function _qlLimitAt(t, rule, lane, windowMinutes = 10080, windowStartMs = null) 
     return Math.min(hardStop, norm * 100 + start + (end - start) * lineProgress);
 }
 
+function _qlMonotoneLimitAt(t, rule, lane, windowMinutes, windowStartMs, history, atMs) {
+    const current = _qlLimitAt(t, rule, lane, windowMinutes, windowStartMs);
+    if (lane !== 'claude' || !Array.isArray(history)) return current;
+    let limit = current;
+    for (const event of history) {
+        const effectiveAt = Number(event.effective_from) * 1000;
+        const policy = event.policy;
+        if (!Number.isFinite(effectiveAt) || effectiveAt > atMs
+            || !policy || !(policy.gated_lanes || []).includes('claude')) continue;
+        limit = Math.max(limit, _qlLimitAt(t, policy, lane, windowMinutes, windowStartMs));
+    }
+    return limit;
+}
+
 // Жёсткий стоп — свойство ПОЛОСЫ: хвост пула зарезервирован под дешёвую модель,
 // поэтому Sol встаёт раньше Luna. Зеркало `QuotaPolicy.hard_stop_for`.
 function _qlHardStop(rule, lane) {
@@ -377,8 +391,9 @@ function _qlTimelineSvg(panel, rule) {
                         const coords = [];
                         for (let i = 0; i <= 50; i++) {
                             const ts = segmentLeft + (segmentRight - segmentLeft) * i / 50;
-                            coords.push(`${x(ts)},${y(_qlLimitAt(
+                            coords.push(`${x(ts)},${y(_qlMonotoneLimitAt(
                                 progressAt(ts), segmentRule, lane, span / 60000, start,
+                                _quotaLinesData?.rule_history, ts,
                             ))}`);
                         }
                         const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
@@ -424,10 +439,12 @@ function _qlChartSvg(panel, rule) {
         && Number.isFinite(claudeWindowMinutes) && claudeWindowMinutes > 0
         ? claudeReset - claudeWindowMinutes * 60000
         : null;
-    const limitAt = (t, lane) => _qlLimitAt(
+    const limitAt = (t, lane) => _qlMonotoneLimitAt(
         t, rule, lane,
         lane === 'claude' ? claudeWindowMinutes : undefined,
         lane === 'claude' ? claudeWindowStart : null,
+        _quotaLinesData?.rule_history,
+        Number.isFinite(claudeWindowStart) ? claudeWindowStart + t * claudeWindowMinutes * 60000 : Date.now(),
     );
 
     for (let pct = 0; pct <= 100; pct += 20) {
@@ -741,6 +758,7 @@ function initQuotaLines() {
         fetch: fetchQuotaLines,
         render: renderQuotaLines,
         limitAt: _qlLimitAt,
+        monotoneLimitAt: _qlMonotoneLimitAt,
         setErrorForTest(value) { _quotaLinesError = value || ''; renderQuotaLines(); },
     };
 })();

@@ -9,6 +9,7 @@
 """
 import json
 from pathlib import Path
+from datetime import datetime, timezone
 
 import pytest
 from playwright.sync_api import Browser, sync_playwright
@@ -308,6 +309,43 @@ def test_timeline_keeps_old_claude_rule_until_v732_effective_time(browser):
     assert old_y == pytest.approx(expected_old_y, abs=2.0)
     assert shifted_y == pytest.approx(expected_shifted_y, abs=2.0)
     assert errors == []
+    page.close()
+
+
+def test_timeline_uses_monotone_claude_policy_envelope(browser):
+    payload = _payload(claude_progress=90 / 168, claude_util=62.0)
+    start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc).timestamp()
+    payload["generated_at"] = "2026-10-10T01:00:00+00:00"
+    payload["rule"]["claude_weekly_shift_hours"] = 8.0
+    payload["rule"]["claude_night_quota_share"] = 0.057
+    baseline = {**payload["rule"], "claude_weekly_shift_hours": 0.0,
+                "claude_night_quota_share": None}
+    shifted = {**payload["rule"], "claude_night_quota_share": None}
+    day_night = {**payload["rule"], "claude_night_quota_share": 0.057}
+    payload["rule_history"] = [
+        {"effective_from": 1790640000.0, "policy": baseline},
+        {"effective_from": 1791261780.0, "policy": shifted},
+        {"effective_from": 1791369761.0, "policy": day_night},
+    ]
+    bucket = next(item for item in payload["buckets"] if item["bucket"] == "anthropic")
+    bucket["window"] = {
+        "id": "seven_day", "window_minutes": 10080, "utilization": 62.0,
+        "resets_at": "2026-10-13T07:00:00+00:00", "progress": 90 / 168,
+    }
+    page, errors = _render(browser, payload)
+    values = page.evaluate("""({start, history, rule}) => ({
+        prior: QuotaPanel.limitAt(90 / 168, history[1].policy, 'claude', 10080, start * 1000),
+        current: QuotaPanel.limitAt(90 / 168, rule, 'claude', 10080, start * 1000),
+        envelope: QuotaPanel.monotoneLimitAt(
+            90 / 168, rule, 'claude', 10080, start * 1000, history,
+            (start + 90 * 3600) * 1000,
+        ),
+    })""", {"start": start, "history": payload["rule_history"], "rule": payload["rule"]})
+    assert values["prior"] == pytest.approx(63.0833333333)
+    assert values["current"] == pytest.approx(60.6943869048)
+    assert values["envelope"] == pytest.approx(values["prior"])
+    assert page.locator("[data-ql-timeline-threshold='claude']").count() >= 2
+    assert errors == [], errors
     page.close()
 
 
