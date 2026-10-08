@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Added
+- **Route bounded, oracle-checked work to Haiku 5.5 at low effort** (`.orchestra/pipelines/default/prompts/modules/model-routing.md`, `.orchestra/pipelines/default/pipeline.yaml`; V-766). The router excludes open-ended or delivery-critical work after 4/40 hard benchmark runs stalled waiting for background checks; every role's effort map selects low for Haiku. Trigger: V-758 measured 10/10 small-task passes at low, without a quality gain from higher effort and at substantially higher cost.
 - **Per-model generation speed to usage analytics** (`app/backend_claude.py`, `app/backend_codex.py`, `app/db.py`, `app/usage_analytics.py`, `app/static/js/analytics.js`; V-761). Turns store wall duration and provider API duration when available. Codex estimates model time by subtracting the union of local tool intervals from wall duration, while preserving raw interval sums and the measurement basis. The additive startup migration no-ops if `turn_usage` does not yet exist, so stubbed initialization and pre-schema harnesses cannot abort lifespan. The analytics view shows rolling one-hour and one-day medians plus a time series. Trigger: `turn_usage` stored tokens and timestamps but no duration; full Codex turn time included long command/test waits, while startup tests that stubbed `init_db()` hit a missing table.
 
 ### Fixed

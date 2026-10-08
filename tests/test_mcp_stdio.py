@@ -1040,7 +1040,7 @@ async def test_worker_task_update_cannot_change_acceptance_command(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_spawn_passes_base_branch(monkeypatch):
+async def test_spawn_passes_base_branch_and_model_alias(monkeypatch):
     import app.mcp_stdio as m
     monkeypatch.setattr(m, "SCOPE", "/s")
     monkeypatch.setattr(m, "WORKER_NAME", "coder-auth")
@@ -1058,8 +1058,9 @@ async def test_spawn_passes_base_branch(monkeypatch):
         return {"ok": True}
     with patch.object(m, "_api", side_effect=fake_api):
         await m.spawn_worker(name="w-step1", task="do it", repo_path="/s",
-                             model="claude-sonnet-5-5[1m]", base_branch="feature/auth")
+                             model="haiku", base_branch="feature/auth")
     assert captured["base_branch"] == "feature/auth"
+    assert captured["model"] == "haiku"
     assert captured["use_worktree"] is True
     assert captured["timeout"] == 300
 

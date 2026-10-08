@@ -122,6 +122,28 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
 
 
 @pytest.mark.asyncio
+async def test_dynamic_workflow_resolves_haiku_alias(tmp_path, monkeypatch):
+    captured = {}
+
+    async def fake_api(_method, _path, **kwargs):
+        captured.update(kwargs['json'])
+        return {'id': 'bg-haiku'}
+
+    fake_install = tmp_path / 'install'
+    (fake_install / 'app').mkdir(parents=True)
+    monkeypatch.setattr(mcp_stdio, '__file__', str(fake_install / 'app' / 'mcp_stdio.py'))
+    monkeypatch.setattr(mcp_stdio, '_api', fake_api)
+    response = await mcp_stdio.dynamic_workflow(
+        budget_usd=1, max_calls=1, max_concurrency=1, task_id='V-766',
+        repo=str(tmp_path), tasks=[{'prompt': 'extract facts', 'model': 'haiku'}],
+    )
+    assert 'queued' in response
+    args = shlex.split(captured['config']['command'])
+    spec = json.loads(Path(args[args.index('--spec') + 1]).read_text())
+    assert spec['tasks'][0]['model'] == 'claude-haiku-5-5'
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('mode', ['parallel', 'chain'])
 async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypatch):
     captured = {}

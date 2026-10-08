@@ -77,6 +77,11 @@ def test_ordinary_resume_options_are_unchanged_without_import_marker():
     assert options.system_prompt is None
 
 
+def test_haiku_low_effort_reaches_claude_sdk_options():
+    backend = ClaudeBackend(model="claude-haiku-5-5", cwd="/tmp", effort="low")
+    assert backend._make_client().options.effort == "low"
+
+
 @pytest.mark.asyncio
 async def test_retarget_model_uses_sdk_control_protocol_without_replacing_session():
     backend = ClaudeBackend(

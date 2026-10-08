@@ -629,6 +629,14 @@ class TestEffortByModel:
         assert eff == {opus_id: "low"}
         assert P.resolve_effort(eff, opus_id, "claude") == "low"
 
+    def test_default_roles_resolve_haiku_to_low_effort(self):
+        from app.models import resolve_model
+
+        haiku_id = resolve_model("haiku")
+        for role_name in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            role = P.get_role("default", role_name)
+            assert P.resolve_effort(role.effort, haiku_id, "claude") == "low"
+
     def test_unknown_key_kept_but_never_matches(self, pipelines_root, caplog):
         """Незнакомый ключ переживает валидацию, но ни с чем не совпадает.
 
