@@ -133,6 +133,7 @@ def tb(tmp_path, monkeypatch):
     monkeypatch.setattr(tg_bridge, "_stream_tasks", {})
     monkeypatch.setattr(tg_bridge, "_topic_status_tasks", {})
     monkeypatch.setattr(tg_bridge, "_topic_status_desired", {})
+    monkeypatch.setattr(tg_bridge, "_topic_status_last_attempt", {}, raising=False)
     monkeypatch.setattr(tg_bridge, "_topic_create_tasks", {})
     monkeypatch.setattr(tg_bridge, "_bridge_tasks", {})
     monkeypatch.setattr(tg_bridge, "_mirror_outboxes", {}, raising=False)
@@ -3036,7 +3037,7 @@ class TestTgLifecycleReliability:
         monkeypatch.setattr(tb, "_any_running_in_scope", lambda _scope: False)
         monkeypatch.setattr(
             tb,
-            "_wait_for_topic_status_idle_fade",
+            "_wait_for_topic_status_stability",
             AsyncMock(),
         )
         monkeypatch.setattr(
@@ -3764,6 +3765,8 @@ class TestCronCommandTopicBoundary99:
         tb.bot = AsyncMock()
         tb.bot.edit_forum_topic.return_value = object()
         tb.config["topics"] = {"orch": 42}
+        monkeypatch.setattr(tb, "_wait_for_topic_status_stability", AsyncMock())
+        monkeypatch.setattr(tb, "_TOPIC_STATUS_MIN_INTERVAL_SECONDS", 0)
 
         session = type("Session", (), {
             "id": "intent-hunter",
@@ -3854,6 +3857,139 @@ class TestTopicStatusHysteresis99:
         return SimpleNamespace(sessions={"orch": session}), status
 
     @pytest.mark.asyncio
+    async def test_rapid_running_idle_flips_emit_only_final_stable_status(
+        self, tb, monkeypatch,
+    ):
+        release_stability = asyncio.Event()
+        manager, status = self._manager("running")
+        edits = []
+
+        async def wait_for_stability():
+            await release_stability.wait()
+
+        async def edit_forum_topic(**kwargs):
+            edits.append(kwargs["icon_custom_emoji_id"])
+            return object()
+
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.side_effect = edit_forum_topic
+        tb.config["topics"] = {"orch": 42}
+        monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(
+            tb, "_wait_for_topic_status_stability", wait_for_stability,
+            raising=False,
+        )
+
+        task = tb._schedule_topic_status("orch", True)
+        tasks = [task]
+        try:
+            await asyncio.sleep(0)
+            assert edits == []
+            for desired in (False, True, False, True):
+                status.value = "running" if desired else "idle"
+                task = tb._schedule_topic_status("orch", desired)
+                tasks.append(task)
+                await asyncio.sleep(0)
+            assert edits == []
+
+            release_stability.set()
+            await task
+            assert edits == [tb._ICON_RUNNING]
+        finally:
+            release_stability.set()
+            for pending in set(tasks):
+                if not pending.done():
+                    pending.cancel()
+            await asyncio.gather(*set(tasks), return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_stable_running_transition_updates_after_settle_period(
+        self, tb, monkeypatch,
+    ):
+        release_stability = asyncio.Event()
+        manager, status = self._manager("running")
+
+        async def wait_for_stability():
+            await release_stability.wait()
+
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.return_value = object()
+        tb.config["topics"] = {"orch": 42}
+        monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(
+            tb, "_wait_for_topic_status_stability", wait_for_stability,
+            raising=False,
+        )
+
+        task = tb._schedule_topic_status("orch", True)
+        try:
+            await asyncio.sleep(0)
+            tb.bot.edit_forum_topic.assert_not_awaited()
+            assert status.value == "running"
+            release_stability.set()
+            await task
+            tb.bot.edit_forum_topic.assert_awaited_once()
+            assert tb._topic_status == {"orch": True}
+        finally:
+            release_stability.set()
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_failed_status_edit_is_rate_limited(self, tb, monkeypatch):
+        manager, _status = self._manager("running")
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.side_effect = TimeoutError()
+        tb.config["topics"] = {"orch": 42}
+        monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(
+            tb, "_wait_for_topic_status_stability", AsyncMock(),
+            raising=False,
+        )
+
+        first = tb._schedule_topic_status("orch", True)
+        await first
+        assert tb.bot.edit_forum_topic.await_count == 1
+
+        retry = tb._schedule_topic_status("orch", True)
+        try:
+            await asyncio.sleep(0)
+            assert tb.bot.edit_forum_topic.await_count == 1
+        finally:
+            if not retry.done():
+                retry.cancel()
+            await asyncio.gather(retry, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_successful_topic_edits_are_at_least_one_minute_apart(
+        self, tb, monkeypatch,
+    ):
+        manager, status = self._manager("running")
+        clock = [100.0]
+        sleeps = []
+
+        async def advance_clock(seconds):
+            sleeps.append(seconds)
+            clock[0] += seconds
+
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.return_value = object()
+        tb.config["topics"] = {"orch": 42}
+        monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(tb, "_wait_for_topic_status_stability", AsyncMock())
+        monkeypatch.setattr(tb.time, "monotonic", lambda: clock[0])
+        monkeypatch.setattr(tb.asyncio, "sleep", advance_clock)
+
+        await tb._schedule_topic_status("orch", True)
+        status.value = "idle"
+        await tb._schedule_topic_status("orch", False)
+
+        assert sleeps == [60]
+        assert tb.bot.edit_forum_topic.await_count == 2
+        assert tb._topic_status == {"orch": False}
+
+    @pytest.mark.asyncio
     async def test_idle_waits_before_editing_topic(self, tb, monkeypatch):
         delay_started = asyncio.Event()
         release_delay = asyncio.Event()
@@ -3869,7 +4005,7 @@ class TestTopicStatusHysteresis99:
         monkeypatch.setattr(tb, "_manager", manager)
         monkeypatch.setattr(
             tb,
-            "_wait_for_topic_status_idle_fade",
+            "_wait_for_topic_status_stability",
             wait_for_idle_fade,
         )
 
@@ -3886,40 +4022,6 @@ class TestTopicStatusHysteresis99:
         ] == tb._ICON_IDLE
 
     @pytest.mark.asyncio
-    async def test_running_cancels_four_pending_idle_transitions(
-        self, tb, monkeypatch,
-    ):
-        delay_started = asyncio.Queue()
-        never_release = asyncio.Event()
-
-        async def wait_for_idle_fade():
-            delay_started.put_nowait(True)
-            await never_release.wait()
-
-        manager, _status = self._manager()
-        tb.bot = AsyncMock()
-        tb.bot.edit_forum_topic.return_value = object()
-        tb.config["topics"] = {"orch": 42}
-        monkeypatch.setattr(tb, "_manager", manager)
-        monkeypatch.setattr(
-            tb,
-            "_wait_for_topic_status_idle_fade",
-            wait_for_idle_fade,
-        )
-
-        for _ in range(4):
-            idle_task = tb._schedule_topic_status("orch", False)
-            await delay_started.get()
-            running_task = tb._schedule_topic_status("orch", True)
-            await asyncio.gather(idle_task, return_exceptions=True)
-            await running_task
-
-        tb.bot.edit_forum_topic.assert_awaited_once()
-        assert tb.bot.edit_forum_topic.await_args.kwargs[
-            "icon_custom_emoji_id"
-        ] == tb._ICON_RUNNING
-
-    @pytest.mark.asyncio
     async def test_idle_rechecks_current_scope_after_delay(self, tb, monkeypatch):
         delay_started = asyncio.Event()
         release_delay = asyncio.Event()
@@ -3934,7 +4036,7 @@ class TestTopicStatusHysteresis99:
         monkeypatch.setattr(tb, "_manager", manager)
         monkeypatch.setattr(
             tb,
-            "_wait_for_topic_status_idle_fade",
+            "_wait_for_topic_status_stability",
             wait_for_idle_fade,
         )
 
@@ -3944,8 +4046,11 @@ class TestTopicStatusHysteresis99:
         release_delay.set()
         await task
 
-        tb.bot.edit_forum_topic.assert_not_awaited()
-        assert "orch" not in tb._topic_status
+        tb.bot.edit_forum_topic.assert_awaited_once()
+        assert tb.bot.edit_forum_topic.await_args.kwargs[
+            "icon_custom_emoji_id"
+        ] == tb._ICON_RUNNING
+        assert tb._topic_status == {"orch": True}
 
     @pytest.mark.asyncio
     async def test_startup_sync_serializes_topic_edits(self, tb, monkeypatch):
@@ -4013,6 +4118,8 @@ class TestTopicStatusHysteresis99:
         tb.bot.edit_forum_topic.side_effect = edit_forum_topic
         tb.config["topics"] = {"orch": 42}
         monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(tb, "_wait_for_topic_status_stability", AsyncMock())
+        monkeypatch.setattr(tb, "_TOPIC_STATUS_MIN_INTERVAL_SECONDS", 0)
 
         sync_task = asyncio.create_task(tb._sync_all_topic_statuses())
         await idle_started.wait()
@@ -4045,7 +4152,7 @@ class TestTopicStatusHysteresis99:
         monkeypatch.setattr(tb, "_manager", manager)
         monkeypatch.setattr(
             tb,
-            "_wait_for_topic_status_idle_fade",
+            "_wait_for_topic_status_stability",
             wait_for_idle_fade,
         )
 
@@ -4069,7 +4176,7 @@ class TestTopicStatusHysteresis99:
         monkeypatch.setattr(tb, "_manager", manager)
         monkeypatch.setattr(
             tb,
-            "_wait_for_topic_status_idle_fade",
+            "_wait_for_topic_status_stability",
             AsyncMock(),
         )
 
@@ -4110,7 +4217,7 @@ class TestTopicStatusHysteresis99:
         monkeypatch.setattr(tb, "_manager", manager)
         monkeypatch.setattr(
             tb,
-            "_wait_for_topic_status_idle_fade",
+            "_wait_for_topic_status_stability",
             wait_for_idle_fade,
         )
 
