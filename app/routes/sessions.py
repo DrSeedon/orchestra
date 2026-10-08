@@ -1656,6 +1656,9 @@ async def update_tg_topic(name: str, req: dict):
     enabled = bool(req.get("enabled", False))
     if not manager.update_session_fields(name, scope, tg_topic=enabled):
         return JSONResponse({"error": "not found"}, status_code=404)
+    topic_updater = getattr(manager, "tg_topic_updater", None)
+    if topic_updater:
+        await topic_updater(name)
     return {"ok": True, "tg_topic": enabled}
 
 

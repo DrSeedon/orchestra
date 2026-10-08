@@ -2826,6 +2826,65 @@ def _ensure_stream(orch_name: str, thread_id: int) -> asyncio.Task:
     )
 
 
+def _session_uses_primary_topic(session: dict) -> bool:
+    return bool(session.get("tg_topic")) or session.get("role", "worker") in (
+        "orchestrator",
+        "sub-orchestrator",
+    )
+
+
+async def _stop_primary_streams(name: str) -> None:
+    tasks = []
+    for key, task in list(_stream_tasks.items()):
+        if key[0] != name:
+            continue
+        _stream_tasks.pop(key, None)
+        if not task.done():
+            task.cancel()
+        tasks.append(task)
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+
+async def sync_session_topic(name: str) -> None:
+    if not bot or not config.get("group_id") or not _manager:
+        return
+    from app.db import get_all_sessions
+
+    session = next(
+        (s for s in get_all_sessions() if s.get("name") == name),
+        None,
+    )
+    if not session or not _session_uses_primary_topic(session):
+        await _stop_primary_streams(name)
+        return
+    await _ensure_primary_topic(name)
+
+
+async def _sync_primary_streams(sessions: list[dict]) -> None:
+    enabled = [
+        session["name"]
+        for session in sessions
+        if _session_uses_primary_topic(session)
+    ]
+    enabled_names = set(enabled)
+    tasks = []
+    for key, task in list(_stream_tasks.items()):
+        name, thread_id = key
+        if name in enabled_names and config["topics"].get(name) == thread_id:
+            continue
+        _stream_tasks.pop(key, None)
+        if not task.done():
+            task.cancel()
+        tasks.append(task)
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
+    for name in enabled:
+        thread_id = config["topics"].get(name)
+        if thread_id is not None:
+            _ensure_stream(name, thread_id)
+
+
 async def _cancel_orch_lifecycle(orch_name: str) -> None:
     tasks = [
         task
@@ -3405,7 +3464,13 @@ async def _create_primary_topic(name: str) -> None:
     logger.info(
         f"Created topic for {name} as '{chosen}': {result.message_thread_id}",
     )
-    _ensure_stream(name, result.message_thread_id)
+    from app.db import get_all_sessions
+    session = next(
+        (s for s in get_all_sessions() if s.get("name") == name),
+        None,
+    )
+    if session and _session_uses_primary_topic(session):
+        _ensure_stream(name, result.message_thread_id)
 
 
 async def _ensure_primary_topic(name: str) -> None:
@@ -3473,12 +3538,13 @@ async def ensure_topics():
     if not bot or not config["group_id"] or not _manager:
         return
     from app.db import get_all_sessions
-    orchs = [s for s in get_all_sessions() if s.get("tg_topic") or s.get("role", "worker") in ("orchestrator", "sub-orchestrator")]
-    if not orchs:
-        return
+    sessions = get_all_sessions()
+    orchs = [s for s in sessions if _session_uses_primary_topic(s)]
+    await _sync_primary_streams(sessions)
 
     for o in orchs:
-        await _ensure_primary_topic(o["name"])
+        if o["name"] not in config["topics"]:
+            await _ensure_primary_topic(o["name"])
 
     mirrors = config.get("mirrors", {})
     for name, mirror in list(mirrors.items()):
@@ -4396,6 +4462,7 @@ async def start_bridge(manager):
     _session_mod.on_scope_idle = _on_session_scope_idle
     _session_mod.on_scope_running = _on_session_scope_running
     manager.tg_topics_remover = remove_topics_for_orchs
+    manager.tg_topic_updater = sync_session_topic
 
     load_config()
     token = os.getenv("TG_BRIDGE_TOKEN", "")
@@ -4450,8 +4517,8 @@ async def start_bridge(manager):
 
 async def _deferred_startup():
     try:
-        for name, thread_id in list(config["topics"].items()):
-            _ensure_stream(name, thread_id)
+        from app.db import get_all_sessions
+        await _sync_primary_streams(get_all_sessions())
         await asyncio.sleep(0)
         _ensure_owned_task(
             _bridge_tasks,
@@ -4530,6 +4597,7 @@ async def stop_bridge():
     _session_mod.on_scope_running = None
     if _manager:
         _manager.tg_topics_remover = None
+        _manager.tg_topic_updater = None
     debounce_tasks = [
         buf.debounce_task
         for buf in list(_buffers.values())

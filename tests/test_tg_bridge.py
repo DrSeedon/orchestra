@@ -1695,6 +1695,10 @@ class TestLimitsCommand:
         self._authorize_owner(tb)
         queued = AsyncMock()
         monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value=usage))
+        monkeypatch.setattr(
+            "app.limits_card.render_limits_card",
+            AsyncMock(return_value="limits.png"),
+        )
         monkeypatch.setattr(tb, "_tg_send_file_safe", queued)
 
         await tb.handle_limits(self._message())
@@ -1863,6 +1867,10 @@ class TestLimitsCommand:
         queued = AsyncMock(return_value=None)
         text_call = AsyncMock()
         monkeypatch.setattr(tb, "_get_limits_usage", AsyncMock(return_value=usage))
+        monkeypatch.setattr(
+            "app.limits_card.render_limits_card",
+            AsyncMock(return_value="limits.png"),
+        )
         monkeypatch.setattr(tb, "_tg_send_file_safe", queued)
         monkeypatch.setattr(tb, "_tg_send_safe", text_call)
 
@@ -2791,6 +2799,13 @@ class TestTopicStatusDelivery:
         tasks = MutatingTasks()
         tb.config["topics"] = {"orch-1": 1, "orch-2": 2}
         monkeypatch.setattr(tb, "_tasks", tasks)
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [
+                {"name": "orch-1", "role": "orchestrator"},
+                {"name": "orch-2", "role": "orchestrator"},
+            ],
+        )
         monkeypatch.setattr(tb, "ensure_topics", no_op)
         monkeypatch.setattr(tb, "_sync_all_topic_statuses", no_op)
         monkeypatch.setattr(tb, "stream_logs", stream_logs)
@@ -2803,6 +2818,90 @@ class TestTopicStatusDelivery:
 
 
 class TestTgLifecycleReliability:
+    @pytest.mark.asyncio
+    async def test_worker_topic_toggle_stops_and_restarts_its_stream(
+        self, tb, monkeypatch,
+    ):
+        from app.routes import sessions as session_routes
+
+        worker = {
+            "name": "worker",
+            "scope": "/scope",
+            "role": "worker",
+            "tg_topic": True,
+        }
+        orchestrator = {
+            "name": "orch",
+            "scope": "/scope",
+            "role": "orchestrator",
+            "tg_topic": False,
+        }
+        sessions = [worker, orchestrator]
+        pulses = {"worker": asyncio.Event(), "orch": asyncio.Event()}
+        started = asyncio.Queue()
+        emitted = asyncio.Queue()
+
+        async def stream_logs(name, thread_id):
+            await started.put((name, thread_id))
+            while True:
+                await pulses[name].wait()
+                pulses[name].clear()
+                await emitted.put((name, thread_id))
+
+        def update_session_fields(name, scope, **fields):
+            session = next(
+                s for s in sessions if s["name"] == name and s["scope"] == scope
+            )
+            session.update(fields)
+            return session
+
+        tb.bot = AsyncMock()
+        tb.config["topics"] = {"worker": 41, "orch": 42}
+        monkeypatch.setattr(tb, "_manager", object())
+        monkeypatch.setattr(tb, "stream_logs", stream_logs)
+        monkeypatch.setattr(tb, "_tasks", [])
+        monkeypatch.setattr(tb, "_stream_tasks", {}, raising=False)
+        monkeypatch.setattr("app.db.get_all_sessions", lambda: sessions)
+        monkeypatch.setattr(
+            session_routes,
+            "manager",
+            SimpleNamespace(
+                update_session_fields=update_session_fields,
+                tg_topic_updater=tb.sync_session_topic,
+            ),
+        )
+
+        worker_task = tb._ensure_stream("worker", 41)
+        orch_task = tb._ensure_stream("orch", 42)
+        assert await asyncio.wait_for(started.get(), timeout=1) == ("worker", 41)
+        assert await asyncio.wait_for(started.get(), timeout=1) == ("orch", 42)
+        try:
+            await session_routes.update_tg_topic(
+                "worker", {"scope": "/scope", "enabled": False},
+            )
+
+            assert worker_task.cancelled()
+            assert not orch_task.done()
+            pulses["worker"].set()
+            pulses["orch"].set()
+            assert await asyncio.wait_for(emitted.get(), timeout=1) == ("orch", 42)
+            assert emitted.empty()
+
+            await session_routes.update_tg_topic(
+                "worker", {"scope": "/scope", "enabled": True},
+            )
+            assert await asyncio.wait_for(started.get(), timeout=1) == ("worker", 41)
+            pulses["worker"].set()
+            assert await asyncio.wait_for(emitted.get(), timeout=1) == ("worker", 41)
+
+            assert tb.config["topics"] == {"worker": 41, "orch": 42}
+            tb.bot.create_forum_topic.assert_not_awaited()
+            tb.bot.delete_forum_topic.assert_not_awaited()
+        finally:
+            for task in list(tb._stream_tasks.values()):
+                task.cancel()
+            await asyncio.gather(*tb._stream_tasks.values(), return_exceptions=True)
+
     @pytest.mark.asyncio
     async def test_configured_stream_starts_before_blocked_topic_work(
         self, tb, monkeypatch,
@@ -2822,6 +2921,10 @@ class TestTgLifecycleReliability:
 
         tb.config["topics"] = {"orch": 42}
         monkeypatch.setattr(tb, "_tasks", [])
+        monkeypatch.setattr(
+            "app.db.get_all_sessions",
+            lambda: [{"name": "orch", "role": "orchestrator"}],
+        )
         monkeypatch.setattr(tb, "_stream_tasks", {}, raising=False)
         monkeypatch.setattr(tb, "stream_logs", stream_logs)
         monkeypatch.setattr(tb, "ensure_topics", blocked_ensure)
