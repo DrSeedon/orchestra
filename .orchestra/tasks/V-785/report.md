@@ -1,0 +1,23 @@
+# V-785 — Telegram topic status hysteresis
+
+| Пункт | Исход | Доказательство |
+|---|---|---|
+| Иконка статусной темы мигает; нужен устойчивый running/idle, интервал обновлений и защита от повторов при ошибке API | Исправлено. Runtime-переходы применяются после 60 секунд устойчивого желаемого состояния; между попытками `edit_forum_topic` выдерживается минимум 60 секунд, включая `TimeoutError`. Startup sync остаётся однократной reconciliation по текущему снимку. | Четыре committed-теста (`test_rapid_running_idle_flips_emit_only_final_stable_status`, `test_stable_running_transition_updates_after_settle_period`, `test_failed_status_edit_is_rate_limited`, `test_successful_topic_edits_are_at_least_one_minute_apart`) проверяют coalescing, отображение стабильного статуса и 60-секундный интервал. Первые три краснели на исходном коде; четвёртый покраснел при мутации интервала `60 → 0`. |
+
+## Разбор логов и кода
+
+Скриншот `/home/kesha/orchestra/data/uploads/photo_20261008_103236_237070.jpg` содержит 14 подряд служебных сообщений Telegram с чередованием `☕` и `⚡` после статуса «ход окончен». База читалась через SQLite URI `mode=ro`. В журнале состояния той же scope за 09:30–09:50 UTC было 89 строк: ход `Claude-Code-Game-Master-orchestrator` завершился в 09:35:49 UTC; `ai-table-worker` оставался активен до 09:42:43 UTC, записав 29 пар `tool`/`tool_result`, затем сразу перешёл в `waiting for bg jobs`. `_any_running_in_scope()` считает только `status == "running"`; `WAITING` трактуется как idle, а возобновление session снова сигналит running.
+
+`stream_logs()` планирует running на каждом `text`/`tool` и idle после `turn ended`, если в scope больше нет running-сессий. `_on_session_scope_running()` также поднимает иконку родительского оркестратора при старте worker. При этом running применялся сразу, а 60-секундное ожидание было только у idle. Ошибка `edit_forum_topic` не обновляет `_topic_status`; очередной `text`/`tool` мог запланировать новую попытку при том же желаемом состоянии. Это не самоповтор внутри одного worker, а повторы от последующих событий после завершившегося с ошибкой worker.
+
+За 09:00–10:00 UTC запрос `journalctl -u orchestra.service` прочитал 2 804 строки без stderr: зафиксированы три уникальных `TG topic_status failed: TimeoutError` (09:06:22, 09:18:24, 09:35:17 UTC) и пять успешных изменений статуса целевой темы. Формат журналирования дублирует status-события в raw и named logger. В том же окне были 186 строк `rate slot unavailable` (send/edit) и 68 `database is locked`; эти числа — строки лога, в них также есть дубли logger-вывода. Журнал не содержит записи для каждого из 14 service messages со скриншота, поэтому нельзя сопоставить все 14 по одному к одному. Он подтверждает таймаут статусного edit в момент нагрузки; механизм повторных желаемых состояний подтверждается кодом.
+
+`TestTopicStatusHysteresis99` прежде проверял idle fade и то, что running отменяет этот fade, но не откладывал сам running и не ограничивал повторные API-попытки после ошибки. Теперь и running, и idle ждут те же 60 секунд, уже установленные как idle fade. Между edit-попытками также минимум 60 секунд — это в 12 раз больше 5-секундного request timeout; timestamp пишется до вызова API, поэтому неоднозначный исход не запускает частые повторные попытки. Повторные события с тем же желаемым статусом используют текущую задачу; смена желаемого статуса во время ожидания отменяет её и начинает новое окно устойчивости. После задержки статус scope перепроверяется перед edit. Startup sync сохраняет немедленную однократную сверку снимка статусов.
+
+## Проверки
+
+Проверка исходного кода с новыми committed-тестами: `/home/kesha/orchestra/.venv/bin/python -m pytest tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_rapid_running_idle_flips_emit_only_final_stable_status tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_stable_running_transition_updates_after_settle_period tests/test_tg_bridge.py::TestTopicStatusHysteresis99::test_failed_status_edit_is_rate_limited -q` — **3 failed**, как ожидалось: первое running редактирование было немедленным, а ошибка повторялась при следующем одинаковом сигнале. С committed-тестом `test_successful_topic_edits_are_at_least_one_minute_apart` мутация `_TOPIC_STATUS_MIN_INTERVAL_SECONDS = 0` также дала **1 failed** (`sleeps == []`, ожидалось 60 секунд).
+
+После фикса: `/home/kesha/orchestra/.venv/bin/python -m pytest tests/test_tg_bridge.py -k 'topic or status' -q` — **50 passed, 170 deselected**. Регрессионные тесты отдельно проверяют быстрое coalescing running/idle, отображение стабильного running после окна и cooldown после ошибки.
+
+Python-правки не применялись к живому процессу; рестарт не выполнялся.

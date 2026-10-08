@@ -108,6 +108,7 @@ _tasks = []
 _stream_tasks: dict[tuple[str, int], asyncio.Task] = {}
 _topic_status_tasks: dict[str, asyncio.Task] = {}
 _topic_status_desired: dict[str, tuple[bool, bool]] = {}
+_topic_status_last_attempt: dict[str, float] = {}
 _topic_create_tasks: dict[str, asyncio.Task] = {}
 _bridge_tasks: dict[str, asyncio.Task] = {}
 _mirror_outboxes: dict[str, asyncio.Queue] = {}
@@ -2946,6 +2947,10 @@ async def rename_orch_topic(old_name: str, new_name: str) -> dict:
             uncertain[f"{prefix}:{new_name}"] = uncertain.pop(old_key)
     if old_name in _topic_status:
         _topic_status[new_name] = _topic_status.pop(old_name)
+    if old_name in _topic_status_last_attempt:
+        _topic_status_last_attempt[new_name] = _topic_status_last_attempt.pop(
+            old_name,
+        )
     save_config()
     if bot:
         try:
@@ -3140,7 +3145,7 @@ async def _sync_all_topic_statuses():
         task = _schedule_topic_status(
             name,
             is_running,
-            delay_idle=False,
+            stabilize=False,
         )
         try:
             await task
@@ -3155,7 +3160,8 @@ _ICON_RUNNING = "5312016608254762256"
 _ICON_IDLE = "5350392020785437399"
 _TG_TOPIC_STATUS_TIMEOUT = 5
 _TG_TOPIC_CREATE_TIMEOUT = 5
-_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS = 60
+_TOPIC_STATUS_STABLE_DELAY_SECONDS = 60
+_TOPIC_STATUS_MIN_INTERVAL_SECONDS = 60
 
 
 def _pick_unique_topic_name(orch_name: str) -> str:
@@ -3213,6 +3219,7 @@ async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
             outcome["skipped"].append(name)
         assigned.pop(name, None)
         _topic_status.pop(name, None)
+        _topic_status_last_attempt.pop(name, None)
     save_config()
     return outcome
 
@@ -3261,8 +3268,8 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         _topic_status[orch_name] = is_running
 
 
-async def _wait_for_topic_status_idle_fade() -> None:
-    await asyncio.sleep(_TOPIC_STATUS_IDLE_FADE_DELAY_SECONDS)
+async def _wait_for_topic_status_stability() -> None:
+    await asyncio.sleep(_TOPIC_STATUS_STABLE_DELAY_SECONDS)
 
 
 def _topic_status_scope(orch_name: str) -> str | None:
@@ -3278,20 +3285,44 @@ async def _topic_status_worker(orch_name: str) -> None:
     task = asyncio.current_task()
     while orch_name in _topic_status_desired:
         desired = _topic_status_desired[orch_name]
-        is_running, delay_idle = desired
-        if not is_running and delay_idle:
+        is_running, stabilize = desired
+        if _topic_status.get(orch_name) == is_running:
+            return
+        if stabilize:
             if task is not None:
-                task._topic_status_waiting_for_idle = True
+                task._topic_status_waiting_for_status = True
             try:
-                await _wait_for_topic_status_idle_fade()
+                await _wait_for_topic_status_stability()
             finally:
                 if task is not None:
-                    task._topic_status_waiting_for_idle = False
+                    task._topic_status_waiting_for_status = False
             if _topic_status_desired.get(orch_name) != desired:
                 continue
             scope = _topic_status_scope(orch_name)
-            if not scope or _any_running_in_scope(scope):
-                return
+            if scope and _any_running_in_scope(scope) != is_running:
+                _schedule_topic_status(orch_name, _any_running_in_scope(scope))
+                continue
+        last_attempt = _topic_status_last_attempt.get(orch_name)
+        if last_attempt is not None:
+            remaining = (
+                _TOPIC_STATUS_MIN_INTERVAL_SECONDS
+                - (time.monotonic() - last_attempt)
+            )
+            if remaining > 0:
+                if task is not None:
+                    task._topic_status_waiting_for_status = True
+                try:
+                    await asyncio.sleep(remaining)
+                finally:
+                    if task is not None:
+                        task._topic_status_waiting_for_status = False
+                if _topic_status_desired.get(orch_name) != desired:
+                    continue
+                scope = _topic_status_scope(orch_name)
+                if scope and _any_running_in_scope(scope) != is_running:
+                    _schedule_topic_status(orch_name, _any_running_in_scope(scope))
+                    continue
+        _topic_status_last_attempt[orch_name] = time.monotonic()
         await _update_topic_status(orch_name, is_running)
         if _topic_status_desired.get(orch_name) == desired:
             return
@@ -3301,17 +3332,18 @@ def _schedule_topic_status(
     orch_name: str,
     is_running: bool,
     *,
-    delay_idle: bool = True,
+    stabilize: bool = True,
 ) -> asyncio.Task:
     is_running = bool(is_running)
-    desired = (is_running, bool(delay_idle))
+    desired = (is_running, bool(stabilize))
     current = _topic_status_tasks.get(orch_name)
+    previous = _topic_status_desired.get(orch_name)
     _topic_status_desired[orch_name] = desired
     if (
         current is not None
         and not current.done()
-        and getattr(current, "_topic_status_waiting_for_idle", False)
-        and (is_running or not delay_idle)
+        and getattr(current, "_topic_status_waiting_for_status", False)
+        and previous != desired
     ):
         current.cancel()
         if _topic_status_tasks.get(orch_name) is current:
@@ -3322,7 +3354,7 @@ def _schedule_topic_status(
         lambda: _topic_status_worker(orch_name),
     )
     if task is not current:
-        task._topic_status_waiting_for_idle = not is_running and delay_idle
+        task._topic_status_waiting_for_status = stabilize
     return task
 
 
@@ -4624,6 +4656,7 @@ async def stop_bridge():
     _topic_status_tasks.clear()
     _topic_status_desired.clear()
     _topic_status.clear()
+    _topic_status_last_attempt.clear()
     _topic_create_tasks.clear()
     _bridge_tasks.clear()
     _mirror_tasks.clear()
