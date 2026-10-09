@@ -1078,7 +1078,8 @@ async def test_claude_full_capability_loads_scoped_mcp_without_project_rules(tmp
         tools="all", network=True, mcp=True, system_prompt="RULE",
     )
     argv = captured["argv"]
-    assert argv[argv.index("--tools") + 1] == "default"
+    assert argv[argv.index("--tools") + 1] == argv[argv.index("--allowedTools") + 1]
+    assert "Bash" not in argv[argv.index("--allowedTools") + 1]
     assert argv[argv.index("--setting-sources") + 1] == ""
     assert argv[argv.index("--system-prompt") + 1] == "RULE"
     assert captured["config"]["mcpServers"]["local"]["command"] == "example-mcp"
@@ -1262,3 +1263,27 @@ async def test_unavailable_scheduler_keeps_waiting(tmp_path, monkeypatch, status
     finally:
         if status is not None:
             server.shutdown()
+
+
+@pytest.mark.parametrize("tools,network,expected", [
+    ("read", False, "Read,Glob,Grep"),
+    ("read", True, "Read,Glob,Grep,WebFetch,WebSearch"),
+    ("all", False, "Read,Write,Edit,Glob,Grep"),
+    ("all", True, "Read,Write,Edit,Glob,Grep,WebFetch,WebSearch"),
+])
+@pytest.mark.asyncio
+async def test_claude_preapproves_exactly_the_tools_of_its_level(tmp_path, monkeypatch, tools, network, expected):
+    import scripts.wf_adapters as adapters
+
+    captured = {}
+
+    async def fake_process(argv, *_args, **_kwargs):
+        captured["argv"] = argv
+        return 0, (FIXTURES / "claude-print.json").read_text(), ""
+
+    monkeypatch.setattr(adapters, "_run_process", fake_process)
+    await adapters.run_claude("w", model="claude-haiku-5-5", cwd=tmp_path, timeout=30,
+                              tools=tools, network=network, mcp=False)
+    argv = captured["argv"]
+    assert argv[argv.index("--tools") + 1] == expected
+    assert argv[argv.index("--allowedTools") + 1] == expected

@@ -225,13 +225,9 @@ def _prompt_with_rules(prompt: str, system_prompt: str) -> str:
 
 
 def _claude_tools(tools_level: str, network: bool) -> str:
-    if tools_level == "all" and network:
-        return "default"
-    if tools_level == "all":
-        return "Read,Write,Edit,Glob,Grep"
-    if tools_level == "read" and network:
-        return "Read,Glob,Grep,WebFetch,WebSearch"
-    return "Read,Glob,Grep"
+    # Bash stays closed: -p cannot run the V-773 PreToolUse filter, and bypassing it is not allowed.
+    base = "Read,Write,Edit,Glob,Grep" if tools_level == "all" else "Read,Glob,Grep"
+    return f"{base},WebFetch,WebSearch" if network else base
 
 
 def _write_claude_mcp_config(cwd: Path, enabled: bool) -> Path:
@@ -328,6 +324,9 @@ async def run_claude(
         "--mcp-config",
         str(mcp_config),
         "--tools",
+        _claude_tools(tools, network),
+        # -p auto-denies anything not pre-approved; grant exactly the offered tools.
+        "--allowedTools",
         _claude_tools(tools, network),
     ]
     if system_prompt.strip():
