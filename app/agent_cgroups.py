@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import logging
+import subprocess
 from pathlib import Path
 
 
@@ -12,6 +14,66 @@ from pathlib import Path
 # between the two limits for the API side.
 AGENTS_MEMORY_HIGH_SHARE = 0.75
 AGENTS_MEMORY_MAX_SHARE = 0.875
+logger = logging.getLogger(__name__)
+
+
+def _balancer_enabled() -> bool:
+    return os.environ.get("ORCHESTRA_WORKFLOW_BALANCER_ENABLED", "1").strip().lower() not in {
+        "0", "false", "no", "off",
+    }
+
+
+def _systemd_delegate_enabled() -> bool | None:
+    try:
+        result = subprocess.run(
+            ["systemctl", "show", "--property=Delegate", "orchestra.service"],
+            check=True, capture_output=True, text=True, timeout=2,
+        )
+    except (OSError, subprocess.SubprocessError) as error:
+        logger.warning("cannot confirm systemd cgroup delegation: %s", error)
+        return None
+    value = next((line.partition("=")[2].strip().lower()
+                  for line in result.stdout.splitlines()
+                  if line.startswith("Delegate=")), "")
+    if value in {"yes", "true", "1"}:
+        return True
+    if value in {"no", "false", "0"}:
+        return False
+    logger.warning("systemctl returned an unknown Delegate value %r", result.stdout.strip())
+    return None
+
+
+def initialize_agent_cgroup() -> tuple[Path | None, str, bool]:
+    """Configure isolation when enabled; tolerate hosts without systemd delegation."""
+    for name in ("ORCHESTRA_AGENT_CGROUP", "ORCHESTRA_AGENT_ROOT", "ORCHESTRA_AGENT_CGROUP_REQUIRED"):
+        os.environ.pop(name, None)
+
+    if not _balancer_enabled():
+        reason = "disabled by ORCHESTRA_WORKFLOW_BALANCER_ENABLED"
+        logger.warning("workflow balancer disabled: %s", reason)
+        return None, reason, False
+
+    delegated = _systemd_delegate_enabled()
+    if delegated is False:
+        reason = "systemd Delegate=no"
+        logger.warning("workflow balancer disabled: %s", reason)
+        return None, reason, False
+
+    try:
+        agents = configure_agent_cgroup()
+    except (OSError, RuntimeError, ValueError) as error:
+        reason = str(error)
+        os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] = "1"
+        if delegated is True:
+            logger.error("dynamic workflow cgroup setup failed with Delegate=yes: %s", error)
+        else:
+            logger.error("dynamic workflow cgroup setup failed; delegation state is unknown: %s", error)
+        return None, reason, True
+
+    os.environ["ORCHESTRA_AGENT_ROOT"] = str(agents)
+    os.environ["ORCHESTRA_AGENT_CGROUP"] = str(agents / "workers")
+    os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] = "1"
+    return agents, "", True
 
 
 def delegated_service_cgroup(proc_cgroup: Path = Path("/proc/self/cgroup"), root: Path = Path("/sys/fs/cgroup")) -> Path:

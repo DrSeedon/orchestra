@@ -213,7 +213,12 @@ async def bg_workflow_slot_acquire(req: WorkflowSlotRequest, request: Request):
     if not req.request_id or len(req.request_id) > 512 or not req.run_id or len(req.run_id) > 128:
         return JSONResponse({"error": "invalid workflow slot identity"}, status_code=400)
     if not getattr(request.app.state, "agent_cgroup", ""):
-        return JSONResponse({"error": "agent cgroup unavailable", "detail": getattr(request.app.state, "agent_cgroup_error", "")}, status_code=503)
+        required = bool(getattr(request.app.state, "agent_cgroup_required", False))
+        return JSONResponse({
+            "error": "agent cgroup unavailable",
+            "detail": getattr(request.app.state, "agent_cgroup_error", ""),
+            "scheduler_missing": not required,
+        }, status_code=503 if required else 404)
     try:
         from app.workflow_scheduler import get_scheduler
         return get_scheduler().acquire(req.request_id, req.run_id, req.label)
@@ -232,7 +237,11 @@ async def bg_workflow_slot_release(req: WorkflowSlotRelease):
 @router.get("/workflow-scheduler")
 async def bg_workflow_scheduler_status(request: Request):
     if not getattr(request.app.state, "agent_cgroup", ""):
-        return JSONResponse({"error": "agent cgroup unavailable"}, status_code=503)
+        required = bool(getattr(request.app.state, "agent_cgroup_required", False))
+        return JSONResponse({
+            "error": "agent cgroup unavailable",
+            "scheduler_missing": not required,
+        }, status_code=503 if required else 404)
     from app.workflow_scheduler import get_scheduler
     return get_scheduler().snapshot()
 

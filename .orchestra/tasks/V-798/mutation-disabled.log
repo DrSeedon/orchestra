@@ -1,0 +1,41 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_workflow_balancer_can_be_disabled_without_blocking_workers ________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a8373616f00>
+
+    def test_workflow_balancer_can_be_disabled_without_blocking_workers(monkeypatch):
+        import app.agent_cgroups as cgroups
+
+        monkeypatch.setenv("ORCHESTRA_WORKFLOW_BALANCER_ENABLED", "0")
+        monkeypatch.setenv("ORCHESTRA_AGENT_CGROUP", "/stale/workers")
+        monkeypatch.setenv("ORCHESTRA_AGENT_ROOT", "/stale/agents")
+        monkeypatch.setenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", "1")
+        monkeypatch.setattr(
+            cgroups, "configure_agent_cgroup",
+            lambda: (_ for _ in ()).throw(AssertionError("cgroup setup must be skipped")),
+        )
+
+>       agents, reason, required = cgroups.initialize_agent_cgroup()
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_workflow_scheduler.py:200:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/agent_cgroups.py:61: in initialize_agent_cgroup
+    agents = configure_agent_cgroup()
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_workflow_scheduler.py:197: in <lambda>
+    lambda: (_ for _ in ()).throw(AssertionError("cgroup setup must be skipped")),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <tuple_iterator object at 0x7a837144e8c0>
+
+>       lambda: (_ for _ in ()).throw(AssertionError("cgroup setup must be skipped")),
+    )
+E   AssertionError: cgroup setup must be skipped
+
+tests/test_workflow_scheduler.py:197: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_workflow_scheduler.py::test_workflow_balancer_can_be_disabled_without_blocking_workers
+1 failed in 2.28s
