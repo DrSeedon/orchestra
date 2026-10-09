@@ -1,5 +1,6 @@
 import asyncio
 import sqlite3
+import sys
 import threading
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock
@@ -7,6 +8,24 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.db import init_db
+
+
+def _utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _utc_today_at(hour: int, minute: int) -> datetime:
+    return datetime.combine(_utc_now().date(), datetime.min.time(), timezone.utc).replace(
+        hour=hour, minute=minute
+    )
+
+
+def _freeze_utc_at_midnight_30(monkeypatch) -> None:
+    today = datetime.now(timezone.utc).date()
+    frozen = datetime.combine(today, datetime.min.time(), timezone.utc) + timedelta(
+        seconds=30
+    )
+    monkeypatch.setattr(sys.modules[__name__], "_utc_now", lambda: frozen)
 
 
 def _seed_session(conn, session_id: str, model: str, backend_type: str) -> None:
@@ -118,10 +137,11 @@ def test_daily_usage_applies_provider_cache_ttl(usage_db, hour, minute):
     }
 
 
-def test_daily_usage_keeps_legacy_keys_and_types(usage_db):
+def test_daily_usage_keeps_legacy_keys_and_types(usage_db, monkeypatch):
     from app.usage_analytics import daily_usage
 
-    now = datetime.now(timezone.utc).replace(microsecond=0)
+    _freeze_utc_at_midnight_30(monkeypatch)
+    now = _utc_today_at(0, 5)
     with sqlite3.connect(usage_db) as conn:
         _seed_session(conn, "legacy-gpt", "gpt-5.6-sol", "")
         _seed_turn(conn, "legacy-gpt", now - timedelta(minutes=2), cost=0.25)
@@ -138,11 +158,12 @@ def test_daily_usage_keeps_legacy_keys_and_types(usage_db):
 
 
 def test_provider_bucket_prefers_explicit_runtime_and_never_defaults_to_claude(
-    usage_db,
+    usage_db, monkeypatch
 ):
     from app.usage_analytics import daily_usage
 
-    now = datetime.now(timezone.utc).replace(microsecond=0)
+    _freeze_utc_at_midnight_30(monkeypatch)
+    now = _utc_today_at(0, 5)
     with sqlite3.connect(usage_db) as conn:
         _seed_session(conn, "retired-opencode", "gpt-misleading-name", "opencode")
         _seed_session(conn, "unclassified", "vendor/new-model", "retired-runtime")
