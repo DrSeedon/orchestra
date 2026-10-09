@@ -10,10 +10,11 @@ import json
 import os
 import shlex
 import sqlite3
+import socket
 import subprocess
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -269,6 +270,49 @@ def _remote_size(path: Path) -> int:
         return 0
 
 
+def _laptop_tunnel_available() -> bool:
+    try:
+        with socket.create_connection(("127.0.0.1", int(LAPTOP_PORT)), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def _latest_laptop_backup_created_at() -> datetime | None:
+    remote_script = """import json
+from pathlib import Path
+p=Path('/mnt/data/orchestra-backups')
+files=sorted(p.glob('orchestra-db-????-??-??.sqlite.zst'), reverse=True)
+if files:
+    manifest=files[0].with_name(files[0].name[:-len('.sqlite.zst')] + '.json')
+    print(json.loads(manifest.read_text(encoding='utf-8'))['created_at_utc'])
+"""
+    result = _ssh(f"python3 -c {shlex.quote(remote_script)}").strip()
+    if not result:
+        return None
+    created_at = datetime.fromisoformat(result)
+    if created_at.tzinfo is None:
+        raise RuntimeError("laptop backup manifest timestamp has no timezone")
+    return created_at.astimezone(timezone.utc)
+
+
+def _laptop_manifest_contents(archive: Path, manifest: Path) -> str | None:
+    destination = Path(LAPTOP_DIR)
+    remote_archive = destination / archive.name
+    remote_manifest = destination / manifest.name
+    missing = "__ORCHESTRA_BACKUP_MISSING__"
+    command = (
+        f"if test -f {shlex.quote(str(remote_archive))} "
+        f"&& test -f {shlex.quote(str(remote_manifest))}; "
+        f"then cat -- {shlex.quote(str(remote_manifest))}; "
+        f"else printf '%s\\n' {shlex.quote(missing)}; fi"
+    )
+    result = _ssh(command)
+    if result.strip() == missing:
+        return None
+    return result
+
+
 def _copy_to_laptop(archive: Path, manifest_path: Path) -> None:
     name = archive.name
     manifest_name = manifest_path.name
@@ -318,6 +362,76 @@ for f in p.glob('*.partial'):
     _ssh(f"python3 -c {shlex.quote(remote_script)}")
 
 
+def _sync_latest_laptop_backup(db_path: Path) -> None:
+    if not _laptop_tunnel_available():
+        return
+
+    directory = db_path.parent / "backups"
+    directory.mkdir(mode=0o700, parents=True, exist_ok=True)
+    with (directory / ".orchestra-backup.lock").open("a") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return
+
+        archives = sorted(
+            directory.glob("orchestra-db-????-??-??.sqlite.zst"), reverse=True
+        )
+        if not archives:
+            raise BackupError("local-database", "no local database backup exists")
+
+        archive = archives[0]
+        manifest_path = _manifest_path(archive)
+        try:
+            local_manifest = manifest_path.read_text(encoding="utf-8")
+        except Exception as error:
+            raise BackupError("local-database", str(error)) from error
+
+        try:
+            remote_manifest = _laptop_manifest_contents(archive, manifest_path)
+        except Exception as error:
+            raise BackupError("laptop", str(error)) from error
+
+        if remote_manifest == local_manifest:
+            try:
+                created_at = datetime.fromisoformat(
+                    json.loads(local_manifest)["created_at_utc"]
+                )
+            except Exception as error:
+                raise BackupError("local-database", str(error)) from error
+            if created_at.tzinfo is None:
+                raise BackupError("local-database", "backup manifest timestamp has no timezone")
+            stale = (
+                datetime.now(timezone.utc) - created_at.astimezone(timezone.utc)
+                > timedelta(days=3)
+            )
+            if stale:
+                raise BackupError("laptop", "laptop copy is older than 3 days")
+            return
+
+        try:
+            _verify_archive(archive, manifest_path)
+        except Exception as error:
+            raise BackupError("local-database", str(error)) from error
+
+        try:
+            remote_created_at = _latest_laptop_backup_created_at()
+            stale = remote_created_at is not None and (
+                datetime.now(timezone.utc) - remote_created_at > timedelta(days=3)
+            )
+            _copy_to_laptop(archive, manifest_path)
+        except BackupError:
+            raise
+        except Exception as error:
+            raise BackupError("laptop", str(error)) from error
+
+        if stale:
+            raise BackupError(
+                "laptop",
+                f"laptop copy was older than 3 days; refreshed from {archive.name}",
+            )
+
+
 def _daily() -> None:
     db_path, _task_repo = _service_paths()
     directory = db_path.parent / "backups"
@@ -326,15 +440,10 @@ def _daily() -> None:
     with lock_path.open("a") as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         try:
-            archive, manifest = _make_daily_backup(db_path, directory)
+            _make_daily_backup(db_path, directory)
         except Exception as error:
             raise BackupError("local-database", str(error)) from error
-        try:
-            _copy_to_laptop(archive, manifest)
-        except BackupError:
-            raise
-        except Exception as error:
-            raise BackupError("laptop", str(error)) from error
+    _sync_latest_laptop_backup(db_path)
 
 
 def _restore_drill(archive: Path, manifest_path: Path, temp_root: Path) -> dict[str, int]:
@@ -366,8 +475,9 @@ def main() -> int:
     step = "task-store-push" if args.push_task_store else "daily-backup"
     try:
         if args.push_task_store:
-            _db_path, task_repo = _service_paths()
+            db_path, task_repo = _service_paths()
             _scan_and_push_tasks(task_repo)
+            _sync_latest_laptop_backup(db_path)
         elif args.daily:
             _daily()
         else:
