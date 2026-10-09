@@ -141,6 +141,77 @@ async def test_agent_modules_use_the_canonical_pipeline_builder(tmp_path):
     assert seen == [build_prompt_modules("default", ["code-quality"])]
 
 
+@pytest.mark.asyncio
+async def test_api_credit_route_is_explicit_and_subscription_is_the_default(tmp_path, monkeypatch):
+    from app import claude_api_credits
+
+    monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+        "available": True, "reason": "available", "remaining_usd": 10.0,
+    })
+    seen = []
+
+    async def adapter(_prompt, *, model, billing_mode, **_kwargs):
+        seen.append((model, billing_mode))
+        return AdapterResult(
+            text="done", runtime="claude", model=model, ok=True,
+            stop_reason="end_turn", cost_usd=0.01,
+            usage=Usage(input_tokens=10, output_tokens=2),
+            billing_mode=billing_mode,
+        )
+
+    readiness_calls = []
+
+    async def readiness(model):
+        readiness_calls.append(model)
+        return {"state": "available"}
+
+    engine = _engine(
+        "billing-choice", tmp_path, budget_usd=1, adapter=adapter,
+        readiness_checker=readiness, usage_writer=lambda **_: True,
+    )
+    await engine.agent("credit task", model="claude-haiku-5-5", billing="api_credit")
+    await engine.agent("ordinary task", model="claude-haiku-5-5")
+
+    assert seen == [
+        ("claude-haiku-5-5", "api_credit"),
+        ("claude-haiku-5-5", "subscription"),
+    ]
+    assert readiness_calls == ["claude-haiku-5-5"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("unavailable_reason", ["expired", "exhausted"])
+async def test_unavailable_credits_refuse_task_without_subscription_fallback(
+    unavailable_reason, tmp_path, monkeypatch,
+):
+    from app import claude_api_credits
+
+    monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+        "available": False, "reason": unavailable_reason, "remaining_usd": 0.0,
+    })
+    adapter_called = False
+
+    async def adapter(*_args, **_kwargs):
+        nonlocal adapter_called
+        adapter_called = True
+        return _result("should not run", runtime="claude", model="claude-haiku-5-5")
+
+    engine = _engine(
+        "expired-credits", tmp_path, budget_usd=1, adapter=adapter,
+        usage_writer=lambda **_: True,
+    )
+    result = await engine.agent(
+        "must refuse", model="claude-haiku-5-5", billing="api_credit",
+    )
+
+    assert result is None
+    assert adapter_called is False
+    assert engine.partial_reason == "credit_unavailable"
+    record = next(iter(engine._step_records.values()))
+    assert record["reason"] == "credit_unavailable"
+    assert record["error"] == f"Claude API credits unavailable: {unavailable_reason}"
+
+
 def test_build_system_prompt_still_flows_through_public_module_builder(monkeypatch):
     from app import pipeline
 
@@ -1084,6 +1155,71 @@ async def test_claude_full_capability_loads_scoped_mcp_without_project_rules(tmp
     assert argv[argv.index("--system-prompt") + 1] == "RULE"
     assert captured["config"]["mcpServers"]["local"]["command"] == "example-mcp"
     assert not (tmp_path / ".wf-mcp.json").exists()
+
+
+@pytest.mark.asyncio
+async def test_credit_key_is_mapped_only_for_selected_claude_cli(tmp_path, monkeypatch):
+    import scripts.wf_adapters as adapters
+    from app import claude_api_credits
+
+    monkeypatch.setenv(claude_api_credits.API_KEY_ENV, "private-test-key")
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "ambient-key-must-be-cleared")
+    monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+        "available": True, "reason": "available",
+    })
+    captured = []
+
+    async def fake_process(_argv, _prompt, _cwd, _timeout, *, env):
+        captured.append(env)
+        return 0, (FIXTURES / "claude-print.json").read_text(), ""
+
+    monkeypatch.setattr(adapters, "_run_process", fake_process)
+    credit_result = await adapters.run_claude(
+        "credit task", model="claude-haiku-5-5", cwd=tmp_path, timeout=30,
+        billing_mode="api_credit",
+    )
+    subscription_result = await adapters.run_claude(
+        "ordinary task", model="claude-haiku-5-5", cwd=tmp_path, timeout=30,
+    )
+
+    assert credit_result.billing_mode == "api_credit"
+    assert captured[0]["ANTHROPIC_API_KEY"] == "private-test-key"
+    assert captured[0][claude_api_credits.API_KEY_ENV] == ""
+    assert subscription_result.billing_mode == "subscription"
+    assert captured[1]["ANTHROPIC_API_KEY"] == ""
+    assert captured[1][claude_api_credits.API_KEY_ENV] == ""
+    assert "private-test-key" not in repr(captured[1])
+    assert "ambient-key-must-be-cleared" not in repr(captured[1])
+
+
+@pytest.mark.asyncio
+async def test_credit_adapter_refuses_expired_balance_before_cli(tmp_path, monkeypatch):
+    import scripts.wf_adapters as adapters
+    from app import claude_api_credits
+
+    monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+        "available": False, "reason": "expired",
+    })
+    called = False
+
+    async def unexpected_process(*_args, **_kwargs):
+        nonlocal called
+        called = True
+        raise AssertionError("expired credits must refuse before provider launch")
+
+    monkeypatch.setattr(adapters, "_run_process", unexpected_process)
+    result = await adapters.run_claude(
+        "credit task", model="claude-haiku-5-5", cwd=tmp_path, timeout=30,
+        billing_mode="api_credit",
+    )
+
+    assert result.ok is False
+    assert result.stop_reason == "credit_unavailable"
+    assert result.error == "Claude API credits unavailable: expired"
+    assert result.cost_usd == 0.0
+    assert result.cost_unaccounted is False
+    assert result.billing_mode == "api_credit"
+    assert called is False
 
 
 def test_sessionless_usage_is_written_immediately_and_is_replay_safe(tmp_path, monkeypatch):

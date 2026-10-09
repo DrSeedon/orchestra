@@ -554,38 +554,6 @@ def mark_message_delivery_waiting_quota(delivery_id: str, decision) -> dict:
     )
 
 
-def park_submitted_delivery_for_quota(delivery_id: str, decision) -> dict:
-    """Park a submitted receipt after the API provider definitively rejects empty credits."""
-    delivery_id = _validate_id(delivery_id)
-    with db._conn() as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        row = connection.execute(
-            "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,),
-        ).fetchone()
-        if row is None:
-            raise KeyError(f"message delivery not found: {delivery_id}")
-        if row["state"] not in {"DISPATCHING", "SUBMITTED"}:
-            return _resource(row, connection=connection)
-        connection.execute(
-            "UPDATE message_deliveries SET state='WAITING_QUOTA', error_json=?, updated_at=? "
-            "WHERE delivery_id=? AND state IN ('DISPATCHING','SUBMITTED')",
-            (json.dumps(wait_error(decision), ensure_ascii=False), _now(), delivery_id),
-        )
-        if row["user_log_id"] is not None:
-            connection.execute(
-                "DELETE FROM logs WHERE id=? AND session_id=? AND type='user_message'",
-                (row["user_log_id"], row["target_session_id"]),
-            )
-            connection.execute(
-                "UPDATE message_deliveries SET user_log_id=NULL WHERE delivery_id=?",
-                (delivery_id,),
-            )
-        row = connection.execute(
-            "SELECT * FROM message_deliveries WHERE delivery_id=?", (delivery_id,),
-        ).fetchone()
-        return _resource(row, connection=connection)
-
-
 def cancel_message_delivery(delivery_id: str, source_session_id: str | None) -> tuple[dict, int]:
     """Отправитель снимает ещё не отправленную доставку (ждущую квоту или стоящую в очереди).
 
@@ -710,11 +678,6 @@ class MessageDeliveryContext:
         self.provenance = provenance
         self.dispatched = False
         self.steered = False
-        self.credit_rejected = False
-
-    def park_for_credit_exhaustion(self, decision) -> dict:
-        self.credit_rejected = True
-        return park_submitted_delivery_for_quota(self.delivery_id, decision)
 
     def mark_running_steer(self) -> None:
         self.steered = True
@@ -724,8 +687,6 @@ class MessageDeliveryContext:
         self.dispatched = True
 
     async def mark_submitted(self, provider_ref: str | None = None) -> None:
-        if self.credit_rejected:
-            return
         if self.steered:
             mark_message_delivery_steered(self.delivery_id, provider_ref)
         else:

@@ -312,7 +312,7 @@ async def test_v797_spawn_receipt_reports_quota_gate_closed_at_acceptance(
         progress=31.49, tolerance_pp=7.166, limit_pct=38.65,
         observed_at=None, valid_until=None, reset_at=None, window_starts_at=None,
         reason="week usage is above the quota line", hard_limit_pct=100.0,
-        release_status="reset", release_in_seconds=None, billing_mode="subscription",
+        release_status="reset", release_in_seconds=None,
     )
 
     async def blocked(_session_id):
@@ -371,7 +371,7 @@ async def test_v797_wait_and_submission_transitions_notify_parent_once(
         "finished_at": None,
     })
     blocked = SimpleNamespace(
-        state="blocked", provider="anthropic", provider_label="Claude", billing_mode="subscription",
+        state="blocked", provider="anthropic", provider_label="Claude",
         utilization=47.0, reason="weekly quota is above the line", release_status="reset",
         release_in_seconds=None, reset_at=None,
     )
@@ -712,7 +712,7 @@ async def test_v788_quota_release_loads_initial_target_missing_from_manager(
     monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", ensure_runner)
     initial_deliveries.prepare_initial_delivery(DELIVERY_ID)
     blocked = SimpleNamespace(
-        provider="anthropic", provider_label="Claude", billing_mode="subscription",
+        provider="anthropic", provider_label="Claude",
         utilization=100.0, reason="test gate", release_status="reset",
         release_in_seconds=None, reset_at=None,
     )
@@ -1065,7 +1065,6 @@ async def test_t381_retry_after_backend_recovery_submits_once_without_duplicate_
     assert prompt_preparations == [MESSAGE]
     assert recovered_session._ensure_backend.await_args.kwargs == {
         "exclude_history_users": (MESSAGE,),
-        "billing_mode": "subscription",
     }
     assert [entry["content"] for entry in _user_messages(delivery_db)] == [MESSAGE]
 

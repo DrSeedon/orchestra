@@ -4090,7 +4090,7 @@ class TestEnsureBackendForceFresh:
              patch.object(session._hibernate, "heartbeat_loop", AsyncMock()):
             result = await session._ensure_backend(force_fresh=True)
         disc.assert_awaited_once()
-        mk.assert_called_once_with(force_fresh=True, billing_mode="subscription")
+        mk.assert_called_once_with(force_fresh=True)
         assert result is new
 
     @pytest.mark.asyncio
@@ -5422,7 +5422,7 @@ async def test_two_db_backed_claude_connects_render_identical_history(
     monkeypatch.setattr(
         session,
         "_make_backend",
-        lambda force_fresh=False, history_import=None, billing_mode="subscription":
+        lambda force_fresh=False, history_import=None:
         Backend(history_import),
     )
     monkeypatch.setattr(session, "_refresh_skills", AsyncMock())

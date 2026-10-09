@@ -664,11 +664,14 @@ class WorkflowEngine:
         mcp: bool = True,
         modules: Iterable[str] | None = None,
         capability_reason: str = "",
+        billing: str = "subscription",
     ) -> WorkflowValue | None:
         if purpose not in {"work", "verify", "synthesis"}:
             raise ValueError("purpose must be work, verify, or synthesis")
         if tools not in {"all", "read"}:
             raise ValueError("tools must be 'all' or 'read'")
+        if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
+            raise ValueError("billing must be 'subscription' or 'api_credit'")
         downgraded = tools != "all" or not network or not mcp
         if downgraded and not capability_reason.strip():
             raise ValueError("restricted capabilities require capability_reason")
@@ -691,6 +694,11 @@ class WorkflowEngine:
             raise ValueError(f"free-lane output requires a verify step before synthesis: {missing}")
         candidates = self._candidates(model, purpose, escalate, hard)
         from app.models import backend_for_model
+
+        if billing == "api_credit" and any(
+            backend_for_model(candidate) != "claude" for candidate in candidates
+        ):
+            raise ValueError("billing='api_credit' requires Claude model candidates")
 
         if any(backend_for_model(item) == "harness" for item in candidates) and not loss_tolerant:
             raise ValueError(":free harness calls require loss_tolerant=True")
@@ -715,6 +723,7 @@ class WorkflowEngine:
             "mcp": effective_mcp,
             "modules": module_names,
             "capability_reason": capability_reason.strip(),
+            "billing": billing,
         })
         if call_key in self._completed:
             if self._completed[call_key] is None:
@@ -739,11 +748,30 @@ class WorkflowEngine:
                 return None
 
         selected = ""
-        for candidate in candidates:
-            decision = await self.readiness_checker(candidate)
-            if decision.get("state") != "blocked":
-                selected = candidate
-                break
+        if billing == "api_credit":
+            from app.claude_api_credits import credit_status
+
+            credit = credit_status()
+            if credit.get("available") is not True:
+                reason = str(credit.get("reason") or "unknown_usage")
+                self.partial_reason = self.partial_reason or "credit_unavailable"
+                self._finish(
+                    call_key,
+                    None,
+                    reason="credit_unavailable",
+                    label=label,
+                    model=candidates[0],
+                    runtime="claude",
+                    error=f"Claude API credits unavailable: {reason}",
+                )
+                return None
+            selected = candidates[0]
+        else:
+            for candidate in candidates:
+                decision = await self.readiness_checker(candidate)
+                if decision.get("state") != "blocked":
+                    selected = candidate
+                    break
         if not selected:
             self.partial_reason = self.partial_reason or "quota"
             self.journal.append({"event": "skipped", "call_key": call_key, "reason": "quota"})
@@ -816,6 +844,7 @@ class WorkflowEngine:
                             system_prompt=system_prompt,
                             modules=module_names,
                             capability_reason=capability_reason.strip(),
+                            billing_mode=billing,
                         )
                     else:
                         async with semaphore:
@@ -834,6 +863,7 @@ class WorkflowEngine:
                                 system_prompt=system_prompt,
                                 modules=module_names,
                                 capability_reason=capability_reason.strip(),
+                                billing_mode=billing,
                             )
                 except WorkspacePreparationError as error:
                     self.partial_reason = self.partial_reason or "error"
@@ -943,6 +973,7 @@ class WorkflowEngine:
         system_prompt: str,
         modules: tuple[str, ...],
         capability_reason: str,
+        billing_mode: str,
     ) -> tuple[AdapterResult, str]:
         prepared = None
         cwd = scratch
@@ -1016,6 +1047,7 @@ class WorkflowEngine:
                 "modules": list(modules),
                 "system_prompt_bytes": len(system_prompt.encode()),
                 "capability_reason": capability_reason,
+                "billing_mode": billing_mode,
             })
         try:
             result = await self.adapter(
@@ -1028,6 +1060,7 @@ class WorkflowEngine:
                 mcp=mcp,
                 system_prompt=system_prompt,
                 state_dir=scratch,
+                billing_mode=billing_mode,
             )
             if self.usage_writer is not None:
                 try:
@@ -1203,6 +1236,7 @@ class WorkflowEngine:
                 task["prompt"], model=task.get("model", "luna"),
                 schema=task.get("schema"), inputs=inputs,
                 label=task.get("label", ""),
+                billing=task.get("billing", "subscription"),
             )
 
         if mode == "parallel":
@@ -1232,6 +1266,7 @@ class WorkflowEngine:
                     task["prompt"], model=task.get("model", "luna"),
                     schema=task.get("schema"), inputs=prior,
                     label=task.get("label", ""),
+                    billing=task.get("billing", "subscription"),
                 )
                 for task in stage_tasks
             ])

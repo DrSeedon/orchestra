@@ -196,30 +196,6 @@ async def test_runtime_refusal_parks_instead_of_failing(env):
 
 
 @pytest.mark.asyncio
-async def test_api_credit_refusal_reparks_submitted_delivery_until_subscription_opens(env):
-    from app import message_deliveries, quota_queue
-
-    env.gate.open()
-    await _accept(IDS[0], "Claude API credit probe")
-    await _drain()
-    assert _states(env.db)[IDS[0]] == "SUBMITTED"
-
-    parked = message_deliveries.park_submitted_delivery_for_quota(
-        IDS[0], _decision(20.0),
-    )
-    assert parked["delivery_state"] == "WAITING_QUOTA"
-    assert parked["error"]["code"] == "WAITING_QUOTA"
-
-    assert await quota_queue.release_waiting() == 1
-    await _drain()
-    assert _states(env.db)[IDS[0]] == "SUBMITTED"
-    assert env.manager.delivered == [
-        "[from:x] Claude API credit probe",
-        "[from:x] Claude API credit probe",
-    ]
-
-
-@pytest.mark.asyncio
 async def test_waiting_delivery_survives_restart_and_is_released_afterwards(env):
     from app import message_deliveries, quota_queue
 

@@ -517,45 +517,6 @@ def mark_initial_delivery_waiting_quota(delivery_id: str, decision) -> dict:
         return _resource(row)
 
 
-def park_submitted_initial_delivery_for_quota(delivery_id: str, decision) -> dict:
-    """Park a submitted initial task after the API provider rejects empty credits."""
-    from app import initial_delivery_events
-
-    delivery_id = _validate_delivery_id(delivery_id)
-    initial_delivery_events.ensure_schema()
-    with db._conn() as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        row = connection.execute(
-            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
-        ).fetchone()
-        if row is None:
-            raise KeyError(f"initial delivery not found: {delivery_id}")
-        if row["state"] not in {"DISPATCHING", "SUBMITTED"}:
-            return _resource(row)
-        connection.execute(
-            "UPDATE initial_deliveries SET state='WAITING_QUOTA', error_json=?, updated_at=? "
-            "WHERE delivery_id=? AND state IN ('DISPATCHING','SUBMITTED')",
-            (json.dumps(wait_error(decision), ensure_ascii=False), _now(), delivery_id),
-        )
-        if row["user_log_id"] is not None:
-            connection.execute(
-                "UPDATE initial_deliveries SET user_log_id=NULL WHERE delivery_id=?",
-                (delivery_id,),
-            )
-            connection.execute(
-                "DELETE FROM logs WHERE id=? AND session_id=? AND type='user_message'",
-                (row["user_log_id"], row["session_id"]),
-            )
-        row = connection.execute(
-            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
-        ).fetchone()
-        initial_delivery_events.record_waiting(
-            connection, row, str(decision.reason or "quota gate is closed"),
-            covered_by_receipt=False,
-        )
-        return _resource(row)
-
-
 def mark_initial_delivery_failed_before_submit(
     delivery_id: str, error: BaseException,
 ) -> dict:
@@ -639,11 +600,6 @@ class InitialDeliveryContext:
         self.history_user_message = history_user_message
         self.provenance = provenance
         self.dispatched = False
-        self.credit_rejected = False
-
-    def park_for_credit_exhaustion(self, decision) -> dict:
-        self.credit_rejected = True
-        return park_submitted_initial_delivery_for_quota(self.delivery_id, decision)
 
     async def before_submit(self) -> None:
         if self.dispatched:
@@ -652,8 +608,6 @@ class InitialDeliveryContext:
         self.dispatched = True
 
     async def mark_submitted(self, provider_ref: str | None = None) -> None:
-        if self.credit_rejected:
-            return
         mark_initial_delivery_submitted(
             self.delivery_id,
             provider_ref=provider_ref,

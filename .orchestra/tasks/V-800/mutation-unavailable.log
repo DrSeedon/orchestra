@@ -1,0 +1,76 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_unavailable_credits_refuse_task_without_subscription_fallback[expired] __
+
+unavailable_reason = 'expired'
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-19203/test_unavailable_credits_refus0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71f277b91400>
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("unavailable_reason", ["expired", "exhausted"])
+    async def test_unavailable_credits_refuse_task_without_subscription_fallback(
+        unavailable_reason, tmp_path, monkeypatch,
+    ):
+        from app import claude_api_credits
+
+        monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+            "available": False, "reason": unavailable_reason, "remaining_usd": 0.0,
+        })
+        adapter_called = False
+
+        async def adapter(*_args, **_kwargs):
+            nonlocal adapter_called
+            adapter_called = True
+            return _result("should not run", runtime="claude", model="claude-haiku-5-5")
+
+        engine = _engine(
+            "expired-credits", tmp_path, budget_usd=1, adapter=adapter,
+            usage_writer=lambda **_: True,
+        )
+        result = await engine.agent(
+            "must refuse", model="claude-haiku-5-5", billing="api_credit",
+        )
+
+>       assert result is None
+E       AssertionError: assert WorkflowValue(data='should not run', value_id='81517ef611b4989b5ba4d82af22833d36c125dfa23e9efbecd54540a18c10a5d:0', re...3d36c125dfa23e9efbecd54540a18c10a5d-0.json', workspace_path='', free_sources=frozenset(), verified_sources=frozenset()) is None
+
+tests/test_wf_run.py:207: AssertionError
+_ test_unavailable_credits_refuse_task_without_subscription_fallback[exhausted] _
+
+unavailable_reason = 'exhausted'
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-19203/test_unavailable_credits_refus1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x71f277a837d0>
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("unavailable_reason", ["expired", "exhausted"])
+    async def test_unavailable_credits_refuse_task_without_subscription_fallback(
+        unavailable_reason, tmp_path, monkeypatch,
+    ):
+        from app import claude_api_credits
+
+        monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+            "available": False, "reason": unavailable_reason, "remaining_usd": 0.0,
+        })
+        adapter_called = False
+
+        async def adapter(*_args, **_kwargs):
+            nonlocal adapter_called
+            adapter_called = True
+            return _result("should not run", runtime="claude", model="claude-haiku-5-5")
+
+        engine = _engine(
+            "expired-credits", tmp_path, budget_usd=1, adapter=adapter,
+            usage_writer=lambda **_: True,
+        )
+        result = await engine.agent(
+            "must refuse", model="claude-haiku-5-5", billing="api_credit",
+        )
+
+>       assert result is None
+E       AssertionError: assert WorkflowValue(data='should not run', value_id='81517ef611b4989b5ba4d82af22833d36c125dfa23e9efbecd54540a18c10a5d:0', re...3d36c125dfa23e9efbecd54540a18c10a5d-0.json', workspace_path='', free_sources=frozenset(), verified_sources=frozenset()) is None
+
+tests/test_wf_run.py:207: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_wf_run.py::test_unavailable_credits_refuse_task_without_subscription_fallback[expired]
+FAILED tests/test_wf_run.py::test_unavailable_credits_refuse_task_without_subscription_fallback[exhausted]
+2 failed in 1.93s

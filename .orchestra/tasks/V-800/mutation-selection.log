@@ -1,0 +1,51 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+______ test_api_credit_route_is_explicit_and_subscription_is_the_default _______
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-19202/test_api_credit_route_is_expli0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x723cbfe94800>
+
+    @pytest.mark.asyncio
+    async def test_api_credit_route_is_explicit_and_subscription_is_the_default(tmp_path, monkeypatch):
+        from app import claude_api_credits
+
+        monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {
+            "available": True, "reason": "available", "remaining_usd": 10.0,
+        })
+        seen = []
+
+        async def adapter(_prompt, *, model, billing_mode, **_kwargs):
+            seen.append((model, billing_mode))
+            return AdapterResult(
+                text="done", runtime="claude", model=model, ok=True,
+                stop_reason="end_turn", cost_usd=0.01,
+                usage=Usage(input_tokens=10, output_tokens=2),
+                billing_mode=billing_mode,
+            )
+
+        readiness_calls = []
+
+        async def readiness(model):
+            readiness_calls.append(model)
+            return {"state": "available"}
+
+        engine = _engine(
+            "billing-choice", tmp_path, budget_usd=1, adapter=adapter,
+            readiness_checker=readiness, usage_writer=lambda **_: True,
+        )
+        await engine.agent("credit task", model="claude-haiku-5-5", billing="api_credit")
+        await engine.agent("ordinary task", model="claude-haiku-5-5")
+
+>       assert seen == [
+            ("claude-haiku-5-5", "api_credit"),
+            ("claude-haiku-5-5", "subscription"),
+        ]
+E       AssertionError: assert [('claude-hai...ubscription')] == [('claude-hai...ubscription')]
+E
+E         At index 0 diff: ('claude-haiku-5-5', 'subscription') != ('claude-haiku-5-5', 'api_credit')
+E         Use -v to get more diff
+
+tests/test_wf_run.py:175: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_wf_run.py::test_api_credit_route_is_explicit_and_subscription_is_the_default
+1 failed in 1.96s

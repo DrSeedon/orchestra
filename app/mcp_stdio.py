@@ -3169,7 +3169,7 @@ async def dynamic_workflow(
     mode: str = "parallel",
     stages: list[dict[str, Any]] | None = None,
 ) -> str:
-    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna) and JSON schema. Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
+    """Run model tasks in parallel, as a result-fed chain, or in parallel stages. Stages accept task lists or one prompt plus items using {item}; every task in a stage receives all prior-stage results as structured input. Each task has an optional model (defaults to luna), JSON schema, and billing route (defaults to subscription; set billing='api_credit' only for an explicitly selected Claude task). Completion wakes the caller with answers and result paths. `repo` may be a primary checkout or linked worker worktree; task worktrees use the supplied checkout's pinned HEAD. Separate gitfile repositories and external Git directories are rejected. Limits: 20 stages, 1,000 expanded tasks, and a 1 MiB specification.
 
     MiroFish example: 50 personas read a page, then each writes a reaction for
     three rounds using all results from the previous round, then one analyst
@@ -3196,12 +3196,13 @@ async def dynamic_workflow(
         for stage_index, stage in enumerate(stages):
             if not isinstance(stage, dict):
                 return f"Error: stages[{stage_index}] must be an object"
-            allowed_fields = {"tasks", "prompt", "items", "model", "schema"}
+            allowed_fields = {"tasks", "prompt", "items", "model", "schema", "billing"}
             unknown_fields = set(stage) - allowed_fields
             if unknown_fields:
                 return f"Error: stages[{stage_index}] has unknown field {sorted(unknown_fields)[0]}"
             default_model = stage.get("model", "luna")
             default_schema = stage.get("schema")
+            default_billing = stage.get("billing", "subscription")
             if "tasks" in stage:
                 if "prompt" in stage or "items" in stage:
                     return f"Error: stages[{stage_index}] must use either tasks or prompt and items"
@@ -3234,6 +3235,7 @@ async def dynamic_workflow(
                 normalized, error = _normalize_dynamic_task(
                     task, default_model=default_model,
                     default_schema=default_schema,
+                    default_billing=default_billing,
                     label=f"stages[{stage_index}].tasks[{task_index}]",
                 )
                 if error:
@@ -3333,9 +3335,12 @@ async def dynamic_workflow(
 
 def _normalize_dynamic_task(
     task: dict[str, Any], *, default_model: str = "luna",
-    default_schema: dict | None = None, label: str,
+    default_schema: dict | None = None, default_billing: str = "subscription",
+    label: str,
 ) -> tuple[dict[str, Any], str | None]:
-    from app.models import MANUAL_ONLY_MODEL_IDS, ensure_spawn_allowed, resolve_model
+    from app.models import (
+        MANUAL_ONLY_MODEL_IDS, backend_for_model, ensure_spawn_allowed, resolve_model,
+    )
 
     model = task.get("model", default_model)
     if not isinstance(model, str) or not model.strip():
@@ -3350,10 +3355,15 @@ def _normalize_dynamic_task(
         ensure_spawn_allowed(model_id)
     except ValueError:
         return {}, f"model '{model}' is not enabled for agents"
+    billing = task.get("billing", default_billing)
+    if not isinstance(billing, str) or billing not in {"subscription", "api_credit"}:
+        return {}, f"{label}.billing must be 'subscription' or 'api_credit'"
+    if billing == "api_credit" and backend_for_model(model_id) != "claude":
+        return {}, f"{label}.billing='api_credit' requires a Claude model"
     schema = task.get("schema", default_schema)
     if schema is not None and not isinstance(schema, dict):
         return {}, f"{label}.schema must be a JSON object"
-    normalized = {"prompt": task["prompt"], "model": model_id}
+    normalized = {"prompt": task["prompt"], "model": model_id, "billing": billing}
     if schema is not None:
         normalized["schema"] = schema
     return normalized, None
