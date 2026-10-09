@@ -34,6 +34,7 @@ class AdapterResult:
     usage: Usage = field(default_factory=Usage)
     cost_unaccounted: bool = False
     error: str = ""
+    billing_mode: str = "subscription"
 
 
 def _nonnegative_int(value: Any, name: str) -> int:
@@ -99,7 +100,9 @@ def parse_codex_output(raw: str, model: str) -> AdapterResult:
     )
 
 
-def parse_claude_output(raw: str, model: str) -> AdapterResult:
+def parse_claude_output(
+    raw: str, model: str, *, billing_mode: str = "subscription",
+) -> AdapterResult:
     try:
         row = json.loads(raw)
     except json.JSONDecodeError as error:
@@ -131,6 +134,7 @@ def parse_claude_output(raw: str, model: str) -> AdapterResult:
                 "Claude cache_creation_input_tokens",
             ),
         ),
+        billing_mode=billing_mode,
     )
 
 
@@ -151,6 +155,7 @@ def persist_turn_usage(
         task_id=task_id,
         runtime=result.runtime,
         model=result.model,
+        billing_mode=result.billing_mode,
         ok=result.ok,
         stop_reason=result.stop_reason,
         cost_usd=result.cost_usd,
@@ -205,7 +210,10 @@ async def _run_process(
     )
 
 
-def _failed(runtime: str, model: str, reason: str, *, stop_reason: str) -> AdapterResult:
+def _failed(
+    runtime: str, model: str, reason: str, *, stop_reason: str,
+    billing_mode: str = "subscription",
+) -> AdapterResult:
     return AdapterResult(
         text="",
         runtime=runtime,
@@ -215,7 +223,23 @@ def _failed(runtime: str, model: str, reason: str, *, stop_reason: str) -> Adapt
         cost_usd=None,
         cost_unaccounted=True,
         error=reason[:2000],
+        billing_mode=billing_mode,
     )
+
+
+def _refused(runtime: str, model: str, reason: str, *, billing_mode: str) -> AdapterResult:
+    return AdapterResult(
+        text="", runtime=runtime, model=model, ok=False,
+        stop_reason="credit_unavailable", cost_usd=0.0,
+        error=reason[:2000], billing_mode=billing_mode,
+    )
+
+
+def _workflow_process_env() -> dict[str, str]:
+    env = os.environ.copy()
+    env["ANTHROPIC_API_KEY"] = ""
+    env["ORCHESTRA_CLAUDE_CREDIT_API_KEY"] = ""
+    return env
 
 
 def _prompt_with_rules(prompt: str, system_prompt: str) -> str:
@@ -269,7 +293,7 @@ async def run_codex(
         "--json",
         "-",
     ]
-    run_env = os.environ.copy()
+    run_env = _workflow_process_env()
     private_home = None
     if mcp:
         from app.backend_codex import CodexBackend, _write_private
@@ -308,7 +332,27 @@ async def run_claude(
     prompt: str, *, model: str, cwd: Path, timeout: float,
     tools: str = "all", network: bool = True, mcp: bool = True,
     system_prompt: str = "", state_dir: Path | None = None,
+    billing_mode: str = "subscription",
 ) -> AdapterResult:
+    if billing_mode not in {"subscription", "api_credit"}:
+        raise ValueError("billing_mode must be subscription or api_credit")
+    api_key = ""
+    if billing_mode == "api_credit":
+        from app.claude_api_credits import API_KEY_ENV, credit_status
+
+        status = credit_status()
+        if status.get("available") is not True:
+            reason = str(status.get("reason") or "unknown_usage")
+            return _refused(
+                "claude", model, f"Claude API credits unavailable: {reason}",
+                billing_mode=billing_mode,
+            )
+        api_key = os.environ.get(API_KEY_ENV, "").strip()
+        if not api_key:
+            return _refused(
+                "claude", model, "Claude API credits unavailable: missing_key",
+                billing_mode=billing_mode,
+            )
     binary = os.environ.get("WF_CLAUDE_BIN", "claude")
     mcp_config = _write_claude_mcp_config(cwd, mcp)
     argv = [
@@ -331,16 +375,38 @@ async def run_claude(
     ]
     if system_prompt.strip():
         argv.extend(["--system-prompt", system_prompt.strip()])
+    env = _workflow_process_env()
+    if billing_mode == "api_credit":
+        env["ANTHROPIC_API_KEY"] = api_key
     try:
-        rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout)
+        rc, stdout, stderr = await _run_process(argv, prompt, cwd, timeout, env=env)
     finally:
         mcp_config.unlink(missing_ok=True)
     if rc != 0:
-        return _failed("claude", model, stderr or stdout or f"exit code {rc}", stop_reason="timeout" if rc == 124 else "error")
+        detail = stderr or stdout or f"exit code {rc}"
+        if billing_mode == "api_credit":
+            from app.claude_api_credits import is_credit_exhaustion_error
+
+            if is_credit_exhaustion_error(detail):
+                from app.claude_api_credits import mark_credits_exhausted
+
+                mark_credits_exhausted()
+                return _failed(
+                    "claude", model, detail,
+                    stop_reason="credit_exhausted", billing_mode=billing_mode,
+                )
+        return _failed(
+            "claude", model, detail,
+            stop_reason="timeout" if rc == 124 else "error",
+            billing_mode=billing_mode,
+        )
     try:
-        return parse_claude_output(stdout, model)
+        return parse_claude_output(stdout, model, billing_mode=billing_mode)
     except ValueError as error:
-        return _failed("claude", model, str(error), stop_reason="invalid_output")
+        return _failed(
+            "claude", model, str(error), stop_reason="invalid_output",
+            billing_mode=billing_mode,
+        )
 
 
 async def run_harness(
@@ -382,6 +448,7 @@ async def run_adapter(
     prompt: str, *, model: str, cwd: Path, timeout: float,
     tools: str = "all", network: bool = True, mcp: bool = True,
     system_prompt: str = "", state_dir: Path | None = None,
+    billing_mode: str = "subscription",
 ) -> AdapterResult:
     from app.models import backend_for_model
 
@@ -396,7 +463,12 @@ async def run_adapter(
         return await run_claude(
             prompt, model=model, cwd=cwd, timeout=timeout, tools=tools,
             network=network, mcp=mcp, system_prompt=system_prompt,
-            state_dir=state_dir,
+            state_dir=state_dir, billing_mode=billing_mode,
+        )
+    if billing_mode != "subscription":
+        return _failed(
+            runtime, model, "Claude API credits require a Claude model",
+            stop_reason="invalid_billing_route", billing_mode=billing_mode,
         )
     if runtime == "harness":
         return await run_harness(

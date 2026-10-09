@@ -293,8 +293,8 @@ function _analyticsRenderOverview(body) {
 
     const apiCredits = data.claude_api_credits || {};
     const creditState = apiCredits.available
-        ? T('Fallback ready')
-        : T(({disabled: 'Fallback disabled', missing_key: 'API key not configured',
+        ? T('Available for selected workflow tasks')
+        : T(({missing_key: 'API key not configured',
             expired: 'Credits expired', exhausted: 'Credits exhausted',
             unknown_usage: 'Tracking unavailable'}[apiCredits.reason]) || 'no data');
 
@@ -309,7 +309,7 @@ function _analyticsRenderOverview(body) {
             <div class="analytics-provider-grid">${providerCards || '<div class="analytics-empty">' + T('Provider data not yet accumulated.') + '</div>'}</div>
         </section>
         <section class="analytics-panel" data-analytics-api-credits>
-            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Claude workers')}</span><h3>${T('Claude API credits')}</h3></div><span>${creditState}</span></div>
+            <div class="analytics-section-head"><div><span class="analytics-kicker">${T('Claude workflow tasks')}</span><h3>${T('Claude API credits')}</h3></div><span>${creditState}</span></div>
             <div class="analytics-reliability-stats">
                 <div><span>${T('Estimated remaining')}</span><strong>${_analyticsMoney(apiCredits.remaining_usd)}</strong></div>
                 <div><span>${T('Tracked spend')}</span><strong>${_analyticsMoney(apiCredits.tracked_spend_usd)}</strong></div>

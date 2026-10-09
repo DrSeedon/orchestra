@@ -732,7 +732,6 @@ class QuotaDecision:
     release_status: str = "open"
     release_in_seconds: float | None = None
     override_seconds_left: float = 0.0
-    billing_mode: str = "subscription"
 
     @property
     def allowed(self) -> bool:
@@ -760,7 +759,6 @@ class QuotaDecision:
             "release_status": self.release_status,
             "release_in_seconds": self.release_in_seconds,
             "override_seconds_left": self.override_seconds_left,
-            "billing_mode": self.billing_mode,
         }
 
 
@@ -1088,37 +1086,6 @@ def evaluate_worker_admission(
 ObservationLoader = Callable[..., Awaitable[Mapping[str, object]]]
 
 
-def apply_claude_api_credit_fallback(
-    decision: QuotaDecision,
-    *,
-    status: Mapping[str, object] | None = None,
-) -> QuotaDecision:
-    if decision.state != "blocked" or decision.lane != "claude":
-        return decision
-    if status is None:
-        from app.claude_api_credits import credit_status
-
-        status = credit_status()
-    if status.get("available") is True:
-        return replace(
-            decision,
-            state="available",
-            reason="subscription quota is closed; using Claude API credits",
-            release_status="open",
-            release_in_seconds=None,
-            billing_mode="api_credit",
-        )
-    unavailable = status.get("reason")
-    if unavailable in {"exhausted", "expired", "unknown_usage"}:
-        return replace(
-            decision,
-            reason=(
-                f"{decision.reason}; Claude API credits {unavailable.replace('_', ' ')}"
-            ),
-        )
-    return decision
-
-
 async def get_worker_admission(
     model: str,
     observation_loader: ObservationLoader | None = None,
@@ -1147,7 +1114,7 @@ async def get_worker_admission(
         providers if isinstance(providers, Mapping) else {},
         timestamps if isinstance(timestamps, Mapping) else {},
     )
-    return apply_claude_api_credit_fallback(decision)
+    return decision
 
 
 def require_worker_admission(decision: QuotaDecision) -> None:

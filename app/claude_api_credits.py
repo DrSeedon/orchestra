@@ -6,16 +6,12 @@ import os
 import logging
 import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
-
-from dotenv import dotenv_values
 from app import db
 
 logger = logging.getLogger("orchestra.claude_api_credits")
 
 
 API_KEY_ENV = "ORCHESTRA_CLAUDE_CREDIT_API_KEY"
-FALLBACK_FLAG_ENV = "CLAUDE_API_CREDIT_FALLBACK_ENABLED"
 EXHAUSTED_KV_KEY = "claude_api_credit_fallback_exhausted_until"
 UNRESOLVED_KV_KEY = "claude_api_credit_usage_unresolved_until"
 
@@ -24,16 +20,6 @@ UNRESOLVED_KV_KEY = "claude_api_credit_usage_unresolved_until"
 BALANCE_BASELINE_USD = 199.674904
 BALANCE_BASELINE_AT = "2026-10-08T09:23:30+00:00"
 CREDITS_EXPIRE_AT = "2026-11-04T00:00:00+00:00"
-_DOTENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-_STARTUP_FLAG_VALUE = os.environ.get(FALLBACK_FLAG_ENV)
-try:
-    _STARTUP_FILE_FLAG_VALUE = dotenv_values(_DOTENV_PATH).get(FALLBACK_FLAG_ENV)
-except OSError:
-    _STARTUP_FILE_FLAG_VALUE = None
-_DOTENV_OWNS_FLAG = (
-    _STARTUP_FLAG_VALUE is not None
-    and _STARTUP_FLAG_VALUE == _STARTUP_FILE_FLAG_VALUE
-)
 
 
 def _tracking_snapshot() -> tuple[float | None, bool]:
@@ -61,28 +47,12 @@ def _tracking_snapshot() -> tuple[float | None, bool]:
     return max(0.0, BALANCE_BASELINE_USD - float(row["spent"] or 0)), True
 
 
-def _fallback_enabled() -> bool:
-    try:
-        file_values = dotenv_values(_DOTENV_PATH)
-    except OSError:
-        file_values = {}
-    file_value = file_values.get(FALLBACK_FLAG_ENV)
-    if _DOTENV_OWNS_FLAG:
-        raw = file_value
-    else:
-        raw = os.environ.get(FALLBACK_FLAG_ENV, file_value)
-    if raw is None:
-        return True
-    return str(raw).strip().lower() in {"1", "true", "yes", "on"}
-
-
 def credit_status(*, now: datetime | None = None) -> dict:
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     now = now.astimezone(timezone.utc)
     expires_at = datetime.fromisoformat(CREDITS_EXPIRE_AT).astimezone(timezone.utc)
-    enabled = _fallback_enabled()
     key_present = bool(os.environ.get(API_KEY_ENV, "").strip())
     try:
         remaining, tracking_complete = _tracking_snapshot()
@@ -96,9 +66,7 @@ def credit_status(*, now: datetime | None = None) -> dict:
     provider_exhausted = exhausted_until == CREDITS_EXPIRE_AT
     if provider_exhausted or now >= expires_at:
         remaining = 0.0
-    if not enabled:
-        reason = "disabled"
-    elif not key_present:
+    if not key_present:
         reason = "missing_key"
     elif now >= expires_at:
         reason = "expired"
@@ -111,7 +79,6 @@ def credit_status(*, now: datetime | None = None) -> dict:
     else:
         reason = "available"
     return {
-        "enabled": enabled,
         "available": reason == "available",
         "reason": reason,
         "remaining_usd": remaining,

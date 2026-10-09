@@ -1775,7 +1775,6 @@ async def build_quota_map() -> dict:
     from app.quota_gate import (
         QUOTA_OBSERVATION_MAX_AGE,
         LANE_LABELS,
-        apply_claude_api_credit_fallback,
         deciding_window,
         evaluate_worker_admission,
         gate_override_remaining,
@@ -1809,7 +1808,6 @@ async def build_quota_map() -> dict:
         decision = evaluate_worker_admission(
             model_id, providers, timestamps, now=now, policy=policy,
         )
-        decision = apply_claude_api_credit_fallback(decision, status=credits)
         item = {
             **decision.to_dict(),
             "label": model_label,

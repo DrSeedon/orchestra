@@ -13,6 +13,15 @@ from scripts import wf_run
 from tests.test_wf_run import _git_repo, _result
 
 
+def test_dynamic_task_credit_route_requires_claude_model():
+    normalized, error = mcp_stdio._normalize_dynamic_task(
+        {"prompt": "task", "model": "gpt-6-luna", "billing": "api_credit"},
+        label="task",
+    )
+    assert normalized == {}
+    assert error == "task.billing='api_credit' requires a Claude model"
+
+
 async def _grant_workflow_slot(path, _payload):
     if path.endswith("/release"):
         return {"released": True, "active": 0, "queued": 0, "limit": 1, "reason": "test"}
@@ -103,6 +112,8 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
             'prompt': large_prompt + 'persona={item}',
             'items': [{'id': 1, 'profile': 'first'}, {'id': 2, 'profile': 'second'}],
             'schema': {'type': 'object'},
+            'model': 'claude-haiku-5-5',
+            'billing': 'api_credit',
         }],
         mode='stages', budget_usd=1, max_calls=2, max_concurrency=2,
         task_id='V-720', repo=str(repo_path),
@@ -129,10 +140,13 @@ async def test_dynamic_workflow_tool_builds_durable_run_and_manifest_delivery(tm
     assert spec_path.stat().st_size > 64 * 1024
     spec = json.loads(spec_path.read_text())
     assert spec['mode'] == 'stages' and len(spec['stages'][0]['tasks']) == 2
-    assert spec['stages'][0]['tasks'] == [
-        {'prompt': large_prompt + 'persona={"id": 1, "profile": "first"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}, 'label': 'Stage 1 · Task 1'},
-        {'prompt': large_prompt + 'persona={"id": 2, "profile": "second"}', 'model': 'gpt-6-luna', 'schema': {'type': 'object'}, 'label': 'Stage 1 · Task 2'},
+    assert [task['billing'] for task in spec['stages'][0]['tasks']] == [
+        'api_credit', 'api_credit',
     ]
+    assert [task['model'] for task in spec['stages'][0]['tasks']] == [
+        'claude-haiku-5-5', 'claude-haiku-5-5',
+    ]
+    assert all(task['schema'] == {'type': 'object'} for task in spec['stages'][0]['tasks'])
     assert spec['dashboard']['task_id'] == 'V-720'
     assert spec['dashboard']['budget_usd'] == 1
     assert spec['dashboard']['max_calls'] == 2
@@ -239,7 +253,10 @@ async def test_dynamic_workflow_keeps_legacy_task_modes(mode, tmp_path, monkeypa
     assert 'queued' in response
     args = shlex.split(captured['config']['command'])
     spec = json.loads(Path(args[args.index('--spec') + 1]).read_text())
-    assert spec['tasks'] == [{'prompt': 'legacy task', 'model': 'gpt-6-luna', 'label': 'Task 1'}]
+    assert spec['tasks'] == [{
+        'prompt': 'legacy task', 'model': 'gpt-6-luna',
+        'billing': 'subscription', 'label': 'Task 1',
+    }]
     assert spec['mode'] == mode
     assert spec['dashboard']['task_id'] == 'V-738'
 

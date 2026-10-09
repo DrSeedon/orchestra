@@ -434,7 +434,7 @@ def test_overview_shows_estimated_claude_api_credit_balance_and_expiry(browser):
 
     credit_card = page.locator("[data-analytics-api-credits]")
     expect(credit_card).to_contain_text("$199.67")
-    expect(credit_card).to_contain_text("Fallback ready")
+    expect(credit_card).to_contain_text("Available for selected workflow tasks")
     expect(credit_card).to_contain_text("Nov 04")
     assert "sk-test" not in credit_card.inner_text()
     page.close()

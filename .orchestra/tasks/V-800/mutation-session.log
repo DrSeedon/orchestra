@@ -1,0 +1,43 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_session_admission_never_switches_to_api_credits _____________
+
+credit_db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x79bd75e20f50>
+
+    @pytest.mark.asyncio
+    async def test_session_admission_never_switches_to_api_credits(credit_db, monkeypatch):
+        from app import claude_api_credits, quota_gate
+
+        start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc)
+        now = start + timedelta(hours=90)
+        monkeypatch.setattr(quota_gate.time, "time", lambda: now.timestamp())
+        monkeypatch.setenv(claude_api_credits.API_KEY_ENV, "test-api-key")
+        monkeypatch.setenv("CLAUDE_API_CREDIT_FALLBACK_ENABLED", "1")
+        monkeypatch.setattr(claude_api_credits, "credit_status", lambda **_: {
+            "available": True, "remaining_usd": 12.0, "reason": "available",
+        })
+
+        async def observation(**_):
+            return {
+                "providers": {"anthropic": {"label": "Claude", "windows": [{
+                    "id": "seven_day", "window_minutes": 10080,
+                    "utilization": 99.0,
+                    "resets_at": (start + timedelta(days=7)).isoformat(),
+                }]}},
+                "observed_at_by_provider": {"anthropic": now.timestamp() - 1},
+            }
+
+        decision = await quota_gate.get_worker_admission(
+            "claude-sonnet-5-5[1m]", observation_loader=observation,
+        )
+>       assert decision.state == "blocked"
+E       AssertionError: assert 'available' == 'blocked'
+E
+E         - blocked
+E         + available
+
+tests/test_claude_api_credits.py:152: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_claude_api_credits.py::test_session_admission_never_switches_to_api_credits
+1 failed in 1.73s

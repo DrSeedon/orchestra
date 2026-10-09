@@ -41,7 +41,6 @@ def test_credit_balance_estimate_counts_only_api_credit_turn_usage(
     from app import claude_api_credits as credits
 
     monkeypatch.setenv(credits.API_KEY_ENV, "test-api-key")
-    monkeypatch.setenv(credits.FALLBACK_FLAG_ENV, "1")
     start = datetime.fromisoformat(credits.BALANCE_BASELINE_AT)
     _usage_row("credit-turn", billing_mode="api_credit", cost_usd=0.25,
                ts=(start + timedelta(minutes=1)).isoformat())
@@ -58,17 +57,13 @@ def test_credit_balance_estimate_counts_only_api_credit_turn_usage(
     assert "test-api-key" not in repr(status)
 
 
-def test_credit_fallback_flag_expiry_and_unknown_spend_fail_closed(
+def test_credit_expiry_and_unknown_spend_fail_closed(
     credit_db, monkeypatch,
 ):
     from app import claude_api_credits as credits
 
     monkeypatch.setenv(credits.API_KEY_ENV, "test-api-key")
     start = datetime.fromisoformat(credits.BALANCE_BASELINE_AT)
-    monkeypatch.setenv(credits.FALLBACK_FLAG_ENV, "0")
-    assert credits.credit_status(now=start)["reason"] == "disabled"
-
-    monkeypatch.setenv(credits.FALLBACK_FLAG_ENV, "1")
     expired = datetime.fromisoformat(credits.CREDITS_EXPIRE_AT)
     assert credits.credit_status(now=expired)["reason"] == "expired"
 
@@ -84,13 +79,12 @@ def test_credit_fallback_flag_expiry_and_unknown_spend_fail_closed(
     assert status["reason"] == "unknown_usage"
 
 
-def test_zero_estimated_credit_and_provider_exhaustion_disable_fallback(
+def test_zero_estimated_credit_and_provider_exhaustion_block_credit_route(
     credit_db, monkeypatch,
 ):
     from app import claude_api_credits as credits
 
     monkeypatch.setenv(credits.API_KEY_ENV, "test-api-key")
-    monkeypatch.setenv(credits.FALLBACK_FLAG_ENV, "1")
     start = datetime.fromisoformat(credits.BALANCE_BASELINE_AT)
     _usage_row("spend-credit-grant", billing_mode="api_credit",
                cost_usd=credits.BALANCE_BASELINE_USD + 1,
@@ -103,17 +97,41 @@ def test_zero_estimated_credit_and_provider_exhaustion_disable_fallback(
     assert credits.credit_status(now=start + timedelta(minutes=3))["reason"] == "exhausted"
 
 
-@pytest.mark.asyncio
-async def test_closed_claude_subscription_selects_api_credit_route_only_with_credits(
+def test_dynamic_workflow_credit_usage_is_written_to_the_shared_credit_ledger(
     credit_db, monkeypatch,
 ):
+    from app import claude_api_credits as credits
+    from scripts.wf_adapters import parse_claude_output, persist_turn_usage
+
+    monkeypatch.setenv(credits.API_KEY_ENV, "test-api-key")
+    result = parse_claude_output(
+        '{"result":"measured","total_cost_usd":0.25,"usage":{"input_tokens":20,"output_tokens":5}}',
+        "claude-haiku-5-5", billing_mode="api_credit",
+    )
+    assert result.billing_mode == "api_credit"
+    assert persist_turn_usage(
+        result=result,
+        event_id="wf:credit-run:call:1",
+        session_id="wf:credit-run",
+        scope="test-scope",
+        task_id="V-800",
+    ) is True
+
+    start = datetime.fromisoformat(credits.BALANCE_BASELINE_AT)
+    status = credits.credit_status(now=start + timedelta(minutes=1))
+    assert status["tracked_spend_usd"] == pytest.approx(0.25)
+    assert status["remaining_usd"] == pytest.approx(credits.BALANCE_BASELINE_USD - 0.25)
+
+
+@pytest.mark.asyncio
+async def test_session_admission_never_switches_to_api_credits(credit_db, monkeypatch):
     from app import claude_api_credits, quota_gate
 
     start = datetime(2026, 10, 6, 7, tzinfo=timezone.utc)
     now = start + timedelta(hours=90)
     monkeypatch.setattr(quota_gate.time, "time", lambda: now.timestamp())
     monkeypatch.setenv(claude_api_credits.API_KEY_ENV, "test-api-key")
-    monkeypatch.setenv(claude_api_credits.FALLBACK_FLAG_ENV, "1")
+    monkeypatch.setenv("CLAUDE_API_CREDIT_FALLBACK_ENABLED", "1")
     monkeypatch.setattr(claude_api_credits, "credit_status", lambda **_: {
         "available": True, "remaining_usd": 12.0, "reason": "available",
     })
@@ -131,24 +149,12 @@ async def test_closed_claude_subscription_selects_api_credit_route_only_with_cre
     decision = await quota_gate.get_worker_admission(
         "claude-sonnet-5-5[1m]", observation_loader=observation,
     )
-    assert decision.state == "available"
-    assert decision.billing_mode == "api_credit"
-    assert "subscription quota is closed" in decision.reason
-
-    monkeypatch.setattr(claude_api_credits, "credit_status", lambda **_: {
-        "available": False, "remaining_usd": 0.0, "reason": "exhausted",
-    })
-    blocked = await quota_gate.get_worker_admission(
-        "claude-sonnet-5-5[1m]", observation_loader=observation,
-    )
-    assert blocked.state == "blocked"
-    assert blocked.billing_mode == "subscription"
-    assert "API credits exhausted" in blocked.reason
+    assert decision.state == "blocked"
+    with pytest.raises(quota_gate.QuotaGateError):
+        quota_gate.require_worker_admission(decision)
 
 
-def test_subscription_and_orchestrator_cli_env_never_receives_credit_key(
-    monkeypatch,
-):
+def test_claude_session_cli_never_receives_credit_key(monkeypatch):
     import app.backend_claude as backend_module
 
     captured = {}
@@ -176,129 +182,6 @@ def test_subscription_and_orchestrator_cli_env_never_receives_credit_key(
         assert env["ANTHROPIC_API_KEY"] == ""
         assert "private-test-key" not in repr(env)
         assert "ambient-api-key-must-be-cleared" not in repr(env)
-
-    with pytest.raises(ValueError, match="orchestrators"):
-        backend_module.ClaudeBackend(
-            model="claude-sonnet-5-5[1m]", cwd="/tmp",
-            is_orchestrator=True, billing_mode="api_credit",
-        )
-
-
-def test_api_credit_route_gets_the_key_only_in_its_cli_env(monkeypatch):
-    import app.backend_claude as backend_module
-    from app.claude_api_credits import API_KEY_ENV
-
-    class FakeClient:
-        def __init__(self, *, options):
-            self.options = options
-
-    monkeypatch.setattr(backend_module, "ClaudeSDKClient", FakeClient)
-    monkeypatch.setattr(backend_module.shutil, "which", lambda _: "/usr/bin/claude")
-    monkeypatch.setenv(API_KEY_ENV, "private-test-key")
-    client = backend_module.ClaudeBackend(
-        model="claude-sonnet-5-5[1m]", cwd="/tmp", is_orchestrator=False,
-        billing_mode="api_credit",
-    )._make_client()
-    assert client.options.env["ANTHROPIC_API_KEY"] == "private-test-key"
-    assert client.options.env[API_KEY_ENV] == ""
-
-
-def test_session_switches_persistent_backend_to_the_admitted_billing_route(monkeypatch, tmp_path):
-    from app import claude_api_credits
-    from app.session import AgentSession
-
-    monkeypatch.setattr(claude_api_credits, "credit_status", lambda: {"available": True})
-
-    class FakeBackend:
-        def __init__(self, billing_mode):
-            self.billing_mode = billing_mode
-            self.disconnected = False
-
-        async def disconnect(self):
-            self.disconnected = True
-
-        async def connect(self):
-            return None
-
-    session = AgentSession(
-        id="credit-route-session", name="credit-route-worker",
-        scope="/scope", cwd=str(tmp_path), model="claude-sonnet-5-5[1m]",
-        role="worker", pipeline="",
-    )
-    subscription_backend = FakeBackend("subscription")
-    session._backend = subscription_backend
-    created = []
-
-    def build(**kwargs):
-        backend = FakeBackend(kwargs["billing_mode"])
-        created.append(backend)
-        return backend
-
-    monkeypatch.setattr(session, "_make_backend", build)
-    monkeypatch.setattr(session, "_refresh_skills", AsyncMock())
-    monkeypatch.setattr(session, "_refresh_codex_project_doc", AsyncMock())
-    backend = asyncio.run(
-        session._ensure_backend(billing_mode="api_credit", activate=False)
-    )
-    assert subscription_backend.disconnected is True
-    assert backend is created[0]
-    assert backend.billing_mode == session._billing_mode == "api_credit"
-
-    subscription_backend = asyncio.run(
-        session._ensure_backend(billing_mode="subscription", activate=False)
-    )
-    assert backend.disconnected is True
-    assert subscription_backend is created[1]
-    assert subscription_backend.billing_mode == session._billing_mode == "subscription"
-
-
-def test_agent_session_passes_billing_route_to_claude_factory(monkeypatch):
-    import app.session as session_module
-    from app.session import AgentSession
-
-    session = AgentSession(
-        id="credit-route-session", name="credit-route-worker",
-        scope="/scope", cwd="/tmp", model="claude-sonnet-5-5[1m]",
-        role="worker",
-    )
-    built = []
-    monkeypatch.setattr(session_module, "build_backend", lambda runtime, context: built.append((runtime, context)) or object())
-
-    session._make_backend(billing_mode="api_credit")
-    assert built[0][0] == "claude"
-    assert built[0][1].billing_mode == "api_credit"
-
-    session.is_orchestrator = True
-    with pytest.raises(ValueError, match="Claude API credits"):
-        session._make_backend(billing_mode="api_credit")
-
-
-def test_api_credit_error_detector_matches_provider_billing_refusal_only():
-    from app.claude_api_credits import is_credit_exhaustion_error
-    from app.backend_claude import ClaudeBackend
-    from claude_agent_sdk.types import ResultMessage
-
-    assert is_credit_exhaustion_error(
-        "Your credit balance is too low to access the Anthropic API."
-    )
-    assert is_credit_exhaustion_error(
-        "Credit balance too low · Add funds: https://platform.claude.com/settings/billing"
-    )
-    assert not is_credit_exhaustion_error("rate limit exceeded")
-    assert not is_credit_exhaustion_error("subscription quota is exhausted")
-    result = ResultMessage(
-        subtype="error_during_execution", duration_ms=1, duration_api_ms=1,
-        is_error=True, num_turns=0, session_id="api-credit-session",
-        errors=["Your credit balance is too low to access the Anthropic API."],
-    )
-    api_events = ClaudeBackend(
-        model="claude-sonnet-5-5[1m]", cwd="/tmp", billing_mode="api_credit",
-    )._convert(result)
-    subscription_events = ClaudeBackend(
-        model="claude-sonnet-5-5[1m]", cwd="/tmp", billing_mode="subscription",
-    )._convert(result)
-    assert api_events[-1].metadata["api_credit_exhausted"] is True
-    assert subscription_events[-1].metadata["api_credit_exhausted"] is False
 
 
 @pytest.mark.asyncio
