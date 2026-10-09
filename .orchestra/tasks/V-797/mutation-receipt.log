@@ -1,0 +1,73 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_______ test_v797_spawn_receipt_reports_quota_gate_closed_at_acceptance ________
+
+delivery_db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x70449d0a9280>
+
+    @pytest.mark.asyncio
+    async def test_v797_spawn_receipt_reports_quota_gate_closed_at_acceptance(
+        delivery_db, monkeypatch,
+    ):
+        from app import initial_deliveries
+        from app.quota_gate import QuotaGateError
+        from app.routes import sessions as session_routes
+        from app.mcp_stdio import _delivery_receipt_text
+    
+        wakes = []
+        monkeypatch.setattr(
+            initial_deliveries, "ensure_delivery_runner",
+            lambda delivery_id: wakes.append(delivery_id),
+        )
+        request_type = session_routes.InitialDeliveryRequest
+        route = next(
+            item for item in session_routes.router.routes
+            if getattr(item, "path", "") == "/api/sessions/{name}/initial-deliveries"
+            and "POST" in getattr(item, "methods", set())
+        )
+        decision = SimpleNamespace(
+            state="blocked", model="claude-sonnet-5-5[1m]", provider="anthropic",
+            provider_label="Claude", lane="claude", gated=True, utilization=47.0,
+            progress=31.49, tolerance_pp=7.166, limit_pct=38.65,
+            observed_at=None, valid_until=None, reset_at=None, window_starts_at=None,
+            reason="week usage is above the quota line", hard_limit_pct=100.0,
+            release_status="reset", release_in_seconds=None, billing_mode="subscription",
+        )
+    
+        async def blocked(_session_id):
+            raise QuotaGateError(decision)
+    
+        monkeypatch.setattr(
+            session_routes.manager, "get_by_name",
+            lambda name, scope: SimpleNamespace(id=SESSION_ID, name=name, scope=scope),
+        )
+        monkeypatch.setattr(session_routes.manager, "preflight_message_delivery", blocked)
+    
+        response = await route.endpoint(
+            WORKER,
+            request_type(
+                delivery_id=DELIVERY_ID, message=MESSAGE, scope=SCOPE, sender=SENDER,
+            ),
+        )
+        payload = json.loads(response.body)
+        receipt = _delivery_receipt_text(
+            WORKER, "sonnet",
+            {
+                "worktree_path": "/tmp/worktree", "repo_path": "/tmp/repo",
+                "git_common_dir": "/tmp/repo/.git", "branch": "task-v797/worker",
+            },
+            payload,
+        )
+    
+        assert response.status_code == 202
+>       assert payload["delivery_state"] == "WAITING_QUOTA"
+E       AssertionError: assert 'QUEUED' == 'WAITING_QUOTA'
+E         
+E         - WAITING_QUOTA
+E         + QUEUED
+
+tests/test_initial_deliveries.py:344: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_initial_deliveries.py::test_v797_spawn_receipt_reports_quota_gate_closed_at_acceptance
+1 failed in 2.60s
+pytest_exit=1

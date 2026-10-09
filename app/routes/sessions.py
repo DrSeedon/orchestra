@@ -458,6 +458,7 @@ async def accept_initial_delivery(name: str, req: InitialDeliveryRequest):
     from app import initial_deliveries
 
     try:
+        quota_wait = await _preflight_or_quota_wait(found.id)
         provenance = MessageProvenance(
             origin="agent", senders=(req.sender,), subtype="initial_delivery",
             ref=req.delivery_id,
@@ -470,6 +471,7 @@ async def accept_initial_delivery(name: str, req: InitialDeliveryRequest):
             sender=req.sender,
             message=req.message,
             provenance=provenance,
+            quota_wait=quota_wait,
         )
     except sqlite3.DatabaseError:
         if initial_deliveries.get_initial_delivery(req.delivery_id, req.scope) is None:
