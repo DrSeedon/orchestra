@@ -1,0 +1,41 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_ test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_required _
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7a3d05ab9d00>
+
+    def test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_required(monkeypatch):
+        import app.agent_cgroups as cgroups
+
+        monkeypatch.setenv("ORCHESTRA_WORKFLOW_BALANCER_ENABLED", "1")
+        monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP", raising=False)
+        monkeypatch.delenv("ORCHESTRA_AGENT_ROOT", raising=False)
+        monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", raising=False)
+        monkeypatch.setattr(cgroups, "_systemd_delegate_enabled", lambda: False)
+        monkeypatch.setattr(
+            cgroups, "configure_agent_cgroup",
+            lambda: (_ for _ in ()).throw(AssertionError("setup must be skipped without Delegate=yes")),
+        )
+>       agents, reason, required = cgroups.initialize_agent_cgroup()
+                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_workflow_scheduler.py:223:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+app/agent_cgroups.py:63: in initialize_agent_cgroup
+    agents = configure_agent_cgroup()
+             ^^^^^^^^^^^^^^^^^^^^^^^^
+tests/test_workflow_scheduler.py:221: in <lambda>
+    lambda: (_ for _ in ()).throw(AssertionError("setup must be skipped without Delegate=yes")),
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+.0 = <tuple_iterator object at 0x7a3d05d4d0f0>
+
+>       lambda: (_ for _ in ()).throw(AssertionError("setup must be skipped without Delegate=yes")),
+    )
+E   AssertionError: setup must be skipped without Delegate=yes
+
+tests/test_workflow_scheduler.py:221: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_workflow_scheduler.py::test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_required
+1 failed in 2.23s

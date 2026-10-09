@@ -1,7 +1,11 @@
+import asyncio
+import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pytest
 
 from app.agent_cgroups import configure_agent_cgroup
 from app.runtime_process_group import RuntimeProcessGroup
@@ -179,6 +183,97 @@ def test_delegated_cgroup_configuration_moves_root_members_and_sets_limits(tmp_p
     assert (agents / "io.weight").read_text() == "default 50"
     assert (agents / "memory.high").read_text() == "1050"
     assert (agents / "memory.max").read_text() == "1400"
+
+
+def test_workflow_balancer_can_be_disabled_without_blocking_workers(monkeypatch):
+    import app.agent_cgroups as cgroups
+
+    monkeypatch.setenv("ORCHESTRA_WORKFLOW_BALANCER_ENABLED", "0")
+    monkeypatch.setenv("ORCHESTRA_AGENT_CGROUP", "/stale/workers")
+    monkeypatch.setenv("ORCHESTRA_AGENT_ROOT", "/stale/agents")
+    monkeypatch.setenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", "1")
+    monkeypatch.setattr(
+        cgroups, "configure_agent_cgroup",
+        lambda: (_ for _ in ()).throw(AssertionError("cgroup setup must be skipped")),
+    )
+
+    agents, reason, required = cgroups.initialize_agent_cgroup()
+
+    assert agents is None
+    assert reason == "disabled by ORCHESTRA_WORKFLOW_BALANCER_ENABLED"
+    assert required is False
+    assert cgroups.agent_process_options() == {}
+    assert "ORCHESTRA_AGENT_CGROUP" not in os.environ
+    assert "ORCHESTRA_AGENT_ROOT" not in os.environ
+    assert "ORCHESTRA_AGENT_CGROUP_REQUIRED" not in os.environ
+
+
+def test_missing_systemd_delegation_skips_setup_but_delegate_failure_stays_required(monkeypatch):
+    import app.agent_cgroups as cgroups
+
+    monkeypatch.setenv("ORCHESTRA_WORKFLOW_BALANCER_ENABLED", "1")
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP", raising=False)
+    monkeypatch.delenv("ORCHESTRA_AGENT_ROOT", raising=False)
+    monkeypatch.delenv("ORCHESTRA_AGENT_CGROUP_REQUIRED", raising=False)
+    monkeypatch.setattr(cgroups, "_systemd_delegate_enabled", lambda: False)
+    monkeypatch.setattr(
+        cgroups, "configure_agent_cgroup",
+        lambda: (_ for _ in ()).throw(AssertionError("setup must be skipped without Delegate=yes")),
+    )
+    agents, reason, required = cgroups.initialize_agent_cgroup()
+    assert agents is None
+    assert reason == "systemd Delegate=no"
+    assert required is False
+    assert cgroups.agent_process_options() == {}
+
+    from app.bg_jobs import BgJobManager
+    import app.bg_jobs as bg_jobs
+
+    spawn_kwargs = {}
+
+    async def fake_spawn(_command, *, shell, **kwargs):
+        spawn_kwargs.update(kwargs)
+        return object()
+
+    async def await_spawn(task):
+        return await task
+
+    monkeypatch.setattr(bg_jobs, "_spawn_bg_process", fake_spawn)
+    monkeypatch.setattr(bg_jobs, "_await_owned_spawn", await_spawn)
+    asyncio.run(BgJobManager()._spawn_managed_process(
+        "job", ["provider"], shell=False, agent_workload=True,
+    ))
+    assert "env" not in spawn_kwargs
+
+    from app.routes.bg import WorkflowSlotRequest, bg_workflow_slot_acquire
+    request = type("Request", (), {"app": type("App", (), {"state": type("State", (), {
+        "agent_cgroup": "", "agent_cgroup_error": reason,
+        "agent_cgroup_required": False,
+    })()})()})()
+    response = asyncio.run(bg_workflow_slot_acquire(
+        WorkflowSlotRequest(request_id="request-1", run_id="run-1"), request,
+    ))
+    assert response.status_code == 404
+    assert json.loads(response.body)["scheduler_missing"] is True
+
+    monkeypatch.setattr(
+        cgroups, "configure_agent_cgroup",
+        lambda: (_ for _ in ()).throw(RuntimeError("orchestra-api cgroup missing")),
+    )
+    monkeypatch.setattr(cgroups, "_systemd_delegate_enabled", lambda: True)
+    agents, reason, required = cgroups.initialize_agent_cgroup()
+    assert agents is None
+    assert "orchestra-api cgroup missing" in reason
+    assert required is True
+    assert os.environ["ORCHESTRA_AGENT_CGROUP_REQUIRED"] == "1"
+    with pytest.raises(RuntimeError, match="refusing to launch provider process"):
+        cgroups.agent_process_options()
+
+    monkeypatch.setattr(cgroups, "_systemd_delegate_enabled", lambda: None)
+    agents, reason, required = cgroups.initialize_agent_cgroup()
+    assert agents is None
+    assert "orchestra-api cgroup missing" in reason
+    assert required is True
 
 
 def test_provider_cli_preexec_moves_process_before_exec(tmp_path, monkeypatch):
