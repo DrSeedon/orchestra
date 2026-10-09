@@ -213,9 +213,13 @@ async def accept_initial_delivery(
     sender: str,
     message: str,
     provenance: MessageProvenance,
+    quota_wait=None,
 ) -> tuple[dict, int]:
     """Atomically accept an idempotent delivery, then wake its runner once."""
+    from app import initial_delivery_events
+
     delivery_id = _validate_delivery_id(delivery_id)
+    initial_delivery_events.ensure_schema()
     payload_hash = _payload_hash(
         session_id=session_id,
         worker_name=worker_name,
@@ -264,12 +268,17 @@ async def accept_initial_delivery(
                 connection.commit()
                 return _resource(row), 202
         else:
+            state = "WAITING_QUOTA" if quota_wait is not None else "QUEUED"
+            error_json = (
+                json.dumps(wait_error(quota_wait), ensure_ascii=False)
+                if quota_wait is not None else None
+            )
             connection.execute(
                 """INSERT INTO initial_deliveries (
                        delivery_id, schema_version, session_id, worker_name, scope,
                        sender, message, origin, origin_detail, payload_hash,
-                       state, created_at, updated_at
-                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'QUEUED', ?, ?)""",
+                       state, error_json, created_at, updated_at
+                   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
                     delivery_id,
                     SCHEMA_VERSION,
@@ -281,6 +290,8 @@ async def accept_initial_delivery(
                     origin,
                     origin_detail,
                     payload_hash,
+                    state,
+                    error_json,
                     now,
                     now,
                 ),
@@ -290,8 +301,13 @@ async def accept_initial_delivery(
                 (delivery_id,),
             ).fetchone()
             resource = _resource(row)
+            if quota_wait is not None:
+                initial_delivery_events.record_waiting(
+                    connection, row, str(quota_wait.reason or "quota gate is closed"),
+                    covered_by_receipt=True,
+                )
             connection.commit()
-            wake_runner = True
+            wake_runner = quota_wait is None
     except Exception:
         connection.rollback()
         raise
@@ -393,8 +409,11 @@ def mark_initial_delivery_submitted(
     delivery_id: str, *, provider_ref: str | None = None,
 ) -> dict:
     """Record that the backend submission call returned successfully."""
+    from app import initial_delivery_events
+
     delivery_id = _validate_delivery_id(delivery_id)
     provider_ref = provider_ref if isinstance(provider_ref, str) and provider_ref else None
+    initial_delivery_events.ensure_schema()
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -419,6 +438,7 @@ def mark_initial_delivery_submitted(
             "SELECT * FROM initial_deliveries WHERE delivery_id=?",
             (delivery_id,),
         ).fetchone()
+        initial_delivery_events.record_submitted(connection, row)
         return _resource(row)
 
 
@@ -459,7 +479,10 @@ def mark_initial_delivery_waiting_quota(delivery_id: str, decision) -> dict:
     Строку пользовательского лога убираем (панель не должна показывать недоставленное
     доставленным); при выпуске `prepare_initial_delivery` заведёт её заново.
     """
+    from app import initial_delivery_events
+
     delivery_id = _validate_delivery_id(delivery_id)
+    initial_delivery_events.ensure_schema()
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -487,12 +510,19 @@ def mark_initial_delivery_waiting_quota(delivery_id: str, decision) -> dict:
         row = connection.execute(
             "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
         ).fetchone()
+        initial_delivery_events.record_waiting(
+            connection, row, str(decision.reason or "quota gate is closed"),
+            covered_by_receipt=False,
+        )
         return _resource(row)
 
 
 def park_submitted_initial_delivery_for_quota(delivery_id: str, decision) -> dict:
     """Park a submitted initial task after the API provider rejects empty credits."""
+    from app import initial_delivery_events
+
     delivery_id = _validate_delivery_id(delivery_id)
+    initial_delivery_events.ensure_schema()
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
@@ -519,6 +549,10 @@ def park_submitted_initial_delivery_for_quota(delivery_id: str, decision) -> dic
         row = connection.execute(
             "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
         ).fetchone()
+        initial_delivery_events.record_waiting(
+            connection, row, str(decision.reason or "quota gate is closed"),
+            covered_by_receipt=False,
+        )
         return _resource(row)
 
 
@@ -639,6 +673,8 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
         from app.deps import manager as session_manager
 
         manager = session_manager
+    from app import initial_delivery_events
+
     context = InitialDeliveryContext(
         delivery_id,
         history_user_message=prepared["history_user_message"],
@@ -669,6 +705,11 @@ async def run_initial_delivery(delivery_id: str, *, manager=None) -> None:
         else:
             mark_initial_delivery_failed_before_submit(delivery_id, error)
         raise
+    finally:
+        try:
+            initial_delivery_events.ensure_runner(manager)
+        except Exception:
+            logger.exception("could not start initial-delivery event notification runner")
 
 
 def _delivery_payload(delivery_id: str) -> sqlite3.Row:

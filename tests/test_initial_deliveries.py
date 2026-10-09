@@ -287,6 +287,210 @@ async def test_t1_http_status_lookup_returns_the_same_committed_resource(
 
 
 @pytest.mark.asyncio
+async def test_v797_spawn_receipt_reports_quota_gate_closed_at_acceptance(
+    delivery_db, monkeypatch,
+):
+    from app import initial_deliveries
+    from app.quota_gate import QuotaGateError
+    from app.routes import sessions as session_routes
+    from app.mcp_stdio import _delivery_receipt_text
+
+    wakes = []
+    monkeypatch.setattr(
+        initial_deliveries, "ensure_delivery_runner",
+        lambda delivery_id: wakes.append(delivery_id),
+    )
+    request_type = session_routes.InitialDeliveryRequest
+    route = next(
+        item for item in session_routes.router.routes
+        if getattr(item, "path", "") == "/api/sessions/{name}/initial-deliveries"
+        and "POST" in getattr(item, "methods", set())
+    )
+    decision = SimpleNamespace(
+        state="blocked", model="claude-sonnet-5-5[1m]", provider="anthropic",
+        provider_label="Claude", lane="claude", gated=True, utilization=47.0,
+        progress=31.49, tolerance_pp=7.166, limit_pct=38.65,
+        observed_at=None, valid_until=None, reset_at=None, window_starts_at=None,
+        reason="week usage is above the quota line", hard_limit_pct=100.0,
+        release_status="reset", release_in_seconds=None, billing_mode="subscription",
+    )
+
+    async def blocked(_session_id):
+        raise QuotaGateError(decision)
+
+    monkeypatch.setattr(
+        session_routes.manager, "get_by_name",
+        lambda name, scope: SimpleNamespace(id=SESSION_ID, name=name, scope=scope),
+    )
+    monkeypatch.setattr(session_routes.manager, "preflight_message_delivery", blocked)
+
+    response = await route.endpoint(
+        WORKER,
+        request_type(
+            delivery_id=DELIVERY_ID, message=MESSAGE, scope=SCOPE, sender=SENDER,
+        ),
+    )
+    payload = json.loads(response.body)
+    receipt = _delivery_receipt_text(
+        WORKER, "sonnet",
+        {
+            "worktree_path": "/tmp/worktree", "repo_path": "/tmp/repo",
+            "git_common_dir": "/tmp/repo/.git", "branch": "task-v797/worker",
+        },
+        payload,
+    )
+
+    assert response.status_code == 202
+    assert payload["delivery_state"] == "WAITING_QUOTA"
+    assert payload["error"]["details"]["reason"] == decision.reason
+    assert "WAITING_QUOTA" in receipt and decision.reason in receipt
+    assert _delivery_row(delivery_db)["state"] == "WAITING_QUOTA"
+    with delivery_db._conn() as connection:
+        event = connection.execute(
+            "SELECT event_type,state FROM initial_delivery_events"
+        ).fetchone()
+        assert tuple(event) == ("WAITING_QUOTA", "covered_by_receipt")
+    assert wakes == []
+
+
+@pytest.mark.asyncio
+async def test_v797_wait_and_submission_transitions_notify_parent_once(
+    delivery_db, monkeypatch,
+):
+    from app import deps, initial_deliveries, initial_delivery_events, quota_queue
+    from app.quota_gate import QuotaGateError
+
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda _id: None)
+    parent_id = "parent-311"
+    delivery_db.save_session({
+        "id": parent_id, "name": SENDER, "scope": SCOPE, "cwd": "/tmp/orch-311",
+        "model": "claude-sonnet-5-5[1m]", "system_prompt": "", "status": "idle",
+        "session_id": None, "cost_usd": 0.0, "worktree_path": "/tmp/orch-311",
+        "branch": "main", "is_orchestrator": True, "role": "orchestrator",
+        "color": "", "created_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+    })
+    blocked = SimpleNamespace(
+        state="blocked", provider="anthropic", provider_label="Claude", billing_mode="subscription",
+        utilization=47.0, reason="weekly quota is above the line", release_status="reset",
+        release_in_seconds=None, reset_at=None,
+    )
+
+    class FakeManager:
+        gate_closed = True
+
+        def __init__(self, parent_messages=None):
+            self.parent_messages = parent_messages if parent_messages is not None else []
+            self.worker_messages = []
+            self.fail_next_parent_send = False
+
+        async def ensure_loaded_by_id(self, session_id):
+            return SimpleNamespace(id=parent_id, name=SENDER) if session_id == parent_id else None
+
+        async def ensure_loaded(self, name, scope):
+            return SimpleNamespace(id=parent_id, name=SENDER) if (name, scope) == (SENDER, SCOPE) else None
+
+        async def send(self, session_id, message, *, provenance):
+            assert session_id == parent_id
+            if self.fail_next_parent_send:
+                self.fail_next_parent_send = False
+                raise RuntimeError("simulated parent notification transport loss")
+            self.parent_messages.append((message, provenance))
+            delivery_db.add_log(
+                parent_id, datetime.now(timezone.utc), "user_message", message,
+                provenance=provenance,
+            )
+
+        async def send_initial_delivery(self, session_id, message, *, delivery, provenance):
+            if self.gate_closed:
+                raise QuotaGateError(blocked)
+            await delivery.before_submit()
+            self.worker_messages.append(message)
+            await delivery.mark_submitted(provider_ref="turn-797")
+
+    manager = FakeManager()
+    manager.fail_next_parent_send = True
+    monkeypatch.setattr(deps, "manager", manager)
+    monkeypatch.setattr(
+        quota_queue, "_admission_allows", AsyncMock(return_value=(True, None)),
+    )
+    await _accept(initial_deliveries)
+
+    await initial_deliveries.run_initial_delivery(DELIVERY_ID, manager=manager)
+    waiting_task = initial_delivery_events._runner_task
+    assert waiting_task is not None
+    await waiting_task
+    assert _delivery_row(delivery_db)["state"] == "WAITING_QUOTA"
+    assert manager.parent_messages == []
+    with delivery_db._conn() as connection:
+        waiting_event = connection.execute(
+            "SELECT event_id,state,attempts FROM initial_delivery_events "
+            "WHERE event_type='WAITING_QUOTA'"
+        ).fetchone()
+        assert tuple(waiting_event)[1:] == ("pending", 1)
+        connection.execute(
+            "UPDATE initial_delivery_events SET next_attempt_at=0 WHERE event_id=?",
+            (waiting_event["event_id"],),
+        )
+
+    # A fresh manager models process restart after the first delivery attempt failed.
+    manager = FakeManager(parent_messages=manager.parent_messages)
+    monkeypatch.setattr(deps, "manager", manager)
+    assert await initial_delivery_events.deliver_due(manager) == 1
+    assert len(manager.parent_messages) == 1
+    first_message, first_provenance = manager.parent_messages[0]
+    assert DELIVERY_ID in first_message and "WAITING_QUOTA" in first_message
+    assert blocked.reason in first_message
+    assert first_provenance.origin == "platform"
+    assert first_provenance.subtype == "initial_delivery_event"
+
+    manager.gate_closed = False
+    assert await quota_queue.release_waiting() == 1
+    assert _delivery_row(delivery_db)["state"] == "QUEUED"
+    finish_event = initial_delivery_events._finish
+    fail_finish_once = True
+
+    def lose_first_event_ack(event_id, error=""):
+        nonlocal fail_finish_once
+        if fail_finish_once:
+            fail_finish_once = False
+            raise RuntimeError("simulated crash after parent accepted notification")
+        finish_event(event_id, error)
+
+    monkeypatch.setattr(initial_delivery_events, "_finish", lose_first_event_ack)
+    await initial_deliveries.run_initial_delivery(DELIVERY_ID, manager=manager)
+    submitted_task = initial_delivery_events._runner_task
+    assert submitted_task is not None
+    await submitted_task
+
+    assert _delivery_row(delivery_db)["state"] == "SUBMITTED"
+    assert manager.worker_messages == [MESSAGE]
+    assert len(manager.parent_messages) == 2
+    second_message, second_provenance = manager.parent_messages[1]
+    assert DELIVERY_ID in second_message and "SUBMITTED" in second_message
+    assert second_provenance.origin == "platform"
+    assert second_provenance.subtype == "initial_delivery_event"
+
+    with delivery_db._conn() as connection:
+        connection.execute(
+            "UPDATE initial_delivery_events SET next_attempt_at=0 WHERE event_type='SUBMITTED'"
+        )
+    monkeypatch.setattr(initial_delivery_events, "_finish", finish_event)
+    assert await initial_delivery_events.deliver_due(manager) == 1
+    initial_deliveries.mark_initial_delivery_submitted(
+        DELIVERY_ID, provider_ref="duplicate-turn",
+    )
+    assert len(manager.parent_messages) == 2
+    with delivery_db._conn() as connection:
+        events = [tuple(row) for row in connection.execute(
+            "SELECT event_type, state FROM initial_delivery_events ORDER BY created_at"
+        ).fetchall()]
+        assert events == [
+            ("WAITING_QUOTA", "delivered"), ("SUBMITTED", "delivered"),
+        ]
+
+
+@pytest.mark.asyncio
 async def test_t2_manager_entry_preserves_session_lock_and_auto_switch(
     delivery_db, monkeypatch,
 ):

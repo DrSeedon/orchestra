@@ -688,9 +688,12 @@ def _delivery_receipt_text(
         )
     elif state == "WAITING_QUOTA":
         action = delivery.get("next_action") if isinstance(delivery.get("next_action"), dict) else {}
+        error = delivery.get("error") if isinstance(delivery.get("error"), dict) else {}
+        details = error.get("details") if isinstance(error.get("details"), dict) else {}
+        reason = str(details.get("reason") or "quota gate is closed")
         headline = (
             "Task accepted and QUEUED — the worker exists but the quota gate is closed, so "
-            "its task goes out automatically when the gate opens (no retry, no timer needed). "
+            f"its task goes out automatically when the gate opens (no retry, no timer needed). Reason: {reason}. "
             f"{_safe_response_text(str(action.get('message') or ''))}"
         )
     elif state in {"DELIVERY_UNKNOWN", "UNKNOWN"}:

@@ -196,7 +196,7 @@ async def release_waiting() -> int:
     Вызывается циклом раз в минуту и немедленно — при снятии гейта владельцем. Идемпотентен
     и безопасен при параллельном вызове: переход — условный `UPDATE ... WHERE state=`.
     """
-    from app import initial_deliveries, message_deliveries
+    from app import deps, initial_deliveries, initial_delivery_events, message_deliveries
 
     released = 0
     async with _release_lock:
@@ -235,6 +235,10 @@ async def release_waiting() -> int:
         for session_id, ids in message_ids.items():
             released += _release_rows("message_deliveries", ids)
             message_deliveries.ensure_target_runner(session_id)
+    try:
+        initial_delivery_events.ensure_runner(deps.manager)
+    except Exception as error:
+        logger.warning("initial delivery event recovery failed: %s", err_text(error))
     if released:
         logger.info("quota gate open: released %d waiting deliveries", released)
     return released
