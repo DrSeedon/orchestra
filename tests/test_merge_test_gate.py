@@ -280,6 +280,39 @@ def test_mutation_gate_treats_pytest_missing_text_in_assertion_as_real_failure(t
     assert "No module named pytest" in result["mutation_gate"]["output"]
 
 
+def test_mutation_gate_ignores_git_environment_failure_but_counts_source_regression(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "import subprocess\n"
+        "from app.widget import VALUE\n\n"
+        "def test_widget_regression():\n"
+        "    assert VALUE == 2\n\n"
+        "def test_git_context_only():\n"
+        "    branch = subprocess.run(\n"
+        "        ['git', 'branch', '--show-current'], check=True, capture_output=True, text=True,\n"
+        "    ).stdout.strip()\n"
+        "    assert branch == 'worker'\n",
+    )
+
+    result = gate.evaluate_test_gate(str(repo), target_ref="main", target_sha=target)
+
+    mutation = result["mutation_gate"]
+    assert result["status"] == gate.PASSED
+    assert mutation["status"] == gate.PASSED
+    assert mutation["reason"] == "guarded_source_change"
+    assert mutation["mutation_failed_tests"] == [
+        "tests/test_widget.py::test_widget_regression",
+    ]
+    assert mutation["control_failed_tests"] == [
+        "tests/test_widget.py::test_git_context_only",
+    ]
+    assert mutation["unattributed_failed_tests"] == [
+        "tests/test_widget.py::test_git_context_only",
+    ]
+
+
 def test_mutation_gate_skips_test_only_change(tmp_path):
     from app import merge_test_gate as gate
 

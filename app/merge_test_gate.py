@@ -302,6 +302,7 @@ def _partial_progress(output: str, tests: list[str]) -> dict:
     доложил обоим одно и то же «inconclusive».
     """
     failed: list[str] = []
+    passed_tests: list[str] = []
     passed = 0
     seen_files: set[str] = set()
     stopped_in = ""
@@ -322,9 +323,11 @@ def _partial_progress(output: str, tests: list[str]) -> dict:
             failed.append(nodeid)
         elif last.group("verdict") == "PASSED":
             passed += 1
+            passed_tests.append(nodeid)
         stopped_in = ""
     return {
         "failed_tests": failed,
+        "passed_tests": passed_tests,
         "passed_count": passed,
         "stopped_in": stopped_in,
         "unreached": [test for test in tests if test not in seen_files],
@@ -420,10 +423,11 @@ def run_pytest(
         }
     output = _normalize_output(proc.stdout) + _normalize_output(proc.stderr)
     diagnostic = _diagnostic_output(interpreter, output)
+    progress = _partial_progress(output, tests)
     if proc.returncode == 0:
         return {
             "status": PASSED, "reason": "", "exit_code": 0,
-            "output": diagnostic, "tests": tests,
+            "output": diagnostic, "tests": tests, **progress,
         }
     if proc.returncode == NO_TESTS_EXIT_CODE:
         # Файл выбран, но после `-m "not live_probe"` в нём не осталось ни одного теста —
@@ -459,6 +463,7 @@ def run_pytest(
     return {
         "status": FAILED, "reason": "exit_nonzero",
         "exit_code": proc.returncode, "output": diagnostic, "tests": tests,
+        **progress,
     }
 
 
@@ -707,7 +712,7 @@ def _target_commit(worktree: str, target_ref: str, target_sha: str) -> str | Non
     return resolved.strip() if resolved else None
 
 
-def _copy_test_into_tree(worker: Path, target: Path, relative: str) -> None:
+def _copy_artifact_into_tree(worker: Path, target: Path, relative: str) -> None:
     source = worker / relative
     destination = target / relative
     if not source.exists() and not source.is_symlink():
@@ -730,8 +735,11 @@ def _copy_test_into_tree(worker: Path, target: Path, relative: str) -> None:
 
 
 @contextmanager
-def _mutation_tree(worker: str, target_commit: str, test_artifacts: list[str]):
-    """Yield a target checkout overlaid with all changed test files and data."""
+def _mutation_tree(
+    worker: str, target_commit: str, test_artifacts: list[str],
+    *, source_artifacts: list[str] | None = None,
+):
+    """Yield archived target sources with test files and optional worker sources overlaid."""
     temporary = tempfile.TemporaryDirectory(prefix="orchestra-merge-mutation-")
     root = Path(temporary.name)
     try:
@@ -750,7 +758,9 @@ def _mutation_tree(worker: str, target_commit: str, test_artifacts: list[str]):
         with tarfile.open(archive, "r:") as tar:
             tar.extractall(tree, filter="data")
         for path in test_artifacts:
-            _copy_test_into_tree(Path(worker), tree, path)
+            _copy_artifact_into_tree(Path(worker), tree, path)
+        for path in source_artifacts or []:
+            _copy_artifact_into_tree(Path(worker), tree, path)
         yield tree
     finally:
         temporary.cleanup()
@@ -806,6 +816,14 @@ def evaluate_mutation_gate(
             "fallback_files": [],
         }
     try:
+        with _mutation_tree(
+            worktree, commit, test_artifacts, source_artifacts=sources,
+        ) as control_tree:
+            control = run_pytest(
+                str(control_tree), selected_tests,
+                timeout=MUTATION_MAX_TIMEOUT_SECONDS,
+                interpreter=result["interpreter"],
+            )
         with _mutation_tree(worktree, commit, test_artifacts) as tree:
             second = run_pytest(
                 str(tree), selected_tests,
@@ -828,13 +846,41 @@ def evaluate_mutation_gate(
         "interpreter": result["interpreter"],
         "selected_nodes": selected_nodes,
         "fallback_files": fallback_files,
+        "control_status": control["status"],
+        "control_reason": control.get("reason", ""),
+        "control_failed_tests": control.get("failed_tests", []),
+        "control_passed_tests": control.get("passed_tests", []),
+        "unattributed_failed_tests": [],
     }
     if second["status"] == FAILED:
-        # The rollback is expected to break a regression test: that is the proof that
-        # the worker test actually watches the source change.
-        return {**mutation, "status": PASSED, "reason": "guarded_source_change"}
+        control_passed = set(control.get("passed_tests", []))
+        attributed = [
+            node for node in second.get("failed_tests", []) if node in control_passed
+        ]
+        unattributed = [
+            node for node in second.get("failed_tests", []) if node not in control_passed
+        ]
+        mutation["mutation_failed_tests"] = attributed
+        mutation["unattributed_failed_tests"] = unattributed
+        if attributed:
+            # A failure is evidence only when the same node passed in the matching control tree.
+            return {**mutation, "status": PASSED, "reason": "guarded_source_change"}
+        if control["status"] != PASSED:
+            return {
+                **mutation, "status": INCONCLUSIVE,
+                "reason": "no_mutation_attributable_failures",
+            }
+        return {
+            **mutation, "status": INCONCLUSIVE,
+            "reason": "unclassified_mutation_failure",
+        }
     if second["status"] in {INCONCLUSIVE, SKIPPED}:
         return mutation
+    if control["status"] != PASSED:
+        return {
+            **mutation, "status": INCONCLUSIVE,
+            "reason": "control_not_green",
+        }
     # A passing target-source run means the changed tests did not observe the source delta.
     return {
         **mutation,
