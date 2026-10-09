@@ -25,9 +25,11 @@ def test_mutation_paths_keep_dot_directories_and_drop_deleted_tests(tmp_path, mo
     original_tree = gate._mutation_tree
 
     @contextmanager
-    def track_tree(worktree, target_sha, tests):
-        observed.extend(tests)
-        with original_tree(worktree, target_sha, tests) as tree:
+    def track_tree(worktree, target_sha, tests, *, source_artifacts=None):
+        observed.append((list(tests), list(source_artifacts or [])))
+        with original_tree(
+            worktree, target_sha, tests, source_artifacts=source_artifacts,
+        ) as tree:
             yield tree
 
     monkeypatch.setattr(gate, "_mutation_tree", track_tree)
@@ -42,7 +44,10 @@ def test_mutation_paths_keep_dot_directories_and_drop_deleted_tests(tmp_path, mo
 
     assert result["changed_tests"] == ["tests/test_deleted.py", "tests/test_widget.py"]
     assert result["changed_sources"] == ["app/widget.py"]
-    assert observed == ["tests/test_deleted.py", "tests/test_widget.py"]
+    assert observed == [
+        (["tests/test_deleted.py", "tests/test_widget.py"], ["app/widget.py"]),
+        (["tests/test_deleted.py", "tests/test_widget.py"], []),
+    ]
     assert result["mutation_gate"]["status"] == gate.FAILED
     assert result["mutation_gate"]["reason"] == "tests_not_guarding_source"
 
