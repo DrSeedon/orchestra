@@ -67,6 +67,7 @@
 ## Хранилище Codex
 
 ## Решение владельца
+- Пробный bug-hunter на нашем коде (один агент против этапов «искать по частям → убрать дубли → проверить → свести» на коммите с известными багами, равный бюджет, Luna). Владелец 10.10 15:50: «лимитов мало потом баг хантер» — отложено до свободных лимитов. Основание: [V-806](.orchestra/tasks/V-806/report.md).
 - Контракт «замороженные acceptance-тесты не ослаблять» ведётся двумя независимыми к… — NEEDS-OWNER, [T008](.orchestra/tasks/V-698/triage.md#t008). Доказательство: `71a008fe:TODO.md:L15 (original detailed record)`.
 - Починить два checkout'а, на которых падает миграция layout. — NEEDS-OWNER, [T017](.orchestra/tasks/V-698/triage.md#t017). Доказательство: `71a008fe:TODO.md:L32 (original detailed record)`.
 - Ноутбук: добавить --timeout-graceful-shutdown 5 в ExecStart юнита orchestra — NEEDS-OWNER, [T046](.orchestra/tasks/V-698/triage.md#t046). Доказательство: `71a008fe:TODO.md:L76 (original detailed record)`. Проверено 05.10: флага в ExecStart нет, StartLimitIntervalUSec=10s — нужен sudo владельца на ноутбуке (связано с V-708).
