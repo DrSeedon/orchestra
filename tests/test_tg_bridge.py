@@ -124,15 +124,20 @@ def tb(tmp_path, monkeypatch):
     cfg_path = tmp_path / "tg_bridge.json"
     monkeypatch.setattr("app.tg_bridge.CONFIG_PATH", cfg_path)
     from app import tg_bridge
+    from app import mailbox, quota_queue, workflow_scheduler
 
     tg_bridge.config = {"group_id": -100123456, "topics": {}, "token": "test"}
     tg_bridge._topic_status = {}
+    tg_bridge._topic_waiting = {}
     tg_bridge.bot = None
     tg_bridge._pil_available = None
     monkeypatch.setattr(tg_bridge, "_tasks", [])
     monkeypatch.setattr(tg_bridge, "_stream_tasks", {})
     monkeypatch.setattr(tg_bridge, "_topic_status_tasks", {})
     monkeypatch.setattr(tg_bridge, "_topic_status_desired", {})
+    monkeypatch.setattr(mailbox, "pending_owner_scopes", lambda: set())
+    monkeypatch.setattr(quota_queue, "waiting_scopes", lambda: set())
+    monkeypatch.setattr(workflow_scheduler, "waiting_run_ids", lambda: set())
     monkeypatch.setattr(tg_bridge, "_topic_status_last_attempt", {}, raising=False)
     monkeypatch.setattr(tg_bridge, "_topic_create_tasks", {})
     monkeypatch.setattr(tg_bridge, "_bridge_tasks", {})
@@ -2768,6 +2773,7 @@ class TestTopicStatusDelivery:
         tb.config["topics"] = {"orch-1": 1, "orch-2": 2, "orch-3": 3}
         monkeypatch.setattr(tb, "_manager", manager)
         monkeypatch.setattr(tb, "_any_running_in_scope", lambda scope: False)
+        monkeypatch.setattr(tb, "_waiting_scopes", lambda: set())
         updated = []
 
         async def update(name, is_running):
@@ -3935,6 +3941,103 @@ class TestTopicStatusHysteresis99:
             if not task.done():
                 task.cancel()
             await asyncio.gather(task, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_waiting_marker_is_added_and_removed_when_wait_ends(
+        self, tb, monkeypatch,
+    ):
+        release_stability = asyncio.Event()
+
+        async def wait_for_stability():
+            await release_stability.wait()
+
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.return_value = object()
+        tb.config["topics"] = {"orch": 42}
+        tb.config["topic_names"] = {"orch": "Orchestrator"}
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TOPIC_STATUS_MIN_INTERVAL_SECONDS", 0)
+        monkeypatch.setattr(tb, "_wait_for_topic_status_stability", wait_for_stability)
+
+        task = tb._schedule_topic_status("orch", True, True)
+        try:
+            await asyncio.sleep(0)
+            tb.bot.edit_forum_topic.assert_not_awaited()
+            release_stability.set()
+            await task
+            await tb._schedule_topic_status("orch", True, False)
+        finally:
+            release_stability.set()
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+        edits = [call.kwargs for call in tb.bot.edit_forum_topic.await_args_list]
+        assert [edit["name"] for edit in edits] == [
+            "⏳ Orchestrator", "Orchestrator",
+        ]
+        assert [edit["icon_custom_emoji_id"] for edit in edits] == [
+            tb._ICON_RUNNING, tb._ICON_RUNNING,
+        ]
+        assert tb._topic_waiting == {"orch": False}
+
+    def test_waiting_scopes_include_runtime_and_durable_waits(self, tb, monkeypatch):
+        from app import mailbox, quota_queue
+
+        waiting_session = SimpleNamespace(
+            scope="/bg", status=SimpleNamespace(value="waiting"),
+        )
+        queued_session = SimpleNamespace(
+            scope="/queued", status=SimpleNamespace(value="running"),
+            _pending_messages=[object()],
+        )
+        manager = SimpleNamespace(sessions={"bg": waiting_session, "queued": queued_session})
+        monkeypatch.setattr(tb, "_manager", manager)
+        monkeypatch.setattr(mailbox, "pending_owner_scopes", lambda: {"/mailbox"})
+        monkeypatch.setattr(quota_queue, "waiting_scopes", lambda: {"/quota"})
+
+        assert tb._waiting_scopes() == {"/bg", "/queued", "/mailbox", "/quota"}
+
+    def test_workflow_queue_wait_maps_to_its_background_job_scope(
+        self, tb, monkeypatch,
+    ):
+        from app import db, workflow_scheduler
+
+        class Connection:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_args):
+                return None
+
+            def execute(self, query):
+                assert "target_scope, config" in query
+                return Cursor([
+                    {
+                        "target_scope": "/workflow",
+                        "config": json.dumps({
+                            "command": "python wf_run.py --run-id flow-waiting",
+                        }),
+                    },
+                    {
+                        "target_scope": "/other",
+                        "config": json.dumps({
+                            "command": "python wf_run.py --run-id flow-active",
+                        }),
+                    },
+                ])
+
+        class Cursor:
+            def __init__(self, rows):
+                self.rows = rows
+
+            def fetchall(self):
+                return self.rows
+
+        monkeypatch.setattr(workflow_scheduler, "waiting_run_ids", lambda: {"flow-waiting"})
+        monkeypatch.setattr(db, "_conn", lambda: Connection())
+
+        assert tb._workflow_waiting_scopes() == {"/workflow"}
 
     @pytest.mark.asyncio
     async def test_failed_status_edit_is_rate_limited(self, tb, monkeypatch):

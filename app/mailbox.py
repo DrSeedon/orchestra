@@ -51,6 +51,18 @@ def pending(recipient: str, scope: str) -> list[dict]:
     return [_resource(row) for row in rows]
 
 
+def pending_owner_scopes() -> set[str]:
+    """Scopes with an undelivered owner or dashboard message, as shown in chat."""
+    with db._conn() as connection:
+        rows = connection.execute(
+            """SELECT DISTINCT scope FROM mailbox
+               WHERE delivered_at IS NULL
+                 AND (origin='user' OR (origin='unknown' AND
+                      json_extract(origin_detail, '$.subtype')='dashboard'))""",
+        ).fetchall()
+    return {str(row["scope"]) for row in rows if row["scope"]}
+
+
 def cancel(message_id: int, recipient: str, scope: str) -> bool:
     """Cancel an unclaimed message; a turn-end delivery already in flight wins."""
     with db._conn() as connection:

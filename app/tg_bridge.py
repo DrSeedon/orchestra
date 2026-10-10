@@ -10,6 +10,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import time
 from collections import Counter, OrderedDict, deque
 from datetime import datetime, timezone, timedelta
@@ -3083,6 +3084,7 @@ async def send_file_to_tg(path: str, caption: str, scope: str, sender: str, as_d
 
 
 _topic_status = {}
+_topic_waiting = {}
 
 
 def _any_running_in_scope(scope: str) -> bool:
@@ -3092,6 +3094,61 @@ def _any_running_in_scope(scope: str) -> bool:
         if s.scope == scope and s.status.value == "running":
             return True
     return False
+
+
+def _waiting_scopes() -> set[str] | None:
+    from app import mailbox, quota_queue
+
+    waiting = set()
+    available = True
+    if _manager:
+        waiting.update(
+            session.scope for session in _manager.sessions.values()
+            if session.scope and (
+                getattr(getattr(session, "status", None), "value", None) == "waiting"
+                or bool(getattr(session, "_pending_messages", None))
+            )
+        )
+    for helper in (
+        mailbox.pending_owner_scopes,
+        quota_queue.waiting_scopes,
+        _workflow_waiting_scopes,
+    ):
+        try:
+            waiting.update(helper())
+        except Exception as error:
+            available = False
+            logger.warning("TG waiting-status read failed: %s", error)
+    return waiting if available else None
+
+
+def _workflow_waiting_scopes() -> set[str]:
+    from app import db, workflow_scheduler
+
+    run_ids = workflow_scheduler.waiting_run_ids()
+    if not run_ids:
+        return set()
+    with db._conn() as connection:
+        rows = connection.execute(
+            "SELECT target_scope, config FROM bg_jobs "
+            "WHERE type='run' AND status IN ('active','triggering')",
+        ).fetchall()
+    scopes = set()
+    for row in rows:
+        try:
+            command = json.loads(row["config"]).get("command", "")
+            arguments = shlex.split(command)
+            run_id = arguments[arguments.index("--run-id") + 1]
+        except (ValueError, TypeError, AttributeError, IndexError):
+            continue
+        if run_id in run_ids and row["target_scope"]:
+            scopes.add(str(row["target_scope"]))
+    return scopes
+
+
+def _scope_is_waiting(scope: str) -> bool | None:
+    waiting = _waiting_scopes()
+    return None if waiting is None else bool(scope and scope in waiting)
 
 
 async def check_scope_idle(orch_name: str, scope: str):
@@ -3132,9 +3189,10 @@ async def _on_session_scope_running(s) -> None:
         await notify_scope_running(orch_name)
 
 
-async def _sync_all_topic_statuses():
+async def _sync_all_topic_statuses(*, stabilize: bool = False):
     if not _manager or not bot:
         return
+    waiting_scopes = _waiting_scopes()
     for s in list(_manager.sessions.values()):
         if not s.is_orchestrator:
             continue
@@ -3145,7 +3203,12 @@ async def _sync_all_topic_statuses():
         task = _schedule_topic_status(
             name,
             is_running,
-            stabilize=False,
+            (
+                s.scope in waiting_scopes
+                if waiting_scopes is not None
+                else _topic_waiting.get(name, False)
+            ),
+            stabilize=stabilize,
         )
         try:
             await task
@@ -3219,6 +3282,7 @@ async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
             outcome["skipped"].append(name)
         assigned.pop(name, None)
         _topic_status.pop(name, None)
+        _topic_waiting.pop(name, None)
         _topic_status_last_attempt.pop(name, None)
     save_config()
     return outcome
@@ -3226,14 +3290,27 @@ async def remove_topics_for_orchs(orch_names: list[str]) -> dict:
 
 # Topic metadata is best-effort and stays outside the user-message delivery queue.
 async def _update_topic_status(orch_name: str, is_running: bool):
-    if _topic_status.get(orch_name) == is_running:
+    desired = _topic_status_desired.get(orch_name)
+    is_waiting = desired[1] if desired else _topic_waiting.get(orch_name, False)
+    if (
+        _topic_status.get(orch_name) == is_running
+        and _topic_waiting.get(orch_name, False) == is_waiting
+    ):
         return
     short = _topic_title(orch_name)
+    if is_waiting:
+        short = f"⏳ {short}"[:128]
     icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
 
     async def _do_edit(chat_id, thread_id):
         try:
             async with asyncio.timeout(_TG_TOPIC_STATUS_TIMEOUT):
+                state = await _tg_delivery_state_for(chat_id)
+                reserved = await _tg_reserve_rate_slot(
+                    chat_id, state, wait_for_slot=True,
+                )
+                if not reserved:
+                    return None
                 return await bot.edit_forum_topic(
                     chat_id=chat_id, message_thread_id=thread_id,
                     name=short, icon_custom_emoji_id=icon_id,
@@ -3258,14 +3335,16 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         primary_updated = await _do_edit(config["group_id"], thread_id) is not None
         if primary_updated:
             logger.info(
-                "TG topic_status %s -> %s (edit %.1fs)",
-                orch_name, "running" if is_running else "idle", time.monotonic() - started,
+                "TG topic_status %s -> %s%s (edit %.1fs)",
+                orch_name, "running" if is_running else "idle",
+                "+waiting" if is_waiting else "", time.monotonic() - started,
             )
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
         await _do_edit(mirror["chat_id"], mirror["topic_id"])
     if primary_updated:
         _topic_status[orch_name] = is_running
+        _topic_waiting[orch_name] = is_waiting
 
 
 async def _wait_for_topic_status_stability() -> None:
@@ -3285,8 +3364,11 @@ async def _topic_status_worker(orch_name: str) -> None:
     task = asyncio.current_task()
     while orch_name in _topic_status_desired:
         desired = _topic_status_desired[orch_name]
-        is_running, stabilize = desired
-        if _topic_status.get(orch_name) == is_running:
+        is_running, is_waiting, stabilize = desired
+        if (
+            _topic_status.get(orch_name) == is_running
+            and _topic_waiting.get(orch_name, False) == is_waiting
+        ):
             return
         if stabilize:
             if task is not None:
@@ -3299,8 +3381,12 @@ async def _topic_status_worker(orch_name: str) -> None:
             if _topic_status_desired.get(orch_name) != desired:
                 continue
             scope = _topic_status_scope(orch_name)
-            if scope and _any_running_in_scope(scope) != is_running:
-                _schedule_topic_status(orch_name, _any_running_in_scope(scope))
+            actual_running = _any_running_in_scope(scope) if scope else is_running
+            actual_waiting = _scope_is_waiting(scope) if scope else is_waiting
+            if actual_waiting is None:
+                actual_waiting = is_waiting
+            if scope and (actual_running, actual_waiting) != (is_running, is_waiting):
+                _schedule_topic_status(orch_name, actual_running, actual_waiting)
                 continue
         last_attempt = _topic_status_last_attempt.get(orch_name)
         if last_attempt is not None:
@@ -3319,8 +3405,12 @@ async def _topic_status_worker(orch_name: str) -> None:
                 if _topic_status_desired.get(orch_name) != desired:
                     continue
                 scope = _topic_status_scope(orch_name)
-                if scope and _any_running_in_scope(scope) != is_running:
-                    _schedule_topic_status(orch_name, _any_running_in_scope(scope))
+                actual_running = _any_running_in_scope(scope) if scope else is_running
+                actual_waiting = _scope_is_waiting(scope) if scope else is_waiting
+                if actual_waiting is None:
+                    actual_waiting = is_waiting
+                if scope and (actual_running, actual_waiting) != (is_running, is_waiting):
+                    _schedule_topic_status(orch_name, actual_running, actual_waiting)
                     continue
         _topic_status_last_attempt[orch_name] = time.monotonic()
         await _update_topic_status(orch_name, is_running)
@@ -3331,13 +3421,16 @@ async def _topic_status_worker(orch_name: str) -> None:
 def _schedule_topic_status(
     orch_name: str,
     is_running: bool,
+    is_waiting: bool | None = None,
     *,
     stabilize: bool = True,
 ) -> asyncio.Task:
     is_running = bool(is_running)
-    desired = (is_running, bool(stabilize))
-    current = _topic_status_tasks.get(orch_name)
     previous = _topic_status_desired.get(orch_name)
+    if is_waiting is None:
+        is_waiting = previous[1] if previous else _topic_waiting.get(orch_name, False)
+    desired = (is_running, bool(is_waiting), bool(stabilize))
+    current = _topic_status_tasks.get(orch_name)
     _topic_status_desired[orch_name] = desired
     if (
         current is not None
@@ -3786,6 +3879,12 @@ async def stream_logs(orch_name: str, thread_id: int):
                     elif t == "status":
                         if is_internal_telemetry_status(c):
                             continue
+                        if c.startswith("message queued"):
+                            _schedule_topic_status(
+                                orch_name,
+                                _any_running_in_scope(scope),
+                                True,
+                            )
                         if "turn ended" in c:
                             still_running = _any_running_in_scope(scope)
                             if not still_running:
@@ -4426,6 +4525,7 @@ async def topic_sync_loop():
         await asyncio.sleep(30)
         try:
             await ensure_topics()
+            await _sync_all_topic_statuses(stabilize=True)
         except Exception as e:
             logger.error(f"Topic sync error: {e}")
 

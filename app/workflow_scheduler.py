@@ -248,6 +248,16 @@ class WorkflowScheduler:
             return {"active": active, "queued": queued, "limit": limit, "reason": reason,
                     "waiting_run": head["run_id"] if head else "", "average_task_bytes": average}
 
+    def waiting_run_ids(self) -> set[str]:
+        with self._connect() as db:
+            cutoff = time.time() - self.lease_seconds
+            rows = db.execute(
+                "SELECT DISTINCT run_id FROM requests "
+                "WHERE lease_until IS NULL AND last_seen >= ?",
+                (cutoff,),
+            ).fetchall()
+        return {str(row["run_id"]) for row in rows}
+
 
 _scheduler: WorkflowScheduler | None = None
 
@@ -257,3 +267,8 @@ def get_scheduler() -> WorkflowScheduler:
     if _scheduler is None:
         _scheduler = WorkflowScheduler(Path(__file__).resolve().parents[1] / "data" / "workflow-scheduler.sqlite3")
     return _scheduler
+
+
+def waiting_run_ids() -> set[str]:
+    """Runs with at least one workflow call waiting for a shared slot."""
+    return _scheduler.waiting_run_ids() if _scheduler is not None else set()
