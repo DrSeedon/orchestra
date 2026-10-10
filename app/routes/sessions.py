@@ -8,6 +8,7 @@ import math
 import re
 import sqlite3
 import subprocess
+import uuid
 from app.task_refs import task_ref as public_task_ref
 
 from contextlib import AsyncExitStack
@@ -236,6 +237,16 @@ class CreateSessionRequest(BaseModel):
         if not Path(v).is_dir():
             raise ValueError(f"cwd does not exist: {v}")
         return v
+
+    @field_validator("initial_delivery_id")
+    @classmethod
+    def validate_initial_delivery_id(cls, value):
+        if value:
+            try:
+                return str(uuid.UUID(value))
+            except ValueError as error:
+                raise ValueError("initial_delivery_id must be a UUID") from error
+        return value
 
     @model_validator(mode="after")
     def validate_worktree(self):
