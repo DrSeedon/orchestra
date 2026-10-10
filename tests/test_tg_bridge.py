@@ -3943,7 +3943,7 @@ class TestTopicStatusHysteresis99:
             await asyncio.gather(task, return_exceptions=True)
 
     @pytest.mark.asyncio
-    async def test_waiting_marker_is_added_and_removed_when_wait_ends(
+    async def test_waiting_icon_is_added_and_removed_without_renaming_topic(
         self, tb, monkeypatch,
     ):
         release_stability = asyncio.Event()
@@ -3959,13 +3959,13 @@ class TestTopicStatusHysteresis99:
         monkeypatch.setattr(tb, "_TOPIC_STATUS_MIN_INTERVAL_SECONDS", 0)
         monkeypatch.setattr(tb, "_wait_for_topic_status_stability", wait_for_stability)
 
-        task = tb._schedule_topic_status("orch", True, True)
+        task = tb._schedule_topic_status("orch", False, True)
         try:
             await asyncio.sleep(0)
             tb.bot.edit_forum_topic.assert_not_awaited()
             release_stability.set()
             await task
-            await tb._schedule_topic_status("orch", True, False)
+            await tb._schedule_topic_status("orch", False, False)
         finally:
             release_stability.set()
             if not task.done():
@@ -3973,13 +3973,33 @@ class TestTopicStatusHysteresis99:
             await asyncio.gather(task, return_exceptions=True)
 
         edits = [call.kwargs for call in tb.bot.edit_forum_topic.await_args_list]
-        assert [edit["name"] for edit in edits] == [
-            "⏳ Orchestrator", "Orchestrator",
-        ]
+        assert [edit["name"] for edit in edits] == ["Orchestrator", "Orchestrator"]
         assert [edit["icon_custom_emoji_id"] for edit in edits] == [
-            tb._ICON_RUNNING, tb._ICON_RUNNING,
+            tb._ICON_WAITING, tb._ICON_IDLE,
         ]
         assert tb._topic_waiting == {"orch": False}
+
+    @pytest.mark.asyncio
+    async def test_running_has_priority_when_scope_also_has_waiting_work(
+        self, tb, monkeypatch,
+    ):
+        tb.bot = AsyncMock()
+        tb.bot.edit_forum_topic.return_value = object()
+        tb.config["topics"] = {"orch": 42}
+        tb.config["topic_names"] = {"orch": "Orchestrator"}
+        monkeypatch.setattr(tb, "_TG_GROUP_INTERVAL", 0)
+        monkeypatch.setattr(tb, "_TOPIC_STATUS_MIN_INTERVAL_SECONDS", 0)
+
+        await tb._schedule_topic_status("orch", True, False, stabilize=False)
+        await tb._schedule_topic_status("orch", True, True, stabilize=False)
+
+        tb.bot.edit_forum_topic.assert_awaited_once()
+        assert (
+            tb.bot.edit_forum_topic.await_args.kwargs["icon_custom_emoji_id"]
+            == tb._ICON_RUNNING
+        )
+        assert tb.bot.edit_forum_topic.await_args.kwargs["name"] == "Orchestrator"
+        assert tb._topic_waiting == {"orch": True}
 
     def test_waiting_scopes_include_runtime_and_durable_waits(self, tb, monkeypatch):
         from app import mailbox, quota_queue
