@@ -313,3 +313,90 @@ async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env)
 
     assert env.manager.delivered == ["first task", "[from:x] direct"]
     assert initial_deliveries._delivery_payload(initial_id)["state"] == "SUBMITTED"
+
+
+@pytest.mark.asyncio
+async def test_initial_wait_rechecks_current_model_after_change_races_gate_sweep(
+    env, monkeypatch,
+):
+    from app import initial_deliveries, quota_queue
+
+    initial_id = "00000000-0000-4000-8000-000000000680"
+    decision = _decision(20.0)
+    await initial_deliveries.accept_initial_delivery(
+        delivery_id=initial_id, session_id=TARGET_ID, worker_name=TARGET_NAME, scope=SCOPE,
+        sender=SOURCE_NAME, message="first task",
+        provenance=MessageProvenance(
+            origin="agent", senders=(SOURCE_NAME,), subtype="initial_delivery",
+            ref=initial_id,
+        ),
+        quota_wait=decision,
+    )
+    seen_models = []
+
+    async def admission(model):
+        seen_models.append(model)
+        if len(seen_models) == 1:
+            env.db.save_session(_record(TARGET_ID, TARGET_NAME, role="worker") | {
+                "model": "gpt-6-luna",
+            })
+            return False, decision
+        return model == "gpt-6-luna", None
+
+    monkeypatch.setattr(quota_queue, "_admission_allows", admission)
+    assert await quota_queue.release_waiting() == 0
+    assert initial_deliveries._delivery_payload(initial_id)["state"] == "WAITING_QUOTA"
+
+    env.gate.open()
+    assert await quota_queue.release_waiting() == 1
+    await _drain()
+
+    assert seen_models == [MODEL, "gpt-6-luna"]
+    assert env.manager.delivered == ["first task"]
+    assert initial_deliveries._delivery_payload(initial_id)["state"] == "SUBMITTED"
+
+
+@pytest.mark.asyncio
+async def test_model_change_immediately_releases_waiting_initial_task(env, monkeypatch):
+    from app import initial_deliveries, quota_queue
+    from app.routes import sessions as session_routes
+
+    initial_id = "00000000-0000-4000-8000-000000000681"
+    await initial_deliveries.accept_initial_delivery(
+        delivery_id=initial_id, session_id=TARGET_ID, worker_name=TARGET_NAME, scope=SCOPE,
+        sender=SOURCE_NAME, message="first task",
+        provenance=MessageProvenance(
+            origin="agent", senders=(SOURCE_NAME,), subtype="initial_delivery",
+            ref=initial_id,
+        ),
+        quota_wait=env.gate.decision(),
+    )
+    env.gate.open()
+    checked_models = []
+
+    async def admission(model):
+        checked_models.append(model)
+        return model == "gpt-6-luna", None
+
+    monkeypatch.setattr(quota_queue, "_admission_allows", admission)
+
+    class Worker:
+        async def change_model(self, model):
+            env.db.save_session(_record(TARGET_ID, TARGET_NAME) | {"model": model})
+            return {"ok": True, "changed": True, "model": model}
+
+    async def ensure_loaded(_name, _scope):
+        return Worker()
+
+    monkeypatch.setattr(
+        session_routes.manager, "ensure_loaded", ensure_loaded, raising=False,
+    )
+    response = await session_routes.change_model(
+        TARGET_NAME, {"scope": SCOPE, "model": "gpt-6-luna"},
+    )
+    await _drain()
+
+    assert response["ok"] is True
+    assert checked_models == ["gpt-6-luna"]
+    assert env.manager.delivered == ["first task"]
+    assert initial_deliveries._delivery_payload(initial_id)["state"] == "SUBMITTED"

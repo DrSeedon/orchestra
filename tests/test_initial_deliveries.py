@@ -70,7 +70,7 @@ def delivery_db(tmp_path, monkeypatch):
     return db
 
 
-async def _accept(module, *, message=MESSAGE, delivery_id=DELIVERY_ID):
+async def _accept(module, *, message=MESSAGE, delivery_id=DELIVERY_ID, quota_wait=None):
     accept = _required_callable(module, "accept_initial_delivery")
     return await accept(
         delivery_id=delivery_id,
@@ -80,6 +80,7 @@ async def _accept(module, *, message=MESSAGE, delivery_id=DELIVERY_ID):
         sender=SENDER,
         message=message,
         provenance=PROVENANCE,
+        quota_wait=quota_wait,
     )
 
 
@@ -284,6 +285,131 @@ async def test_t1_http_status_lookup_returns_the_same_committed_resource(
 
     assert response.status_code == 200
     assert response.json() == accepted
+
+
+@pytest.mark.asyncio
+async def test_v810_retry_releases_waiting_initial_task_when_current_preflight_opens(
+    delivery_db, monkeypatch,
+):
+    from app import initial_deliveries
+    from app.quota_gate import QuotaGateError
+    from app.routes import sessions as session_routes
+
+    wakes = []
+    monkeypatch.setattr(
+        initial_deliveries, "ensure_delivery_runner",
+        lambda delivery_id: wakes.append(delivery_id),
+    )
+    monkeypatch.setattr(
+        session_routes.manager, "get_by_name",
+        lambda name, scope: SimpleNamespace(id=SESSION_ID, name=name, scope=scope),
+    )
+    decision = SimpleNamespace(
+        state="blocked", model="claude-opus-5-5[1m]",
+        provider="anthropic", provider_label="Claude", utilization=79.0,
+        reason="Claude gate closed", release_status="reset",
+        release_in_seconds=None, reset_at=None,
+    )
+
+    async def blocked(_session_id):
+        raise QuotaGateError(decision)
+
+    monkeypatch.setattr(session_routes.manager, "preflight_message_delivery", blocked)
+    route = next(
+        item for item in session_routes.router.routes
+        if getattr(item, "path", "") == "/api/sessions/{name}/initial-deliveries"
+        and "POST" in getattr(item, "methods", set())
+    )
+    request = session_routes.InitialDeliveryRequest(
+        delivery_id=DELIVERY_ID, message=MESSAGE, scope=SCOPE, sender=SENDER,
+    )
+    first = await route.endpoint(WORKER, request)
+    assert json.loads(first.body)["delivery_state"] == "WAITING_QUOTA"
+
+    async def open_preflight(_session_id):
+        return None
+
+    monkeypatch.setattr(session_routes.manager, "preflight_message_delivery", open_preflight)
+    retry = await route.endpoint(WORKER, request)
+
+    assert json.loads(retry.body)["delivery_state"] == "QUEUED"
+    assert wakes == [DELIVERY_ID]
+    assert _delivery_row(delivery_db)["state"] == "QUEUED"
+
+
+@pytest.mark.asyncio
+async def test_v810_cancel_message_delivery_cancels_waiting_initial_task(
+    delivery_db, monkeypatch,
+):
+    from app import initial_deliveries, message_deliveries
+    from app.routes import sessions as session_routes
+
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda _id: None)
+    monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda _id: None)
+    decision = SimpleNamespace(
+        provider="anthropic", provider_label="Claude", utilization=79.0,
+        reason="Claude gate closed", release_status="reset",
+        release_in_seconds=None, reset_at=None,
+    )
+    await _accept(initial_deliveries, quota_wait=decision)
+    assert _delivery_row(delivery_db)["state"] == "WAITING_QUOTA"
+    monkeypatch.setattr(session_routes, "_delivery_caller", lambda _request: (True, ""))
+
+    resource = await session_routes.cancel_message_delivery(DELIVERY_ID)
+
+    assert resource.status_code == 200
+    assert json.loads(resource.body)["delivery_state"] == "CANCELLED"
+    assert _delivery_row(delivery_db)["state"] == "CANCELLED"
+
+
+@pytest.mark.asyncio
+async def test_v810_cancel_initial_delivery_is_hidden_from_another_sender(
+    delivery_db,
+):
+    from app import initial_deliveries
+
+    decision = SimpleNamespace(
+        provider="anthropic", provider_label="Claude", utilization=79.0,
+        reason="Claude gate closed", release_status="reset",
+        release_in_seconds=None, reset_at=None,
+    )
+    await _accept(initial_deliveries, quota_wait=decision)
+    delivery_db.save_session({
+        "id": "other-session", "name": "other-orchestrator", "scope": SCOPE,
+        "cwd": "/tmp/other", "model": "gpt-6-luna", "system_prompt": "",
+        "status": "idle", "session_id": None, "cost_usd": 0.0,
+        "worktree_path": "/tmp/other", "branch": "task-810/other",
+        "is_orchestrator": True, "color": "",
+        "created_at": datetime.now(timezone.utc).isoformat(), "finished_at": None,
+    })
+
+    resource, status = initial_deliveries.cancel_initial_delivery(
+        DELIVERY_ID, "other-session",
+    )
+
+    assert status == 404
+    assert resource["error"]["code"] == "NOT_FOUND"
+    assert _delivery_row(delivery_db)["state"] == "WAITING_QUOTA"
+
+
+@pytest.mark.asyncio
+async def test_v810_cancel_refuses_initial_task_after_runner_prepares_it(
+    delivery_db, monkeypatch,
+):
+    from app import initial_deliveries, message_deliveries
+    from app.routes import sessions as session_routes
+
+    monkeypatch.setattr(initial_deliveries, "ensure_delivery_runner", lambda _id: None)
+    monkeypatch.setattr(message_deliveries, "ensure_target_runner", lambda _id: None)
+    await _accept(initial_deliveries)
+    initial_deliveries.prepare_initial_delivery(DELIVERY_ID)
+    monkeypatch.setattr(session_routes, "_delivery_caller", lambda _request: (True, ""))
+
+    response = await session_routes.cancel_message_delivery(DELIVERY_ID)
+
+    assert response.status_code == 409
+    assert json.loads(response.body)["error"]["code"] == "NOT_CANCELLABLE"
+    assert _delivery_row(delivery_db)["state"] == "PREPARING"
 
 
 @pytest.mark.asyncio

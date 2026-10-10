@@ -1570,6 +1570,15 @@ async def cancel_message_delivery(delivery_id: str, request: Request = None):
         )
     except ValueError as exc:
         return JSONResponse({"error": str(exc)}, status_code=400)
+    if status == 404:
+        from app import initial_deliveries
+
+        try:
+            resource, status = initial_deliveries.cancel_initial_delivery(
+                delivery_id, None if operator else source_id,
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
     return JSONResponse(resource, status_code=status)
 
 
@@ -1815,6 +1824,13 @@ async def change_model(name: str, req: dict):
     result = await found.change_model(new_model)
     if not result.get("ok"):
         return JSONResponse(result, status_code=409)
+    if result.get("changed"):
+        from app import quota_queue
+
+        try:
+            await quota_queue.release_waiting()
+        except Exception:
+            logger.exception("quota release after worker model change failed")
     return result
 
 

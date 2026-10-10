@@ -696,6 +696,11 @@ def _delivery_receipt_text(
             f"its task goes out automatically when the gate opens (no retry, no timer needed). Reason: {reason}. "
             f"{_safe_response_text(str(action.get('message') or ''))}"
         )
+    elif state == "CANCELLED":
+        headline = (
+            "The initial task was cancelled before provider submission; this worker has no task. "
+            "Use send_message to assign it work or kill_worker to archive the worker."
+        )
     elif state in {"DELIVERY_UNKNOWN", "UNKNOWN"}:
         # Та же сверка может вернуть запись, чей исход у провайдера неизвестен, — или
         # ответ вовсе без состояния (`_normalize_delivery_receipt` подставляет UNKNOWN).

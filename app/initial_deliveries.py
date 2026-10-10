@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from app import db
 from app.errtext import err_text
 from app.events import MessageProvenance
-from app.quota_queue import quota_wait_action, wait_error
+from app.quota_queue import quota_wait_action, released_error, wait_error
 
 
 SCHEMA_VERSION = 2
@@ -71,6 +71,14 @@ def _next_action(row: sqlite3.Row | dict) -> dict | None:
             "arguments": {},
             "retryable": False,
             "message": "Provider submission is recorded; no retry is allowed.",
+        }
+    if state == "CANCELLED":
+        return {
+            "code": "CANCELLED",
+            "tool": None,
+            "arguments": {"delivery_id": delivery_id},
+            "retryable": False,
+            "message": "The initial task was cancelled before provider submission.",
         }
     return {
         "code": "QUARANTINED_DELIVERY_STATE",
@@ -264,6 +272,27 @@ async def accept_initial_delivery(
                 resource = _resource(row)
                 connection.commit()
                 wake_runner = cursor.rowcount == 1
+            elif row["state"] == "WAITING_QUOTA":
+                if quota_wait is None:
+                    cursor = connection.execute(
+                        """UPDATE initial_deliveries
+                           SET state='QUEUED', error_json=?, updated_at=?
+                           WHERE delivery_id=? AND state='WAITING_QUOTA'""",
+                        (json.dumps(released_error(), ensure_ascii=False), now, delivery_id),
+                    )
+                    wake_runner = cursor.rowcount == 1
+                else:
+                    connection.execute(
+                        "UPDATE initial_deliveries SET error_json=? WHERE delivery_id=? "
+                        "AND state='WAITING_QUOTA'",
+                        (json.dumps(wait_error(quota_wait), ensure_ascii=False), delivery_id),
+                    )
+                row = connection.execute(
+                    "SELECT * FROM initial_deliveries WHERE delivery_id=?",
+                    (delivery_id,),
+                ).fetchone()
+                resource = _resource(row)
+                connection.commit()
             else:
                 connection.commit()
                 return _resource(row), 202
@@ -317,6 +346,65 @@ async def accept_initial_delivery(
     if wake_runner:
         ensure_delivery_runner(delivery_id)
     return resource, 202
+
+
+def cancel_initial_delivery(
+    delivery_id: str, source_session_id: str | None,
+) -> tuple[dict, int]:
+    """Cancel a queued initial task only while it has not entered PREPARING."""
+    delivery_id = _validate_delivery_id(delivery_id)
+    with db._conn() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
+        ).fetchone()
+        if row is None:
+            return {"ok": False, "error": {"code": "NOT_FOUND"}}, 404
+        if source_session_id is not None:
+            source = db.get_session(source_session_id)
+            if (
+                source is None
+                or source.get("name") != row["sender"]
+                or source.get("scope") != row["scope"]
+            ):
+                return {"ok": False, "error": {"code": "NOT_FOUND"}}, 404
+        if row["state"] not in {"WAITING_QUOTA", "QUEUED"}:
+            return {
+                "ok": False,
+                "delivery_id": delivery_id,
+                "delivery_state": row["state"],
+                "error": {
+                    "code": "NOT_CANCELLABLE",
+                    "message": (
+                        f"initial delivery is {row['state']}: only WAITING_QUOTA or "
+                        "QUEUED tasks can be cancelled before provider submission"
+                    ),
+                },
+            }, 409
+        connection.execute(
+            """UPDATE initial_deliveries SET state='CANCELLED', error_json=NULL,
+               updated_at=? WHERE delivery_id=? AND state IN ('WAITING_QUOTA','QUEUED')""",
+            (_now(), delivery_id),
+        )
+        row = connection.execute(
+            "SELECT * FROM initial_deliveries WHERE delivery_id=?", (delivery_id,),
+        ).fetchone()
+        if row["state"] != "CANCELLED":
+            return {
+                "ok": False,
+                "delivery_id": delivery_id,
+                "delivery_state": row["state"],
+                "error": {"code": "NOT_CANCELLABLE"},
+            }, 409
+        resource = _resource(row)
+
+    try:
+        from app import message_deliveries
+
+        message_deliveries.ensure_target_runner(row["session_id"])
+    except Exception as error:
+        logger.warning("runner wake after initial delivery cancel failed: %s", err_text(error))
+    return resource, 200
 
 
 def prepare_initial_delivery(delivery_id: str) -> dict:

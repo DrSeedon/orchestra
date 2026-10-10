@@ -9,6 +9,8 @@
 - Подпись полосы гейта квот не переводится: в английском интерфейсе пилюля гейта чит… — OPEN-DEFECT, [T002](.orchestra/tasks/V-698/triage.md#t002). Доказательство: `app/quota_gate.py:272-280`.
 - Даты и деньги в английском интерфейсе форматируются по-русски: «вт, 6 окт., 19:15»… — OPEN-DEFECT, [T003](.orchestra/tasks/V-698/triage.md#t003). Доказательство: `app/static/js/analytics.js:652-663; app/static/js/usage.js:46`.
 - test_i18n_dashboard::test_dictionary_reaches_marked_attributes шаткий в полном про… — OPEN-DEFECT, [T054](.orchestra/tasks/V-698/triage.md#t054). Доказательство: `evidence/test_i18n_marked_attributes.txt — 1 passed alone; ordering interaction remains untested`.
+- `tests/test_tg_bridge_instance_guard.py` дважды падает только после полного набора: тесты из `tests/test_tg_bridge.py` оставляют `app.tg_bridge.bot` ненулевым; оба проходят при отдельном запуске. Сбрасывать глобальное состояние в fixture. Доказательство: `.orchestra/tasks/V-810/full-tests.log`.
+- `tests/test_migrate_agent.py::test_encoding_matches_real_cli_directories` зависит от живых `~/.claude/projects`; найденный временный cwd с `_` не совпал с именем каталога CLI (кодирование сохраняет `_`, каталог заменил на `-`). Проверить кодирование реальных cwd и изолировать проверку от чужих временных сессий. Доказательство: `.orchestra/tasks/V-810/full-tests.log`.
 - tests/test_frontend.py — OPEN-DEFECT, [T114](.orchestra/tasks/V-698/triage.md#t114). Доказательство: `tests/test_frontend.py: (assertion named at 71a008fe:TODO.md:L162)`.
 - Панель «Context» справа застывает на значении момента выбора агента — OPEN-DEFECT, [T115](.orchestra/tasks/V-698/triage.md#t115). Доказательство: `app/static/js/app.js:2603,2862-2918,3216`.
 
@@ -90,4 +92,4 @@
 - Развилка #504 T4 ждёт владельца: классификатор «НЕ ВЫПОЛНЕНО» по XML-подобной проз… — NEEDS-OWNER, [T172](.orchestra/tasks/V-698/triage.md#t172). Доказательство: `.orchestra/tasks/504/review-implementation.md (recorded in 71a008fe:TODO.md:L267)`; отчёт: `.orchestra/tasks/504/review-implementation.md`.
 - Наша телеметрия квот выбрасывает всё, кроме двух старых полей, — поэтому отдельног… — NEEDS-OWNER, [T181](.orchestra/tasks/V-698/triage.md#t181). Доказательство: `71a008fe:TODO.md:L285 (original detailed record)`.
 
-- `tests/test_t344_quota_lines_browser.py:250` пишет скриншот в отслеживаемый `.orchestra/tasks/V-652/quota-timeline.png`: каждый прогон пачкает дерево и может попасть в коммит. Писать в `tmp_path`. (06.10, замечено при приёмке V-735)
+- `tests/test_t344_quota_lines_browser.py:251` и `tests/test_compact_chat_672.py` перезаписывают отслеживаемые `.orchestra/tasks/V-652/quota-timeline.png` и `.orchestra/tasks/V-672/compact-card.png`; `tests/test_grok_usage_frontend.py` создаёт `.orchestra/tasks/356/*.png`. Полный прогон пачкает дерево. Писать скриншоты в `tmp_path`. (первый путь отмечен 06.10 при приёмке V-735; остальные замечены в V-810)
