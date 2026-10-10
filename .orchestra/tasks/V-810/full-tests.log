@@ -1,0 +1,506 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn
+configfile: pyproject.toml
+testpaths: tests
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 4445 items / 4 deselected / 4441 selected
+
+tests/local_bench/test_local_bench.py .................................. [  0%]
+....                                                                     [  0%]
+tests/test_acceptance.py ..................                              [  1%]
+tests/test_adhoc_switch.py ..........                                    [  1%]
+tests/test_agent_colors_567.py ...                                       [  1%]
+tests/test_agentic_compact_650.py ........                               [  1%]
+tests/test_antigravity_readiness.py ssssssssssssssss                     [  2%]
+tests/test_antigravity_runtime.py sssss                                  [  2%]
+tests/test_antigravity_usage.py ssssssssssss                             [  2%]
+tests/test_antigravity_usage_frontend.py ssssss                          [  2%]
+tests/test_api.py ...................................................... [  3%]
+........................................................................ [  5%]
+.                                                                        [  5%]
+tests/test_artifacts.py ..............                                   [  5%]
+tests/test_artifacts_browser.py .                                        [  5%]
+tests/test_attention_v576.py ....                                        [  5%]
+tests/test_audit0901_db.py ...                                           [  5%]
+tests/test_audit0901_delivery.py ..                                      [  6%]
+tests/test_audit0901_harness.py ...                                      [  6%]
+tests/test_audit0901_mcp.py ........                                     [  6%]
+tests/test_audit0901_session.py ...                                      [  6%]
+tests/test_audit0901_sysquota.py ...                                     [  6%]
+tests/test_audit0901_tg.py ......                                        [  6%]
+tests/test_audit0901_workspace.py .....                                  [  6%]
+tests/test_auth.py ........                                              [  6%]
+tests/test_auto_report_send_result.py ..                                 [  6%]
+tests/test_backend_claude.py ........................................... [  7%]
+..                                                                       [  7%]
+tests/test_backend_codex.py ............................................ [  8%]
+...............................................................          [ 10%]
+tests/test_backend_grok.py ............................................. [ 11%]
+...............................................                          [ 12%]
+tests/test_backend_harness_turn_usage_422.py .                           [ 12%]
+tests/test_backend_routing.py .......................                    [ 12%]
+tests/test_backend_stream.py ..........                                  [ 13%]
+tests/test_bash_completion.py .......                                    [ 13%]
+tests/test_bg_jobs.py .................................................. [ 14%]
+....s........                                                            [ 14%]
+tests/test_bug_report_notify.py .......                                  [ 14%]
+tests/test_build_signal.py ........                                      [ 15%]
+tests/test_cache_tokens.py ...........                                   [ 15%]
+tests/test_catalog_api.py ....                                           [ 15%]
+tests/test_catalog_migration_v621.py .............                       [ 15%]
+tests/test_change_model_unloaded.py .........                            [ 15%]
+tests/test_charts.py ...............................                     [ 16%]
+tests/test_chat_history_transfer.py ....                                 [ 16%]
+tests/test_check_pipeline_manifest.py .................                  [ 17%]
+tests/test_claude_api_credits.py .......                                 [ 17%]
+tests/test_claude_env_hook.py .......                                    [ 17%]
+tests/test_cli_inventory.py .....                                        [ 17%]
+tests/test_codex_bin_resolution.py ........                              [ 17%]
+tests/test_codex_handoff_window.py ..........                            [ 17%]
+tests/test_codex_home_lifecycle.py .....                                 [ 17%]
+tests/test_codex_mailbox_703.py ...                                      [ 18%]
+tests/test_codex_managed_state.py ...                                    [ 18%]
+tests/test_codex_quota_103.py ....                                       [ 18%]
+tests/test_codex_review_artifact.py ..............                       [ 18%]
+tests/test_codex_review_sandbox.py ............                          [ 18%]
+tests/test_codex_usage.py ..................                             [ 19%]
+tests/test_codex_writer_conflict_536.py .......                          [ 19%]
+tests/test_compact_chat_672.py ...                                       [ 19%]
+tests/test_compact_gate_438.py .....                                     [ 19%]
+tests/test_compact_pending_ack_467.py .                                  [ 19%]
+tests/test_compact_pending_rollback_467.py ...                           [ 19%]
+tests/test_compact_receipt_and_tail.py ..........                        [ 19%]
+tests/test_connection_recovery.py ....                                   [ 19%]
+tests/test_cross_repo_warning.py ....                                    [ 20%]
+tests/test_dashboard_i18n_formatting.py F                                [ 20%]
+tests/test_dashboard_server_output.py ..                                 [ 20%]
+tests/test_db.py ....................................................... [ 21%]
+.............................                                            [ 21%]
+tests/test_db_connection_ownership.py ....                               [ 22%]
+tests/test_default_pipeline.py ......................................... [ 23%]
+................                                                         [ 23%]
+tests/test_delivery_head_of_line_block.py .......                        [ 23%]
+tests/test_delivery_queue_block_connection.py .                          [ 23%]
+tests/test_dependency_policy.py ...                                      [ 23%]
+tests/test_diff_budget.py .....                                          [ 23%]
+tests/test_diff_budget_recovery_702.py .                                 [ 23%]
+tests/test_disallowed_tools.py ..                                        [ 23%]
+tests/test_disconnect_dead_process.py ..                                 [ 23%]
+tests/test_durable_steering_562.py .....                                 [ 23%]
+tests/test_dynamic_workflows.py ......................                   [ 24%]
+tests/test_enc_cli_dir.py ...                                            [ 24%]
+tests/test_error_watch.py ..............                                 [ 24%]
+tests/test_errtext.py .............                                      [ 25%]
+tests/test_explainer_video.py ..............                             [ 25%]
+tests/test_fan_barrier.py ..................                             [ 25%]
+tests/test_fan_barrier_gates.py ............                             [ 26%]
+tests/test_fan_barrier_intercept.py .                                    [ 26%]
+tests/test_fan_completion_modes_407.py ....                              [ 26%]
+tests/test_fan_deadline.py .                                             [ 26%]
+tests/test_fan_enable.py ..........                                      [ 26%]
+tests/test_fan_report_delivery.py ..                                     [ 26%]
+tests/test_fan_report_final_selection_480.py .....                       [ 26%]
+tests/test_fan_terminal_kind.py .......                                  [ 26%]
+tests/test_fd_adopt.py .............                                     [ 27%]
+tests/test_fdstore.py .........                                          [ 27%]
+tests/test_frontend.py ................................................. [ 28%]
+............................................................s....        [ 29%]
+tests/test_frontend_context_panel_468.py .                               [ 29%]
+tests/test_gigachat_harness.py ......................                    [ 30%]
+tests/test_git_task_api.py ........                                      [ 30%]
+tests/test_git_task_store.py ............                                [ 30%]
+tests/test_grok_usage_frontend.py ...........                            [ 31%]
+tests/test_handoff_effect_classification.py ...........                  [ 31%]
+tests/test_harness_effort_from_manifest.py .....                         [ 31%]
+tests/test_harness_inject.py ......                                      [ 31%]
+tests/test_harness_production.py ..............................          [ 32%]
+tests/test_harness_tool_args_sanitize.py ....                            [ 32%]
+tests/test_harness_tools.py ............................                 [ 32%]
+tests/test_hot_apply.py .....................                            [ 33%]
+tests/test_i18n_dashboard.py ......                                      [ 33%]
+tests/test_identity_drift.py ................                            [ 33%]
+tests/test_initial_deliveries.py ...........................             [ 34%]
+tests/test_initial_delivery_review_regressions.py .                      [ 34%]
+tests/test_instant_restart.py .                                          [ 34%]
+tests/test_instruction_contract.py ......                                [ 34%]
+tests/test_jobs_view.py ..                                               [ 34%]
+tests/test_kb_index_injection_522.py .................                   [ 35%]
+tests/test_kb_markdown_contract.py ......                                [ 35%]
+tests/test_knowledge_instruction_source.py ...                           [ 35%]
+tests/test_laptop_skill_delivery_572.py .......                          [ 35%]
+tests/test_layout_batch_v704.py .....                                    [ 35%]
+tests/test_legacy_pipeline_skills.py ......                              [ 35%]
+tests/test_lifecycle_quarantine_499.py ...........                       [ 36%]
+tests/test_limit_wake.py ....................................            [ 36%]
+tests/test_limits_card.py .................                              [ 37%]
+tests/test_listen_task_done_648.py ...                                   [ 37%]
+tests/test_live_broker.py ..........                                     [ 37%]
+tests/test_log_write_loss.py ...                                         [ 37%]
+tests/test_logs_sync.py ............................                     [ 38%]
+tests/test_mailbox.py ....................                               [ 38%]
+tests/test_manager.py .................................................. [ 39%]
+........................................................................ [ 41%]
+.......................................................                  [ 42%]
+tests/test_mcp_codex_review.py ......................                    [ 43%]
+tests/test_mcp_config_isolation.py .................................     [ 43%]
+tests/test_mcp_proof.py .................                                [ 44%]
+tests/test_mcp_quota_gate.py ................                            [ 44%]
+tests/test_mcp_resolve_operation_423.py .                                [ 44%]
+tests/test_mcp_stdio.py ................................................ [ 45%]
+........................................................................ [ 47%]
+.............                                                            [ 47%]
+tests/test_merge_branch_drift.py .......                                 [ 47%]
+tests/test_merge_completion_watch.py ...........                         [ 48%]
+tests/test_merge_conflict_report_423.py ...                              [ 48%]
+tests/test_merge_foreign_task_ref.py ...                                 [ 48%]
+tests/test_merge_gate_mutation_702.py ..                                 [ 48%]
+tests/test_merge_operations.py ........................................  [ 49%]
+tests/test_merge_progress_424.py ..                                      [ 49%]
+tests/test_merge_reason_preservation_416.py ...                          [ 49%]
+tests/test_merge_recovery_wedge.py ...                                   [ 49%]
+tests/test_merge_ref_gate.py .....                                       [ 49%]
+tests/test_merge_stuck.py ..                                             [ 49%]
+tests/test_merge_target_oracle_386.py ...............................    [ 50%]
+tests/test_merge_test_gate.py .......................................... [ 51%]
+.......                                                                  [ 51%]
+tests/test_merge_worker_lifecycle_702.py .                               [ 51%]
+tests/test_message_delivery_failure_notices_741.py ......                [ 51%]
+tests/test_message_delivery_receipts_380.py ............................ [ 52%]
+..                                                                       [ 52%]
+tests/test_message_provenance_migration_433.py ......                    [ 52%]
+tests/test_message_provenance_review_433.py ........                     [ 52%]
+tests/test_migrate_agent.py ...F............sss....s                     [ 52%]
+tests/test_model_catalog.py ............                                 [ 53%]
+tests/test_model_catalog_frontend.py ....                                [ 53%]
+tests/test_model_flags.py ....                                           [ 53%]
+tests/test_model_gates.py .........                                      [ 53%]
+tests/test_model_registry_503.py .....                                   [ 53%]
+tests/test_model_text_control_flow.py .............................      [ 54%]
+tests/test_models.py ............                                        [ 54%]
+tests/test_native_history_import.py ..                                   [ 54%]
+tests/test_native_memory.py ..                                           [ 54%]
+tests/test_openrouter_counter.py ..........                              [ 54%]
+tests/test_openrouter_retry.py ......                                    [ 55%]
+tests/test_openrouter_stream_error_retry.py .....                        [ 55%]
+tests/test_orchestra_backup.py ..........                                [ 55%]
+tests/test_orchestra_layout_430.py ........                              [ 55%]
+tests/test_orchestra_layout_compat_430.py .                              [ 55%]
+tests/test_orchestra_layout_dirty_430.py .......                         [ 55%]
+tests/test_orchestra_layout_fleet_430.py ....                            [ 55%]
+tests/test_orchestra_layout_recovery_430.py ..                           [ 55%]
+tests/test_orchestra_layout_repair_base_v611.py ...                      [ 55%]
+tests/test_orchestrators_payload.py .....                                [ 56%]
+tests/test_owned_dirs_migration_473.py ................................. [ 56%]
+....                                                                     [ 56%]
+tests/test_owner_activity.py .......                                     [ 57%]
+tests/test_owner_auto_report.py .........                                [ 57%]
+tests/test_owner_mode.py ...........                                     [ 57%]
+tests/test_p1_union.py ...........                                       [ 57%]
+tests/test_p4_cost.py ...........                                        [ 58%]
+tests/test_pidfd_leaks.py .........                                      [ 58%]
+tests/test_pipeline.py ................................................. [ 59%]
+...............................................                          [ 60%]
+tests/test_probe_free_models.py .....                                    [ 60%]
+tests/test_process_guard.py ............................................ [ 61%]
+..                                                                       [ 61%]
+tests/test_process_guard_calibration.py ......                           [ 61%]
+tests/test_production_db_isolation.py ..                                 [ 61%]
+tests/test_project_catalog_v576.py ......................                [ 62%]
+tests/test_project_catalog_v621.py ............                          [ 62%]
+tests/test_project_context_review_488.py .....                           [ 62%]
+tests/test_prompt_parent_selection.py ....                               [ 62%]
+tests/test_prompting.py ...........................................      [ 63%]
+tests/test_quota_admission_e2e.py ........                               [ 63%]
+tests/test_quota_gate.py ............................................... [ 64%]
+..................................................                       [ 66%]
+tests/test_quota_headroom_447.py .....                                   [ 66%]
+tests/test_quota_map_api.py .....................                        [ 66%]
+tests/test_quota_wait_queue.py ..........                                [ 66%]
+tests/test_rate_limit_capture_441.py ..                                  [ 66%]
+tests/test_rate_limit_exact_v707.py ...                                  [ 66%]
+tests/test_reducer_role.py ...                                           [ 67%]
+tests/test_restart_durable_transfer.py ..                                [ 67%]
+tests/test_restart_fd_hygiene.py ..                                      [ 67%]
+tests/test_restart_generation_liveness.py ...................            [ 67%]
+tests/test_restart_inbox.py .......                                      [ 67%]
+tests/test_return_to_merged_branch.py ......                             [ 67%]
+tests/test_review_receipt_migration_436.py ..                            [ 67%]
+tests/test_review_receipt_safety_436.py ..                               [ 67%]
+tests/test_review_receipt_start_436.py .                                 [ 67%]
+tests/test_review_receipt_storage_436.py .                               [ 67%]
+tests/test_review_receipt_terminal_436.py .                              [ 67%]
+tests/test_review_requester_roles.py ..................................  [ 68%]
+tests/test_review_retirement.py ...                                      [ 68%]
+tests/test_routes_surface.py ..                                          [ 68%]
+tests/test_runaway_memory_guard.py ...                                   [ 68%]
+tests/test_runtime_env_propagation.py ...                                [ 68%]
+tests/test_runtime_handoff_recovery.py .......                           [ 69%]
+tests/test_runtime_handoff_v2.py ................                        [ 69%]
+tests/test_runtime_history.py .......................                    [ 70%]
+tests/test_runtime_process_group.py .....                                [ 70%]
+tests/test_runtime_registry.py .............                             [ 70%]
+tests/test_scaffold.py ........                                          [ 70%]
+tests/test_seamless_restart.py .........                                 [ 70%]
+tests/test_secret_commit_gate.py .............................           [ 71%]
+tests/test_secret_mask.py ........................                       [ 72%]
+tests/test_secret_mask_tg_proxy.py ....                                  [ 72%]
+tests/test_send_file_open_button.py ...............                      [ 72%]
+tests/test_send_provenance_without_auth.py .......                       [ 72%]
+tests/test_service_lifecycle_537.py ...                                  [ 72%]
+tests/test_service_process_tree_537.py ss                                [ 72%]
+tests/test_session.py .................................................. [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 77%]
+.....................................................                    [ 78%]
+tests/test_session_hibernate.py .............                            [ 78%]
+tests/test_session_id_guard.py ...........                               [ 78%]
+tests/test_session_logs_conditional.py ..                                [ 78%]
+tests/test_sessions_conditional.py ....                                  [ 78%]
+tests/test_sigterm_sse_shutdown_v630.py .                                [ 78%]
+tests/test_spawn_resume_695.py ........                                  [ 79%]
+tests/test_stale_task_assignment_781.py ...                              [ 79%]
+tests/test_stall_signals_642.py ......                                   [ 79%]
+tests/test_startup_bridge.py ...                                         [ 79%]
+tests/test_startup_migration_v576.py .........                           [ 79%]
+tests/test_static_compression.py ......                                  [ 79%]
+tests/test_static_js_globals.py .                                        [ 79%]
+tests/test_sub_orchestrator_frozen.py ...                                [ 79%]
+tests/test_subagent_clock.py .......                                     [ 80%]
+tests/test_subagent_routes.py ........                                   [ 80%]
+tests/test_subagents.py ..........                                       [ 80%]
+tests/test_subprocess_catalog_isolation.py .                             [ 80%]
+tests/test_switch_after_continue_620.py ........                         [ 80%]
+tests/test_system_chat_entry.py ..                                       [ 80%]
+tests/test_system_restart.py .......                                     [ 80%]
+tests/test_t344_quota_lines_browser.py F...........................      [ 81%]
+tests/test_tailwind_css.py ...                                           [ 81%]
+tests/test_task_binding_417.py .....                                     [ 81%]
+tests/test_task_binding_refusal.py ...                                   [ 81%]
+tests/test_task_migration.py ..........                                  [ 81%]
+tests/test_task_refs.py ............                                     [ 82%]
+tests/test_task_runtime.py .......                                       [ 82%]
+tests/test_task_tracker_integration.py ................................. [ 83%]
+.........                                                                [ 83%]
+tests/test_taskless_delivery_702.py .                                    [ 83%]
+tests/test_taskless_merge_no_id_702.py .                                 [ 83%]
+tests/test_tasks_pm_pipeline.py sssssss                                  [ 83%]
+tests/test_template_window.py ....                                       [ 83%]
+tests/test_tg_bot_api_unit.py .....                                      [ 83%]
+tests/test_tg_bridge.py ................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 88%]
+................................                                         [ 88%]
+tests/test_tg_bridge_instance_guard.py FF..                              [ 88%]
+tests/test_tg_file_batch_route.py .....                                  [ 88%]
+tests/test_tg_file_deliveries.py .......                                 [ 89%]
+tests/test_tg_file_delivery_failure_notices_748.py .                     [ 89%]
+tests/test_tg_file_limits_v544.py ............                           [ 89%]
+tests/test_tg_ingress_508.py .......                                     [ 89%]
+tests/test_tg_ingress_509.py ...                                         [ 89%]
+tests/test_tg_large_file_timeout.py ..                                   [ 89%]
+tests/test_tg_upload.py ...                                              [ 89%]
+tests/test_tm.py ......................                                  [ 90%]
+tests/test_toggle_live_agent.py ...                                      [ 90%]
+tests/test_tool_scoping.py .............                                 [ 90%]
+tests/test_transcription.py ..                                           [ 90%]
+tests/test_turn_ended_no_quota_suffix.py ...                             [ 90%]
+tests/test_turn_signals.py ...........                                   [ 90%]
+tests/test_turn_usage.py .........                                       [ 91%]
+tests/test_unbound_merge_recovery_702.py .                               [ 91%]
+tests/test_undelivered.py .........                                      [ 91%]
+tests/test_undelivered_queue.py ...........                              [ 91%]
+tests/test_unified_html_skill.py ..........                              [ 91%]
+tests/test_usage_analytics.py .........................                  [ 92%]
+tests/test_usage_analytics_frontend.py ...................               [ 92%]
+tests/test_usage_contract.py ......                                      [ 92%]
+tests/test_usage_history_frontend.py ............                        [ 93%]
+tests/test_usage_history_resolution.py ...........                       [ 93%]
+tests/test_usage_readiness.py .........                                  [ 93%]
+tests/test_usage_snapshot.py ............                                [ 93%]
+tests/test_user_message_display_450.py .....                             [ 94%]
+tests/test_validate_spawn_unknown_role.py ..........                     [ 94%]
+tests/test_voice_input.py ......                                         [ 94%]
+tests/test_vps_task_prefix.py .......                                    [ 94%]
+tests/test_wf_run.py ................................................... [ 95%]
+......                                                                   [ 95%]
+tests/test_work_acceptance.py ....................                       [ 96%]
+tests/test_work_review.py .......                                        [ 96%]
+tests/test_work_review_jobs.py .......                                   [ 96%]
+tests/test_worker_worktree_layout_v635.py .....                          [ 96%]
+tests/test_workflow_cards.py .....                                       [ 96%]
+tests/test_workflow_scheduler.py ..................                      [ 97%]
+tests/test_workspace.py ................................................ [ 98%]
+........................................................................ [ 99%]
+.                                                                        [100%]
+
+=================================== FAILURES ===================================
+________ test_dashboard_numbers_and_dates_follow_the_selected_language _________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_dashboard_numbers_and_dates_follow_the_selected_language(browser):
+        assert LANE_LABELS["claude"] == "Claude workers"
+        values = {}
+        for language in ("en", "ru"):
+            context, page = _formatting_page(browser, language)
+            try:
+                values[language] = page.evaluate("""() => ({
+                    money: _analyticsMoney(212.8),
+                    number: _analyticsNumber(1234.5),
+                    analyticsDate: _analyticsDateTime('2026-10-06T17:15:00Z'),
+                    usageDate: _krskReset('2026-10-06T17:15:00Z'),
+                    lane: T('Claude workers'),
+                })""")
+            finally:
+                context.close()
+    
+        assert values["en"]["money"] == "$212.8"
+        assert values["en"]["number"] == "1,234.5"
+        assert "Oct" in values["en"]["analyticsDate"]
+        assert "Oct" in values["en"]["usageDate"]
+        assert values["en"]["lane"] == "Claude workers"
+        assert values["ru"]["money"] == "$212,8"
+        assert "окт" in values["ru"]["analyticsDate"].lower()
+        assert "окт" in values["ru"]["usageDate"].lower()
+>       assert values["ru"]["lane"] == "Claude-воркеры"
+E       AssertionError: assert 'Claude workers' == 'Claude-воркеры'
+E         
+E         - Claude-воркеры
+E         + Claude workers
+
+tests/test_dashboard_i18n_formatting.py:57: AssertionError
+__________________ test_encoding_matches_real_cli_directories __________________
+
+    def test_encoding_matches_real_cli_directories():
+        """Сверка с ЖИВЫМИ парами (cwd → имя каталога), взятыми из самих транскриптов.
+    
+        Не подгонка под список имён: cwd читается из первой строки .jsonl, то есть
+        из того, что CLI записал сам. Нет каталогов на машине → тест пропускается.
+        """
+        root = pathlib.Path.home() / ".claude" / "projects"
+        if not root.is_dir():
+            pytest.skip("нет ~/.claude/projects на этой машине")
+    
+        pairs = []
+        for directory in sorted(root.iterdir()):
+            if not directory.is_dir():
+                continue
+            transcript = next(iter(sorted(directory.glob("*.jsonl"))), None)
+            if not transcript:
+                continue
+            with transcript.open() as fh:
+                for line in fh:
+                    try:
+                        cwd = (json.loads(line) or {}).get("cwd")
+                    except (json.JSONDecodeError, AttributeError):
+                        break
+                    if cwd:
+                        pairs.append((cwd, directory.name))
+                        break
+        if not pairs:
+            pytest.skip("не нашёл ни одной пары cwd → каталог")
+    
+        mismatched = [(c, real) for c, real in pairs if migrate_agent.enc_cli_dir(c) != real]
+>       assert not mismatched, f"кодирование разошлось с реальностью: {mismatched[:3]}"
+E       AssertionError: кодирование разошлось с реальностью: [('/tmp/v11-opus-wnuo_okv', '-tmp-v11-opus-wnuo-okv')]
+E       assert not [('/tmp/v11-opus-wnuo_okv', '-tmp-v11-opus-wnuo-okv')]
+
+tests/test_migrate_agent.py:71: AssertionError
+______________ test_claude_lane_label_follows_dashboard_language _______________
+
+browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_claude_lane_label_follows_dashboard_language(browser):
+        payload = _payload()
+        claude = next(lane for lane in payload["buckets"][2]["lanes"] if lane["lane"] == "claude")
+        claude["label"] = "Claude workers"
+        page, errors = _render(browser, payload, language="ru")
+    
+>       assert "гейт ВКЛЮЧЁН: Claude-воркеры" in page.locator("[data-ql-gate='on']").inner_text()
+E       assert 'гейт ВКЛЮЧЁН: Claude-воркеры' in 'гейт ВКЛЮЧЁН: Claude workers, Sol · вне гейта: Luna, Spark · потолок: Sol 95%, прочие 99%'
+E        +  where 'гейт ВКЛЮЧЁН: Claude workers, Sol · вне гейта: Luna, Spark · потолок: Sol 95%, прочие 99%' = inner_text()
+E        +    where inner_text = <Locator frame=<Frame name= url='http://harness.local/'> selector="[data-ql-gate='on']">.inner_text
+E        +      where <Locator frame=<Frame name= url='http://harness.local/'> selector="[data-ql-gate='on']"> = locator("[data-ql-gate='on']")
+E        +        where locator = <Page url='http://harness.local/'>.locator
+
+tests/test_t344_quota_lines_browser.py:187: AssertionError
+___________________ test_worktree_instance_refuses_to_start ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7244de9be390>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-19657/test_worktree_instance_refuses0')
+manager_stub = <tests.test_tg_bridge_instance_guard.manager_stub.<locals>._Manager object at 0x7244dc4e0e30>
+bridge_body_tripwire = None
+
+    @pytest.mark.asyncio
+    async def test_worktree_instance_refuses_to_start(
+        monkeypatch, tmp_path, manager_stub, bridge_body_tripwire
+    ):
+        _as_worktree_instance(monkeypatch, tmp_path)
+    
+        with pytest.raises(UnmanagedInstanceError) as excinfo:
+            await start_bridge(manager_stub)
+    
+>       assert tb.bot is None
+E       assert <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7244de9bdd60> is None
+E        +  where <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7244de9bdd60> = tb.bot
+
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/tests/test_tg_bridge_instance_guard.py:70: AssertionError
+______________________ test_bare_process_refuses_to_start ______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7244dfd41640>
+manager_stub = <tests.test_tg_bridge_instance_guard.manager_stub.<locals>._Manager object at 0x7244de9be960>
+bridge_body_tripwire = None
+
+    @pytest.mark.asyncio
+    async def test_bare_process_refuses_to_start(
+        monkeypatch, manager_stub, bridge_body_tripwire
+    ):
+        """No systemd variables at all — the guard must fail closed, not open."""
+        for key in ("LISTEN_PID", "LISTEN_FDS", "NOTIFY_SOCKET", "SYSTEMD_EXEC_PID"):
+            monkeypatch.delenv(key, raising=False)
+    
+        with pytest.raises(UnmanagedInstanceError) as excinfo:
+            await start_bridge(manager_stub)
+    
+>       assert tb.bot is None
+E       assert <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7244de9bdd60> is None
+E        +  where <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7244de9bdd60> = tb.bot
+
+tests/test_tg_bridge_instance_guard.py:90: AssertionError
+=============================== warnings summary ===============================
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__head for function open_artifact at /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-spawn/app/routes/artifacts.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_mailbox.py::test_impl1_concurrent_claim_does_not_double_deliver
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=943390) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+===================== ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ ======================
+4 теста(ов) не выполнялись: нет беспарольного sudo. Владение файлами нельзя проверить заглушками — нужны два реальных владельца.
+  test_migrated_worker_can_actually_commit, test_nested_repo_worker_migrates_into_its_own_repo, test_no_permanent_safe_directory_is_written_on_the_host, test_nothing_is_left_behind_for_the_login_user
+=========================== short test summary info ============================
+FAILED tests/test_dashboard_i18n_formatting.py::test_dashboard_numbers_and_dates_follow_the_selected_language
+FAILED tests/test_migrate_agent.py::test_encoding_matches_real_cli_directories
+FAILED tests/test_t344_quota_lines_browser.py::test_claude_lane_label_follows_dashboard_language
+FAILED tests/test_tg_bridge_instance_guard.py::test_worktree_instance_refuses_to_start
+FAILED tests/test_tg_bridge_instance_guard.py::test_bare_process_refuses_to_start
+= 5 failed, 4382 passed, 54 skipped, 4 deselected, 6 warnings in 499.21s (0:08:19) =
