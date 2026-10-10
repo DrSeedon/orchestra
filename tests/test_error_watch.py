@@ -1,12 +1,18 @@
 from datetime import datetime, timedelta, timezone
+import json
+from pathlib import Path
+import sqlite3
 from types import SimpleNamespace
 
 from app import error_watch as watch
 
 
-def _event(message, minute=0, source="journalctl"):
+def _event(message, minute=0, source="journalctl", scope=None):
     timestamp = datetime(2026, 9, 27, 12, 0, tzinfo=timezone.utc) + timedelta(minutes=minute)
-    return {"source": source, "ts": timestamp.isoformat(), "message": message}
+    event = {"source": source, "ts": timestamp.isoformat(), "message": message}
+    if scope is not None:
+        event["scope"] = scope
+    return event
 
 
 def test_normalization_merges_volatile_values_and_logger_prefixes():
@@ -116,11 +122,12 @@ def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, 
             db=str(tmp_path / f"{index}.db"), window_hours=168, threshold=10,
             dry_run=False,
         )
-        current["events"] = [_event(message, i) for i in range(10)]
+        scope = str(Path(watch.__file__).resolve().parents[1]) if "No module named pytest" in message else None
+        current["events"] = [_event(message, i, scope=scope) for i in range(10)]
         watch.scan(args)
         assert capsys.readouterr().out == "No new error-watch findings\n"
 
-        current["events"] = [_event(message, i) for i in range(11)]
+        current["events"] = [_event(message, i, scope=scope) for i in range(11)]
         watch.scan(args)
         growth = capsys.readouterr().out
         assert "11 раз" in growth
@@ -129,11 +136,11 @@ def test_known_error_series_suppress_baseline_and_alert_on_new_growth(tmp_path, 
         watch.scan(args)
         assert capsys.readouterr().out == "No new error-watch findings\n"
 
-        current["events"] = [_event(message, i) for i in range(9)]
+        current["events"] = [_event(message, i, scope=scope) for i in range(9)]
         watch.scan(args)
         assert capsys.readouterr().out == "No new error-watch findings\n"
 
-        current["events"] = [_event(message, i) for i in range(11)]
+        current["events"] = [_event(message, i, scope=scope) for i in range(11)]
         watch.scan(args)
         growth_after_decline = capsys.readouterr().out
         assert "11 раз" in growth_after_decline
@@ -146,6 +153,68 @@ def test_post_fix_verdict_reports_recurrence_and_open_window():
     assert watch.post_fix_verdict(events, watch.normalize_signature(events[0]["message"]), start, 24)["count"] == 1
     empty = watch.post_fix_verdict([], "some error", datetime.now(timezone.utc), 24)
     assert empty["verdict"] == "не повторилась пока; окно наблюдения не завершено"
+
+
+def test_pytest_known_series_is_scoped_to_orchestra_for_noise_and_post_fix(tmp_path, monkeypatch, capsys):
+    message = "/usr/bin/python: No module named pytest"
+    signature = watch.normalize_signature(message)
+    orchestra_scope = str(Path(watch.__file__).resolve().parents[1])
+    foreign_scope = str(tmp_path / "seedon")
+    assert watch._ORCHESTRA_SCOPE == orchestra_scope
+    events = [
+        _event(message, scope=orchestra_scope),
+        _event(message, minute=1, scope=foreign_scope),
+    ]
+
+    assert watch._known_series_counts(events)[signature] == 1
+    candidates, noise = watch.aggregate(events, datetime.now(timezone.utc), threshold=1)
+    assert [(item["signature"], item["count"]) for item in candidates] == [(signature, 1)]
+    assert [(item["noise"], item["count"]) for item in noise] == [
+        ("pytest missing outside Orchestra scope", 1),
+    ]
+
+    started = datetime(2026, 9, 27, 11, 0, tzinfo=timezone.utc)
+    assert watch.post_fix_verdict(events, signature, started, 24)["count"] == 1
+
+    current = {"events": events}
+    watch_args = SimpleNamespace(
+        db=str(tmp_path / "orchestra.db"), window_hours=168, threshold=1, dry_run=True,
+    )
+    monkeypatch.setattr(watch, "collect_db_events", lambda *_: [])
+    monkeypatch.setattr(watch, "collect_journal_events", lambda *_: current["events"])
+    watch.scan(watch_args)
+    output = json.loads(capsys.readouterr().out)
+    assert output["signals"] == []
+    assert output["noise_by_class"] == {"pytest missing outside Orchestra scope": 1}
+
+
+def test_collect_db_events_keeps_session_scope(tmp_path):
+    db_path = tmp_path / "orchestra.db"
+    stamp = "2026-10-10T08:45:59+00:00"
+    foreign_scope = str(tmp_path / "seedon")
+    with sqlite3.connect(db_path) as connection:
+        connection.executescript(
+            "CREATE TABLE sessions (id TEXT PRIMARY KEY, name TEXT, scope TEXT);"
+            "CREATE TABLE logs (ts TEXT, type TEXT, content TEXT, tool_is_error INTEGER, session_id TEXT);"
+        )
+        connection.executemany(
+            "INSERT INTO sessions VALUES (?, ?, ?)",
+            [
+                ("orchestra-worker", "worker", str(Path(watch.__file__).resolve().parents[1])),
+                ("seedon-worker", "tender-triage", foreign_scope),
+            ],
+        )
+        connection.executemany(
+            "INSERT INTO logs VALUES (?, 'error', '/usr/bin/python: No module named pytest', 1, ?)",
+            [(stamp, "orchestra-worker"), (stamp, "seedon-worker")],
+        )
+
+    events = watch.collect_db_events(
+        db_path, datetime(2026, 10, 10, tzinfo=timezone.utc),
+    )
+    assert {event["scope"] for event in events} == {
+        str(Path(watch.__file__).resolve().parents[1]), foreign_scope,
+    }
 
 
 def test_completed_post_fix_window_reports_absence():

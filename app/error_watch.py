@@ -20,6 +20,9 @@ from app.secret_mask import mask_secrets
 
 DEFAULT_WINDOW_HOURS = 168
 DEFAULT_THRESHOLD = 10
+_ORCHESTRA_SCOPE = str(Path(__file__).resolve().parents[1])
+_PYTEST_SIGNATURE = "<PATH>: No module named pytest"
+_FOREIGN_PROJECT_PYTEST_NOISE = "pytest missing outside Orchestra scope"
 _NOISE = (
     ("quota/rate limit", re.compile(r"quota|rate[_ -]?limit|rate_limited|subscription limit", re.I)),
     ("hook policy block", re.compile(r"PreToolUse:|hook error:|recursive rm is blocked|bounded quantifier", re.I)),
@@ -43,7 +46,7 @@ _NOISE = (
     ("traceback chaining line", re.compile(r"^During handling of the above exception, another exception occurred:$", re.I)),
 )
 _KNOWN_SERIES = {
-    "<PATH>: No module named pytest": {"baseline": 10, "tasks": ("V-783",)},
+    _PYTEST_SIGNATURE: {"baseline": 10, "tasks": ("V-783",)},
     "transport_timeout: Message delivery outcome is ambiguous: ReadTimeout": {
         "baseline": 10, "tasks": ("V-778", "V-782"),
     },
@@ -110,18 +113,24 @@ def collect_db_events(db_path: Path, since: datetime) -> list[dict]:
     uri = db_path.resolve().as_uri() + "?mode=ro"
     with closing(sqlite3.connect(uri, uri=True, timeout=2)) as connection:
         rows = connection.execute(
-            "SELECT ts, type, content FROM logs "
-            "WHERE (tool_is_error=1 OR type='error') AND ts >= ? ORDER BY ts",
+            "SELECT l.ts, l.type, l.content, s.scope, s.name FROM logs l "
+            "LEFT JOIN sessions s ON s.id=l.session_id "
+            "WHERE (l.tool_is_error=1 OR l.type='error') AND l.ts >= ? ORDER BY l.ts",
             (since.isoformat(),),
         ).fetchall()
     return [
-        {"source": "logs", "ts": ts, "message": content}
-        for ts, _kind, content in rows
+        {
+            "source": "logs", "ts": ts, "message": content,
+            "scope": scope or "", "session_name": session_name or "",
+        }
+        for ts, _kind, content, scope, session_name in rows
         if _parse_ts(ts) and _parse_ts(ts) >= since
     ]
 
 
-def collect_journal_events(since: datetime, *, runner=subprocess.run) -> list[dict]:
+def collect_journal_events(
+    since: datetime, session_scopes: dict[str, str] | None = None, *, runner=subprocess.run,
+) -> list[dict]:
     result = runner(
         ["journalctl", "-u", "orchestra", "--since", since.isoformat(), "-o", "json",
          "--output-fields=MESSAGE,__REALTIME_TIMESTAMP", "--no-pager"],
@@ -138,7 +147,9 @@ def collect_journal_events(since: datetime, *, runner=subprocess.run) -> list[di
         except (ValueError, TypeError, KeyError, json.JSONDecodeError):
             continue
         if re.search(r"\b(?:ERROR|CRITICAL|exception|traceback|failed|error:|silent death)\b", message, re.I):
-            events.append({"source": "journalctl", "ts": stamp.isoformat(), "message": message})
+            session = _SESSION_NAME.search(message)
+            scope = (session_scopes or {}).get(session.group(1), "") if session else ""
+            events.append({"source": "journalctl", "ts": stamp.isoformat(), "message": message, "scope": scope})
     return events
 
 
@@ -172,19 +183,43 @@ def _known_series_counts(events: list[dict]) -> dict[str, int]:
     counts = dict.fromkeys(_KNOWN_SERIES, 0)
     for event in events:
         signature = normalize_signature(event["message"])
+        if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE:
+            continue
         if signature in counts:
             counts[signature] += 1
     return counts
 
 
+def _journal_session_scopes(db_events: list[dict]) -> dict[str, str]:
+    scopes: dict[str, str] = {}
+    ambiguous: set[str] = set()
+    for event in db_events:
+        name = event.get("session_name")
+        if not name:
+            continue
+        scope = event.get("scope", "")
+        if name in scopes and scopes[name] != scope:
+            scopes.pop(name)
+            ambiguous.add(name)
+        elif name not in ambiguous:
+            scopes[name] = scope
+    return scopes
+
+
 def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD) -> tuple[list[dict], list[dict]]:
-    grouped: dict[str, list[dict]] = defaultdict(list)
+    grouped: dict[tuple[str, str | None], list[dict]] = defaultdict(list)
     for event in deduplicate_events(events):
-        grouped[normalize_signature(event["message"])].append(event)
+        signature = normalize_signature(event["message"])
+        scoped_noise = (
+            _FOREIGN_PROJECT_PYTEST_NOISE
+            if signature == _PYTEST_SIGNATURE and event.get("scope") != _ORCHESTRA_SCOPE
+            else None
+        )
+        grouped[(signature, scoped_noise)].append(event)
     candidates, noise = [], []
-    for signature, rows in grouped.items():
+    for (signature, scoped_noise), rows in grouped.items():
         timestamps = [parsed for row in rows if (parsed := _parse_ts(row["ts"]))]
-        required = 1 if _UNEXPECTED_LISTENER_END.search(signature) else threshold
+        required = 1 if scoped_noise or _UNEXPECTED_LISTENER_END.search(signature) else threshold
         if len(timestamps) < required or not timestamps:
             continue
         item = {
@@ -193,7 +228,7 @@ def aggregate(events: list[dict], now: datetime, *, threshold=DEFAULT_THRESHOLD)
             "first": min(timestamps).isoformat(),
             "last": max(timestamps).isoformat(),
             "examples": list(dict.fromkeys(safe_example(row["message"]) for row in rows))[:2],
-            "noise": classify_noise(signature),
+            "noise": scoped_noise or classify_noise(signature),
         }
         (noise if item["noise"] else candidates).append(item)
     sort_key = lambda item: (-item["count"], item["signature"])
@@ -204,6 +239,7 @@ def post_fix_verdict(events: list[dict], signature: str, started_at: datetime, w
     matches = [
         event for event in events
         if normalize_signature(event["message"]) == signature
+        and (signature != _PYTEST_SIGNATURE or event.get("scope") == _ORCHESTRA_SCOPE)
         and (parsed := _parse_ts(event["ts"])) and parsed >= started_at
     ]
     now = datetime.now(timezone.utc)
@@ -297,7 +333,8 @@ def _brief_output(signals: list[dict], verdicts: list[dict]) -> str:
 def scan(args) -> int:
     now = datetime.now(timezone.utc)
     since = now - timedelta(hours=args.window_hours)
-    events = collect_db_events(Path(args.db), since) + collect_journal_events(since)
+    db_events = collect_db_events(Path(args.db), since)
+    events = db_events + collect_journal_events(since, _journal_session_scopes(db_events))
     deduped_events = deduplicate_events(events)
     candidates, noise = aggregate(deduped_events, now, threshold=args.threshold)
     state_path = _state_path(Path(args.db))
