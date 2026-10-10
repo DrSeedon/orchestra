@@ -108,7 +108,7 @@ _manager = None
 _tasks = []
 _stream_tasks: dict[tuple[str, int], asyncio.Task] = {}
 _topic_status_tasks: dict[str, asyncio.Task] = {}
-_topic_status_desired: dict[str, tuple[bool, bool]] = {}
+_topic_status_desired: dict[str, tuple[bool, bool, bool]] = {}
 _topic_status_last_attempt: dict[str, float] = {}
 _topic_create_tasks: dict[str, asyncio.Task] = {}
 _bridge_tasks: dict[str, asyncio.Task] = {}
@@ -3218,13 +3218,22 @@ async def _sync_all_topic_statuses(*, stabilize: bool = False):
                 raise
 
 
-# Custom emoji IDs in the target TG group — green dot for running, grey for idle
+# Custom topic icon IDs available to the target TG bot.
 _ICON_RUNNING = "5312016608254762256"
+_ICON_WAITING = "5433614043006903194"
 _ICON_IDLE = "5350392020785437399"
 _TG_TOPIC_STATUS_TIMEOUT = 5
 _TG_TOPIC_CREATE_TIMEOUT = 5
 _TOPIC_STATUS_STABLE_DELAY_SECONDS = 60
 _TOPIC_STATUS_MIN_INTERVAL_SECONDS = 60
+
+
+def _topic_icon_id(is_running: bool, is_waiting: bool) -> str:
+    if is_running:
+        return _ICON_RUNNING
+    if is_waiting:
+        return _ICON_WAITING
+    return _ICON_IDLE
 
 
 def _pick_unique_topic_name(orch_name: str) -> str:
@@ -3297,10 +3306,15 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         and _topic_waiting.get(orch_name, False) == is_waiting
     ):
         return
+    icon_id = _topic_icon_id(is_running, is_waiting)
+    cached_running = _topic_status.get(orch_name)
+    if cached_running is not None and _topic_icon_id(
+        cached_running, _topic_waiting.get(orch_name, False),
+    ) == icon_id:
+        _topic_status[orch_name] = is_running
+        _topic_waiting[orch_name] = is_waiting
+        return
     short = _topic_title(orch_name)
-    if is_waiting:
-        short = f"⏳ {short}"[:128]
-    icon_id = _ICON_RUNNING if is_running else _ICON_IDLE
 
     async def _do_edit(chat_id, thread_id):
         try:
@@ -3334,10 +3348,12 @@ async def _update_topic_status(orch_name: str, is_running: bool):
         started = time.monotonic()
         primary_updated = await _do_edit(config["group_id"], thread_id) is not None
         if primary_updated:
+            display_status = (
+                "running" if is_running else "waiting" if is_waiting else "idle"
+            )
             logger.info(
-                "TG topic_status %s -> %s%s (edit %.1fs)",
-                orch_name, "running" if is_running else "idle",
-                "+waiting" if is_waiting else "", time.monotonic() - started,
+                "TG topic_status %s -> %s (edit %.1fs)",
+                orch_name, display_status, time.monotonic() - started,
             )
     mirror = config.get("mirrors", {}).get(orch_name)
     if mirror and mirror.get("chat_id") and mirror.get("topic_id") and bot:
@@ -3369,6 +3385,13 @@ async def _topic_status_worker(orch_name: str) -> None:
             _topic_status.get(orch_name) == is_running
             and _topic_waiting.get(orch_name, False) == is_waiting
         ):
+            return
+        cached_running = _topic_status.get(orch_name)
+        if cached_running is not None and _topic_icon_id(
+            cached_running, _topic_waiting.get(orch_name, False),
+        ) == _topic_icon_id(is_running, is_waiting):
+            _topic_status[orch_name] = is_running
+            _topic_waiting[orch_name] = is_waiting
             return
         if stabilize:
             if task is not None:
