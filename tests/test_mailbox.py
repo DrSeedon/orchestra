@@ -491,6 +491,28 @@ def test_v556_cancel_only_unclaimed(db):
     assert mb.cancel(message_id, "recipient", "/repo") is False
 
 
+def test_pending_owner_scopes_match_chat_filter_and_clear_on_delivery(db):
+    mb = _mailbox()
+    mb.enqueue(
+        "recipient", "/user", "owner", "queued owner message",
+        provenance=MessageProvenance(origin="user", senders=("owner",)),
+    )
+    mb.enqueue(
+        "recipient", "/dashboard", "owner", "queued dashboard message",
+        provenance=MessageProvenance(
+            origin="unknown", senders=("dashboard",), subtype="dashboard",
+        ),
+    )
+    mb.enqueue(
+        "recipient", "/agent", "peer", "agent-only message",
+        provenance=AGENT_PROVENANCE,
+    )
+
+    assert mb.pending_owner_scopes() == {"/user", "/dashboard"}
+    mb.mark_delivered([row["id"] for row in mb.pending("recipient", "/dashboard")])
+    assert mb.pending_owner_scopes() == {"/user"}
+
+
 def test_v556_dashboard_after_turn_queues_busy_and_returns_id(db, spy):
     from app.routes.sessions import SendRequest, send_message
 

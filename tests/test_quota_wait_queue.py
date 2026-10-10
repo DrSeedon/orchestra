@@ -299,10 +299,13 @@ async def test_initial_task_waits_for_the_gate_and_precedes_direct_messages(env)
         if row["state"] != "QUEUED":
             break
     assert initial_deliveries._delivery_payload(initial_id)["state"] == "WAITING_QUOTA"
+    assert quota_queue.waiting_scopes() == {SCOPE}
 
     await _accept(IDS[0], "direct", parked=True)  # адресату пишут, пока его задание ждёт
+    assert quota_queue.waiting_scopes() == {SCOPE}
     env.gate.open()
     await quota_queue.release_waiting()
+    assert quota_queue.waiting_scopes() == set()
     for _ in range(50):
         await asyncio.sleep(0)
     await quota_queue.release_waiting()  # следующий проход цикла (если первый не успел)

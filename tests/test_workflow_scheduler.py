@@ -72,6 +72,7 @@ def test_scheduler_fairly_alternates_runs_with_persisted_queue(tmp_path):
     assert scheduler.acquire("a2", "run-a")["granted"] is False
     assert scheduler.acquire("b1", "run-b")["granted"] is False
     assert scheduler.snapshot()["queued"] == 2
+    assert scheduler.waiting_run_ids() == {"run-a", "run-b"}
     scheduler.release("a1")
     assert scheduler.acquire("a2", "run-a")["granted"] is False
     assert scheduler.acquire("b1", "run-b")["granted"]

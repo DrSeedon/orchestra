@@ -147,6 +147,19 @@ def _waiting_rows(table: str, session_column: str) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def waiting_scopes() -> set[str]:
+    """Scopes with a durable owner/agent delivery still held by the quota gate."""
+    with db._conn() as connection:
+        rows = connection.execute(
+            """SELECT target_scope AS scope FROM message_deliveries
+                 WHERE state='WAITING_QUOTA'
+               UNION
+               SELECT scope FROM initial_deliveries
+                 WHERE state='WAITING_QUOTA'""",
+        ).fetchall()
+    return {str(row["scope"]) for row in rows if row["scope"]}
+
+
 def _refresh_eta(table: str, delivery_id: str, error_json: str | None, decision) -> None:
     """Подправить ориентир, если он заметно уплыл: отправитель читает его из receipt."""
     try:
