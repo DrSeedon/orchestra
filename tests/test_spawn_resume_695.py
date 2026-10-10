@@ -48,6 +48,7 @@ def env(tmp_path, monkeypatch):
 
     sessions: dict[str, FakeSession] = {}
     wakes: list[str] = []
+    api_calls: list[tuple[str, str]] = []
 
     async def create_session(**kw):
         if kw["name"] in sessions:
@@ -69,9 +70,13 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr("app.routes.system._is_safe_path", lambda p: True)
     monkeypatch.setattr(m, "SCOPE", SCOPE)
 
-    ctx = SimpleNamespace(sessions=sessions, wakes=wakes, repo=repo, lose=set(), drop=set(), db=db)
+    ctx = SimpleNamespace(
+        sessions=sessions, wakes=wakes, api_calls=api_calls, repo=repo,
+        lose=set(), drop=set(), db=db,
+    )
     with TestClient(main.app, raise_server_exceptions=False) as client:
         async def api(method, path, **kw):
+            api_calls.append((method, path))
             # "lose": the server processes the request but the client never sees the answer
             key = (method, path.split("?")[0].rstrip("/").rsplit("/", 1)[-1])
             if key in ctx.drop:  # the request never reaches the server
@@ -170,3 +175,54 @@ async def test_create_never_reached_server_reports_delivery_id_for_retry(env):
         await _spawn(env, delivery_id="")
     nxt = caught.value.details["next_action"]
     assert nxt["code"] == "RETRY_SPAWN_SAME_DELIVERY_ID" and nxt["delivery_id"]
+
+
+@pytest.mark.asyncio
+async def test_spawn_rejects_invalid_delivery_id_before_creating_worker(env):
+    with pytest.raises(env.m.ApiToolError) as caught:
+        await _spawn(env, delivery_id="spawn-research-step5-v807")
+
+    assert caught.value.code == "invalid_argument"
+    assert caught.value.message == "delivery_id must be a UUID"
+    assert env.api_calls == []
+    assert env.sessions == {}
+    assert _rows(env) == []
+    assert env.db.get_all_sessions(SCOPE) == []
+
+
+def test_http_rejects_invalid_delivery_id_before_creating_worker(env, monkeypatch):
+    from app.routes import sessions as routes
+
+    calls = []
+
+    async def forbidden_create(**kwargs):
+        calls.append(kwargs)
+        raise AssertionError("invalid delivery_id reached session creation")
+
+    monkeypatch.setattr(routes.manager, "create_session", forbidden_create)
+    response = env.client.post("/api/sessions", json={
+        "name": "bad-id", "cwd": str(env.repo), "model": "gpt-6-luna",
+        "use_worktree": True, "repo_path": str(env.repo), "task_id": "V-807",
+        "planned_initial_turn": True, "initial_task_title": TASK,
+        "initial_delivery_id": "spawn-research-step5-v807",
+    })
+
+    assert response.status_code == 422
+    assert "initial_delivery_id must be a UUID" in response.text
+    assert calls == []
+    assert env.sessions == {}
+    assert _rows(env) == []
+    assert env.db.get_all_sessions(SCOPE) == []
+
+
+def test_http_spawn_accepts_valid_delivery_id_and_records_intent(env):
+    response = env.client.post("/api/sessions", json={
+        "name": "good-id", "cwd": str(env.repo), "model": "gpt-6-luna",
+        "use_worktree": True, "repo_path": str(env.repo),
+        "planned_initial_turn": True, "initial_task_title": TASK,
+        "initial_delivery_id": DELIVERY_ID,
+    })
+
+    assert response.status_code == 201
+    assert response.json()["name"] == "good-id"
+    assert json.loads(env.db.kv_get("spawn_intent:sid-good-id"))["delivery_id"] == DELIVERY_ID

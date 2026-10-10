@@ -1064,7 +1064,7 @@ async def spawn_worker(name: str, task: str, repo_path: str,
                        tg_topic: bool = False,
                        delivery_id: str = "",
                        disabled_tools: list[str] | None = None) -> str:
-    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
+    """Spawn a worker in an isolated git worktree. model is required: follow your model-routing rules. task_id must be an existing task_create reference, exclusively bound to this worker; invalid/busy ids reject the spawn. Empty base_branch uses pipeline parent/main strategy; ambiguity requires an explicit local branch. mcp_servers is a JSON object merged with defaults, excluding the orchestra key; survives restart. owned_dirs is a JSON array of advisory work areas, not an edit allowlist; overlaps are allowed. disabled_tools lists exact Orchestra names, adds to role bans and persists. tg_topic enables a dedicated Telegram topic. delivery_id is a UUID and preserves initial-delivery identity: if the outcome is ambiguous, repeat the same spawn_worker call with the same delivery_id and inputs. The existing worker and task receipt are returned without a duplicate. If the quota gate is closed, the task is held durably and delivered automatically when the gate opens — no timer."""
     if not model:
         raise ApiToolError(
             code="invalid_argument",
@@ -1127,6 +1127,15 @@ async def spawn_worker(name: str, task: str, repo_path: str,
     delivery_id = delivery_id.strip() if isinstance(delivery_id, str) else ""
     if not delivery_id:
         delivery_id = str(uuid.uuid4())
+    else:
+        try:
+            delivery_id = str(uuid.UUID(delivery_id))
+        except ValueError as error:
+            raise ApiToolError(
+                code="invalid_argument",
+                message="delivery_id must be a UUID",
+                details={"field": "delivery_id"},
+            ) from error
     body["initial_delivery_id"] = delivery_id
     try:
         result = await _api(
