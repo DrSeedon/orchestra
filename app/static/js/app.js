@@ -1956,7 +1956,7 @@ function _setHiddenTabs(set) {
 // One status vocabulary for the whole dashboard — sidebar badges and orch tabs.
 // Icon carries the state, so it no longer rides on hue alone (idle/waiting were
 // indistinguishable as plain yellow vs orange dots).
-const _STATUS_ICON = {running: '⚡', idle: '☕️', waiting: '⏳', broken: '⛔'};
+const _STATUS_ICON = {running: '⚡', idle: '☕️', waiting: '📆', broken: '⛔'};
 // broken красный, а не серый: это не «нет данных», а «задачу слать бесполезно».
 // error/stopped/starting приходят только в выводе инструментов (см. _STATUS_COLOR ниже).
 const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b', broken: '#ef4444',
@@ -2002,6 +2002,17 @@ function _syncUnreadDot(tab, scope) {
     }
 }
 
+function _orchCachePill(o) {
+    const pill = _cachePill(o);
+    if (!pill) return null;
+    pill.style.fontSize = '9px';
+    pill.style.marginLeft = '3px';
+    pill.style.verticalAlign = 'middle';
+    pill.dataset.hideCold = '1';
+    if (pill.dataset.tier === 'cold') pill.style.display = 'none';
+    return pill;
+}
+
 function renderOrchTabs(sorted) {
     const tabs = $('#orch-tabs');
     tabs.innerHTML = '';
@@ -2024,13 +2035,8 @@ function renderOrchTabs(sorted) {
         label.dataset.i18nSkip = '1';  // имя оркестратора — данные, не надпись
         tab.append(dot, label);
         // Cache indicator on orch tab — reuse _cachePill / _renderCachePill so countdown ticks them
-        const orchPill = _cachePill(o);
+        const orchPill = _orchCachePill(o);
         if (orchPill) {
-            orchPill.style.fontSize = '9px';
-            orchPill.style.marginLeft = '3px';
-            orchPill.style.verticalAlign = 'middle';
-            orchPill.dataset.hideCold = '1';
-            if (orchPill.dataset.tier === 'cold') orchPill.style.display = 'none';
             tab.appendChild(orchPill);
         }
         tab.title = o.scope;
@@ -2337,7 +2343,58 @@ function _updateHiddenBtn() {
     const hidden = _getHiddenTabs();
     const hasHidden = [...hidden].some(n => orchData.find(o => o.name === n));
     btn.classList.toggle('hidden', !hasHidden);
-    if (hasHidden) btn.textContent = `👁 ${[...hidden].filter(n => orchData.find(o => o.name === n)).length}`;
+    if (!hasHidden) {
+        document.getElementById('hidden-tabs-dropdown')?.remove();
+        return;
+    }
+    btn.textContent = `👁 ${[...hidden].filter(n => orchData.find(o => o.name === n)).length}`;
+    _renderHiddenTabsDropdown(document.getElementById('hidden-tabs-dropdown'));
+}
+
+function _renderHiddenTabsDropdown(dd) {
+    if (!dd) return;
+    const items = [..._getHiddenTabs()]
+        .map(name => orchData.find(o => o.name === name))
+        .filter(Boolean);
+    if (!items.length) {
+        dd.remove();
+        return;
+    }
+    dd.replaceChildren();
+    for (const o of items) {
+        const item = document.createElement('div');
+        item.dataset.orchName = o.name;
+        item.style.cssText = 'display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:12px;color:#94a3b8;cursor:pointer;white-space:nowrap';
+
+        const restore = document.createElement('span');
+        restore.textContent = '👁';
+        restore.setAttribute('aria-hidden', 'true');
+
+        const status = document.createElement('span');
+        status.className = 'tab-dot hidden-tab-status';
+        status.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;flex:0 0 17px;border-radius:50%;font-size:10px;line-height:1';
+        _paintStatusDot(status, o);
+
+        const label = document.createElement('span');
+        label.className = 'hidden-tab-name';
+        label.style.cssText = 'overflow:hidden;text-overflow:ellipsis';
+        label.textContent = o.name.replace(/-orchestrator$/, '');
+        label.dataset.i18nSkip = '1';
+
+        item.append(restore, status, label);
+        const cachePill = _orchCachePill(o);
+        if (cachePill) item.appendChild(cachePill);
+        item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
+        item.addEventListener('mouseleave', () => item.style.background = '');
+        item.addEventListener('click', () => {
+            const hidden = _getHiddenTabs();
+            hidden.delete(o.name);
+            _setHiddenTabs(hidden);
+            dd.remove();
+            renderOrchTabs(orchData);
+        });
+        dd.appendChild(item);
+    }
 }
 
 function initHiddenTabsBtn() {
@@ -2354,20 +2411,8 @@ function initHiddenTabsBtn() {
         dd.id = 'hidden-tabs-dropdown';
         const rect = btn.getBoundingClientRect();
         dd.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.bottom + 4}px;z-index:9999;background:rgba(15,23,42,0.95);border:1px solid rgba(71,85,105,0.5);border-radius:8px;padding:4px 0;backdrop-filter:blur(12px);min-width:140px;box-shadow:0 8px 24px rgba(0,0,0,0.4)`;
-        for (const name of items) {
-            const item = document.createElement('div');
-            item.style.cssText = 'padding:6px 14px;font-size:12px;color:#94a3b8;cursor:pointer;white-space:nowrap';
-            item.textContent = `👁 ${name.replace(/-orchestrator$/, '')}`;
-            item.addEventListener('mouseenter', () => item.style.background = 'rgba(51,65,85,0.5)');
-            item.addEventListener('mouseleave', () => item.style.background = '');
-            item.addEventListener('click', () => {
-                const h = _getHiddenTabs(); h.delete(name); _setHiddenTabs(h);
-                dd.remove();
-                renderOrchTabs(orchData);
-            });
-            dd.appendChild(item);
-        }
         document.body.appendChild(dd);
+        _renderHiddenTabsDropdown(dd);
         const closeDd = (ev) => { if (!dd.contains(ev.target) && ev.target !== btn) { dd.remove(); document.removeEventListener('click', closeDd); } };
         setTimeout(() => document.addEventListener('click', closeDd), 0);
     });
@@ -2390,6 +2435,7 @@ function updateOrchTabDots() {
         if (dot) _paintStatusDot(dot, o);
         _syncUnreadDot(tab, scope);
     });
+    _updateHiddenBtn();
 }
 
 function selectOrchestrator(name, scope) {

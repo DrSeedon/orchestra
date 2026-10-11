@@ -1015,6 +1015,94 @@ def test_header_has_orch_tabs(dashboard_browser: Browser):
         page.close()
 
 
+def test_hidden_orchestrator_menu_shares_tab_status_and_cache_builders():
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+
+    def function_source(name):
+        start = source.index(f"function {name}(")
+        end = source.index("\n}", start) + 2
+        return source[start:end]
+
+    painter = function_source("_paintStatusDot")
+    tabs = function_source("renderOrchTabs")
+    hidden = function_source("_renderHiddenTabsDropdown")
+    live_update = function_source("updateOrchTabDots")
+
+    assert "_orchState(o)" in painter
+    assert "_paintStatusDot(dot, o)" in tabs
+    assert "_paintStatusDot(status, o)" in hidden
+    assert "_orchCachePill(o)" in tabs
+    assert "_orchCachePill(o)" in hidden
+    assert "_updateHiddenBtn()" in live_update
+
+
+def test_hidden_orchestrator_list_reuses_tab_status_and_cache(dashboard_browser: Browser):
+    page = dashboard_browser.new_page()
+    try:
+        _goto_dashboard(page)
+        result = page.evaluate("""() => {
+            const turn = new Date(Date.now() - 5 * 60_000).toISOString();
+            const rows = [
+                {name: 'running-orchestrator', status: 'running', any_running: true, any_waiting: false},
+                {name: 'waiting-orchestrator', status: 'idle', any_running: false, any_waiting: true},
+                {name: 'idle-orchestrator', status: 'idle', any_running: false, any_waiting: false},
+            ].map((row, index) => ({
+                id: `hidden-${index}`, scope: `/hidden/${index}`, ...row,
+                cache_ttl_seconds: 3600, last_turn_ts: turn,
+            }));
+            orchData = rows;
+            _setHiddenTabs(new Set());
+            renderOrchTabs(orchData);
+            const pinned = Object.fromEntries(rows.map(row => {
+                const tab = document.querySelector(
+                    `#orch-tabs .orch-tab[data-orch-name="${row.name}"]`,
+                );
+                const pill = tab.querySelector('.cache-pill');
+                return [row.name, {
+                    status: tab.querySelector('.tab-dot').textContent,
+                    cache: pill.textContent,
+                    cacheTier: pill.dataset.tier,
+                    cacheExpires: pill.dataset.cacheExpires,
+                }];
+            }));
+
+            _setHiddenTabs(new Set(rows.map(row => row.name)));
+            renderOrchTabs(orchData);
+            document.querySelector('#hidden-tabs-btn').click();
+            const hidden = name => {
+                const item = document.querySelector(
+                    `#hidden-tabs-dropdown [data-orch-name="${name}"]`,
+                );
+                const pill = item.querySelector('.cache-pill');
+                return {
+                    status: item.querySelector('.hidden-tab-status').textContent,
+                    cache: pill.textContent,
+                    cacheTier: pill.dataset.tier,
+                    cacheExpires: pill.dataset.cacheExpires,
+                };
+            };
+            const before = Object.fromEntries(rows.map(row => [row.name, hidden(row.name)]));
+
+            const waiting = orchData.find(row => row.name === 'waiting-orchestrator');
+            waiting.any_waiting = false;
+            waiting.status = 'running';
+            waiting.any_running = true;
+            updateOrchTabDots();
+            const afterLiveUpdate = hidden(waiting.name);
+            return {pinned, before, afterLiveUpdate};
+        }""")
+    finally:
+        page.close()
+
+    assert result["pinned"] == result["before"]
+    assert result["before"]["running-orchestrator"]["status"] == "⚡"
+    assert result["before"]["waiting-orchestrator"]["status"] == "📆"
+    assert result["before"]["idle-orchestrator"]["status"] == "☕️"
+    assert "🔥" in result["before"]["idle-orchestrator"]["cache"]
+    assert result["afterLiveUpdate"]["status"] == "⚡"
+    assert result["afterLiveUpdate"]["cache"] == "🔥"
+
+
 def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
     assert source.count("_unreadTabs.add(") == 1
