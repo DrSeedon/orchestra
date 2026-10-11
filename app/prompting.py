@@ -9,6 +9,7 @@ import subprocess
 import tomllib
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from app.workspace import _exclude_worktree_artifacts, tracked_paths
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 _PROMPTS_DIR = Path(__file__).parent.parent / ".orchestra" / "pipelines" / "default" / "prompts"
 _MODULES_DIR = _PROMPTS_DIR / "modules"
 _SKILLS_DIR = _PROMPTS_DIR / "skills"
+_REPO_ROOT = _PROMPTS_DIR.parents[3]
 
 _ORCHESTRATOR_ROLES = frozenset({"orchestrator", "sub-orchestrator"})
 _IDENTITY_PLACEHOLDERS = re.compile(r"\{(worker_name|orchestrator_name|scope|branch)\}")
@@ -49,6 +51,84 @@ class CodexProjectDocPreflight:
 
 def is_orchestrator_role(role: str) -> bool:
     return role in _ORCHESTRATOR_ROLES
+
+
+@lru_cache(maxsize=1)
+def _retired_skill_hashes() -> dict[str, frozenset[str]]:
+    """Return hashes of canonical skill files removed from this repository."""
+    prefix = ".orchestra/pipelines/default/prompts/skills/"
+    pathspec = prefix + "*.md"
+    removed_paths: set[str] = set()
+    history = subprocess.run(
+        [
+            "git", "-C", str(_REPO_ROOT), "log", "--all", "--no-renames",
+            "--diff-filter=D", "--format=", "--name-only", "--",
+            pathspec,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if history.returncode == 0:
+        for line in history.stdout.splitlines():
+            if not line.startswith(prefix) or Path(line).parent.as_posix() != prefix.rstrip("/"):
+                continue
+            name = Path(line).stem
+            if not (_SKILLS_DIR / f"{name}.md").exists():
+                removed_paths.add(line)
+
+    working = subprocess.run(
+        [
+            "git", "-C", str(_REPO_ROOT), "diff", "HEAD", "--no-renames", "--name-only",
+            "--diff-filter=D", "--", pathspec,
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if working.returncode == 0:
+        for line in working.stdout.splitlines():
+            if not line.startswith(prefix) or Path(line).parent.as_posix() != prefix.rstrip("/"):
+                continue
+            name = Path(line).stem
+            if (_SKILLS_DIR / f"{name}.md").exists():
+                continue
+            removed_paths.add(line)
+
+    removed: dict[str, set[str]] = {}
+    for path in sorted(removed_paths):
+        name = Path(path).stem
+        revisions = subprocess.run(
+            ["git", "-C", str(_REPO_ROOT), "log", "--all", "--format=%H", "--", path],
+            capture_output=True,
+            text=True,
+        )
+        if revisions.returncode != 0:
+            continue
+        for revision in revisions.stdout.splitlines():
+            prior = subprocess.run(
+                ["git", "-C", str(_REPO_ROOT), "show", f"{revision}:{path}"],
+                capture_output=True,
+            )
+            if prior.returncode == 0:
+                removed.setdefault(name, set()).add(
+                    hashlib.sha256(prior.stdout).hexdigest()
+                )
+    return {name: frozenset(digests) for name, digests in removed.items()}
+
+
+def _copy_skill_file(source: Path, destination: Path) -> bool:
+    created = _run_as_agent(["mkdir", "-p", str(destination.parent)], capture_output=True)
+    if created.returncode != 0:
+        return False
+    tmp = destination.parent / f".SKILL.md.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
+    try:
+        copied = _run_as_agent(["cp", "-p", str(source), str(tmp)], capture_output=True)
+        if copied.returncode != 0:
+            return False
+        moved = _run_as_agent(["mv", "-f", str(tmp), str(destination)], capture_output=True)
+        return moved.returncode == 0
+    finally:
+        if tmp.exists():
+            _run_as_agent(["rm", "-f", str(tmp)], capture_output=True)
 
 
 def safe_format_prompt(template: str, **kwargs: str) -> str:
@@ -251,7 +331,7 @@ def _run_as_agent(args: list[str], **kwargs) -> subprocess.CompletedProcess:
 def inject_skills_to_worktree_report(
     skill_names: list[str], worktree_path: str, home_dir: str = ".claude",
 ) -> SkillInjectionResult:
-    """Copy resolved pipeline skills into <path>/<home_dir>/skills/ as native CLI skills.
+    """Copy resolved pipeline skills and their references into the CLI skill directory.
 
     Runs on every backend (re)connect, not just at worktree creation — a long-lived agent
     would otherwise keep the skill files from the day it was spawned, and a skill added to a
@@ -283,8 +363,31 @@ def inject_skills_to_worktree_report(
         )
     wt = Path(worktree_path)
     rels = {sname: f"{home_dir}/skills/{sname}/SKILL.md" for sname in skill_names}
+    reference_sources = {
+        sname: sorted(
+            p for p in (_SKILLS_DIR / sname / "references").rglob("*")
+            if p.is_file() and not p.is_symlink()
+        )
+        for sname in skill_names
+    }
+    reference_rels = {
+        source: (
+            f"{home_dir}/skills/{sname}/references/"
+            f"{source.relative_to(_SKILLS_DIR / sname / 'references')}"
+        )
+        for sname, sources in reference_sources.items()
+        for source in sources
+    }
+    current_sources = {path.stem for path in _SKILLS_DIR.glob("*.md")}
+    retired_names = set(_retired_skill_hashes()) - current_sources - set(skill_names)
+    retired_rels = {
+        name: f"{home_dir}/skills/{name}/SKILL.md" for name in retired_names
+    }
     try:
-        tracked = tracked_paths(wt, [home_dir, *rels.values()])
+        tracked = tracked_paths(
+            wt,
+            [home_dir, *rels.values(), *reference_rels.values(), *retired_rels.values()],
+        )
     except RuntimeError as exc:
         # Git failing (not a repo, ownership, broken worktree) proves nothing about who owns
         # these files. Writing on a guess is what dirties someone else's repository.
@@ -303,11 +406,34 @@ def inject_skills_to_worktree_report(
             home_path_is_file=True, home_path_tracked=home_dir in tracked,
             skipped=("home_path_is_file",),
         )
+    skills_home = home / "skills"
+    if not skills_home.is_symlink():
+        for name, rel in retired_rels.items():
+            dest = wt / rel
+            if rel in tracked or dest.is_symlink() or not dest.is_file():
+                continue
+            try:
+                digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+            except OSError:
+                continue
+            if digest not in _retired_skill_hashes()[name]:
+                continue
+            try:
+                dest.unlink()
+            except OSError as exc:
+                logger.warning(f"Retired managed skill at {dest} could not be removed ({exc})")
+                continue
+            try:
+                dest.parent.rmdir()
+            except OSError:
+                pass
+            logger.info(f"Removed retired managed skill copy at {dest}")
     if not skill_names:
         return SkillInjectionResult(
             written=0, requested=0, home_path=str(home), skipped=("no_skills",),
         )
     injected = 0
+    wrote_files = False
     skipped: list[str] = []
     for sname in skill_names:
         skill_src = _SKILLS_DIR / f"{sname}.md"
@@ -319,32 +445,47 @@ def inject_skills_to_worktree_report(
             logger.info(f"Skill '{sname}' is tracked by the repo at {wt} — injection skipped")
             skipped.append(f"tracked_skill:{sname}")
             continue
-        dest = wt / home_dir / "skills" / sname / "SKILL.md"
+        skill_dir = wt / home_dir / "skills" / sname
+        if skill_dir.is_symlink():
+            logger.warning(f"Skill directory at {skill_dir} is a symlink — skipped")
+            skipped.append(f"symlink_skill_dir:{sname}")
+            continue
+        dest = skill_dir / "SKILL.md"
         if dest.is_symlink():
             logger.warning(f"Skill '{sname}' at {dest} is a symlink — skipped (copy would clobber its target)")
             skipped.append(f"symlink:{sname}")
             continue
+        unchanged = False
         try:
-            if dest.is_file() and dest.read_bytes() == skill_src.read_bytes():
-                continue
+            unchanged = dest.is_file() and dest.read_bytes() == skill_src.read_bytes()
         except OSError as exc:
             logger.warning(f"Skill '{sname}' at {dest} unreadable ({exc}) — rewriting")
-        _run_as_agent(["mkdir", "-p", str(dest.parent)], capture_output=True)
-        # tmp + mv: `cp` onto a live file lets the CLI read a half-written skill. `mv` within
-        # the same directory is atomic, so a reader sees either the old file or the new one.
-        tmp = dest.parent / f".SKILL.md.{os.getpid()}.{uuid.uuid4().hex[:8]}.tmp"
-        try:
-            _run_as_agent(["cp", "-p", str(skill_src), str(tmp)], capture_output=True)
-            moved = _run_as_agent(["mv", "-f", str(tmp), str(dest)], capture_output=True)
-            if moved.returncode != 0:
+        if not unchanged:
+            if not _copy_skill_file(skill_src, dest):
                 logger.warning(f"Skill '{sname}' install failed at {dest}")
                 skipped.append(f"install_failed:{sname}")
                 continue
-        finally:
-            if tmp.exists():
-                _run_as_agent(["rm", "-f", str(tmp)], capture_output=True)
-        injected += 1
-    if injected:
+            injected += 1
+            wrote_files = True
+        for source in reference_sources[sname]:
+            rel = reference_rels[source]
+            resource_dest = wt / rel
+            if (skill_dir / "references").is_symlink():
+                skipped.append(f"symlink_references:{sname}")
+                break
+            if rel in tracked or resource_dest.is_symlink():
+                continue
+            try:
+                if resource_dest.is_file() and resource_dest.read_bytes() == source.read_bytes():
+                    continue
+            except OSError:
+                pass
+            if _copy_skill_file(source, resource_dest):
+                wrote_files = True
+            else:
+                logger.warning(f"Skill reference install failed at {resource_dest}")
+                skipped.append(f"install_failed_reference:{sname}")
+    if wrote_files:
         # Only after actually planting something, and only the directory we wrote — this path
         # may be the user's working repository, where adding unrelated ignore rules is a side
         # effect we have no mandate for. Without this, a repo that ignores neither `.claude/`
@@ -357,7 +498,9 @@ def inject_skills_to_worktree_report(
         # Path is logged, not just the count: whether a CLI actually discovers this directory
         # is not something we detect (see ORCHESTRA_CODEX_SKILL_INDEX). If an agent turns out
         # to have no skills, this line is the evidence of where they were put.
-        logger.info(f"Injected {injected} skills into {worktree_path}/{home_dir}/skills/")
+        logger.info(
+            f"Refreshed {injected} skill entrypoints into {worktree_path}/{home_dir}/skills/"
+        )
     return SkillInjectionResult(
         written=injected, requested=len(skill_names), home_path=str(home),
         skipped=tuple(skipped),

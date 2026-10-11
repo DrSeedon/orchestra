@@ -1605,7 +1605,7 @@ class AgentSession:
             from app.pipeline import get_role
             role = get_role(self.pipeline, self.role)
             skills = role.skills if role else None
-            if not skills:
+            if skills is None:
                 return
             if self.backend_type == "codex":
                 requested_skills = [] if skills == "all" else skills

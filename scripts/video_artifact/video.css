@@ -1,4 +1,4 @@
-/* Кадр ролика 16:9 поверх каркаса html-motion: тёмная сцена, без кнопок, подпись = закадровый текст. */
+/* Кадр ролика 16:9 поверх анимированной сцены: тёмная тема, без кнопок, подпись = закадровый текст. */
 :root{color-scheme:dark}
 html,body{background:#0b0e14;color:#e6e6e6;font-family:Manrope,system-ui,sans-serif}
 .mv{max-width:none;margin:0;height:100vh;box-sizing:border-box;padding:28px 56px 22px;border-radius:0;box-shadow:none;background:#0b0e14;display:flex;flex-direction:column}

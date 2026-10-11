@@ -66,7 +66,7 @@ class TestDefaultManifestLoads:
         cfg = P.load_pipeline(PIPELINE)
         d = cfg.defaults
         assert d.model == "opus"
-        assert d.skills == ["html-artifacts", "html-motion", "explainer-video"]  # visuals, animation, narrated video for every role
+        assert d.skills
         assert d.mcp_servers == []  # апстрим не прокидывает user-MCP
         assert d.base_branch_strategy == "main"  # все worktree от main
         assert d.docs_scaffold is False  # апстрим не скаффолдит doc-папки
@@ -221,10 +221,11 @@ class TestDefaultRolesResolve:
 
     def test_orchestrator_skills_from_manifest(self):
         rr = P.get_role(PIPELINE, "orchestrator")
-        assert set(rr.skills) == {
-            "html-artifacts", "html-motion", "explainer-video", "grill-me", "orchestra-agents",
-            "laptop-access",
-        }
+        manifest = yaml.safe_load((P.PIPELINES_DIR / PIPELINE / "pipeline.yaml").read_text())
+        expected = set(manifest["defaults"]["skills"]) | set(
+            manifest["roles"]["orchestrator"]["skills"]
+        )
+        assert set(rr.skills) == expected
 
     def test_orchestrator_can_spawn_wildcard_and_unrouted(self):
         """Апстрим не ограничивает оркестратора: can_spawn=['*'], дефолтный
@@ -428,13 +429,21 @@ class TestUpstreamCharacterization:
             assert not body.lstrip().startswith("---")
             assert "\nname:" not in body[:200]
 
-    def test_skill_files_keep_frontmatter(self):
-        """skills/*.md портированы С frontmatter (это skill-метаданные name/description,
-        их читает inject_skills_to_worktree)."""
-        for skill in ("html-artifacts", "html-motion", "explainer-video"):
+    def test_every_resolved_skill_has_native_frontmatter(self):
+        """Pipeline skill references resolve to the native files copied to CLI worktrees."""
+        skills = set(P.load_pipeline(PIPELINE).defaults.skills)
+        for spec in P.load_pipeline(PIPELINE).roles.values():
+            if isinstance(spec.skills, list):
+                skills.update(spec.skills)
+        for skill in skills:
             text = P.prompt_path(PIPELINE, f"skills/{skill}.md").read_text()
             assert text.lstrip().startswith("---"), f"{skill}.md must keep frontmatter"
             assert f"name: {skill}" in text
+
+    def test_vps_deploy_skill_routes_only_to_orchestrators(self):
+        expected = {"orchestrator", "sub-orchestrator"}
+        for role in ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer"):
+            assert ("vps-deploy" in P.get_role(PIPELINE, role).skills) == (role in expected)
 
     def test_build_prompt_matches_concatenation_of_layers(self):
         """build_system_prompt(orchestrator) = base.md + role + modules."""
@@ -446,35 +455,6 @@ class TestUpstreamCharacterization:
         ]
         expected = "\n\n".join([base, role, *modules])
         assert P.build_system_prompt(PIPELINE, "orchestrator") == expected
-
-
-class TestFrozenModelReview:
-    """Модельное ревью заморожено владельцем 20.09.2026 вместе с тулом codex_review.
-
-    От прежнего класса осталась одна проверка — механика, а не формулировки: скилл не
-    должен доехать ни до одной роли. Остальные тесты этого класса сверяли дословные
-    фразы политики ревью и покраснели ровно тогда, когда владелец эту политику отменил;
-    такие тесты у нас запрещены, поэтому они удалены, а не подогнаны под новый текст.
-    """
-
-    ROLES = ("orchestrator", "sub-orchestrator", "worker", "full-cycle", "reducer")
-
-    def test_no_role_carries_the_frozen_review_skill(self):
-        for role in self.ROLES:
-            assert "codex-debate" not in P.get_role(PIPELINE, role).skills, (
-                f"{role}: заморожённый скилл ревью вернулся в манифест")
-
-    def test_native_copy_stays_untracked(self):
-        """Вторая копия политики в git = второй владелец правил, который разъедется."""
-        repo = Path(__file__).parents[1]
-        tracked_native_copy = subprocess.run(
-            ["git", "ls-files", "--", ".codex/skills/codex-debate/SKILL.md"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-        assert tracked_native_copy == ""
 
 
 # ── validate_spawn: fail-open + can_spawn=['*'] + allow_unrouted_workers ────
@@ -585,8 +565,6 @@ class TestPremortemReachesWorkingRolesOnly:
 
 class TestWorkerAutonomy:
     """Delivery checks, not a claim that keyword presence measures model quality."""
-
-
 
 
 

@@ -940,9 +940,9 @@ class TestInjectSkillsRealCopy:
     def test_copies_pipeline_skills_to_worktree(self, tmp_path):
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
-        # codex-debate + html-artifacts are both real files in prompts/skills/
-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
-        for name in ("codex-debate", "html-artifacts"):
+        # laptop-access + html-artifacts are both real files in prompts/skills/
+        inject_skills_to_worktree(["laptop-access", "html-artifacts"], str(wt))
+        for name in ("laptop-access", "html-artifacts"):
             assert (wt / ".claude" / "skills" / name / "SKILL.md").is_file(), \
                 f"{name} not injected into worktree"
 
@@ -953,13 +953,13 @@ class TestInjectSkillsRealCopy:
         import subprocess
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
-        own = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        own = wt / ".claude" / "skills" / "laptop-access" / "SKILL.md"
         own.parent.mkdir(parents=True)
         own.write_text("# repo's own skill\n")
         subprocess.run(["git", "add", "-A"], cwd=wt, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "skill"], cwd=wt, capture_output=True, check=True)
 
-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+        inject_skills_to_worktree(["laptop-access", "html-artifacts"], str(wt))
 
         assert own.read_text() == "# repo's own skill\n"
         # untracked skills are still injected — only the repo's own file is off limits
@@ -982,32 +982,90 @@ class TestRefreshSkills:
     The destination may be the user's real working repository, hence the safety assertions.
     """
 
-    def _source(self, name="codex-debate"):
+    def _source(self, name="laptop-access"):
         from app.prompting import _SKILLS_DIR
         return _SKILLS_DIR / f"{name}.md"
 
     def test_stale_copy_is_refreshed(self, tmp_path):
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
-        dest = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        dest = wt / ".claude" / "skills" / "laptop-access" / "SKILL.md"
         dest.parent.mkdir(parents=True)
         dest.write_text("# ancient version from spawn day\n")
 
-        written = inject_skills_to_worktree(["codex-debate"], str(wt))
+        written = inject_skills_to_worktree(["laptop-access"], str(wt))
 
         assert dest.read_bytes() == self._source().read_bytes()
         assert written == 1
+
+    def test_retired_generated_copy_is_removed_by_source_digest(self, tmp_path, monkeypatch):
+        import hashlib
+        import app.prompting as prompting
+
+        wt = _git_repo(tmp_path)
+        obsolete = b"previous canonical skill body\n"
+        custom = b"user-authored skill body\n"
+        monkeypatch.setattr(prompting, "_retired_skill_hashes", lambda: {
+            "retired-example": frozenset({hashlib.sha256(obsolete).hexdigest()}),
+            "custom-example": frozenset({hashlib.sha256(obsolete).hexdigest()}),
+        })
+        old_dest = wt / ".claude/skills/retired-example/SKILL.md"
+        custom_dest = wt / ".claude/skills/custom-example/SKILL.md"
+        old_dest.parent.mkdir(parents=True)
+        custom_dest.parent.mkdir(parents=True)
+        old_dest.write_bytes(obsolete)
+        custom_dest.write_bytes(custom)
+
+        prompting.inject_skills_to_worktree(["html-artifacts"], str(wt))
+
+        assert not old_dest.exists()
+        assert custom_dest.read_bytes() == custom
+
+    def test_tracked_retired_copy_is_left_untouched(self, tmp_path, monkeypatch):
+        import hashlib
+        import subprocess
+        import app.prompting as prompting
+
+        wt = _git_repo(tmp_path)
+        obsolete = b"previous canonical skill body\n"
+        monkeypatch.setattr(prompting, "_retired_skill_hashes", lambda: {
+            "retired-example": frozenset({hashlib.sha256(obsolete).hexdigest()}),
+        })
+        dest = wt / ".claude/skills/retired-example/SKILL.md"
+        dest.parent.mkdir(parents=True)
+        dest.write_bytes(obsolete)
+        subprocess.run(["git", "add", "-A"], cwd=wt, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "own retired copy"], cwd=wt, check=True, capture_output=True)
+
+        prompting.inject_skills_to_worktree(["html-artifacts"], str(wt))
+
+        assert dest.read_bytes() == obsolete
+
+    def test_skill_reference_symlink_is_not_followed(self, tmp_path):
+        from app.prompting import inject_skills_to_worktree
+
+        wt = _git_repo(tmp_path)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        references = wt / ".codex/skills/html-artifacts/references"
+        references.parent.mkdir(parents=True)
+        references.symlink_to(outside, target_is_directory=True)
+
+        inject_skills_to_worktree(["html-artifacts"], str(wt), ".codex")
+
+        assert references.is_symlink()
+        assert not (outside / "animation.md").exists()
 
     def test_unchanged_copy_is_not_rewritten(self, tmp_path):
         """Steady state must cost zero writes — otherwise every connect swaps a file
         under a running CLI for no reason."""
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
-        inject_skills_to_worktree(["codex-debate"], str(wt))
-        dest = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        inject_skills_to_worktree(["laptop-access"], str(wt))
+        dest = wt / ".claude" / "skills" / "laptop-access" / "SKILL.md"
         before_mtime = dest.stat().st_mtime_ns
 
-        written = inject_skills_to_worktree(["codex-debate"], str(wt))
+        written = inject_skills_to_worktree(["laptop-access"], str(wt))
 
         assert written == 0
         assert dest.stat().st_mtime_ns == before_mtime
@@ -1018,13 +1076,13 @@ class TestRefreshSkills:
         import subprocess
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
-        own = wt / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        own = wt / ".claude" / "skills" / "laptop-access" / "SKILL.md"
         own.parent.mkdir(parents=True)
         own.write_text("# repo's own skill\n")
         subprocess.run(["git", "add", "-Af"], cwd=wt, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "own skill"], cwd=wt, capture_output=True, check=True)
 
-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt))
+        inject_skills_to_worktree(["laptop-access", "html-artifacts"], str(wt))
 
         assert own.read_text() == "# repo's own skill\n"
         assert (wt / ".claude" / "skills" / "html-artifacts" / "SKILL.md").read_bytes() \
@@ -1038,7 +1096,7 @@ class TestRefreshSkills:
         wt = _git_repo(tmp_path)
         assert not (wt / ".gitignore").exists()
 
-        inject_skills_to_worktree(["codex-debate"], str(wt))
+        inject_skills_to_worktree(["laptop-access"], str(wt))
 
         status = subprocess.run(
             ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
@@ -1063,7 +1121,7 @@ class TestRefreshSkills:
         plain = tmp_path / "not-a-repo"
         plain.mkdir()
 
-        assert inject_skills_to_worktree(["codex-debate"], str(plain)) == 0
+        assert inject_skills_to_worktree(["laptop-access"], str(plain)) == 0
         assert not (plain / ".claude").exists()
 
 
@@ -1074,7 +1132,7 @@ class TestCodexSkillHome:
     which is why `home_dir` is a parameter rather than a second copy of the function.
     """
 
-    def _source(self, name="codex-debate"):
+    def _source(self, name="laptop-access"):
         from app.prompting import _SKILLS_DIR
         return _SKILLS_DIR / f"{name}.md"
 
@@ -1082,9 +1140,9 @@ class TestCodexSkillHome:
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
 
-        assert inject_skills_to_worktree(["codex-debate"], str(wt), ".codex") == 1
+        assert inject_skills_to_worktree(["laptop-access"], str(wt), ".codex") == 1
 
-        assert (wt / ".codex" / "skills" / "codex-debate" / "SKILL.md").read_bytes() \
+        assert (wt / ".codex" / "skills" / "laptop-access" / "SKILL.md").read_bytes() \
             == self._source().read_bytes()
         assert not (wt / ".claude").exists(), "codex injection must not touch the Claude dir"
 
@@ -1093,9 +1151,9 @@ class TestCodexSkillHome:
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
 
-        inject_skills_to_worktree(["codex-debate"], str(wt))
+        inject_skills_to_worktree(["laptop-access"], str(wt))
 
-        assert (wt / ".claude" / "skills" / "codex-debate" / "SKILL.md").is_file()
+        assert (wt / ".claude" / "skills" / "laptop-access" / "SKILL.md").is_file()
         assert not (wt / ".codex").exists()
 
     def test_tracked_codex_skill_not_overwritten(self, tmp_path):
@@ -1104,13 +1162,13 @@ class TestCodexSkillHome:
         import subprocess
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
-        own = wt / ".codex" / "skills" / "codex-debate" / "SKILL.md"
+        own = wt / ".codex" / "skills" / "laptop-access" / "SKILL.md"
         own.parent.mkdir(parents=True)
         own.write_text("# repo's own codex skill\n")
         subprocess.run(["git", "add", "-Af"], cwd=wt, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-m", "own"], cwd=wt, capture_output=True, check=True)
 
-        inject_skills_to_worktree(["codex-debate", "html-artifacts"], str(wt), ".codex")
+        inject_skills_to_worktree(["laptop-access", "html-artifacts"], str(wt), ".codex")
 
         assert own.read_text() == "# repo's own codex skill\n"
         assert (wt / ".codex" / "skills" / "html-artifacts" / "SKILL.md").is_file()
@@ -1122,7 +1180,7 @@ class TestCodexSkillHome:
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
 
-        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+        inject_skills_to_worktree(["laptop-access"], str(wt), ".codex")
 
         status = subprocess.run(
             ["git", "status", "--short"], cwd=wt, capture_output=True, text=True,
@@ -1148,13 +1206,13 @@ class TestCodexSkillHome:
 
         with caplog.at_level(logging.WARNING, logger="app.prompting"):
             written = inject_skills_to_worktree(
-                ["codex-debate", "html-artifacts"], str(wt), ".codex",
+                ["laptop-access", "html-artifacts"], str(wt), ".codex",
             )
 
         assert written == 0
         assert (wt / ".codex").read_text() == "", "the repo's own file must be untouched"
         report = inject_skills_to_worktree_report(
-            ["codex-debate"], str(wt), ".codex",
+            ["laptop-access"], str(wt), ".codex",
         )
         assert report.home_path_is_file is True
         assert report.home_path_tracked is True
@@ -1170,7 +1228,7 @@ class TestCodexSkillHome:
         from app.prompting import inject_skills_to_worktree
         wt = _git_repo(tmp_path)
 
-        inject_skills_to_worktree(["codex-debate"], str(wt), ".codex")
+        inject_skills_to_worktree(["laptop-access"], str(wt), ".codex")
 
         exclude = (wt / ".git" / "info" / "exclude").read_text()
         assert ".codex/" in exclude

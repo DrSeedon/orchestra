@@ -42,9 +42,6 @@ A research-only assignment ends with findings and a recommendation, not implemen
   Save logs under `.orchestra/tasks/<task-id>/`; long commands follow the base module's
   background-job rule instead of polling with empty waits.
 - Model review was frozen by the owner on 2026-09-20: do not call it or seek a substitute.
-<!-- restore together with the codex_review tool:
-- Apply the review decision gate in the `codex-debate` skill to the result, not every intermediate note.
--->
   Resolve verified blockers; do not seek repeated approval of unchanged work.
 - Commit, inspect the diff, and report the outcome, actual checks, limitations and findings.
   Save reusable knowledge under the knowledge module. One report may cover investigation,

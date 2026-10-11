@@ -228,14 +228,14 @@ class TestCreateWorktree:
         empty, otherwise the worker can never satisfy "clean tree before DONE"."""
         from app.prompting import inject_skills_to_worktree
         from app.workspace import create_worktree
-        own = git_repo / ".claude" / "skills" / "codex-debate" / "SKILL.md"
+        own = git_repo / ".claude" / "skills" / "laptop-access" / "SKILL.md"
         own.parent.mkdir(parents=True)
         own.write_text("# repo's own skill\n")
         subprocess.run(["git", "add", "-A"], cwd=git_repo, capture_output=True, check=True)
         subprocess.run(["git", "commit", "-qm", "skills"], cwd=git_repo, capture_output=True, check=True)
 
         wt = create_worktree(str(git_repo), "worker-1")
-        inject_skills_to_worktree(["codex-debate"], wt.path)
+        inject_skills_to_worktree(["laptop-access"], wt.path)
 
         status = subprocess.run(
             ["git", "status", "--porcelain"], cwd=wt.path, capture_output=True, text=True,

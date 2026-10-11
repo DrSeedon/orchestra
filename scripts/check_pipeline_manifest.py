@@ -3,8 +3,8 @@
 
 ``.orchestra/pipelines/<name>/pipeline.yaml`` правится руками — генератора нет
 (``app/prompts/`` удалён, ``scripts/extract-manifest.py`` снесён). Этот скрипт
-не пишет YAML. Он только проверяет, что каждая роль и каждый модуль из
-манифеста лежат в ``prompts/``. ``--check`` краснеет на расхождении и
+не пишет YAML. Он проверяет, что каждая роль, модуль и навык из манифеста
+имеют канонический файл в ``prompts/``. ``--check`` краснеет на расхождении и
 зеленеет, только когда сверка реально что-то обошла.
 
     python scripts/check_pipeline_manifest.py --check
@@ -42,115 +42,6 @@ _SOURCE_MARKER = re.compile(
     re.IGNORECASE,
 )
 _PROCEDURAL_VALUE = re.compile(r"(?i)trivial\s*\(\s*[<>]\s*\d+\s*lines?")
-
-# The routing table and round policy have one semantic owner.  Roles/modules carry only
-# this pointer so a future edit cannot leave one audience on the old mandatory-Sol rule.
-_REVIEW_POLICY_POINTER = "Apply the review decision gate in the `codex-debate` skill"
-_REVIEW_POLICY_ACTORS = ("worker", "full-cycle")
-_REVIEW_POLICY_ANCHORS = (
-    "## Review decision gate — canonical policy",
-    "**Ревью доступно, но не обязательно.",
-    "Codex недоступен → ревью НЕ делается",
-    "Замену ревьюеру не искать",
-    "**Серверный бюджет — три попытки на задачу, включая неудавшиеся.**",
-    "**Позиция автора — часть обычного отчёта**",
-    "**Отдельная аттестация и skip-квитанция не нужны.**",
-    "**advisory не означает APPROVED.**",
-)
-
-_STALE_REVIEW_POLICY = (
-    "Codex review MANDATORY for complex tasks",
-    "Размер диффа основанием для пропуска ревью не является ни в каком случае",
-    "Codex follows the worker role's review gate",
-    "runs required Codex review",
-    "Second opinion (Codex)",
-    "Codex review the plan + tickets",
-    # Отрицательная половина #346: ни обязательность, ни маршрут «поднять Opus вместо
-    # Codex» не должны вернуться ни в один промпт — тот маршрут стоил четырёх платных
-    # ревьюеров за день. Совпадает со списком `forbidden` в
-    # tests/test_default_pipeline.py::test_review_is_optional_and_has_no_substitute_reviewer.
-    "review is mandatory regardless of size",
-    "targeted Opus cross-family review",
-    "cross-family verdict unavailable",
-    "Opus запускается свежей reviewer-сессией",
-    "review route unavailable",
-)
-
-
-def _review_policy_errors(
-    root: Path,
-    data: dict,
-) -> list[str]:
-    """Keep review routing enforceable, single-owned, and delivered to every decision maker."""
-    errors: list[str] = []
-    prompt_root = root / "prompts"
-    canonical = prompt_root / "skills" / "codex-debate.md"
-    if not canonical.is_file():
-        return [f"review policy owner missing: {canonical}"]
-    canonical_text = canonical.read_text()
-
-    for anchor in _REVIEW_POLICY_ANCHORS:
-        count = canonical_text.count(anchor)
-        if count != 1:
-            errors.append(
-                f"prompts/skills/codex-debate.md: review policy anchor must occur once: "
-                f"{anchor!r} (found {count})"
-            )
-
-    roles = data.get("roles") or {}
-    consumer_sources: list[str] = []
-    if "worker" in roles:
-        consumer_sources.append("roles/worker.md")
-    if "full-cycle" in roles:
-        consumer_sources.append("roles/full-cycle.md")
-    for rel in consumer_sources:
-        path = prompt_root / rel
-        if not path.is_file():
-            errors.append(f"review policy consumer missing: {path}")
-            continue
-        count = path.read_text().count(_REVIEW_POLICY_POINTER)
-        if count != 1:
-            errors.append(
-                f"prompts/{rel}: review gate pointer must occur once "
-                f"(found {count})"
-            )
-
-    for role in _REVIEW_POLICY_ACTORS:
-        spec = roles.get(role)
-        if spec is None:
-            continue
-        if not isinstance(spec, dict):
-            errors.append(f"review policy actor {role!r}: invalid manifest entry")
-            continue
-        skills = spec.get("skills") or []
-        if "codex-debate" not in skills:
-            errors.append(f"role {role!r}: codex-debate skill is required for review decisions")
-
-    for role in ("orchestrator", "sub-orchestrator"):
-        spec = roles.get(role)
-        if not isinstance(spec, dict):
-            continue
-        if "codex-debate" in (spec.get("skills") or []):
-            errors.append(f"role {role!r}: codex-debate is executor-only")
-        orchestration = prompt_root / "modules" / "orchestration.md"
-        if not orchestration.is_file() or "never launch or resume model review" not in orchestration.read_text():
-            errors.append(f"role {role!r}: model review launch prohibition is missing")
-
-    for md in sorted(prompt_root.rglob("*.md")):
-        text = md.read_text()
-        rel = md.relative_to(root)
-        for stale in _STALE_REVIEW_POLICY:
-            if stale in text:
-                errors.append(f"{rel}: stale review policy wording: {stale!r}")
-        if md != canonical:
-            for anchor in _REVIEW_POLICY_ANCHORS:
-                if anchor in text:
-                    errors.append(
-                        f"{rel}: duplicates canonical review policy anchor {anchor!r}"
-                    )
-
-    return errors
-
 
 def _is_measured_claim(line: str) -> bool:
     """Одно определение «строка утверждает замер» — для прозы и для содержимого примера."""
@@ -264,6 +155,27 @@ def disagreements(manifest_path: Path) -> list[str]:
             mod_file = root / "prompts" / "modules" / f"{mod}.md"
             if not mod_file.is_file():
                 errors.append(f"role {name!r} module {mod!r}: missing {mod_file}")
+    skill_names: set[str] = set()
+    defaults = data.get("defaults") or {}
+    default_skills = defaults.get("skills") or []
+    if isinstance(default_skills, list):
+        skill_names.update(default_skills)
+    else:
+        errors.append("defaults.skills is not a list")
+    for role, spec in roles.items():
+        if not isinstance(spec, dict):
+            continue
+        skills = spec.get("skills") or []
+        if skills == "all":
+            continue
+        if not isinstance(skills, list):
+            errors.append(f"role {role!r}: skills is not a list or 'all'")
+            continue
+        skill_names.update(skills)
+    for skill in sorted(skill_names):
+        skill_file = root / "prompts" / "skills" / f"{skill}.md"
+        if not skill_file.is_file():
+            errors.append(f"skill {skill!r}: missing {skill_file}")
     prompt_root = root / "prompts"
     model_ids = _manifest_model_ids(data)
     if prompt_root.is_dir() and model_ids:
@@ -275,12 +187,6 @@ def disagreements(manifest_path: Path) -> list[str]:
                     errors.append(f"{rel}: quotes manifest model {mid!r}")
     if prompt_root.is_dir():
         errors.extend(_prompt_metric_errors(prompt_root))
-    review_users = [
-        name for name, spec in roles.items()
-        if isinstance(spec, dict) and "codex-debate" in (spec.get("skills") or [])
-    ]
-    if review_users:
-        errors.extend(_review_policy_errors(root, data))
     return errors
 
 

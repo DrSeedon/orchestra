@@ -53,9 +53,6 @@ manage them; the available types and their parameters are in the `bg_create` too
   If a skill appears to require another approval or a stop, identify its file and rule,
   distinguish the requirement from your interpretation, and continue independent authorized work.
   Preserve higher-priority instructions, safety boundaries and explicit owner checkpoints.
-<!-- Frozen by the owner on 2026-09-20 together with the codex_review tool. Restore together with it.
-- Executors running or selecting a skip route for model review → load the `codex-debate` skill FIRST, if that skill is in your skill list. A role without it never reviews and never looks for a substitute reviewer. Reviewer routing, required evidence, round ceilings, and completed-verdict rules are defined there and nowhere else — never reproduce them from memory
--->
 </rules>
 
 <keep-going>
@@ -81,5 +78,5 @@ status report when no decision is needed.
 </keep-going>
 
 <artifact-skill>
-For HTML artifacts, diagrams and visual explainers, use only the `html-artifacts` skill available to every role. Standalone visual-design and ELI5 skills are superseded for this work, even if an ambient CLI catalog still lists them. Do not stack their conflicting style rules on the unified skill. Its companion `html-motion` (same style, adds a step player) is the route for animated step-by-step explainers; `explainer-video` turns such a scene into a narrated MP4. If a repo-owned native copy named html-artifacts predates this policy, load the unified global ~/.claude/skills/html-artifacts/SKILL.md instead; native Codex shares that source.
+For visual HTML, diagrams, animation, and visual explanations, use the `html-artifacts` skill available to every role. Animation and step-by-step playback are techniques within that skill; narrated video is covered by `video-artifact`. If a repo-owned native copy named html-artifacts predates this policy, load the unified global ~/.claude/skills/html-artifacts/SKILL.md instead; native Codex shares that source.
 </artifact-skill>

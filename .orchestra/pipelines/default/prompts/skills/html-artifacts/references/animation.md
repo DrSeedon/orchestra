@@ -1,12 +1,8 @@
----
-name: html-motion
-description: "Step-by-step animated HTML explanation: a ready player scaffold (play/pause, steps, seeking, speed, keys), an explanation for each step, chart animation over time, frame checks, and MP4 recording."
----
+# Animation and step-by-step playback
 
-# HTML Motion
-
-An extension of `html-artifacts`: its appearance, honest data, standalone file, SVG icon, and
-checks apply here too. This skill adds only motion and the player.
+Animation and step-by-step playback are techniques within this skill; use them when sequence or
+change over time carries meaning rather than adding motion for decoration. The shared appearance,
+honest-data, standalone-file, icon, and validation rules above continue to apply.
 
 Animation is useful when meaning lies in order or change over time: a task path, data transfer,
 or a metric growing toward an event. It explains rather than decorates. The answer is visible
@@ -24,8 +20,8 @@ without watching to the end.
    `prefers-reduced-motion` (step immediately at final state), print, frame link `#t=12.5`, and
    `window.P` (`seek/play/pause/t/T/S`) for checks. If a shell is available, copy the scaffold
    from this skill instead of retyping it: `awk '/^```html motion-template/{f=1;next} f&&/^```/{exit} f'
-   <path-to-this-SKILL.md> > out.html` (usually `.claude/skills/html-motion/SKILL.md` or
-   `.codex/skills/html-motion/SKILL.md` in the working folder).
+   <path-to-this-SKILL.md> > out.html` (usually `.claude/skills/html-artifacts/SKILL.md` or
+   `.codex/skills/html-artifacts/SKILL.md` in the working folder).
  - **Step:** `{d: seconds, t: 'what happens', x: 'why it matters, with numbers', set: {id: {attribute: value}}, w: {id: [from, to]}, e: 'lin'}`. `set` accumulates: a step changes only named values and holds the rest. `[a, b]` explicitly means “from a to b” (repeat motion). `text` changes text, `along: 'pathId', at: 0..1` moves an element along an SVG path (draw it around 0,0). `w` is the fraction of the step during which an element changes: `[.75,1]` for a result “when it arrives”, `[0,.5]` and `[.5,1]` for ordering within a step.
  - **The scaffold handles smoothness; do not write curves.** Numeric motion (coordinates, `at`,
    width) runs through the whole step with critically damped spring motion: soft start, long
@@ -69,7 +65,7 @@ frames → `ffmpeg -framerate 60 -f image2pipe -i - -c:v libx264 -pix_fmt yuv420
 Technique and smoothness measurements, examples, and recording scripts are in the Orchestra
 repository under `.orchestra/tasks/V-665/` and `.orchestra/tasks/V-668/`.
 
-## Player scaffold
+### Player scaffold
 
 ```html motion-template
 <!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -165,3 +161,4 @@ const P=(()=>{const S=[],TL={},E={},G={},FX={},rm=matchMedia('(prefers-reduced-m
  seek(+(location.hash.match(/t=([\d.]+)/)||[])[1]||0);return{seek,play,pause,get t(){return t},T,S}})();
 </script></body></html>
 ```
+

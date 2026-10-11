@@ -100,100 +100,11 @@ def test_check_fails_when_prompt_quotes_manifest_model_id(tmp_path):
     assert "claude-opus-5-5[1m]" in proc.stderr
 
 
-def _policy_copy(tmp_path: Path) -> Path:
+def _pipeline_copy(tmp_path: Path) -> Path:
     root = tmp_path / "default"
     shutil.copytree(DEFAULT.parent / "prompts", root / "prompts")
     shutil.copy2(DEFAULT, root / "pipeline.yaml")
     return root / "pipeline.yaml"
-
-
-def _policy_errors(manifest: Path) -> list[str]:
-    data = yaml.safe_load(manifest.read_text())
-    return check._review_policy_errors(manifest.parent, data)
-
-
-def test_review_policy_rejects_silent_worker_bypass(tmp_path):
-    manifest = _policy_copy(tmp_path)
-    worker = manifest.parent / "prompts" / "roles" / "worker.md"
-    worker.write_text(
-        worker.read_text().replace(check._REVIEW_POLICY_POINTER, "review when useful")
-    )
-
-    errors = _policy_errors(manifest)
-    assert any("roles/worker.md" in error and "pointer" in error for error in errors), errors
-
-
-def test_review_policy_keeps_advisory_distinct_from_approval(tmp_path):
-    manifest = _policy_copy(tmp_path)
-    owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
-    owner.write_text(
-        owner.read_text().replace(
-            "**advisory не означает APPROVED.**",
-            "advisory means approved",
-        )
-    )
-
-    errors = _policy_errors(manifest)
-    assert any("advisory" in error for error in errors), errors
-
-
-def test_review_policy_keeps_server_owned_attempt_budget(tmp_path):
-    manifest = _policy_copy(tmp_path)
-    owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
-    owner.write_text(
-        owner.read_text().replace(
-            "**Серверный бюджет — три попытки на задачу, включая неудавшиеся.**",
-            "Agent chooses its own unlimited budget",
-        )
-    )
-
-    errors = _policy_errors(manifest)
-    assert any("Серверный бюджет" in error for error in errors), errors
-
-
-def test_review_policy_rejects_stale_mandatory_sol_rule(tmp_path):
-    manifest = _policy_copy(tmp_path)
-    full_cycle = manifest.parent / "prompts" / "roles" / "full-cycle.md"
-    full_cycle.write_text(
-        full_cycle.read_text()
-        + "\nCodex review MANDATORY for complex tasks regardless of the policy gate.\n"
-    )
-
-    errors = _policy_errors(manifest)
-    assert any("stale review policy wording" in error for error in errors), errors
-
-
-def test_review_policy_rejects_duplicate_owner_clause(tmp_path):
-    manifest = _policy_copy(tmp_path)
-    consumer = manifest.parent / "prompts" / "modules" / "orchestration.md"
-    consumer.write_text(
-        consumer.read_text() + "\n## Review decision gate — canonical policy\n"
-    )
-
-    errors = _policy_errors(manifest)
-    assert any("duplicates canonical review policy" in error for error in errors), errors
-
-
-def test_review_policy_rejects_dropping_the_optional_review_contract(tmp_path):
-    """#349: якорь снятого правила заменён якорем нового — проверка осталась утверждающей."""
-    manifest = _policy_copy(tmp_path)
-    owner = manifest.parent / "prompts" / "skills" / "codex-debate.md"
-    owner.write_text(
-        owner.read_text().replace("Codex недоступен → ревью НЕ делается", "Ревью обязательно")
-    )
-
-    errors = _policy_errors(manifest)
-    assert any("Codex недоступен" in error for error in errors), errors
-
-
-def test_review_policy_rejects_returning_the_opus_substitute_route(tmp_path):
-    """Маршрут «поднять Opus вместо Codex» не должен вернуться ни в один промпт (#346)."""
-    manifest = _policy_copy(tmp_path)
-    role = manifest.parent / "prompts" / "roles" / "full-cycle.md"
-    role.write_text(role.read_text() + "\nCodex молчит → targeted Opus cross-family review.\n")
-
-    errors = _policy_errors(manifest)
-    assert any("stale review policy wording" in error for error in errors), errors
 
 
 def test_example_block_may_show_numbers_but_must_name_their_source(tmp_path):
@@ -235,16 +146,19 @@ def test_placeholder_template_is_not_a_measured_claim(tmp_path):
     assert check._prompt_metric_errors(prompts) == []
 
 
-def test_review_policy_rejects_returning_review_skill_to_orchestrators(tmp_path):
-    manifest = _policy_copy(tmp_path)
+def test_manifest_requires_role_skill_sources(tmp_path):
+    manifest = _pipeline_copy(tmp_path)
     data = yaml.safe_load(manifest.read_text())
-    data["roles"]["orchestrator"]["skills"].append("codex-debate")
+    data["roles"]["orchestrator"]["skills"].append("missing-role-skill")
     manifest.write_text(yaml.safe_dump(data))
-    assert any("executor-only" in error for error in _policy_errors(manifest))
+    errors = check.disagreements(manifest)
+    assert any("missing-role-skill" in error for error in errors), errors
 
 
-def test_review_policy_rejects_dropping_orchestrator_launch_prohibition(tmp_path):
-    manifest = _policy_copy(tmp_path)
-    module = manifest.parent / "prompts/modules/orchestration.md"
-    module.write_text(module.read_text().replace("never launch or resume model review", "may review"))
-    assert any("launch prohibition is missing" in error for error in _policy_errors(manifest))
+def test_manifest_requires_default_skill_sources(tmp_path):
+    manifest = _pipeline_copy(tmp_path)
+    data = yaml.safe_load(manifest.read_text())
+    data["defaults"]["skills"].append("missing-default-skill")
+    manifest.write_text(yaml.safe_dump(data))
+    errors = check.disagreements(manifest)
+    assert any("missing-default-skill" in error for error in errors), errors

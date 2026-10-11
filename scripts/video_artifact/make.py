@@ -1,9 +1,9 @@
-"""Объясняющий ролик: сцена html-motion + озвучка (русская Vosk TTS или английская Kokoro, `--lang en`) → MP4, синхронно по фразам.
+"""Объясняющий ролик: анимированная HTML-сцена или Manim + локальная озвучка → MP4, синхронно по фразам.
 
     uv run --frozen --project /home/kesha/orchestra python \
-        /home/kesha/orchestra/scripts/explainer_video/make.py scene.html --out DIR
+        /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out DIR
 
-Сцена `.py` — Manim вместо html-motion: класс-наследник VoiceScene из manim_voice.py,
+Сцена `.py` — Manim вместо HTML-анимации: класс-наследник VoiceScene из manim_voice.py,
 тот же договор STEPS; рендерит Manim из ~/.local/share/orchestra-manim.
 
 Озвучка задаёт время, а не наоборот: у каждого шага `STEPS` есть фраза `say`, она
@@ -74,7 +74,7 @@ window.voice = steps => {
 
 
 def fail(message: str) -> None:
-    sys.exit(f"explainer_video: {message}")
+    sys.exit(f"video_artifact: {message}")
 
 
 def run(*argv, **kwargs):
@@ -153,7 +153,7 @@ print(json.dumps({"cls": found[0].__name__, "steps": [{"t": s["t"], "say": s.get
 
 def manim_steps(scene: Path, lang: str) -> tuple[str, list[dict]]:
     if not (MANIM_BIN / "manim").exists():
-        fail(f"нет Manim: {MANIM_BIN}/manim — установка в SKILL explainer-video")
+        fail(f"нет Manim: {MANIM_BIN}/manim — установка в SKILL video-artifact")
     got = json.loads(run(str(MANIM_BIN / "python"), "-c", MANIM_STEPS_JS, str(scene.resolve()), str(HERE),
                          capture_output=True, text=True).stdout)
     return got["cls"], check_steps(got["steps"], lang)
@@ -163,7 +163,7 @@ def mark_stress(steps: list[dict], lang: str, enabled: bool) -> list[dict]:
     if lang != "ru" or not enabled:
         return steps
     if not TTS_PYTHON.exists():
-        fail(f"нет окружения TTS: {TTS_PYTHON} — установка в SKILL explainer-video")
+        fail(f"нет окружения TTS: {TTS_PYTHON} — установка в SKILL video-artifact")
     try:
         result = subprocess.run(
             [str(TTS_PYTHON), str(HERE / "tts_worker_stress.py")],
@@ -205,13 +205,13 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
             jobs.append({"text": text, "speaker": speaker, "voice": voice, "rate": rate, "out": str(raw)})
     if jobs and voice:
         if not TTS_EN_PYTHON.exists() or not (TTS_EN_HOME / "kokoro-v1.0.onnx").exists():
-            fail(f"нет английского TTS: {TTS_EN_PYTHON} и {TTS_EN_HOME}/kokoro-v1.0.onnx — установка в SKILL explainer-video")
+            fail(f"нет английского TTS: {TTS_EN_PYTHON} и {TTS_EN_HOME}/kokoro-v1.0.onnx — установка в SKILL video-artifact")
         print(f"синтез {len(jobs)} фраз (Kokoro, {voice})…", flush=True)
         run(str(TTS_EN_PYTHON), str(HERE / "tts_worker_en.py"), input=json.dumps(jobs).encode(),
             env={**os.environ, "ORCHESTRA_TTS_EN_HOME": str(TTS_EN_HOME)})
     elif jobs:
         if not TTS_PYTHON.exists() or not (TTS_MODEL / "model.onnx").exists():
-            fail(f"нет окружения TTS: {TTS_PYTHON} и {TTS_MODEL}/model.onnx — установка в SKILL explainer-video")
+            fail(f"нет окружения TTS: {TTS_PYTHON} и {TTS_MODEL}/model.onnx — установка в SKILL video-artifact")
         print(f"синтез {len(jobs)} фраз (загрузка модели ~2 мин)…", flush=True)
         run(str(TTS_PYTHON), str(HERE / "tts_worker.py"), input=json.dumps(jobs).encode(),
             env={**os.environ, "ORCHESTRA_TTS_MODEL": str(TTS_MODEL)})
@@ -325,14 +325,14 @@ def render_part(args) -> None:
 
 
 def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps: int, video: bool) -> None:
-    """Manim сам пишет MP4; длительности шагов получает через EXPLAINER_VOICE (см. manim_voice.py).
+    """Manim сам пишет MP4; длительности шагов получает через VIDEO_ARTIFACT_VOICE (см. manim_voice.py).
     --stills тоже рендерит, но в 480p: кадр Manim нельзя снять без проигрыша сцены до него."""
     media = out / ".manim"
     quality = ["-r", "1920,1080", "--fps", str(fps)] if video else ["-ql"]
     voice = {"d": [row["d"] for row in timing["steps"]], "pre": PRE, "post": POST}
     run(str(MANIM_BIN / "manim"), "render", *quality, "--media_dir", str(media), "-o", name,
         str(scene.resolve()), cls,
-        env={**os.environ, "EXPLAINER_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),
+        env={**os.environ, "VIDEO_ARTIFACT_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),
              "PATH": f"{MANIM_BIN}:{os.environ['PATH']}"})
     rendered = max(media.glob(f"videos/**/{name}.mp4"), key=lambda p: p.stat().st_mtime)
     frames_dir = out / "frames" / name
