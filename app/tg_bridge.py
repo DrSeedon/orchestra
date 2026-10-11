@@ -861,7 +861,12 @@ def _tool_line(tool_name: str, body: str) -> str:
 
 def _result_mark(result: str, is_error: bool | None) -> str:
     """Хвост строки действия: чем кончилось. Размер — по сырому ответу тула."""
-    if is_error:
+    state = re.search(
+        r"[\"']operation_state[\"']\s*:\s*[\"'](FAILED|PARTIAL|UNKNOWN)[\"']",
+        result,
+        re.IGNORECASE,
+    )
+    if is_error or state:
         first = next((ln for ln in result.splitlines() if ln.strip()), "ошибка")
         return f"✗ {_shorten(first, 18)}"
     return f"{_human_size(len(result))} ✓"

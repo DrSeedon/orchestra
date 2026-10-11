@@ -5239,6 +5239,17 @@ class TestTurnFold:
         assert tb._result_mark("", None) == "0 б ✓"
         assert tb._result_mark("SyntaxError: bad\nmore", True).startswith("✗ SyntaxError")
 
+    def test_result_mark_uses_merge_operation_state_from_structured_text(self, tb):
+        # Relevant fields copied from seedon-orchestrator DB log 639841.
+        success = (
+            "{'error': None, 'git': {'commits_merged': 1, 'status': 'SUCCEEDED'}, "
+            "'operation_state': 'SUCCEEDED', 'review': {'comparison_error': ''}}"
+        )
+        partial = "{'operation_state': 'PARTIAL', 'error': {'code': 'FINALIZATION'}}"
+        assert tb._result_mark(success, False).endswith("✓")
+        assert tb._result_mark(partial, False).startswith("✗")
+        assert tb._result_mark(success, True).startswith("✗")
+
     # ── состояние хода ────────────────────────────────────────────────────
     def test_state_is_idempotent_on_replay(self, tb):
         """Перегрузка очереди откатывает курсор и переигрывает строки журнала."""

@@ -3675,8 +3675,16 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             'mcp__orchestra__rename_worker': (c) => { const m = c.match(/Worker '(.+?)' renamed to '(.+?)'/); return m ? { text: `✏️ ${m[1]} → ${m[2]}`, color: '#22c55e' } : null; },
             'mcp__orchestra__change_worker_model': (c) => { const m = c.match(/model.*changed|'(.+?)'/i); return { text: T('✅ Model changed'), color: '#22c55e' }; },
             'mcp__orchestra__update_worker_description': (c) => { const m = c.match(/Description updated for '(.+?)'/); return m ? { text: `✏️ ${m[1]} — ${T('description updated')}`, color: '#22c55e' } : { text: `✅ ${T('description updated')}`, color: '#22c55e' }; },
-            'mcp__orchestra__merge_worker': (c) => { const m = c.match(/(\d+) commits? merged|Merged/i); return m ? { text: `🔀 ${T('Merged')}${m[1] ? ' ('+T('{n} commits', {n: m[1]})+')' : ''}`, color: '#22c55e' } : null; },
-            'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : c.includes('fail') || c.includes('error') || c.includes('Error') ? { text: `❌ ${c.substring(0, 60)}`, color: '#ef4444' } : { text: T('✅ Sent'), color: '#22c55e' }; },
+            'mcp__orchestra__merge_worker': (c) => {
+                const textCount = c.match(/^\s*(?:Merged(?:\s+(\d+)\s+commits?)?|(\d+)\s+commits?\s+merged)\b/i);
+                const structuredCount = c.match(/["']commits_merged["']\s*:\s*(\d+)/);
+                const count = textCount?.[1] || textCount?.[2] || structuredCount?.[1] || '';
+                const state = c.match(/["']operation_state["']\s*:\s*["'](SUCCEEDED|FAILED|PARTIAL|UNKNOWN)["']/i)?.[1]?.toUpperCase();
+                return state === 'SUCCEEDED' || textCount
+                    ? { text: `🔀 ${T('Merged')}${count ? ' ('+T('{n} commits', {n: count})+')' : ''}`, color: '#22c55e' }
+                    : null;
+            },
+            'mcp__orchestra__send_message': (c) => { const m = c.match(/sent to '(.+?)'/i); return m ? { text: `✅ → ${m[1]}`, color: '#22c55e' } : { text: T('✅ Sent'), color: '#22c55e' }; },
             'mcp__orchestra__compact_worker': null,
             'mcp__orchestra__list_agents': null,
             'mcp__orchestra__list_orchestrators': null,
@@ -3688,7 +3696,9 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         if (_orchResultCfg !== undefined) {
             const hdr = lastTool.querySelector('.flex.items-center');
             if (typeof _orchResultCfg === 'function') {
-                const hasErr = content.includes('failed') || content.includes('Failed') || content.includes('error') || content.includes('Error');
+                const state = content.match(/["']operation_state["']\s*:\s*["'](FAILED|PARTIAL|UNKNOWN)["']/i)?.[1];
+                const hasErr = payload?.tool_is_error === true
+                    || payload?.tool_is_error === 1 || Boolean(state);
                 if (hasErr) {
                     const toolAction = lastTool.dataset.toolRawName.split('__').pop();
                     if (hdr) {

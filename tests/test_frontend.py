@@ -1956,6 +1956,48 @@ def test_parallel_tool_results_follow_tool_use_id_in_both_renderers(
         )
 
 
+# V-815: tool outcomes are structured; words such as `error` in successful metadata
+# must not turn a completed call red.
+def test_orchestra_tool_result_uses_structured_outcome_not_error_words(
+    dashboard_browser: Browser,
+):
+    page = _open_tool_correlation_page(dashboard_browser, False)
+    # Excerpt from seedon-orchestrator's real merge_worker tool_result (DB log 639841,
+    # 2026-10-11T08:10:48Z); unrelated acceptance text and identifiers are omitted.
+    logged_success = (
+        "{'error': None, 'git': {'commits_merged': 1, 'status': 'SUCCEEDED'}, "
+        "'operation_state': 'SUCCEEDED', 'review': {'comparison_error': ''}}"
+    )
+    page.evaluate("""({loggedSuccess}) => {
+        const add = (name, id, result, isError) => {
+            addChatEntry('tool', `${name}: ${JSON.stringify({name:'fixture'})}`, null, null,
+                {id: id + 1, tool_use_id: id});
+            addChatEntry('tool_result', result, null, null,
+                {id: id + 2, tool_use_id: id, tool_is_error: isError ? 1 : 0});
+        };
+        add('mcp__orchestra__merge_worker', 'logged-success', loggedSuccess, false);
+        add('mcp__orchestra__rename_worker', 'empty-error',
+            \"{'error': None, 'comparison_error': ''}\", false);
+        add('mcp__orchestra__merge_worker', 'partial',
+            \"{'operation_state': 'PARTIAL', 'error': {'code': 'FINALIZATION'}}\", false);
+        add('mcp__orchestra__merge_worker', 'failed',
+            \"{'operation_state': 'FAILED', 'error': {'code': 'CONFLICT'}}\", false);
+        add('mcp__orchestra__merge_worker', 'mcp-error', 'tool_error: denied', true);
+    }""", {"loggedSuccess": logged_success})
+
+    success = page.locator('[data-tool-use-id="logged-success"]')
+    expect(success.locator('.flex.items-center')).to_contain_text('Merged')
+    expect(success.locator('.flex.items-center')).to_contain_text('1 commits')
+    expect(success.locator('.flex.items-center')).not_to_contain_text('Tool failed')
+
+    empty_error = page.locator('[data-tool-use-id="empty-error"]')
+    expect(empty_error.locator('.flex.items-center')).not_to_contain_text('Tool failed')
+    for tool_id in ('partial', 'failed', 'mcp-error'):
+        card = page.locator(f'[data-tool-use-id="{tool_id}"]')
+        expect(card.locator('.flex.items-center')).to_contain_text('Tool failed')
+    page.close()
+
+
 # Формы идентификатора, реально встречающиеся в журнале: Claude/MCP пишет `toolu_*`,
 # Codex и Luna — `exec-<uuid>`, а у нативных Codex-событий он приходит только внутри
 # тела вызова как `_codex_item_id`.
