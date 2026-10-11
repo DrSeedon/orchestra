@@ -1,0 +1,1 @@
+2026-10-11T05:05:30.041318Z ERROR codex_core::tools::router: error=exec_command failed: CreateProcess { message: "Rejected(\"Failed to create unified exec process: Permission denied (os error 13)\")" }
