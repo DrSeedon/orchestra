@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "reason": "guarded_source_change",
+  "tests": [
+    "tests/test_frontend.py"
+  ],
+  "test_artifacts": [
+    "tests/test_frontend.py"
+  ],
+  "changed_sources": [
+    "app/static/js/app.js"
+  ],
+  "selected_nodes": [],
+  "fallback_files": [
+    "tests/test_frontend.py"
+  ],
+  "control_status": "passed",
+  "control_passed_tests": [
+    "tests/test_frontend.py::test_model_picker_preserves_same_runtime_dialog_and_surfaces_transfer_result",
+    "tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.html]",
+    "tests/test_frontend.py::test_raw_html_response_has_sandbox_csp[.HTM]",
+    "tests/test_frontend.py::test_raw_non_html_response_has_no_artifact_csp",
+    "tests/test_frontend.py::test_raw_file_falls_back_from_deleted_archived_worktree_to_same_scope",
+    "tests/test_frontend.py::test_raw_file_does_not_fallback_while_archived_worktree_still_exists",
+    "tests/test_frontend.py::test_raw_file_does_not_fallback_between_different_repository_scopes",
+    "tests/test_frontend.py::test_raw_file_still_denies_paths_outside_allowed_roots",
+    "tests/test_frontend.py::test_raw_missing_download_returns_human_readable_page",
+    "tests/test_frontend.py::test_raw_image_preview_is_bounded_webp_and_original_stays_untouched",
+    "tests/test_frontend.py::test_raw_video_supports_range_and_full_download",
+    "tests/test_frontend.py::test_tg_topic_frontend_and_route_share_the_persistent_api_contract",
+    "tests/test_frontend.py::test_hidden_orchestrator_menu_shares_tab_status_and_cache_builders",
+    "tests/test_frontend.py::test_api_retry_spaces_attempts_with_jitter"
+  ],
+  "mutation_failed_tests": [
+    "tests/test_frontend.py::test_hidden_orchestrator_menu_shares_tab_status_and_cache_builders"
+  ],
+  "target_sha": "8c00c71c72dbfc1ce83524c3085633895689d7f1"
+}
