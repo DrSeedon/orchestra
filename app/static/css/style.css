@@ -1038,6 +1038,22 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-night { fill: #64748b; opacity: .12; }
 .ql-timeline-burn { fill: none; stroke: #8595ab; stroke-width: 1.4; stroke-dasharray: 5 4; opacity: .75; }
 .ql-now { stroke: #f8fafc; stroke-width: 1.5; stroke-dasharray: 4 3; opacity: .85; }
+.ql-timeline-threshold.ql-gated { stroke: #fb923c; stroke-width: 2.5; stroke-dasharray: 10 5; opacity: .95; }
+.ql-timeline-threshold.ql-gated-sol { stroke: #f472b6; stroke-dasharray: 10 3 2 3; }
+.ql-timeline-threshold.ql-gated.ql-timeline-projection,
+.ql-hard.ql-timeline-projection { opacity: .28; }
+.ql-timeline-threshold.ql-gated-sol.ql-timeline-projection { stroke-dasharray: 5 5 1 5; }
+.ql-timeline-hard { stroke: #fdba74; stroke-width: 1.7; stroke-dasharray: 2 3; }
+.ql-timeline-edge-label { font-size: 10px; font-weight: 600; font-family: var(--font-mono); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.ql-timeline-history { stroke-width: 3; opacity: 1; }
+.ql-timeline-point-label { fill: var(--ink); font-size: 11px; font-weight: 600; font-family: var(--font-mono); paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.ql-timeline-legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: -1px 0 8px; color: var(--ink-faint); font-size: 10px; }
+.ql-timeline-legend i { display: inline-block; width: 16px; height: 0; margin-right: 5px; border-top: 3px solid; vertical-align: middle; }
+.ql-timeline-key-fact { height: 3px !important; border: 0 !important; background: linear-gradient(90deg, #f472b6, #fb923c); }
+.ql-timeline-key-threshold { height: 3px !important; border: 0 !important; background: repeating-linear-gradient(90deg, #fb923c 0 7px, transparent 7px 11px, #f472b6 11px 18px, transparent 18px 22px); }
+.ql-timeline-key-burn { border-color: #8595ab !important; border-top-style: dotted !important; border-top-width: 2px !important; }
+.ql-timeline-legend span:nth-child(2) { position: relative; }
+.ql-timeline-legend span:nth-child(2)::after { content: ''; display: inline-block; width: 9px; height: 6px; margin-left: 3px; background: #fb923c; opacity: .28; vertical-align: middle; }
 .ql-axis { fill: var(--ink-faintest); font-size: 11px; font-family: var(--font-mono); }
 .ql-point-label { font-size: 13px; font-weight: 600; }
 .ql-halo { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
@@ -1052,6 +1068,7 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .ql-hard { stroke: #fb923c; stroke-width: 1.5; stroke-dasharray: 2 4; }
 .ql-orch { stroke: var(--accent); stroke-width: 1.5; stroke-dasharray: 8 5; opacity: .75; }
 .ql-trace { fill: none; stroke-width: 1.8; stroke-linecap: round; opacity: .92; }
+.ql-trace.ql-timeline-history { stroke-width: 3; opacity: 1; }
 .ql-trace-codex { stroke: #f472b6; }
 .ql-trace-codex-spark { stroke: #c084fc; }
 .ql-trace-anthropic { stroke: #fb923c; }
