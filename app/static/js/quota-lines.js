@@ -11,6 +11,8 @@ window.QuotaPanel = (() => {
 const _QL_W = 960, _QL_H = 470, _QL_ML = 54, _QL_MR = 20, _QL_MT = 18, _QL_MB = 44;
 const _QL_PW = _QL_W - _QL_ML - _QL_MR, _QL_PH = _QL_H - _QL_MT - _QL_MB;
 const _QL_REFRESH_MS = 120000;
+const _QL_RESET_HISTORY_HOURS = 252, _QL_RESET_HISTORY_STEP_MINUTES = 30;
+const _QL_RESET_HISTORY_CACHE_MS = 300000;
 const _QL_LABEL_STEP = 12;
 const _QL_LABEL_TOP_PAD = 8;
 const _QL_KR_HOUR_FORMAT = new Intl.DateTimeFormat('en-GB', {
@@ -28,6 +30,8 @@ let _quotaLinesData = null;
 let _quotaLinesError = '';
 let _quotaLinesOpen = false;
 let _quotaLinesTimer = null;
+let _quotaResetHistory = null, _quotaResetHistoryAt = 0, _quotaResetHistoryPending = null;
+let _quotaResetHistoryAttemptAt = 0;
 // Server withholds subscription quotas outside owner mode: the panel has nothing to
 // govern there, and "no data — owner_mode_only" read as a fault to outside users.
 let _quotaLinesOwnerOnly = false;
@@ -191,6 +195,70 @@ function _qlAllLanes() {
         for (const lane of (bucket.lanes || [])) lanes.push(lane);
     }
     return lanes;
+}
+
+async function _qlLoadResetHistory() {
+    const now = Date.now();
+    if (_quotaResetHistory && now - _quotaResetHistoryAt < _QL_RESET_HISTORY_CACHE_MS) {
+        return _quotaResetHistory;
+    }
+    if (now - _quotaResetHistoryAttemptAt < _QL_RESET_HISTORY_CACHE_MS) return _quotaResetHistory;
+    if (_quotaResetHistoryPending) return _quotaResetHistoryPending;
+    _quotaResetHistoryAttemptAt = now;
+    _quotaResetHistoryPending = (async () => {
+        const raw = await api(
+            `/api/usage/history?hours=${_QL_RESET_HISTORY_HOURS}&step_minutes=${_QL_RESET_HISTORY_STEP_MINUTES}`,
+            {timeoutMs: 5000},
+        );
+        const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!Array.isArray(data?.rows)) throw new Error('usage history response has no rows');
+        _quotaResetHistory = data;
+        _quotaResetHistoryAt = Date.now();
+        return data;
+    })().catch(error => {
+        console.warn(`quota reset history unavailable: ${error?.message || error}`);
+        return _quotaResetHistory;
+    }).finally(() => { _quotaResetHistoryPending = null; });
+    return _quotaResetHistoryPending;
+}
+
+function _qlObservedWindowResets(history, bucketId, window) {
+    if (!Array.isArray(history?.rows) || !window) return [];
+    const expectedId = String(window.id || ''), expectedMinutes = Number(window.window_minutes);
+    const maxGap = (Number(history.step_minutes) || _QL_RESET_HISTORY_STEP_MINUTES) * 2 * 60000;
+    const resets = [];
+    let previous = null;
+    for (const row of history.rows) {
+        const windows = row?.providers?.[bucketId]?.windows;
+        const match = Array.isArray(windows)
+            ? windows.find(item => String(item?.id || '') === expectedId)
+                || windows.find(item => Number(item?.window_minutes) === expectedMinutes)
+            : null;
+        const ts = Date.parse(row?.ts);
+        const utilization = match?.utilization;
+        const resetAt = Date.parse(match?.resets_at);
+        if (!match || !Number.isFinite(ts) || !Number.isFinite(utilization)
+            || !Number.isFinite(resetAt) || Number(match.window_minutes) !== expectedMinutes) {
+            previous = null;
+            continue;
+        }
+        if (previous && ts - previous.ts <= maxGap
+            && previous.utilization > 0 && utilization === 0 && resetAt > previous.resetAt) {
+            resets.push({at: ts, window_minutes: expectedMinutes});
+        }
+        previous = {ts, utilization, resetAt};
+    }
+    return resets;
+}
+
+function _qlApplyWindowResetHistory(data, history) {
+    if (!Array.isArray(data?.buckets) || !Array.isArray(history?.rows)) return;
+    for (const bucket of data.buckets) {
+        bucket.timeline = bucket.timeline || {points: []};
+        bucket.timeline.reset_events = _qlObservedWindowResets(
+            history, bucket.bucket, bucket.window,
+        );
+    }
 }
 
 function _qlLaneLabel(laneId) {
@@ -399,19 +467,30 @@ function _qlTimelineSvg(panel, rule) {
         const duration = Number(window?.window_minutes) * 60000;
         if (!Number.isFinite(reset) || !(duration > 0)) continue;
         const cycles = [];
-        for (let end = reset; end - duration < to; end += duration) cycles.push({end, span: duration});
-        for (let end = reset - duration; end > from; end -= duration) cycles.push({end, span: duration});
-        for (const {end, span} of cycles) {
-            const start = end - span;
+        if (Array.isArray(bucket.timeline?.reset_events)
+            && bucket.timeline.reset_events.length > 0) {
+            const starts = bucket.timeline.reset_events
+                .map(event => Number(event.at))
+                .filter(at => Number.isFinite(at) && at <= now)
+                .sort((a, b) => a - b);
+            for (let i = 0; i < starts.length; i++) {
+                const start = starts[i];
+                const end = starts[i + 1] || reset;
+                if (end > start) cycles.push({start, end});
+            }
+        } else {
+            for (let end = reset; end - duration < to; end += duration) {
+                cycles.push({start: end - duration, end});
+            }
+            for (let end = reset - duration; end > from; end -= duration) {
+                cycles.push({start: end - duration, end});
+            }
+        }
+        for (const {start, end} of cycles) {
+            const span = end - start;
             const left = Math.max(from, start), right = Math.min(to, end);
             if (right <= left) continue;
             const progressAt = ts => Math.max(0, Math.min(1, (ts - start) / span));
-            const baseline = [];
-            for (let i = 0; i <= 50; i++) {
-                const ts = left + (right - left) * i / 50, progress = progressAt(ts);
-                baseline.push(`${x(ts)},${y(progress * 100)}`);
-            }
-            p.push(`<polyline class="ql-timeline-burn" points="${baseline.join(' ')}"/>`);
             const events = (_quotaLinesData?.rule_history || [])
                 .map(event => Number(event.effective_from) * 1000)
                 .filter(ts => Number.isFinite(ts) && ts > left && ts < right)
@@ -437,7 +516,7 @@ function _qlTimelineSvg(panel, rule) {
                             ))}`);
                         }
                         const colorClass = lane === 'sol' ? 'ql-gated-sol' : '';
-                        p.push(`<polyline class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
+                        p.push(`<polyline class="ql-gated ql-timeline-threshold ${colorClass}${projectionClass}" data-ql-timeline-threshold="${_escHtml(lane)}" data-ql-policy-from="${_escHtml(active.effectiveFrom)}" data-ql-window-start="${start / 1000}" data-ql-window-end="${end / 1000}" points="${coords.join(' ')}"/>`);
                         if (segmentRight === to) {
                             const value = _qlMonotoneLimitAt(
                                 progressAt(segmentRight), segmentRule, lane, span / 60000, start,
@@ -715,7 +794,6 @@ function _qlPanelHtml(panel) {
         <div class="ql-timeline-legend">
             <span><i class="ql-timeline-key-fact"></i>${T('usage history & current')}</span>
             <span><i class="ql-timeline-key-threshold"></i>${T('threshold; future projection dimmed')}</span>
-            <span><i class="ql-timeline-key-burn"></i>${T('steady burn')}</span>
         </div>
         ${_qlTimelineSvg(panel, rule)}
         ${chart.svg}
@@ -801,6 +879,8 @@ async function fetchQuotaLines() {
             dataRaw = await _fetchQuotaMapShared();
         }
         const data = typeof dataRaw === 'string' ? JSON.parse(dataRaw) : dataRaw;
+        const resetHistory = await _qlLoadResetHistory();
+        _qlApplyWindowResetHistory(data, resetHistory);
         _quotaLinesOwnerOnly = !!data && data.data_available === false && data.error === 'owner_mode_only';
         if (data && data.data_available === false) {
             _quotaLinesData = null;

@@ -138,7 +138,8 @@ def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progres
     return data
 
 
-def _render(browser: Browser, payload, as_json: bool = False, language: str = "en") -> "tuple":
+def _render(browser: Browser, payload, as_json: bool = False, language: str = "en",
+            reset_history: dict | None = None) -> "tuple":
     """Открыть страницу, подменить api() и отрисовать панель РАСКРЫТОЙ."""
     errors: list = []
     page = browser.new_page()
@@ -167,12 +168,14 @@ def _render(browser: Browser, payload, as_json: bool = False, language: str = "e
     else:
         page_payload = payload
     page.evaluate(
-        """async raw => {
-            api = async () => (raw === null ? Promise.reject(new Error('boom')) : raw);
+        """async ({raw, resetHistory}) => {
+            api = async path => path?.startsWith('/api/usage/history')
+                ? (resetHistory || raw)
+                : (raw === null ? Promise.reject(new Error('boom')) : raw);
             QuotaPanel.init();
             await QuotaPanel.fetch();
         }""",
-        page_payload,
+        {"raw": page_payload, "resetHistory": reset_history},
     )
     page.click("#quota-lines-toggle")
     return page, errors
@@ -252,6 +255,82 @@ def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser):
     screenshot.parent.mkdir(parents=True, exist_ok=True)
     page.set_viewport_size({"width": 1280, "height": 1600})
     page.screenshot(path=str(screenshot), full_page=True)
+    page.close()
+
+
+def test_codex_threshold_uses_observed_boundaries_after_early_reset(browser):
+    payload = _payload(codex_util=9.0, codex_progress=0.04)
+    payload["generated_at"] = "2026-10-11T09:05:54+00:00"
+    codex = payload["buckets"][0]
+    codex["window"] = {
+        "id": "primary", "label": "7d", "window_minutes": 10080,
+        "utilization": 9.0, "resets_at": "2026-10-18T04:09:27Z",
+        "reset_in_seconds": 604413.0, "starts_at": "2026-10-11T04:09:27Z",
+        "progress": 5 / 168,
+    }
+
+    def snapshot(ts, utilization, resets_at):
+        return {
+            "ts": ts,
+            "providers": {"codex": {"windows": [{
+                "id": "primary", "window_minutes": 10080,
+                "utilization": utilization, "resets_at": resets_at,
+            }]}},
+        }
+
+    history = {
+        "step_minutes": 30,
+        "rows": [
+            snapshot("2026-10-07T03:12:00Z", 55.0, "2026-10-11T03:13:40Z"),
+            snapshot("2026-10-07T03:42:00Z", 0.0, "2026-10-14T03:29:43Z"),
+            snapshot("2026-10-11T03:42:00Z", 92.0, "2026-10-14T03:29:43Z"),
+            snapshot("2026-10-11T04:12:00Z", 0.0, "2026-10-18T04:09:27Z"),
+        ],
+    }
+    page, errors = _render(browser, payload, reset_history=history)
+
+    gated_lanes = {
+        lane["lane"]
+        for bucket in payload["buckets"]
+        for lane in bucket["lanes"]
+        if lane["gated"]
+    }
+    for lane in gated_lanes:
+        timeline_thresholds = page.locator(
+            f"[data-ql-timeline='all'] [data-ql-timeline-threshold='{lane}']"
+        )
+        assert timeline_thresholds.count() > 0, (
+            f"gated lane {lane} must have a timeline threshold"
+        )
+        if lane == "claude":
+            assert timeline_thresholds.evaluate_all(
+                "els => els.some(el => !el.classList.contains('ql-timeline-projection'))"
+            )
+            assert timeline_thresholds.evaluate_all(
+                "els => els.some(el => el.classList.contains('ql-timeline-projection'))"
+            )
+
+    start = datetime.fromisoformat("2026-10-07T03:42:00+00:00").timestamp()
+    end = datetime.fromisoformat("2026-10-11T04:12:00+00:00").timestamp()
+    lines = page.locator(
+        "[data-ql-timeline='all'] [data-ql-timeline-threshold='sol']"
+    ).evaluate_all("els => els.map(el => ({start: el.getAttribute('data-ql-window-start'), end: el.getAttribute('data-ql-window-end'), points: el.getAttribute('points')}))")
+    matched = [item for item in lines
+               if abs(float(item["start"]) - start) < 0.001
+               and abs(float(item["end"]) - end) < 0.001]
+    assert len(matched) == 1, f"expected {start}..{end}, got {[(item['start'], item['end']) for item in lines]}"
+    line = matched[0]
+    first_x, first_y = map(float, line["points"].split()[0].split(","))
+    assert first_x == pytest.approx(54.0)
+
+    chart_from = datetime.fromisoformat(payload["generated_at"]).timestamp() - 84 * 3600
+    progress = (chart_from - start) / (end - start)
+    expected_y = 18 + (1 - _limit(progress, "sol") / 100) * (470 - 18 - 44)
+    assert first_y == pytest.approx(expected_y, abs=0.1)
+
+    inferred_start = end - 7 * 24 * 3600
+    assert start != inferred_start
+    assert errors == [], errors
     page.close()
 
 
