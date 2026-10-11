@@ -1,0 +1,10 @@
+Read-only investigation of this repository. Do not modify any file.
+
+Question: when an orchestrator sends a message to a worker and the Claude or Codex quota gate is closed, how does the message become WAITING_QUOTA, and exactly when and by which code path is it released and delivered?
+
+Answer with:
+1. The full call path from the send_message MCP tool to the durable WAITING_QUOTA row, as a numbered list of functions with file:line.
+2. The exact condition (formula with the variable names from the code) that decides whether the gate is open, including the weekly line, tolerance and any day/night logic.
+3. The release path: what wakes held deliveries, in which order they are sent, and what happens after change_worker_model.
+4. Two concrete edge cases where a held message could be delivered late or never, each with file:line evidence.
+Keep the answer under 700 words.

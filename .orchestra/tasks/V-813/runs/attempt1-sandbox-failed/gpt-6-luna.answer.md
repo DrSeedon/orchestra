@@ -1,0 +1,1 @@
+I couldn’t complete the repository investigation. Every read attempt in `/tmp/v813-wt` was blocked before the command ran by the execution sandbox (`bwrap: loopback: Failed RTM_NEWADDR: Operation not permitted`). I therefore can’t verify the call paths or line numbers without guessing. No files were modified.
