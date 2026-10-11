@@ -1,14 +1,15 @@
 ---
-name: explainer-video
-description: "A 30–90 s MP4 explainer in the style of 3Blue1Brown: an html-motion animated diagram or Manim chart/animation with local Russian (Vosk) or English (Kokoro) voice-over, phrase synchronization, recognition checks, and Telegram video delivery."
+name: video-artifact
+description: "Create and deliver a 30–90 s MP4 explainer in the style of 3Blue1Brown, using an animated HTML scene or Manim with local Russian or English voice-over, phrase synchronization, and checks."
 ---
 
 # Explainer Video
 
-A video is a scene voiced step by step: `html-motion` for diagrams or Manim for charts and
-mathematics in motion. For html-motion, take the scene rules, player scaffold, and `STEPS` from
-the `html-motion` skill (load it); this skill adds only audio and the 16:9 frame. Numbers and
-facts come from a source (report, data, or code), as in every artifact.
+A video is a scene voiced step by step: load `html-artifacts` and read its
+`references/animation.md` for HTML diagrams, or use Manim for charts and mathematics in motion.
+This skill adds voice, the 16:9 frame,
+and video-specific checks. Numbers and facts come from a source (report, data, or code), as in
+every artifact.
 
 **Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes all phrases first,
 then sets step duration to intro + phrase + pause (0.35 and 0.55 s divided by `--rate`, default
@@ -18,7 +19,7 @@ almost the whole step, so `w: {id: [a, b]}` approximates its fraction: an object
 the middle uses `[.4, .6]`. For a second precise accent, split the phrase into two steps rather
 than tuning windows.
 
-- **Scene:** use the complete `html-motion` scaffold, `<svg id="stage" viewBox="0 0 1200 520">`.
+- **Scene:** for HTML, use the player scaffold in `html-artifacts`, with `<svg id="stage" viewBox="0 0 1200 520">`.
   Immediately after `STEPS`, include `STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);` — without it the tool stops. The video label is subtitles (Telegram's feed plays without sound): use `say`; if it contains transliteration or numbers written as words, use `sub` with the screen form (for example "Together", "7 680"); `t` is a short step heading.
 - For `along` with a `w` window, also set the markup attribute (`<circle along="path">`): before
   the window the scaffold uses the initial value and otherwise falls back to `getPointAtLength`.
@@ -45,15 +46,15 @@ Manim is the library used by 3Blue1Brown. Grant works on ManimGL; use Community 
 (ManimCE 0.20.1, MIT), which is more stable and documented at docs.manim.community. A scene is a
 Python class, Cairo renders frames, and Manim writes the video.
 
-**What to choose.** Use html-motion for diagrams, flow diagrams, tables, text, and existing HTML
-artifacts; it is fast to edit and can capture any frame. Use Manim for mathematics and data in
+**What to choose.** Use animated HTML scenes for diagrams, flow diagrams, tables, text, and
+existing HTML artifacts; they are fast to edit and can capture any frame. Use Manim for mathematics and data in
 motion: axes and function plots (`Axes`, `plot`), drawn curves (`Create`), changing numbers
 (`ValueTracker` + `always_redraw`), shape transformations (`Transform`), polar/radial charts,
 and LaTeX formulas with substituted values. Choose Manim for smooth morphing and growing charts.
 
 **Scene:** a `.py` file with one `VoiceScene` subclass from
-`scripts/explainer_video/manim_voice.py` (beside `make.py`). The contract is the same as
-html-motion: `STEPS` with `t`/`say`/`sub`/`hold`, and the same `say` rules. Each step is a
+`scripts/video_artifact/manim_voice.py` (beside `make.py`). The contract is the same as the
+HTML scene: `STEPS` with `t`/`say`/`sub`/`hold`, and the same `say` rules. Each step is a
 `with self.step(i):` block containing ordinary `self.play(...)`. Set animation durations as
 fractions of the remaining step, `run_time=self.left() * 0.4`, so phrase and rate changes stay
 synchronized; overrunning a step stops the build with a clear error. `VoiceScene` draws heading
@@ -82,7 +83,7 @@ class Growth(VoiceScene):
 
 Build with `make.py scene.py --out <folder>`; the engine is selected by extension. Preview
 without voice with `manim -ql scene.py Class` and
-`PYTHONPATH=/home/kesha/orchestra/scripts/explainer_video`; 480p takes about one minute.
+`PYTHONPATH=/home/kesha/orchestra/scripts/video_artifact`; 480p takes about one minute.
 
 **Formulas are LaTeX.** `MathTex` (math) and `Tex` (text with `$…$`) render through TeX and look
 like textbook typesetting. `manim_voice` puts the project's TinyTeX on PATH and installs a
@@ -112,7 +113,7 @@ stdin so it does not appear in the command line:
 ```
 printf '%s\n' "$DEEPGRAM_API_KEY" | ssh -o BatchMode=yes kesha@localhost \
   'read -r K; cd <work folder> && DEEPGRAM_API_KEY=$K uv run --frozen --project /home/kesha/orchestra \
-   python /home/kesha/orchestra/scripts/explainer_video/make.py scene.html --out <folder>'
+   python /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out <folder>'
 ```
 
 Always use `bg_create(type="run")`: a 69 s video took 9.5 min (model loading ~2 min, six
@@ -220,7 +221,7 @@ uv pip install --python "$P/bin/python" playwright==1.61.0
 PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
   "$P/bin/python" -m playwright install chromium
 PLAYWRIGHT_BROWSERS_PATH=/mnt/data/orchestra-playwright \
-  "$P/bin/python" /home/kesha/orchestra/scripts/explainer_video/make.py scene.html --out video
+  "$P/bin/python" /home/kesha/orchestra/scripts/video_artifact/make.py scene.html --out video
 ```
 
 If `/mnt/data` is unavailable or lacks space, choose another storage location for

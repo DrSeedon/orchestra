@@ -35,9 +35,6 @@ Skip this whenever the answer is in our own code (known file, clear repro, given
   checks actually performed and what remains unverified.
 - All changes committed (`git status` must be clean)
 - **Review route:** model review was frozen by the owner on 2026-09-20 — do not seek a substitute. The ordinary result report includes the actual check result, final commit, and remaining uncertainty.
-<!-- restore together with the codex_review tool:
-- **Review route — after the pre-mortem:** Apply the review decision gate in the `codex-debate` skill; include the actual check result, optional review artifact, final commit, and remaining uncertainty in the ordinary result report
--->
 - Code works — you ran/tested it
 - No leftover debug prints, TODOs, commented-out code
 - If you figured out something non-obvious — written to `.orchestra/` or project files

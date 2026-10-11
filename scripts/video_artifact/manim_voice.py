@@ -1,4 +1,4 @@
-"""Сцена Manim, озвученная по шагам: тот же договор, что у html-motion в make.py.
+"""Сцена Manim, озвученная по шагам: договор STEP-сцен тот же, что у видео-сборщика.
 
     from manim import *
     from manim_voice import VoiceScene, BLUE_, GOLD_
@@ -16,11 +16,11 @@
                 ...
 
 Длительность шага задаёт озвучка: make.py синтезирует фразы и передаёт длительности через
-EXPLAINER_VOICE. Внутри `with self.step(i)` анимации занимают сколько угодно, но не больше
+VIDEO_ARTIFACT_VOICE. Внутри `with self.step(i)` анимации занимают сколько угодно, но не больше
 шага: остаток добирается паузой, перебор останавливает сборку. `self.left()` — сколько
 секунд осталось в шаге; длительности анимаций задавай долями шага, а не секундами, тогда
 темп ролика меняется одним ключом. Заголовок `t` и субтитр `sub ?? say` рисует сцена сама.
-Без EXPLAINER_VOICE (просмотр `manim -ql`) длительность шага оценивается по длине фразы.
+Без VIDEO_ARTIFACT_VOICE (просмотр `manim -ql`) длительность шага оценивается по длине фразы.
 MathTex/Tex работают с кириллицей: шаблон LaTeX и путь к TinyTeX ставит этот модуль.
 """
 from __future__ import annotations
@@ -35,7 +35,7 @@ import manimpango
 from manim import DOWN, LEFT, UL, UP, Scene, TexTemplate, Text, VGroup, config
 
 FONTS = Path(__file__).resolve().parent / "fonts"
-# Свой TinyTeX рядом с Manim (SKILL explainer-video); нет его — latex берётся из системного PATH.
+# Свой TinyTeX рядом с Manim (SKILL video-artifact); нет его — latex берётся из системного PATH.
 TEX_BIN = Path(os.environ.get("ORCHESTRA_MANIM_HOME", Path.home() / ".local/share/orchestra-manim")) / "tex/bin/x86_64-linux"
 if TEX_BIN.is_dir():
     os.environ["PATH"] = f"{TEX_BIN}:{os.environ['PATH']}"
@@ -62,7 +62,7 @@ class VoiceScene(Scene):
     CAPTION_CHARS = 66  # строка субтитра при размере 26 на ширину кадра
 
     def setup(self):
-        voice = json.loads(os.environ.get("EXPLAINER_VOICE", "null"))
+    voice = json.loads(os.environ.get("VIDEO_ARTIFACT_VOICE", "null"))
         if voice:
             self.durations, self.pre, self.post = voice["d"], voice["pre"], voice["post"]
         else:

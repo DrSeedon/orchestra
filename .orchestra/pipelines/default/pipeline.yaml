@@ -3,7 +3,7 @@ description: Upstream-derived v2.18 pipeline with local models and runtime modul
 validation: fail-open
 defaults:
   model: opus
-  skills: [html-artifacts, html-motion, explainer-video]
+  skills: [html-artifacts, video-artifact]
   mcp_servers: []
   inherit_claude_md: true
   prompt_layers:
@@ -45,7 +45,7 @@ roles:
     # Ручной выбор Astra владельцем оставляет ступень для оркестраторского промпта;
     # агентские вызовы блокируются централизованным model gate.
     effort: &effort_policy {"claude-opus-5-5[1m]": high, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
-    skills: [grill-me, orchestra-agents, laptop-access]
+    skills: [grill-me, orchestra-agents, laptop-access, vps-deploy]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
     # заспавнить ни одной роли. Сама роль остаётся в манифесте, потому что живой
@@ -64,7 +64,7 @@ roles:
     order: 1
     model: claude-opus-5-5[1m]
     effort: *effort_policy
-    skills: [orchestra-agents, laptop-access]
+    skills: [orchestra-agents, laptop-access, vps-deploy]
     modules: [safety, project-maintenance, code-quality, dynamic-workflows, model-routing, git-workflow, orchestration, worker-lifecycle, background-jobs, task-management, knowledge, communication-style, user-values]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя
     # заспавнить ни одной роли. Сама роль остаётся в манифесте, потому что живой
@@ -83,8 +83,6 @@ roles:
     order: 2
     model: claude-sonnet-5-5[1m]
     effort: &worker_effort_policy {"claude-opus-5-5[1m]": medium, "claude-sonnet-5-5[1m]": medium, claude-haiku-5-5: low, gpt-6-luna: high, gpt-6-astra: medium, harness: medium, default: high}
-    # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
-    # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
     skills: [laptop-access]
     modules: [safety, project-maintenance, code-quality, git-workflow, report-format, knowledge, communication-style, user-values]
     can_spawn: []
@@ -108,8 +106,6 @@ roles:
     # вернуть xhigh, и это будет данными, а не спором. Относится к ключу Opus; у Sol и Astra
     # ступени свои (#214, #373 и основания в комментарии над `roles:`).
     effort: *worker_effort_policy
-    # Скилл codex-debate ЗАМОРОЖЕН решением владельца 20.09.2026 вместе с тулом
-    # codex_review: воркер Codex рецензировал сам себя, это долго и ничего не решало.
     skills: [laptop-access]
     modules: [safety, project-maintenance, dynamic-workflows, model-routing, research-method, code-quality, git-workflow, worker-lifecycle, report-format, task-management, knowledge, communication-style, user-values]
     # Роль sub-orchestrator ЗАМОРОЖЕНА решением владельца 18.09.2026: её нельзя

@@ -3932,11 +3932,8 @@ def _read_codex_uuid(sessions_path: str, slug: str) -> str:
 
 
 
-# ЗАМОРОЖЕНО решением владельца 20.09.2026, дословно: «заморозь чтобы никто не мог
-# вызвать убери тул закоменти и в промптах тоже закоменти». Модельное ревью своей же
-# работы воркером Codex стоило целого фонового прогона и ничего не решало. Снимать
-# заморозку — вернуть декоратор ниже И строки про `codex-debate` в манифесте ролей
-# и промптах; тело функции и её тесты оставлены нетронутыми ровно для этого.
+# Frozen by the owner on 2026-09-20; the review function remains unregistered.
+# Restore its decorator only after the owner explicitly reverses that decision.
 # @mcp.tool()
 async def codex_review(
     context: str,

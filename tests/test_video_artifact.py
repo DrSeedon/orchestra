@@ -1,4 +1,4 @@
-"""Сверка распознанной озвучки с планом (scripts/explainer_video/make.py, V-681).
+"""Сверка распознанной озвучки с планом (scripts/video_artifact/make.py, V-681).
 
 Это оракул приёмки ролика: если он не узнаёт фразу, произнесённую дословно, агент
 перефразирует понятный текст или, наоборот, пропустит невнятный.
@@ -7,7 +7,7 @@ import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location("explainer_make", ROOT / "scripts/explainer_video/make.py")
+spec = importlib.util.spec_from_file_location("video_artifact_make", ROOT / "scripts/video_artifact/make.py")
 make = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(make)
 

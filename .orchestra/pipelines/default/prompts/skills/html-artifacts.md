@@ -1,6 +1,6 @@
 ---
 name: html-artifacts
-description: "Visual HTML artifacts, diagrams, charts, and explanations: dense white interface, linked hover states, calculations, and an SVG icon. Use when visualization helps understand the subject; keep short answers, code, and commands as text."
+description: "Create visual HTML artifacts, diagrams, animated explanations, and charts with linked interactions, honest data, and a consistent visual system. Use when visualization helps; keep short answers, code, and commands as text."
 ---
 
 # HTML Artifacts
@@ -135,12 +135,14 @@ requester; the orchestrator performs user delivery through task-authorized `send
 
 ## One owner of appearance
 
-In Orchestra, use this skill for HTML, diagrams, and visual explanations. Do not layer separate
-`eli5`, `frontend-design`, `apple-design`, `diagram-design`, `3d-frontend`, `quickdesign`, or
-`playground` skills over it. Selected techniques live here; saved sources and office templates
+In Orchestra, use this skill for HTML, diagrams, animation, and visual explanations. Do not layer
+separate design skills over it. Selected techniques live here; saved sources and office templates
 are references, not automatic routes. PDF/DOCX/PPTX/XLSX remain tools of their own formats. This
 file is self-contained; external skills are not required to run it.
 
-Basis: the owner's choice across two galleries and a dynamics clarification. Technique sources:
-local html-artifacts, apple-design, frontend-design, eli5, playground, and 3d-frontend; diagrams
-from cathrynlavery/diagram-design (MIT). Their effect on speed/quality was not measured.
+BASIS: the owner's choice across two galleries and a dynamics clarification. Technique sources:
+local visual-artifact examples and diagrams from cathrynlavery/diagram-design (MIT). Their effect
+on speed/quality was not measured.
+## Animation and step-by-step playback
+
+When order or change over time carries meaning, use animation to explain the causal sequence rather than decorate it. Read [`references/animation.md`](references/animation.md) inside this skill for the complete step format, player scaffold, motion rules, frame capture, and checks. The visual, data-honesty, standalone-file, and accessibility rules above still apply.
