@@ -103,6 +103,8 @@ async def test_budget_exhaustion_returns_none_and_marks_manifest_partial(tmp_pat
     assert calls == ["spends-the-budget"]
     assert manifest["complete"] is False
     assert manifest["partial_reason"] == "budget"
+    skipped = [row for row in engine.journal.load() if row.get("event") == "skipped"]
+    assert skipped[-1]["reason"] == "budget"
 
 
 @pytest.mark.asyncio
@@ -620,9 +622,9 @@ async def test_schema_retries_twice_with_validation_error_then_returns_none(tmp_
     engine = _engine("schema-case", tmp_path, budget_usd=2, adapter=adapter)
     assert await engine.agent("give answer", model="luna", schema=schema) is None
     assert len(prompts) == 3
-    assert "Validation error:" not in prompts[0]
-    assert "Validation error:" in prompts[1]
-    assert "Validation error:" in prompts[2]
+    schema_json = json.dumps(schema, ensure_ascii=False, sort_keys=True)
+    assert all(schema_json in prompt for prompt in prompts)
+    assert prompts[0] != prompts[1] != prompts[2]
     assert engine.write_manifest()["partial_reason"] == "schema"
 
 
@@ -630,6 +632,11 @@ async def test_schema_retries_twice_with_validation_error_then_returns_none(tmp_
 async def test_schema_retry_accepts_a_later_valid_response(tmp_path):
     prompts = []
     outputs = iter(["not-json", '{"answer": "ok"}'])
+    schema = {
+        "type": "object",
+        "properties": {"answer": {"type": "string"}},
+        "required": ["answer"],
+    }
 
     async def adapter(prompt, **_kwargs):
         prompts.append(prompt)
@@ -639,15 +646,40 @@ async def test_schema_retry_accepts_a_later_valid_response(tmp_path):
     value = await engine.agent(
         "give answer",
         model="luna",
-        schema={
-            "type": "object",
-            "properties": {"answer": {"type": "string"}},
-            "required": ["answer"],
-        },
+        schema=schema,
     )
     assert value.data == {"answer": "ok"}
     assert len(prompts) == 2
-    assert "Validation error:" in prompts[1]
+    assert json.dumps(schema, ensure_ascii=False, sort_keys=True) in prompts[0]
+    assert json.dumps(schema, ensure_ascii=False, sort_keys=True) in prompts[1]
+    assert prompts[0] != prompts[1]
+
+
+@pytest.mark.asyncio
+async def test_schema_invalid_raw_response_is_saved_with_a_byte_limit(tmp_path):
+    raw_response = "x" * (wf_run._SCHEMA_RESPONSE_MAX_BYTES + 1024)
+
+    async def invalid(_prompt, **_kwargs):
+        return _result(raw_response)
+
+    engine = _engine(
+        "schema-response-artifact", tmp_path, budget_usd=1, max_calls=1,
+        adapter=invalid,
+    )
+    assert await engine.agent(
+        "return an object", model="luna", schema={"type": "object"},
+    ) is None
+
+    event = next(
+        row for row in engine.journal.load()
+        if row.get("event") == "schema_invalid"
+    )
+    saved = engine.run_dir / event["response_path"]
+    payload = saved.read_bytes()
+    assert saved.is_file()
+    assert len(payload) <= wf_run._SCHEMA_RESPONSE_MAX_BYTES
+    assert payload.startswith(b"x")
+    assert b"truncated" in payload
 
 
 @pytest.mark.asyncio
@@ -915,8 +947,12 @@ async def test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt(tmp_
     )
     assert await first.agent("work", model="luna", schema=schema) is None
     first_manifest = first.write_manifest()
-    assert first_manifest["partial_reason"] == "budget"
-    assert first_calls == ["work"]
+    assert first_manifest["partial_reason"] == "call_limit"
+    assert len(first_calls) == 1
+    first_rows = first.journal.load()
+    deferred = next(row for row in first_rows if row.get("event") == "retry_deferred")
+    assert deferred["reason"] == "call_limit"
+    assert "partial_reason=call_limit" in wf_run._notification_summary(first_manifest)
 
     resumed_calls = []
 
@@ -930,7 +966,8 @@ async def test_schema_retry_deferred_by_call_budget_resumes_at_next_attempt(tmp_
     value = await resumed.agent("work", model="luna", schema=schema)
     assert value.data == {"answer": "ok"}
     assert len(resumed_calls) == 1
-    assert "Validation error:" in resumed_calls[0]
+    assert json.dumps(schema, ensure_ascii=False, sort_keys=True) in resumed_calls[0]
+    assert resumed_calls[0] != first_calls[0]
     assert resumed.budget.dispatched_calls == 2
     assert resumed.write_manifest()["complete"] is True
 
