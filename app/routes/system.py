@@ -5,6 +5,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import hmac
+import html
 import json
 import logging
 import math
@@ -53,6 +54,7 @@ from app.models import (
 )
 from app.pipeline import list_pipelines
 from app import restart_guard
+from app.workspace import WORKTREE_ROOT, _slugify
 from app.runtime_registry import get_runtime
 
 logger = logging.getLogger("orchestra.system")
@@ -226,6 +228,52 @@ def _is_safe_path(path: str) -> bool:
     return True
 
 
+def _archived_worktree_fallback(path: Path) -> Path | None:
+    requested = path.resolve()
+    worktree_root = WORKTREE_ROOT.resolve()
+    try:
+        sessions = get_all_sessions(include_archived=True)
+    except sqlite3.Error as error:
+        logger.warning("could not inspect archived worktrees for %s: %s", path, err_text(error))
+        return None
+    for session in sessions:
+        if session.get("status") != "archived":
+            continue
+        worktree_raw = session.get("worktree_path")
+        scope_raw = session.get("scope")
+        if not worktree_raw or not scope_raw:
+            continue
+        worktree = Path(worktree_raw).resolve()
+        if worktree.exists():
+            continue
+        try:
+            relative = requested.relative_to(worktree)
+        except ValueError:
+            continue
+        if not relative.parts or worktree.parent.parent != worktree_root:
+            continue
+        scope = Path(scope_raw).resolve()
+        if worktree.parent.name != _slugify(str(scope)):
+            continue
+        if not scope.is_dir() or not (scope / ".git").exists():
+            continue
+        candidate = scope / relative
+        if _is_safe_path(str(candidate)) and candidate.is_file():
+            return candidate
+    return None
+
+
+def _missing_download_page(filename: str) -> HTMLResponse:
+    safe_filename = html.escape(filename)
+    return HTMLResponse(
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>File unavailable</title>"
+        "</head><body><h1>File unavailable</h1><p>"
+        f"{safe_filename} was not found in the worktree or its project checkout."
+        "</p></body></html>",
+        status_code=404,
+    )
+
+
 BINARY_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.ico', '.bmp', '.webp',
                      '.zip', '.tar', '.gz', '.bz2', '.xz', '.rar', '.7z',
                      '.exe', '.bin', '.so', '.whl', '.dll', '.dylib', '.pyc',
@@ -279,7 +327,12 @@ async def get_file_raw(path: str, request: Request, download: bool = False, prev
         return JSONResponse({"error": "access denied"}, status_code=403)
     target = Path(path)
     if not target.is_file():
-        return JSONResponse({"error": "not found"}, status_code=404)
+        fallback = _archived_worktree_fallback(target)
+        if fallback is None:
+            if download:
+                return _missing_download_page(target.name)
+            return JSONResponse({"error": "not found"}, status_code=404)
+        target = fallback
     if preview > 0 and not download and target.suffix.lower() in _IMAGE_PREVIEW_EXTENSIONS:
         edge = max(_IMAGE_PREVIEW_MIN_EDGE, min(preview, _IMAGE_PREVIEW_MAX_EDGE))
         stat_result = target.stat()

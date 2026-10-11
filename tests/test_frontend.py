@@ -111,6 +111,153 @@ async def test_raw_non_html_response_has_no_artifact_csp(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_raw_file_falls_back_from_deleted_archived_worktree_to_same_scope(
+    tmp_path, monkeypatch,
+):
+    from starlette.responses import FileResponse
+
+    from app.routes import system
+
+    scope = tmp_path / "project"
+    scope.mkdir()
+    (scope / ".git").mkdir()
+    repo_slug = system._slugify(str(scope.resolve()))
+    worktree_root = tmp_path / "worktrees"
+    monkeypatch.setattr(system, "WORKTREE_ROOT", worktree_root)
+    relative = Path(".orchestra/tasks/V-817/request.docx")
+    main_file = scope / relative
+    main_file.parent.mkdir(parents=True)
+    main_file.write_bytes(b"the merged project copy")
+    worktree = worktree_root / repo_slug / "retired-worker"
+    worktree_file = worktree / relative
+    assert not worktree.exists()
+
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+    monkeypatch.setattr(system, "get_all_sessions", lambda **_kwargs: [{
+        "status": "archived",
+        "scope": str(scope),
+        "worktree_path": str(worktree),
+    }])
+
+    response = await system.get_file_raw(
+        str(worktree_file), _raw_file_request(), download=True,
+    )
+
+    assert isinstance(response, FileResponse)
+    assert Path(response.path) == main_file
+    assert response.headers["content-disposition"].endswith('filename="request.docx"')
+
+
+@pytest.mark.asyncio
+async def test_raw_file_does_not_fallback_while_archived_worktree_still_exists(
+    tmp_path, monkeypatch,
+):
+    from starlette.responses import JSONResponse
+
+    from app.routes import system
+
+    scope = tmp_path / "project"
+    scope.mkdir()
+    (scope / ".git").mkdir()
+    repo_slug = system._slugify(str(scope.resolve()))
+    worktree_root = tmp_path / "worktrees"
+    monkeypatch.setattr(system, "WORKTREE_ROOT", worktree_root)
+    worktree = worktree_root / repo_slug / "retired-worker"
+    worktree.mkdir(parents=True)
+    relative = Path(".orchestra/tasks/V-817/request.docx")
+    main_file = scope / relative
+    main_file.parent.mkdir(parents=True)
+    main_file.write_bytes(b"main copy must not shadow an existing worktree")
+    missing_worktree_file = worktree / relative
+
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+    monkeypatch.setattr(system, "get_all_sessions", lambda **_kwargs: [{
+        "status": "archived",
+        "scope": str(scope),
+        "worktree_path": str(worktree),
+    }])
+
+    response = await system.get_file_raw(str(missing_worktree_file), _raw_file_request())
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_raw_file_does_not_fallback_between_different_repository_scopes(
+    tmp_path, monkeypatch,
+):
+    from starlette.responses import JSONResponse
+
+    from app.routes import system
+
+    scope = tmp_path / "project"
+    scope.mkdir()
+    (scope / ".git").mkdir()
+    worktree_root = tmp_path / "worktrees"
+    monkeypatch.setattr(system, "WORKTREE_ROOT", worktree_root)
+    worktree = worktree_root / "other-repository" / "retired-worker"
+    relative = Path(".orchestra/tasks/V-817/request.docx")
+    main_file = scope / relative
+    main_file.parent.mkdir(parents=True)
+    main_file.write_bytes(b"must not serve a different repository's file")
+    missing_worktree_file = worktree / relative
+
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+    monkeypatch.setattr(system, "get_all_sessions", lambda **_kwargs: [{
+        "status": "archived",
+        "scope": str(scope),
+        "worktree_path": str(worktree),
+    }])
+
+    response = await system.get_file_raw(str(missing_worktree_file), _raw_file_request())
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_raw_file_still_denies_paths_outside_allowed_roots(tmp_path, monkeypatch):
+    from starlette.responses import JSONResponse
+
+    from app.routes import system
+
+    allowed = tmp_path / "allowed"
+    outside = tmp_path / "outside"
+    allowed.mkdir()
+    outside.mkdir()
+    outside_path = outside / "missing.docx"
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(allowed)])
+    monkeypatch.setattr(
+        system, "get_all_sessions",
+        lambda **_kwargs: (_ for _ in ()).throw(AssertionError("fallback must not run")),
+    )
+
+    response = await system.get_file_raw(str(outside_path), _raw_file_request(), download=True)
+
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_raw_missing_download_returns_human_readable_page(tmp_path, monkeypatch):
+    from starlette.responses import HTMLResponse
+
+    from app.routes import system
+
+    missing = tmp_path / "gone.docx"
+    monkeypatch.setattr(system, "_ALLOWED_ROOTS", [str(tmp_path)])
+    monkeypatch.setattr(system, "get_all_sessions", lambda **_kwargs: [])
+
+    response = await system.get_file_raw(str(missing), _raw_file_request(), download=True)
+
+    assert isinstance(response, HTMLResponse)
+    assert response.status_code == 404
+    assert b"File unavailable" in response.body
+    assert b"gone.docx was not found" in response.body
+
+
+@pytest.mark.asyncio
 async def test_raw_image_preview_is_bounded_webp_and_original_stays_untouched(
     tmp_path,
     monkeypatch,
