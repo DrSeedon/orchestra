@@ -1,0 +1,42 @@
+{
+  "budget_usd": 0.5,
+  "complete": true,
+  "dispatched_calls": 1,
+  "finished": true,
+  "partial_reason": null,
+  "result": [
+    {
+      "data": {
+        "count": 1,
+        "status": "ok"
+      },
+      "free_sources": [],
+      "result_path": "/home/kesha/orchestra/data/workflow-runs/V-814-6c0275ecefed/steps/a2acea49b3ba5bbcce2cb43c8e84111ce2573c341ea07353312f2aa6fe17f367-0.json",
+      "value_id": "a2acea49b3ba5bbcce2cb43c8e84111ce2573c341ea07353312f2aa6fe17f367:0",
+      "verified_sources": [],
+      "workspace_path": "/home/kesha/orchestra/data/workflow-runs/V-814-6c0275ecefed/workspaces/a2acea49b3ba5bbcce2cb43c8e84111ce2573c341ea07353312f2aa6fe17f367-0/attempt-1"
+    }
+  ],
+  "resume_command": "env ORCHESTRA_TASK_ID=V-814 ORCHESTRA_SCOPE=/home/kesha/orchestra /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python /home/kesha/orchestra/scripts/wf_run.py --budget-usd 0.5 --max-calls 2 --max-concurrency 1 --spec /home/kesha/orchestra/data/workflow-runs/V-814-6c0275ecefed/request.json --repo /home/kesha/orchestra --base-commit c686f4aeaf7c581993931928c28aec3ff80bcf2e --resume V-814-6c0275ecefed",
+  "run_id": "V-814-6c0275ecefed",
+  "scheduler": {
+    "active": 0,
+    "average_task_bytes": 416740119,
+    "limit": 7,
+    "queued": 0,
+    "reason": "min(cpu=8, memory_headroom=4676616192/416740119=11, pressure_factor=0.952=>7); active=0, avg_task_memory=416740119",
+    "waiting_run": ""
+  },
+  "spent_usd": 0.00161632,
+  "steps": [
+    {
+      "call_key": "a2acea49b3ba5bbcce2cb43c8e84111ce2573c341ea07353312f2aa6fe17f367:0",
+      "error": null,
+      "label": "Task 1",
+      "reason": "completed",
+      "result_path": "/home/kesha/orchestra/data/workflow-runs/V-814-6c0275ecefed/steps/a2acea49b3ba5bbcce2cb43c8e84111ce2573c341ea07353312f2aa6fe17f367-0.json",
+      "workspace_path": "/home/kesha/orchestra/data/workflow-runs/V-814-6c0275ecefed/workspaces/a2acea49b3ba5bbcce2cb43c8e84111ce2573c341ea07353312f2aa6fe17f367-0/attempt-1"
+    }
+  ],
+  "wake_message": "wf_run V-814-6c0275ecefed interrupted; resume with: env ORCHESTRA_TASK_ID=V-814 ORCHESTRA_SCOPE=/home/kesha/orchestra /opt/orchestra/runtimes/20260817-b0b72d65-py312-rag-v2/bin/python /home/kesha/orchestra/scripts/wf_run.py --budget-usd 0.5 --max-calls 2 --max-concurrency 1 --spec /home/kesha/orchestra/data/workflow-runs/V-814-6c0275ecefed/request.json --repo /home/kesha/orchestra --base-commit c686f4aeaf7c581993931928c28aec3ff80bcf2e --resume V-814-6c0275ecefed"
+}

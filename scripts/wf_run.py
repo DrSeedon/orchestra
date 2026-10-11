@@ -36,6 +36,8 @@ UsageWriter = Callable[..., bool]
 ReadinessChecker = Callable[[str], Awaitable[dict]]
 _RUN_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$")
 _SCHEMA_META = {"$schema", "$id", "title", "description", "default", "examples"}
+_SCHEMA_RESPONSE_MAX_BYTES = 64 * 1024
+_SCHEMA_RESPONSE_TRUNCATION = b"\n[response truncated]\n"
 DEFAULT_WORKFLOW_MODULES: tuple[str, ...] = (
     "communication-style",
     "user-values",
@@ -133,8 +135,12 @@ class Budget:
     def remaining_calls(self) -> int:
         return max(0, self.maximum_calls - self.dispatched_calls)
 
-    def exhausted(self) -> bool:
-        return self.spent_usd >= self.maximum_usd or self.dispatched_calls >= self.maximum_calls
+    def exhaustion_reason(self) -> str | None:
+        if self.spent_usd >= self.maximum_usd:
+            return "budget"
+        if self.dispatched_calls >= self.maximum_calls:
+            return "call_limit"
+        return None
 
 
 def _jsonable(value: Any) -> Any:
@@ -235,6 +241,25 @@ def _schema_retry_prompt(prompt: str, error: str, schema: dict) -> str:
         + "\nReturn only JSON that satisfies this schema:\n"
         + json.dumps(schema, ensure_ascii=False, sort_keys=True)
     )
+
+
+def _schema_prompt(prompt: str, schema: dict) -> str:
+    return (
+        prompt
+        + "\n\nReturn only JSON that satisfies this schema:\n"
+        + json.dumps(schema, ensure_ascii=False, sort_keys=True)
+    )
+
+
+def _save_schema_invalid_response(scratch: Path, attempt: int, response: str) -> Path:
+    raw = response.encode("utf-8", errors="replace")
+    if len(raw) > _SCHEMA_RESPONSE_MAX_BYTES:
+        prefix_limit = _SCHEMA_RESPONSE_MAX_BYTES - len(_SCHEMA_RESPONSE_TRUNCATION)
+        prefix = raw[:prefix_limit].decode("utf-8", errors="ignore").encode("utf-8")
+        raw = prefix + _SCHEMA_RESPONSE_TRUNCATION
+    path = scratch / f"attempt-{attempt}-schema-invalid.txt"
+    path.write_bytes(raw)
+    return path
 
 
 def validate_pilot_manifest(manifest: dict) -> None:
@@ -742,9 +767,14 @@ class WorkflowEngine:
             self.journal.append({"event": "task_started", "call_key": call_key, "label": label})
 
         async with self._state_lock:
-            if self.budget.exhausted():
-                self.partial_reason = "budget"
-                self.journal.append({"event": "skipped", "call_key": call_key, "reason": "budget"})
+            exhaustion_reason = self.budget.exhaustion_reason()
+            if exhaustion_reason:
+                self.partial_reason = self.partial_reason or exhaustion_reason
+                self.journal.append({
+                    "event": "skipped",
+                    "call_key": call_key,
+                    "reason": exhaustion_reason,
+                })
                 return None
 
         selected = ""
@@ -793,7 +823,7 @@ class WorkflowEngine:
             return None
         scratch = self.run_dir / "calls" / call_key.replace(":", "-")
         scratch.mkdir(parents=True, exist_ok=True)
-        current_prompt = rendered
+        current_prompt = _schema_prompt(rendered, schema) if schema is not None else rendered
         total_cost = 0.0
         final_data: Any = None
         result: AdapterResult | None = None
@@ -805,7 +835,7 @@ class WorkflowEngine:
             self.partial_reason = self.partial_reason or "schema"
             self._finish(call_key, None, reason="schema")
             return None
-        deferred_budget = False
+        deferred_reason = ""
         for attempt in range(start_attempt, 3):
             semaphore = self._codex_semaphore if runtime == "codex" else self._semaphore
             event_id = f"wf:{self.run_id}:{call_key}:{attempt + 1}"
@@ -817,13 +847,14 @@ class WorkflowEngine:
                 )
                 try:
                     async with self._state_lock:
-                        if self.budget.exhausted():
-                            self.partial_reason = "budget"
-                            deferred_budget = True
+                        exhaustion_reason = self.budget.exhaustion_reason()
+                        if exhaustion_reason:
+                            self.partial_reason = self.partial_reason or exhaustion_reason
+                            deferred_reason = exhaustion_reason
                             self.journal.append({
                                 "event": "retry_deferred",
                                 "call_key": call_key,
-                                "reason": "budget",
+                                "reason": exhaustion_reason,
                                 "next_attempt": attempt,
                             })
                             break
@@ -904,24 +935,29 @@ class WorkflowEngine:
                 break
             except ValueError as error:
                 schema_error = str(error)
+                response_path = _save_schema_invalid_response(
+                    scratch, attempt + 1, result.text,
+                )
                 self.journal.append({
                     "event": "schema_invalid",
                     "call_key": call_key,
                     "attempt": attempt + 1,
                     "next_attempt": attempt + 1,
                     "error": schema_error,
+                    "response_path": response_path.relative_to(self.run_dir).as_posix(),
+                    "response_bytes": response_path.stat().st_size,
+                    "response_truncated": len(
+                        result.text.encode("utf-8", errors="replace")
+                    ) > _SCHEMA_RESPONSE_MAX_BYTES,
                 })
                 if attempt < 2:
                     current_prompt = _schema_retry_prompt(rendered, schema_error, schema)
 
-        if deferred_budget:
+        if deferred_reason:
             return None
         if result is None or not result.ok or schema_error:
-            reason = "budget" if result is None else ("schema" if schema_error else result.stop_reason)
-            if reason == "budget":
-                self.partial_reason = "budget"
-            else:
-                self.partial_reason = self.partial_reason or reason
+            reason = "error" if result is None else ("schema" if schema_error else result.stop_reason)
+            self.partial_reason = self.partial_reason or reason
             self._finish(
                 call_key,
                 None,
