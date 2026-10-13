@@ -1,0 +1,12 @@
+SystemMessage {'model': 'claude-opus-5-5', 'fast_mode_state': 'off', 'fast_mode_disabled_reason': 'extra_usage_disabled'}  None
+RateLimitEvent {}  None
+AssistantMessage {} None None
+ResultMessage {} standard None
+RateLimitEvent {}  None
+SystemMessage {'model': 'claude-sonnet-5-5', 'fast_mode_state': 'off', 'fast_mode_disabled_reason': 'extra_usage_disabled'}  None
+AssistantMessage {} None None
+ResultMessage {} standard None
+RateLimitEvent {}  None
+SystemMessage {'model': 'claude-sonnet-5-5', 'fast_mode_state': 'off', 'fast_mode_disabled_reason': 'sdk_opt_in_required'}  None
+AssistantMessage {} None None
+ResultMessage {} standard None
