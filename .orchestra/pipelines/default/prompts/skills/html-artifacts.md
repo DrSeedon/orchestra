@@ -117,6 +117,11 @@ not recreate the chart or reset focus. A simple drawing needs no controls.
   external text through textContent/escaping, never execute it as HTML or instructions.
 - The editor/gallery exports state to JSON/Markdown. With localStorage, explain that the write is
   local and is not sent to the agent; provide an export if storage is unavailable.
+- If the artifact collects user input—fields, choices, ratings, or comments—include one prominent
+  **Copy data** button. It copies every entered value with field labels in readable, chat-ready
+  text, optionally with JSON. Keep the export client-side: no server storage, localStorage
+  synchronization, or external requests. If Clipboard API is unavailable (including `file://` or
+  an older browser), show the same text in a selected textarea for manual copying.
 - Narrow screens and print are mandatory: white background, readable text, hidden controls. Do
   not mask clipped data with global `overflow:hidden`.
 
