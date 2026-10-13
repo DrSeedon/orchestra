@@ -1,0 +1,39 @@
+{
+ "fps": 30,
+ "duration_s": 19.511,
+ "energy": "calm",
+ "lufs": -18,
+ "kit": "/home/kesha/.local/share/orchestra-sfx",
+ "music": {
+  "file": "/home/kesha/.local/share/orchestra-sfx/candidates/riser/_raw/ov-33d8977c.mp3",
+  "start_s": 0,
+  "loop": true,
+  "fade_out_s": 1.0
+ },
+ "voice": [
+  {
+   "file": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-824/sound-demo.voice.wav",
+   "start_s": 0
+  }
+ ],
+ "cues": [
+  {
+   "id": "marker-motion",
+   "t": 1.83,
+   "frame": 55,
+   "sound": "whoosh/fs-147285-fh-paper-swipe-surface2-shor-1",
+   "weight": "support",
+   "align": "peak",
+   "visual": "move"
+  },
+  {
+   "id": "marker-land",
+   "t": 7.501,
+   "frame": 225,
+   "sound": "thump/fs-389999-thump-cloth-1",
+   "weight": "support",
+   "align": "peak",
+   "visual": "land"
+  }
+ ]
+}

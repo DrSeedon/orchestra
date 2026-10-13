@@ -144,6 +144,24 @@ terms («репозито́рий», «оркестра́тор»), and names. F
 Output: `<name>.mp4`, `<name>.timing.json`, `<name>-contact.png` (last frame of each step), and
 `<name>.check.json` (Deepgram nova-2 recognition per phrase and its start offset from the plan).
 
+## Sound layer
+
+Sound is optional; scenes without `events` keep the voice-only mux. For a sound-enabled step,
+declare real actions in `STEPS` as `events: [{id, at, sound, weight, visual}]`. `at` is seconds
+from that step's start; `sound` is a picked kit id or layer expression, `weight` is `support` or
+`hero`, and `visual` is `cut`, `move`, `land`, or `appear` only when the picture has that motion.
+`make.py` maps the event through `timing.json` to its exact frame/time; never type frame numbers.
+Pass a CC0 or owner-provided music bed with `--music path`; it loops under voice and effects and
+ducks during speech. A declared event without a bed is rejected.
+
+Install the kit only at `~/.local/share/orchestra-sfx/` with `uv run --script
+scripts/video_artifact/sound/sfx.py kit`. Review candidates with `sfx.py browse --type <type>
+--like "<material, weight, mood>"`; use `search`/`add` only for CC0 sources. Inspect the chosen
+recordings' waveform and spectrogram. Never synthesize hits, clicks, or whooshes. Do not call a
+sound good: report the measured `qa.py` checks and leave the final ear check to a person. The
+sound scripts and MIT attribution are in `scripts/video_artifact/sound/`; downloaded sounds and
+their `CREDITS.md` stay in the external kit directory. `make.py` runs sound QA automatically.
+
 ## Check before sending
 
 - Open the contact sheet and inspect every frame: nothing is clipped or overlaid, the step result

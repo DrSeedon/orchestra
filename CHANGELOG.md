@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Added
+- **Optional event-synced sound layer for video-artifact** (`scripts/video_artifact/make.py`, `scripts/video_artifact/sound/`; V-824). HTML and Manim steps can declare timed `events`; `make.py` maps them from the voice-derived step plan into a cue sheet, mixes selected CC0 effects, looped music and the existing voice with ducking, then muxes and runs picture/audio QA. The CC0 kit defaults to `~/.local/share/orchestra-sfx/`; scenes without events retain the voice-only path. Trigger: the video builder had no sound beyond speech, and sparse effects alone produced an unusable loudness target and silence failures.
+
 ### Changed
 - **Consolidate visual skills and version the deployment workflow** (`.orchestra/pipelines/default/prompts/skills/`, `pipeline.yaml`, `app/prompting.py`, `app/session.py`, `scripts/video_artifact/`; V-819). Animation/playback guidance is part of the single visual-artifact skill, with its full player scaffold delivered as an on-demand reference so the entrypoint stays within the existing 16 KiB budget. The narrated-video skill and its internal script directory use one name, and the obsolete review skill is removed. The pipeline distributes the deployment skill only to orchestrator roles. On refresh, an untracked stale copy is removed only when its bytes match a historical canonical skill revision; tracked or locally edited copies remain untouched. Trigger: the owner requested one visual skill, removal of the frozen review skill, and an up-to-date owner-authorized deploy workflow.
 

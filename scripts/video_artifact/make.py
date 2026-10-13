@@ -33,6 +33,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import urllib.request
@@ -44,6 +45,9 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 HERE = Path(__file__).resolve().parent
+SOUND_HOME = Path.home() / ".local/share/orchestra-sfx"
+SOUND_SCRIPTS = HERE / "sound"
+UV_BIN = shutil.which("uv") or str(Path.home() / ".local/bin/uv")
 TTS_HOME = Path(os.environ.get("ORCHESTRA_TTS_HOME", Path.home() / ".local/share/orchestra-tts"))
 TTS_PYTHON = Path(os.environ.get("ORCHESTRA_TTS_PYTHON", TTS_HOME / "venv/bin/python"))
 TTS_MODEL = Path(os.environ.get("ORCHESTRA_TTS_MODEL", TTS_HOME / "vosk-model-tts-ru-0.9-multi"))
@@ -120,7 +124,7 @@ def open_scene(pw, scene: Path, voice: dict | None):
 def read_steps(scene: Path, lang: str) -> list[dict]:
     with sync_playwright() as pw:
         browser, page = open_scene(pw, scene, None)
-        steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null}))")
+        steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null, events: s.events || []}))")
         browser.close()
     return check_steps(steps, lang)
 
@@ -147,7 +151,7 @@ found = [c for c in vars(mod).values() if isinstance(c, type) and issubclass(c, 
 if len(found) != 1:
     sys.exit(f"в файле должна быть ровно одна сцена VoiceScene, найдено {[c.__name__ for c in found]}")
 print(json.dumps({"cls": found[0].__name__, "steps": [{"t": s["t"], "say": s.get("say", ""), "sub": s.get("sub"),
-                  "hold": s.get("hold")} for s in found[0].STEPS]}, ensure_ascii=False))
+                  "hold": s.get("hold"), "events": s.get("events", [])} for s in found[0].STEPS]}, ensure_ascii=False))
 """
 
 
@@ -239,9 +243,46 @@ def plan(steps: list[dict], clips: list[Path], rate: float) -> dict:
         lead = LEAD / rate
         d = round(lead + length + (step["hold"] if step["hold"] is not None else GAP / rate), 3)
         rows.append({"title": step["t"], "say": step["say"], "sub": step["sub"], "step_start": round(at, 3),
-                     "phrase_start": round(at + lead, 3), "phrase_end": round(at + lead + length, 3), "d": d})
+                     "phrase_start": round(at + lead, 3), "phrase_end": round(at + lead + length, 3), "d": d,
+                     "events": step.get("events", [])})
         at += d
     return {"steps": rows, "T": round(at, 3), "pre": PRE, "post": POST}
+
+
+def sound_cues(timing: dict, fps: int, voice: Path, music: Path, kit: Path = SOUND_HOME) -> dict:
+    """Place declared scene events on the already planned step timeline."""
+    cues = []
+    for step_no, row in enumerate(timing["steps"], 1):
+        for event_no, event in enumerate(row.get("events", []), 1):
+            if not isinstance(event, dict) or not event.get("sound"):
+                fail(f"шаг {step_no}, событие {event_no}: нужен объект events с полем sound")
+            offset = float(event.get("at", row["d"] / 2))
+            if not 0 <= offset <= row["d"]:
+                fail(f"шаг {step_no}, событие {event_no}: at должен быть внутри шага (0…{row['d']:.3f} с)")
+            at = round(PRE + row["step_start"] + offset, 4)
+            cue = {"id": event.get("id", f"step{step_no:02d}-event{event_no:02d}"),
+                   "t": at, "frame": round(at * fps), "sound": event["sound"],
+                   "weight": event.get("weight", "support"), "align": event.get("align", "peak")}
+            for key in ("visual", "pan", "pitch", "note", "build", "stop_before"):
+                if key in event:
+                    cue[key] = event[key]
+            cues.append(cue)
+    if not cues:
+        return {}
+    return {"fps": fps, "duration_s": round(PRE + timing["T"] + POST, 3),
+            "energy": "calm", "lufs": -18, "kit": str(kit),
+            "music": {"file": str(music.resolve()), "start_s": 0, "loop": True, "fade_out_s": 1.0},
+            "voice": [{"file": str(voice.resolve()), "start_s": 0}], "cues": cues}
+
+
+def sound_mix(out: Path, name: str, sheet: dict) -> None:
+    if not sheet:
+        return
+    audio = out / f"{name}.sound"
+    audio.mkdir(parents=True, exist_ok=True)
+    cues_path = audio / "cues.json"
+    cues_path.write_text(json.dumps(sheet, ensure_ascii=False, indent=1))
+    run(UV_BIN, "run", "--script", str(SOUND_SCRIPTS / "mix.py"), str(cues_path), "--out", str(audio))
 
 
 def voice_track(timing: dict, clips: list[Path], out: Path) -> None:
@@ -348,8 +389,14 @@ def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps:
         rendered.replace(out / f"{name}.video.mp4")
 
 
-def mux(out: Path, name: str) -> Path:
+def mux(out: Path, name: str, sound: bool = False) -> Path:
     mp4 = out / f"{name}.mp4"
+    if sound:
+        run("ffmpeg", "-v", "error", "-y", "-i", str(out / f"{name}.video.mp4"), "-i",
+            str(out / f"{name}.sound" / "mix.wav"), "-map", "0:v", "-map", "1:a", "-c:v", "copy",
+            "-c:a", "aac", "-b:a", "256k", "-shortest", "-movflags", "+faststart", str(mp4))
+        (out / f"{name}.video.mp4").unlink()
+        return mp4
     run("ffmpeg", "-v", "error", "-y", "-i", str(out / f"{name}.video.mp4"), "-i", str(out / f"{name}.voice.wav"),
         "-map", "0:v", "-map", "1:a", "-c:v", "copy",
         "-af", "loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000", "-ac", "2", "-c:a", "aac", "-b:a", "160k",
@@ -451,6 +498,7 @@ def main() -> None:
     ap.add_argument("--stress-only", action="store_true",
                     help="только разметить ударения и показать фразы (секунды, без синтеза) — для проверки агентом")
     ap.add_argument("--fps", type=int, default=30)
+    ap.add_argument("--music", type=Path, help="CC0 или собственная фоновая дорожка; обязателен, если в STEPS заданы events")
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
     ap.add_argument("--stills", action="store_true", help="без видео: тайминг и контакт-лист")
@@ -475,6 +523,12 @@ def main() -> None:
     clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
                        voice=args.voice if args.lang == "en" else "")
     timing = plan(steps, clips, args.rate)
+    has_events = any(row.get("events") for row in timing["steps"])
+    if has_events and not args.music:
+        fail("в STEPS заданы звуковые events: укажи фоновую CC0-дорожку через --music")
+    if has_events and not args.music.is_file():
+        fail(f"не найдена фоновая дорожка: {args.music}")
+    sheet = sound_cues(timing, args.fps, out / f"{name}.voice.wav", args.music) if has_events else {}
     (out / f"{name}.timing.json").write_text(json.dumps(timing, ensure_ascii=False, indent=1))
     for row in timing["steps"]:
         print(f"  {row['phrase_start']:6.2f}–{row['phrase_end']:6.2f}  шаг {row['d']:5.2f} с  {row['say']}")
@@ -488,8 +542,13 @@ def main() -> None:
         print(out / f"{name}-contact.png")
         if args.stills:
             return
-        mp4 = mux(out, name)
+        sound_mix(out, name, sheet)
+        mp4 = mux(out, name, sound=bool(sheet))
         print(mp4, f"{mp4.stat().st_size / 1e6:.1f} МБ")
+    if sheet:
+        if args.check_only and not (out / f"{name}.sound" / "mix-report.json").exists():
+            fail("для звукового --check-only нужны прежние mix-report.json и stems в <out>/<имя>.sound/")
+        run(UV_BIN, "run", "--script", str(SOUND_SCRIPTS / "qa.py"), str(out / f"{name}.mp4"), "--audio", str(out / f"{name}.sound"))
     key = os.environ.get("DEEPGRAM_API_KEY")
     if args.no_check or not key:
         print("проверка распознаванием пропущена" + ("" if key else ": нет DEEPGRAM_API_KEY"))
