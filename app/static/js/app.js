@@ -1181,7 +1181,10 @@ function connectSSE(fromHistoryLoad) {
                 if (_chatSessionId && l.session_id !== _chatSessionId) return _onForeignSession(targetAgent, l.session_id);
                 if (!_chatSessionId) _chatSessionId = l.session_id;
             }
-            if (l.agent_status) _applyLiveAgentStatus(targetAgent, l.agent_status);
+            if (l.agent_status) {
+                _applyLiveAgentStatus(targetAgent, l.agent_status);
+                liveAgentStatus(l.agent_status);
+            }
             else if (Number.isFinite(l.id)) _wakeStatusRefreshFromStream();
             if (l.type === '__session') return;  // рукопожатие: сессию уже сверили выше
             if (l.type === 'user_message' && localMessages.size > 0) {

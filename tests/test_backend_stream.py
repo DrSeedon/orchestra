@@ -1,8 +1,10 @@
 """ClaudeBackend._convert StreamEvent scope filter + sub-agent tagging.
 
 Main-agent text_delta → "stream". Sub-agent text_delta (parent_tool_use_id set)
-→ "subagent_stream" tagged with subagent_id (surfaced, not dropped). Non-text
-deltas (thinking/tool-arg/sig) and non-delta events are still dropped.
+→ "subagent_stream" tagged with subagent_id (surfaced, not dropped). Since V-831
+thinking_delta → "thinking_stream" and a tool call's input_json_delta →
+"tool_input_stream" (tool id/name taken from content_block_start), so a long call is
+visible while the model writes it. Signature deltas stay dropped.
 """
 from claude_agent_sdk import (
     StreamEvent,
@@ -45,22 +47,74 @@ def test_empty_text_delta_emits_nothing():
     assert b._convert(msg) == []
 
 
-def test_thinking_delta_dropped():
-    b = _backend()
-    msg = _stream({
-        "type": "content_block_delta", "index": 0,
-        "delta": {"type": "thinking_delta", "thinking": "hmm"},
-    })
-    assert b._convert(msg) == []
+def _tool_block_start(index=1, tool_id="toolu_A", name="Bash", parent=None):
+    return _stream({"type": "content_block_start", "index": index,
+                    "content_block": {"type": "tool_use", "id": tool_id, "name": name, "input": {}}},
+                   parent_tool_use_id=parent)
 
 
-def test_input_json_delta_dropped():
+def _json_delta(chunk, index=1, parent=None):
+    return _stream({"type": "content_block_delta", "index": index,
+                    "delta": {"type": "input_json_delta", "partial_json": chunk}},
+                   parent_tool_use_id=parent)
+
+
+def test_thinking_delta_streams_with_a_block_id():
     b = _backend()
-    msg = _stream({
-        "type": "content_block_delta", "index": 0,
-        "delta": {"type": "input_json_delta", "partial_json": '{"a":'},
-    })
-    assert b._convert(msg) == []
+    b._convert(_stream({"type": "content_block_start", "index": 0,
+                        "content_block": {"type": "thinking", "thinking": ""}}))
+    first = b._convert(_stream({"type": "content_block_delta", "index": 0,
+                                "delta": {"type": "thinking_delta", "thinking": "hmm"}}))
+    b._convert(_stream({"type": "content_block_stop", "index": 0}))
+    b._convert(_stream({"type": "content_block_start", "index": 0,
+                        "content_block": {"type": "thinking", "thinking": ""}}))
+    second = b._convert(_stream({"type": "content_block_delta", "index": 0,
+                                 "delta": {"type": "thinking_delta", "thinking": "more"}}))
+
+    assert [(e.type, e.content, e.metadata["activity"]) for e in first] == [
+        ("thinking_stream", "hmm", "reasoning")]
+    # Two thinking blocks must not merge into one live card.
+    assert first[0].metadata["item_id"] != second[0].metadata["item_id"]
+
+
+def test_tool_call_arguments_stream_with_tool_identity():
+    b = _backend()
+    started = b._convert(_tool_block_start())
+    deltas = b._convert(_json_delta('{"command": "ec')) + b._convert(_json_delta('ho hi"}'))
+
+    assert [(e.type, e.content) for e in started] == [("tool_input_stream", "")]
+    assert started[0].metadata == {"tool_use_id": "toolu_A", "tool_name": "Bash", "short_name": "Bash"}
+    assert "".join(e.content for e in deltas) == '{"command": "echo hi"}'
+    assert all(e.type == "tool_input_stream" and e.metadata["tool_use_id"] == "toolu_A" for e in deltas)
+
+
+def test_mcp_tool_name_is_shortened_and_unknown_block_deltas_dropped():
+    b = _backend()
+    out = b._convert(_tool_block_start(name="mcp__orchestra__send_message"))
+    assert out[0].metadata["short_name"] == "send_message"
+    # A delta whose block start was never seen has no tool identity → nothing to show.
+    assert b._convert(_json_delta('{"a":', index=7)) == []
+
+
+def test_block_indices_restart_per_message():
+    b = _backend()
+    b._convert(_tool_block_start(index=1, tool_id="toolu_A"))
+    b._convert(_stream({"type": "message_start", "message": {}}))
+    # Same index in the next message without its own start must not reuse toolu_A.
+    assert b._convert(_json_delta('{"x":1}', index=1)) == []
+
+
+def test_subagent_tool_arguments_are_tagged_and_isolated_from_main():
+    b = _backend()
+    b._convert(_tool_block_start(index=1, tool_id="toolu_main"))
+    b._convert(_tool_block_start(index=1, tool_id="toolu_sub", name="Read", parent="toolu_task"))
+
+    main = b._convert(_json_delta('{"m":1}', index=1))
+    sub = b._convert(_json_delta('{"s":1}', index=1, parent="toolu_task"))
+
+    assert main[0].metadata["tool_use_id"] == "toolu_main" and "subagent_id" not in main[0].metadata
+    assert sub[0].metadata["tool_use_id"] == "toolu_sub"
+    assert sub[0].metadata["subagent_id"] == "toolu_task"
 
 
 def test_signature_delta_dropped():
@@ -164,6 +218,7 @@ def test_non_delta_events_dropped():
     b = _backend()
     for etype in ("message_start", "content_block_start",
                   "content_block_stop", "message_delta", "message_stop"):
+        # A bare content_block_start (no tool/thinking block) opens nothing to stream.
         assert b._convert(_stream({"type": etype})) == []
 
 
@@ -177,3 +232,16 @@ def test_tag_sub_marks_only_subagent_events():
     assert sub.metadata["subagent_id"] == "toolu_9"
     assert sub.metadata["tool_name"] == "Bash"  # existing metadata preserved
     assert sub.type == "tool_use"  # type unchanged — UI groups by id, not type
+
+
+def test_omitted_thinking_still_streams_its_token_estimate():
+    # Real CLI 2.1.293 capture (V-831): display omitted → empty text + estimated_tokens.
+    b = _backend()
+    b._convert(_stream({"type": "content_block_start", "index": 0,
+                        "content_block": {"type": "thinking", "thinking": "", "signature": ""}}))
+    out = b._convert(_stream({"type": "content_block_delta", "index": 0,
+                              "delta": {"type": "thinking_delta", "thinking": "", "estimated_tokens": 250}}))
+    assert [(e.type, e.content, e.metadata["estimated_tokens"]) for e in out] == [
+        ("thinking_stream", "", 250)]
+    assert b._convert(_stream({"type": "content_block_delta", "index": 0,
+                               "delta": {"type": "thinking_delta", "thinking": ""}})) == []

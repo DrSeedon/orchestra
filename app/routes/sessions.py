@@ -679,7 +679,7 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
 
     async def event_generator():
         from app.db import _conn
-        from app.live_broker import STREAM_CLOSE, broker
+        from app.live_broker import STREAM_CLOSE, broker, coalesce
         last_id = after_id
         c = _conn()
         q = broker.subscribe(session_id)  # session_id == manager.get_session_id == session.id
@@ -699,16 +699,22 @@ async def stream_session_logs(name: str, scope: str, request: Request, after_id:
                     return
                 # 1) drain live partials FIRST (ephemeral, no id) — they always
                 #    precede their final 'text' row, so emit before polling DB.
-                drained = 0
-                while drained < 500:  # cap per tick — don't starve disconnect check
+                batch = []
+                closing = False
+                while len(batch) < 500:  # cap per tick — don't starve disconnect check
                     try:
                         payload = q.get_nowait()
                     except asyncio.QueueEmpty:
                         break
                     if payload is STREAM_CLOSE:
-                        return
+                        closing = True
+                        break
+                    batch.append(payload)
+                drained = len(batch)
+                for payload in coalesce(batch):
                     yield f"data: {json.dumps(with_status(payload))}\n\n"
-                    drained += 1
+                if closing:
+                    return
                 # 2) DB-persisted logs (finals + all other log types)
                 logs = get_logs(session_id, after_id=last_id, conn=c)
                 for log in logs:

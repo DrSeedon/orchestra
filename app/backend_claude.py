@@ -695,6 +695,10 @@ class ClaudeBackend:
         self._subagent_tool_to_task: dict[str, str] = {}
         self._subagent_descriptions: dict[str, str] = {}
         self._subagent_types: dict[str, str] = {}
+        # Open streamed content blocks keyed by (parent_tool_use_id, index): a delta names
+        # only its index, while the tool id/name arrive once in content_block_start.
+        self._open_stream_blocks: dict[tuple[str, int], dict] = {}
+        self._stream_block_seq = 0
         # #224: имя файла конфига. Идентичность берём ТОЛЬКО из доверенного сервера
         # `orchestra` — плоский merge сюда пускать нельзя: кастомный сервер со спавна
         # перетирает чужие ключи и может подсунуть `../..` (см. CodexBackend).
@@ -1413,16 +1417,64 @@ class ClaudeBackend:
             # Main-agent text partials → "stream". Subagent partials (parent_tool_use_id
             # set) → "subagent_stream" tagged with sub_id so the UI nests them under the
             # sub-agent block instead of dropping them (which looked like a hang).
+            # Tool-call arguments (input_json_delta) and thinking (thinking_delta) are
+            # streamed the same way: live-only events, the final AssistantMessage blocks
+            # stay the persisted record.
             ev = msg.event or {}
-            if ev.get("type") != "content_block_delta":
+            ev_type = ev.get("type")
+            parent = str(msg.parent_tool_use_id or "")
+            sub_id = self._resolve_subagent_id(msg.parent_tool_use_id)
+            if ev_type == "message_start":
+                for key in [k for k in self._open_stream_blocks if k[0] == parent]:
+                    del self._open_stream_blocks[key]
+                return events
+            if ev_type == "content_block_start":
+                block = ev.get("content_block") or {}
+                key = (parent, int(ev.get("index") or 0))
+                if block.get("type") in ("tool_use", "server_tool_use", "mcp_tool_use"):
+                    name = str(block.get("name") or "")
+                    info = {"kind": "tool", "tool_use_id": str(block.get("id") or ""),
+                            "tool_name": name,
+                            "short_name": name.split("__")[-1] if "__" in name else name}
+                    self._open_stream_blocks[key] = info
+                    meta = {k: v for k, v in info.items() if k != "kind"}
+                    events.append(self._tag_sub(AgentEvent("tool_input_stream", "", metadata=meta), sub_id))
+                elif block.get("type") == "thinking":
+                    self._stream_block_seq += 1
+                    self._open_stream_blocks[key] = {
+                        "kind": "thinking", "item_id": f"claude-thinking-{self._stream_block_seq}"}
+                return events
+            if ev_type == "content_block_stop":
+                self._open_stream_blocks.pop((parent, int(ev.get("index") or 0)), None)
+                return events
+            if ev_type != "content_block_delta":
                 return events
             delta = ev.get("delta") or {}
-            if delta.get("type") != "text_delta":
+            delta_type = delta.get("type")
+            block = self._open_stream_blocks.get((parent, int(ev.get("index") or 0))) or {}
+            if delta_type == "input_json_delta":
+                chunk = delta.get("partial_json") or ""
+                if chunk and block.get("kind") == "tool":
+                    meta = {k: v for k, v in block.items() if k != "kind"}
+                    events.append(self._tag_sub(AgentEvent("tool_input_stream", chunk, metadata=meta), sub_id))
+                return events
+            if delta_type == "thinking_delta":
+                # With thinking display omitted the CLI streams empty text plus a running
+                # `estimated_tokens` count (CLI 2.1.x, 13.10.2026) — still a sign of life.
+                chunk = delta.get("thinking") or ""
+                estimated = delta.get("estimated_tokens")
+                if chunk or estimated:
+                    meta = {"activity": "reasoning",
+                            "item_id": block.get("item_id") or "claude-thinking"}
+                    if estimated:
+                        meta["estimated_tokens"] = int(estimated)
+                    events.append(self._tag_sub(AgentEvent("thinking_stream", chunk, metadata=meta), sub_id))
+                return events
+            if delta_type != "text_delta":
                 return events
             text = delta.get("text") or ""
             if not text:
                 return events
-            sub_id = self._resolve_subagent_id(msg.parent_tool_use_id)
             if sub_id is not None:
                 events.append(AgentEvent("subagent_stream", text, metadata={"subagent_id": sub_id}))
             else:

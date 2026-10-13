@@ -128,3 +128,7 @@ class AgentEvent:
 # "subagent_progress" — sub-agent working     (metadata: + last_tool_name, total_tokens, tool_uses, duration_ms)
 # "subagent_end"      — sub-agent finished    (metadata: + status, summary, output_file, raw_json, usage)
 # "subagent_stream"   — sub-agent live text   (metadata: subagent_id) — broker only, ephemeral
+# "thinking_stream"   — live reasoning delta  (metadata: activity, item_id) — broker only
+# "tool_input_stream" — live tool-call argument JSON delta (metadata: tool_use_id, tool_name,
+#                       short_name; empty content = block started) — broker only
+# "tool_stream"       — live tool output delta (metadata: tool_use_id) — broker only
