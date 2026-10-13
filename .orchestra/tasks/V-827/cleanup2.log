@@ -1,0 +1,11 @@
+/dev/sda1      310911414272 240365547520 70529089536  78% /
+1785008128	/root/.npm/_cacache	trash-put(root)
+26808320	/root/.cache/pip	trash-put(root)
+719478784	/root/.cache/uv	trash-put(root)
+671498240	/root/.cache/ms-playwright	trash-put(root)
+root trash emptied: 12288
+leftover kesha trash:
+10051584 /home/kesha/.local/share/Trash/files/ai-table-v18-rehearsal.9J9A
+77824 /home/kesha/.local/share/Trash/files/t55
+kesha trash after: 2359296
+/dev/sda1      310911414272 237415641088 73478995968  77% /

@@ -1,0 +1,29 @@
+df before:
+/dev/sda1      310911414272 269037928448 41856708608  87% /
+BYTES	ITEM	HOW
+830296064	/home/kesha/.npm/_cacache	trash-put; emptied below
+229203968	/home/kesha/.cache/pip	trash-put; emptied below
+337952768	/home/kesha/.cache/ms-playwright/chromium_headless_shell-1194	trash-put; emptied below
+4126150656	/home/kesha/.local/state/orchestra/knowledge-v1	trash-put; emptied below
+2674864128	/home/kesha/research-archive/golos-v2-analysis	trash-put; emptied below
+-	/root/.npm/_cacache	MISSING
+-	/root/.cache/pip	MISSING
+-	/root/.cache/uv	MISSING
+-	/root/.cache/ms-playwright	MISSING
+651030528	/var/cache/orchestra-uv	trash-put(root); emptied below
+trash sizes before empty:
+kesha 10034196480
+root 5089734656
+trash-empty: cannot remove /home/kesha/.local/share/Trash/files/ai-table-v18-rehearsal.9J9A
+trash-empty: cannot remove /home/kesha/.local/share/Trash/files/t55
+kesha trash emptied
+root trash emptied
+kesha trash after: 12488704  root after: 12288
+== uv cache prune
+Cache is currently in-use, waiting for other uv processes to finish (use `--force` to override)
+== journal
+Vacuuming done, freed 1.1G of archived journals from /var/log/journal/a09b01e3546c4820820399ac575c5a11.
+Vacuuming done, freed 0B of archived journals from /run/log/journal.
+Archived and active journals take up 450.3M in the file system.
+df after:
+/dev/sda1      310911414272 240362672128 70531964928  78% /
