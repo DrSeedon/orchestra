@@ -166,6 +166,9 @@ def _parse_file(data: object, source: str) -> tuple[list[Project], tuple[str, ..
     for value in raw_includes:
         path = str(value).rstrip("/")
         _require(path.startswith("/"), f"{source}: include_scopes должен состоять из абсолютных путей: '{path}'")
+        included_catalog = Path(path) / ".orchestra" / "projects.yaml"
+        _require(included_catalog.resolve() != Path(source).resolve(),
+                 f"{source}: include_scopes не может включать сам файл каталога")
         _require(path not in includes, f"{source}: include_scopes повторяет '{path}'")
         includes.append(path)
     return projects, tuple(includes)

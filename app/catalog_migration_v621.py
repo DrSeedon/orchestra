@@ -73,6 +73,29 @@ def _is_git_repo(root: Path) -> bool:
     return (root / ".git").exists()
 
 
+def _git_common_dir(root: Path) -> Path | None:
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+            capture_output=True, text=True, timeout=15,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    common_dir = result.stdout.strip()
+    if result.returncode or not common_dir:
+        return None
+    return Path(common_dir).resolve()
+
+
+def _canonical_catalog_path() -> Path | None:
+    """Домашний каталог только основного checkout, не linked worktree/copy."""
+    code_root = Path(__file__).resolve().parent.parent
+    common_dir = _git_common_dir(code_root)
+    if common_dir is None or common_dir.name != ".git":
+        return None
+    return common_dir.parent / ".orchestra" / "projects.yaml"
+
+
 def _require_clean(root: Path, *, label: str) -> None:
     if not _is_git_repo(root):
         return
@@ -119,6 +142,14 @@ def migrate_v621(home_path: Path) -> dict:
     home_path = Path(home_path)
     if not home_path.is_file():
         return {"state": "fresh"}
+    canonical_path = _canonical_catalog_path()
+    if canonical_path is None or home_path.resolve() != canonical_path.resolve():
+        reason = f"домашний каталог не принадлежит основному checkout: {home_path}"
+        logger.warning("V-621: migration skipped: %s", reason)
+        return {
+            "state": "skipped",
+            "reason": reason,
+        }
     try:
         raw = yaml.safe_load(home_path.read_text(encoding="utf-8"))
     except yaml.YAMLError as error:
@@ -139,12 +170,31 @@ def migrate_v621(home_path: Path) -> dict:
         else:
             external.setdefault(entry_scope, []).append(entry)
 
+    previous_includes = list(raw.get("include_scopes") or [])
+    home_root = home_path.parent.parent.resolve()
+    home_git_dir = _git_common_dir(home_root)
+    catalog_scopes = set(external)
+    catalog_scopes.update(
+        str(scope).rstrip("/") for scope in previous_includes if str(scope).startswith("/")
+    )
+    for scope in sorted(catalog_scopes):
+        target_root = scope_root(scope).resolve()
+        target_path = own_catalog_path(scope).resolve()
+        target_git_dir = _git_common_dir(target_root)
+        if target_path == home_path.resolve() or (
+            home_git_dir is not None and target_git_dir == home_git_dir
+        ):
+            reason = f"чужой scope '{scope}' указывает на тот же файл или Git-репозиторий"
+            logger.warning("V-621: migration skipped: %s", reason)
+            return {
+                "state": "skipped",
+                "reason": reason,
+            }
+
     if already_migrated and not external:
         # Полностью разобрано в прошлый раз: ни одной чужой записи внутри projects:
         # не осталось, повторять нечего.
         return {"state": "already"}
-    previous_includes = list(raw.get("include_scopes") or [])
-
     written: list[str] = []
     already: list[str] = []
     skipped: dict[str, str] = {}
@@ -183,7 +233,6 @@ def migrate_v621(home_path: Path) -> dict:
     home_path.write_text(_dump(new_home), encoding="utf-8")
     reset_cache()
 
-    home_root = home_path.parent.parent
     home_committed = False
     try:
         if _is_git_repo(home_root):

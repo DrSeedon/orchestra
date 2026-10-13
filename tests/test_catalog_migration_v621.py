@@ -15,6 +15,7 @@ import subprocess
 import pytest
 import yaml
 
+from app import catalog_migration_v621
 from app.catalog_migration_v621 import CatalogMigrationError, migrate_v621
 from app.project_catalog import own_catalog, own_catalog_path
 
@@ -38,10 +39,14 @@ def _commit_all(root: Path, message: str) -> None:
 
 
 @pytest.fixture(autouse=True)
-def _no_catalog_root_override(monkeypatch):
+def _no_catalog_root_override(tmp_path, monkeypatch):
     """Миграция обязана писать по буквальным путям `scope` — тестовая песочница
     `_isolate_project_catalog` (autouse) иначе увела бы её в чужой каталог."""
     monkeypatch.delenv("ORCHESTRA_PROJECT_CATALOG_ROOT", raising=False)
+    monkeypatch.setattr(
+        catalog_migration_v621, "_canonical_catalog_path",
+        lambda: tmp_path / "home" / ".orchestra" / "projects.yaml",
+    )
 
 
 def _seed_home(tmp_path: Path, *, external: dict[str, str] | None = None) -> tuple[Path, Path]:
@@ -82,6 +87,77 @@ def test_already_migrated_catalog_is_a_noop(tmp_path):
     before = home_path.read_text(encoding="utf-8")
     assert migrate_v621(home_path) == {"state": "already"}
     assert home_path.read_text(encoding="utf-8") == before
+
+
+def test_worktree_catalog_is_not_migrated_or_committed(tmp_path):
+    _seed_home(tmp_path)
+    worker_root = tmp_path / "worker-checkout"
+    _init_repo(worker_root)
+    (worker_root / ".orchestra").mkdir()
+    worker_path = worker_root / ".orchestra" / "projects.yaml"
+    worker_path.write_text(
+        yaml.safe_dump({
+            "version": 1,
+            "projects": [{
+                "tag": "foreign", "name": "Foreign", "scope": str(tmp_path / "ext"),
+                "write_namespace": "foreign-ns", "namespaces": {"foreign-ns": ""},
+            }],
+        }, sort_keys=False), encoding="utf-8",
+    )
+    _commit_all(worker_root, "seed worker catalog")
+    before = worker_path.read_text(encoding="utf-8")
+    head = _git(worker_root, "rev-parse", "HEAD")
+
+    result = migrate_v621(worker_path)
+
+    assert result["state"] == "skipped"
+    assert "основному checkout" in result["reason"]
+    assert worker_path.read_text(encoding="utf-8") == before
+    assert _git(worker_root, "rev-parse", "HEAD") == head
+    assert not list((worker_root / ".orchestra").glob("projects-pre-v621-*.yaml"))
+    assert not own_catalog_path(str(tmp_path / "ext")).exists()
+
+
+def test_scope_in_the_same_repository_is_not_moved_or_committed(tmp_path):
+    home_root, home_path = _seed_home(tmp_path)
+    nested_scope = home_root / "nested-scope"
+    nested_scope.mkdir()
+    data = yaml.safe_load(home_path.read_text(encoding="utf-8"))
+    data["projects"].append({
+        "tag": "nested", "name": "Nested", "scope": str(nested_scope),
+        "write_namespace": "nested-ns", "namespaces": {"nested-ns": ""},
+    })
+    home_path.write_text(yaml.safe_dump(data, sort_keys=False), encoding="utf-8")
+    before = home_path.read_text(encoding="utf-8")
+    head = _git(home_root, "rev-parse", "HEAD")
+
+    result = migrate_v621(home_path)
+
+    assert result["state"] == "skipped"
+    assert "тот же файл или Git-репозиторий" in result["reason"]
+    assert home_path.read_text(encoding="utf-8") == before
+    assert _git(home_root, "rev-parse", "HEAD") == head
+    assert not own_catalog_path(str(nested_scope)).exists()
+    assert not list((home_root / ".orchestra").glob("projects-pre-v621-*.yaml"))
+
+
+def test_existing_include_in_the_same_repository_is_rejected(tmp_path):
+    home_root, home_path = _seed_home(tmp_path)
+    nested_scope = home_root / "nested-scope"
+    nested_scope.mkdir()
+    home_path.write_text(yaml.safe_dump({
+        "version": 1, "include_scopes": [str(nested_scope)], "projects": [],
+    }), encoding="utf-8")
+    _commit_all(home_root, "seed self-referencing include")
+    before = home_path.read_text(encoding="utf-8")
+    head = _git(home_root, "rev-parse", "HEAD")
+
+    result = migrate_v621(home_path)
+
+    assert result["state"] == "skipped"
+    assert "тот же файл или Git-репозиторий" in result["reason"]
+    assert home_path.read_text(encoding="utf-8") == before
+    assert _git(home_root, "rev-parse", "HEAD") == head
 
 
 # --- единственный настоящий отказ: домашний файл нечитаем --------------------
