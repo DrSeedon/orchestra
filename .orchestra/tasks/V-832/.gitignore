@@ -1,0 +1,15 @@
+baseline/*/.tts-cache/
+baseline/*/.manim/
+baseline/*/frames/
+baseline/*/*.voice.wav
+baseline/.*.step*.mp4
+baseline/.*.part*.mp4
+after/*/.tts-cache/
+after/*/.manim/
+after/*/frames/
+after/*/*.voice.wav
+after/.*.step*.mp4
+after/.*.part*.mp4
+bench_vosk.log
+baseline/manim.log
+after/manim.log

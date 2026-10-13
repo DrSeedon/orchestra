@@ -124,7 +124,7 @@ def open_scene(pw, scene: Path, voice: dict | None):
 def read_steps(scene: Path, lang: str) -> list[dict]:
     with sync_playwright() as pw:
         browser, page = open_scene(pw, scene, None)
-        steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null, events: s.events || []}))")
+        steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null, d: s.d, events: s.events || []}))")
         browser.close()
     return check_steps(steps, lang)
 
@@ -193,39 +193,103 @@ def mark_stress(steps: list[dict], lang: str, enabled: bool) -> list[dict]:
     return steps
 
 
-def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice: str = "") -> list[Path]:
+def drain_ordered(ready: dict[int, Path], next_index: int) -> tuple[list[tuple[int, Path]], int]:
+    released = []
+    while next_index in ready:
+        released.append((next_index, ready.pop(next_index)))
+        next_index += 1
+    return released, next_index
+
+
+def trim_clip(raw: Path, cut: Path) -> None:
+    edge = "silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.03"
+    run("ffmpeg", "-v", "error", "-y", "-i", str(raw),
+        "-af", f"{edge},areverse,{edge},areverse", "-ar", str(SR), "-ac", "1",
+        "-c:a", "pcm_s16le", str(cut))
+
+
+def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice: str = "",
+               on_ready=None) -> list[Path]:
     """Каждая фраза → wav 48 кГц моно без тишины по краям (кэш по тексту и голосу).
 
     `voice` — имя голоса Kokoro: английская озвучка вместо русской Vosk."""
     cache.mkdir(parents=True, exist_ok=True)
-    trimmed, jobs = [], []
-    for step in steps:
+    trimmed, jobs, ready, job_indices, job_by_index, queued = [], [], {}, {}, {}, {}
+    for i, step in enumerate(steps):
         engine = f"kokoro-v1.0|{voice}" if voice else f"{speaker}|{TTS_MODEL.name}"
         text = step.get("_tts_text", step["say"])
         key = hashlib.sha1(f"{text}|{rate}|{engine}".encode()).hexdigest()[:16]
         raw, cut = cache / f"{key}.raw.wav", cache / f"{key}.wav"
         trimmed.append(cut)
-        if not cut.exists() and not raw.exists():
-            jobs.append({"text": text, "speaker": speaker, "voice": voice, "rate": rate, "out": str(raw)})
+        if cut.exists():
+            ready[i] = cut
+        elif raw.exists():
+            trim_clip(raw, cut)
+            ready[i] = cut
+        elif raw in queued:
+            job_indices[queued[raw]].append(i)
+        else:
+            job = {"index": i, "text": text, "speaker": speaker, "voice": voice, "rate": rate, "out": str(raw)}
+            jobs.append(job)
+            job_indices[i] = [i]
+            job_by_index[i] = job
+            queued[raw] = i
+
+    next_index = 0
+    released, next_index = drain_ordered(ready, next_index)
+    if on_ready:
+        for i, path in released:
+            on_ready(i, path)
+
+    def accept(index: int) -> None:
+        raw = Path(job_by_index[index]["out"])
+        indices = job_indices[index]
+        cut = trimmed[indices[0]]
+        trim_clip(raw, cut)
+        ready.update({i: cut for i in indices})
+        nonlocal next_index
+        released, next_index = drain_ordered(ready, next_index)
+        if on_ready:
+            for i, path in released:
+                on_ready(i, path)
+
     if jobs and voice:
         if not TTS_EN_PYTHON.exists() or not (TTS_EN_HOME / "kokoro-v1.0.onnx").exists():
             fail(f"нет английского TTS: {TTS_EN_PYTHON} и {TTS_EN_HOME}/kokoro-v1.0.onnx — установка в SKILL video-artifact")
-        print(f"синтез {len(jobs)} фраз (Kokoro, {voice})…", flush=True)
-        run(str(TTS_EN_PYTHON), str(HERE / "tts_worker_en.py"), input=json.dumps(jobs).encode(),
-            env={**os.environ, "ORCHESTRA_TTS_EN_HOME": str(TTS_EN_HOME)})
+        worker = TTS_EN_PYTHON, HERE / "tts_worker_en.py", {**os.environ, "ORCHESTRA_TTS_EN_HOME": str(TTS_EN_HOME)}
     elif jobs:
         if not TTS_PYTHON.exists() or not (TTS_MODEL / "model.onnx").exists():
             fail(f"нет окружения TTS: {TTS_PYTHON} и {TTS_MODEL}/model.onnx — установка в SKILL video-artifact")
-        print(f"синтез {len(jobs)} фраз (загрузка модели ~2 мин)…", flush=True)
-        run(str(TTS_PYTHON), str(HERE / "tts_worker.py"), input=json.dumps(jobs).encode(),
-            env={**os.environ, "ORCHESTRA_TTS_MODEL": str(TTS_MODEL)})
-    edge = "silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.03"
-    for cut in trimmed:
-        if not cut.exists():
-            raw = cut.with_suffix(".raw.wav")
-            run("ffmpeg", "-v", "error", "-y", "-i", str(raw),
-                "-af", f"{edge},areverse,{edge},areverse", "-ar", str(SR), "-ac", "1",
-                "-c:a", "pcm_s16le", str(cut))
+        worker = TTS_PYTHON, HERE / "tts_worker.py", {**os.environ, "ORCHESTRA_TTS_MODEL": str(TTS_MODEL)}
+    else:
+        worker = None
+    if worker:
+        if voice:
+            print(f"синтез {len(jobs)} фраз (Kokoro, {voice})…", flush=True)
+        else:
+            print(f"синтез {len(jobs)} фраз (загрузка модели ~2 мин)…", flush=True)
+        if on_ready is None:
+            run(str(worker[0]), str(worker[1]), input=json.dumps(jobs, ensure_ascii=False).encode(),
+                stdout=subprocess.DEVNULL, env=worker[2])
+            for job in jobs:
+                trim_clip(Path(job["out"]), trimmed[job["index"]])
+        else:
+            proc = subprocess.Popen([str(worker[0]), str(worker[1])], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    text=True, env=worker[2])
+            assert proc.stdin and proc.stdout
+            proc.stdin.write(json.dumps(jobs, ensure_ascii=False))
+            proc.stdin.close()
+            try:
+                for line in proc.stdout:
+                    event = json.loads(line)
+                    accept(int(event["index"]))
+                if proc.wait():
+                    fail(f"ошибка TTS worker: {proc.returncode}")
+            except BaseException:
+                if proc.poll() is None:
+                    proc.kill()
+                proc.wait()
+                raise
     return trimmed
 
 
@@ -342,6 +406,41 @@ def render(scene: Path, timing: dict, out: Path, name: str, fps: int, video: boo
     for part in parts:
         Path(part[3]).unlink()
     listing.unlink()
+
+
+class HTMLRenderPipeline:
+    def __init__(self, scene: Path, steps: list[dict], out: Path, name: str, fps: int, jobs: int, rate: float):
+        self.scene, self.steps, self.out, self.name, self.fps = scene, steps, out, name, fps
+        self.rate = rate
+        self.pool = ProcessPoolExecutor(max_workers=jobs, mp_context=get_context("spawn"))
+        self.parts = []
+
+    def step_ready(self, index: int, clips: list[Path]) -> None:
+        prefix = plan(self.steps[:index + 1], clips[:index + 1], self.rate)
+        row = prefix["steps"][index]
+        voice_durations = [item["d"] for item in prefix["steps"]]
+        voice_durations.extend(float(step.get("d") or 1.0) for step in self.steps[index + 1:])
+        first = 0 if index == 0 else round((PRE + row["step_start"]) * self.fps)
+        last = round((PRE + row["step_start"] + row["d"] + (POST if index == len(self.steps) - 1 else 0)) * self.fps)
+        times = [min(max(frame / self.fps - PRE, 0.0), prefix["T"]) for frame in range(first, last)]
+        part = self.out / f".{self.name}.step{index:04d}.mp4"
+        future = self.pool.submit(render_part, (self.scene, {"d": voice_durations}, times, str(part), self.fps))
+        self.parts.append((part, future))
+
+    def finish(self) -> None:
+        try:
+            if self.parts:
+                for _part, future in self.parts:
+                    future.result()
+                listing = self.out / f".{self.name}.parts.txt"
+                listing.write_text("".join(f"file '{part.name}'\n" for part, _future in self.parts))
+                run("ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(listing),
+                    "-c", "copy", str(self.out / f"{self.name}.video.mp4"))
+                for part, _future in self.parts:
+                    part.unlink()
+                listing.unlink()
+        finally:
+            self.pool.shutdown(wait=True)
 
 
 def render_part(args) -> None:
@@ -520,14 +619,28 @@ def main() -> None:
         for i, text in enumerate(marked, 1):
             print(f"  {i:2d}. {text}")
         return
-    clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
-                       voice=args.voice if args.lang == "en" else "")
-    timing = plan(steps, clips, args.rate)
-    has_events = any(row.get("events") for row in timing["steps"])
+    has_events = any(step.get("events") for step in steps)
     if has_events and not args.music:
         fail("в STEPS заданы звуковые events: укажи фоновую CC0-дорожку через --music")
     if has_events and not args.music.is_file():
         fail(f"не найдена фоновая дорожка: {args.music}")
+    pipeline = None
+    if not manim and not args.stills and not args.check_only:
+        pipeline = HTMLRenderPipeline(args.scene, steps, out, name, args.fps, args.jobs, args.rate)
+    rendered_clips = []
+
+    def render_ready(index: int, clip: Path) -> None:
+        if index != len(rendered_clips):
+            raise RuntimeError(f"неупорядоченный результат синтеза: ожидался шаг {len(rendered_clips)}, получен {index}")
+        rendered_clips.append(clip)
+        pipeline.step_ready(index, rendered_clips)
+
+    clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
+                       voice=args.voice if args.lang == "en" else "",
+                       on_ready=render_ready if pipeline else None)
+    timing = plan(steps, clips, args.rate)
+    if pipeline:
+        pipeline.finish()
     sheet = sound_cues(timing, args.fps, out / f"{name}.voice.wav", args.music) if has_events else {}
     (out / f"{name}.timing.json").write_text(json.dumps(timing, ensure_ascii=False, indent=1))
     for row in timing["steps"]:
@@ -537,6 +650,8 @@ def main() -> None:
         voice_track(timing, clips, out / f"{name}.voice.wav")
         if manim:
             render_manim(args.scene, cls, timing, out, name, args.fps, video=not args.stills)
+        elif pipeline:
+            render(args.scene, timing, out, name, args.fps, video=False, jobs=args.jobs)
         else:
             render(args.scene, timing, out, name, args.fps, video=not args.stills, jobs=args.jobs)
         print(out / f"{name}-contact.png")

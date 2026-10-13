@@ -84,6 +84,34 @@ def test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step(tmp_path):
     assert abs(fast["steps"][1]["d"] - (3.0 + make.LEAD / 1.5 + 1.5)) < 1e-3
 
 
+def test_parallel_synthesis_completions_keep_phrase_order_and_timing(tmp_path):
+    import pytest
+    import wave
+
+    clips = []
+    for n, seconds in enumerate((1.25, 2.5, 0.75)):
+        clip = tmp_path / f"{n}.wav"
+        with wave.open(str(clip), "wb") as output:
+            output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+            output.writeframes(b"\0\0" * int(seconds * make.SR))
+        clips.append(clip)
+
+    pending = {2: clips[2], 0: clips[0]}
+    released, next_index = make.drain_ordered(pending, 0)
+    assert released == [(0, clips[0])] and next_index == 1
+    pending[1] = clips[1]
+    released, next_index = make.drain_ordered(pending, next_index)
+    assert released == [(1, clips[1]), (2, clips[2])] and next_index == 3
+
+    steps = [{"t": str(i), "say": f"phrase {i}", "sub": None, "hold": None} for i in range(3)]
+    timing = make.plan(steps, [path for _i, path in [(0, clips[0]), (1, clips[1]), (2, clips[2])]], 1.15)
+    lengths = [row["phrase_end"] - row["phrase_start"] for row in timing["steps"]]
+    assert lengths == pytest.approx([1.25, 2.5, 0.75])
+    assert [row["say"] for row in timing["steps"]] == ["phrase 0", "phrase 1", "phrase 2"]
+    assert timing["steps"][1]["step_start"] == timing["steps"][0]["d"]
+    assert timing["steps"][2]["step_start"] == round(sum(row["d"] for row in timing["steps"][:2]), 3)
+
+
 def test_scene_sound_events_follow_planned_step_timing(tmp_path):
     import wave
 
@@ -276,3 +304,30 @@ def test_cache_key_changes_when_accented_text_changes(tmp_path, monkeypatch):
     make.synthesize(original, cache, 1, 1.15)
     make.synthesize(marked, cache, 1, 1.15)
     assert jobs_seen == ["История лимита.", "История лим+ита."]
+
+
+def test_parallel_synthesis_deduplicates_identical_cache_jobs(tmp_path, monkeypatch):
+    import json
+    import wave
+
+    _mock_tts_installation(tmp_path, monkeypatch)
+    jobs_seen = []
+
+    def fake_run(*argv, **kwargs):
+        if "tts_worker.py" in argv[1]:
+            jobs = json.loads(kwargs["input"])
+            jobs_seen.extend(jobs)
+            for job in jobs:
+                with wave.open(job["out"], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                    output.writeframes(b"\0\0" * 32)
+        elif argv[0] == "ffmpeg":
+            with wave.open(argv[-1], "wb") as output:
+                output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                output.writeframes(b"\0\0" * 32)
+
+    monkeypatch.setattr(make, "run", fake_run)
+    steps = [{"say": "Повторяющаяся фраза."}, {"say": "Повторяющаяся фраза."}]
+    clips = make.synthesize(steps, tmp_path / "cache", 1, 1.15)
+    assert len(jobs_seen) == 1
+    assert clips == [clips[0], clips[0]] and clips[0].is_file()
