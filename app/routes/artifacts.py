@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import hashlib
+import logging
 import re
 from typing import Any
 
@@ -18,6 +19,7 @@ from app.db import get_session
 from app.mcp_proof import check_mcp_proof
 
 router = APIRouter()
+logger = logging.getLogger("orchestra.artifacts")
 
 
 class PublishRequest(BaseModel):
@@ -132,8 +134,31 @@ async def publish_artifact(request: Request, req: PublishRequest):
             scope=str(session.get("scope") or ""),
             ttl_seconds=ttl,
         )
+    except ValueError as exc:
+        logger.warning(
+            "Artifact snapshot rejected for publisher=%s: %s",
+            session.get("name") or "publisher", exc,
+        )
+        return JSONResponse({"error": str(exc)}, status_code=400)
+    except OSError as exc:
+        reason = exc.strerror or type(exc).__name__
+        logger.warning(
+            "Artifact snapshot I/O failed for publisher=%s (errno=%s): %s",
+            session.get("name") or "publisher", exc.errno, reason,
+        )
+        return JSONResponse(
+            {"error": f"artifact publication failed due to an I/O error: {reason}"},
+            status_code=500,
+        )
     except Exception:
-        return JSONResponse({"error": "artifact publication failed; use send_file(path, as_document=True)"}, status_code=400)
+        logger.exception(
+            "Artifact snapshot failed unexpectedly for publisher=%s",
+            session.get("name") or "publisher",
+        )
+        return JSONResponse(
+            {"error": "artifact publication failed due to an internal error; check Orchestra logs"},
+            status_code=500,
+        )
 
     locator = published["id"]
     capability = published["capability"]

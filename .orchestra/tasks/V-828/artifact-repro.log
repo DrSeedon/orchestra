@@ -1,0 +1,7 @@
+copy_size=147174 copied_under_university_root=True
+production_dotenv_config enabled=False max_bytes=10485760 base_url_set=False secret_set=False
+production-config University-orchestrator: ValueError: artifact links are disabled
+production-config kuzenkov: ValueError: artifact links are disabled
+enabled-config University-orchestrator: published size=147174 name=Составной_индекс.html
+enabled-config kuzenkov: ValueError: source path is outside registered roots
+original_sha256_unchanged=True
