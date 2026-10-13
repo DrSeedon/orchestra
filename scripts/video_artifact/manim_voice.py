@@ -62,7 +62,7 @@ class VoiceScene(Scene):
     CAPTION_CHARS = 66  # строка субтитра при размере 26 на ширину кадра
 
     def setup(self):
-    voice = json.loads(os.environ.get("VIDEO_ARTIFACT_VOICE", "null"))
+        voice = json.loads(os.environ.get("VIDEO_ARTIFACT_VOICE", "null"))
         if voice:
             self.durations, self.pre, self.post = voice["d"], voice["pre"], voice["post"]
         else:
