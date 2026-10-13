@@ -1,0 +1,47 @@
+{'NO-SESSION': 1.0, 'idle': 70.9, 'waiting': 3.8, 'running': 2.6}
+n 49
+10.28G idle 2026-10-09 home-kesha-katya-work/google-slaydy
+5.77G idle 2026-10-07 home-kesha-katya-work/avito
+5.54G idle 2026-10-06 home-kesha-katya-work/lit-uroki
+4.32G idle 2026-10-05 home-kesha-katya-work/skripty
+4.28G idle 2026-10-11 home-kesha-katya-work/video-platforma
+4.10G idle 2026-10-05 home-kesha-katya-work/rilsy
+3.89G idle 2026-10-11 home-kesha-katya-work/itog-soch
+3.76G waiting 2026-10-09 home-kesha-katya-work/metodika
+3.75G idle 2026-10-12 home-kesha-katya-work/feat-toska-slides
+3.73G idle 2026-10-10 home-kesha-katya-work/platforma
+3.53G idle 2026-10-05 home-kesha-katya-work/oshibki-dz
+3.05G idle 2026-10-09 home-kesha-katya-work/kurs-syrye
+2.82G idle 2026-10-09 home-kesha-katya-work/disk-audit
+1.46G idle 2026-09-30 home-kesha-projects-seedon/b2b-tenders
+1.44G idle 2026-10-06 home-kesha-projects-seedon/course-video
+1.42G idle 2026-10-07 home-kesha-projects-seedon/tender-scout
+1.41G idle 2026-10-10 home-kesha-projects-seedon/filter-audit
+1.37G running 2026-08-03 home-kesha-projects-seedon/direct-research
+1.33G idle 2026-10-09 home-kesha-projects-seedon/gamelab
+1.31G idle 2026-10-10 home-kesha-projects-seedon/tender-triage
+1.29G idle 2026-08-03 home-kesha-projects-seedon/sales
+0.87G idle 2026-09-12 home-kesha-orchestra/prompt-engineer
+0.87G running 2026-10-05 home-kesha-orchestra/fix-dashboard
+0.87G idle 2026-10-05 home-kesha-orchestra/fix-codex
+0.86G idle 2026-10-05 home-kesha-orchestra/fix-api
+0.86G idle 2026-10-05 home-kesha-orchestra/fix-spawn
+0.85G idle 2026-10-05 home-kesha-orchestra/fix-telegram
+0.85G idle 2026-10-13 home-kesha-orchestra/feat-video-sound
+0.52G NO-SESSION  bash-latency-20260905/.venv
+0.35G idle 2026-10-11 home-kesha-projects-university/sentiment
+0.33G running 2026-10-05 home-kesha-orchestra/disk-audit
+0.33G idle 2026-08-18 home-kesha-projects-ai-table-mvp/ai-table-worker
+0.32G NO-SESSION  home-kesha-orchestra/v609-baseline-hardening
+0.24G idle 2026-10-05 home-kesha-projects-seedon-site/site-ab
+0.17G NO-SESSION  bash-latency-20260905/.orchestra
+0.10G idle 2026-10-11 home-kesha-projects-university/kuzenkov
+0.01G NO-SESSION  bash-latency-20260905/app
+0.01G NO-SESSION  bash-latency-20260905/tests
+0.00G idle 2026-10-10 home-kesha-projects-vpn-service/feat-tg-proxy
+0.00G NO-SESSION  bash-latency-20260905/docs
+0.00G NO-SESSION  bash-latency-20260905/scripts
+0.00G NO-SESSION  bash-latency-20260905/deploy
+0.00G NO-SESSION  bash-latency-20260905/.pytest_cache
+0.00G NO-SESSION  home-kesha/orchestra
+0.00G NO-SESSION  home-kesha-katya-work/docs
