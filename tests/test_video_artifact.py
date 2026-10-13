@@ -5,11 +5,17 @@
 """
 import importlib.util
 from pathlib import Path
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("video_artifact_make", ROOT / "scripts/video_artifact/make.py")
 make = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(make)
+
+
+@pytest.fixture(autouse=True)
+def isolate_build_lock(tmp_path, monkeypatch):
+    monkeypatch.setattr(make, "BUILD_LOCK_PATH", tmp_path / "video-build.lock")
 
 
 def test_all_video_artifact_python_sources_compile():
@@ -33,6 +39,18 @@ def test_deepgram_digits_latin_and_glued_words_match_screen_text():
     say, sub = "А Дип Инфра и Стрим Лейк держат кеш", "А DeepInfra и StreamLake держат кеш, 7 680 токенов"
     assert all(h is not None for h in make.align([sub], heard)[0])
     assert None in make.align([say], heard)[0]  # транслитерацию Deepgram пишет латиницей
+
+
+def test_deepgram_spoken_numbers_match_digits_and_regular_words_stay_strict():
+    heard = make.tokens("У нас 5 яблок и 125 слив")
+    assert all(hit is not None for hit in make.align(["У нас пять яблок и сто двадцать пять слив"], heard)[0])
+    assert None in make.align(["У нас пять груш"], heard)[0]
+    assert make.tokens("две с половиной тысячи") == make.tokens("2 500")
+    assert make.tokens("one hundred and twenty five") == make.tokens("125")
+    skipped_number = make.align(["У нас пять яблок"], make.tokens("У нас яблок"))[0]
+    assert make.word_scores("У нас пять яблок", skipped_number) == (1.0, 0.0, 1)
+    missing_word = make.align(["У нас пять яблок"], make.tokens("У нас пять"))[0]
+    assert make.word_scores("У нас пять яблок", missing_word)[0] < 1.0
 
 
 def test_missing_word_is_reported_per_phrase():
@@ -112,6 +130,63 @@ def test_parallel_synthesis_completions_keep_phrase_order_and_timing(tmp_path):
     assert timing["steps"][2]["step_start"] == round(sum(row["d"] for row in timing["steps"][:2]), 3)
 
 
+def test_manim_static_timing_tracks_remaining_budget_and_rejects_overrun():
+    timing_spec = importlib.util.spec_from_file_location(
+        "video_artifact_manim_timing", ROOT / "scripts/video_artifact/manim_timing.py")
+    timing = importlib.util.module_from_spec(timing_spec)
+    timing_spec.loader.exec_module(timing)
+    source = """class Demo:
+    def construct(self):
+        with self.step(0):
+            self.play(x, run_time=self.left() * 0.4)
+            for n_left in range(2, 0, -1):
+                per = self.left() * 0.5 / n_left
+                self.play(x, run_time=per)
+        with self.step(1):
+            self.play(x, run_time=self.left() * 1.1)
+"""
+    analysis = timing.analyze(source, "Demo")
+    checked = timing.check(analysis, [4.0, 3.0])
+    assert checked["complete"]
+    assert checked["overruns"] == [1]
+    assert checked["steps"][0]["remaining_s"] > 0
+    assert timing.selected_range(analysis, 0, 0) == (1, 3)
+
+
+def test_build_lock_reports_owner_and_serializes_builds(tmp_path):
+    import threading
+
+    path = tmp_path / "build.lock"
+    first_owned, release_first, second_owned, waiter_called = (threading.Event() for _ in range(4))
+    messages = []
+
+    def first_build():
+        with make.build_lock(path, "first-scene"):
+            first_owned.set()
+            assert release_first.wait(3)
+
+    def waiting(message):
+        messages.append(message)
+        waiter_called.set()
+
+    def second_build():
+        with make.build_lock(path, "second-scene", waiting):
+            second_owned.set()
+
+    first = threading.Thread(target=first_build)
+    second = threading.Thread(target=second_build)
+    first.start()
+    assert first_owned.wait(3)
+    second.start()
+    assert waiter_called.wait(3)
+    assert messages[0].startswith("жду сборку first-scene (pid ")
+    assert not second_owned.is_set()
+    release_first.set()
+    first.join(3)
+    second.join(3)
+    assert second_owned.is_set()
+
+
 def test_scene_sound_events_follow_planned_step_timing(tmp_path):
     import wave
 
@@ -159,6 +234,7 @@ def test_english_voice_reads_latin_and_digits_but_rejects_cyrillic():
 
 
 def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypatch):
+    import io
     import json
     import wave
 
@@ -175,6 +251,32 @@ def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypa
         return make.subprocess.CompletedProcess(argv, 0, stdout=json.dumps(["История лим+ита."]), stderr="")
 
     monkeypatch.setattr(make.subprocess, "run", fake_accent_process)
+
+    class FakeInput(io.StringIO):
+        def __init__(self, ready):
+            super().__init__()
+            self.ready = ready
+        def close(self):
+            self.ready(json.loads(self.getvalue()))
+            super().close()
+
+    class FakeProcess:
+        def __init__(self, *_args, **_kwargs):
+            self.stdout = iter(())
+            self.stdin = FakeInput(self.ready)
+        def ready(self, payload):
+            jobs.extend(payload)
+            for job in payload:
+                with wave.open(job["out"], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                    output.writeframes(b"\0\0" * 32)
+            self.stdout = iter(json.dumps({"index": job["index"]}) for job in payload)
+        def wait(self):
+            return 0
+        def poll(self):
+            return 0
+
+    monkeypatch.setattr(make.subprocess, "Popen", FakeProcess)
 
     def fake_run(*argv, **kwargs):
         if "tts_worker.py" in argv[1]:

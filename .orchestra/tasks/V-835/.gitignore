@@ -1,0 +1,10 @@
+.tts-cache
+.manim/
+.preview-manim/
+.preview-renders*/
+.timing-manim/
+.timing-dryrun/
+*.mp4
+*.wav
+*.log
+before/frames/

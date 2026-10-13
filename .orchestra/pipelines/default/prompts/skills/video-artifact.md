@@ -83,8 +83,12 @@ class Growth(VoiceScene):
 ```
 
 Build with `make.py scene.py --out <folder>`; the engine is selected by extension. Preview
-without voice with `manim -ql scene.py Class` and
-`PYTHONPATH=/home/kesha/orchestra/scripts/video_artifact`; 480p takes about one minute.
+early with `--preview-step N` or `--preview-range A:B`; it writes a contact sheet without loading
+TTS. Send that draft to the owner before starting the full build. Run
+`--timing-only` next: voice durations and statically supported animation lengths are checked
+before frames render; unsupported scenes use Manim `--dry_run`. Fix timing/layout issues, then build
+the full video. Build output reports voice/frame/step counts and ETA; concurrent heavy builds queue
+on a host-wide lock and print the current build they await.
 
 **Formulas are LaTeX.** `MathTex` (math) and `Tex` (text with `$…$`) render through TeX and look
 like textbook typesetting. `manim_voice` puts the project's TinyTeX on PATH and installs a
