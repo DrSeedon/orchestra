@@ -1,0 +1,63 @@
+{
+ "steps": [
+  {
+   "title": "Motion begins",
+   "say": "The marker moves across the timeline at a steady speed.",
+   "sub": null,
+   "step_start": 0.0,
+   "phrase_start": 0.304,
+   "phrase_end": 3.123,
+   "d": 3.601,
+   "events": [
+    {
+     "id": "marker-motion",
+     "at": 1.43,
+     "sound": "whoosh/fs-147285-fh-paper-swipe-surface2-shor-1",
+     "weight": "support",
+     "visual": "move"
+    }
+   ]
+  },
+  {
+   "title": "Motion stops",
+   "say": "Near the boundary, the marker speeds up, stops, and a thump lands.",
+   "sub": null,
+   "step_start": 3.601,
+   "phrase_start": 3.905,
+   "phrase_end": 7.032,
+   "d": 5.431,
+   "events": [
+    {
+     "id": "marker-land",
+     "at": 3.5,
+     "sound": "thump/fs-389999-thump-cloth-1",
+     "weight": "support",
+     "visual": "land"
+    }
+   ]
+  },
+  {
+   "title": "The frame anchors the sound",
+   "say": "The cue time comes from the same step timing as the picture.",
+   "sub": null,
+   "step_start": 9.032,
+   "phrase_start": 9.336,
+   "phrase_end": 12.275,
+   "d": 3.721,
+   "events": []
+  },
+  {
+   "title": "Measured mix",
+   "say": "Voice, effects, and a quiet music bed share one measured mix.",
+   "sub": null,
+   "step_start": 12.753,
+   "phrase_start": 13.057,
+   "phrase_end": 16.311,
+   "d": 4.758,
+   "events": []
+  }
+ ],
+ "T": 17.511,
+ "pre": 0.4,
+ "post": 1.6
+}

@@ -79,6 +79,36 @@ def test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step(tmp_path):
     assert abs(fast["steps"][1]["d"] - (3.0 + make.LEAD / 1.5 + 1.5)) < 1e-3
 
 
+def test_scene_sound_events_follow_planned_step_timing(tmp_path):
+    import wave
+
+    voice, music = tmp_path / "voice.wav", tmp_path / "bed.wav"
+    voice.touch(); music.touch()
+    clips = []
+    for n in range(2):
+        clip = tmp_path / f"{n}.wav"
+        with wave.open(str(clip), "wb") as output:
+            output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+            output.writeframes(b"\0\0" * make.SR)
+        clips.append(clip)
+    steps = [
+        {"t": "first", "say": "First step.", "sub": None, "hold": None, "events": []},
+        {"t": "second", "say": "Second step.", "sub": None, "hold": None, "events": [
+            {"id": "rise", "at": 0.75, "sound": "whoosh", "weight": "hero", "visual": "move"},
+        ]},
+    ]
+    timing = make.plan(steps, clips, 1)
+
+    sheet = make.sound_cues(timing, 30, voice, music, tmp_path / "kit")
+
+    cue = sheet["cues"][0]
+    assert cue["t"] == round(make.PRE + timing["steps"][1]["step_start"] + 0.75, 4)
+    assert cue["frame"] == round(cue["t"] * 30)
+    assert cue["sound"] == "whoosh" and cue["weight"] == "hero" and cue["visual"] == "move"
+    assert sheet["music"]["file"] == str(music.resolve())
+    assert sheet["voice"][0]["file"] == str(voice.resolve())
+
+
 def test_say_rejects_latin_and_digits_before_synthesis():
     assert make.NOT_SPEAKABLE.search("кеш 20 минут")
     assert make.NOT_SPEAKABLE.search("кеш Together")

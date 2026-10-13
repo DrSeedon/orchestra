@@ -1,0 +1,57 @@
+{
+ "cues_file": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-video-sound/.orchestra/tasks/V-824/sound-demo.sound/cues.json",
+ "fps": 30,
+ "duration_s": 19.511,
+ "target_lufs": -18,
+ "master_lufs": -18.0,
+ "master_true_peak_db": -2.0,
+ "master_gain_db": -0.79,
+ "events": [
+  {
+   "id": "marker-motion",
+   "sound": "whoosh/fs-147285-fh-paper-swipe-surface2-shor-1",
+   "files": [
+    "/home/kesha/.local/share/orchestra-sfx/whoosh/fs-147285-fh-paper-swipe-surface2-shor-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 1.83,
+   "peak_s": 1.83,
+   "pan": 0.0,
+   "gain_db": -16.88,
+   "limited_by": "best-band target",
+   "band_hz": [
+    8000,
+    16000
+   ],
+   "win_s": [
+    1.82,
+    1.98
+   ],
+   "visual": "move"
+  },
+  {
+   "id": "marker-land",
+   "sound": "thump/fs-389999-thump-cloth-1",
+   "files": [
+    "/home/kesha/.local/share/orchestra-sfx/thump/fs-389999-thump-cloth-1.wav"
+   ],
+   "weight": "support",
+   "align": "peak",
+   "cue_s": 7.501,
+   "peak_s": 7.501,
+   "pan": 0.0,
+   "gain_db": -14.58,
+   "limited_by": "best-band target",
+   "band_hz": [
+    250,
+    500
+   ],
+   "win_s": [
+    7.491,
+    7.6132
+   ],
+   "visual": "land"
+  }
+ ]
+}
