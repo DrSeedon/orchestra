@@ -1,0 +1,13 @@
+fs: ext4
+refs orchestra: 1476 branches: 1045
+refs seedon: 523 branches: 493
+refs dnd-game-master: 37 branches: 35
+files on disk: 632; tasks dir exists: no
+git add -A (no --sparse): The following paths and/or pathspecs matched paths that exist
+merge --squash in sparse worktree: OK
+commit OK
+out-of-cone file in main tree: 1
+ZZ on disk after merge: no
+bash: line 22: .orchestra/tasks/ZZ/report.md: No such file or directory
+conflicting merge: conflict reported
+AA .orchestra/tasks/ZZ/report.md

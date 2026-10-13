@@ -1,0 +1,26 @@
+=== orchestra tracked at HEAD
+files=4785 bytes=0.34 GB
+0.305 GB	.orchestra/tasks
+0.018 GB	docs
+0.005 GB	tests
+0.005 GB	app
+0.005 GB	".orchestra
+0.001 GB	scripts
+clone --no-checkout -s: 0.08 s
+full checkout: 2.76 s
+disk full: 0.354 GB
+sparse checkout (no artifacts/.orchestra dirs): 0.22 s
+disk sparse: 0.031 GB
+=== seedon tracked at HEAD
+files=5891 bytes=1.37 GB
+0.753 GB	.orchestra/tasks
+0.273 GB	resources
+0.238 GB	artifacts
+0.046 GB	from-site
+0.042 GB	docs
+0.004 GB	tools
+clone --no-checkout -s: 0.26 s
+full checkout: 10.08 s
+disk full: 1.385 GB
+sparse checkout (no artifacts/.orchestra dirs): 1.74 s
+disk sparse: 0.380 GB
