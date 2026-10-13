@@ -28,6 +28,7 @@ from __future__ import annotations
 import json
 import os
 import textwrap
+import time
 from contextlib import contextmanager
 from pathlib import Path
 
@@ -72,6 +73,7 @@ class VoiceScene(Scene):
             raise ValueError("число длительностей озвучки не совпадает с STEPS")
         self.starts = [self.pre + sum(self.durations[:i]) for i in range(len(self.durations))]
         self.cur = -1
+        self.progress_started = time.monotonic()
         self.chrome = VGroup()
 
     def left(self) -> float:
@@ -98,6 +100,8 @@ class VoiceScene(Scene):
         self.remove(self.chrome)
         self.chrome = self._chrome(self.STEPS[i])
         self.add(self.chrome)
+        if os.environ.get("VIDEO_ARTIFACT_PREVIEW") != "1":
+            print(f"Manim: шаг {i + 1}/{len(self.STEPS)}", flush=True)
         yield
         end = self.starts[i] + self.durations[i]
         over = self.time - end
@@ -106,6 +110,12 @@ class VoiceScene(Scene):
                                "задавай run_time через self.left()")
         if end - self.time >= 1 / config.frame_rate:
             self.wait(end - self.time)
+        elapsed = time.monotonic() - self.progress_started
+        done = i + 1
+        eta = elapsed / done * (len(self.STEPS) - done)
+        if os.environ.get("VIDEO_ARTIFACT_PREVIEW") != "1":
+            print(f"Manim: готово {done}/{len(self.STEPS)}, осталось ~{eta:.0f} с", flush=True)
 
     def tear_down(self):
-        self.wait(self.post)
+        if os.environ.get("VIDEO_ARTIFACT_PREVIEW") != "1":
+            self.wait(self.post)

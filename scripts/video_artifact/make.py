@@ -29,6 +29,7 @@ from __future__ import annotations
 import argparse
 import base64
 import difflib
+import fcntl
 import hashlib
 import json
 import os
@@ -36,8 +37,10 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 import wave
+from contextlib import contextmanager
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import get_context
 from pathlib import Path
@@ -56,6 +59,7 @@ TTS_EN_HOME = Path(os.environ.get("ORCHESTRA_TTS_EN_HOME", TTS_HOME / "en"))
 TTS_EN_PYTHON = Path(os.environ.get("ORCHESTRA_TTS_EN_PYTHON", TTS_EN_HOME / "venv/bin/python"))
 MANIM_HOME = Path(os.environ.get("ORCHESTRA_MANIM_HOME", Path.home() / ".local/share/orchestra-manim"))
 MANIM_BIN = MANIM_HOME / "env/bin"
+BUILD_LOCK_PATH = Path.home() / ".cache/orchestra-video-artifact/build.lock"
 SR = 48000
 VIEW = {"width": 1280, "height": 720}
 SCALE = 1.5  # 1280×720 CSS-пикселей → кадр 1920×1080
@@ -159,7 +163,8 @@ def manim_steps(scene: Path, lang: str) -> tuple[str, list[dict]]:
     if not (MANIM_BIN / "manim").exists():
         fail(f"нет Manim: {MANIM_BIN}/manim — установка в SKILL video-artifact")
     got = json.loads(run(str(MANIM_BIN / "python"), "-c", MANIM_STEPS_JS, str(scene.resolve()), str(HERE),
-                         capture_output=True, text=True).stdout)
+                         capture_output=True, text=True,
+                         env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}).stdout)
     return got["cls"], check_steps(got["steps"], lang)
 
 
@@ -414,6 +419,8 @@ class HTMLRenderPipeline:
         self.rate = rate
         self.pool = ProcessPoolExecutor(max_workers=jobs, mp_context=get_context("spawn"))
         self.parts = []
+        self.started = time.monotonic()
+        self.rendered = 0
 
     def step_ready(self, index: int, clips: list[Path]) -> None:
         prefix = plan(self.steps[:index + 1], clips[:index + 1], self.rate)
@@ -425,7 +432,14 @@ class HTMLRenderPipeline:
         times = [min(max(frame / self.fps - PRE, 0.0), prefix["T"]) for frame in range(first, last)]
         part = self.out / f".{self.name}.step{index:04d}.mp4"
         future = self.pool.submit(render_part, (self.scene, {"d": voice_durations}, times, str(part), self.fps))
+        future.add_done_callback(self.render_done)
         self.parts.append((part, future))
+
+    def render_done(self, _future) -> None:
+        self.rendered += 1
+        elapsed = time.monotonic() - self.started
+        eta = elapsed / self.rendered * (len(self.steps) - self.rendered)
+        print(f"кадры HTML: {self.rendered}/{len(self.steps)}, осталось ~{eta:.0f} с", flush=True)
 
     def finish(self) -> None:
         try:
@@ -473,6 +487,7 @@ def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps:
     run(str(MANIM_BIN / "manim"), "render", *quality, "--media_dir", str(media), "-o", name,
         str(scene.resolve()), cls,
         env={**os.environ, "VIDEO_ARTIFACT_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),
+             "PYTHONDONTWRITEBYTECODE": "1",
              "PATH": f"{MANIM_BIN}:{os.environ['PATH']}"})
     rendered = max(media.glob(f"videos/**/{name}.mp4"), key=lambda p: p.stat().st_mtime)
     frames_dir = out / "frames" / name
@@ -486,6 +501,112 @@ def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps:
         "-vf", f"scale=640:-1,{tile}", "-frames:v", "1", str(out / f"{name}-contact.png"))
     if video:
         rendered.replace(out / f"{name}.video.mp4")
+
+
+def preview_manim(scene: Path, cls: str, out: Path, name: str, first_step: int, last_step: int) -> Path:
+    from manim_timing import analyze, selected_range
+
+    analysis = analyze(scene.read_text(), cls)
+    if not analysis["complete"]:
+        fail("быстрый предпросмотр требует статически индексируемых self.play/run_time; запусти обычную сборку")
+    try:
+        selected_range(analysis, first_step - 1, last_step - 1)
+    except ValueError as exc:
+        fail(str(exc))
+    media = out / ".preview-manim"
+    out_dir = out / f".preview-renders-{first_step}-{last_step}"
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for step_no in range(first_step, last_step + 1):
+        start, end = selected_range(analysis, step_no - 1, step_no - 1)
+        run(str(MANIM_BIN / "manim"), "render", "-ql", "-n", f"{start},{end}",
+            "--media_dir", str(media), "-o", f"{name}-step{step_no:02d}",
+            str(scene.resolve()), cls,
+            env={**os.environ, "PYTHONPATH": str(HERE), "PYTHONDONTWRITEBYTECODE": "1", "VIDEO_ARTIFACT_PREVIEW": "1",
+                 "PATH": f"{MANIM_BIN}:{os.environ['PATH']}"})
+        rendered = max(media.glob(f"videos/**/{name}-step{step_no:02d}.mp4"), key=lambda p: p.stat().st_mtime)
+        run("ffmpeg", "-v", "error", "-y", "-sseof", "-1", "-i", str(rendered), "-vf", "reverse", "-frames:v", "1",
+            str(out_dir / f"step{step_no:02d}.png"))
+    tile = f"tile={min(3, last_step - first_step + 1)}x{(last_step - first_step + 3) // 3}"
+    contact = out / f"{name}-preview-contact.png"
+    run("ffmpeg", "-v", "error", "-y", "-pattern_type", "glob", "-i", str(out_dir / "step*.png"),
+        "-vf", f"scale=640:-1,{tile}", "-frames:v", "1", str(contact))
+    print(f"черновик шагов {first_step}–{last_step}: {contact}", flush=True)
+    return contact
+
+
+def preview_html(scene: Path, steps: list[dict], out: Path, name: str, first_step: int, last_step: int) -> Path:
+    durations = [float(step.get("d") or 1.0) for step in steps]
+    voice = {"d": durations}
+    frames = out / f".preview-renders-{first_step}-{last_step}"
+    frames.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as pw:
+        browser, page = open_scene(pw, scene, voice)
+        applied = page.evaluate("[window.__VOICE_APPLIED === true, P.T]")
+        if not applied[0]:
+            fail("сцена не принимает быстрый предпросмотр: нужна строка `window.voice?.(STEPS);` после STEPS")
+        at = 0.0
+        selected = []
+        for index, duration in enumerate(durations):
+            if first_step - 1 <= index <= last_step - 1:
+                page.evaluate(f"P.seek({at + duration - 0.05})")
+                frame = frames / f"step{index + 1:02d}.png"
+                page.screenshot(path=str(frame))
+                selected.append(frame)
+            at += duration
+        browser.close()
+    tile = f"tile={min(3, len(selected))}x{(len(selected) + 2) // 3}"
+    contact = out / f"{name}-preview-contact.png"
+    run("ffmpeg", "-v", "error", "-y", "-pattern_type", "glob", "-i", str(frames / "step*.png"),
+        "-vf", f"scale=640:-1,{tile}", "-frames:v", "1", str(contact))
+    print(f"черновик шагов {first_step}–{last_step}: {contact}", flush=True)
+    return contact
+
+
+def manim_timing_check(scene: Path, cls: str, timing: dict, out: Path, name: str) -> dict:
+    from manim_timing import analyze, check
+
+    analysis = analyze(scene.read_text(), cls)
+    report = check(analysis, [row["d"] for row in timing["steps"]])
+    if not report["complete"]:
+        print("статическая проверка таймингов неприменима; запускаю Manim --dry_run", flush=True)
+        voice = {"d": [row["d"] for row in timing["steps"]], "pre": PRE, "post": POST}
+        run(str(MANIM_BIN / "manim"), "render", "-ql", "--dry_run", "--media_dir", str(out / ".timing-manim"),
+            "-o", f"{name}-timing", str(scene.resolve()), cls,
+            env={**os.environ, "VIDEO_ARTIFACT_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),
+                 "PYTHONDONTWRITEBYTECODE": "1", "PATH": f"{MANIM_BIN}:{os.environ['PATH']}"})
+        report = {"complete": False, "fallback": "manim --dry_run", "overruns": []}
+    elif report["overruns"]:
+        fail("тайминг превышен в шагах: " + ", ".join(str(i + 1) for i in report["overruns"]))
+    (out / f"{name}.timing-check.json").write_text(json.dumps(report, ensure_ascii=False, indent=1))
+    print(f"проверка таймингов: {'Manim --dry_run' if report.get('fallback') else 'статически'}, "
+          f"{len(timing['steps'])} шагов", flush=True)
+    return report
+
+
+@contextmanager
+def build_lock(path: Path, build: str, on_wait=print):
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+") as lock:
+        try:
+            fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            lock.seek(0)
+            try:
+                owner = json.loads(lock.read())
+            except (json.JSONDecodeError, OSError):
+                owner = {"build": "unknown"}
+            on_wait(f"жду сборку {owner.get('build', 'unknown')} (pid {owner.get('pid', '?')})")
+            fcntl.flock(lock, fcntl.LOCK_EX)
+        lock.seek(0)
+        lock.truncate()
+        json.dump({"pid": os.getpid(), "build": build, "started": time.strftime("%Y-%m-%dT%H:%M:%S%z")}, lock)
+        lock.flush()
+        try:
+            yield
+        finally:
+            lock.seek(0)
+            lock.truncate()
+            lock.flush()
 
 
 def mux(out: Path, name: str, sound: bool = False) -> Path:
@@ -513,7 +634,69 @@ def tokens(text: str) -> list[str]:
     text = text.lower().replace("+", "").replace("ё", "е").replace("э", "е")
     text = re.sub(r"(?<=\d) (?=\d{3}\b)", "", text)
     text = re.sub(r"(?<=[а-я])(?=[a-z0-9])|(?<=[a-z0-9])(?=[а-я])", " ", text)
-    return [w[:5] for w in re.findall(r"[a-zа-я0-9]+", text)]
+    raw = re.findall(r"[a-zа-я0-9]+", text)
+    units = {"ноль": 0, "один": 1, "одна": 1, "одно": 1, "одну": 1, "одного": 1, "одной": 1,
+             "два": 2, "две": 2, "двух": 2,
+             "три": 3, "четыре": 4, "четырех": 4, "пять": 5, "шесть": 6, "семь": 7,
+             "восемь": 8, "девять": 9, "десять": 10, "одиннадцать": 11, "двенадцать": 12,
+             "тринадцать": 13, "четырнадцать": 14, "пятнадцать": 15, "шестнадцать": 16,
+             "семнадцать": 17, "восемнадцать": 18, "девятнадцать": 19}
+    tens = {"двадцать": 20, "тридцать": 30, "сорок": 40, "пятьдесят": 50, "шестьдесят": 60,
+            "семьдесят": 70, "восемьдесят": 80, "девяносто": 90}
+    hundreds = {"сто": 100, "двести": 200, "триста": 300, "четыреста": 400, "пятьсот": 500,
+                "шестьсот": 600, "семьсот": 700, "восемьсот": 800, "девятьсот": 900}
+    english_units = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+                     "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10, "eleven": 11,
+                     "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+                     "seventeen": 17, "eighteen": 18, "nineteen": 19}
+    english_tens = {"twenty": 20, "thirty": 30, "forty": 40, "fifty": 50, "sixty": 60,
+                    "seventy": 70, "eighty": 80, "ninety": 90}
+    normalized, index = [], 0
+    while index < len(raw):
+        word = raw[index]
+        if raw[index:index + 4] in (["две", "с", "половиной", "тысячи"],
+                                   ["две", "с", "половиной", "тысяч"]):
+            normalized.append("2500"); index += 4; continue
+        if word in english_units or word in english_tens or word in ("hundred", "thousand"):
+            total = group = 0
+            while index < len(raw):
+                word = raw[index]
+                if word in english_units:
+                    group += english_units[word]
+                elif word in english_tens:
+                    group += english_tens[word]
+                elif word == "and" and index > 0:
+                    index += 1
+                    continue
+                elif word == "hundred":
+                    group = max(group, 1) * 100
+                elif word == "thousand":
+                    total += max(group, 1) * 1000
+                    group = 0
+                else:
+                    break
+                index += 1
+            normalized.append(str(total + group)); continue
+        if word not in units and word not in tens and word not in hundreds:
+            normalized.append(word[:5]); index += 1; continue
+        total = group = 0
+        start = index
+        while index < len(raw):
+            word = raw[index]
+            if word in hundreds:
+                group += hundreds[word]
+            elif word in tens:
+                group += tens[word]
+            elif word in units:
+                group += units[word]
+            elif word in ("тысяча", "тысячи", "тысяч") and index > start:
+                total += max(group, 1) * 1000
+                group = 0
+            else:
+                break
+            index += 1
+        normalized.append(str(total + group))
+    return normalized
 
 
 def align(phrases: list[str], heard: list[str]) -> list[list[int | None]]:
@@ -525,6 +708,16 @@ def align(phrases: list[str], heard: list[str]) -> list[list[int | None]]:
         for k in range(block.size):
             match[block.a + k] = block.b + k
     return [[match.get(k) for k, (i, _w) in enumerate(planned) if i == n] for n in range(len(phrases))]
+
+
+def word_scores(phrase: str, hits: list[int | None]) -> tuple[float, float, int]:
+    """Keep lexical recall strict while reporting numerals separately when speech recognition omits them."""
+    words = tokens(phrase)
+    numeric = [index for index, word in enumerate(words) if word.isdigit()]
+    lexical = [index for index, word in enumerate(words) if not word.isdigit()]
+    lexical_recall = sum(hits[index] is not None for index in lexical) / len(lexical) if lexical else 1.0
+    numeric_recall = sum(hits[index] is not None for index in numeric) / len(numeric) if numeric else 1.0
+    return lexical_recall, numeric_recall, len(numeric)
 
 
 def voice_onsets(mp4: Path) -> list[float]:
@@ -554,8 +747,9 @@ def check(out: Path, name: str, timing: dict, key: str, lang: str = "ru") -> dic
     onsets = voice_onsets(out / f"{name}.mp4")
     rows = []
     for row, say_hits, sub_hits in zip(timing["steps"], by_say, by_sub, strict=True):
-        recall = lambda hits: sum(h is not None for h in hits) / len(hits)  # noqa: E731
-        hits = max(say_hits, sub_hits, key=recall)
+        say_score = word_scores(row["say"], say_hits)
+        sub_score = word_scores(row["sub"] or row["say"], sub_hits)
+        hits, score = (say_hits, say_score) if say_score[:2] >= sub_score[:2] else (sub_hits, sub_score)
         first = next((h for h in (say_hits[0], sub_hits[0]) if h is not None), None)
         start = words[heard_words[first][1]]["start"] if first is not None else None
         # Первое слово записи Deepgram иногда ставит на 0.0 при тишине перед ним: это не сдвиг.
@@ -564,7 +758,9 @@ def check(out: Path, name: str, timing: dict, key: str, lang: str = "ru") -> dic
         rows.append({
             "say": row["say"],
             "heard": " ".join(dict.fromkeys(words[heard_words[h][1]]["word"] for h in hits if h is not None)),
-            "recall": round(recall(hits), 2),
+            "recall": round(score[0], 2),
+            "numeric_recall": round(score[1], 2),
+            "numeric_total": score[2],
             "planned_start": round(PRE + row["phrase_start"], 2),
             "heard_start": start,
             "offset_s": round(start - (PRE + row["phrase_start"]), 2) if start is not None else None,
@@ -584,7 +780,7 @@ def check(out: Path, name: str, timing: dict, key: str, lang: str = "ru") -> dic
     return report
 
 
-def main() -> None:
+def _main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("scene", type=Path)
     ap.add_argument("--out", type=Path, required=True)
@@ -601,6 +797,10 @@ def main() -> None:
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
                     help="параллельных Chromium при записи")
     ap.add_argument("--stills", action="store_true", help="без видео: тайминг и контакт-лист")
+    preview = ap.add_mutually_exclusive_group()
+    preview.add_argument("--preview-step", type=int, help="быстрый стоп-кадр шага без TTS")
+    preview.add_argument("--preview-range", help="быстрый контакт-лист шагов, например 5:8")
+    ap.add_argument("--timing-only", action="store_true", help="проверить длительности фраз и анимаций без рендера")
     ap.add_argument("--no-check", action="store_true")
     ap.add_argument("--check-only", action="store_true", help="только проверить готовый MP4")
     args = ap.parse_args()
@@ -612,6 +812,22 @@ def main() -> None:
         cls, steps = manim_steps(args.scene, args.lang)
     else:
         steps = read_steps(args.scene, args.lang)
+    print("stage 1/4: scene and speech plan", flush=True)
+    if args.preview_step or args.preview_range:
+        if args.preview_step:
+            first_step = last_step = args.preview_step
+        else:
+            match = re.fullmatch(r"(\d+):(\d+)", args.preview_range)
+            if not match:
+                fail("--preview-range задаётся как начало:конец, например 5:8")
+            first_step, last_step = map(int, match.groups())
+        if first_step < 1 or last_step < first_step or last_step > len(steps):
+            fail(f"диапазон предпросмотра должен быть в пределах 1…{len(steps)}")
+        if manim:
+            preview_manim(args.scene, cls, out, name, first_step, last_step)
+        else:
+            preview_html(args.scene, steps, out, name, first_step, last_step)
+        return
     steps = mark_stress(steps, args.lang, enabled=not args.no_stress)
     if args.stress_only:
         marked = [step.get("_tts_text", step["say"]) for step in steps]
@@ -628,17 +844,25 @@ def main() -> None:
     if not manim and not args.stills and not args.check_only:
         pipeline = HTMLRenderPipeline(args.scene, steps, out, name, args.fps, args.jobs, args.rate)
     rendered_clips = []
+    speech_started = time.monotonic()
 
     def render_ready(index: int, clip: Path) -> None:
         if index != len(rendered_clips):
             raise RuntimeError(f"неупорядоченный результат синтеза: ожидался шаг {len(rendered_clips)}, получен {index}")
         rendered_clips.append(clip)
-        pipeline.step_ready(index, rendered_clips)
+        elapsed = time.monotonic() - speech_started
+        eta = elapsed / len(rendered_clips) * (len(steps) - len(rendered_clips))
+        print(f"озвучка: {len(rendered_clips)}/{len(steps)}, осталось ~{eta:.0f} с", flush=True)
+        if pipeline:
+            pipeline.step_ready(index, rendered_clips)
 
     clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
                        voice=args.voice if args.lang == "en" else "",
-                       on_ready=render_ready if pipeline else None)
+                       on_ready=render_ready)
     timing = plan(steps, clips, args.rate)
+    if manim:
+        manim_timing_check(args.scene, cls, timing, out, name)
+    print("stage 2/4: timing plan ready", flush=True)
     if pipeline:
         pipeline.finish()
     sheet = sound_cues(timing, args.fps, out / f"{name}.voice.wav", args.music) if has_events else {}
@@ -646,7 +870,11 @@ def main() -> None:
     for row in timing["steps"]:
         print(f"  {row['phrase_start']:6.2f}–{row['phrase_end']:6.2f}  шаг {row['d']:5.2f} с  {row['say']}")
     print(f"длина ролика {PRE + timing['T'] + POST:.1f} с")
+    if args.timing_only:
+        print("тайминг проверен; рендер пропущен", flush=True)
+        return
     if not args.check_only:
+        print("stage 3/4: rendering frames", flush=True)
         voice_track(timing, clips, out / f"{name}.voice.wav")
         if manim:
             render_manim(args.scene, cls, timing, out, name, args.fps, video=not args.stills)
@@ -657,6 +885,7 @@ def main() -> None:
         print(out / f"{name}-contact.png")
         if args.stills:
             return
+        print("stage 4/4: mix, mux, and checks", flush=True)
         sound_mix(out, name, sheet)
         mp4 = mux(out, name, sound=bool(sheet))
         print(mp4, f"{mp4.stat().st_size / 1e6:.1f} МБ")
@@ -673,6 +902,12 @@ def main() -> None:
         print(f"  recall {r['recall']:.2f}  сдвиг слова {r['offset_s']}  звука {r['onset_offset_s']}  {r['say']}\n      слышно: {r['heard']}")
     print(f"минимальная дословность {report['recall_min']}, наибольший сдвиг: первого слова "
           f"{report['offset_max_abs_s']} с, начала звука {report['onset_offset_max_abs_s']} с")
+
+
+def main() -> None:
+    scene = next((Path(arg) for arg in sys.argv[1:] if not arg.startswith("-")), Path("scene"))
+    with build_lock(BUILD_LOCK_PATH, scene.stem):
+        _main()
 
 
 if __name__ == "__main__":
