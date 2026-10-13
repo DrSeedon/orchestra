@@ -11,13 +11,14 @@ This skill adds voice, the 16:9 frame,
 and video-specific checks. Numbers and facts come from a source (report, data, or code), as in
 every artifact.
 
-**Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes all phrases first,
-then sets step duration to intro + phrase + pause (0.35 and 0.55 s divided by `--rate`, default
-1.15; `hold: seconds` replaces 0.55 on the last step to allow viewing). Do not write `d` in
+**Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes phrases in parallel
+with one loaded TTS model, then sets step duration to intro + phrase + pause (0.35 and 0.55 s
+divided by `--rate`, default 1.15; `hold: seconds` replaces 0.55 on the last step to allow viewing). Do not write `d` in
 steps: it is replaced. State changes are constructed to begin with the phrase. The phrase fills
 almost the whole step, so `w: {id: [a, b]}` approximates its fraction: an object mentioned in
 the middle uses `[.4, .6]`. For a second precise accent, split the phrase into two steps rather
-than tuning windows.
+than tuning windows. HTML renders each ordered step as soon as its phrase is ready; Manim waits
+for all phrases because `construct()` needs the complete timing plan.
 
 - **Scene:** for HTML, use the player scaffold in `html-artifacts`, with `<svg id="stage" viewBox="0 0 1200 520">`.
   Immediately after `STEPS`, include `STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);` — without it the tool stops. The video label is subtitles (Telegram's feed plays without sound): use `say`; if it contains transliteration or numbers written as words, use `sub` with the screen form (for example "Together", "7 680"); `t` is a short step heading.
