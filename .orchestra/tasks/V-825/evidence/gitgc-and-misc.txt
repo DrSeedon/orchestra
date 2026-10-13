@@ -1,0 +1,45 @@
+== /home/kesha/orchestra/.git
+count: 1939;size: 34.94 MiB;in-pack: 63951;packs: 10;size-pack: 711.70 MiB;prune-packable: 0;garbage: 0;size-garbage: 0 bytes;
+== /home/kesha/projects/seedon/.git
+count: 1849;size: 118.55 MiB;in-pack: 22152;packs: 5;size-pack: 970.73 MiB;prune-packable: 0;garbage: 0;size-garbage: 0 bytes;
+== /home/kesha/projects/comfy-image-pipeline/.git
+count: 107;size: 83.58 MiB;in-pack: 20805;packs: 2;size-pack: 1.13 GiB;prune-packable: 24;garbage: 0;size-garbage: 0 bytes;
+== /home/kesha/katya-work/.git
+warning: garbage found: /home/kesha/katya-work/.git/objects/pack/tmp_pack_vmgMkw;warning: garbage found: /home/kesha/katya-work/.git/objects/pack/tmp_pack_soNT2I;count: 3915;size: 1.56 GiB;in-pack: 13526;packs: 2;size-pack: 3.32 GiB;prune-packable: 0;garbage: 2;size-garbage: 1.63 GiB;
+== /home/kesha/archive/comfy-monorepo.git
+count: 3;size: 56.00 KiB;in-pack: 33419;packs: 1;size-pack: 5.19 GiB;prune-packable: 0;garbage: 0;size-garbage: 0 bytes;
+== /opt/kesha-bot/.git
+count: 2209;size: 282.43 MiB;in-pack: 1288;packs: 5;size-pack: 2.54 MiB;prune-packable: 200;garbage: 0;size-garbage: 0 bytes;
+== /opt/cog-second-brain/.git
+count: 2040;size: 30.31 MiB;in-pack: 19920;packs: 9;size-pack: 309.10 MiB;prune-packable: 0;garbage: 0;size-garbage: 0 bytes;
+== /home/kesha/apps/mirofish/.git
+count: 0;size: 0 bytes;in-pack: 157;packs: 1;size-pack: 6.70 MiB;prune-packable: 0;garbage: 0;size-garbage: 0 bytes;
+
+Archived and active journals take up 1.5G in the file system.
+ls: cannot access '/root/.local/share/Trash/files': Permission denied
+0
+ls: cannot access '/root/.local/share/Trash/files': Permission denied
+ls: cannot access '/root/.local/share/Trash/files': Permission denied
+---
+total 2932996
+drwx------  2 kesha kesha       4096 2026-10-13 .
+drwxr-xr-x 39 kesha kesha       4096 2026-10-13 ..
+-rw-rw-r--  1 kesha kesha          0 2026-10-08 .orchestra-backup.lock
+-rw-------  1 kesha kesha       1752 2026-10-12 orchestra-db-2026-10-12.json
+-rw-------  1 kesha kesha 1501413417 2026-10-12 orchestra-db-2026-10-12.sqlite.zst
+-rw-------  1 kesha kesha       1752 2026-10-13 orchestra-db-2026-10-13.json
+-rw-------  1 kesha kesha 1501912276 2026-10-13 orchestra-db-2026-10-13.sqlite.zst
+bootstrap-topic-registry.json
+canonical
+current.db
+debt
+project-knowledge-owner.json
+receipts
+runtime-state.json
+scope-registry.json
+task-current.db
+4.13G /home/kesha/.local/state/orchestra/knowledge-v1
+0.80G /home/kesha/.local/state/orchestra/knowledge-v1/canonical
+0.58G /home/kesha/.local/state/orchestra/knowledge-v1/canonical/evidence
+0.20G /home/kesha/.local/state/orchestra/knowledge-v1/canonical/.git
+0.02G /home/kesha/.local/state/orchestra/knowledge-v1/canonical/tasks
