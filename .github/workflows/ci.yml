@@ -38,6 +38,9 @@ jobs:
           fetch-depth: 0
       - uses: astral-sh/setup-uv@v7
       - run: uv sync --dev
+      - name: Check agent documentation
+        if: matrix.shard == 0
+        run: uv run --frozen python scripts/check_instruction_contract.py
       # На образе ubuntu-latest ffmpeg не предустановлен, а тест длительности
       # аудио обязан звать НАСТОЯЩИЙ ffprobe — подменять бинарь значило бы
       # проверять заглушку вместо разбора контейнера.

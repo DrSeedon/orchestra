@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Added
+- **CI and local agent-documentation integrity check** (`scripts/check_instruction_contract.py`, `.github/workflows/ci.yml`; V-826). The instruction contract command reuses `app.kb_index` to check KB topic/index coverage and resolves relative Markdown and backtick file references in `AGENTS.md` and `.orchestra/kb/*.md`; CI runs it once in the test shards. Trigger: KB topics can be invisible to agents when absent from its index, and stale paths misdirect readers.
 - **Optional event-synced sound layer for video-artifact** (`scripts/video_artifact/make.py`, `scripts/video_artifact/sound/`; V-824). HTML and Manim steps can declare timed `events`; `make.py` maps them from the voice-derived step plan into a cue sheet, mixes selected CC0 effects, looped music and the existing voice with ducking, then muxes and runs picture/audio QA. The CC0 kit defaults to `~/.local/share/orchestra-sfx/`; scenes without events retain the voice-only path. Trigger: the video builder had no sound beyond speech, and sparse effects alone produced an unusable loudness target and silence failures.
 
 ### Changed

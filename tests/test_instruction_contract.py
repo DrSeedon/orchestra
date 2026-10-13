@@ -7,8 +7,6 @@ Claude Code CLI с модом `agents-md` читает `AGENTS.md` сам, но 
 Claude-агенты не видели правил владельца. Симлинк разойтись не может физически — тест
 сторожит именно его, а не равенство байтов.
 """
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -21,12 +19,15 @@ REPO = Path(__file__).resolve().parents[1]
 
 @pytest.fixture
 def root(tmp_path):
-    shutil.copy(REPO / "AGENTS.md", tmp_path / "AGENTS.md")
+    (tmp_path / "AGENTS.md").write_text("# Rules\n", encoding="utf-8")
     (tmp_path / "CLAUDE.md").symlink_to("AGENTS.md")
+    (tmp_path / "scripts").mkdir()
     kb = tmp_path / ".orchestra" / "kb"
     kb.mkdir(parents=True)
-    for topic in (REPO / ".orchestra" / "kb").glob("*.md"):
-        shutil.copy(topic, kb / topic.name)
+    (kb / "runtime.md").write_text("# Runtime\n", encoding="utf-8")
+    (kb / "README.md").write_text(
+        "- [runtime](runtime.md) — Runtime notes\n", encoding="utf-8"
+    )
     return tmp_path
 
 
@@ -86,3 +87,35 @@ def test_unindexed_kb_topic_is_rejected(root):
 
     assert result.returncode == 1
     assert "brand-new-topic" in result.stderr
+
+
+def test_missing_kb_index_target_is_rejected(root):
+    index = root / ".orchestra" / "kb" / "README.md"
+    index.write_text(index.read_text().replace("(runtime.md)", "(missing.md)"), encoding="utf-8")
+
+    result = _run(root)
+
+    assert result.returncode == 1
+    assert "missing.md" in result.stderr
+
+
+def test_broken_markdown_and_backtick_paths_are_rejected(root):
+    topic = root / ".orchestra" / "kb" / "runtime.md"
+    topic.write_text(
+        "# Runtime\n\n[missing](../missing.md) and `scripts/missing.py` and `scripts/missing`\n",
+        encoding="utf-8",
+    )
+
+    result = _run(root)
+
+    assert result.returncode == 1
+    assert "../missing.md" in result.stderr
+    assert "scripts/missing.py" in result.stderr
+    assert "scripts/missing`" in result.stderr
+
+
+def test_markdown_examples_inside_code_are_not_links(root):
+    topic = root / ".orchestra" / "kb" / "runtime.md"
+    topic.write_text("# Runtime\n\nExample: `[missing](missing.md)`\n", encoding="utf-8")
+
+    assert _run(root).returncode == 0
