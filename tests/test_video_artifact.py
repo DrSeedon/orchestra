@@ -12,6 +12,11 @@ make = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(make)
 
 
+def test_all_video_artifact_python_sources_compile():
+    for path in sorted((ROOT / "scripts/video_artifact").rglob("*.py")):
+        compile(path.read_bytes(), str(path), "exec")
+
+
 def _mock_tts_installation(tmp_path, monkeypatch):
     python = tmp_path / "venv" / "bin" / "python"
     python.parent.mkdir(parents=True)
