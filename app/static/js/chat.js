@@ -1295,7 +1295,7 @@ const HIDE_THINKING = document.body.dataset.hideThinking === 'true';
 // SDK stream events can beat TaskStarted by a few milliseconds. Buffer those
 // lines by parent tool id, then move them into the task-id card once it exists.
 const _pendingSubagentLogs = new Map();
-function appendSubagentLog(subId, evType, content) {
+function appendSubagentLog(subId, evType, content, payload) {
     const chat = $('#chat');
     const host = chat.querySelector(`[data-subagent-id="${CSS.escape(subId)}"]`);
     if (!host) {
@@ -1303,14 +1303,32 @@ function appendSubagentLog(subId, evType, content) {
             _pendingSubagentLogs.delete(_pendingSubagentLogs.keys().next().value);
         }
         const pending = _pendingSubagentLogs.get(subId) || [];
-        pending.push([evType, content]);
+        pending.push([evType, content, payload]);
         if (pending.length > 100) pending.shift();
         _pendingSubagentLogs.set(subId, pending);
         return;
     }
     const body = host.querySelector('.sa-body');
     if (!body) return;
-    if (evType === 'stream') {
+    if (evType === 'thinking_stream' || evType === 'tool_input_stream') {
+        // One growing line per live block; its persisted event (subagent_event) replaces it.
+        const key = `${evType}:${(payload && payload.item_id) || ''}`;
+        let live = [...body.querySelectorAll('.sa-live')].find(el => el.dataset.liveKey === key);
+        if (!live) {
+            live = document.createElement('div');
+            live.className = 'sa-live';
+            live.dataset.liveKey = key;
+            live.dataset.liveType = evType;
+            live._decoder = evType === 'tool_input_stream' ? new LiveArgsDecoder() : null;
+            live._text = '';
+            body.appendChild(live);
+        }
+        if (live._decoder) live._decoder.feed(content);
+        else live._text += content;
+        const name = (payload && payload.tool_name) || '';
+        const text = live._decoder ? live._decoder.text : live._text;
+        live.textContent = `${live._decoder ? `✍ ${name}` : '💭'} ${text.slice(-600)}`;
+    } else if (evType === 'stream') {
         // Coalesce contiguous stream text into one line (typewriter feel)
         let last = body.lastElementChild;
         if (last && last.classList.contains('sa-stream')) {
@@ -1322,6 +1340,8 @@ function appendSubagentLog(subId, evType, content) {
             body.appendChild(last);
         }
     } else {
+        const settled = evType === 'tool_use' ? 'tool_input_stream' : evType === 'thinking' ? 'thinking_stream' : '';
+        if (settled) body.querySelectorAll(`.sa-live[data-live-type="${settled}"]`).forEach(el => el.remove());
         const line = document.createElement('div');
         const icon = evType === 'tool_use' ? '🔧' : evType === 'tool_result' ? '↳' : evType === 'thinking' ? '💭' : '';
         line.style.cssText = 'margin-top:2px;color:' + (evType === 'tool_use' ? '#c4b5fd' : '#94a3b8');
@@ -1337,8 +1357,8 @@ function _flushPendingSubagentLogs(sourceId, targetId) {
     const pending = _pendingSubagentLogs.get(sourceId);
     if (!pending) return;
     _pendingSubagentLogs.delete(sourceId);
-    for (const [evType, content] of pending) {
-        appendSubagentLog(targetId, evType, content);
+    for (const [evType, content, payload] of pending) {
+        appendSubagentLog(targetId, evType, content, payload);
     }
 }
 
@@ -1354,6 +1374,7 @@ function _resetCodexActivityState() {
 }
 
 function resetChatTransientState() {
+    liveResetActivity();
     localMessages.clear();
     pendingUserMsgs = [];
     pendingBubble = null;
@@ -1819,6 +1840,7 @@ function _renderSendChartResult(card, content, ts) {
 }
 
 function _updateCompactToolResult(card, content, isBase64Image) {
+    liveStopToolClock(card);
     const resultSpan = card.querySelector('.compact-result');
     if (isBase64Image) {
         if (resultSpan) resultSpan.textContent = T('🖼 image');
@@ -1943,8 +1965,10 @@ function _renderCompactToolEntry(type, content, ts, payload, chat, anchor, inser
     }
 
     const line = buildCompactToolLine(type, content, ts, payload);
+    if (type === 'tool' && line.dataset.toolUseId) liveRemoveToolInput(line.dataset.toolUseId);
     insertAndFollow(line, () => {
         _trimChatNodes(chat);
+        if (type === 'tool' && line.dataset.compactTool) liveStartToolClock(line, line.dataset.toolRaw, content, ts);
         if (type === 'tool') _adoptOrphanResults(chat, line.dataset.toolUseId);
     });
     return true;
@@ -2031,6 +2055,7 @@ const SUBAGENT_LIFECYCLE_TYPES = new Set([
 // снимается и при финише (`_stopSubagentClock`), и при исчезновении узла из DOM, иначе
 // обрезка чата по MAX_CHAT_NODES оставила бы вечно тикающие таймеры на удалённых баблах.
 const _SA_CLOCK_TICK_MS = 1000;
+const _SA_CLOCK_MAX_AGE_MS = 6 * 3600 * 1000;
 
 function _formatSubagentElapsed(seconds) {
     const total = Math.max(0, Math.floor(seconds));
@@ -2041,13 +2066,28 @@ function _formatSubagentElapsed(seconds) {
 function _startSubagentClock(element, ts) {
     const started = ts ? new Date(ts).getTime() : Date.now();
     const base = Number.isFinite(started) ? started : Date.now();
+    // A start row from a session that died without its end row must not tick forever.
+    if (Date.now() - base > _SA_CLOCK_MAX_AGE_MS) return;
     const clock = document.createElement('span');
     clock.className = 'sa-clock';
     clock.style.cssText = 'margin-left:6px;color:#a78bfa;font-size:10px;font-variant-numeric:tabular-nums';
-    element.appendChild(clock);
+    (element.firstElementChild || element).appendChild(clock);
     const tick = () => {
-        if (!element.isConnected) return _stopSubagentClock(element);
-        clock.textContent = T('⏳ running {elapsed}', {elapsed: _formatSubagentElapsed((Date.now() - base) / 1000)});
+        // The first tick runs before the card is inserted: only a card that WAS in the
+        // DOM and left it (chat trimming) stops its clock. Checking isConnected alone
+        // removed every clock at birth, so background tasks never showed one.
+        if (!element.isConnected) {
+            if (element._saClockSeen) return _stopSubagentClock(element);
+        } else {
+            element._saClockSeen = true;
+        }
+        // A foreground Bash call runs as a task too: its own timeout bounds the task.
+        const callId = element.dataset.saToolUseId;
+        const call = callId ? document.querySelector(`[data-tool-use-id="${CSS.escape(callId)}"]`) : null;
+        const timeoutMs = Number(call?.dataset.toolTimeoutMs || 0);
+        clock.textContent = timeoutMs
+            ? liveRunLabel(Date.now() - base, timeoutMs)
+            : T('⏳ running {elapsed}', {elapsed: _formatSubagentElapsed((Date.now() - base) / 1000)});
     };
     tick();
     element._saClockId = setInterval(tick, _SA_CLOCK_TICK_MS);
@@ -2083,6 +2123,7 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
     if (type === 'subagent_start') {
         element.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
         if (subagentId) element.dataset.subagentId = subagentId;
+        if (meta.tool_use_id) element.dataset.saToolUseId = meta.tool_use_id;
         element.dataset.subagentKind = isBackground ? 'background' : 'agent';
         const header = document.createElement('div');
         header.style.cssText = 'cursor:pointer;user-select:none';
@@ -2092,7 +2133,6 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
         // 239 задач, только два события на задачу). Поэтому единственный честный признак
         // жизни — часы, которые идут у клиента. Медиана задачи 3.5 с, но p90 = 34 с и
         // максимум 598 с: без тикающего счётчика долгая задача неотличима от повисшей.
-        _startSubagentClock(element, ts);
         const body = document.createElement('div');
         body.className = 'sa-body';
         body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
@@ -2103,6 +2143,7 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
             header.querySelector('.sa-caret').textContent = expanded ? '▼' : '▶';
         });
         element.append(header, body);
+        _startSubagentClock(element, ts);
     } else if (type === 'subagent_progress') {
         const tokenCount = parseInt(meta.tokens || '0');
         const tokens = meta.tokens ? (tokenCount >= 1000 ? (tokenCount / 1000).toFixed(1) + 'k' : meta.tokens) : '';
@@ -2132,6 +2173,7 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
             if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? T('done') : T('failed')}: "${DOMPurify.sanitize(description)}"</span>`;
             host.querySelector('.sa-progress')?.remove();
             _stopSubagentClock(host);
+            host.dataset.subagentDone = '1';
             if (summary) {
                 const summaryElement = document.createElement('div');
                 summaryElement.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
@@ -3201,6 +3243,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         div.appendChild(warning);
     }
     if (lastTool) {
+        liveStopToolClock(lastTool);
         const liveOutput = lastTool.querySelector('.codex-live-output');
         if (liveOutput) liveOutput.remove();
         completeCodexToolCard(lastTool);
@@ -4505,7 +4548,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     if (HIDE_THINKING && (type === 'thinking' || type === 'thinking_stream')) return;
     // Live sub-agent output → nest inside the sub-agent accordion, not the main flow
     if ((type === 'subagent_stream' || type === 'subagent_event') && payload && payload.subagent_id) {
-        appendSubagentLog(payload.subagent_id, payload.event_type || 'stream', content);
+        appendSubagentLog(payload.subagent_id, payload.event_type || 'stream', content, payload);
         return;
     }
     if (type !== 'user_message' && type !== 'stream') removeWaitingIndicator();
@@ -4540,6 +4583,17 @@ function addChatEntry(type, content, ts, anchor, payload) {
     // Heuristic: detect base64 image payloads from tool results (e.g. screenshot tools)
     const _isBase64Image = content.includes("'type': 'image'") || content.includes('"type": "image"') || content.includes('"type":"image"') || /['"]?data['"]?\s*[:=]\s*['"][A-Za-z0-9+/=\s]{500,}['"]/.test(content);
 
+    if (type === 'tool_input_stream') {
+        removeWaitingIndicator();
+        liveRenderToolInput(payload || {}, content, _insert);
+        return;
+    }
+
+    if (type === 'tool_stream' && payload && payload.subagent_id) {
+        liveRouteTaskOutput(payload, content);
+        return;
+    }
+
     if (type === 'thinking_stream') {
         const activity = (payload && payload.activity) || 'reasoning';
         const key = `${activity}:${(payload && payload.item_id) || ''}`;
@@ -4562,9 +4616,14 @@ function addChatEntry(type, content, ts, anchor, payload) {
             _insert(_codexThinkingLive);
         }
         const body = _codexThinkingLive.querySelector('.codex-live-thinking-body');
-        body.textContent = activity === 'waiting'
+        body.textContent = activity === 'waiting' || (payload && payload.replace)
             ? content
             : (body.textContent + content).slice(-30_000);
+        // Claude with thinking display omitted streams only a token estimate.
+        if (payload && payload.estimated_tokens) {
+            _codexThinkingLive.querySelector('.codex-live-label').textContent =
+                T('◇ Reasoning live · ~{n} tokens', {n: Number(payload.estimated_tokens).toLocaleString()});
+        }
         return;
     }
 
@@ -4636,6 +4695,7 @@ function addChatEntry(type, content, ts, anchor, payload) {
     // 'text' event signals streaming finished — flush typewriter buffer,
     // replace with authoritative DB content, finalize with copy/timestamp.
     if (type === 'text') {
+        _removeCodexThinkingLive('reasoning');
         if (streamBubble) {
             _stampChatLogNode(streamBubble, payload);
             _completeStreamBubble(content, ts);
@@ -4785,8 +4845,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
 
     addCopyBtn(div, content);
     addTimestamp(div, ts);
+    if (type === 'tool' && div.dataset.toolUseId) liveRemoveToolInput(div.dataset.toolUseId);
     _insertAndFollow(div, () => {
         _trimChatNodes(chat);
+        if (type === 'tool' && div.dataset.lastTool) liveStartToolClock(div, div.dataset.toolRawName, content, ts);
         if (type === 'tool') _adoptOrphanResults(chat, div.dataset.toolUseId);
     });
 }

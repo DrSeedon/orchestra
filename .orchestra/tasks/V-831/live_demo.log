@@ -1,0 +1,19 @@
+load_dotenv skipped: running under pytest
+V-621 catalog split: home=/tmp/v831-demo-9ua6ypz7/projects.yaml written=[] already=[] skipped=[] home_committed=False backup=/tmp/v831-demo-9ua6ypz7/projects-pre-v621-20261013T122436Z.yaml
+No proxy configured, using 16 hardcoded models
+Bootstrap: skipping, orchestrator exists
+worktree cleanup task not started: running under pytest
+bg_jobs: restored 0 jobs, expired 0
+TG bridge: starting in background (HTTP is already serving)
+TG bridge FAILED to start: UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=2655146 does not match this process (2737829) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/main.py", line 56, in _start_bridge_background
+    await tg_bridge.start_bridge(manager)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/tg_bridge.py", line 4607, in start_bridge
+    raise UnmanagedInstanceError(
+app.tg_bridge.UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=2655146 does not match this process (2737829) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+runaway guard armed: limit=2.0GiB interval=20s strikes=2
+Grok usage unavailable: no OAuth credentials
+live cards left after finish: 0
+persisted rows by type: [('subagent_end', 1), ('subagent_start', 1), ('text', 1), ('tool', 1), ('tool_result', 1)]
+exit=0

@@ -18,7 +18,7 @@ from datetime import datetime, timezone, timedelta
 from functools import partial, wraps
 from pathlib import Path
 from types import SimpleNamespace
-from typing import TYPE_CHECKING, Awaitable, Callable, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app import agentic_compact
@@ -488,6 +488,7 @@ class AgentSession:
     _turn_logs: list = field(default_factory=list, repr=False)
     _last_text_output: Optional[str] = field(default=None, repr=False)
     _tool_names_by_id: dict = field(default_factory=dict, repr=False)
+    _output_tails: Any = field(default=None, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
     _template_hash: str = field(default="", repr=False)
@@ -2395,6 +2396,34 @@ class AgentSession:
 
     # ── Unified event handler ──
 
+    def _sync_live_activity(self, event: AgentEvent) -> None:
+        """Retire replayable live partials once their persisted record exists, and
+        follow shell-task output files while the task runs."""
+        from app.live_broker import broker
+        meta = event.metadata
+        if meta.get("subagent_id") and event.type in ("tool_use", "tool_result", "text", "thinking"):
+            return
+        if event.type == "tool_use":
+            broker.end_live(self.id, "tool_input_stream", str(meta.get("tool_use_id") or ""))
+        elif event.type in ("thinking", "text"):
+            # Omitted thinking has no persisted block; the answer closes it instead.
+            broker.end_live(self.id, "thinking_stream")
+        elif event.type == "tool_result":
+            broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
+        elif event.type == "turn_end":
+            broker.clear_live(self.id)
+        elif event.type == "subagent_start" and meta.get("task_type") == "local_bash":
+            if self._output_tails is None:
+                from app.task_output_tail import TaskOutputTails
+                self._output_tails = TaskOutputTails(lambda payload: broker.publish(self.id, payload))
+            self._output_tails.start(str(meta.get("subagent_id") or ""),
+                                     str(meta.get("tool_use_id") or ""),
+                                     str(meta.get("sdk_session_id") or self.session_id or ""))
+        elif event.type == "subagent_end" and self._output_tails is not None:
+            task_id = str(meta.get("subagent_id") or "")
+            self._output_tails.stop(task_id)
+            broker.end_live(self.id, "tool_stream", str(meta.get("tool_use_id") or ""))
+
     def _handle_event(self, event: AgentEvent) -> None:
         if event.type == "stream":
             # Live partials: push to in-memory broker for SSE fan-out, NEVER persist.
@@ -2409,18 +2438,30 @@ class AgentSession:
             broker.publish(self.id, {"type": "subagent_stream", "content": event.content,
                                      "subagent_id": event.metadata.get("subagent_id", "")})
             return
-        if event.type in ("thinking_stream", "tool_stream", "tool_patch", "turn_diff"):
-            # Codex app-server exposes fine-grained activity that is valuable live but
-            # would flood the DB. The authoritative thinking/tool/file events are still
-            # persisted when their item completes.
+        if event.type in ("thinking_stream", "tool_input_stream", "tool_stream",
+                          "tool_patch", "turn_diff"):
+            # Fine-grained live activity (reasoning, tool arguments being written, command
+            # output) is valuable live but would flood the DB. The authoritative
+            # thinking/tool/file events are still persisted when their item completes.
             from app.live_broker import broker
+            sub_id = event.metadata.get("subagent_id")
+            if sub_id:
+                broker.publish(self.id, {
+                    "type": "subagent_stream", "event_type": event.type,
+                    "content": event.content, "subagent_id": sub_id,
+                    "item_id": event.metadata.get("tool_use_id") or event.metadata.get("item_id") or "",
+                    "tool_name": event.metadata.get("short_name") or "",
+                })
+                return
             payload = {"type": event.type, "content": event.content}
-            for key in ("activity", "item_id", "tool_use_id", "turn_id", "stream"):
+            for key in ("activity", "item_id", "tool_use_id", "turn_id", "stream",
+                        "tool_name", "short_name", "estimated_tokens"):
                 value = event.metadata.get(key)
                 if value:
                     payload[key] = value
             broker.publish(self.id, payload)
             return
+        self._sync_live_activity(event)
         tool_use_id = str(event.metadata.get("tool_use_id") or "")
         tool_name_for_log = str(event.metadata.get("tool_name") or "")
         if event.type == "tool_use" and tool_use_id:
@@ -4320,6 +4361,8 @@ class AgentSession:
         }
 
     async def _disconnect_backend(self) -> None:
+        if self._output_tails is not None:
+            self._output_tails.stop_all()
         if self._hibernate_task and not self._hibernate_task.done() and self._hibernate_task is not asyncio.current_task():
             self._hibernate_task.cancel()
             self._hibernate_task = None
