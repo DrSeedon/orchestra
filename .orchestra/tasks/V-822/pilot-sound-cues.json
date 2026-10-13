@@ -1,0 +1,8 @@
+{"fps":30,"duration_s":30.0,"energy":"calm","kit":"audio/kit",
+ "cues":[
+ {"id":"photo_to_model","t":3.0,"sound":"hit/fs-614063-heavy-metal-impact-2-1+boom","weight":"hero","visual":"cut","stop_before":false},
+ {"id":"ignite","t":6.0,"sound":"transition","weight":"support","visual":"move"},
+ {"id":"zoom","t":12.0,"sound":"whoosh","weight":"support","visual":"move"},
+ {"id":"tilt","t":19.0,"sound":"swish","weight":"support","visual":"move"},
+ {"id":"land","t":26.0,"sound":"thump","weight":"support","visual":"land"}
+ ]}
