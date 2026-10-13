@@ -1,0 +1,48 @@
+df before:
+/dev/sda1      310911414272 288702312448 22192324608  93% /
+keep git/db: /tmp/V-801-ag-ui
+keep git/db: /tmp/V-801-cerbia
+keep git/db: /tmp/V-801-kumoss
+keep git/db: /tmp/V-801-mcp-server-simulator-ios-idb
+keep git/db: /tmp/V-801-mcp-teams-server
+keep git/db: /tmp/V-801-weavejs
+keep fresh: /tmp/cc-socks
+keep busy: /tmp/d443.log
+keep fresh: /tmp/il_1133.html
+keep fresh: /tmp/il_1144.html
+keep fresh: /tmp/il_979.html
+keep git/db: /tmp/lunatest
+keep fresh: /tmp/org.chromium.Chromium.ApKNm5
+keep fresh: /tmp/org.chromium.Chromium.Cc5GqE
+keep fresh: /tmp/org.chromium.Chromium.Ow0lKb
+keep fresh: /tmp/org.chromium.Chromium.Sgpbhn
+keep fresh: /tmp/org.chromium.Chromium.UWR64i
+keep fresh: /tmp/org.chromium.Chromium.VdtTGC
+keep fresh: /tmp/org.chromium.Chromium.eM5IDu
+keep fresh: /tmp/org.chromium.Chromium.g1qdq7
+keep fresh: /tmp/org.chromium.Chromium.grv4Iu
+keep fresh: /tmp/org.chromium.Chromium.t3KJsz
+keep fresh: /tmp/org.chromium.Chromium.vC5ya0
+keep busy: /tmp/playwright_chromiumdev_profile-YDfYfW
+keep fresh: /tmp/pytest-of-kesha
+keep busy: /tmp/runserver.log
+keep git/db: /tmp/tmp1hi544oy
+keep git/db: /tmp/tmp7u7ib4pp
+keep git/db: /tmp/tmp_y_72g0q
+keep git/db: /tmp/tmpanvn0319
+keep git/db: /tmp/tmpdcb7u6fa
+keep git/db: /tmp/tmpjstux_8a
+keep git/db: /tmp/tmplv4n1pbk
+keep git/db: /tmp/tmpm737eaen
+keep git/db: /tmp/tmpsbwbsa4i
+keep git/db: /tmp/tmptj441e60
+keep fresh: /tmp/v6-task2
+keep git/db: /tmp/v795scope
+keep busy: /home/kesha/.cache/ms-playwright
+keep busy: /home/kesha/.cache/pip
+keep busy: /home/kesha/.npm/_cacache
+moved:
+1.44667 GB total
+trashed-and-removed
+/dev/sda1      310911414272 287118737408 23775899648  93% /
+0
