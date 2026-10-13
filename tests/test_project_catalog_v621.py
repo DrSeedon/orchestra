@@ -125,6 +125,21 @@ def test_merged_catalog_without_include_scopes_behaves_like_the_old_single_file(
     assert {p.tag for p in catalog().projects} == {"alpha"}
 
 
+def test_merged_catalog_rejects_include_that_resolves_to_itself(tmp_path, monkeypatch):
+    home_root = tmp_path / "home"
+    home_path = home_root / ".orchestra" / "projects.yaml"
+    home_path.parent.mkdir(parents=True)
+    home_path.write_text(
+        f"version: 1\ninclude_scopes: [{home_root}]\nprojects: []\n", encoding="utf-8",
+    )
+    monkeypatch.setenv("ORCHESTRA_PROJECT_CATALOG", str(home_path))
+    monkeypatch.delenv("ORCHESTRA_PROJECT_CATALOG_ROOT", raising=False)
+    project_catalog.reset_cache()
+
+    with pytest.raises(CatalogError, match="не может включать сам файл каталога"):
+        catalog()
+
+
 def test_merged_catalog_rejects_a_tag_declared_in_two_included_files(_isolate_project_catalog):
     _write_own("/alpha", _ALPHA)
     _write_own("/beta", _ALPHA.replace("/alpha", "/gamma"))  # тот же тег 'alpha', другой scope
