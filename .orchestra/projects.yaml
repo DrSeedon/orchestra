@@ -2,7 +2,6 @@ version: 1
 include_scopes:
 - /home/kesha/katya-work
 - /home/kesha/openrouter-lab
-- /home/kesha/orchestra
 - /home/kesha/projects/University
 - /home/kesha/projects/VPN-Service
 - /home/kesha/projects/comfy-image-pipeline
@@ -11,6 +10,16 @@ include_scopes:
 - /home/kesha/projects/seedon
 - /opt/cog-second-brain
 projects:
+- tag: orchestra
+  name: Orchestra
+  scope: /home/kesha/orchestra
+  write_namespace: home-kesha-orchestra-8b68cd9600cc
+  namespaces:
+    home-kesha-orchestra-8b68cd9600cc: ''
+    orchestra: ноутбук
+    vps-orchestra: старый VPS
+    orchestra-15ebb64920a9: ноутбук
+    mnt-data-projects-python-orchestra-13dc8d0cd9fb: ноутбук
 - tag: polus
   name: Полюс
   namespaces:
