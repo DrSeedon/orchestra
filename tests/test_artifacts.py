@@ -230,6 +230,104 @@ def test_t1_snapshot_rejects_paths_outside_registered_roots(
     assert not store.exists() or list(store.iterdir()) == []
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure,expected",
+    [
+        ("disabled", "artifact links are disabled"),
+        ("outside_roots", "source path is outside registered roots"),
+        ("size_limit", "artifact exceeds configured size limit"),
+    ],
+)
+async def test_t1_publish_route_returns_and_logs_snapshot_rejection(
+    artifact_env, tmp_path, monkeypatch, caplog, failure, expected,
+):
+    import json
+    import logging
+    from starlette.requests import Request
+
+    from app.routes import artifacts as routes
+
+    root = tmp_path / "allowed"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    path_root = outside if failure == "outside_roots" else root
+    source = path_root / "Составной_индекс.html"
+    prefix = b"<!doctype html>"
+    source.write_bytes(prefix + b" " * (147_174 - len(prefix)))
+    monkeypatch.setattr(routes, "_publisher", lambda _request: {
+        "id": "publisher-session",
+        "name": "University-orchestrator",
+        "scope": str(root),
+        "cwd": str(root),
+        "worktree_path": None,
+    })
+    if failure == "disabled":
+        monkeypatch.setenv("ARTIFACT_PUBLIC_LINKS_ENABLED", "0")
+    elif failure == "size_limit":
+        monkeypatch.setenv("ARTIFACT_MAX_BYTES", "1024")
+
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/api/artifacts/publish",
+        "headers": [],
+        "query_string": b"",
+    })
+    with caplog.at_level(logging.WARNING, logger="orchestra.artifacts"):
+        response = await routes.publish_artifact(
+            request,
+            routes.PublishRequest(path=str(source)),
+        )
+
+    assert response.status_code == 400
+    assert json.loads(response.body)["error"] == expected
+    assert expected in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_t1_publish_route_logs_unexpected_snapshot_exception(
+    artifact_env, monkeypatch, caplog,
+):
+    import json
+    import logging
+    from starlette.requests import Request
+
+    from app.routes import artifacts as routes
+
+    monkeypatch.setattr(routes, "_publisher", lambda _request: {
+        "id": "publisher-session",
+        "name": "University-orchestrator",
+        "scope": "/scope",
+        "cwd": "/scope",
+        "worktree_path": None,
+    })
+
+    def fail_snapshot(**_kwargs):
+        raise RuntimeError("isolated registry failure")
+
+    monkeypatch.setattr(routes.artifacts, "publish_snapshot", fail_snapshot)
+    request = Request({
+        "type": "http",
+        "method": "POST",
+        "path": "/api/artifacts/publish",
+        "headers": [],
+        "query_string": b"",
+    })
+    with caplog.at_level(logging.ERROR, logger="orchestra.artifacts"):
+        response = await routes.publish_artifact(
+            request,
+            routes.PublishRequest(path="/scope/report.html"),
+        )
+
+    assert response.status_code == 500
+    assert json.loads(response.body)["error"] == (
+        "artifact publication failed due to an internal error; check Orchestra logs"
+    )
+    assert "isolated registry failure" in caplog.text
+
+
 def test_t2_open_returns_the_verified_immutable_buffer_after_path_retarget(
     artifact_env, monkeypatch,
 ):

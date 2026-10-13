@@ -565,6 +565,25 @@ async def test_api_2xx_top_level_error_is_failure(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_publish_artifact_surfaces_api_rejection_reason(monkeypatch):
+    import app.mcp_stdio as m
+
+    _mock_http(
+        monkeypatch,
+        m,
+        lambda _request: httpx.Response(
+            400, json={"error": "artifact links are disabled"},
+        ),
+    )
+
+    with pytest.raises(m.ApiToolError) as caught:
+        await m.publish_artifact("/scope/report.html")
+
+    assert caught.value.code == "http_4xx"
+    assert caught.value.message == "artifact links are disabled"
+
+
+@pytest.mark.asyncio
 async def test_api_empty_read_timeout_keeps_type_and_unknown_post_outcome(monkeypatch):
     import app.mcp_stdio as m
 
