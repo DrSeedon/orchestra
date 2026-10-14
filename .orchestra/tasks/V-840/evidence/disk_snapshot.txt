@@ -1,0 +1,62 @@
+[timestamp]
+2026-10-14T09:57:42+02:00
+
+[mount]
+TARGET SOURCE    FSTYPE OPTIONS
+/      /dev/sda1 ext4   rw,relatime,discard,errors=remount-ro,commit=30
+
+[block_device]
+NAME ROTA TRAN  SIZE MODEL         TYPE
+sda     0       300G QEMU HARDDISK disk
+
+[capacity]
+Filesystem     Type  Size  Used Avail Use% Mounted on
+/dev/sda1      ext4  290G  188G  102G  65% /
+/dev/sda1      ext4  290G  188G  102G  65% /
+
+[pressure]
+some avg10=0.00 avg60=0.06 avg300=0.68 total=69363771801
+full avg10=0.00 avg60=0.01 avg300=0.53 total=51912580470
+some avg10=2.56 avg60=4.74 avg300=3.16 total=165274111849
+full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+some avg10=0.00 avg60=0.00 avg300=0.00 total=7313448262
+full avg10=0.00 avg60=0.00 avg300=0.00 total=5486780058
+
+[vmstat]
+procs -----------memory---------- ---swap-- -----io---- -system-- -------cpu-------
+ r  b   swpd   free   buff  cache   si   so    bi    bo   in   cs us sy id wa st gu
+ 2  0 984712 7708180 508980 11039844   46   66  1333  1502 3138    4  8  3 88  1  0  0
+ 0  0 984712 7708792 508984 11039844    0    0     0   252 2220 1979  3  2 95  0  0  0
+ 0  0 984712 7706336 508988 11039852    0    0     0   316 2994 2048  5  6 89  0  0  0
+
+[iostat]
+Linux 6.8.0-136-generic (vmi3407579) 	10/14/26 	_x86_64_	(8 CPU)
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+loop0            0.00      0.00     0.00   0.00    0.31     1.19    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+sda             48.08   1333.29     8.67  15.28    1.14    27.73   38.24   1503.43    60.30  61.20    2.60    39.32    9.87   7676.01     0.00   0.00    1.07   777.62   10.16    0.74    0.17   4.83
+
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+loop0            0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+sda              0.00      0.00     0.00   0.00    0.00     0.00   80.00    368.00     0.00   0.00    0.56     4.60    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.04   0.30
+
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+loop0            0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+sda              0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+loop0            0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+sda              0.00      0.00     0.00   0.00    0.00     0.00    6.00    204.00    45.00  88.24    0.67    34.00   10.00     48.00     0.00   0.00    0.30     4.80    4.00    0.25    0.01   0.70
+
+
+Device            r/s     rkB/s   rrqm/s  %rrqm r_await rareq-sz     w/s     wkB/s   wrqm/s  %wrqm w_await wareq-sz     d/s     dkB/s   drqm/s  %drqm d_await dareq-sz     f/s f_await  aqu-sz  %util
+loop0            0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00      0.00     0.00   0.00    0.00     0.00    0.00    0.00    0.00   0.00
+sda              2.00      8.00     0.00   0.00    0.50     4.00   67.00   1568.00    83.00  55.33    1.19    23.40    4.00   2000.00     0.00   0.00    0.25   500.00   11.00    0.27    0.09   1.30
+
+
+
+[fio_presence]
+fio-not-installed

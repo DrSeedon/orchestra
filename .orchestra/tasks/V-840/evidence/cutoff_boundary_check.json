@@ -1,0 +1,13 @@
+{
+  "snapshot_cutoff_utc": "2026-10-07T08:02:16.012801+00:00",
+  "lower_id": 576096,
+  "checked_id_range": [
+    575096,
+    577096
+  ],
+  "rows_checked": 2001,
+  "rows_before_lower_with_ts_at_or_after_cutoff": 0,
+  "rows_at_after_lower_with_ts_before_cutoff": 0,
+  "latest_timestamp_before_lower": "2026-10-07T08:02:11.560939+00:00",
+  "earliest_timestamp_at_after_lower": "2026-10-07T08:02:27.219984+00:00"
+}
