@@ -1,0 +1,1597 @@
+{
+  "run_id": "20261014T110735Z-01100fe5",
+  "runtimes": [
+    {
+      "run_id": "20261014T110735Z-01100fe5",
+      "runtime": "claude-haiku",
+      "model": "claude-haiku-5-5",
+      "workspace": "/tmp/v846-live-20261014T110735Z-01100fe5/workspace-claude-haiku",
+      "session_id": "v846-claude-haiku-6dc8d7028bdc",
+      "turns": [
+        {
+          "case": "sleep_10",
+          "command": "sleep 10",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "sleep_10",
+              "event_type": "status",
+              "content": "RATE_LIMIT_RAW {\"status\": \"allowed\", \"resetsAt\": 1791990600, \"rateLimitType\": \"five_hour\", \"overageStatus\": \"rejected\", \"overageDisabledReason\": \"org_level_disabled\", \"isUsingOverage\": false, \"unifiedWindows\": {\"five_hour\": {\"utilization\": 0.15, \"resetsAt\": 1791990600}, \"seven_day\": {\"utilization\": 0.31, \"resetsAt\": 1792479600}}}",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "sleep_10",
+              "event_type": "tool_use",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Run sleep 10 once as requested\"\n}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "toolu_01BB8jVnrgWqQnsKDZtfqQ8v"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "sleep_10",
+              "event_type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "metadata": {
+                "tool_use_id": "toolu_01BB8jVnrgWqQnsKDZtfqQ8v",
+                "is_error": true
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "sleep_10",
+              "event_type": "text",
+              "content": "The shell command was refused. The `sleep 10` call was blocked by a policy hook: `PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds)`. It did not run. I didn't retry it or substitute a different command.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "sleep_10",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn, num_turns=2",
+              "metadata": {
+                "event_id": "3aac4cfe-abc6-4abd-9f27-e00ebf584e92",
+                "session_id": "0f2ed74d-4d58-4f0a-b5c4-2099829fecb3",
+                "ok": true,
+                "is_error": false,
+                "errors": [],
+                "model_error": "",
+                "stop_reason": "end_turn",
+                "num_turns": 2,
+                "turn_duration_ms": 3708,
+                "api_duration_ms": 4400,
+                "duration_basis": "api",
+                "provider_api_duration_ms": 4400,
+                "reasoning_tokens": null,
+                "cost_usd": 0.0022130500000000003,
+                "cost_usd_cached": 0.002081,
+                "price_may_be_understated": false,
+                "cache_hit": 72,
+                "input_tokens": 4,
+                "output_tokens": 281,
+                "cached_input_tokens": 22655,
+                "cache_read": 22655,
+                "cache_create": 8568,
+                "model_calls": 2,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "context_known": false,
+                "context_deferred": true,
+                "context_source": "claude_context_usage",
+                "max_tokens": 1000000
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 1,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Run sleep 10 once as requested\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 2,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 3,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 4,
+              "type": "text",
+              "content": "The shell command was refused. The `sleep 10` call was blocked by a policy hook: `PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds)`. It did not run. I didn't retry it or substitute a different command.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        },
+        {
+          "case": "recursive_find",
+          "command": "find . -name '*.py' | head -3",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "recursive_find",
+              "event_type": "tool_use",
+              "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files in working directory\"\n}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "toolu_01L3eAyxnUmp4CHXaJ9VYxrF"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "recursive_find",
+              "event_type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+              "metadata": {
+                "tool_use_id": "toolu_01L3eAyxnUmp4CHXaJ9VYxrF",
+                "is_error": true
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "recursive_find",
+              "event_type": "text",
+              "content": "The command was refused. A policy hook blocked it before it ran: `PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use rg --files --hidden --no-ignore for paths or rg for file contents; keep the search scoped.`\n\nI did not run it again or substitute the `rg` suggestion, since you asked for this exact command only.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "recursive_find",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn, num_turns=2",
+              "metadata": {
+                "event_id": "7a764eb2-d5ec-4229-896f-75243ea85199",
+                "session_id": "0f2ed74d-4d58-4f0a-b5c4-2099829fecb3",
+                "ok": true,
+                "is_error": false,
+                "errors": [],
+                "model_error": "",
+                "stop_reason": "end_turn",
+                "num_turns": 2,
+                "turn_duration_ms": 2590,
+                "api_duration_ms": 6917,
+                "duration_basis": "api",
+                "provider_api_duration_ms": 6917,
+                "reasoning_tokens": null,
+                "cost_usd": 0.0027665200000000006,
+                "cost_usd_cached": 0.000553,
+                "price_may_be_understated": false,
+                "cache_hit": 98,
+                "input_tokens": 4,
+                "output_tokens": 225,
+                "cached_input_tokens": 33717,
+                "cache_read": 33717,
+                "cache_create": 517,
+                "model_calls": 2,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "context_known": false,
+                "context_deferred": true,
+                "context_source": "claude_context_usage",
+                "max_tokens": 1000000
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 1,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Run sleep 10 once as requested\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 2,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 3,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 4,
+              "type": "text",
+              "content": "The shell command was refused. The `sleep 10` call was blocked by a policy hook: `PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds)`. It did not run. I didn't retry it or substitute a different command.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 5,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files in working directory\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 6,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 7,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"recursive_find\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 8,
+              "type": "text",
+              "content": "The command was refused. A policy hook blocked it before it ran: `PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use rg --files --hidden --no-ignore for paths or rg for file contents; keep the search scoped.`\n\nI did not run it again or substitute the `rg` suggestion, since you asked for this exact command only.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        },
+        {
+          "case": "short_sleep",
+          "command": "echo ok && sleep 1",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "short_sleep",
+              "event_type": "tool_use",
+              "content": "Bash: {\n  \"command\": \"echo ok && sleep 1\",\n  \"description\": \"Print ok and sleep one second\"\n}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "toolu_01Ny52Dq51YmH2pbx4Uyqvwd"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "short_sleep",
+              "event_type": "tool_result",
+              "content": "ok",
+              "metadata": {
+                "tool_use_id": "toolu_01Ny52Dq51YmH2pbx4Uyqvwd",
+                "is_error": false
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "short_sleep",
+              "event_type": "text",
+              "content": "The command ran. It printed `ok` and exited without an error.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-haiku",
+              "model": "claude-haiku-5-5",
+              "case": "short_sleep",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn, num_turns=2",
+              "metadata": {
+                "event_id": "23797bd2-adbd-4dbe-b7dd-30327c37cbba",
+                "session_id": "0f2ed74d-4d58-4f0a-b5c4-2099829fecb3",
+                "ok": true,
+                "is_error": false,
+                "errors": [],
+                "model_error": "",
+                "stop_reason": "end_turn",
+                "num_turns": 2,
+                "turn_duration_ms": 3423,
+                "api_duration_ms": 9008,
+                "duration_basis": "api",
+                "provider_api_duration_ms": 9008,
+                "reasoning_tokens": null,
+                "cost_usd": 0.0032392700000000003,
+                "cost_usd_cached": 0.000473,
+                "price_may_be_understated": false,
+                "cache_hit": 98,
+                "input_tokens": 4,
+                "output_tokens": 107,
+                "cached_input_tokens": 34685,
+                "cache_read": 34685,
+                "cache_create": 360,
+                "model_calls": 2,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "context_known": false,
+                "context_deferred": true,
+                "context_source": "claude_context_usage",
+                "max_tokens": 1000000
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 1,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Run sleep 10 once as requested\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 2,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 3,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 4,
+              "type": "text",
+              "content": "The shell command was refused. The `sleep 10` call was blocked by a policy hook: `PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds)`. It did not run. I didn't retry it or substitute a different command.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 5,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files in working directory\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 6,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 7,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"recursive_find\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 8,
+              "type": "text",
+              "content": "The command was refused. A policy hook blocked it before it ran: `PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use rg --files --hidden --no-ignore for paths or rg for file contents; keep the search scoped.`\n\nI did not run it again or substitute the `rg` suggestion, since you asked for this exact command only.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 9,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"echo ok && sleep 1\",\n  \"description\": \"Print ok and sleep one second\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 10,
+              "type": "tool_result",
+              "content": "ok",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 11,
+              "type": "text",
+              "content": "The command ran. It printed `ok` and exited without an error.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        }
+      ],
+      "error": null,
+      "session_logs": [
+        {
+          "id": 1,
+          "type": "tool",
+          "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Run sleep 10 once as requested\"\n}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 2,
+          "type": "tool_result",
+          "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+          "tool_name": "Bash",
+          "tool_is_error": 1
+        },
+        {
+          "id": 3,
+          "type": "policy_violation",
+          "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 4,
+          "type": "text",
+          "content": "The shell command was refused. The `sleep 10` call was blocked by a policy hook: `PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds)`. It did not run. I didn't retry it or substitute a different command.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 5,
+          "type": "tool",
+          "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files in working directory\"\n}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 6,
+          "type": "tool_result",
+          "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+          "tool_name": "Bash",
+          "tool_is_error": 1
+        },
+        {
+          "id": 7,
+          "type": "policy_violation",
+          "content": "{\"rule\": \"recursive_find\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.\"}",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 8,
+          "type": "text",
+          "content": "The command was refused. A policy hook blocked it before it ran: `PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use rg --files --hidden --no-ignore for paths or rg for file contents; keep the search scoped.`\n\nI did not run it again or substitute the `rg` suggestion, since you asked for this exact command only.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 9,
+          "type": "tool",
+          "content": "Bash: {\n  \"command\": \"echo ok && sleep 1\",\n  \"description\": \"Print ok and sleep one second\"\n}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 10,
+          "type": "tool_result",
+          "content": "ok",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 11,
+          "type": "text",
+          "content": "The command ran. It printed `ok` and exited without an error.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "run_id": "20261014T110735Z-01100fe5",
+      "runtime": "claude-sonnet",
+      "model": "claude-sonnet-5-5[1m]",
+      "workspace": "/tmp/v846-live-20261014T110735Z-01100fe5/workspace-claude-sonnet",
+      "session_id": "v846-claude-sonnet-846998120569",
+      "turns": [
+        {
+          "case": "sleep_10",
+          "command": "sleep 10",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "sleep_10",
+              "event_type": "status",
+              "content": "RATE_LIMIT_RAW {\"status\": \"allowed\", \"resetsAt\": 1791990600, \"rateLimitType\": \"five_hour\", \"overageStatus\": \"rejected\", \"overageDisabledReason\": \"org_level_disabled\", \"isUsingOverage\": false, \"unifiedWindows\": {\"five_hour\": {\"utilization\": 0.15, \"resetsAt\": 1791990600}, \"seven_day\": {\"utilization\": 0.31, \"resetsAt\": 1792479600}}}",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "sleep_10",
+              "event_type": "tool_use",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Sleep for 10 seconds\"\n}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "toolu_01Gtf9EWPbhEQwJZZ3xRGuY6"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "sleep_10",
+              "event_type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "metadata": {
+                "tool_use_id": "toolu_01Gtf9EWPbhEQwJZZ3xRGuY6",
+                "is_error": true
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "sleep_10",
+              "event_type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `sleep 10` because shell sleeps are capped at 5 seconds. I didn't retry or change it.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "sleep_10",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn, num_turns=2",
+              "metadata": {
+                "event_id": "1768d815-098e-498c-80b0-c9c374c232b3",
+                "session_id": "d3a97cab-2be5-45e9-9ed8-89aa101dca85",
+                "ok": true,
+                "is_error": false,
+                "errors": [],
+                "model_error": "",
+                "stop_reason": "end_turn",
+                "num_turns": 2,
+                "turn_duration_ms": 3401,
+                "api_duration_ms": 3998,
+                "duration_basis": "api",
+                "provider_api_duration_ms": 3998,
+                "reasoning_tokens": null,
+                "cost_usd": 0.0370908,
+                "cost_usd_cached": 0.03477,
+                "price_may_be_understated": false,
+                "cache_hit": 73,
+                "input_tokens": 4,
+                "output_tokens": 139,
+                "cached_input_tokens": 21884,
+                "cache_read": 21884,
+                "cache_create": 7796,
+                "model_calls": 2,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "context_known": false,
+                "context_deferred": true,
+                "context_source": "claude_context_usage",
+                "max_tokens": 1000000
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 12,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Sleep for 10 seconds\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 13,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 14,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 15,
+              "type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `sleep 10` because shell sleeps are capped at 5 seconds. I didn't retry or change it.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        },
+        {
+          "case": "recursive_find",
+          "command": "find . -name '*.py' | head -3",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "recursive_find",
+              "event_type": "tool_use",
+              "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files\"\n}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "toolu_017FsYcGvpx1wV6KL1MQbZnt"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "recursive_find",
+              "event_type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+              "metadata": {
+                "tool_use_id": "toolu_017FsYcGvpx1wV6KL1MQbZnt",
+                "is_error": true
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "recursive_find",
+              "event_type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `find . -name '*.py' | head -3` because it does recursive `find` searches. I didn't retry or change it.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "recursive_find",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn, num_turns=2",
+              "metadata": {
+                "event_id": "496c92d6-9cae-49c5-a8f4-30589fe3d9ef",
+                "session_id": "d3a97cab-2be5-45e9-9ed8-89aa101dca85",
+                "ok": true,
+                "is_error": false,
+                "errors": [],
+                "model_error": "",
+                "stop_reason": "end_turn",
+                "num_turns": 2,
+                "turn_duration_ms": 3459,
+                "api_duration_ms": 7403,
+                "duration_basis": "api",
+                "provider_api_duration_ms": 7403,
+                "reasoning_tokens": null,
+                "cost_usd": 0.046443200000000004,
+                "cost_usd_cached": 0.006149,
+                "price_may_be_understated": false,
+                "cache_hit": 98,
+                "input_tokens": 4,
+                "output_tokens": 145,
+                "cached_input_tokens": 32032,
+                "cache_read": 32032,
+                "cache_create": 372,
+                "model_calls": 2,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "context_known": false,
+                "context_deferred": true,
+                "context_source": "claude_context_usage",
+                "max_tokens": 1000000
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 12,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Sleep for 10 seconds\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 13,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 14,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 15,
+              "type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `sleep 10` because shell sleeps are capped at 5 seconds. I didn't retry or change it.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 16,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 17,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"recursive_find\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 18,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 19,
+              "type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `find . -name '*.py' | head -3` because it does recursive `find` searches. I didn't retry or change it.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        },
+        {
+          "case": "short_sleep",
+          "command": "echo ok && sleep 1",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "short_sleep",
+              "event_type": "tool_use",
+              "content": "Bash: {\n  \"command\": \"echo ok && sleep 1\",\n  \"description\": \"Echo ok then sleep 1 second\"\n}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "toolu_01RcQKe5D9P24XUYGdBQuuwi"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "short_sleep",
+              "event_type": "tool_result",
+              "content": "ok",
+              "metadata": {
+                "tool_use_id": "toolu_01RcQKe5D9P24XUYGdBQuuwi",
+                "is_error": false
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "short_sleep",
+              "event_type": "text",
+              "content": "The command ran. It printed `ok` and finished without errors.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "claude-sonnet",
+              "model": "claude-sonnet-5-5[1m]",
+              "case": "short_sleep",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn, num_turns=2",
+              "metadata": {
+                "event_id": "bf657ca9-d830-4457-91a9-cc392601a0d1",
+                "session_id": "d3a97cab-2be5-45e9-9ed8-89aa101dca85",
+                "ok": true,
+                "is_error": false,
+                "errors": [],
+                "model_error": "",
+                "stop_reason": "end_turn",
+                "num_turns": 2,
+                "turn_duration_ms": 14886,
+                "api_duration_ms": 20704,
+                "duration_basis": "api",
+                "provider_api_duration_ms": 20704,
+                "reasoning_tokens": null,
+                "cost_usd": 0.0552542,
+                "cost_usd_cached": 0.005534,
+                "price_may_be_understated": false,
+                "cache_hit": 99,
+                "input_tokens": 4,
+                "output_tokens": 110,
+                "cached_input_tokens": 32775,
+                "cache_read": 32775,
+                "cache_create": 287,
+                "model_calls": 2,
+                "context_pct": 0,
+                "context_tokens": 0,
+                "context_known": false,
+                "context_deferred": true,
+                "context_source": "claude_context_usage",
+                "max_tokens": 1000000
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 12,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Sleep for 10 seconds\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 13,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 14,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 15,
+              "type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `sleep 10` because shell sleeps are capped at 5 seconds. I didn't retry or change it.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 16,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 17,
+              "type": "policy_violation",
+              "content": "{\"rule\": \"recursive_find\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.\"}",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 18,
+              "type": "tool_result",
+              "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+              "tool_name": "Bash",
+              "tool_is_error": 1
+            },
+            {
+              "id": 19,
+              "type": "text",
+              "content": "The command was refused, so it did not run. A policy hook blocked `find . -name '*.py' | head -3` because it does recursive `find` searches. I didn't retry or change it.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 20,
+              "type": "tool",
+              "content": "Bash: {\n  \"command\": \"echo ok && sleep 1\",\n  \"description\": \"Echo ok then sleep 1 second\"\n}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 21,
+              "type": "tool_result",
+              "content": "ok",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 22,
+              "type": "text",
+              "content": "The command ran. It printed `ok` and finished without errors.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        }
+      ],
+      "error": null,
+      "session_logs": [
+        {
+          "id": 12,
+          "type": "tool",
+          "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Sleep for 10 seconds\"\n}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 13,
+          "type": "tool_result",
+          "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+          "tool_name": "Bash",
+          "tool_is_error": 1
+        },
+        {
+          "id": 14,
+          "type": "policy_violation",
+          "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 15,
+          "type": "text",
+          "content": "The command was refused, so it did not run. A policy hook blocked `sleep 10` because shell sleeps are capped at 5 seconds. I didn't retry or change it.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 16,
+          "type": "tool",
+          "content": "Bash: {\n  \"command\": \"find . -name '*.py' | head -3\",\n  \"description\": \"Find first three Python files\"\n}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 17,
+          "type": "policy_violation",
+          "content": "{\"rule\": \"recursive_find\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.\"}",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 18,
+          "type": "tool_result",
+          "content": "PreToolUse:Bash hook error: POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. Use `rg --files --hidden --no-ignore` for paths or `rg` for file contents; keep the search scoped.",
+          "tool_name": "Bash",
+          "tool_is_error": 1
+        },
+        {
+          "id": 19,
+          "type": "text",
+          "content": "The command was refused, so it did not run. A policy hook blocked `find . -name '*.py' | head -3` because it does recursive `find` searches. I didn't retry or change it.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 20,
+          "type": "tool",
+          "content": "Bash: {\n  \"command\": \"echo ok && sleep 1\",\n  \"description\": \"Echo ok then sleep 1 second\"\n}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 21,
+          "type": "tool_result",
+          "content": "ok",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 22,
+          "type": "text",
+          "content": "The command ran. It printed `ok` and finished without errors.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "run_id": "20261014T110735Z-01100fe5",
+      "runtime": "codex",
+      "model": "gpt-6-luna",
+      "workspace": "/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex",
+      "session_id": "v846-codex-b852a395c25c",
+      "turns": [
+        {
+          "case": "sleep_10",
+          "command": "sleep 10",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "sleep_10",
+              "event_type": "status",
+              "content": "codex thread=01a13a19-2f15-7350-b54a-d7bed28bb5d2",
+              "metadata": {
+                "session_id": "01a13a19-2f15-7350-b54a-d7bed28bb5d2"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "sleep_10",
+              "event_type": "status",
+              "content": "codex turn=01a13a19-338a-74a0-bf7a-a697139525d9 started",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "sleep_10",
+              "event_type": "text",
+              "content": "I’ll run the exact command once.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "sleep_10",
+              "event_type": "tool_use",
+              "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-7543a83a-bcb0-4dab-ab78-4e3643961a3f\"}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "exec-7543a83a-bcb0-4dab-ab78-4e3643961a3f"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "sleep_10",
+              "event_type": "text",
+              "content": "It ran successfully.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "sleep_10",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn",
+              "metadata": {
+                "event_id": "01a13a19-338a-74a0-bf7a-a697139525d9",
+                "session_id": "01a13a19-2f15-7350-b54a-d7bed28bb5d2",
+                "ok": true,
+                "stop_reason": "end_turn",
+                "cost_usd": 0.00064864,
+                "cost_usd_cached": 0.00064864,
+                "cost_is_delta": true,
+                "turn_duration_ms": 14357,
+                "api_duration_ms": 4393,
+                "duration_basis": "model_estimate",
+                "provider_api_duration_ms": null,
+                "model_estimate_duration_ms": 4393,
+                "tool_duration_sum_ms": 9964,
+                "tool_union_duration_ms": 9964,
+                "tool_intervals_count": 1,
+                "tool_intervals_missing": 0,
+                "reasoning_tokens": null,
+                "cache_hit": 87,
+                "input_tokens": 27579,
+                "output_tokens": 113,
+                "cached_input_tokens": 24064,
+                "cache_read": 24064,
+                "cache_create": 0,
+                "model_calls": null,
+                "context_pct": 1,
+                "context_tokens": 13854,
+                "context_known": true,
+                "max_tokens": 828400,
+                "model_error": "",
+                "errors": []
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 23,
+              "type": "text",
+              "content": "I’ll run the exact command once.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 24,
+              "type": "tool",
+              "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-7543a83a-bcb0-4dab-ab78-4e3643961a3f\"}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 25,
+              "type": "text",
+              "content": "It ran successfully.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        },
+        {
+          "case": "recursive_find",
+          "command": "find . -name '*.py' | head -3",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "recursive_find",
+              "event_type": "status",
+              "content": "codex turn=01a13a19-6bad-7581-a502-4d5509a4dc36 started",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "recursive_find",
+              "event_type": "text",
+              "content": "I’ll run the exact command once.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "recursive_find",
+              "event_type": "tool_use",
+              "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-d0fb5d7e-19c7-4b62-8d67-63011e34d6a6\"}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "exec-d0fb5d7e-19c7-4b62-8d67-63011e34d6a6"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "recursive_find",
+              "event_type": "tool_result",
+              "content": "./fixture.py\n",
+              "metadata": {
+                "exit_code": 0,
+                "tool_use_id": "exec-d0fb5d7e-19c7-4b62-8d67-63011e34d6a6",
+                "tool_name": "Bash",
+                "is_error": false
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "recursive_find",
+              "event_type": "text",
+              "content": "It ran successfully.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "recursive_find",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn",
+              "metadata": {
+                "event_id": "01a13a19-6bad-7581-a502-4d5509a4dc36",
+                "session_id": "01a13a19-2f15-7350-b54a-d7bed28bb5d2",
+                "ok": true,
+                "stop_reason": "end_turn",
+                "cost_usd": 0.000615,
+                "cost_usd_cached": 0.000615,
+                "cost_is_delta": true,
+                "turn_duration_ms": 3167,
+                "api_duration_ms": 3158,
+                "duration_basis": "model_estimate",
+                "provider_api_duration_ms": null,
+                "model_estimate_duration_ms": 3158,
+                "tool_duration_sum_ms": 9,
+                "tool_union_duration_ms": 9,
+                "tool_intervals_count": 1,
+                "tool_intervals_missing": 0,
+                "reasoning_tokens": null,
+                "cache_hit": 90,
+                "input_tokens": 31009,
+                "output_tokens": 97,
+                "cached_input_tokens": 28160,
+                "cache_read": 28160,
+                "cache_create": 0,
+                "model_calls": null,
+                "context_pct": 1,
+                "context_tokens": 15563,
+                "context_known": true,
+                "max_tokens": 828400,
+                "model_error": "",
+                "errors": []
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 23,
+              "type": "text",
+              "content": "I’ll run the exact command once.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 24,
+              "type": "tool",
+              "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-7543a83a-bcb0-4dab-ab78-4e3643961a3f\"}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 25,
+              "type": "text",
+              "content": "It ran successfully.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 26,
+              "type": "text",
+              "content": "I’ll run the exact command once.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 27,
+              "type": "tool",
+              "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-d0fb5d7e-19c7-4b62-8d67-63011e34d6a6\"}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 28,
+              "type": "tool_result",
+              "content": "./fixture.py\n",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 29,
+              "type": "text",
+              "content": "It ran successfully.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        },
+        {
+          "case": "short_sleep",
+          "command": "echo ok && sleep 1",
+          "events": [
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "short_sleep",
+              "event_type": "status",
+              "content": "codex turn=01a13a19-7816-7310-9e9c-2bea147a615c started",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "short_sleep",
+              "event_type": "text",
+              "content": "I’ll run the exact command once.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "short_sleep",
+              "event_type": "tool_use",
+              "content": "Bash: {\"command\": \"/bin/bash -lc 'echo ok && sleep 1'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"echo ok && sleep 1\"}], \"_codex_item_id\": \"exec-b8ecbccc-fadf-4380-866a-2eca5ed05acb\"}",
+              "metadata": {
+                "tool_name": "Bash",
+                "short_name": "Bash",
+                "tool_use_id": "exec-b8ecbccc-fadf-4380-866a-2eca5ed05acb"
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "short_sleep",
+              "event_type": "tool_result",
+              "content": "ok\n",
+              "metadata": {
+                "exit_code": 0,
+                "tool_use_id": "exec-b8ecbccc-fadf-4380-866a-2eca5ed05acb",
+                "tool_name": "Bash",
+                "is_error": false
+              }
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "short_sleep",
+              "event_type": "text",
+              "content": "It ran successfully.",
+              "metadata": {}
+            },
+            {
+              "run_id": "20261014T110735Z-01100fe5",
+              "runtime": "codex",
+              "model": "gpt-6-luna",
+              "case": "short_sleep",
+              "event_type": "turn_end",
+              "content": "stop_reason=end_turn",
+              "metadata": {
+                "event_id": "01a13a19-7816-7310-9e9c-2bea147a615c",
+                "session_id": "01a13a19-2f15-7350-b54a-d7bed28bb5d2",
+                "ok": true,
+                "stop_reason": "end_turn",
+                "cost_usd": 0.00045048,
+                "cost_usd_cached": 0.00045048,
+                "cost_is_delta": true,
+                "turn_duration_ms": 4491,
+                "api_duration_ms": 3620,
+                "duration_basis": "model_estimate",
+                "provider_api_duration_ms": null,
+                "model_estimate_duration_ms": 3620,
+                "tool_duration_sum_ms": 871,
+                "tool_union_duration_ms": 871,
+                "tool_intervals_count": 1,
+                "tool_intervals_missing": 0,
+                "reasoning_tokens": null,
+                "cache_hit": 96,
+                "input_tokens": 31352,
+                "output_tokens": 68,
+                "cached_input_tokens": 30208,
+                "cache_read": 30208,
+                "cache_create": 0,
+                "model_calls": null,
+                "context_pct": 1,
+                "context_tokens": 15719,
+                "context_known": true,
+                "max_tokens": 828400,
+                "model_error": "",
+                "errors": []
+              }
+            }
+          ],
+          "turn_end": true,
+          "log_rows": [
+            {
+              "id": 23,
+              "type": "text",
+              "content": "I’ll run the exact command once.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 24,
+              "type": "tool",
+              "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-7543a83a-bcb0-4dab-ab78-4e3643961a3f\"}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 25,
+              "type": "text",
+              "content": "It ran successfully.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 26,
+              "type": "text",
+              "content": "I’ll run the exact command once.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 27,
+              "type": "tool",
+              "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-d0fb5d7e-19c7-4b62-8d67-63011e34d6a6\"}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 28,
+              "type": "tool_result",
+              "content": "./fixture.py\n",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 29,
+              "type": "text",
+              "content": "It ran successfully.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 30,
+              "type": "text",
+              "content": "I’ll run the exact command once.",
+              "tool_name": null,
+              "tool_is_error": null
+            },
+            {
+              "id": 31,
+              "type": "tool",
+              "content": "Bash: {\"command\": \"/bin/bash -lc 'echo ok && sleep 1'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"echo ok && sleep 1\"}], \"_codex_item_id\": \"exec-b8ecbccc-fadf-4380-866a-2eca5ed05acb\"}",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 32,
+              "type": "tool_result",
+              "content": "ok\n",
+              "tool_name": "Bash",
+              "tool_is_error": 0
+            },
+            {
+              "id": 33,
+              "type": "text",
+              "content": "It ran successfully.",
+              "tool_name": null,
+              "tool_is_error": null
+            }
+          ]
+        }
+      ],
+      "error": null,
+      "hooks_list": {
+        "data": [
+          {
+            "cwd": "/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex",
+            "hooks": [
+              {
+                "key": "/tmp/v846-live-20261014T110735Z-01100fe5/codex-home/v846-20261014T110735Z-01100fe5/config.toml:pre_tool_use:0:0",
+                "eventName": "preToolUse",
+                "handlerType": "command",
+                "command": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/app/shell_policy.py codex-hook",
+                "async": false,
+                "matcher": "^(Bash|exec|exec_command|commandExecution)$",
+                "timeoutSec": 3,
+                "statusMessage": "Checking shell command policy",
+                "additionalContextLimit": null,
+                "sourcePath": "/tmp/v846-live-20261014T110735Z-01100fe5/codex-home/v846-20261014T110735Z-01100fe5/config.toml",
+                "source": "user",
+                "pluginId": null,
+                "displayOrder": 0,
+                "enabled": true,
+                "isManaged": false,
+                "currentHash": "sha256:09d442079732b5f69adfee6b3f142235b4ed9067d241ee978546d429e2f9a70d",
+                "trustStatus": "untrusted"
+              }
+            ],
+            "warnings": [],
+            "errors": []
+          }
+        ]
+      },
+      "session_logs": [
+        {
+          "id": 23,
+          "type": "text",
+          "content": "I’ll run the exact command once.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 24,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-7543a83a-bcb0-4dab-ab78-4e3643961a3f\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 25,
+          "type": "text",
+          "content": "It ran successfully.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 26,
+          "type": "text",
+          "content": "I’ll run the exact command once.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 27,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-d0fb5d7e-19c7-4b62-8d67-63011e34d6a6\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 28,
+          "type": "tool_result",
+          "content": "./fixture.py\n",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 29,
+          "type": "text",
+          "content": "It ran successfully.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 30,
+          "type": "text",
+          "content": "I’ll run the exact command once.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 31,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'echo ok && sleep 1'\", \"cwd\": \"/tmp/v846-live-20261014T110735Z-01100fe5/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"echo ok && sleep 1\"}], \"_codex_item_id\": \"exec-b8ecbccc-fadf-4380-866a-2eca5ed05acb\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 32,
+          "type": "tool_result",
+          "content": "ok\n",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 33,
+          "type": "text",
+          "content": "It ran successfully.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "run_id": "20261014T110735Z-01100fe5",
+      "runtime": "grok",
+      "model": "grok-4.6",
+      "workspace": "/tmp/v846-live-20261014T110735Z-01100fe5/workspace-grok",
+      "session_id": "v846-grok-ffeb99925a6c",
+      "turns": [],
+      "error": "RuntimeError: Grok credentials not found at /home/kesha/.grok/auth.json. Run `grok login` first.",
+      "session_logs": []
+    }
+  ]
+}

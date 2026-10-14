@@ -488,6 +488,7 @@ class AgentSession:
     _turn_logs: list = field(default_factory=list, repr=False)
     _last_text_output: Optional[str] = field(default=None, repr=False)
     _tool_names_by_id: dict = field(default_factory=dict, repr=False)
+    _policy_violation_messages: set[str] = field(default_factory=set, repr=False)
     _output_tails: Any = field(default=None, repr=False)
     _prompt_injected: bool = field(default=False, repr=False)
     _current_prompt: str = field(default="", repr=False)
@@ -2520,7 +2521,31 @@ class AgentSession:
             )
             short = event.content[:80]
             self._turn_logs.append(f"[tool] {short}")
+        elif event.type == "policy_violation":
+            self._policy_violation_messages.add(event.content)
+            rule = event.content.split("]", 1)[0].removeprefix("POLICY VIOLATION [")
+            self._log("policy_violation", json.dumps({
+                "rule": event.metadata.get("rule") or rule,
+                "tool_name": tool_name_for_log or event.metadata.get("tool_name", ""),
+                "message": event.content,
+            }, ensure_ascii=False))
         elif event.type == "tool_result":
+            repeated_violation = next((
+                message for message in self._policy_violation_messages
+                if event.content.startswith(message) or message.startswith(event.content)
+            ), None)
+            if repeated_violation:
+                self._policy_violation_messages.discard(repeated_violation)
+            elif (
+                self.backend_type != "codex"
+                and event.metadata.get("is_error")
+                and (match := re.search(r"POLICY VIOLATION \[([a-z0-9_]+)\]", event.content))
+            ):
+                self._log("policy_violation", json.dumps({
+                    "rule": match.group(1),
+                    "tool_name": tool_name_for_log,
+                    "message": event.content,
+                }, ensure_ascii=False))
             self._log(
                 "tool_result",
                 event.content,

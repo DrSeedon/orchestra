@@ -1,0 +1,10 @@
+{
+  "run_id": "20261014T104742Z-3c9909aa",
+  "runtime": "grok",
+  "model": "grok-4.6",
+  "workspace": "/tmp/v846-live-20261014T104742Z-3c9909aa/workspace-grok",
+  "session_id": "v846-grok-e5df43343066",
+  "turns": [],
+  "error": "RuntimeError: Grok credentials not found at /home/kesha/.grok/auth.json. Run `grok login` first.",
+  "session_logs": []
+}

@@ -1,0 +1,1 @@
+{"content": "RuntimeError: Grok credentials not found at /home/kesha/.grok/auth.json. Run `grok login` first.", "event_type": "runner_error", "model": "grok-4.6", "run_id": "20261014T110735Z-01100fe5", "runtime": "grok"}

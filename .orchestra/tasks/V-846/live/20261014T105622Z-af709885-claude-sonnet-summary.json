@@ -1,0 +1,39 @@
+{
+  "run_id": "20261014T105622Z-af709885",
+  "runtime": "claude-sonnet",
+  "model": "claude-sonnet-5-5[1m]",
+  "workspace": "/tmp/v846-live-20261014T105622Z-af709885/workspace-claude-sonnet",
+  "session_id": "v846-claude-sonnet-17e2d964350a",
+  "turns": [],
+  "error": "TimeoutError: ",
+  "session_logs": [
+    {
+      "id": 5,
+      "type": "tool",
+      "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Sleep for 10 seconds\"\n}",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 6,
+      "type": "tool_result",
+      "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+      "tool_name": "Bash",
+      "tool_is_error": 1
+    },
+    {
+      "id": 7,
+      "type": "policy_violation",
+      "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 8,
+      "type": "text",
+      "content": "The command was refused. A hook blocked `sleep 10` before it ran, because shell sleeps over 5 seconds aren't allowed. I didn't retry or change it.",
+      "tool_name": null,
+      "tool_is_error": null
+    }
+  ]
+}

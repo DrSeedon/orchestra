@@ -1,0 +1,39 @@
+{
+  "run_id": "20261014T105622Z-af709885",
+  "runtime": "claude-haiku",
+  "model": "claude-haiku-5-5",
+  "workspace": "/tmp/v846-live-20261014T105622Z-af709885/workspace-claude-haiku",
+  "session_id": "v846-claude-haiku-705504116743",
+  "turns": [],
+  "error": "TimeoutError: ",
+  "session_logs": [
+    {
+      "id": 1,
+      "type": "tool",
+      "content": "Bash: {\n  \"command\": \"sleep 10\",\n  \"description\": \"Run sleep 10 once\"\n}",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 2,
+      "type": "policy_violation",
+      "content": "{\"rule\": \"long_sleep\", \"tool_name\": \"Bash\", \"message\": \"PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.\"}",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 3,
+      "type": "tool_result",
+      "content": "PreToolUse:Bash hook error: POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds). Use bg_create(type='run') for a process, bg_create(type='file') for a file, or bg_create(type='command') for a condition; the job will wake the session.",
+      "tool_name": "Bash",
+      "tool_is_error": 1
+    },
+    {
+      "id": 4,
+      "type": "text",
+      "content": "The command was refused. I ran `sleep 10` once, and a pre-tool policy hook blocked it: \"POLICY VIOLATION [long_sleep]: Long shell sleeps are blocked (maximum 5 seconds).\" I did not retry or change the command.",
+      "tool_name": null,
+      "tool_is_error": null
+    }
+  ]
+}

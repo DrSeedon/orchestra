@@ -675,6 +675,7 @@ async def test_history_import_uses_experimental_resume_and_accepts_fresh_id(monk
     )
     method, params = requests[1]
     assert method == "thread/resume"
+    assert params["approvalPolicy"] == "never"
     assert params["threadId"] == history.thread_id
     assert params["history"] == list(history.history)
     assert params["developerInstructions"] == (
@@ -1577,6 +1578,26 @@ def test_explicit_codex_tool_failures_keep_identity_and_tool_name():
         ("mcp-1", "mcp__orchestra__send_message"),
         ("dynamic-1", "custom"),
     ]
+
+
+def test_codex_path_wrapper_violation_is_error_even_after_successful_pipeline():
+    backend = CodexBackend(model="gpt-6-luna", cwd="/tmp")
+    events = backend._item_completed({
+        "id": "cmd-policy",
+        "type": "commandExecution",
+        "command": "find . -name '*.py' | head -3",
+        "aggregatedOutput": (
+            "POLICY VIOLATION [recursive_find]: Recursive find searches are blocked. "
+            "Use rg instead.\n"
+        ),
+        "exitCode": 0,
+    })
+
+    violation = next(event for event in events if event.type == "policy_violation")
+    result = next(event for event in events if event.type == "tool_result")
+    assert violation.metadata["rule"] == "recursive_find"
+    assert violation.metadata["tool_use_id"] == "cmd-policy"
+    assert result.metadata["is_error"] is True
 
 
 def test_reasoning_plan_warning_compaction_and_mcp_failure_telemetry():

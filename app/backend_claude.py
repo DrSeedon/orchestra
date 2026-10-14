@@ -192,6 +192,9 @@ _BASH_CLASSIFICATIONS = {
     "curl_pipe_shell",
     "regex_blowup",
     "command_too_large",
+    "long_sleep",
+    "recursive_find",
+    "recursive_grep",
 }
 _BASH_SEPARATORS = {";", "&&", "||", "|", "&", "(", ")", "\n"}
 _BASH_PUNCTUATION = set("();<>|&\n")
@@ -358,6 +361,10 @@ def _classify_bash_payload(tool_input: dict, cwd: str | None = None) -> str | No
     command = tool_input.get("command")
     if not isinstance(command, str):
         return None
+    from app.shell_policy import classify_shell_command
+    policy_rule = classify_shell_command(command)
+    if policy_rule:
+        return policy_rule
     command = _without_heredoc_bodies(command)
     try:
         lexer = shlex.shlex(command, posix=True, punctuation_chars="();<>|&\n")
@@ -548,6 +555,9 @@ def _pretool_output(classification: str | None = None) -> dict:
         ),
         "command_too_large": "Bash command exceeds the managed classifier size limit (1 MiB).",
     }
+    if classification in {"long_sleep", "recursive_find", "recursive_grep"}:
+        from app.shell_policy import violation_message
+        reasons[classification] = violation_message(classification)
     if classification in reasons:
         decision["permissionDecision"] = "deny"
         decision["permissionDecisionReason"] = reasons[classification]
@@ -790,13 +800,9 @@ class ClaudeBackend:
             ),
             "permission_mode": "default",
             "can_use_tool": True,
-            "hooks": (
-                {"PreToolUse": [{
-                    "matcher": "Bash", "hook_count": 1, "timeout": None,
-                }]}
-                if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1"
-                else {}
-            ),
+            "hooks": {"PreToolUse": [{
+                "matcher": "Bash", "hook_count": 1, "timeout": None,
+            }]},
         }
 
     async def verify_handoff_validation_surface(self) -> dict:
@@ -1089,9 +1095,7 @@ class ClaudeBackend:
             cli_path = str(Path(__file__).with_name("agent_cli_exec.py"))
             env["ORCHESTRA_AGENT_CLI"] = cli
         agent_uid = os.environ.get("ORCHESTRA_AGENT_UID")
-        pretooluse_hooks = None
-        if os.environ.get("CLAUDE_BASH_HOOK_ENABLED") == "1":
-            pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload, cwd=self.cwd)
+        pretooluse_hooks = _make_pretooluse_hooks(_classify_bash_payload, cwd=self.cwd)
         options = ClaudeAgentOptions(
             model=self.model, cwd=self.cwd, cli_path=cli_path,
             permission_mode="default", can_use_tool=_make_auto_approve(self._is_orchestrator),
