@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- **Keep subtitle punctuation and normalize Vosk-unsupported glyphs before TTS** (`scripts/video_artifact/video_text.py`, `make.py`, `manim_voice.py`; V-849). Manim and HTML captions now preserve an explicit `sub` exactly while hiding stress markers only in fallback `say`. Russian speech normalizes typographic quotes, dash variants, ellipsis, and nonbreaking spaces to supported forms; other unsupported symbols fail during step validation with the step number and glyph. Trigger: formula subtitle `W·X + b` lost its plus, and Vosk's phoneme parser received guillemets and other unsupported punctuation.
 - **Повторное назначение той же ветки восстанавливает task_run после освобождения привязки** (`app/tm.py`, `app/routes/sessions.py`, `app/mcp_stdio.py`; V-843). Идемпотентный `switch_worker_branch` теперь атомарно проверяет актуальную задачу, привязывает её обратно только если она свободна в очереди (или уже принадлежит этой сессии), и создаёт отсутствующий открытый task_run; устаревший HEAD по-прежнему отклоняется проверкой merge, а здоровый no-op сохраняет прежнюю форму ответа. Триггер: после `PARTIAL` с `binding_released` задача возвращалась в `new`, но повторный switch на ту же ветку завершался `already_current` без открытия нового task_run.
 
 ### Added

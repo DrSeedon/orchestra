@@ -5,9 +5,13 @@
 """
 import importlib.util
 from pathlib import Path
+import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts/video_artifact"))
+from video_text import caption_text, normalize_vosk_text, UnsupportedVoskSymbol
+
 spec = importlib.util.spec_from_file_location("video_artifact_make", ROOT / "scripts/video_artifact/make.py")
 make = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(make)
@@ -79,7 +83,25 @@ def test_manual_stress_marker_is_removed_from_scene_caption():
             return [sayOnly.x, sub.x];
         }""")
         browser.close()
-    assert captions == ["лимита", "лимита"]
+    assert captions == ["лимита", "лим+ита"]
+
+
+def test_caption_keeps_subtitle_verbatim_but_cleans_tts_stress_marker():
+    assert caption_text({"say": "W+X словами", "sub": "W·X + b"}) == "W·X + b"
+    assert caption_text({"say": "лим+ита", "sub": None}) == "лимита"
+
+
+def test_vosk_text_normalizes_quote_dash_and_ellipsis_variants():
+    assert normalize_vosk_text("Он сказал: «привет» — затем…") == 'Он сказал: "привет" - затем...'
+    assert normalize_vosk_text("„привет“ – дальше ‑ снова") == '"привет" - дальше - снова'
+    assert normalize_vosk_text("слово\u00a0слово") == "слово слово"
+
+
+def test_unsupported_vosk_symbol_fails_during_step_validation():
+    with pytest.raises(UnsupportedVoskSymbol, match="•"):
+        normalize_vosk_text("фраза • продолжение")
+    with pytest.raises(SystemExit, match="шаг 1: символ '•'"):
+        make.check_steps([{"t": "x", "say": "фраза • дальше"}], "ru")
 
 
 def test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step(tmp_path):

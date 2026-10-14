@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vosk punctuation and subtitle regression</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;background:#0b0e14;color:#e6e6e6;font:24px Manrope,Arial,sans-serif}
+main{width:1280px;height:720px;margin:auto;padding:64px;position:relative}.muted{color:#8b93a7;font:22px "JetBrains Mono",monospace}
+svg{width:100%;height:360px;margin-top:50px}.track{stroke:#2a3142;stroke-width:8;stroke-linecap:round}.accent{fill:#58c4dd}.formula{fill:#f0ac5f;font:64px "JetBrains Mono",monospace}
+#caption{position:absolute;left:64px;right:64px;bottom:48px;border-top:1px solid #2a3142;padding-top:20px;color:#c4cad6;font-size:28px}
+</style>
+<main>
+  <h1>Озвучка и подпись</h1>
+  <div class="muted">кавычки и тире в голосе · формула на экране</div>
+  <svg viewBox="0 0 1152 360" role="img" aria-label="Маркер приходит к формуле">
+    <line class="track" x1="100" y1="180" x2="1052" y2="180"/>
+    <circle id="marker" class="accent" cx="120" cy="180" r="38"/>
+    <text id="formula" class="formula" x="820" y="202" text-anchor="middle" opacity="0">W·X + b</text>
+  </svg>
+  <div id="caption"></div>
+</main>
+<script>
+const STEPS = [
+  {d:3, t:"Кавычки", say:"Он сказал: «привет» — затем…", sub:"«Привет»"},
+  {d:3, t:"Формула", say:"Вэ умножить на икс, плюс бэ.", sub:"W·X + b", hold:1.5},
+];
+STEPS.forEach(s=>s.x??=s.sub??s.say);window.voice?.(STEPS);
+let now=0;
+function seek(t){
+  now=Math.max(0,Math.min(P.T,t));
+  const first=STEPS[0].d, second=STEPS[1].d;
+  const step=now<first?0:1, progress=step===0?now/first:(now-first)/second;
+  document.querySelector("#marker").setAttribute("cx",step===0?120+progress*470:590+Math.min(progress,1)*320);
+  document.querySelector("#formula").setAttribute("opacity",step===0?0:1);
+  document.querySelector("#caption").textContent=STEPS[step].x;
+}
+const P={get t(){return now},get T(){return STEPS.reduce((sum,s)=>sum+s.d,0)},seek};P.seek(0);
+</script>

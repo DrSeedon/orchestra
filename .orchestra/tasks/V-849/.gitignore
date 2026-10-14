@@ -1,0 +1,6 @@
+*.log
+*.wav
+video/.tts-cache/
+video/frames/
+video/.manim/
+preview/.preview-renders*/
