@@ -1627,6 +1627,72 @@ def validate_task_binding_repair(
         return task_dto(task)
 
 
+def ensure_task_run_for_current_binding(
+    scope: str, session_id: str, identity: TaskIdentity,
+) -> dict:
+    """Reopen the receipt only when the durable session still names this task."""
+    with active_runtime().operation(), _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        try:
+            task = get_task_by_id(conn, identity["id"])
+            session = conn.execute(
+                "SELECT scope,task_id FROM sessions WHERE id=? AND status!='archived'",
+                (session_id,),
+            ).fetchone()
+            if not task or (
+                task["project_id"] != identity["project_id"]
+                or task["par_number"] != identity["par_number"]
+                or task["ref_prefix"] != identity.get("ref_prefix", "")
+                or (identity.get("stable_id") and task["stable_id"] != identity["stable_id"])
+                or task["sync_revision"] != identity["sync_revision"]
+            ):
+                raise ValueError("task changed before its run could be reopened")
+            task_ref = public_task_ref(task)
+            if (
+                not session
+                or str(session["scope"] or "").rstrip("/") != scope.rstrip("/")
+                or str(session["task_id"] or "") != task_ref
+            ):
+                raise ValueError("session is no longer bound to this task")
+            reservation = conn.execute(
+                "SELECT operation_id FROM tm_task_reservations WHERE task_id=?",
+                (task["id"],),
+            ).fetchone()
+            if reservation:
+                raise ValueError(
+                    f"task {task_ref} is reserved by operation {reservation['operation_id']}"
+                )
+            if task["status"] == "new" and not task.get("worker_session_id"):
+                update_task(
+                    conn, task["id"], status="in_progress", worker_session_id=session_id,
+                )
+                active_runtime().publish(conn, task["id"])
+            elif (
+                task["status"] != "in_progress"
+                or str(task.get("worker_session_id") or "") != session_id
+            ):
+                raise ValueError(
+                    f"task {task_ref} is {task['status']} and is not released to this session"
+                )
+            updated = get_task_by_id(conn, task["id"])
+            open_run = conn.execute(
+                "SELECT 1 FROM review_receipts WHERE subject_kind='task_run' "
+                "AND session_id=? AND task_id=? AND status='requested'",
+                (session_id, task_ref),
+            ).fetchone()
+            _finish_superseded_task_runs(conn, session_id, task_ref)
+            run = _open_task_run_for_task(conn, updated, session_id)
+            conn.commit()
+            return {
+                "task": task_dto(updated),
+                "task_run": run,
+                "task_run_reopened": open_run is None,
+            }
+        except Exception:
+            conn.rollback()
+            raise
+
+
 def _release_previous_binding(
     conn: sqlite3.Connection,
     *,

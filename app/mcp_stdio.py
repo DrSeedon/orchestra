@@ -2746,7 +2746,8 @@ async def switch_worker_branch(
     A clean worker with nothing unmerged is released from its previous task, which
     returns to the queue; complete_previous=True closes it as done instead and requires
     acceptance_note (why it is done).
-    Worker must be idle with clean working tree."""
+    Worker must be idle with clean working tree. Repeat the same task_id after its binding
+    was released (for example after PARTIAL) to reopen the task run on the existing branch."""
     payload = {
         "scope": SCOPE,
         "task_id": task_id,
@@ -2781,6 +2782,14 @@ async def switch_worker_branch(
         and result.get("state") == "lifecycle_repaired"
     ):
         return f"Repaired lifecycle binding on branch {result.get('branch', '?')}"
+    if (
+        isinstance(result, dict)
+        and result.get("ok")
+        and result.get("state") == "task_run_reopened"
+    ):
+        return (
+            f"Reopened the task run for existing branch {result.get('branch', '?')}"
+        )
     if (
         isinstance(result, dict)
         and result.get("ok")

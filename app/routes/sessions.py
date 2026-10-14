@@ -3297,12 +3297,35 @@ async def switch_branch(name: str, req: dict):
                     )
                 if not new_task and previous_branch == new_branch:
                     if not previous_needs_switch:
+                        try:
+                            binding = await asyncio.to_thread(
+                                _tm.ensure_task_run_for_current_binding,
+                                scope, session_id, task_identity,
+                            )
+                        except Exception as binding_error:
+                            return JSONResponse(
+                                {
+                                    "error": (
+                                        "task binding could not be resumed safely: "
+                                        f"{err_text(binding_error)}"
+                                    )
+                                },
+                                status_code=409,
+                            )
                         return {
                             "ok": True,
-                            "state": "already_current",
+                            "state": (
+                                "task_run_reopened"
+                                if binding["task_run_reopened"] else "already_current"
+                            ),
                             "branch": previous_branch,
+                            "task_status": {"ok": True, "result": binding["task"]},
                             "waited_seconds": round(waited_seconds, 2),
-                            "message": "task/branch binding is already healthy; no changes made",
+                            "message": (
+                                "task run reopened for the existing task/branch binding"
+                                if binding["task_run_reopened"] else
+                                "task/branch binding is already healthy; no changes made"
+                            ),
                         }
                     try:
                         actual_branch, actual_head = await asyncio.to_thread(
