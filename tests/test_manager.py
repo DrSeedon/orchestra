@@ -1021,6 +1021,101 @@ class TestRefreshSkills:
         assert not old_dest.exists()
         assert custom_dest.read_bytes() == custom
 
+    def test_retired_hashes_follow_skill_renames_into_the_pipeline_directory(
+        self, tmp_path, monkeypatch,
+    ):
+        import hashlib
+        import subprocess
+        import app.prompting as prompting
+
+        repo = _git_repo(tmp_path)
+        old_path = repo / "pipelines/default/prompts/skills/codex-debate.md"
+        new_path = repo / ".orchestra/pipelines/default/prompts/skills/codex-debate.md"
+        skills = repo / ".orchestra/pipelines/default/prompts/skills"
+        old_path.parent.mkdir(parents=True)
+        skills.mkdir(parents=True)
+        old_bytes = b"legacy canonical review skill\n"
+        old_path.write_bytes(old_bytes)
+        (skills / "html-artifacts.md").write_text(
+            "---\nname: html-artifacts\ndescription: test\n---\ncurrent\n",
+            encoding="utf-8",
+        )
+
+        def commit(message):
+            subprocess.run(["git", "add", "-A"], cwd=repo, check=True, capture_output=True)
+            subprocess.run(["git", "commit", "-m", message], cwd=repo,
+                           check=True, capture_output=True)
+
+        commit("add legacy skill")
+        old_path.write_bytes(b"newer canonical revision before the move\n")
+        commit("update skill before the move")
+        subprocess.run(["git", "mv", str(old_path), str(new_path)], cwd=repo,
+                       check=True, capture_output=True)
+        commit("move skills under orchestra")
+        new_path.write_bytes(b"later canonical revision after the move\n")
+        commit("update skill after the move")
+        new_path.unlink()
+        commit("retire review skill")
+
+        monkeypatch.setattr(prompting, "_REPO_ROOT", repo)
+        monkeypatch.setattr(prompting, "_SKILLS_DIR", skills)
+        prompting._retired_skill_hashes.cache_clear()
+        try:
+            digest = hashlib.sha256(old_bytes).hexdigest()
+            assert digest in prompting._retired_skill_hashes()["codex-debate"]
+
+            old_copy = repo / ".claude/skills/codex-debate/SKILL.md"
+            old_copy.parent.mkdir(parents=True)
+            old_copy.write_bytes(old_bytes)
+            prompting.inject_skills_to_worktree(["html-artifacts"], str(repo))
+
+            assert not old_copy.exists()
+        finally:
+            prompting._retired_skill_hashes.cache_clear()
+
+    def test_retired_atomic_skill_temp_is_removed_but_unrecognized_file_stays(
+        self, tmp_path, monkeypatch,
+    ):
+        import hashlib
+        import app.prompting as prompting
+
+        wt = _git_repo(tmp_path)
+        obsolete = b"previous canonical skill body\n"
+        monkeypatch.setattr(prompting, "_retired_skill_hashes", lambda: {
+            "retired-example": frozenset({hashlib.sha256(obsolete).hexdigest()}),
+        })
+        skill_dir = wt / ".claude/skills/retired-example"
+        skill_dir.mkdir(parents=True)
+        orphan = skill_dir / ".SKILL.md.12345.abcdef12.tmp"
+        foreign = skill_dir / ".SKILL.md.keep-this.tmp"
+        orphan.write_bytes(obsolete)
+        foreign.write_text("foreign temporary file", encoding="utf-8")
+
+        prompting.inject_skills_to_worktree(["html-artifacts"], str(wt))
+
+        assert not orphan.exists()
+        assert foreign.read_text(encoding="utf-8") == "foreign temporary file"
+
+    def test_retired_symlinked_skill_directory_is_left_untouched(self, tmp_path, monkeypatch):
+        import hashlib
+        import app.prompting as prompting
+
+        wt = _git_repo(tmp_path)
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        obsolete = b"previous canonical skill body\n"
+        (outside / "SKILL.md").write_bytes(obsolete)
+        monkeypatch.setattr(prompting, "_retired_skill_hashes", lambda: {
+            "retired-example": frozenset({hashlib.sha256(obsolete).hexdigest()}),
+        })
+        skills_home = wt / ".claude/skills"
+        skills_home.mkdir(parents=True)
+        (skills_home / "retired-example").symlink_to(outside, target_is_directory=True)
+
+        prompting.inject_skills_to_worktree(["html-artifacts"], str(wt))
+
+        assert (outside / "SKILL.md").read_bytes() == obsolete
+
     def test_tracked_retired_copy_is_left_untouched(self, tmp_path, monkeypatch):
         import hashlib
         import subprocess
@@ -1034,12 +1129,15 @@ class TestRefreshSkills:
         dest = wt / ".claude/skills/retired-example/SKILL.md"
         dest.parent.mkdir(parents=True)
         dest.write_bytes(obsolete)
+        temp = dest.parent / ".SKILL.md.12345.abcdef12.tmp"
+        temp.write_bytes(obsolete)
         subprocess.run(["git", "add", "-A"], cwd=wt, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "own retired copy"], cwd=wt, check=True, capture_output=True)
 
         prompting.inject_skills_to_worktree(["html-artifacts"], str(wt))
 
         assert dest.read_bytes() == obsolete
+        assert temp.read_bytes() == obsolete
 
     def test_skill_reference_symlink_is_not_followed(self, tmp_path):
         from app.prompting import inject_skills_to_worktree
