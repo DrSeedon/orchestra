@@ -1216,8 +1216,8 @@ class CodexBackend(JsonRpcStdioTransport):
                 request_id = message.get("id")
                 if request_id is not None and message.get("method"):
                     # Autonomous workers have no interactive approval/elicitation UI.
-                    # `approvalPolicy=never` should prevent these requests; reject any
-                    # unexpected one explicitly so the turn fails instead of deadlocking.
+                    # `approvalPolicy=never` prevents command prompts; reject any unexpected
+                    # request explicitly instead of deadlocking.
                     await self._write({
                         "id": request_id,
                         "error": {
@@ -1542,6 +1542,16 @@ class CodexBackend(JsonRpcStdioTransport):
             status = run.get("status") or phase
             duration = run.get("durationMs")
             suffix = f" · {duration}ms" if duration is not None else ""
+            if method == "hook/completed" and str(label).lower() == "pretooluse":
+                entries = run.get("entries") or []
+                reason = "\n".join(
+                    str(entry.get("text") or "")
+                    for entry in entries if isinstance(entry, dict)
+                )
+                if reason.startswith("POLICY VIOLATION ["):
+                    return [AgentEvent("policy_violation", reason, metadata={
+                        "tool_name": "Bash",
+                    })]
             return [AgentEvent("status", f"codex hook {label}: {status}{suffix}")]
 
         if method in ("item/autoApprovalReview/started", "item/autoApprovalReview/completed"):
@@ -1686,11 +1696,23 @@ class CodexBackend(JsonRpcStdioTransport):
                 events.extend(self._item_started(item))
             output = item.get("aggregatedOutput")
             exit_code = item.get("exitCode")
-            failed = exit_code is not None and exit_code != 0
+            output_text = str(output) if output is not None else ""
+            violation = re.search(
+                r"POLICY VIOLATION \[([a-z0-9_]+)\]:[^\r\n]*", output_text,
+            )
+            if violation:
+                refusal = violation.group(0)
+                events.append(AgentEvent("policy_violation", refusal, metadata={
+                    "rule": violation.group(1),
+                    "tool_name": "Bash",
+                    "tool_use_id": item_id,
+                }))
+            failed = violation is not None or (exit_code is not None and exit_code != 0)
             if output is not None or failed:
+                result = output_text if output is not None else f"command exited with code {exit_code}"
                 events.append(AgentEvent(
                     "tool_result",
-                    str(output) if output is not None else f"command exited with code {exit_code}",
+                    result,
                     metadata={
                         "exit_code": exit_code,
                         "tool_use_id": item_id,
@@ -2366,6 +2388,10 @@ class CodexBackend(JsonRpcStdioTransport):
         if not sessions.exists() and not sessions.is_symlink():
             sessions.mkdir(mode=0o700)
 
+        policy_bin = home / "policy-bin"
+        from app.shell_policy import install_codex_policy_wrappers
+        install_codex_policy_wrappers(policy_bin)
+
         # Подписочная авторизация: СИМЛИНК на боевой auth.json. Копия протухнет при
         # перелогине, а без него app-server не авторизуется вовсе (проверено прогоном).
         auth = home / "auth.json"
@@ -2428,6 +2454,8 @@ class CodexBackend(JsonRpcStdioTransport):
         # #224: процесс обязан стартовать в ТОМ ЖЕ home, для которого собран config.toml.
         # Иначе argv чист, конфиг верен, а воркер работает на общем каталоге — тихий отказ.
         env["CODEX_HOME"] = str(self._codex_home or self._prepare_codex_home())
+        policy_bin = Path(env["CODEX_HOME"]) / "policy-bin"
+        env["PATH"] = f"{policy_bin}{os.pathsep}{env.get('PATH', '')}"
         # Codex, Claude, Cursor, and Orchestra intentionally share the proxy selected in
         # Orchestra's .env. The launcher wrapper also reloads that file, but preserving the
         # inherited values keeps direct CODEX_BIN deployments consistent and testable.

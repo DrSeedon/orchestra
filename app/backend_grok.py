@@ -318,6 +318,7 @@ class GrokBackend(JsonRpcStdioTransport):
         self._queue_depth = 0
         self._completed_prompts: set[str] = set()
         self._tool_names: dict[str, str] = {}
+        self._shell_policy_violations: dict[str, str] = {}
         # Grok only streams message/thought chunks — never a final item-complete event.
         # Session persists `text`/`thinking`, not live `stream`/`thinking_stream`, so without
         # these buffers assistant replies vanish from history and leave the UI bubble open
@@ -425,10 +426,7 @@ class GrokBackend(JsonRpcStdioTransport):
         if profile:
             cmd += ["--agent-profile", str(profile)]
         cmd += ["--model", self.model, "--reasoning-effort", self.reasoning_effort]
-        # Managed workers are autonomous and have no one to answer a prompt. Belt and
-        # braces: this stops most permission requests from being raised at all, and
-        # _pick_allow_option answers correctly the ones that still are.
-        cmd += ["--always-approve"]
+        # Keep ACP permission requests enabled so shell commands reach the guard first.
         cmd += ["stdio"]
 
         # СВОИ пайпы, а не выпрошенные у asyncio (#230 T6). Дескриптор, полученный из
@@ -927,14 +925,88 @@ class GrokBackend(JsonRpcStdioTransport):
                 fallback = str(option_id)
         return fallback
 
+    @staticmethod
+    def _pick_reject_option(options: list) -> str | None:
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            kind = str(option.get("kind") or "")
+            option_id = option.get("optionId")
+            if option_id and kind.startswith("reject"):
+                return str(option_id)
+        return None
+
+    @staticmethod
+    def _pick_allow_once_option(options: list) -> str | None:
+        for option in options:
+            if not isinstance(option, dict):
+                continue
+            kind = str(option.get("kind") or "").replace("-", "_")
+            option_id = option.get("optionId")
+            if option_id and kind.startswith("allow_once"):
+                return str(option_id)
+        return None
+
     async def _answer_server_request(self, request_id, message: dict) -> None:
-        """Answer agent→client requests. Workers are autonomous: approve tool permissions.
+        """Approve permitted tool requests and reject shell-policy violations before execution.
 
         Anything else is rejected explicitly so a turn fails loudly instead of deadlocking.
         """
         method = str(message.get("method") or "")
         if "permission" in method.lower():
             params = message.get("params") or {}
+            from app.shell_policy import classify_shell_command, violation_message
+            tool_call = params.get("toolCall") or params.get("tool_call") or params
+            tool_name = str(tool_call.get("title") or tool_call.get("name") or "")
+            raw_input = tool_call.get("rawInput") or tool_call.get("input") or {}
+            command = raw_input.get("command", "") if isinstance(raw_input, dict) else ""
+            is_shell = (
+                tool_name.lower() in {"bash", "shell", "terminal"}
+                or isinstance(command, str) and bool(command)
+            )
+            rule = (
+                classify_shell_command(command)
+                if isinstance(command, str) and is_shell
+                else "shell_policy_unavailable" if is_shell else None
+            )
+            tool_id = str(tool_call.get("toolCallId") or tool_call.get("id") or "")
+            if rule:
+                refusal = violation_message(rule)
+                if tool_id:
+                    self._shell_policy_violations[tool_id] = refusal
+                self._notifications.put_nowait({
+                    "method": "_policy/violation",
+                    "params": {
+                        "message": refusal,
+                        "rule": rule,
+                        "tool_use_id": tool_id,
+                    },
+                })
+                option_id = self._pick_reject_option(params.get("options") or [])
+                if option_id is not None:
+                    await self._write({
+                        "jsonrpc": "2.0", "id": request_id,
+                        "result": {"outcome": {"outcome": "selected", "optionId": option_id}},
+                    })
+                else:
+                    await self._write({
+                        "jsonrpc": "2.0", "id": request_id,
+                        "result": {"outcome": {"outcome": "cancelled"}},
+                })
+                return
+            if is_shell:
+                option_id = self._pick_allow_once_option(params.get("options") or [])
+                if option_id is not None:
+                    await self._write({
+                        "jsonrpc": "2.0", "id": request_id,
+                        "result": {"outcome": {"outcome": "selected", "optionId": option_id}},
+                    })
+                else:
+                    await self._write({
+                        "jsonrpc": "2.0", "id": request_id,
+                        "result": {"outcome": {"outcome": "cancelled"}},
+                    })
+                return
             option_id = self._pick_allow_option(params.get("options") or [])
             if option_id is None:
                 # Never invent an id: an unrecognised one is silently treated as "nothing
@@ -964,6 +1036,13 @@ class GrokBackend(JsonRpcStdioTransport):
     def _convert(self, message: dict) -> list[AgentEvent]:
         method = message.get("method", "")
         params = message.get("params") or {}
+
+        if method == "_policy/violation":
+            return [AgentEvent("policy_violation", params.get("message", ""), metadata={
+                "rule": params.get("rule", ""),
+                "tool_name": "Bash",
+                "tool_use_id": params.get("tool_use_id", ""),
+            })]
 
         if method == "session/update":
             return self._session_update(params)
@@ -1140,6 +1219,7 @@ class GrokBackend(JsonRpcStdioTransport):
         if status not in ("completed", "failed"):
             return []
         name = self._tool_names.get(tool_id, "tool")
+        policy_refusal = self._shell_policy_violations.pop(tool_id, None)
         content = update.get("content")
         text = _content_text(content) if content is not None else ""
         if not text.strip():
@@ -1153,6 +1233,8 @@ class GrokBackend(JsonRpcStdioTransport):
                     text = str(raw)
         if not text.strip():
             text = json.dumps({"status": status}, ensure_ascii=False)
+        if policy_refusal:
+            text = f"{policy_refusal}\n{text}"
         return [AgentEvent("tool_result", text[:20_000], metadata={
             "tool_use_id": tool_id,
             "tool_name": name,

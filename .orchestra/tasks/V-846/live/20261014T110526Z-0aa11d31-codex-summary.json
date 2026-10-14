@@ -1,0 +1,407 @@
+{
+  "run_id": "20261014T110526Z-0aa11d31",
+  "runtime": "codex",
+  "model": "gpt-6-luna",
+  "workspace": "/tmp/v846-live-20261014T110526Z-0aa11d31/workspace-codex",
+  "session_id": "v846-codex-35697d9eaaf1",
+  "turns": [
+    {
+      "case": "sleep_10",
+      "command": "sleep 10",
+      "events": [
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "status",
+          "content": "codex thread=01a13a17-21aa-7123-843c-27bed7b8a127",
+          "metadata": {
+            "session_id": "01a13a17-21aa-7123-843c-27bed7b8a127"
+          }
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "status",
+          "content": "codex turn=01a13a17-2495-7032-8815-0929356191f0 started",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "text",
+          "content": "The command was refused; it did not run.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "turn_end",
+          "content": "stop_reason=end_turn",
+          "metadata": {
+            "event_id": "01a13a17-2495-7032-8815-0929356191f0",
+            "session_id": "01a13a17-21aa-7123-843c-27bed7b8a127",
+            "ok": true,
+            "stop_reason": "end_turn",
+            "cost_usd": 0.00067634,
+            "cost_usd_cached": 0.00067634,
+            "cost_is_delta": true,
+            "turn_duration_ms": 6232,
+            "api_duration_ms": 6232,
+            "duration_basis": "model_estimate",
+            "provider_api_duration_ms": null,
+            "model_estimate_duration_ms": 6232,
+            "tool_duration_sum_ms": 0,
+            "tool_union_duration_ms": 0,
+            "tool_intervals_count": 0,
+            "tool_intervals_missing": 0,
+            "reasoning_tokens": null,
+            "cache_hit": 87,
+            "input_tokens": 27576,
+            "output_tokens": 169,
+            "cached_input_tokens": 24064,
+            "cache_read": 24064,
+            "cache_create": 0,
+            "model_calls": null,
+            "context_pct": 1,
+            "context_tokens": 13847,
+            "context_known": true,
+            "max_tokens": 828400,
+            "model_error": "",
+            "errors": []
+          }
+        }
+      ],
+      "turn_end": true,
+      "log_rows": [
+        {
+          "id": 23,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 24,
+          "type": "text",
+          "content": "The command was refused; it did not run.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "case": "recursive_find",
+      "command": "find . -name '*.py' | head -3",
+      "events": [
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "status",
+          "content": "codex turn=01a13a17-3d21-7a43-9f03-fb13f6965cd3 started",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "text",
+          "content": "I’ll run the exact command once.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "text",
+          "content": "The command was refused; it did not run.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "turn_end",
+          "content": "stop_reason=end_turn",
+          "metadata": {
+            "event_id": "01a13a17-3d21-7a43-9f03-fb13f6965cd3",
+            "session_id": "01a13a17-21aa-7123-843c-27bed7b8a127",
+            "ok": true,
+            "stop_reason": "end_turn",
+            "cost_usd": 0.0006591,
+            "cost_usd_cached": 0.0006591,
+            "cost_is_delta": true,
+            "turn_duration_ms": 4115,
+            "api_duration_ms": 4115,
+            "duration_basis": "model_estimate",
+            "provider_api_duration_ms": null,
+            "model_estimate_duration_ms": 4115,
+            "tool_duration_sum_ms": 0,
+            "tool_union_duration_ms": 0,
+            "tool_intervals_count": 0,
+            "tool_intervals_missing": 0,
+            "reasoning_tokens": null,
+            "cache_hit": 90,
+            "input_tokens": 31155,
+            "output_tokens": 156,
+            "cached_input_tokens": 28160,
+            "cache_read": 28160,
+            "cache_create": 0,
+            "model_calls": null,
+            "context_pct": 1,
+            "context_tokens": 15650,
+            "context_known": true,
+            "max_tokens": 828400,
+            "model_error": "",
+            "errors": []
+          }
+        }
+      ],
+      "turn_end": true,
+      "log_rows": [
+        {
+          "id": 23,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 24,
+          "type": "text",
+          "content": "The command was refused; it did not run.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 25,
+          "type": "text",
+          "content": "I’ll run the exact command once.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 26,
+          "type": "text",
+          "content": "The command was refused; it did not run.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "case": "short_sleep",
+      "command": "echo ok && sleep 1",
+      "events": [
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "status",
+          "content": "codex turn=01a13a17-4d39-7f42-9f6f-fb7bd7c3c37c started",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "text",
+          "content": "I’ll run the exact command once.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "text",
+          "content": "The command was refused; it did not run.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T110526Z-0aa11d31",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "turn_end",
+          "content": "stop_reason=end_turn",
+          "metadata": {
+            "event_id": "01a13a17-4d39-7f42-9f6f-fb7bd7c3c37c",
+            "session_id": "01a13a17-21aa-7123-843c-27bed7b8a127",
+            "ok": true,
+            "stop_reason": "end_turn",
+            "cost_usd": 0.00047777999999999997,
+            "cost_usd_cached": 0.00047777999999999997,
+            "cost_is_delta": true,
+            "turn_duration_ms": 3198,
+            "api_duration_ms": 3198,
+            "duration_basis": "model_estimate",
+            "provider_api_duration_ms": null,
+            "model_estimate_duration_ms": 3198,
+            "tool_duration_sum_ms": 0,
+            "tool_union_duration_ms": 0,
+            "tool_intervals_count": 0,
+            "tool_intervals_missing": 0,
+            "reasoning_tokens": null,
+            "cache_hit": 95,
+            "input_tokens": 31550,
+            "output_tokens": 83,
+            "cached_input_tokens": 30208,
+            "cache_read": 30208,
+            "cache_create": 0,
+            "model_calls": null,
+            "context_pct": 1,
+            "context_tokens": 15812,
+            "context_known": true,
+            "max_tokens": 828400,
+            "model_error": "",
+            "errors": []
+          }
+        }
+      ],
+      "turn_end": true,
+      "log_rows": [
+        {
+          "id": 23,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 24,
+          "type": "text",
+          "content": "The command was refused; it did not run.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 25,
+          "type": "text",
+          "content": "I’ll run the exact command once.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 26,
+          "type": "text",
+          "content": "The command was refused; it did not run.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 27,
+          "type": "text",
+          "content": "I’ll run the exact command once.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 28,
+          "type": "text",
+          "content": "The command was refused; it did not run.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    }
+  ],
+  "error": null,
+  "hooks_list": {
+    "data": [
+      {
+        "cwd": "/tmp/v846-live-20261014T110526Z-0aa11d31/workspace-codex",
+        "hooks": [
+          {
+            "key": "/tmp/v846-live-20261014T110526Z-0aa11d31/codex-home/v846-20261014T110526Z-0aa11d31/config.toml:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/app/shell_policy.py codex-hook",
+            "async": false,
+            "matcher": "^(Bash|exec|exec_command|commandExecution)$",
+            "timeoutSec": 3,
+            "statusMessage": "Checking shell command policy",
+            "additionalContextLimit": null,
+            "sourcePath": "/tmp/v846-live-20261014T110526Z-0aa11d31/codex-home/v846-20261014T110526Z-0aa11d31/config.toml",
+            "source": "user",
+            "pluginId": null,
+            "displayOrder": 0,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:09d442079732b5f69adfee6b3f142235b4ed9067d241ee978546d429e2f9a70d",
+            "trustStatus": "untrusted"
+          }
+        ],
+        "warnings": [],
+        "errors": []
+      }
+    ]
+  },
+  "session_logs": [
+    {
+      "id": 23,
+      "type": "text",
+      "content": "I’ll run the supplied command once, exactly as written.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 24,
+      "type": "text",
+      "content": "The command was refused; it did not run.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 25,
+      "type": "text",
+      "content": "I’ll run the exact command once.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 26,
+      "type": "text",
+      "content": "The command was refused; it did not run.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 27,
+      "type": "text",
+      "content": "I’ll run the exact command once.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 28,
+      "type": "text",
+      "content": "The command was refused; it did not run.",
+      "tool_name": null,
+      "tool_is_error": null
+    }
+  ]
+}

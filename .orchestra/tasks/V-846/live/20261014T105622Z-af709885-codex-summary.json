@@ -1,0 +1,572 @@
+{
+  "run_id": "20261014T105622Z-af709885",
+  "runtime": "codex",
+  "model": "gpt-6-luna",
+  "workspace": "/tmp/v846-live-20261014T105622Z-af709885/workspace-codex",
+  "session_id": "v846-codex-f790c67e30c1",
+  "turns": [
+    {
+      "case": "sleep_10",
+      "command": "sleep 10",
+      "events": [
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "status",
+          "content": "codex thread=01a13a11-2ae3-79a1-871b-df74d6794e74",
+          "metadata": {
+            "session_id": "01a13a11-2ae3-79a1-871b-df74d6794e74"
+          }
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "status",
+          "content": "codex turn=01a13a11-2d14-76e0-ad84-f196b2c24692 started",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "tool_use",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-03b24ef9-5aef-4d41-a046-1190959db0d3\"}",
+          "metadata": {
+            "tool_name": "Bash",
+            "short_name": "Bash",
+            "tool_use_id": "exec-03b24ef9-5aef-4d41-a046-1190959db0d3"
+          }
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "text",
+          "content": "It ran.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "sleep_10",
+          "event_type": "turn_end",
+          "content": "stop_reason=end_turn",
+          "metadata": {
+            "event_id": "01a13a11-2d14-76e0-ad84-f196b2c24692",
+            "session_id": "01a13a11-2ae3-79a1-871b-df74d6794e74",
+            "ok": true,
+            "stop_reason": "end_turn",
+            "cost_usd": 0.00083146,
+            "cost_usd_cached": 0.00083146,
+            "cost_is_delta": true,
+            "turn_duration_ms": 15401,
+            "api_duration_ms": 5496,
+            "duration_basis": "model_estimate",
+            "provider_api_duration_ms": null,
+            "model_estimate_duration_ms": 5496,
+            "tool_duration_sum_ms": 9905,
+            "tool_union_duration_ms": 9905,
+            "tool_intervals_count": 1,
+            "tool_intervals_missing": 0,
+            "reasoning_tokens": null,
+            "cache_hit": 79,
+            "input_tokens": 27564,
+            "output_tokens": 113,
+            "cached_input_tokens": 22016,
+            "cache_read": 22016,
+            "cache_create": 0,
+            "model_calls": null,
+            "context_pct": 1,
+            "context_tokens": 13847,
+            "context_known": true,
+            "max_tokens": 828400,
+            "model_error": "",
+            "errors": []
+          }
+        }
+      ],
+      "turn_end": true,
+      "log_rows": [
+        {
+          "id": 9,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 10,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-03b24ef9-5aef-4d41-a046-1190959db0d3\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 11,
+          "type": "text",
+          "content": "It ran.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "case": "recursive_find",
+      "command": "find . -name '*.py' | head -3",
+      "events": [
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "status",
+          "content": "codex turn=01a13a11-694e-7373-9488-a7b61cb2f3d8 started",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "tool_use",
+          "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-7d13d3ad-4c84-4429-a92e-07c21af6a5f5\"}",
+          "metadata": {
+            "tool_name": "Bash",
+            "short_name": "Bash",
+            "tool_use_id": "exec-7d13d3ad-4c84-4429-a92e-07c21af6a5f5"
+          }
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "tool_result",
+          "content": "./fixture.py\n",
+          "metadata": {
+            "exit_code": 0,
+            "tool_use_id": "exec-7d13d3ad-4c84-4429-a92e-07c21af6a5f5",
+            "tool_name": "Bash",
+            "is_error": false
+          }
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "text",
+          "content": "It ran.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "recursive_find",
+          "event_type": "turn_end",
+          "content": "stop_reason=end_turn",
+          "metadata": {
+            "event_id": "01a13a11-694e-7373-9488-a7b61cb2f3d8",
+            "session_id": "01a13a11-2ae3-79a1-871b-df74d6794e74",
+            "ok": true,
+            "stop_reason": "end_turn",
+            "cost_usd": 0.00080362,
+            "cost_usd_cached": 0.00080362,
+            "cost_is_delta": true,
+            "turn_duration_ms": 4039,
+            "api_duration_ms": 4030,
+            "duration_basis": "model_estimate",
+            "provider_api_duration_ms": null,
+            "model_estimate_duration_ms": 4030,
+            "tool_duration_sum_ms": 9,
+            "tool_union_duration_ms": 9,
+            "tool_intervals_count": 1,
+            "tool_intervals_missing": 0,
+            "reasoning_tokens": null,
+            "cache_hit": 84,
+            "input_tokens": 30977,
+            "output_tokens": 112,
+            "cached_input_tokens": 26112,
+            "cache_read": 26112,
+            "cache_create": 0,
+            "model_calls": null,
+            "context_pct": 1,
+            "context_tokens": 15555,
+            "context_known": true,
+            "max_tokens": 828400,
+            "model_error": "",
+            "errors": []
+          }
+        }
+      ],
+      "turn_end": true,
+      "log_rows": [
+        {
+          "id": 9,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 10,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-03b24ef9-5aef-4d41-a046-1190959db0d3\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 11,
+          "type": "text",
+          "content": "It ran.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 12,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 13,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-7d13d3ad-4c84-4429-a92e-07c21af6a5f5\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 14,
+          "type": "tool_result",
+          "content": "./fixture.py\n",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 15,
+          "type": "text",
+          "content": "It ran.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    },
+    {
+      "case": "short_sleep",
+      "command": "echo ok && sleep 1",
+      "events": [
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "status",
+          "content": "codex turn=01a13a11-7914-74f0-b403-4e4f4e5d7749 started",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "tool_use",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'echo ok && sleep 1'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"echo ok && sleep 1\"}], \"_codex_item_id\": \"exec-e278be8a-eca8-4da8-8d43-52003b0bdee4\"}",
+          "metadata": {
+            "tool_name": "Bash",
+            "short_name": "Bash",
+            "tool_use_id": "exec-e278be8a-eca8-4da8-8d43-52003b0bdee4"
+          }
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "tool_result",
+          "content": "ok\n",
+          "metadata": {
+            "exit_code": 0,
+            "tool_use_id": "exec-e278be8a-eca8-4da8-8d43-52003b0bdee4",
+            "tool_name": "Bash",
+            "is_error": false
+          }
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "text",
+          "content": "It ran.",
+          "metadata": {}
+        },
+        {
+          "run_id": "20261014T105622Z-af709885",
+          "runtime": "codex",
+          "model": "gpt-6-luna",
+          "case": "short_sleep",
+          "event_type": "turn_end",
+          "content": "stop_reason=end_turn",
+          "metadata": {
+            "event_id": "01a13a11-7914-74f0-b403-4e4f4e5d7749",
+            "session_id": "01a13a11-2ae3-79a1-871b-df74d6794e74",
+            "ok": true,
+            "stop_reason": "end_turn",
+            "cost_usd": 0.00046258,
+            "cost_usd_cached": 0.00046258,
+            "cost_is_delta": true,
+            "turn_duration_ms": 3734,
+            "api_duration_ms": 2792,
+            "duration_basis": "model_estimate",
+            "provider_api_duration_ms": null,
+            "model_estimate_duration_ms": 2792,
+            "tool_duration_sum_ms": 942,
+            "tool_union_duration_ms": 942,
+            "tool_intervals_count": 1,
+            "tool_intervals_missing": 0,
+            "reasoning_tokens": null,
+            "cache_hit": 96,
+            "input_tokens": 31358,
+            "output_tokens": 91,
+            "cached_input_tokens": 30208,
+            "cache_read": 30208,
+            "cache_create": 0,
+            "model_calls": null,
+            "context_pct": 1,
+            "context_tokens": 15734,
+            "context_known": true,
+            "max_tokens": 828400,
+            "model_error": "",
+            "errors": []
+          }
+        }
+      ],
+      "turn_end": true,
+      "log_rows": [
+        {
+          "id": 9,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 10,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-03b24ef9-5aef-4d41-a046-1190959db0d3\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 11,
+          "type": "text",
+          "content": "It ran.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 12,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 13,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-7d13d3ad-4c84-4429-a92e-07c21af6a5f5\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 14,
+          "type": "tool_result",
+          "content": "./fixture.py\n",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 15,
+          "type": "text",
+          "content": "It ran.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 16,
+          "type": "text",
+          "content": "I’ll run the supplied command once, exactly as written.",
+          "tool_name": null,
+          "tool_is_error": null
+        },
+        {
+          "id": 17,
+          "type": "tool",
+          "content": "Bash: {\"command\": \"/bin/bash -lc 'echo ok && sleep 1'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"echo ok && sleep 1\"}], \"_codex_item_id\": \"exec-e278be8a-eca8-4da8-8d43-52003b0bdee4\"}",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 18,
+          "type": "tool_result",
+          "content": "ok\n",
+          "tool_name": "Bash",
+          "tool_is_error": 0
+        },
+        {
+          "id": 19,
+          "type": "text",
+          "content": "It ran.",
+          "tool_name": null,
+          "tool_is_error": null
+        }
+      ]
+    }
+  ],
+  "error": null,
+  "hooks_list": {
+    "data": [
+      {
+        "cwd": "/tmp/v846-live-20261014T105622Z-af709885/workspace-codex",
+        "hooks": [
+          {
+            "key": "/tmp/v846-live-20261014T105622Z-af709885/codex-home/v846-20261014T105622Z-af709885/config.toml:pre_tool_use:0:0",
+            "eventName": "preToolUse",
+            "handlerType": "command",
+            "command": "/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/.venv/bin/python3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/app/shell_policy.py codex-hook",
+            "async": false,
+            "matcher": "Bash",
+            "timeoutSec": 3,
+            "statusMessage": "Checking shell command policy",
+            "additionalContextLimit": null,
+            "sourcePath": "/tmp/v846-live-20261014T105622Z-af709885/codex-home/v846-20261014T105622Z-af709885/config.toml",
+            "source": "user",
+            "pluginId": null,
+            "displayOrder": 0,
+            "enabled": true,
+            "isManaged": false,
+            "currentHash": "sha256:b6a4970f7bc41032200451d08aabd3d7ea0aaf4b9c380815a96def56839f1130",
+            "trustStatus": "untrusted"
+          }
+        ],
+        "warnings": [],
+        "errors": []
+      }
+    ]
+  },
+  "session_logs": [
+    {
+      "id": 9,
+      "type": "text",
+      "content": "I’ll run the supplied command once, exactly as written.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 10,
+      "type": "tool",
+      "content": "Bash: {\"command\": \"/bin/bash -lc 'sleep 10'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"sleep 10\"}], \"_codex_item_id\": \"exec-03b24ef9-5aef-4d41-a046-1190959db0d3\"}",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 11,
+      "type": "text",
+      "content": "It ran.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 12,
+      "type": "text",
+      "content": "I’ll run the supplied command once, exactly as written.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 13,
+      "type": "tool",
+      "content": "Bash: {\"command\": \"/bin/bash -lc \\\"find . -name '*.py' | head -3\\\"\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"search\", \"command\": \"find . -name '*.py'\", \"query\": \"*.py\", \"path\": \".\"}], \"_codex_item_id\": \"exec-7d13d3ad-4c84-4429-a92e-07c21af6a5f5\"}",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 14,
+      "type": "tool_result",
+      "content": "./fixture.py\n",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 15,
+      "type": "text",
+      "content": "It ran.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 16,
+      "type": "text",
+      "content": "I’ll run the supplied command once, exactly as written.",
+      "tool_name": null,
+      "tool_is_error": null
+    },
+    {
+      "id": 17,
+      "type": "tool",
+      "content": "Bash: {\"command\": \"/bin/bash -lc 'echo ok && sleep 1'\", \"cwd\": \"/tmp/v846-live-20261014T105622Z-af709885/workspace-codex\", \"command_actions\": [{\"type\": \"unknown\", \"command\": \"echo ok && sleep 1\"}], \"_codex_item_id\": \"exec-e278be8a-eca8-4da8-8d43-52003b0bdee4\"}",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 18,
+      "type": "tool_result",
+      "content": "ok\n",
+      "tool_name": "Bash",
+      "tool_is_error": 0
+    },
+    {
+      "id": 19,
+      "type": "text",
+      "content": "It ran.",
+      "tool_name": null,
+      "tool_is_error": null
+    }
+  ]
+}

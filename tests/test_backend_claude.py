@@ -807,7 +807,9 @@ async def test_connected_normal_handoff_receipt_uses_live_complete_context(
             setting_sources=["user", "project", "local"],
             permission_mode="default",
             can_use_tool=lambda *_args: None,
-            hooks=None,
+            hooks={"PreToolUse": [SimpleNamespace(
+                matcher="Bash", hooks=[object()], timeout=None,
+            )]},
         ),
         _query=SimpleNamespace(
             _initialization_result={

@@ -1,0 +1,15 @@
+wrapper=sleep parent=53597
+  53597   53584 codex           /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
+  53584   53526 node            node /usr/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
+wrapper=find parent=54966
+  54966   53597 bash            /bin/bash -c find . -name '*.py' | head -3
+  53597   53584 codex           /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
+wrapper=sleep parent=53597
+  53597   53584 codex           /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
+  53584   53526 node            node /usr/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
+wrapper=sleep parent=56593
+  56593   53597 python          python -c import subprocess; subprocess.run(["sleep", "6"], check=True)
+  53597   53584 codex           /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
+wrapper=sleep parent=56727
+  56727   53597 x.sh            /bin/sh ./x.sh
+  53597   53584 codex           /usr/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex -c model_reasoning_effort="high" -c features.multi_agent=false -c web_search="live" app-server --stdio
