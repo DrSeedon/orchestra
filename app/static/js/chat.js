@@ -983,6 +983,10 @@ function _streamRenderTick() {
     if (_selectionTouchesStream()) return;
     const chat = $('#chat');
     const wasAtBottom = _chatAtBottom(chat);
+    // Resync the pacer when streamPending was filled without a push (a reset or a direct
+    // assignment); otherwise its target stays below the backlog and the RAF loop never drains it.
+    const total = streamContent.length + streamPending.length;
+    if (_streamPacer.target < total) _streamPacer.push(total, performance.now());
     const chunkSize = Math.max(0, _streamPacer.step(performance.now()) - streamContent.length);
     const chunk = streamPending.slice(0, chunkSize);
     streamPending = streamPending.slice(chunkSize);

@@ -1,0 +1,29 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0
+rootdir: /home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+configfile: pyproject.toml
+plugins: base-url-2.1.0, anyio-4.13.0, playwright-0.8.0, xdist-3.8.0, asyncio-1.4.0, timeout-2.4.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+timeout: 30.0s
+timeout method: signal
+timeout func_only: False
+collected 4592 items / 4395 deselected / 197 selected
+
+tests/test_antigravity_usage_frontend.py ssssss                          [  3%]
+tests/test_compact_chat_672.py .                                         [  3%]
+tests/test_dashboard_i18n_formatting.py .                                [  4%]
+tests/test_frontend.py ................................................. [ 28%]
+.......................................................s...              [ 58%]
+tests/test_frontend_context_panel_468.py .                               [ 59%]
+tests/test_grok_usage_frontend.py ...........                            [ 64%]
+tests/test_i18n_dashboard.py ......                                      [ 68%]
+tests/test_model_catalog_frontend.py .                                   [ 68%]
+tests/test_quota_headroom_447.py ..                                      [ 69%]
+tests/test_system_chat_entry.py ..                                       [ 70%]
+tests/test_t344_quota_lines_browser.py .............................     [ 85%]
+tests/test_usage_analytics_frontend.py ................                  [ 93%]
+tests/test_usage_history_frontend.py ............                        [ 99%]
+tests/test_workflow_cards.py .                                           [100%]
+
+========= 190 passed, 7 skipped, 4395 deselected in 259.87s (0:04:19) ==========
+EXIT=0
