@@ -46,6 +46,7 @@ from multiprocessing import get_context
 from pathlib import Path
 
 from playwright.sync_api import sync_playwright
+from video_text import UnsupportedVoskSymbol, normalize_vosk_text
 
 HERE = Path(__file__).resolve().parent
 SOUND_HOME = Path.home() / ".local/share/orchestra-sfx"
@@ -75,7 +76,7 @@ VOICE_JS = """
 window.__VOICE = %s;
 window.voice = steps => {
   const v = window.__VOICE; if (!v) return;
-  steps.forEach((s, i) => { s.d = v.d[i]; s.x = (s.sub ?? s.say).replace(/\\+/g, ""); });
+  steps.forEach((s, i) => { s.d = v.d[i]; s.x = s.sub ?? s.say.replace(/\\+/g, ""); });
   window.__VOICE_APPLIED = true;
 };
 """
@@ -142,6 +143,11 @@ def check_steps(steps: list[dict], lang: str) -> list[dict]:
                 fail(f"шаг {i}: в say есть {''.join(bad)} — английский голос не читает кириллицу")
         elif bad := sorted(set(NOT_SPEAKABLE.findall(step["say"]))):
             fail(f"шаг {i}: в say есть {''.join(bad)} — латиницу и цифры пиши словами по-русски")
+        else:
+            try:
+                normalize_vosk_text(step["say"])
+            except UnsupportedVoskSymbol as exc:
+                fail(f"шаг {i}: символ {exc.symbol!r} не поддержан русским Vosk TTS; замени или убери его")
     return steps
 
 
@@ -176,7 +182,7 @@ def mark_stress(steps: list[dict], lang: str, enabled: bool) -> list[dict]:
     try:
         result = subprocess.run(
             [str(TTS_PYTHON), str(HERE / "tts_worker_stress.py")],
-            input=json.dumps([step["say"] for step in steps], ensure_ascii=False),
+            input=json.dumps([normalize_vosk_text(step["say"]) for step in steps], ensure_ascii=False),
             capture_output=True, text=True, check=False,
             env={**os.environ, "ORCHESTRA_TTS_HOME": str(TTS_HOME)},
         )
@@ -223,6 +229,8 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
     for i, step in enumerate(steps):
         engine = f"kokoro-v1.0|{voice}" if voice else f"{speaker}|{TTS_MODEL.name}"
         text = step.get("_tts_text", step["say"])
+        if not voice:
+            text = normalize_vosk_text(text)
         key = hashlib.sha1(f"{text}|{rate}|{engine}".encode()).hexdigest()[:16]
         raw, cut = cache / f"{key}.raw.wav", cache / f"{key}.wav"
         trimmed.append(cut)
