@@ -218,6 +218,29 @@ async def test_file_delivery_uuid_event_id_keeps_its_existing_identity(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_get_worker_logs_requests_limit_from_server_without_client_slicing(monkeypatch):
+    import app.mcp_stdio as m
+
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        calls.append((method, path, kwargs))
+        return [
+            {"id": index, "type": "text", "content": f"row-{index}"}
+            for index in range(1, 6)
+        ]
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    result = await m.get_worker_logs("worker", limit=3)
+
+    assert calls[0][2]["params"] == {
+        "scope": m.SCOPE, "after_id": 0, "limit": 3,
+    }
+    assert result.splitlines() == [f"💬 row-{index}" for index in range(1, 6)]
+
+
+@pytest.mark.asyncio
 async def test_send_file_200_without_matching_receipt_exposes_event_and_no_retry(monkeypatch):
     import app.mcp_stdio as m
 
