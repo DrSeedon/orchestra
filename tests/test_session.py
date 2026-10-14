@@ -3050,6 +3050,49 @@ class TestRateLimitClassification:
         assert session._rate_limit_retries == 2
 
     @pytest.mark.asyncio
+    async def test_interrupted_turn_errors_are_not_logged_as_failure(self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        logs = []
+        session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+        session._spawn_bg = lambda coro: coro.close()
+        session._hibernate.schedule = MagicMock()
+        session.status = AgentStatus.RUNNING
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "ok": False,
+            "stop_reason": "interrupted",
+            "num_turns": 0,
+            "errors": ["error"],
+        }))
+
+        assert not any(content.startswith("turn FAILED:") for _, content in logs)
+        assert ("status", "turn interrupted (interrupted)") in logs
+
+    @pytest.mark.asyncio
+    async def test_failed_turn_still_logs_real_error(self, session, monkeypatch):
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        monkeypatch.setattr("app.bg_jobs.bg_manager", None)
+        logs = []
+        session._log = lambda kind, content, **_kwargs: logs.append((kind, content))
+        session._spawn_bg = lambda coro: coro.close()
+        session._hibernate.schedule = MagicMock()
+        session.status = AgentStatus.RUNNING
+
+        session._turns.handle_turn_end(AgentEvent(type="turn_end", metadata={
+            "ok": False,
+            "stop_reason": "error",
+            "num_turns": 0,
+            "errors": ["provider failed"],
+        }))
+
+        assert ("error", "turn FAILED: provider failed") in logs
+
+    @pytest.mark.asyncio
     async def test_turn_end_persists_normalized_structured_usage(
         self, session, monkeypatch
     ):
