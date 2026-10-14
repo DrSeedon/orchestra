@@ -96,16 +96,25 @@ def _retired_skill_hashes() -> dict[str, frozenset[str]]:
     removed: dict[str, set[str]] = {}
     for path in sorted(removed_paths):
         name = Path(path).stem
-        revisions = subprocess.run(
-            ["git", "-C", str(_REPO_ROOT), "log", "--all", "--format=%H", "--", path],
+        history = subprocess.run(
+            ["git", "-C", str(_REPO_ROOT), "log", "--all", "--follow", "--format=%H", "--name-only", "--", path],
             capture_output=True,
             text=True,
         )
-        if revisions.returncode != 0:
+        if history.returncode != 0:
             continue
-        for revision in revisions.stdout.splitlines():
+        revision = None
+        for line in history.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            if re.fullmatch(r"[0-9a-f]{40,64}", line):
+                revision = line
+                continue
+            if revision is None:
+                continue
             prior = subprocess.run(
-                ["git", "-C", str(_REPO_ROOT), "show", f"{revision}:{path}"],
+                ["git", "-C", str(_REPO_ROOT), "show", f"{revision}:{line}"],
                 capture_output=True,
             )
             if prior.returncode == 0:
@@ -383,10 +392,14 @@ def inject_skills_to_worktree_report(
     retired_rels = {
         name: f"{home_dir}/skills/{name}/SKILL.md" for name in retired_names
     }
+    retired_tmp_rels = {
+        name: f"{home_dir}/skills/{name}/.SKILL.md.*.tmp" for name in retired_names
+    }
     try:
         tracked = tracked_paths(
             wt,
-            [home_dir, *rels.values(), *reference_rels.values(), *retired_rels.values()],
+            [home_dir, *rels.values(), *reference_rels.values(),
+             *retired_rels.values(), *retired_tmp_rels.values()],
         )
     except RuntimeError as exc:
         # Git failing (not a repo, ownership, broken worktree) proves nothing about who owns
@@ -407,27 +420,37 @@ def inject_skills_to_worktree_report(
             skipped=("home_path_is_file",),
         )
     skills_home = home / "skills"
-    if not skills_home.is_symlink():
+    if not home.is_symlink() and not skills_home.is_symlink():
         for name, rel in retired_rels.items():
             dest = wt / rel
-            if rel in tracked or dest.is_symlink() or not dest.is_file():
+            skill_dir = dest.parent
+            if skill_dir.is_symlink():
                 continue
+            if rel not in tracked and not dest.is_symlink() and dest.is_file():
+                try:
+                    digest = hashlib.sha256(dest.read_bytes()).hexdigest()
+                except OSError:
+                    digest = ""
+                if digest in _retired_skill_hashes()[name]:
+                    try:
+                        dest.unlink()
+                    except OSError as exc:
+                        logger.warning(f"Retired managed skill at {dest} could not be removed ({exc})")
+            for temp in skill_dir.glob(".SKILL.md.*.tmp"):
+                temp_rel = temp.relative_to(wt).as_posix()
+                if (temp_rel in tracked or temp.is_symlink() or not temp.is_file()
+                        or not re.fullmatch(r"\.SKILL\.md\.\d+\.[0-9a-f]{8}\.tmp", temp.name)):
+                    continue
+                try:
+                    temp.unlink()
+                except OSError as exc:
+                    logger.warning(f"Retired skill write temp at {temp} could not be removed ({exc})")
             try:
-                digest = hashlib.sha256(dest.read_bytes()).hexdigest()
-            except OSError:
-                continue
-            if digest not in _retired_skill_hashes()[name]:
-                continue
-            try:
-                dest.unlink()
-            except OSError as exc:
-                logger.warning(f"Retired managed skill at {dest} could not be removed ({exc})")
-                continue
-            try:
-                dest.parent.rmdir()
+                skill_dir.rmdir()
             except OSError:
                 pass
-            logger.info(f"Removed retired managed skill copy at {dest}")
+            else:
+                logger.info(f"Removed retired managed skill directory at {skill_dir}")
     if not skill_names:
         return SkillInjectionResult(
             written=0, requested=0, home_path=str(home), skipped=("no_skills",),
