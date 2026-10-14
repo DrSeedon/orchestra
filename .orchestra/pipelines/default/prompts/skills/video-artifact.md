@@ -20,6 +20,8 @@ the middle uses `[.4, .6]`. For a second precise accent, split the phrase into t
 than tuning windows. HTML renders each ordered step as soon as its phrase is ready; Manim waits
 for all phrases because `construct()` needs the complete timing plan.
 
+**TeraTTSv2 weights have no declared license; check [the model-license discussion](https://huggingface.co/TeraSpace/TeraTTSv2/discussions/1) before preparing audio for public or commercial use.**
+
 - **Scene:** for HTML, use the player scaffold in `html-artifacts`, with `<svg id="stage" viewBox="0 0 1200 520">`.
   Immediately after `STEPS`, include `STEPS.forEach(s => s.x ??= s.sub ?? s.say); window.voice?.(STEPS);` — without it the tool stops. The video label is subtitles (Telegram's feed plays without sound): use `say`; if it contains transliteration or numbers written as words, use `sub` with the screen form (for example "Together", "7 680"); `t` is a short step heading.
 - For `along` with a `w` window, also set the markup attribute (`<circle along="path">`): before
@@ -32,10 +34,12 @@ for all phrases because `construct()` needs the complete timing plan.
   appears when spoken; highlight with color and borders, not a new paragraph; the final frame is
   a silent-readable conclusion. Build repeated structures (grid, bar row) with a JS loop up to
   `STEPS`, and generate steps.
-- **`say` phrase:** Russian voice uses Cyrillic and punctuation only. Digits and Latin make
-  synthesis fail in advance, so spell them out (for example «семь тысяч шестьсот восемьдесят»,
-  «Дип Инфра», «опен роутер»), while the screen keeps digits and original names. Use 1–2
-  sentences, 2–6 s at rate 1.15, and 30–90 s total. Avoid officialese; write as spoken.
+- **`say` phrase:** speak in Russian and write Latin names as Cyrillic pronunciation (for example
+  «Дип Инфра», «опен роутер»); keep original names and digits in the screen subtitle. Tera expands
+  numeric literals, but does not infer their grammatical case (`в 2026 году` becomes an uninflected
+  «две тысячи двадцать шесть году»). Write Russian numbers as words with the required case for both
+  Tera and Vosk (for example «в две тысячи двадцать шестом году»). Use 1–2 sentences, 2–6 s at
+  rate 1.15, and 30–90 s total. Avoid officialese; write as spoken.
 - **English video:** `make.py … --lang en` uses Kokoro-82M instead of Vosk and Deepgram with
   `language=en`. English `say` may contain digits, names, and `#2`; Kokoro reads them, rejecting
   only Cyrillic. Voice `--voice af_heart` (default, female) or `am_michael` (male); five tested
@@ -125,23 +129,30 @@ Always use `bg_create(type="run")`: a 69 s video took 9.5 min (model loading ~2 
 parallel Chromium frame writers via `--jobs`; one thread took 25 min). Phrases cache in
 `<folder>/.tts-cache`; changing the scene without changing `say` does not reload the model.
 `--stills` skips video and produces phrase timing/contact sheets; `--check-only` checks an
-existing MP4. `--speaker` 1 is the default (owner choice on 2026-10-04 in V-690); 0–2 are
-female and 3–4 male. `--rate` defaults to 1.15 (1.5 was too fast on 2026-10-03; 1.25 also too
+existing MP4. `--speaker` selects the Vosk voice (1 is its default; 0–2 are female and 3–4 male).
+`--rate` defaults to 1.15 (1.5 was too fast on 2026-10-03; 1.25 also too
 fast on 2026-10-04; speech and pauses shorten together; recognition at 1.25–1.5 matched 1.0 in
 V-684); 1.0 is slow.
 
-RUAccent marks Russian phrases before Vosk synthesis using versions from `setup-laptop.sh`. If a
-word keeps the wrong stress, put `+` before the stressed vowel (`лим+ита`): the manual form wins
-over automation and the marker is hidden from captions. `--no-stress` explicitly disables RUAccent.
+Russian video uses local TeraTTSv2 by default (`ru_m1`); choose a Tera voice with `--voice m1|m5|f1|f2` (`m1` is default, `f2` is the alternate female voice),
+or pass `--tts-engine vosk` to use Vosk. TeraTTSv2 expands numbers in Russian tags and applies its
+bundled RUAccent-derived stress pass. If a word needs correction, put `+` before the stressed vowel
+(`лим+ита`): manual markers win over automatic stress. `--stress-only` prints the normalized text
+before synthesis; `--no-stress` disables automatic stress but keeps manual markers. The existing
+`--rate` maps to Tera's inverse `duration_scale`, so timing and pause semantics remain the same.
 
-If RUAccent fails to load, stop and report the broken TTS environment. Do not use `--no-stress`
-to continue a requested Russian build. Manual `+` markers are only targeted corrections for
-specific words RUAccent marks incorrectly; do not replace the automatic pass with hand-marking.
+Vosk remains available as an explicit Russian fallback and keeps its separate RUAccent worker.
+English video continues to use Kokoro.
 
-**Check stress yourself before the build.** RUAccent makes mistakes: in V-696 it marked
+If Tera's bundled stress pass or the Vosk RUAccent worker fails to load, stop and report the broken
+TTS environment. Do not use `--no-stress` as a workaround for a broken requested build. Manual `+`
+markers are targeted corrections for specific words the automatic pass marks incorrectly; do not
+replace automatic stress with hand-marking.
+
+**Check stress yourself before the build.** Automatic stress can make mistakes: in V-696 RUAccent marked
 «посл+е» instead of «по́сле» once in five edits. The owner hears every such word. Before a full
-build, run `make.py scene.html --out <folder> --stress-only`: it takes seconds and synthesizes
-nothing. Read every phrase in the output (also `<folder>/<name>.stress.txt`) and check every `+`
+build, run `make.py scene.html --out <folder> --stress-only`. Read every phrase in the output
+(also `<folder>/<name>.stress.txt`) and check every `+`
 against Russian pronunciation. Pay attention to homographs («за́мок/замо́к», «уже́»), loanwords,
 terms («репозито́рий», «оркестра́тор»), and names. Fix likely errors manually in scene `say` with
 `+`; repeat `--stress-only` until every `+` is correct, then build. Report the words changed.
@@ -182,11 +193,25 @@ their `CREDITS.md` stay in the external kit directory. `make.py` runs sound QA a
 
 ## Environment (already on VPS; restore if missing)
 
-`~/.local/share/orchestra-tts/`: `venv` (`uv venv --python 3.12 venv && uv pip install --python
-venv/bin/python vosk-tts`) and `vosk-model-tts-ru-0.9-multi` (Apache 2.0, 782 MB zip from
-alphacephei.com/vosk/models). Paths use `ORCHESTRA_TTS_HOME`, `ORCHESTRA_TTS_PYTHON`, and
-`ORCHESTRA_TTS_MODEL`. Silero and Piper are rejected for NC licenses; cloud TTS is paid. Details:
-`.orchestra/tasks/V-681/report.md`.
+TeraTTSv2 uses local CPU ONNX inference; the distilled sampler needs about 0.4 GB of weights.
+The app pins revision `f05ea799094571a3553904a555df3834fb0b963b`, defaults to `ru_m1`, and loads
+one model with six ONNX threads for two concurrent phrase workers. Model/code cache stays under
+`~/.local/share/orchestra-tts/tera/`; once installed, synthesis uses local files only. Install an
+isolated environment and fetch the pinned assets (including bundled Russian stress assets, but
+excluding the unused teacher sampler):
+
+```sh
+T=~/.local/share/orchestra-tts/tera
+uv venv --python 3.12 "$T/venv"
+uv pip install --python "$T/venv/bin/python" torch==2.14.1 --index-url https://download.pytorch.org/whl/cpu
+uv pip install --python "$T/venv/bin/python" transformers==4.57.1 onnxruntime==1.23.2 \
+  huggingface_hub==0.36.0 num2words==0.5.14 numpy
+"$T/venv/bin/python" -c 'from pathlib import Path; from huggingface_hub import snapshot_download; p=snapshot_download(repo_id="TeraSpace/TeraTTSv2", revision="f05ea799094571a3553904a555df3834fb0b963b", cache_dir=str(Path.home()/".local/share/orchestra-tts/tera/hub"), allow_patterns=["README.md","config.json","configuration_teratts.py","modeling_teratts.py","teratts.py","teratts_ruaccent.py","RUACCENT_NOTICE.txt","unicode_indexer.json","models/duration_predictor.onnx","models/sampler_distilled_cfg3_8step.onnx","models/text_encoder.onnx","models/vocoder.onnx","styles/ru_m1/*","styles/ru_m5/*","styles/ru_f1/*","styles/ru_f2/*","ruaccent/**"]); print(p)'
+```
+
+Set `ORCHESTRA_TERA_HOME` or `ORCHESTRA_TERA_PYTHON` only when using a different default path.
+Vosk remains in `~/.local/share/orchestra-tts/` (`venv` with `vosk-tts` and
+`vosk-model-tts-ru-0.9-multi`, Apache 2.0); see `.orchestra/tasks/V-681/report.md`.
 
 English voice: `~/.local/share/orchestra-tts/en/` (`ORCHESTRA_TTS_EN_HOME`), with `kokoro-onnx`
 (MIT), `soundfile`, `kokoro-v1.0.onnx` (310 MB), and `voices-v1.0.bin` (28 MB; Kokoro-82M,

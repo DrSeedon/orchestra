@@ -1,0 +1,8 @@
+{
+  "engine": "vosk",
+  "returncode": 0,
+  "total_elapsed_s": 744.54,
+  "pre_stage1_s": 663.01,
+  "stage_one_to_plan_s": 79.84,
+  "speech_to_plan_s": 65.91
+}

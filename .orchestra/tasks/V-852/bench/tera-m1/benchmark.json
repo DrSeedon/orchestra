@@ -1,0 +1,8 @@
+{
+  "engine": "tera",
+  "returncode": 0,
+  "total_elapsed_s": 35.55,
+  "pre_stage1_s": 16.7,
+  "stage_one_to_plan_s": 17.15,
+  "speech_to_plan_s": 17.15
+}
