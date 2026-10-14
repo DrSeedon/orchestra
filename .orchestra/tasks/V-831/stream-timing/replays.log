@@ -1,0 +1,58 @@
+load_dotenv skipped: running under pytest
+V-621 catalog split: home=/tmp/v831-replay-soyoi7pu/projects.yaml written=[] already=[] skipped=[] home_committed=False backup=/tmp/v831-replay-soyoi7pu/projects-pre-v621-20261014T080749Z.yaml
+No proxy configured, using 16 hardcoded models
+Bootstrap: skipping, orchestrator exists
+worktree cleanup task not started: running under pytest
+bg_jobs: restored 0 jobs, expired 0
+TG bridge: starting in background (HTTP is already serving)
+TG bridge FAILED to start: UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=3753260 does not match this process (3777108) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/main.py", line 56, in _start_bridge_background
+    await tg_bridge.start_bridge(manager)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/tg_bridge.py", line 4607, in start_bridge
+    raise UnmanagedInstanceError(
+app.tg_bridge.UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=3753260 does not match this process (3777108) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+runaway guard armed: limit=2.0GiB interval=20s strikes=2
+Grok usage unavailable: no OAuth credentials
+label=before captures=['.orchestra/tasks/V-831/stream-timing/cli_opus_write_prodenv.jsonl', '.orchestra/tasks/V-831/stream-timing/cli_opus.jsonl'] frames_sampled=2765
+tool-input card: paint updates=2 chars/update p50/p90/max=128/128/3365 ms between updates p50/p90/max=12818/12818/12818
+text bubble: paint updates=138 chars/update p50/p90/max=36/60/104 ms between updates p50/p90/max=61/386/14461
+load_dotenv skipped: running under pytest
+V-621 catalog split: home=/tmp/v831-replay-frrrsyqo/projects.yaml written=[] already=[] skipped=[] home_committed=False backup=/tmp/v831-replay-frrrsyqo/projects-pre-v621-20261014T080845Z.yaml
+No proxy configured, using 16 hardcoded models
+Bootstrap: skipping, orchestrator exists
+worktree cleanup task not started: running under pytest
+bg_jobs: restored 0 jobs, expired 0
+TG bridge: starting in background (HTTP is already serving)
+TG bridge FAILED to start: UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=3753260 does not match this process (3778578) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/main.py", line 56, in _start_bridge_background
+    await tg_bridge.start_bridge(manager)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/tg_bridge.py", line 4607, in start_bridge
+    raise UnmanagedInstanceError(
+app.tg_bridge.UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=3753260 does not match this process (3778578) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+runaway guard armed: limit=2.0GiB interval=20s strikes=2
+Grok usage unavailable: no OAuth credentials
+label=after-js-only captures=['.orchestra/tasks/V-831/stream-timing/cli_opus_write_prodenv.jsonl', '.orchestra/tasks/V-831/stream-timing/cli_opus.jsonl'] frames_sampled=2800
+tool-input card: paint updates=61 chars/update p50/p90/max=76/77/78 ms between updates p50/p90/max=17/17/12518
+text bubble: paint updates=280 chars/update p50/p90/max=19/26/45 ms between updates p50/p90/max=63/70/14268
+load_dotenv skipped: running under pytest
+V-621 catalog split: home=/tmp/v831-replay-mrwtexxr/projects.yaml written=[] already=[] skipped=[] home_committed=False backup=/tmp/v831-replay-mrwtexxr/projects-pre-v621-20261014T080941Z.yaml
+No proxy configured, using 16 hardcoded models
+Bootstrap: skipping, orchestrator exists
+worktree cleanup task not started: running under pytest
+bg_jobs: restored 0 jobs, expired 0
+TG bridge: starting in background (HTTP is already serving)
+TG bridge FAILED to start: UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=3753260 does not match this process (3780276) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+Traceback (most recent call last):
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/main.py", line 56, in _start_bridge_background
+    await tg_bridge.start_bridge(manager)
+  File "/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard/app/tg_bridge.py", line 4607, in start_bridge
+    raise UnmanagedInstanceError(
+app.tg_bridge.UnmanagedInstanceError: TG bridge refused to start: LISTEN_PID=3753260 does not match this process (3780276) — the value was inherited from the canonical instance, not assigned to this one. Only orchestra.service (`uvicorn app.main:app --fd 3`, socket-activated) may hold TG_BRIDGE_TOKEN; a second poller silently swallows the user's Telegram messages (#324). Nothing else about this instance is affected. cwd=/home/kesha/orchestra/worktrees/home-kesha-orchestra/fix-dashboard
+runaway guard armed: limit=2.0GiB interval=20s strikes=2
+Grok usage unavailable: no OAuth credentials
+label=after captures=['.orchestra/tasks/V-831/stream-timing/cli_opus_write_prodenv_fgts.jsonl', '.orchestra/tasks/V-831/stream-timing/cli_opus.jsonl'] frames_sampled=2738
+tool-input card: paint updates=601 chars/update p50/p90/max=4/9/100 ms between updates p50/p90/max=17/27/468
+text bubble: paint updates=278 chars/update p50/p90/max=18/27/48 ms between updates p50/p90/max=63/76/15260
+exit=0

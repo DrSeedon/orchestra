@@ -929,7 +929,7 @@ let _streamDeferredFinal = null;
 // `turn ended` status before the matching `text` row; if we already finalized the stream,
 // a second identical `text` must not paint a second bubble.
 let _lastFinalizedStreamText = '';
-const _STREAM_BASE_CPS = 12;  // chars per frame at 60fps (~720 chars/sec)
+let _streamPacer = new LivePacer();  // paces bursty upstream text (live-activity.js)
 const _STREAM_PARSE_INTERVAL = 50;  // ms between marked.parse calls
 
 function _selectionTouchesStream() {
@@ -983,8 +983,7 @@ function _streamRenderTick() {
     if (_selectionTouchesStream()) return;
     const chat = $('#chat');
     const wasAtBottom = _chatAtBottom(chat);
-    // Adaptive speed: if buffer is growing, accelerate to not fall behind
-    const chunkSize = Math.max(_STREAM_BASE_CPS, Math.floor(streamPending.length / 8));
+    const chunkSize = Math.max(0, _streamPacer.step(performance.now()) - streamContent.length);
     const chunk = streamPending.slice(0, chunkSize);
     streamPending = streamPending.slice(chunkSize);
     streamContent += chunk;
@@ -1013,6 +1012,7 @@ function _streamFlush() {
         streamContent += streamPending;
         streamPending = '';
     }
+    _streamPacer.flush();
 }
 
 function _renderJsonGrid(obj, container, maxDepth) {
@@ -4758,8 +4758,10 @@ function addChatEntry(type, content, ts, anchor, payload) {
             if (typeof _recomputeChatTimelineFinals === 'function') _recomputeChatTimelineFinals();
             if (typeof _syncChatTimelineControls === 'function') _syncChatTimelineControls();
             _streamLastParse = 0;
+            _streamPacer = new LivePacer();
         }
         streamPending += content;
+        _streamPacer.push(streamContent.length + streamPending.length, performance.now());
         if (!_streamRafId) _streamRafId = requestAnimationFrame(_streamRenderTick);
         return;
     }

@@ -1,0 +1,10 @@
+{"t": 1791965184.5382, "type": "__session", "len": 0, "key": null}
+{"t": 1791965187.0429, "type": "turn_diff", "len": 26197, "key": null}
+{"t": 1791965189.1499, "type": "turn_diff", "len": 26197, "key": null}
+{"t": 1791965222.8847, "type": "turn_diff", "len": 26197, "key": null}
+{"t": 1791965227.9962, "type": "turn_diff", "len": 26197, "key": null}
+{"t": 1791965241.1711, "type": "turn_diff", "len": 26197, "key": null}
+{"t": 1791965307.8649, "type": "thinking_stream", "len": 91, "key": "01a13963-22fc-7280-8408-1212389fa6b6", "content": "Still working · no new events for 30s. Steered messages wait for the next model checkpoint.", "chars": null}
+{"t": 1791965331.4132, "type": "turn_diff", "len": 44618, "key": null}
+{"t": 1791965331.4138, "type": "turn_diff", "len": 44618, "key": null}
+{"t": 1791965338.0615, "type": "turn_diff", "len": 44618, "key": null}

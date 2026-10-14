@@ -83,6 +83,48 @@ class LiveArgsDecoder {
     }
 }
 
+// Upstream text arrives in bursts (Opus 5.5 text: ~190 chars every ~600 ms, V-831
+// stream-timing). Painting each burst at once looks like "бам — и весь кусок". The pacer
+// reveals what has arrived at a steady rate that spreads one burst over the observed gap
+// between bursts, so the visible text grows continuously and never falls behind for long.
+class LivePacer {
+    constructor() {
+        this.target = 0;
+        this.shown = 0;
+        this.rate = 0;
+        this.gap = 300;
+        this._lastArrival = 0;
+        this._lastFrame = 0;
+    }
+
+    push(total, now) {
+        if (this._lastArrival) {
+            const observed = now - this._lastArrival;
+            this.gap = Math.min(1200, Math.max(80, 0.7 * this.gap + 0.3 * observed));
+        }
+        this._lastArrival = now;
+        this.target = total;
+        this.rate = Math.max(0, this.target - this.shown) / this.gap;
+    }
+
+    // Returns the length to show now; call once per animation frame.
+    step(now) {
+        const dt = this._lastFrame ? Math.min(100, now - this._lastFrame) : 16;
+        this._lastFrame = now;
+        if (this.shown < this.target) {
+            this.shown = Math.min(this.target, this.shown + Math.max(this.rate * dt, 0.5));
+        }
+        return Math.floor(this.shown);
+    }
+
+    get done() { return this.shown >= this.target; }
+
+    flush() {
+        this.shown = this.target;
+        this._lastFrame = 0;
+    }
+}
+
 // Bash: `timeout` in ms, default 2 min, capped at 10 min; a background call returns at once.
 function liveToolTimeoutMs(rawName, input) {
     if (!input || typeof input !== 'object') return 0;
@@ -152,6 +194,7 @@ function liveRenderToolInput(payload, content, insert) {
         body.className = 'live-tool-input-body';
         card.append(head, body);
         card._decoder = new LiveArgsDecoder();
+        card._pacer = new LivePacer();
         card._chars = 0;
         card._elapsedMs = 0;
         _liveToolInputCards.set(id, card);
@@ -166,12 +209,22 @@ function liveRenderToolInput(payload, content, insert) {
     }
     card._chars = payload.chars ?? (card._chars + content.length);
     card._elapsedMs = payload.elapsed_ms ?? card._elapsedMs;
+    card._pacer.push(card._decoder.text.length, performance.now());
+    if (payload.replace) card._pacer.flush();
+    card.querySelector('.live-tool-input-stats').textContent = _liveToolInputStats(card);
+    if (!card._raf) card._raf = requestAnimationFrame(now => _liveToolInputFrame(card, now));
+}
+
+function _liveToolInputFrame(card, now) {
+    card._raf = null;
+    if (!card.isConnected) return;
+    const chat = $('#chat');
     const body = card.querySelector('.live-tool-input-body');
     const wasAtBottom = typeof _chatAtBottom === 'function' ? _chatAtBottom(chat) : false;
-    body.textContent = card._decoder.text.slice(-_LIVE_TOOL_INPUT_TAIL);
+    body.textContent = card._decoder.text.slice(0, card._pacer.step(now)).slice(-_LIVE_TOOL_INPUT_TAIL);
     body.scrollTop = body.scrollHeight;
-    card.querySelector('.live-tool-input-stats').textContent = _liveToolInputStats(card);
     if (wasAtBottom) chat.scrollTop = chat.scrollHeight;
+    if (!card._pacer.done) card._raf = requestAnimationFrame(next => _liveToolInputFrame(card, next));
 }
 
 function liveRemoveToolInput(id) {

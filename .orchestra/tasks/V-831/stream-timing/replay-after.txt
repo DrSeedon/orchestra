@@ -1,0 +1,3 @@
+label=after captures=['.orchestra/tasks/V-831/stream-timing/cli_opus_write_prodenv_fgts.jsonl', '.orchestra/tasks/V-831/stream-timing/cli_opus.jsonl'] frames_sampled=2738
+tool-input card: paint updates=601 chars/update p50/p90/max=4/9/100 ms between updates p50/p90/max=17/27/468
+text bubble: paint updates=278 chars/update p50/p90/max=18/27/48 ms between updates p50/p90/max=63/76/15260
