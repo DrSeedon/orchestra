@@ -215,7 +215,7 @@ def test_panel_renders_when_api_returns_object_payload(browser):
     page.close()
 
 
-def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser):
+def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser, tmp_path):
     payload = _payload()
     payload["generated_at"] = "2026-08-19T12:00:00+00:00"
     bucket = payload["buckets"][0]
@@ -251,8 +251,7 @@ def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser):
         body.style.overflow = 'visible';
     }""")
     page.add_style_tag(content=".ql-body { max-height: none !important; overflow: visible !important; }")
-    screenshot = ROOT / ".orchestra/tasks/V-652/quota-timeline.png"
-    screenshot.parent.mkdir(parents=True, exist_ok=True)
+    screenshot = tmp_path / "quota-timeline.png"
     page.set_viewport_size({"width": 1280, "height": 1600})
     page.screenshot(path=str(screenshot), full_page=True)
     page.close()
@@ -468,7 +467,7 @@ def test_current_claude_chart_uses_day_night_profile_and_headroom(browser):
     page.close()
 
 
-def test_live_quota_map_history_and_two_hour_labels(browser):
+def test_live_quota_map_history_and_two_hour_labels(browser, tmp_path):
     payload = json.loads((ROOT / "tests/fixtures/v654_quota_map_live_shape.json").read_text())
     page, errors = _render(browser, payload)
     timeline = page.locator("[data-ql-timeline='all']")
@@ -508,8 +507,7 @@ def test_live_quota_map_history_and_two_hour_labels(browser):
         body.style.overflow = 'visible';
     }""")
     page.add_style_tag(content=".ql-body { max-height: none !important; overflow: visible !important; }")
-    screenshot = ROOT / ".orchestra/tasks/V-654/quota-timeline-live-fixture.png"
-    screenshot.parent.mkdir(parents=True, exist_ok=True)
+    screenshot = tmp_path / "quota-timeline-live-fixture.png"
     page.set_viewport_size({"width": 1280, "height": 1600})
     page.screenshot(path=str(screenshot), full_page=True)
     page.close()

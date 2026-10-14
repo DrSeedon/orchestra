@@ -101,7 +101,7 @@ async def test_compact_events_and_statuses_do_not_reach_telegram_or_mirror(tb, m
 
 
 def test_compact_journal_rows_render_as_one_separate_collapsible_block(
-    dashboard_browser: Browser,
+    dashboard_browser: Browser, tmp_path: Path,
 ):
     fixture_path = Path(__file__).parent.parent / ".orchestra/tasks/V-672/compact-fixture.json"
     fixture = json.loads(fixture_path.read_text())
@@ -136,7 +136,7 @@ def test_compact_journal_rows_render_as_one_separate_collapsible_block(
         card.querySelector('details[data-phase="audit"] details').open = true;
     }""")
     assert card.evaluate("card => card.open && card.querySelector('details[data-phase=\"audit\"]').open")
-    screenshot = Path(__file__).parent.parent / ".orchestra/tasks/V-672/compact-card.png"
+    screenshot = tmp_path / "compact-card.png"
     page.evaluate("""() => {
         const clone = document.querySelector('.compact-event-card').cloneNode(true);
         clone.id = 'compact-card-screenshot';

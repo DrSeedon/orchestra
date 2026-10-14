@@ -99,8 +99,8 @@ def test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback(tmp_path):
         os.close(write_fd)
         write_fd = -1
 
-        target.wait(timeout=2)
-        _stdout, stderr = guard.communicate(timeout=2)
+        target.wait(timeout=5)
+        _stdout, stderr = guard.communicate(timeout=5)
         events = _events(event_log)
 
         assert guard.returncode == 0, stderr

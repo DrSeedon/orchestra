@@ -57,7 +57,7 @@ exclude-newer = "2026-10-07T00:00:00Z"
 # исполняется. CLI перебивает эту строку, а не складывается с ней (`-m` — одно значение,
 # побеждает последнее): `pytest -m live_probe tests/` собирает 3 пробы из 3214, обычный
 # прогон — 3211 из 3214, ровно столько же, сколько командой гейта.
-addopts = ["-m", "not live_probe"]
+addopts = ["-m", "not live_probe", "-n", "2", "--dist=loadscope"]
 testpaths = ["tests"]
 norecursedirs = ["worktrees", ".venv", "data", "docs"]
 markers = [

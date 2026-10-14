@@ -9,9 +9,6 @@ UTILS_JS = ROOT / "app/static/js/utils.js"
 CONNECTION_JS = ROOT / "app/static/js/connection.js"
 USAGE_JS = ROOT / "app/static/js/usage.js"
 STYLE_CSS = ROOT / "app/static/css/style.css"
-USAGE_SHOT_DIR = ROOT / ".orchestra/tasks/356"
-
-
 @pytest.fixture(scope="module")
 def browser():
     with sync_playwright() as playwright:
@@ -209,8 +206,7 @@ def test_usage_bar_shows_spark_label_and_release_statuses(browser):
     page.close()
 
 
-def test_usage_bar_renders_each_provider_as_two_columns(browser):
-    USAGE_SHOT_DIR.mkdir(parents=True, exist_ok=True)
+def test_usage_bar_renders_each_provider_as_two_columns(browser, tmp_path):
     usage = {
         "anthropic": {
             "five_hour": {"utilization": 38, "window_minutes": 300, "resets_at": "2099-01-01T00:00:00.000Z"},
@@ -314,7 +310,7 @@ def test_usage_bar_renders_each_provider_as_two_columns(browser):
         assert bounds is not None
         assert bounds["height"] < 63
 
-        page.locator("#usage-bar").screenshot(path=str(USAGE_SHOT_DIR / f"usage-bar-provider-grid-{width}.png"))
+        page.locator("#usage-bar").screenshot(path=str(tmp_path / f"usage-bar-provider-grid-{width}.png"))
         page.close()
 
 

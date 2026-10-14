@@ -1,0 +1,224 @@
+........................................................................ [  1%]
+.....sssssssssssssssssssssssssssssssssssssss............................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+....s................................................................... [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+..F..................................................................... [ 28%]
+......................s................................................. [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+........................................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+.................................................................sss.... [ 52%]
+s....................................................................... [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+..............ss........................................................ [ 73%]
+........................................................................ [ 74%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+........................................................................ [ 82%]
+..sssssss............................................................... [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 98%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+__________ test_hidden_orchestrator_list_reuses_tab_status_and_cache ___________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_hidden_orchestrator_list_reuses_tab_status_and_cache(dashboard_browser: Browser):
+        page = dashboard_browser.new_page()
+        try:
+            _goto_dashboard(page)
+            result = page.evaluate("""() => {
+                const turn = new Date(Date.now() - 5 * 60_000).toISOString();
+                const rows = [
+                    {name: 'running-orchestrator', status: 'running', any_running: true, any_waiting: false},
+                    {name: 'waiting-orchestrator', status: 'idle', any_running: false, any_waiting: true},
+                    {name: 'idle-orchestrator', status: 'idle', any_running: false, any_waiting: false},
+                ].map((row, index) => ({
+                    id: `hidden-${index}`, scope: `/hidden/${index}`, ...row,
+                    cache_ttl_seconds: 3600, last_turn_ts: turn,
+                }));
+                orchData = rows;
+                _setHiddenTabs(new Set());
+                renderOrchTabs(orchData);
+                const pinned = Object.fromEntries(rows.map(row => {
+                    const tab = document.querySelector(
+                        `#orch-tabs .orch-tab[data-orch-name="${row.name}"]`,
+                    );
+                    const pill = tab.querySelector('.cache-pill');
+                    return [row.name, {
+                        status: tab.querySelector('.tab-dot').textContent,
+                        cache: pill.textContent,
+                        cacheTier: pill.dataset.tier,
+                        cacheExpires: pill.dataset.cacheExpires,
+                    }];
+                }));
+    
+                _setHiddenTabs(new Set(rows.map(row => row.name)));
+                renderOrchTabs(orchData);
+                document.querySelector('#hidden-tabs-btn').click();
+                const hidden = name => {
+                    const item = document.querySelector(
+                        `#hidden-tabs-dropdown [data-orch-name="${name}"]`,
+                    );
+                    const pill = item.querySelector('.cache-pill');
+                    return {
+                        status: item.querySelector('.hidden-tab-status').textContent,
+                        cache: pill.textContent,
+                        cacheTier: pill.dataset.tier,
+                        cacheExpires: pill.dataset.cacheExpires,
+                    };
+                };
+                const before = Object.fromEntries(rows.map(row => [row.name, hidden(row.name)]));
+    
+                const waiting = orchData.find(row => row.name === 'waiting-orchestrator');
+                waiting.any_waiting = false;
+                waiting.status = 'running';
+                waiting.any_running = true;
+                updateOrchTabDots();
+                const afterLiveUpdate = hidden(waiting.name);
+                return {pinned, before, afterLiveUpdate};
+            }""")
+        finally:
+            page.close()
+    
+>       assert result["pinned"] == result["before"]
+E       AssertionError: assert {'idle-orches...status': '📆'}} == {'idle-orches...status': '📆'}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'idle-orchestrator': {'cache': '🔥55m', 'cacheExpires': '1791977450134', 'cacheTier': 'hot', 'status': '☕️'}} != {'idle-orchestrator': {'cache': '🔥54m', 'cacheExpires': '1791977450134', 'cacheTier': 'hot', 'status': '☕️'}}
+E         {'waiting-orchestrator': {'cache': '🔥55m', 'cacheExpires': '1791977450134', 'cacheTier': 'hot', 'status': '📆'}} != {'waiting-orchestrator': {'cache': '🔥54m', 'cacheExpires': '1791977450134', 'cacheTier': 'hot', 'status': '📆'}}
+E         Use -v to get more diff
+
+tests/test_frontend.py:1097: AssertionError
+=============================== warnings summary ===============================
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__head for function open_artifact at /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/app/routes/artifacts.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_mailbox.py::test_impl1_concurrent_claim_does_not_double_deliver
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3999392) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+===================== ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ ======================
+4 теста(ов) не выполнялись: нет беспарольного sudo. Владение файлами нельзя проверить заглушками — нужны два реальных владельца.
+  test_migrated_worker_can_actually_commit, test_nested_repo_worker_migrates_into_its_own_repo, test_no_permanent_safe_directory_is_written_on_the_host, test_nothing_is_left_behind_for_the_login_user
+============================= slowest 30 durations =============================
+10.05s call     tests/test_session_logs_conditional.py::test_logs_limit_returns_latest_rows_in_order_and_after_id_still_pages
+9.01s call     tests/test_frontend.py::test_restart_signal_failure_reaches_frontend_on_heartbeat
+8.73s call     tests/test_merge_test_gate.py::test_browser_inventory_is_explicit
+8.57s call     tests/test_sigterm_sse_shutdown_v630.py::test_sigterm_exits_with_open_dashboard_sse
+8.50s call     tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff
+6.50s call     tests/test_tool_scoping.py::test_real_stdio_worker_stand
+5.31s setup    tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+5.29s call     tests/test_harness_production.py::test_stream_error_event_is_not_reported_as_a_success
+4.76s teardown tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+4.64s call     tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+4.46s setup    tests/test_system_chat_entry.py::test_system_entry_is_not_an_agent_bubble
+4.35s setup    tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block
+4.24s setup    tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox
+4.06s setup    tests/test_i18n_dashboard.py::test_dictionary_reaches_static_markup
+3.99s setup    tests/test_frontend_context_panel_468.py::test_live_stream_completion_refreshes_selected_agent_context
+3.40s call     tests/test_merge_target_oracle_386.py::test_t386_t1_nested_target_passes_while_main_and_mapped_regression_reject
+3.30s call     tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+3.15s call     tests/test_frontend.py::test_dashboard_survives_lossy_channel_from_snapshot
+3.13s call     tests/test_usage_history_frontend.py::test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure
+3.04s call     tests/test_wf_run.py::test_unavailable_scheduler_keeps_waiting[None]
+2.96s call     tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions
+2.82s call     tests/test_frontend.py::test_send_file_single_keeps_existing_rendering
+2.77s call     tests/test_frontend.py::test_live_call_notifies_once_while_history_and_replays_stay_silent
+2.73s call     tests/test_frontend.py::test_user_message_renders_display_only_payload_without_durable_timestamp
+2.72s call     tests/test_frontend.py::test_user_message_stays_before_agent_entries_arriving_during_stream
+2.72s call     tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+2.70s call     tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots
+2.66s call     tests/test_mcp_stdio.py::test_merge_worker_waits_out_running_and_returns_the_outcome
+2.64s call     tests/test_frontend.py::test_send_files_batch_renders_image_preview_and_lightbox
+2.62s call     tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files
+=========================== short test summary info ============================
+FAILED tests/test_frontend.py::test_hidden_orchestrator_list_reuses_tab_status_and_cache
+1 failed, 4458 passed, 54 skipped, 4 deselected, 6 warnings in 722.84s (0:12:02)
+Command exited with non-zero status 1
+	Command being timed: "nice -n 15 uv run --frozen python -m pytest -q --durations=30 -n 0"
+	User time (seconds): 341.41
+	System time (seconds): 270.63
+	Percent of CPU this job got: 84%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 12:06.89
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 2413216
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 7511
+	Minor (reclaiming a frame) page faults: 10082240
+	Voluntary context switches: 653883
+	Involuntary context switches: 57510
+	Swaps: 0
+	File system inputs: 367616
+	File system outputs: 5836728
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
+
+EXIT_CODE=1

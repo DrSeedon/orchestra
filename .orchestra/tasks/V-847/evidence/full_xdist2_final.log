@@ -1,0 +1,199 @@
+bringing up nodes...
+bringing up nodes...
+
+........................................................................ [  1%]
+........................................................................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+........................................................................ [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+.......s................................................................ [ 27%]
+........................................................................ [ 28%]
+........................................................................ [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+.............................................ssss....................... [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+................................ssssssssssssssss........................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+........................................................................ [ 52%]
+........................................................................ [ 54%]
+.............................sssss.sssssss.............................. [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+........................................................................ [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+........................................................................ [ 73%]
+........................................................................ [ 74%]
+...................................................................sssss [ 76%]
+ss...................................................................sss [ 78%]
+sss.................s................................................... [ 79%]
+........................................................................ [ 81%]
+.....................................sssss.............................. [ 82%]
+........................................................................ [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................................................................ [ 89%]
+........................................................................ [ 90%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+.................................F...................................... [ 97%]
+.................................ss..................................... [ 98%]
+.................................................                        [100%]
+=================================== FAILURES ===================================
+_________ test_stream_reports_the_live_status_after_the_session_loads __________
+[gw1] linux -- Python 3.12.3 /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/bin/python3
+
+delivery_db = <module 'app.db' from '/home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/app/db.py'>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7967c1275280>
+
+    @pytest.mark.asyncio
+    async def test_stream_reports_the_live_status_after_the_session_loads(
+        delivery_db, monkeypatch,
+    ):
+        """Стрим, открытый на НЕ загруженной сессии, обязан догнать её реальный статус."""
+        from app.deps import manager
+        from app.live_broker import broker
+        from app.routes.sessions import stream_session_logs
+    
+        assert manager.get(TARGET_ID) is None, "сессия не должна быть загружена на коннекте"
+        response = await stream_session_logs(TARGET_NAME, SCOPE, _FakeRequest())
+        events = response.body_iterator
+        try:
+            opened = await _next_event(events)
+            assert opened["type"] == "__session"
+            assert opened["agent_status"] == "idle"
+    
+            # Воркеру пришло сообщение: сессию загрузили, пошёл ход, логи идут в ТОТ ЖЕ стрим.
+            monkeypatch.setitem(
+                manager.sessions, TARGET_ID,
+                SimpleNamespace(status=SimpleNamespace(value="running")),
+            )
+            broker.publish(TARGET_ID, {"type": "stream", "content": "работаю"})
+    
+>           live = await _next_event(events)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_audit0901_delivery.py:130: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+events = <async_generator object stream_session_logs.<locals>.event_generator at 0x7967b1861240>
+
+    async def _next_event(events):
+>       raw = await events.__anext__()
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+E       StopAsyncIteration
+
+tests/test_audit0901_delivery.py:102: StopAsyncIteration
+=============================== warnings summary ===============================
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=4181495) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+tests/test_mailbox.py::test_t3_failed_injection_keeps_message
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__get for function open_artifact at /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/app/routes/artifacts.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_static_compression.py::test_sse_arrives_incrementally_and_is_not_compressed
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_static_compression.py::test_sse_arrives_incrementally_and_is_not_compressed
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+===================== ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ ======================
+4 теста(ов) не выполнялись: нет беспарольного sudo. Владение файлами нельзя проверить заглушками — нужны два реальных владельца.
+  test_migrated_worker_can_actually_commit, test_nested_repo_worker_migrates_into_its_own_repo, test_no_permanent_safe_directory_is_written_on_the_host, test_nothing_is_left_behind_for_the_login_user
+============================= slowest 30 durations =============================
+12.41s call     tests/test_session_logs_conditional.py::test_logs_limit_returns_latest_rows_in_order_and_after_id_still_pages
+9.36s call     tests/test_merge_test_gate.py::test_browser_inventory_is_explicit
+8.99s call     tests/test_frontend.py::test_restart_signal_failure_reaches_frontend_on_heartbeat
+8.72s call     tests/test_sigterm_sse_shutdown_v630.py::test_sigterm_exits_with_open_dashboard_sse
+8.38s call     tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff
+7.29s call     tests/test_runtime_history.py::test_codex_uses_shared_tool_cap_and_wrapped_base64_sanitizer
+6.33s call     tests/test_tool_scoping.py::test_real_stdio_worker_stand
+6.21s call     tests/test_t344_quota_lines_browser.py::test_above_the_curve_stops_sol_but_not_luna_and_spark
+5.15s call     tests/test_harness_production.py::test_stream_error_event_is_not_reported_as_a_success
+5.00s setup    tests/test_i18n_dashboard.py::test_dictionary_reaches_static_markup
+4.98s call     tests/test_t344_quota_lines_browser.py::test_hard_99_stops_everyone_and_orchestrator_still_works
+4.78s call     tests/test_workspace.py::TestCreateWorktree::test_spawn_into_repo_tracking_skills_leaves_clean_tree
+4.55s setup    tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block
+4.51s setup    tests/test_system_chat_entry.py::test_system_entry_is_not_an_agent_bubble
+4.42s setup    tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox
+4.35s call     tests/test_merge_target_oracle_386.py::test_t386_t1_nested_target_passes_while_main_and_mapped_regression_reject
+4.23s call     tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+4.19s setup    tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+3.88s call     tests/test_t344_quota_lines_browser.py::test_live_quota_map_history_and_two_hour_labels
+3.85s setup    tests/test_frontend_context_panel_468.py::test_live_stream_completion_refreshes_selected_agent_context
+3.64s call     tests/test_frontend.py::test_dashboard_survives_lossy_channel_from_snapshot
+3.26s call     tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+3.04s call     tests/test_wf_run.py::test_unavailable_scheduler_keeps_waiting[None]
+2.99s call     tests/test_frontend.py::test_send_file_single_keeps_existing_rendering
+2.92s call     tests/test_usage_history_frontend.py::test_slow_usage_aggregation_is_one_valid_request_not_a_network_failure
+2.86s call     tests/test_frontend.py::test_send_files_batch_renders_paths_and_download_actions
+2.85s call     tests/test_frontend.py::test_send_files_batch_collapses_after_eight_files
+2.73s call     tests/test_frontend.py::test_user_message_renders_display_only_payload_without_durable_timestamp
+2.71s call     tests/test_frontend.py::test_chat_timeline_navigates_events_and_cycles_user_messages
+2.68s call     tests/test_frontend.py::test_chat_timeline_navigates_final_agent_answers_only
+=========================== short test summary info ============================
+FAILED tests/test_audit0901_delivery.py::test_stream_reports_the_live_status_after_the_session_loads
+1 failed, 4458 passed, 54 skipped, 6 warnings in 411.86s (0:06:51)
+Command exited with non-zero status 1
+	Command being timed: "nice -n 15 uv run --frozen python -m pytest -q --durations=30 -n 2 --dist=loadscope"
+	User time (seconds): 348.69
+	System time (seconds): 224.63
+	Percent of CPU this job got: 138%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 6:52.78
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 2345472
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 8574
+	Minor (reclaiming a frame) page faults: 10266785
+	Voluntary context switches: 710892
+	Involuntary context switches: 209631
+	Swaps: 0
+	File system inputs: 716840
+	File system outputs: 5842304
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
+
+EXIT_CODE=1

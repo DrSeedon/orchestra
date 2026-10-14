@@ -1,0 +1,40 @@
+interpreter=/home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/bin/python
+eady_terminal 
+[gw0] [ 87%] PASSED tests/test_mcp_stdio.py::test_merge_worker_does_not_poll_when_already_terminal 
+tests/test_mcp_stdio.py::test_merge_worker_waits_even_when_a_completion_job_exists 
+[gw0] [ 88%] PASSED tests/test_mcp_stdio.py::test_merge_worker_waits_even_when_a_completion_job_exists 
+tests/test_mcp_stdio.py::test_merge_worker_hands_a_slow_merge_to_the_background_job 
+[gw0] [ 89%] PASSED tests/test_mcp_stdio.py::test_merge_worker_hands_a_slow_merge_to_the_background_job 
+tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure 
+[gw0] [ 90%] PASSED tests/test_mcp_stdio.py::test_merge_worker_running_past_the_cap_reads_as_progress_not_failure 
+tests/test_mcp_stdio.py::test_merge_worker_real_failure_still_reads_as_failure 
+[gw0] [ 90%] PASSED tests/test_mcp_stdio.py::test_merge_worker_real_failure_still_reads_as_failure 
+tests/test_mcp_stdio.py::test_file_first_memory_tool_surface_does_not_register_legacy_knowledge_tool 
+[gw0] [ 91%] PASSED tests/test_mcp_stdio.py::test_file_first_memory_tool_surface_does_not_register_legacy_knowledge_tool 
+tests/test_mcp_stdio.py::test_delivery_status_read_tools_are_not_in_the_agent_mcp_surface 
+[gw0] [ 92%] PASSED tests/test_mcp_stdio.py::test_delivery_status_read_tools_are_not_in_the_agent_mcp_surface 
+tests/test_mcp_stdio.py::test_merge_warning_is_visible_in_the_tool_text 
+[gw0] [ 92%] PASSED tests/test_mcp_stdio.py::test_merge_warning_is_visible_in_the_tool_text 
+tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_upgrade_required_on_old_server 
+[gw0] [ 93%] PASSED tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_upgrade_required_on_old_server 
+tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_server_refusal 
+[gw0] [ 94%] PASSED tests/test_mcp_stdio.py::test_resolve_merge_operation_reports_server_refusal 
+tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt-6-luna-gpt-6-luna-True] 
+[gw0] [ 95%] PASSED tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt-6-luna-gpt-6-luna-True] 
+tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt6luna-gpt-6-luna-False] 
+[gw0] [ 95%] PASSED tests/test_mcp_stdio.py::test_codex_review_model_reaches_quota_cli_job_and_accounting[gpt6luna-gpt-6-luna-False] 
+tests/test_mcp_stdio.py::test_codex_review_default_is_server_owned_luna_fast 
+[gw0] [ 96%] PASSED tests/test_mcp_stdio.py::test_codex_review_default_is_server_owned_luna_fast 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[not-a-model-unknown model] 
+[gw0] [ 97%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[not-a-model-unknown model] 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[claude-opus-5-5[1m]-runtime 'claude'] 
+[gw0] [ 97%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[claude-opus-5-5[1m]-runtime 'claude'] 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[grok-4.6-runtime 'grok'] 
+[gw0] [ 98%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[grok-4.6-runtime 'grok'] 
+tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[gpt-5.3-codex-spark-Spark is forbidden] 
+[gw0] [ 99%] PASSED tests/test_mcp_stdio.py::test_codex_review_rejects_invalid_non_codex_and_spark_before_api[gpt-5.3-codex-spark-Spark is forbidden] 
+[gw1] [100%] PASSED tests/test_session_logs_conditional.py::test_logs_limit_returns_latest_rows_in_order_and_after_id_still_pages 
+
+============================= 141 passed in 15.84s =============================
+
+interpreter=/home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/bin/python

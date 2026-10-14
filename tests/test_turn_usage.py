@@ -229,17 +229,18 @@ def test_cached_quota_state_selects_fresh_runtime_window(monkeypatch):
     )["quota_primary_pct"] == 27
 
 
-@pytest.mark.parametrize("cache_data,cache_ts", [
-    (None, time.time()),
-    ({"primary": {"utilization": 88}}, time.time() - 301),
+@pytest.mark.parametrize("cache_data,cache_age_seconds", [
+    (None, 0),
+    ({"primary": {"utilization": 88}}, 301),
 ])
 def test_cached_quota_state_returns_null_without_fresh_data(
-    usage_db, monkeypatch, cache_data, cache_ts,
+    usage_db, monkeypatch, cache_data, cache_age_seconds,
 ):
     from app.routes import system
     from app.db import _conn, turn_usage_add
     from app.session_turns import _cached_quota_state
 
+    cache_ts = time.time() - cache_age_seconds
     monkeypatch.setattr(system, "_codex_usage_cache", {
         "data": cache_data,
         "ts": cache_ts,

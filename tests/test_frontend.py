@@ -1041,7 +1041,9 @@ def test_hidden_orchestrator_list_reuses_tab_status_and_cache(dashboard_browser:
     try:
         _goto_dashboard(page)
         result = page.evaluate("""() => {
-            const turn = new Date(Date.now() - 5 * 60_000).toISOString();
+            const now = Date.now();
+            Date.now = () => now;
+            const turn = new Date(now - 5 * 60_000).toISOString();
             const rows = [
                 {name: 'running-orchestrator', status: 'running', any_running: true, any_waiting: false},
                 {name: 'waiting-orchestrator', status: 'idle', any_running: false, any_waiting: true},

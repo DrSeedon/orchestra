@@ -933,7 +933,7 @@ def test_browser_inventory_is_explicit():
     }
 
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", "browser", "tests/"],
+        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", "browser", "-n", "0", "tests/"],
         cwd=root, capture_output=True, text=True, timeout=600,
     )
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
@@ -1127,6 +1127,23 @@ def test_parametrised_nodeid_cannot_disguise_a_red_test():
     assert progress["passed_count"] == 1
     assert progress["stopped_in"] == "tests/test_a.py::t3_inflight"
     assert progress["unreached"] == ["tests/test_b.py"]
+
+
+def test_partial_progress_reads_xdist_worker_verdict_lines():
+    from app.merge_test_gate import _partial_progress
+
+    progress = _partial_progress(
+        "tests/test_a.py::test_ok\n"
+        "[gw0] [ 50%] PASSED tests/test_a.py::test_ok\n"
+        "tests/test_b.py::test_red[param with spaces]\n"
+        "[gw1] [100%] FAILED tests/test_b.py::test_red[param with spaces]\n",
+        ["tests/test_a.py", "tests/test_b.py", "tests/test_c.py"],
+    )
+
+    assert progress["passed_tests"] == ["tests/test_a.py::test_ok"]
+    assert progress["passed_count"] == 1
+    assert progress["failed_tests"] == ["tests/test_b.py::test_red[param with spaces]"]
+    assert progress["unreached"] == ["tests/test_c.py"]
 
 
 def test_argv_verbosity_really_prints_per_test_lines(tmp_path):

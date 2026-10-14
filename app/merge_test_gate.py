@@ -291,6 +291,11 @@ def pytest_argv(
 # Требование пробела перед вердиктом отсекает `nodeid[FAILED]` у теста, который ещё идёт.
 _NODEID_RE = re.compile(r"^\S+\.py::\S")
 _VERDICT_RE = re.compile(r"\s(?P<verdict>PASSED|FAILED|ERROR|XFAIL|XPASS|SKIPPED)(?=\s|$)")
+_XDIST_VERDICT_RE = re.compile(
+    r"^\[gw\d+\]\s+\[\s*\d+%\]\s+"
+    r"(?P<verdict>PASSED|FAILED|ERROR|XFAIL|XPASS|SKIPPED)\s+"
+    r"(?P<nodeid>\S+\.py::.+)$"
+)
 
 
 def _partial_progress(output: str, tests: list[str]) -> dict:
@@ -306,25 +311,41 @@ def _partial_progress(output: str, tests: list[str]) -> dict:
     passed = 0
     seen_files: set[str] = set()
     stopped_in = ""
+    running: set[str] = set()
     for raw in output.splitlines():
         line = raw.rstrip()
+        xdist_verdict = _XDIST_VERDICT_RE.match(line)
+        if xdist_verdict:
+            nodeid = xdist_verdict.group("nodeid").strip()
+            verdict = xdist_verdict.group("verdict")
+            running.discard(nodeid)
+            seen_files.add(nodeid.split("::", 1)[0])
+            if verdict in {"FAILED", "ERROR"}:
+                failed.append(nodeid)
+            elif verdict == "PASSED":
+                passed += 1
+                passed_tests.append(nodeid)
+            stopped_in = sorted(running)[-1] if running else ""
+            continue
         if not _NODEID_RE.match(line):
             continue
         verdicts = list(_VERDICT_RE.finditer(line))
         if not verdicts:
             # Имя напечатано, вердикта ещё нет — на этом тесте нас и прервали.
             stopped_in = line.strip()
+            running.add(stopped_in)
             seen_files.add(stopped_in.split("::", 1)[0])
             continue
         last = verdicts[-1]
         nodeid = line[:last.start()].strip()
+        running.discard(nodeid)
         seen_files.add(nodeid.split("::", 1)[0])
         if last.group("verdict") in {"FAILED", "ERROR"}:
             failed.append(nodeid)
         elif last.group("verdict") == "PASSED":
             passed += 1
             passed_tests.append(nodeid)
-        stopped_in = ""
+        stopped_in = sorted(running)[-1] if running else ""
     return {
         "failed_tests": failed,
         "passed_tests": passed_tests,

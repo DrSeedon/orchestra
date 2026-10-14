@@ -98,6 +98,16 @@ class _FakeRequest:
         return self.disconnected
 
 
+@pytest.fixture
+def live_broker(monkeypatch):
+    from app import live_broker as live_broker_module
+    from app.live_broker import LiveBroker
+
+    broker = LiveBroker()
+    monkeypatch.setattr(live_broker_module, "broker", broker)
+    return broker
+
+
 async def _next_event(events):
     raw = await events.__anext__()
     return json.loads(raw.removeprefix("data: ").strip())
@@ -105,11 +115,10 @@ async def _next_event(events):
 
 @pytest.mark.asyncio
 async def test_stream_reports_the_live_status_after_the_session_loads(
-    delivery_db, monkeypatch,
+    delivery_db, monkeypatch, live_broker,
 ):
     """Стрим, открытый на НЕ загруженной сессии, обязан догнать её реальный статус."""
     from app.deps import manager
-    from app.live_broker import broker
     from app.routes.sessions import stream_session_logs
 
     assert manager.get(TARGET_ID) is None, "сессия не должна быть загружена на коннекте"
@@ -125,7 +134,7 @@ async def test_stream_reports_the_live_status_after_the_session_loads(
             manager.sessions, TARGET_ID,
             SimpleNamespace(status=SimpleNamespace(value="running")),
         )
-        broker.publish(TARGET_ID, {"type": "stream", "content": "работаю"})
+        live_broker.publish(TARGET_ID, {"type": "stream", "content": "работаю"})
 
         live = await _next_event(events)
         assert live["type"] == "stream"

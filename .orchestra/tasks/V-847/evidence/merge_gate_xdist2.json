@@ -1,0 +1,10 @@
+{
+  "elapsed_s": 16.372,
+  "status": "passed",
+  "reason": "",
+  "exit_code": 0,
+  "passed_count": null,
+  "passed_nodes": 141,
+  "failed_nodes": [],
+  "xdist_output_present": true
+}

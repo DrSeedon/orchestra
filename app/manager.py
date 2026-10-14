@@ -75,14 +75,15 @@ _adhoc_serial = itertools.count(1)
 
 
 def enc_cli_dir(cwd: str) -> str:
-    """~/.claude/projects/<this> — cwd with '/' and '.' mapped to '-'. Case preserved.
+    """~/.claude/projects/<this> — path separators, dots, and underscores map to '-'.
+    Case is preserved.
 
     The leading '-' (from the leading '/') is part of the name and must stay:
     stripping it produced a directory the CLI never reads. The CLI also maps
-    dots in temporary paths to '-'. scripts/migrate_agent.py re-exports this
+    dots and underscores in temporary paths to '-'. scripts/migrate_agent.py re-exports this
     function so the encoding cannot drift a second time.
     """
-    return cwd.replace("/", "-").replace(".", "-")
+    return cwd.replace("/", "-").replace(".", "-").replace("_", "-")
 
 
 # Клиент MCP отваливается по таймауту через 30 с (mcp_stdio.py). Ждём заведомо меньше,

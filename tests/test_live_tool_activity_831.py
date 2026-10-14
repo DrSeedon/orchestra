@@ -45,6 +45,15 @@ def published(monkeypatch):
     return out
 
 
+@pytest.fixture
+def live_broker(monkeypatch):
+    from app import live_broker as live_broker_module
+
+    broker = LiveBroker()
+    monkeypatch.setattr(live_broker_module, "broker", broker)
+    return broker
+
+
 # ── session: partials go to the broker, never to the DB ──
 
 def test_tool_arguments_and_thinking_are_brokered_not_persisted(session, published):
@@ -77,17 +86,15 @@ def test_subagent_partials_nest_under_their_subagent(session, published):
 
 
 @pytest.mark.asyncio
-async def test_final_tool_call_is_persisted_and_retires_the_live_replay(session):
-    from app.live_broker import broker
-    broker.clear_live(session.id)
+async def test_final_tool_call_is_persisted_and_retires_the_live_replay(session, live_broker):
     session._handle_event(AgentEvent("tool_input_stream", '{"command": "ls"}',
                                      {"tool_use_id": "toolu_F", "tool_name": "Bash"}))
-    assert ("tool_input_stream", "toolu_F") in broker._live.get(session.id, {})
+    assert ("tool_input_stream", "toolu_F") in live_broker._live.get(session.id, {})
 
     session._handle_event(AgentEvent("tool_use", 'Bash: {"command": "ls"}',
                                      {"tool_use_id": "toolu_F", "tool_name": "Bash"}))
 
-    assert ("tool_input_stream", "toolu_F") not in broker._live.get(session.id, {})
+    assert ("tool_input_stream", "toolu_F") not in live_broker._live.get(session.id, {})
     for _ in range(100):  # the log write runs on the DB executor
         if session._add_log_mock.called:
             break
