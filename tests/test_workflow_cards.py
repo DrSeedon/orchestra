@@ -126,7 +126,7 @@ def test_intermediate_scheduler_manifest_does_not_mark_workflow_finished(tmp_pat
     assert _workflow_finished(run_dir) is False
 
 
-def test_dynamic_workflow_call_renders_detail_card_and_expands_answer(dashboard_browser):
+def test_dynamic_workflow_call_renders_detail_card_and_expands_answer(dashboard_browser, tmp_path):
     import shlex
 
     from playwright.sync_api import expect
@@ -275,7 +275,7 @@ def test_dynamic_workflow_call_renders_detail_card_and_expands_answer(dashboard_
             document.body.appendChild(clone);
         }""")
         page.locator("#workflow-v167-screenshot").screenshot(
-            path=str(Path(__file__).resolve().parents[1] / ".orchestra/tasks/V-776/workflow-v167.png")
+            path=str(tmp_path / "workflow-v167.png")
         )
         page.locator("#workflow-v167-screenshot").evaluate("node => node.remove()")
     page.close()

@@ -1,0 +1,53 @@
+bringing up nodes...
+bringing up nodes...
+
+
+==================================== ERRORS ====================================
+_____________________________ ERROR collecting gw1 _____________________________
+Different tests were collected between gw0 and gw1. The difference is:
+--- gw0
+
++++ gw1
+
+@@ -4091,8 +4091,8 @@
+
+ tests/test_turn_usage.py::test_terminal_turn_persists_generation_timing_for_each_runtime[claude-claude-sonnet-5-5-120000-10000-45-api-10000-None-None-None-None-None]
+ tests/test_turn_usage.py::test_terminal_turn_persists_generation_timing_for_each_runtime[codex-gpt-5.6-sol-60000-20000-None-model_estimate-None-20000-100000-80000-2-0]
+ tests/test_turn_usage.py::test_cached_quota_state_selects_fresh_runtime_window
+-tests/test_turn_usage.py::test_cached_quota_state_returns_null_without_fresh_data[None-1791975579.3643928]
+-tests/test_turn_usage.py::test_cached_quota_state_returns_null_without_fresh_data[cache_data1-1791975278.3643932]
++tests/test_turn_usage.py::test_cached_quota_state_returns_null_without_fresh_data[None-1791975579.6722467]
++tests/test_turn_usage.py::test_cached_quota_state_returns_null_without_fresh_data[cache_data1-1791975278.6722476]
+ tests/test_turn_usage.py::test_turn_usage_records_collection_start_without_claiming_history
+ tests/test_unbound_merge_recovery_702.py::test_unbound_merge_action_distinguishes_completed_from_never_bound
+ tests/test_undelivered.py::test_user_is_told_once_per_batch_in_plain_words
+To see why this happens see 'Known limitations' in documentation for pytest-xdist
+=========================== short test summary info ============================
+ERROR gw1 - Different tests were collected between gw0 and gw1. The differenc...
+1 error in 10.30s
+Command exited with non-zero status 1
+	Command being timed: "nice -n 15 uv run --frozen python -m pytest -q --durations=30"
+	User time (seconds): 18.30
+	System time (seconds): 2.21
+	Percent of CPU this job got: 185%
+	Elapsed (wall clock) time (h:mm:ss or m:ss): 0:11.08
+	Average shared text size (kbytes): 0
+	Average unshared data size (kbytes): 0
+	Average stack size (kbytes): 0
+	Average total size (kbytes): 0
+	Maximum resident set size (kbytes): 217652
+	Average resident set size (kbytes): 0
+	Major (requiring I/O) page faults: 0
+	Minor (reclaiming a frame) page faults: 169818
+	Voluntary context switches: 244
+	Involuntary context switches: 1053
+	Swaps: 0
+	File system inputs: 424
+	File system outputs: 1048
+	Socket messages sent: 0
+	Socket messages received: 0
+	Signals delivered: 0
+	Page size (bytes): 4096
+	Exit status: 1
+
+EXIT_CODE=1

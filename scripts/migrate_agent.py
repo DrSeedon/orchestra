@@ -18,7 +18,7 @@ target's orchestra root / scope root.
         --to-scope   /home/kesha/projects/Parsing
 
 Two path encodings are handled (matching the app):
-  - CLI transcript dir : app.manager.enc_cli_dir (leading '-' kept, '.' → '-')
+  - CLI transcript dir : app.manager.enc_cli_dir (leading '-' kept, '.', '_' → '-')
   - worktree subdir    : <root>/worktrees/<slugify(scope)>/<name>   (lowercased)
 
 Everything is created over ssh as root, but Orchestra and the Claude CLI run as the

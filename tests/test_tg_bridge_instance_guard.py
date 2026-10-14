@@ -34,6 +34,7 @@ def bridge_body_tripwire(monkeypatch):
     async def _boom():
         raise _ReachedBridgeBody()
 
+    monkeypatch.setattr(tb, "bot", None)
     monkeypatch.setattr(tb, "_reset_tg_delivery_state", _boom)
 
 
