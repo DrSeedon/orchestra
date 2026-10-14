@@ -3319,7 +3319,6 @@ async def switch_branch(name: str, req: dict):
                                 if binding["task_run_reopened"] else "already_current"
                             ),
                             "branch": previous_branch,
-                            "task_status": {"ok": True, "result": binding["task"]},
                             "waited_seconds": round(waited_seconds, 2),
                             "message": (
                                 "task run reopened for the existing task/branch binding"
