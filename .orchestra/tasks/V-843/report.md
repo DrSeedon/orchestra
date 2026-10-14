@@ -32,3 +32,15 @@ switch_worker_branch(name="fix-dashboard", task_id="V-831")
 ## Развёртывание
 
 Изменён Python (`app/tm.py`, `app/routes/sessions.py`, `app/mcp_stdio.py`), поэтому после мержа нужен рестарт Orchestra, прежде чем повторять команду выше. Рестарт не выполнялся.
+
+## CI follow-up
+
+После мержа CI выявил два несовпадения. `test_same_task_switch_does_not_clear_ownership` сохранял только строку сессии и подменял scoped resolver, не создавая строку задачи в task-store. После изменения такой неполный снимок нельзя безопасно принять за отслеживаемую задачу, поэтому отказ 409 корректен; тест проверяет сохранение `owned_dirs`, а не работу task-store, и теперь подменяет `ensure_task_run_for_current_binding` результатом «уже привязан и run открыт». Настоящий путь с task-store проверяет `test_v843_same_branch_switch_reopens_released_run_and_allows_merge`; production resolver возвращает identity существующей scoped-задачи.
+
+`test_switch_repairs_current_binding_then_becomes_clean_noop` показал, что `task_status` не нужен в ответе повторного здорового no-op. Поле удалено; состояние `already_current` снова имеет прежнюю форму ответа, а `task_run_reopened` продолжает явно сообщать о возобновлении.
+
+После этих изменений пройден полный набор, запрошенный для регрессии: `uv run --frozen python -m pytest tests/test_api.py tests/test_lifecycle_quarantine_499.py tests/test_manager.py tests/test_switch_*.py tests/test_task_*.py -q` — `408 passed in 308.21s`. Полный вывод сохранён в [switch-regression-tests.log](switch-regression-tests.log).
+
+## Mutation gate follow-up
+
+`test_same_task_switch_does_not_clear_ownership` теперь проверяет весь ответ `already_current`, включая отсутствие дополнительных полей. После коммита теста вручную возвращал в `switch_branch` удалённый `task_status`; тест упал на полном сравнении словаря (`Left contains 1 more item: {'task_status': ...}`). После восстановления исходного кода `uv run --frozen python -m pytest tests/test_api.py::test_same_task_switch_does_not_clear_ownership -q` прошёл (`1 passed`).

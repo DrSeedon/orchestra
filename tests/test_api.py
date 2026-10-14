@@ -2198,12 +2198,25 @@ async def test_same_task_switch_does_not_clear_ownership(db, monkeypatch):
         "app.tm.api_update_task_if_current",
         lambda *_args, **_kwargs: {"ok": True},
     )
+    monkeypatch.setattr(
+        "app.tm.ensure_task_run_for_current_binding",
+        lambda *_args, **_kwargs: {
+            "task": {"status": "in_progress"},
+            "task_run_reopened": False,
+        },
+    )
 
     result = await sessmod.switch_branch(
         "w", {"scope": "/s", "task_id": "90", "owned_dirs": []},
     )
 
-    assert result["ok"] is True
+    assert result == {
+        "ok": True,
+        "state": "already_current",
+        "branch": "task-90/w",
+        "waited_seconds": 0.0,
+        "message": "task/branch binding is already healthy; no changes made",
+    }
     assert found.owned_dirs == ["old/path"]
     assert json.loads(get_session("owned-switch")["owned_dirs"] or "[]") == ["old/path"]
 
