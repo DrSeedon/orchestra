@@ -1,0 +1,12 @@
+/home/kesha/katya-work tasks 158 notask commits 168 files 152
+  own-task 121
+  artifacts 99
+  other:CHANGELOG.md 50
+  other:.gitignore 32
+  foreign-task 25
+  .orchestra-other 25
+  other:reference 17
+  other:AGENTS.md 9
+  other:TODO.md 8
+  other:site 1
+ NOTASK files: [('other:reference', 106), ('artifacts', 29), ('.orchestra-other', 8), ('foreign-task', 4), ('other:TODO.md', 1), ('other:.gitattributes', 1), ('other:AGENTS.md', 1), ('other:.gitignore', 1)]

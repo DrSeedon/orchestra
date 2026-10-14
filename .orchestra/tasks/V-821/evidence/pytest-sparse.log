@@ -1,0 +1,339 @@
+........................................................................ [ 10%]
+.......................FFFFF............................................ [ 21%]
+...F..F................................................................. [ 32%]
+.........................s....................F......F.................. [ 43%]
+........................................................................ [ 54%]
+........................................................................ [ 65%]
+........F............................................................... [ 76%]
+............................s........................................... [ 87%]
+..................................................s..................... [ 98%]
+..........                                                               [100%]
+=================================== FAILURES ===================================
+_________________________ test_t6_prepared_unit_exists _________________________
+
+    def test_t6_prepared_unit_exists():
+>       assert UNIT.is_file(), f"подготовленный юнит не создан: {UNIT}"
+E       AssertionError: подготовленный юнит не создан: /tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/telegram-bot-api.service
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/telegram-bot-api.service').is_file
+
+tests/test_tg_bot_api_unit.py:21: AssertionError
+____________________ test_t6_unit_has_no_inline_credentials ____________________
+
+    def test_t6_unit_has_no_inline_credentials():
+        """Флаги убираются ЦЕЛИКОМ, а не заменяются ссылкой на переменную.
+    
+        `ExecStart=... --api-id=${TELEGRAM_API_ID}` systemd развернёт, и значение окажется в
+        `/proc/<pid>/cmdline` — то есть главная утечка (14 строк с `--api-hash=` в БД пришли
+        из `ps`) осталась бы незакрытой. Бинарник читает TELEGRAM_API_ID/TELEGRAM_API_HASH
+        из окружения сам, поэтому флаг не нужен ни в каком виде.
+        """
+>       assert UNIT.is_file(), f"подготовленный юнит не создан: {UNIT}"
+E       AssertionError: подготовленный юнит не создан: /tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/telegram-bot-api.service
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/telegram-bot-api.service').is_file
+
+tests/test_tg_bot_api_unit.py:32: AssertionError
+__________________ test_t6_env_example_carries_no_real_values __________________
+
+    def test_t6_env_example_carries_no_real_values():
+        """Образец в репозитории обязан быть пустым по значениям — файл трекается git."""
+>       assert ENVFILE_EXAMPLE.is_file(), f"образец env не создан: {ENVFILE_EXAMPLE}"
+E       AssertionError: образец env не создан: /tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/telegram-bot-api.env.example
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/telegram-bot-api.env.example').is_file
+
+tests/test_tg_bot_api_unit.py:44: AssertionError
+_________________ test_t6_runbook_names_owner_window_commands __________________
+
+    def test_t6_runbook_names_owner_window_commands():
+        """Команды владелец выполняет сам — они обязаны быть выписаны дословно."""
+>       assert RUNBOOK.is_file(), f"инструкция не создана: {RUNBOOK}"
+E       AssertionError: инструкция не создана: /tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/INSTALL.md
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/INSTALL.md').is_file
+
+tests/test_tg_bot_api_unit.py:55: AssertionError
+________________ test_t6_runbook_carries_the_post_install_proof ________________
+
+    def test_t6_runbook_carries_the_post_install_proof():
+        """Delivery-check доказывает только ТЕКСТ. Что значение ушло из argv живого процесса,
+        доказывает команда после установки — и она обязана быть в инструкции дословно,
+        иначе её никто не выполнит."""
+>       assert RUNBOOK.is_file(), f"инструкция не создана: {RUNBOOK}"
+E       AssertionError: инструкция не создана: /tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/INSTALL.md
+E       assert False
+E        +  where False = is_file()
+E        +    where is_file = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/224/telegram-bot-api/INSTALL.md').is_file
+
+tests/test_tg_bot_api_unit.py:67: AssertionError
+_____ test_both_clients_get_the_same_bounded_rules_and_current_topic_index _____
+
+    def test_both_clients_get_the_same_bounded_rules_and_current_topic_index():
+        from scripts.check_instruction_contract import check
+        subprocess.run(["git", "ls-files", "--error-unmatch", "AGENTS.md", "CLAUDE.md"], cwd=ROOT, check=True)
+>       check(ROOT)
+
+tests/test_knowledge_instruction_source.py:21: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+scripts/check_instruction_contract.py:156: in check
+    check_documentation_links(root)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+root = PosixPath('/tmp/v821/orchestra-t-sparse')
+
+    def check_documentation_links(root: Path) -> None:
+        """Check Markdown links and relative file paths in agent-facing docs.
+    
+        Code spans that are absolute/home paths, Git revision:path specs, URLs, slash
+        identifiers (MIME types, API routes, repository slugs, and branch names), or
+        placeholders are not relative repository-file references.
+        """
+        sources = [root / "AGENTS.md", *sorted((root / ".orchestra" / "kb").glob("*.md"))]
+        root_entries = {item.name for item in root.iterdir()}
+        errors: set[str] = set()
+        for source in sources:
+            text = source.read_text(encoding="utf-8")
+            text_without_fences = _FENCED_CODE.sub("", text)
+            markdown_text = _CODE_SPAN.sub("", text_without_fences)
+            for match in _MARKDOWN_LINK.finditer(markdown_text):
+                target = match.group(1) or match.group(2)
+                if target and _is_relative_reference(target):
+                    _check_target(source, target, root, errors)
+    
+            for line in text_without_fences.splitlines():
+                for match in _CODE_SPAN.finditer(line):
+                    span = match.group(1).strip()
+                    if (span.startswith(("/", "~/")) or "git show " in span
+                            or "<" in span or ">" in span or "](" in span):
+                        continue
+                    candidates = set(_CODE_PATH.findall(span))
+                    candidates.update(_BARE_FILE.findall(span))
+                    for target in candidates:
+                        if "/" not in target and "~/" in line:
+                            continue
+                        if target in (_BRANCH_ONLY_PATHS | _OPTIONAL_AGENT_CONFIG_PATHS
+                                      | _IGNORED_RUNTIME_EXAMPLES):
+                            continue
+                        if re.match(r"^[\w.-]+\.[A-Za-z]{2,}/", target):
+                            continue
+                        path = (root / target).resolve()
+                        root_relative = (target.startswith(("./", "../"))
+                                         or target.split("/", 1)[0] in root_entries)
+                        if (path.suffix.lower() not in _FILE_SUFFIXES
+                                and not path.is_dir() and not root_relative):
+                            continue
+                        if not path.exists():
+                            errors.add(f"{source.relative_to(root)}: `{target}`")
+        if errors:
+>           raise ValueError("Broken relative references:\n  " + "\n  ".join(sorted(errors)))
+E           ValueError: Broken relative references:
+E             .orchestra/kb/agent-control.md: ../tasks/V-570/report.md
+E             .orchestra/kb/agent-control.md: ../tasks/V-572/report.md
+E             .orchestra/kb/evidence-methods.md: ../tasks/V-558/report.md
+E             .orchestra/kb/evidence-methods.md: ../tasks/V-560/report.md
+E             .orchestra/kb/knowledge-base.md: ../tasks/454/eval-score-setlevel.json
+E             .orchestra/kb/knowledge-base.md: ../tasks/454/eval-semantic-audit.json
+E             .orchestra/kb/models-and-quotas.md: ../tasks/V-540/research.md
+E             .orchestra/kb/models-and-quotas.md: ../tasks/V-541/research.md
+E             .orchestra/kb/models-and-quotas.md: ../tasks/V-542/research.md
+E             .orchestra/kb/models-and-quotas.md: ../tasks/V-548/truncation-analysis.md
+E             .orchestra/kb/models-and-quotas.md: ../tasks/V-568/research.md
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/V-540`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/V-620/bench-models.md`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/V-731/report.md`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/V-758/report.md`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/V-802/report.md`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/V-813/report.md`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/luna-probe/build_reset_chronicle.py`
+E             .orchestra/kb/models-and-quotas.md: `.orchestra/tasks/luna-probe/codex-resets-chronicle.txt`
+E             .orchestra/kb/prompt-engineering.md: ../tasks/V-557/report.md
+E             .orchestra/kb/prompt-engineering.md: ../tasks/V-565/report.md
+E             .orchestra/kb/prompt-engineering.md: ../tasks/V-566/report.md
+E             .orchestra/kb/prompt-engineering.md: ../tasks/V-643/report.md
+E             .orchestra/kb/runtimes.md: ../tasks/V-759/report.md
+E             .orchestra/kb/runtimes.md: `.orchestra/tasks/V-831/codex-notifications.txt`
+E             .orchestra/kb/runtimes.md: `.orchestra/tasks/V-831/report.md`
+
+scripts/check_instruction_contract.py:127: ValueError
+----------------------------- Captured stdout call -----------------------------
+AGENTS.md
+CLAUDE.md
+______ test_compact_journal_rows_render_as_one_separate_collapsible_block ______
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_compact_journal_rows_render_as_one_separate_collapsible_block(
+        dashboard_browser: Browser,
+    ):
+        fixture_path = Path(__file__).parent.parent / ".orchestra/tasks/V-672/compact-fixture.json"
+>       fixture = json.loads(fixture_path.read_text())
+                             ^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_compact_chat_672.py:107: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/V-672/compact-fixture.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/v821/orchestra-t-sparse/.orchestra/tasks/V-672/compact-fixture.json'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+_ test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json] _
+
+relpath = '.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json'
+
+    @pytest.mark.parametrize("relpath", MENTIONS)
+    def test_real_files_with_the_same_forms_pass(relpath):
+        """Негативный контроль на настоящих файлах, а не на выдуманных."""
+        path = REPO / relpath
+>       assert path.exists(), f"{relpath} исчез — контроль стал вакуумным"
+E       AssertionError: .orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json исчез — контроль стал вакуумным
+E       assert False
+E        +  where False = exists()
+E        +    where exists = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json').exists
+
+tests/test_secret_commit_gate.py:92: AssertionError
+_______________________ test_hook_lets_a_mention_through _______________________
+
+scratch_repo = PosixPath('/tmp/pytest-of-kesha/pytest-21149/test_hook_lets_a_mention_throu0/repo')
+
+    def test_hook_lets_a_mention_through(scratch_repo):
+        """То же плечо наоборот: правило и фикстура с теми же формами коммитятся."""
+        (scratch_repo / "rules.md").write_text(
+>           (REPO / ".orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json").read_text()
+            + "\nФормы: `y0_`, `sk-or-v1-`, `gh[pousr]_`, `AIza`, `ya29.`, `Bearer <25+>`\n"
+        )
+
+tests/test_secret_commit_gate.py:146: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/pathlib.py:1029: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = PosixPath('/tmp/v821/orchestra-t-sparse/.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json')
+mode = 'r', buffering = -1, encoding = 'locale', errors = None, newline = None
+
+    def open(self, mode='r', buffering=-1, encoding=None,
+             errors=None, newline=None):
+        """
+        Open the file pointed by this path and return a file object, as
+        the built-in open() function does.
+        """
+        if "b" not in mode:
+            encoding = io.text_encoding(encoding)
+>       return io.open(self, mode, buffering, encoding, errors, newline)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       FileNotFoundError: [Errno 2] No such file or directory: '/tmp/v821/orchestra-t-sparse/.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json'
+
+/usr/lib/python3.12/pathlib.py:1015: FileNotFoundError
+__________ test_hidden_orchestrator_list_reuses_tab_status_and_cache ___________
+
+dashboard_browser = <Browser type=<BrowserType name=chromium executable_path=/home/kesha/.cache/ms-playwright/chromium-1223/chrome-linux64/chrome> version=148.0.7778.96>
+
+    def test_hidden_orchestrator_list_reuses_tab_status_and_cache(dashboard_browser: Browser):
+        page = dashboard_browser.new_page()
+        try:
+            _goto_dashboard(page)
+            result = page.evaluate("""() => {
+                const turn = new Date(Date.now() - 5 * 60_000).toISOString();
+                const rows = [
+                    {name: 'running-orchestrator', status: 'running', any_running: true, any_waiting: false},
+                    {name: 'waiting-orchestrator', status: 'idle', any_running: false, any_waiting: true},
+                    {name: 'idle-orchestrator', status: 'idle', any_running: false, any_waiting: false},
+                ].map((row, index) => ({
+                    id: `hidden-${index}`, scope: `/hidden/${index}`, ...row,
+                    cache_ttl_seconds: 3600, last_turn_ts: turn,
+                }));
+                orchData = rows;
+                _setHiddenTabs(new Set());
+                renderOrchTabs(orchData);
+                const pinned = Object.fromEntries(rows.map(row => {
+                    const tab = document.querySelector(
+                        `#orch-tabs .orch-tab[data-orch-name="${row.name}"]`,
+                    );
+                    const pill = tab.querySelector('.cache-pill');
+                    return [row.name, {
+                        status: tab.querySelector('.tab-dot').textContent,
+                        cache: pill.textContent,
+                        cacheTier: pill.dataset.tier,
+                        cacheExpires: pill.dataset.cacheExpires,
+                    }];
+                }));
+    
+                _setHiddenTabs(new Set(rows.map(row => row.name)));
+                renderOrchTabs(orchData);
+                document.querySelector('#hidden-tabs-btn').click();
+                const hidden = name => {
+                    const item = document.querySelector(
+                        `#hidden-tabs-dropdown [data-orch-name="${name}"]`,
+                    );
+                    const pill = item.querySelector('.cache-pill');
+                    return {
+                        status: item.querySelector('.hidden-tab-status').textContent,
+                        cache: pill.textContent,
+                        cacheTier: pill.dataset.tier,
+                        cacheExpires: pill.dataset.cacheExpires,
+                    };
+                };
+                const before = Object.fromEntries(rows.map(row => [row.name, hidden(row.name)]));
+    
+                const waiting = orchData.find(row => row.name === 'waiting-orchestrator');
+                waiting.any_waiting = false;
+                waiting.status = 'running';
+                waiting.any_running = true;
+                updateOrchTabDots();
+                const afterLiveUpdate = hidden(waiting.name);
+                return {pinned, before, afterLiveUpdate};
+            }""")
+        finally:
+            page.close()
+    
+>       assert result["pinned"] == result["before"]
+E       AssertionError: assert {'idle-orches...status': '📆'}} == {'idle-orches...status': '📆'}}
+E         
+E         Omitting 1 identical items, use -vv to show
+E         Differing items:
+E         {'waiting-orchestrator': {'cache': '🔥55m', 'cacheExpires': '1791962180093', 'cacheTier': 'hot', 'status': '📆'}} != {'waiting-orchestrator': {'cache': '🔥54m', 'cacheExpires': '1791962180093', 'cacheTier': 'hot', 'status': '📆'}}
+E         {'idle-orchestrator': {'cache': '🔥55m', 'cacheExpires': '1791962180093', 'cacheTier': 'hot', 'status': '☕️'}} != {'idle-orchestrator': {'cache': '🔥54m', 'cacheExpires': '1791962180093', 'cacheTier': 'hot', 'status': '☕️'}}
+E         Use -v to get more diff
+
+tests/test_frontend.py:1097: AssertionError
+=============================== warnings summary ===============================
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3618687) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_tg_bot_api_unit.py::test_t6_prepared_unit_exists - Assertio...
+FAILED tests/test_tg_bot_api_unit.py::test_t6_unit_has_no_inline_credentials
+FAILED tests/test_tg_bot_api_unit.py::test_t6_env_example_carries_no_real_values
+FAILED tests/test_tg_bot_api_unit.py::test_t6_runbook_names_owner_window_commands
+FAILED tests/test_tg_bot_api_unit.py::test_t6_runbook_carries_the_post_install_proof
+FAILED tests/test_knowledge_instruction_source.py::test_both_clients_get_the_same_bounded_rules_and_current_topic_index
+FAILED tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block
+FAILED tests/test_secret_commit_gate.py::test_real_files_with_the_same_forms_pass[.orchestra/tasks/315/acceptance/fixtures/t5_recovery_records.json]
+FAILED tests/test_secret_commit_gate.py::test_hook_lets_a_mention_through - F...
+FAILED tests/test_frontend.py::test_hidden_orchestrator_list_reuses_tab_status_and_cache
+10 failed, 645 passed, 3 skipped, 2 warnings in 247.43s (0:04:07)

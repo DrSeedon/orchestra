@@ -1,0 +1,12 @@
+/home/kesha/katya-work tasks 158
+  commit:artifacts-foreign 30
+  commit:artifacts-own 80
+  commit:foreign-task 25
+  has-report 158
+  ref:artifacts-foreign 31
+  ref:artifacts-own 53
+  ref:docs 2
+  ref:foreign-task 44
+  ref:reference 27
+  ref:research 1
+  ref:site 1

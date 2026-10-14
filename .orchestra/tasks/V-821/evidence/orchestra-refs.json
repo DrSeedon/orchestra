@@ -1,0 +1,603 @@
+{
+ "V-836": {
+  "docs": [
+   "docs/комментарии без кода"
+  ]
+ },
+ "V-832": {
+  "foreign-task": [
+   ".orchestra/tasks/V-11",
+   ".orchestra/tasks/V-685",
+   ".orchestra/tasks/V-691"
+  ]
+ },
+ "V-621": {
+  "foreign-task": [
+   ".orchestra/tasks/V-576"
+  ]
+ },
+ "V-822": {
+  "foreign-task": [
+   ".orchestra/tasks/V-170"
+  ]
+ },
+ "V-806": {
+  "tools": [
+   "tools/MCP/skills",
+   "tools/network/MCP и явный billing route"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-800"
+  ]
+ },
+ "V-819": {
+  "pipeline": [
+   "pipeline/skills"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-652"
+  ]
+ },
+ "V-810": {
+  "foreign-task": [
+   ".orchestra/tasks/V-652",
+   ".orchestra/tasks/V-672"
+  ]
+ },
+ "V-807": {
+  "tools": [
+   "tools/сессии."
+  ]
+ },
+ "V-802": {
+  "foreign-task": [
+   ".orchestra/tasks/V-710"
+  ]
+ },
+ "V-772": {
+  "archive": [
+   "archive/manifest pairs under"
+  ]
+ },
+ "V-759": {
+  "foreign-task": [
+   ".orchestra/tasks/V-639"
+  ]
+ },
+ "V-747": {
+  "foreign-task": [
+   ".orchestra/tasks/V-652"
+  ]
+ },
+ "V-746": {
+  "foreign-task": [
+   ".orchestra/tasks/V-548"
+  ]
+ },
+ "V-745": {
+  "foreign-task": [
+   ".orchestra/tasks/V-652"
+  ]
+ },
+ "V-744": {
+  "foreign-task": [
+   ".orchestra/tasks/V-652"
+  ]
+ },
+ "V-743": {
+  "foreign-task": [
+   ".orchestra/tasks/V-652"
+  ]
+ },
+ "V-731": {
+  "foreign-task": [
+   ".orchestra/tasks/V-170",
+   ".orchestra/tasks/V-727"
+  ]
+ },
+ "V-723": {
+  "foreign-task": [
+   ".orchestra/tasks/V-170",
+   ".orchestra/tasks/V-727",
+   ".orchestra/tasks/V-728"
+  ]
+ },
+ "V-719": {
+  "foreign-task": [
+   ".orchestra/tasks/V-691"
+  ]
+ },
+ "V-727": {
+  "foreign-task": [
+   ".orchestra/tasks/V-170"
+  ]
+ },
+ "V-713": {
+  "artifacts-foreign": [
+   "artifacts/task-2/tooling/libreoffice-runner.sh"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-35"
+  ],
+  "tools": [
+   "tools/tender-collector/tender_collector/parsers.py"
+  ]
+ },
+ "V-705": {
+  "foreign-task": [
+   ".orchestra/tasks/V-576"
+  ]
+ },
+ "V-698": {
+  "foreign-task": [
+   ".orchestra/tasks/V-544",
+   ".orchestra/tasks/V-575",
+   ".orchestra/tasks/V-576",
+   ".orchestra/tasks/V-577",
+   ".orchestra/tasks/V-582",
+   ".orchestra/tasks/V-584",
+   ".orchestra/tasks/V-621",
+   ".orchestra/tasks/V-624",
+   ".orchestra/tasks/V-629",
+   ".orchestra/tasks/V-631",
+   ".orchestra/tasks/V-632",
+   ".orchestra/tasks/V-694",
+   ".orchestra/tasks/V-695",
+   ".orchestra/tasks/V-701"
+  ]
+ },
+ "V-690": {
+  "docs": [
+   "docs/dashboard-live.ru.gif",
+   "docs/dashboard-real.ru.png",
+   "docs/dashboard.png"
+  ]
+ },
+ "V-696": {
+  "foreign-task": [
+   ".orchestra/tasks/V-690",
+   ".orchestra/tasks/V-691"
+  ]
+ },
+ "V-693": {
+  "docs": [
+   "docs/dashboard-real.png",
+   "docs/dashboard.png"
+  ]
+ },
+ "V-688": {
+  "foreign-task": [
+   ".orchestra/tasks/V-686"
+  ]
+ },
+ "V-689": {
+  "docs": [
+   "docs/dashboard-live.gif"
+  ]
+ },
+ "V-686": {
+  "docs": [
+   "docs/dashboard-live.gif",
+   "docs/dashboard-real.png",
+   "docs/dashboard.png"
+  ]
+ },
+ "V-677": {
+  "foreign-task": [
+   ".orchestra/tasks/V-665"
+  ]
+ },
+ "V-674": {
+  "pipeline": [
+   "pipeline/role"
+  ]
+ },
+ "V-614": {
+  "foreign-task": [
+   ".orchestra/tasks/V-613"
+  ]
+ },
+ "V-666": {
+  "tools": [
+   "tools/runtime"
+  ]
+ },
+ "V-662": {
+  "foreign-task": [
+   ".orchestra/tasks/V-656"
+  ]
+ },
+ "V-651": {
+  "reference": [
+   "reference/prompt-идею"
+  ]
+ },
+ "V-576": {
+  "foreign-task": [
+   ".orchestra/tasks/V-575"
+  ],
+  "docs": [
+   "docs/portfolio"
+  ]
+ },
+ "V-646": {
+  "foreign-task": [
+   ".orchestra/tasks/V-636",
+   ".orchestra/tasks/V-643"
+  ]
+ },
+ "V-643": {
+  "foreign-task": [
+   ".orchestra/tasks/V-10",
+   ".orchestra/tasks/V-11",
+   ".orchestra/tasks/V-13",
+   ".orchestra/tasks/V-14",
+   ".orchestra/tasks/V-15",
+   ".orchestra/tasks/V-16",
+   ".orchestra/tasks/V-2",
+   ".orchestra/tasks/V-20",
+   ".orchestra/tasks/V-21",
+   ".orchestra/tasks/V-23",
+   ".orchestra/tasks/V-29",
+   ".orchestra/tasks/V-3",
+   ".orchestra/tasks/V-30",
+   ".orchestra/tasks/V-36",
+   ".orchestra/tasks/V-4",
+   ".orchestra/tasks/V-40",
+   ".orchestra/tasks/V-42",
+   ".orchestra/tasks/V-43",
+   ".orchestra/tasks/V-44",
+   ".orchestra/tasks/V-46",
+   ".orchestra/tasks/V-47",
+   ".orchestra/tasks/V-50",
+   ".orchestra/tasks/V-57",
+   ".orchestra/tasks/V-620",
+   ".orchestra/tasks/V-626",
+   ".orchestra/tasks/V-64",
+   ".orchestra/tasks/V-7",
+   ".orchestra/tasks/V-70",
+   ".orchestra/tasks/V-74",
+   ".orchestra/tasks/V-75",
+   ".orchestra/tasks/V-8"
+  ],
+  "docs": [
+   "docs/COMPANY-DATA.md",
+   "docs/legal-review/archive/offer-2026-08-04-current.README.md",
+   "docs/legal-review/archive/offer-2026-08-04-current.html",
+   "docs/product/ORCHESTRA-CASES.md"
+  ],
+  "resources": [
+   "resources/reestr-po/gen.js",
+   "resources/reestr-po/Договор-отчуждения-Orchestra.docx/.pdf",
+   "resources/reestr-po/Решение-2-согласие-на-отчуждение.docx/.pdf"
+  ],
+  "tools": [
+   "tools/bench_speed.mjs",
+   "tools/build_report46.mjs",
+   "tools/build_stats.mjs",
+   "tools/build_stats.mjs --replays",
+   "tools/check_page.mjs",
+   "tools/check_ui.py",
+   "tools/report46-content.mjs",
+   "tools/report46-template.html",
+   "tools/run-cache.mjs",
+   "tools/run_bots.mjs",
+   "tools/run_bots.mjs --seeds 1-100 --difficulties forgiving",
+   "tools/service_landings.py --check",
+   "tools/site-nav.mjs",
+   "tools/ui_probe.py",
+   "tools/waitlist_pages.py",
+   "tools/waitlist_pages.py .",
+   "tools/waitlist_pages.py . --preview"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-16/",
+   "artifacts/V-16/build_steps.py",
+   "artifacts/V-16/build_worksheet.py",
+   "artifacts/V-16/rewrite_minitasks.py",
+   "artifacts/oge-literatura/work/render/p-",
+   "artifacts/oge-russkiy/inbox/",
+   "artifacts/oge-russkiy/inbox/.",
+   "artifacts/oge-russkiy/inbox/Итоговое собеседование 2027/РУ-9_ДЕМО_итоговое_собеседование.pdf",
+   "artifacts/oge-russkiy/inbox/Русский язык ОГЭ 2027/РУ-9 ОГЭ 2027_ДЕМО.pdf",
+   "artifacts/oge-russkiy/out/",
+   "artifacts/oge-russkiy/out/contact-sheet.png",
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pdf",
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx",
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx and .pdf",
+   "artifacts/oge-russkiy/work/img/",
+   "artifacts/oge-russkiy/work/img/katya/",
+   "artifacts/oge-russkiy/work/img/licenses.json",
+   "artifacts/oge-russkiy/work/img/pd/",
+   "artifacts/oge-russkiy/work/render/p-",
+   "artifacts/oge-russkiy/work/render/p-01..51.png",
+   "artifacts/oge-russkiy/work/render/p-01..p-51.png",
+   "artifacts/struktura-ege/out/struktura-ege-2027.pptx",
+   "artifacts/struktura-ege/out/struktura-ege-2027.pptx. Вставить в колоду ОГЭ как вводный блок"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/bank.json",
+   "reference/brand-iskra.",
+   "reference/brand-iskra/",
+   "reference/brand-iskra/. Правка 1",
+   "reference/probnoe-2026-09/"
+  ]
+ },
+ "V-639": {
+  "docs": [
+   "docs/FINETUNING.md"
+  ]
+ },
+ "V-635": {
+  "foreign-task": [
+   ".orchestra/tasks/V-634"
+  ]
+ },
+ "V-634": {
+  "docs": [
+   "docs/artifacts/polus-gamedesign.html",
+   "docs/tasks",
+   "docs/tasks/",
+   "docs/tasks/14/"
+  ],
+  "artifacts-foreign": [
+   "artifacts/ и kb records."
+  ]
+ },
+ "V-625": {
+  "docs": [
+   "docs/HANDOFF-to-vps.md"
+  ]
+ },
+ "V-632": {
+  "docs": [
+   "docs/tasks",
+   "docs/tasks/"
+  ]
+ },
+ "V-629": {
+  "docs": [
+   "docs/kb"
+  ]
+ },
+ "V-613": {
+  "docs": [
+   "docs/WRITEUP.md"
+  ]
+ },
+ "V-612": {
+  "foreign-task": [
+   ".orchestra/tasks/V-600"
+  ]
+ },
+ "V-601": {
+  "tools": [
+   "tools/list",
+   "tools/list после обновления каждого runtime. Самостоятельного рестарта в этом предложении нет."
+  ]
+ },
+ "V-598": {
+  "archive": [
+   "archive/."
+  ]
+ },
+ "V-584": {
+  "foreign-task": [
+   ".orchestra/tasks/V-15"
+  ]
+ },
+ "V-582": {
+  "foreign-task": [
+   ".orchestra/tasks/V-581"
+  ]
+ },
+ "V-579": {
+  "research": [
+   "research/plan/report/evidence"
+  ]
+ },
+ "V-540": {
+  "tools": [
+   "tools/tool_manager.py"
+  ]
+ },
+ "V-577": {
+  "foreign-task": [
+   ".orchestra/tasks/V-543"
+  ]
+ },
+ "V-837": {},
+ "V-835": {},
+ "V-834": {},
+ "V-833": {},
+ "V-831": {},
+ "V-830": {},
+ "V-829": {},
+ "V-828": {},
+ "V-827": {},
+ "V-826": {},
+ "V-825": {},
+ "V-824": {},
+ "V-820": {},
+ "V-818": {},
+ "V-816": {},
+ "V-817": {},
+ "V-815": {},
+ "V-814": {},
+ "V-813": {},
+ "V-812": {},
+ "V-811": {},
+ "V-809": {},
+ "V-808": {},
+ "V-805": {},
+ "V-804": {},
+ "V-803": {},
+ "V-801": {},
+ "V-800": {},
+ "V-798": {},
+ "V-799": {},
+ "V-797": {},
+ "V-796": {},
+ "V-795": {},
+ "V-794": {},
+ "V-793": {},
+ "V-792": {},
+ "V-791": {},
+ "V-790": {},
+ "V-789": {},
+ "V-788": {},
+ "V-787": {},
+ "V-782": {},
+ "V-786": {},
+ "V-767": {},
+ "V-775": {},
+ "V-785": {},
+ "V-774": {},
+ "V-779": {},
+ "V-784": {},
+ "V-783": {},
+ "V-781": {},
+ "V-780": {},
+ "V-776": {},
+ "V-778": {},
+ "V-777": {},
+ "V-773": {},
+ "V-770": {},
+ "V-771": {},
+ "V-768": {},
+ "V-769": {},
+ "V-766": {},
+ "V-758": {},
+ "V-765": {},
+ "V-764": {},
+ "V-763": {},
+ "V-762": {},
+ "V-760": {},
+ "V-761": {},
+ "V-757": {},
+ "V-756": {},
+ "V-755": {},
+ "V-753": {},
+ "V-752": {},
+ "V-751": {},
+ "V-750": {},
+ "V-749": {},
+ "V-748": {},
+ "V-741": {},
+ "V-742": {},
+ "V-740": {},
+ "V-739": {},
+ "V-734": {},
+ "V-738": {},
+ "V-737": {},
+ "V-736": {},
+ "V-652": {},
+ "V-735": {},
+ "V-733": {},
+ "V-732": {},
+ "V-730": {},
+ "V-729": {},
+ "V-724": {},
+ "V-726": {},
+ "V-721": {},
+ "V-699": {},
+ "V-703": {},
+ "V-722": {},
+ "V-720": {},
+ "V-702": {},
+ "V-701": {},
+ "V-706": {},
+ "V-718": {},
+ "V-712": {},
+ "V-717": {},
+ "V-715": {},
+ "V-714": {},
+ "V-711": {},
+ "V-710": {},
+ "V-704": {},
+ "V-708": {},
+ "V-707": {},
+ "V-700": {},
+ "V-709": {},
+ "V-647": {},
+ "V-697": {},
+ "V-691": {},
+ "V-694": {},
+ "V-695": {},
+ "V-692": {},
+ "V-687": {},
+ "V-684": {},
+ "V-685": {},
+ "V-683": {},
+ "V-681": {},
+ "V-682": {},
+ "V-680": {},
+ "V-678": {},
+ "V-676": {},
+ "V-673": {},
+ "V-672": {},
+ "V-671": {},
+ "V-670": {},
+ "V-668": {},
+ "V-667": {},
+ "V-665": {},
+ "V-660": {},
+ "V-664": {},
+ "V-661": {},
+ "V-658": {},
+ "V-663": {},
+ "V-659": {},
+ "V-656": {},
+ "V-657": {},
+ "V-655": {},
+ "V-650": {},
+ "V-654": {},
+ "V-653": {},
+ "V-649": {},
+ "V-648": {},
+ "V-645": {},
+ "V-644": {},
+ "V-637": {},
+ "V-640": {},
+ "V-642": {},
+ "V-641": {},
+ "V-638": {},
+ "V-636": {},
+ "V-633": {},
+ "V-631": {},
+ "V-624": {},
+ "V-630": {},
+ "V-628": {},
+ "V-627": {},
+ "V-626": {},
+ "V-44": {},
+ "V-620": {},
+ "V-610": {},
+ "V-585": {},
+ "V-611": {},
+ "V-609": {},
+ "V-608": {},
+ "V-607": {},
+ "V-606": {},
+ "V-605": {},
+ "V-604": {},
+ "V-603": {},
+ "V-599": {},
+ "V-602": {},
+ "V-600": {},
+ "V-597": {},
+ "V-596": {},
+ "V-590": {},
+ "V-588": {},
+ "V-593": {},
+ "V-587": {},
+ "V-589": {},
+ "V-592": {},
+ "V-591": {},
+ "V-583": {},
+ "V-581": {},
+ "V-580": {},
+ "V-578": {},
+ "V-575": {},
+ "V-545": {}
+}

@@ -1,0 +1,15 @@
+seedon full checkout 10.697662655 s
+/*
+!/.orchestra/tasks/
+!/artifacts/
+!/resources/
+seedon sparse checkout .496348423 s
+seedon full: 1305 MB working tree, du real 1321 MB
+seedon sparse: 99 MB working tree, du real 101 MB
+katya full checkout 48.031176118 s
+/*
+!/.orchestra/tasks/
+!/artifacts/
+katya sparse checkout 1.389096823 s
+katya full: 4246 MB working tree, du real 4266 MB
+katya sparse: 40 MB working tree, du real 41 MB
