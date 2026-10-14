@@ -1,0 +1,7 @@
+{
+  "engine": "tera",
+  "returncode": 0,
+  "total_elapsed_s": 1033.81,
+  "queue_and_startup_s": 1012.29,
+  "speech_to_plan_s": 19.76
+}

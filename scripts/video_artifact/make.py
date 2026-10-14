@@ -39,9 +39,11 @@ import subprocess
 import sys
 import time
 import urllib.request
+import unicodedata
 import wave
 from contextlib import contextmanager
 from concurrent.futures import ProcessPoolExecutor
+from functools import lru_cache
 from multiprocessing import get_context
 from pathlib import Path
 
@@ -55,6 +57,11 @@ UV_BIN = shutil.which("uv") or str(Path.home() / ".local/bin/uv")
 TTS_HOME = Path(os.environ.get("ORCHESTRA_TTS_HOME", Path.home() / ".local/share/orchestra-tts"))
 TTS_PYTHON = Path(os.environ.get("ORCHESTRA_TTS_PYTHON", TTS_HOME / "venv/bin/python"))
 TTS_MODEL = Path(os.environ.get("ORCHESTRA_TTS_MODEL", TTS_HOME / "vosk-model-tts-ru-0.9-multi"))
+TTS_TERA_HOME = Path(os.environ.get("ORCHESTRA_TERA_HOME", TTS_HOME / "tera"))
+TTS_TERA_PYTHON = Path(os.environ.get("ORCHESTRA_TERA_PYTHON", TTS_TERA_HOME / "venv/bin/python"))
+TERA_REVISION = "f05ea799094571a3553904a555df3834fb0b963b"
+TERA_SNAPSHOT = TTS_TERA_HOME / "hub/models--TeraSpace--TeraTTSv2/snapshots" / TERA_REVISION
+TERA_INDEXER = TERA_SNAPSHOT / "unicode_indexer.json"
 # Английский голос — Kokoro-82M (Apache 2.0) через kokoro-onnx (MIT), своё окружение рядом.
 TTS_EN_HOME = Path(os.environ.get("ORCHESTRA_TTS_EN_HOME", TTS_HOME / "en"))
 TTS_EN_PYTHON = Path(os.environ.get("ORCHESTRA_TTS_EN_PYTHON", TTS_EN_HOME / "venv/bin/python"))
@@ -131,23 +138,50 @@ def read_steps(scene: Path, lang: str) -> list[dict]:
         browser, page = open_scene(pw, scene, None)
         steps = page.evaluate("STEPS.map(s => ({t: s.t, say: s.say || '', sub: s.sub || null, hold: s.hold ?? null, d: s.d, events: s.events || []}))")
         browser.close()
-    return check_steps(steps, lang)
+    return steps
 
 
-def check_steps(steps: list[dict], lang: str) -> list[dict]:
+@lru_cache(maxsize=4)
+def _tera_character_table(indexer: str) -> list[int]:
+    if not Path(indexer).is_file():
+        fail(f"нет локальных файлов TeraTTS {TERA_REVISION}; установка описана в SKILL video-artifact")
+    table = json.loads(Path(indexer).read_text())
+    if len(table) != 65_536:
+        fail(f"некорректный словарь символов TeraTTS: {indexer}")
+    return table
+
+
+def tera_unsupported_characters(text: str) -> list[str]:
+    table = _tera_character_table(str(TERA_INDEXER))
+    unsupported = set()
+    for char in text:
+        if "0" <= char <= "9":
+            continue
+        normalized = unicodedata.normalize("NFKD", char)
+        if not normalized or any(ord(part) >= len(table) or table[ord(part)] < 0 for part in normalized):
+            unsupported.add(char)
+    return sorted(unsupported)
+
+
+def check_steps(steps: list[dict], lang: str, engine: str | None = "vosk") -> list[dict]:
     for i, step in enumerate(steps, 1):
         if not step["say"].strip():
             fail(f"шаг {i} «{step['t']}» без фразы say")
         if lang == "en":
             if bad := sorted(set(NOT_SPEAKABLE_EN.findall(step["say"]))):
                 fail(f"шаг {i}: в say есть {''.join(bad)} — английский голос не читает кириллицу")
-        elif bad := sorted(set(NOT_SPEAKABLE.findall(step["say"]))):
+        elif engine == "vosk" and (bad := sorted(set(NOT_SPEAKABLE.findall(step["say"])))):
             fail(f"шаг {i}: в say есть {''.join(bad)} — латиницу и цифры пиши словами по-русски")
-        else:
+        elif lang == "ru" and engine == "vosk":
             try:
                 normalize_vosk_text(step["say"])
             except UnsupportedVoskSymbol as exc:
                 fail(f"шаг {i}: символ {exc.symbol!r} не поддержан русским Vosk TTS; замени или убери его")
+        elif lang == "ru" and engine == "tera":
+            if bad := sorted(set(NOT_SPEAKABLE.findall(step["say"]))):
+                fail(f"шаг {i}: в say есть {''.join(bad)} — числа пиши словами с нужным падежом, латиницу произноси по-русски")
+            if bad := tera_unsupported_characters(step["say"]):
+                fail(f"шаг {i}: символ {bad[0]!r} не поддержан русским TeraTTS")
     return steps
 
 
@@ -171,11 +205,11 @@ def manim_steps(scene: Path, lang: str) -> tuple[str, list[dict]]:
     got = json.loads(run(str(MANIM_BIN / "python"), "-c", MANIM_STEPS_JS, str(scene.resolve()), str(HERE),
                          capture_output=True, text=True,
                          env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}).stdout)
-    return got["cls"], check_steps(got["steps"], lang)
+    return got["cls"], got["steps"]
 
 
-def mark_stress(steps: list[dict], lang: str, enabled: bool) -> list[dict]:
-    if lang != "ru" or not enabled:
+def mark_stress(steps: list[dict], lang: str, enabled: bool, engine: str = "vosk") -> list[dict]:
+    if lang != "ru" or engine != "vosk" or not enabled:
         return steps
     if not TTS_PYTHON.exists():
         fail(f"нет окружения TTS: {TTS_PYTHON} — установка в SKILL video-artifact")
@@ -204,6 +238,29 @@ def mark_stress(steps: list[dict], lang: str, enabled: bool) -> list[dict]:
     return steps
 
 
+def tera_stress(steps: list[dict], enabled: bool) -> list[dict]:
+    if not TTS_TERA_PYTHON.exists() or not TERA_SNAPSHOT.is_dir():
+        fail(f"нет локальной TeraTTS {TERA_REVISION}; установка описана в SKILL video-artifact")
+    result = subprocess.run(
+        [str(TTS_TERA_PYTHON), str(HERE / "tts_worker_tera.py")],
+        input=json.dumps({"action": "normalize", "texts": [step["say"] for step in steps],
+                          "russian_stress": enabled}, ensure_ascii=False),
+        capture_output=True, text=True, check=False,
+        env={**os.environ, "ORCHESTRA_TERA_SNAPSHOT": str(TERA_SNAPSHOT)},
+    )
+    if result.returncode:
+        fail(f"ошибка нормализации TeraTTS: {result.stderr.strip() or result.returncode}")
+    try:
+        normalized = json.loads(result.stdout)["normalized"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        fail(f"TeraTTS worker вернул некорректный результат нормализации: {exc}")
+    if len(normalized) != len(steps) or not all(isinstance(text, str) for text in normalized):
+        fail("TeraTTS worker вернул неверное число нормализованных фраз")
+    for step, text in zip(steps, normalized, strict=True):
+        step["_tts_text"] = re.sub(r"</?ru>", "", text)
+    return steps
+
+
 def drain_ordered(ready: dict[int, Path], next_index: int) -> tuple[list[tuple[int, Path]], int]:
     released = []
     while next_index in ready:
@@ -220,18 +277,26 @@ def trim_clip(raw: Path, cut: Path) -> None:
 
 
 def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice: str = "",
-               on_ready=None) -> list[Path]:
-    """Каждая фраза → wav 48 кГц моно без тишины по краям (кэш по тексту и голосу).
+               on_ready=None, engine: str = "vosk", stress: bool = True) -> list[Path]:
+    """Each phrase becomes a trimmed 48 kHz mono WAV, cached by text, engine and voice.
 
-    `voice` — имя голоса Kokoro: английская озвучка вместо русской Vosk."""
+    `voice` selects the Kokoro or Tera voice; Vosk uses `speaker`."""
     cache.mkdir(parents=True, exist_ok=True)
+    if engine == "vosk" and voice:
+        engine = "kokoro"
     trimmed, jobs, ready, job_indices, job_by_index, queued = [], [], {}, {}, {}, {}
     for i, step in enumerate(steps):
-        engine = f"kokoro-v1.0|{voice}" if voice else f"{speaker}|{TTS_MODEL.name}"
-        text = step.get("_tts_text", step["say"])
-        if not voice:
+        if engine == "tera":
+            engine_key = f"tera|{TERA_REVISION}|{voice or 'ru_m1'}|stress={int(stress)}"
+            text = step["say"]
+        elif engine == "kokoro":
+            engine_key = f"kokoro-v1.0|{voice}"
+            text = step["say"]
+        else:
+            engine_key = f"vosk|{speaker}|{TTS_MODEL.name}"
+            text = step.get("_tts_text", step["say"])
             text = normalize_vosk_text(text)
-        key = hashlib.sha1(f"{text}|{rate}|{engine}".encode()).hexdigest()[:16]
+        key = hashlib.sha1(f"{text}|{rate}|{engine_key}".encode()).hexdigest()[:16]
         raw, cut = cache / f"{key}.raw.wav", cache / f"{key}.wav"
         trimmed.append(cut)
         if cut.exists():
@@ -242,7 +307,10 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
         elif raw in queued:
             job_indices[queued[raw]].append(i)
         else:
-            job = {"index": i, "text": text, "speaker": speaker, "voice": voice, "rate": rate, "out": str(raw)}
+            job = {"index": i, "text": text, "speaker": speaker, "voice": voice,
+                   "rate": rate, "out": str(raw)}
+            if engine == "tera":
+                job.update(engine="tera", voice=voice or "ru_m1", stress=stress)
             jobs.append(job)
             job_indices[i] = [i]
             job_by_index[i] = job
@@ -266,10 +334,15 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
             for i, path in released:
                 on_ready(i, path)
 
-    if jobs and voice:
+    if jobs and engine == "kokoro":
         if not TTS_EN_PYTHON.exists() or not (TTS_EN_HOME / "kokoro-v1.0.onnx").exists():
             fail(f"нет английского TTS: {TTS_EN_PYTHON} и {TTS_EN_HOME}/kokoro-v1.0.onnx — установка в SKILL video-artifact")
         worker = TTS_EN_PYTHON, HERE / "tts_worker_en.py", {**os.environ, "ORCHESTRA_TTS_EN_HOME": str(TTS_EN_HOME)}
+    elif jobs and engine == "tera":
+        if not TTS_TERA_PYTHON.exists() or not TERA_SNAPSHOT.is_dir():
+            fail(f"нет локальной TeraTTS {TERA_REVISION}; установка описана в SKILL video-artifact")
+        worker = TTS_TERA_PYTHON, HERE / "tts_worker_tera.py", {
+            **os.environ, "ORCHESTRA_TERA_SNAPSHOT": str(TERA_SNAPSHOT)}
     elif jobs:
         if not TTS_PYTHON.exists() or not (TTS_MODEL / "model.onnx").exists():
             fail(f"нет окружения TTS: {TTS_PYTHON} и {TTS_MODEL}/model.onnx — установка в SKILL video-artifact")
@@ -277,10 +350,12 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
     else:
         worker = None
     if worker:
-        if voice:
+        if engine == "tera":
+            print(f"синтез {len(jobs)} фраз (TeraTTS {TERA_REVISION[:8]}, {voice or 'ru_m1'}, один CPU sampler)…", flush=True)
+        elif voice:
             print(f"синтез {len(jobs)} фраз (Kokoro, {voice})…", flush=True)
         else:
-            print(f"синтез {len(jobs)} фраз (загрузка модели ~2 мин)…", flush=True)
+            print(f"синтез {len(jobs)} фраз (загрузка Vosk)…", flush=True)
         if on_ready is None:
             run(str(worker[0]), str(worker[1]), input=json.dumps(jobs, ensure_ascii=False).encode(),
                 stdout=subprocess.DEVNULL, env=worker[2])
@@ -793,13 +868,16 @@ def _main() -> None:
     ap.add_argument("scene", type=Path)
     ap.add_argument("--out", type=Path, required=True)
     ap.add_argument("--speaker", type=int, default=1)
+    ap.add_argument("--tts-engine", choices=["tera", "vosk"], default="tera",
+                    help="русская озвучка: локальная TeraTTSv2 по умолчанию или Vosk")
     ap.add_argument("--lang", choices=["ru", "en"], default="ru",
-                    help="en — английская озвучка Kokoro вместо русской Vosk")
-    ap.add_argument("--voice", default="af_heart", help="голос Kokoro для --lang en (am_michael — мужской)")
+                    help="en — английская озвучка Kokoro")
+    ap.add_argument("--voice", choices=["m1", "m5", "f1", "f2", "af_heart", "am_michael"],
+                    help="Tera: m1 (default), m5, f1, f2; Kokoro: af_heart (default), am_michael")
     ap.add_argument("--rate", type=float, default=1.15)
-    ap.add_argument("--no-stress", action="store_true", help="не запускать автоматическую разметку ударений RUAccent")
+    ap.add_argument("--no-stress", action="store_true", help="отключить автоматическую разметку русского ударения")
     ap.add_argument("--stress-only", action="store_true",
-                    help="только разметить ударения и показать фразы (секунды, без синтеза) — для проверки агентом")
+                    help="показать нормализованные фразы и ударения без генерации WAV")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--music", type=Path, help="CC0 или собственная фоновая дорожка; обязателен, если в STEPS заданы events")
     ap.add_argument("--jobs", type=int, default=max(1, min(6, (os.cpu_count() or 2) - 2)),
@@ -820,6 +898,7 @@ def _main() -> None:
         cls, steps = manim_steps(args.scene, args.lang)
     else:
         steps = read_steps(args.scene, args.lang)
+    steps = check_steps(steps, args.lang, engine=None)
     print("stage 1/4: scene and speech plan", flush=True)
     if args.preview_step or args.preview_range:
         if args.preview_step:
@@ -836,13 +915,19 @@ def _main() -> None:
         else:
             preview_html(args.scene, steps, out, name, first_step, last_step)
         return
-    steps = mark_stress(steps, args.lang, enabled=not args.no_stress)
+    steps = check_steps(steps, args.lang, args.tts_engine)
     if args.stress_only:
+        if args.lang == "ru" and args.tts_engine == "tera":
+            steps = tera_stress(steps, enabled=not args.no_stress)
+        else:
+            steps = mark_stress(steps, args.lang, enabled=not args.no_stress, engine=args.tts_engine)
         marked = [step.get("_tts_text", step["say"]) for step in steps]
         (out / f"{name}.stress.txt").write_text("\n".join(marked) + "\n")
         for i, text in enumerate(marked, 1):
             print(f"  {i:2d}. {text}")
         return
+    if args.lang == "ru" and args.tts_engine == "vosk":
+        steps = mark_stress(steps, args.lang, enabled=not args.no_stress, engine="vosk")
     has_events = any(step.get("events") for step in steps)
     if has_events and not args.music:
         fail("в STEPS заданы звуковые events: укажи фоновую CC0-дорожку через --music")
@@ -864,9 +949,24 @@ def _main() -> None:
         if pipeline:
             pipeline.step_ready(index, rendered_clips)
 
+    if args.lang == "en":
+        engine = "kokoro"
+        voice = args.voice or "af_heart"
+        if voice not in {"af_heart", "am_michael"}:
+            fail("для --lang en выбери Kokoro voice: af_heart или am_michael")
+    elif args.tts_engine == "tera":
+        engine = "tera"
+        tera_voice = args.voice or "m1"
+        if tera_voice not in {"m1", "m5", "f1", "f2"}:
+            fail("для русской Tera выбери --voice m1, m5, f1 или f2")
+        voice = f"ru_{tera_voice}"
+    else:
+        engine = "vosk"
+        if args.voice is not None:
+            fail("Vosk выбирает голос через --speaker, параметр --voice предназначен для Tera/Kokoro")
+        voice = ""
     clips = synthesize(steps, out / ".tts-cache", args.speaker, args.rate,
-                       voice=args.voice if args.lang == "en" else "",
-                       on_ready=render_ready)
+                       voice=voice, on_ready=render_ready, engine=engine, stress=not args.no_stress)
     timing = plan(steps, clips, args.rate)
     if manim:
         manim_timing_check(args.scene, cls, timing, out, name)

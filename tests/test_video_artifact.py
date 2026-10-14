@@ -4,6 +4,8 @@
 перефразирует понятный текст или, наоборот, пропустит невнятный.
 """
 import importlib.util
+import json
+import os
 from pathlib import Path
 import sys
 import pytest
@@ -102,6 +104,76 @@ def test_unsupported_vosk_symbol_fails_during_step_validation():
         normalize_vosk_text("фраза • продолжение")
     with pytest.raises(SystemExit, match="шаг 1: символ '•'"):
         make.check_steps([{"t": "x", "say": "фраза • дальше"}], "ru")
+
+
+def test_tera_requires_spelled_numbers_and_preserves_manual_stress(tmp_path, monkeypatch):
+    indexer = tmp_path / "unicode_indexer.json"
+    table = [0] * 65_536
+    table[ord("•")] = -1
+    indexer.write_text(json.dumps(table))
+    monkeypatch.setattr(make, "TERA_INDEXER", indexer)
+    make._tera_character_table.cache_clear()
+
+    assert make.check_steps([{"t": "ok", "say": "В две тысячи двадцать шестом году лим+ита."}], "ru", "tera")
+    with pytest.raises(SystemExit):
+        make.check_steps([{"t": "number", "say": "В 2026 году лимита."}], "ru", "tera")
+    with pytest.raises(SystemExit, match="шаг 1: символ '•'"):
+        make.check_steps([{"t": "bad", "say": "Фраза • дальше"}], "ru", "tera")
+
+
+def test_tera_uses_its_own_stress_path_without_external_ruaccent(monkeypatch):
+    monkeypatch.setattr(make.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
+    steps = [{"say": "лим+ита дальше"}]
+    assert make.mark_stress(steps, "ru", enabled=True, engine="tera") == steps
+    assert "_tts_text" not in steps[0]
+
+
+def test_tera_worker_loads_one_model_for_parallel_phrase_jobs(tmp_path, monkeypatch, capsys):
+    import importlib.util
+    import io
+    import json
+    import sys
+    import threading
+    import types
+    import wave
+
+    spec = importlib.util.spec_from_file_location("tts_worker_tera", make.HERE / "tts_worker_tera.py")
+    worker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(worker)
+    snapshot = tmp_path / "tera" / "hub" / "models--TeraSpace--TeraTTSv2" / "snapshots" / worker.REVISION
+    snapshot.mkdir(parents=True)
+    monkeypatch.setenv("ORCHESTRA_TERA_SNAPSHOT", str(snapshot))
+    monkeypatch.setenv("HF_MODULES_CACHE", "pre-test")
+    barrier = threading.Barrier(2)
+    loads = []
+
+    class FakeModel:
+        @classmethod
+        def from_pretrained(cls, path, **kwargs):
+            loads.append((path, kwargs))
+            return cls()
+
+        def generate_speech(self, _text, **_kwargs):
+            barrier.wait(timeout=3)
+            return b"audio"
+
+        def save_wav(self, path, _audio):
+            with wave.open(str(path), "wb") as output:
+                output.setnchannels(1); output.setsampwidth(2); output.setframerate(44_100)
+                output.writeframes(b"\0\0" * 8)
+
+    monkeypatch.setitem(sys.modules, "transformers", types.SimpleNamespace(AutoModel=FakeModel))
+    monkeypatch.setattr(sys, "stdin", io.StringIO(json.dumps([
+        {"index": 0, "text": "Первая.", "voice": "ru_m5", "rate": 1.15, "stress": True, "out": str(tmp_path / "0.wav")},
+        {"index": 1, "text": "Вторая.", "voice": "ru_m5", "rate": 1.15, "stress": True, "out": str(tmp_path / "1.wav")},
+    ], ensure_ascii=False)))
+    worker.main()
+    assert len(loads) == 1
+    assert loads[0][0] == str(snapshot)
+    assert loads[0][1]["local_files_only"] is True
+    assert os.environ["HF_MODULES_CACHE"] == str(tmp_path / "tera" / "modules")
+    assert sorted(json.loads(line)["index"] for line in capsys.readouterr().out.splitlines()) == [0, 1]
+    assert (tmp_path / "0.wav").is_file() and (tmp_path / "1.wav").is_file()
 
 
 def test_tempo_speeds_pauses_but_keeps_phrase_inside_its_step(tmp_path):
@@ -261,7 +333,7 @@ def test_ruaccent_marks_text_before_it_reaches_vosk_synthesis(tmp_path, monkeypa
     import wave
 
     _mock_tts_installation(tmp_path, monkeypatch)
-    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills"])
+    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--tts-engine", "vosk"])
     monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "Лимит", "say": "История лимита.", "sub": None, "hold": None}])
     before_path = list(make.sys.path)
     jobs = []
@@ -342,7 +414,7 @@ def test_manual_plus_words_are_not_sent_through_automatic_accenting(monkeypatch)
 
 
 def test_no_stress_flag_disables_ruaccent_in_cli(monkeypatch, tmp_path):
-    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--no-stress"])
+    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stills", "--no-stress", "--tts-engine", "vosk"])
     monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "Фраза.", "sub": None, "hold": None}])
     monkeypatch.setattr(make.subprocess, "run", lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError()))
     monkeypatch.setattr(make, "synthesize", lambda steps, *_args, **_kwargs: assert_unmarked(steps))
@@ -353,7 +425,7 @@ def test_no_stress_flag_disables_ruaccent_in_cli(monkeypatch, tmp_path):
 
 
 def test_stress_only_shows_marked_phrases_without_synthesis(monkeypatch, tmp_path, capsys):
-    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stress-only"])
+    monkeypatch.setattr(make.sys, "argv", ["make.py", "scene.html", "--out", str(tmp_path), "--stress-only", "--tts-engine", "vosk"])
     monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "До лимита.", "sub": None, "hold": None}])
 
     def mark(steps, *_args, **_kwargs):
@@ -387,6 +459,30 @@ def test_english_cli_branch_does_not_load_or_run_ruaccent(monkeypatch, tmp_path)
     monkeypatch.setattr(make, "voice_track", lambda *_: None)
     monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
     make.main()
+
+
+@pytest.mark.parametrize(("selected", "expected"), [(None, "ru_m1"), ("f2", "ru_f2")])
+def test_russian_cli_defaults_to_local_tera_voice(monkeypatch, tmp_path, selected, expected):
+    argv = ["make.py", "scene.html", "--out", str(tmp_path), "--stills"]
+    if selected:
+        argv.extend(["--voice", selected])
+    monkeypatch.setattr(make.sys, "argv", argv)
+    monkeypatch.setattr(make, "read_steps", lambda *_: [{"t": "x", "say": "Сумма большая.", "sub": None, "hold": None}])
+    monkeypatch.setattr(make, "TERA_INDEXER", tmp_path / "unicode_indexer.json")
+    make.TERA_INDEXER.write_text(json.dumps([0] * 65_536))
+    make._tera_character_table.cache_clear()
+    monkeypatch.setattr(make, "synthesize", lambda _steps, *_args, **kwargs: assert_tera_default(kwargs, expected))
+    monkeypatch.setattr(make, "plan", lambda *_: {"steps": [], "T": 0})
+    monkeypatch.setattr(make, "voice_track", lambda *_: None)
+    monkeypatch.setattr(make, "render", lambda *_args, **_kwargs: None)
+    make.main()
+
+
+def assert_tera_default(kwargs, expected):
+    assert kwargs["engine"] == "tera"
+    assert kwargs["voice"] == expected
+    assert kwargs["stress"] is True
+    return []
 
 
 def test_missing_ruaccent_fails_with_install_command(tmp_path, monkeypatch):
@@ -455,3 +551,38 @@ def test_parallel_synthesis_deduplicates_identical_cache_jobs(tmp_path, monkeypa
     clips = make.synthesize(steps, tmp_path / "cache", 1, 1.15)
     assert len(jobs_seen) == 1
     assert clips == [clips[0], clips[0]] and clips[0].is_file()
+
+
+def test_tera_cache_separates_voices_and_keeps_stress_setting(tmp_path, monkeypatch):
+    import json
+    import wave
+
+    python = tmp_path / "venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.touch()
+    snapshot = tmp_path / make.TERA_REVISION
+    snapshot.mkdir()
+    monkeypatch.setattr(make, "TTS_TERA_PYTHON", python)
+    monkeypatch.setattr(make, "TERA_SNAPSHOT", snapshot)
+    jobs_seen = []
+
+    def fake_run(*argv, **kwargs):
+        if argv[1].endswith("tts_worker_tera.py"):
+            jobs = json.loads(kwargs["input"])
+            jobs_seen.extend(jobs)
+            for job in jobs:
+                with wave.open(job["out"], "wb") as output:
+                    output.setnchannels(1); output.setsampwidth(2); output.setframerate(44_100)
+                    output.writeframes(b"\0\0" * 32)
+        elif argv[0] == "ffmpeg":
+            with wave.open(argv[-1], "wb") as output:
+                output.setnchannels(1); output.setsampwidth(2); output.setframerate(make.SR)
+                output.writeframes(b"\0\0" * 32)
+
+    monkeypatch.setattr(make, "run", fake_run)
+    cache = tmp_path / "cache"
+    step = [{"say": "Одинаковая фраза."}]
+    first = make.synthesize(step, cache, 1, 1.15, voice="ru_m5", engine="tera", stress=True)
+    second = make.synthesize(step, cache, 1, 1.15, voice="ru_f1", engine="tera", stress=False)
+    assert first[0] != second[0]
+    assert [(job["voice"], job["stress"]) for job in jobs_seen] == [("ru_m5", True), ("ru_f1", False)]
