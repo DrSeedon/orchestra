@@ -111,11 +111,55 @@ class Symlink(BaseModel):
         return v
 
 
+class SparseProject(BaseModel):
+    """Переопределение sparse-правила для репозиториев, чей корень подходит под glob-ключ."""
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool | None = None
+    exclude: list[str] | None = None
+    include: list[str] = Field(default_factory=list)
+    own: list[str] | None = None
+    reference_scan: list[str] = Field(default_factory=list)
+
+    @field_validator("exclude", "include", "own", "reference_scan")
+    @classmethod
+    def _safe_paths(cls, v: list[str] | None) -> list[str] | None:
+        for name in v or []:
+            if not _is_safe_rel(name):
+                raise ValueError(f"unsafe sparse path '{name}' (abs или '..')")
+        return v
+
+
+class Sparse(BaseModel):
+    """Частичная копия worktree воркера: что не класть в неё и что догружать сразу.
+
+    exclude — каталоги репозитория, которых нет в копии; own — шаблоны каталогов самой задачи
+    (`{id}` = номер задачи); include — каталоги, которые нужны всегда; reference_scan — каталоги
+    исходников, где ищутся ссылки на исключённые каталоги (их тоже кладём в копию).
+    Ключи `projects` — glob по корню репозитория. enabled=False → полная копия.
+    """
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = False
+    exclude: list[str] = Field(default_factory=list)
+    own: list[str] = Field(default_factory=list)
+    include: list[str] = Field(default_factory=list)
+    reference_scan: list[str] = Field(default_factory=list)
+    projects: dict[str, SparseProject] = Field(default_factory=dict)
+
+    @field_validator("exclude", "include", "own", "reference_scan")
+    @classmethod
+    def _safe_paths(cls, v: list[str]) -> list[str]:
+        for name in v:
+            if not _is_safe_rel(name):
+                raise ValueError(f"unsafe sparse path '{name}' (abs или '..')")
+        return v
+
+
 class Worktree(BaseModel):
     """Настройка worktree роли: симлинки и копируемые файлы (= PROJECT_FILES)."""
     model_config = ConfigDict(extra="forbid")
     symlinks: list[Symlink] = Field(default_factory=list)
     copies: list[str] = Field(default_factory=list)
+    sparse: Sparse = Field(default_factory=Sparse)
 
     @field_validator("copies")
     @classmethod
