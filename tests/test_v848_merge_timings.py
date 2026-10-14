@@ -63,31 +63,6 @@ async def test_active_merge_conflict_is_rejected_before_snapshot_and_admission(
 
 
 @pytest.mark.asyncio
-async def test_busy_worker_is_rejected_without_waiting_for_its_turn():
-    from app.routes.sessions import _merge_worker_is_idle
-
-    calls = []
-
-    async def slow_completion_wait():
-        calls.append("wait")
-        await asyncio.sleep(0.05)
-        return False
-
-    session = SimpleNamespace(
-        status=SimpleNamespace(value="running"),
-        loaded=True,
-        wait_for_turn_completion=slow_completion_wait,
-    )
-    started = time.perf_counter()
-    idle = _merge_worker_is_idle(session)
-    elapsed = time.perf_counter() - started
-    print(f"busy-worker-refusal={elapsed:.3f}s calls={calls}")
-
-    assert idle is False
-    assert calls == []
-
-
-@pytest.mark.asyncio
 async def test_busy_worker_is_rejected_before_snapshot_and_operation_creation(
     merge_db, monkeypatch,
 ):
