@@ -1904,7 +1904,7 @@ def test_pasted_image_previews_use_one_bounded_square_size(
     page.wait_for_function("""() => {
         const image = document.querySelector('#paste-preview img');
         return image?.complete && image.naturalWidth > 0
-            && getComputedStyle(image).maxWidth === '64px';
+            && getComputedStyle(image).maxWidth === '34px';
     }""", timeout=8000)
     uploading_metrics = page.evaluate("""() => {
         const image = document.querySelector('#paste-preview img');
@@ -1928,7 +1928,14 @@ def test_pasted_image_previews_use_one_bounded_square_size(
         "maxWidth": "64px",
         "maxHeight": "64px",
     }
-    assert metrics == {"saved": expected, "uploading": expected}
+    uploading_expected = {
+        "width": 34,
+        "height": 34,
+        "objectFit": "cover",
+        "maxWidth": "34px",
+        "maxHeight": "34px",
+    }
+    assert metrics == {"saved": expected, "uploading": uploading_expected}
 
 
 def test_document_upload_card_cancels_xhr_without_inserting_path(

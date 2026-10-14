@@ -533,7 +533,7 @@ function _showUploadingChip(file, filename = file.name || 'file') {
     const wrap = document.createElement('div');
     wrap.className = 'upload-file-card relative';
     wrap.dataset.fileName = cardFilename;
-    wrap.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid #334155;border-radius:6px;min-width:220px;max-width:100%;font-size:11px;color:#cbd5e1';
+    wrap.title = cardFilename;
     const isImage = /\.(png|jpe?g|gif|webp|svg)$/i.test(cardFilename) || file.type.startsWith('image/');
     let preview = null;
     if (isImage) {
@@ -543,51 +543,90 @@ function _showUploadingChip(file, filename = file.name || 'file') {
         img.width = 64;
         img.height = 64;
         img.alt = cardFilename;
+        img.title = cardFilename;
+        img.addEventListener('click', () => {
+            if (wrap.dataset.filePath) openFilePreview(wrap.dataset.filePath);
+        });
         wrap.appendChild(img);
         preview = img;
     } else {
         const icon = document.createElement('span');
-        icon.textContent = '📄';
-        icon.style.fontSize = '24px';
+        icon.className = 'upload-file-icon';
+        icon.textContent = _uploadFileIcon(cardFilename);
+        icon.setAttribute('aria-hidden', 'true');
         wrap.appendChild(icon);
     }
     const body = document.createElement('div');
-    body.style.cssText = 'display:flex;flex:1;min-width:0;flex-direction:column;gap:3px';
+    body.className = 'upload-file-body';
     const name = document.createElement('span');
     name.className = 'upload-file-name';
-    name.textContent = cardFilename;
-    name.style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+    const nameStart = document.createElement('span');
+    nameStart.className = 'upload-file-name-start';
+    const nameEnd = document.createElement('span');
+    nameEnd.className = 'upload-file-name-end';
+    name.append(nameStart, nameEnd);
     name.title = cardFilename;
     const size = document.createElement('span');
     size.textContent = _fmtKb(file.size);
-    size.style.color = '#64748b';
+    size.className = 'upload-file-size';
     const download = document.createElement('a');
     download.href = objectUrl;
     download.download = cardFilename;
-    download.textContent = T('📥 download');
-    download.style.cssText = 'color:#a5b4fc;text-decoration:none;width:max-content';
+    download.textContent = '↓';
+    download.className = 'upload-file-download';
+    download.title = T('📥 download');
+    download.setAttribute('aria-label', T('📥 download'));
     const progress = document.createElement('progress');
     progress.className = 'upload-progress';
     progress.max = 100;
     progress.value = 0;
-    progress.style.cssText = 'width:100%;height:5px';
+    progress.setAttribute('aria-label', T('Uploading…'));
     const progressText = document.createElement('span');
-    progressText.className = 'upload-progress-text';
     progressText.textContent = T('Uploading… 0%');
-    progressText.style.cssText = 'font-size:10px;color:#818cf8';
-    body.append(name, size, download, progress, progressText);
+    progressText.className = 'upload-progress-text';
+    body.append(name, size, progress, progressText);
     wrap.appendChild(body);
+    wrap.appendChild(download);
     const remove = document.createElement('button');
     remove.type = 'button';
     remove.textContent = '×';
     remove.title = T('Delete file');
-    remove.style.cssText = 'align-self:flex-start;border:0;background:transparent;color:#94a3b8;cursor:pointer;font-size:16px;line-height:1';
+    remove.className = 'upload-file-remove';
     wrap.appendChild(remove);
+    const updateName = () => {
+        const dot = cardFilename.lastIndexOf('.');
+        const ext = dot > 0 ? cardFilename.slice(dot) : '';
+        const stem = ext ? cardFilename.slice(0, dot) : cardFilename;
+        const charsPerLine = Math.max(10, Math.floor((body.clientWidth || 150) / 7.5));
+        if (cardFilename.length <= charsPerLine) {
+            name.classList.remove('is-long');
+            nameStart.textContent = cardFilename;
+            nameEnd.textContent = '';
+        } else if (cardFilename.length <= charsPerLine * 2) {
+            name.classList.remove('is-long');
+            const firstLineLength = stem.length <= charsPerLine
+                ? stem.length
+                : stem.length - (charsPerLine - ext.length);
+            nameStart.textContent = stem.slice(0, firstLineLength);
+            nameEnd.textContent = `${stem.slice(firstLineLength)}${ext}`;
+        } else {
+            name.classList.add('is-long');
+            nameStart.textContent = `${stem.slice(0, charsPerLine - 1)}…`;
+            const suffixLength = Math.max(1, charsPerLine - ext.length - 1);
+            nameEnd.textContent = `…${stem.slice(-suffixLength)}${ext}`;
+        }
+    };
+    const nameObserver = new ResizeObserver(updateName);
+    nameObserver.observe(body);
+    updateName();
     container.appendChild(wrap);
+    _updateUploadScrollHint(container);
     const cleanup = () => {
         wrap.remove();
+        nameObserver.disconnect();
         URL.revokeObjectURL(objectUrl);
         if (!container.children.length) container.remove();
+        else _updateUploadScrollHint(container);
     };
     cleanup.cancelled = false;
     const removePath = () => {
@@ -611,8 +650,10 @@ function _showUploadingChip(file, filename = file.name || 'file') {
     cleanup.setFilename = nextFilename => {
         cardFilename = String(nextFilename || cardFilename);
         wrap.dataset.fileName = cardFilename;
-        name.textContent = cardFilename;
         name.title = cardFilename;
+        wrap.title = cardFilename;
+        updateName();
+        iconIfNeeded();
         download.download = cardFilename;
     };
     cleanup.complete = (path, url) => {
@@ -621,16 +662,37 @@ function _showUploadingChip(file, filename = file.name || 'file') {
         download.href = url;
         download.download = cardFilename;
         if (preview) preview.src = url;
+        wrap.classList.add('is-uploaded');
         progress.value = 100;
-        progressText.textContent = T('Uploaded');
-        progressText.style.color = '#4ade80';
+        progress.hidden = true;
+        progressText.hidden = true;
         URL.revokeObjectURL(objectUrl);
     };
     cleanup.fail = error => {
         progressText.textContent = T('Error: {message}', {message: error.message || error});
-        progressText.style.color = '#f87171';
+        progressText.hidden = false;
+        wrap.classList.add('is-error');
+        wrap.title = `${cardFilename}: ${error.message || error}`;
     };
+    function iconIfNeeded() {
+        const icon = wrap.querySelector('.upload-file-icon');
+        if (icon) icon.textContent = _uploadFileIcon(cardFilename);
+    }
     return cleanup;
+}
+
+function _uploadFileIcon(filename) {
+    const ext = String(filename).split('.').pop().toLowerCase();
+    if (ext === 'pdf') return '📕';
+    if (['doc', 'docx', 'odt', 'rtf'].includes(ext)) return '📝';
+    if (['xls', 'xlsx', 'csv', 'ods'].includes(ext)) return '📊';
+    if (['ppt', 'pptx', 'odp'].includes(ext)) return '📽️';
+    if (['ipynb'].includes(ext)) return '📓';
+    if (['zip', '7z', 'rar', 'tar', 'gz', 'bz2'].includes(ext)) return '🗜️';
+    if (['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'].includes(ext)) return '🎵';
+    if (['mp4', 'webm', 'mov', 'mkv'].includes(ext)) return '🎬';
+    if (['js', 'ts', 'py', 'json', 'html', 'css', 'sh'].includes(ext)) return '💻';
+    return '📄';
 }
 
 function _pastePreviewContainer() {
@@ -638,11 +700,19 @@ function _pastePreviewContainer() {
     if (!container) {
         container = document.createElement('div');
         container.id = 'paste-preview';
-        container.className = 'flex flex-wrap gap-2 px-1 pb-1';
+        container.className = 'upload-file-list';
+        container.addEventListener('scroll', () => _updateUploadScrollHint(container));
         const inputRow = $('#chat-input').parentElement;
         inputRow.parentElement.insertBefore(container, inputRow);
     }
     return container;
+}
+
+function _updateUploadScrollHint(container) {
+    container.classList.toggle(
+        'has-more-below',
+        container.scrollTop + container.clientHeight < container.scrollHeight - 2,
+    );
 }
 
 function showImagePreview(url, filePath) {
@@ -682,9 +752,11 @@ function showImagePreview(url, filePath) {
         const removePath = filePath || url;
         input.value = input.value.split('\n').filter(line => line.trim() !== removePath.trim()).join('\n').trim();
         if (!container.children.length) container.remove();
+        else _updateUploadScrollHint(container);
     });
     wrap.appendChild(rm);
     container.appendChild(wrap);
+    _updateUploadScrollHint(container);
 }
 
 function clearPastePreview() {
