@@ -1994,17 +1994,12 @@ async def send_file(
 ) -> str:
     """Queue a local file for durable Telegram delivery. Terminal delivery failures wake the sender automatically. If this call's outcome is ambiguous, repeat send_file with the same event_id and inputs. Local Bot API documents allow up to 2000 MB (200 MB verified); images above 10 485 760 bytes become documents; MP4 is sent as video with document fallback; as_document forces a document."""
     event_id = event_id.strip() if isinstance(event_id, str) else ""
-    if event_id:
-        try:
-            event_id = str(uuid.UUID(event_id))
-        except ValueError as error:
-            raise ApiToolError(
-                code="invalid_argument",
-                message="event_id must be a UUID",
-                details={"field": "event_id"},
-            ) from error
-    else:
+    if not event_id:
         event_id = str(uuid.uuid4())
+    from app.file_delivery_ids import normalize_file_delivery_event_id
+    event_id = normalize_file_delivery_event_id(
+        event_id, SCOPE, WORKER_NAME or ROLE,
+    )
     payload = {
         "path": path,
         "caption": caption,
@@ -2075,17 +2070,12 @@ async def send_files(
             details={"field": "paths"},
         )
     event_id = event_id.strip() if isinstance(event_id, str) else ""
-    if event_id:
-        try:
-            event_id = str(uuid.UUID(event_id))
-        except ValueError as error:
-            raise ApiToolError(
-                code="invalid_argument",
-                message="event_id must be a UUID",
-                details={"field": "event_id"},
-            ) from error
-    else:
+    if not event_id:
         event_id = str(uuid.uuid4())
+    from app.file_delivery_ids import normalize_file_delivery_event_id
+    event_id = normalize_file_delivery_event_id(
+        event_id, SCOPE, WORKER_NAME or ROLE,
+    )
     payload = {
         "paths": paths,
         "caption": caption,

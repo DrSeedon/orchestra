@@ -155,6 +155,69 @@ async def test_send_file_accepts_legacy_synchronous_receipt_without_status_looku
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("tool_name", ["send_file", "send_files"])
+async def test_file_delivery_accepts_slug_and_reuses_its_scoped_receipt(
+    monkeypatch, tool_name,
+):
+    import app.mcp_stdio as m
+    from app.file_delivery_ids import normalize_file_delivery_event_id
+
+    monkeypatch.setattr(m, "SCOPE", "/projects/lada")
+    monkeypatch.setattr(m, "WORKER_NAME", "worker-lada")
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        event_id = kwargs["json"]["event_id"]
+        calls.append(event_id)
+        return {
+            "ok": True,
+            "event_id": event_id,
+            "acceptance": "ACCEPTED" if len(calls) == 1 else "ALREADY_ACCEPTED",
+            "delivery_state": "QUEUED",
+            "children": {},
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+    expected = normalize_file_delivery_event_id(
+        "lada-kp27-0810", "/projects/lada", "worker-lada",
+    )
+
+    if tool_name == "send_file":
+        invoke = lambda: m.send_file("/scope/report.pdf", event_id="lada-kp27-0810")
+    else:
+        invoke = lambda: m.send_files(["/scope/report.pdf"], event_id="lada-kp27-0810")
+
+    first = await invoke()
+    second = await invoke()
+
+    assert calls == [expected, expected]
+    assert "event_id=" + expected in first
+    assert "event_id=" + expected in second
+
+
+@pytest.mark.asyncio
+async def test_file_delivery_uuid_event_id_keeps_its_existing_identity(monkeypatch):
+    import app.mcp_stdio as m
+
+    event_id = "00000000-0000-4000-8000-000000000779"
+    calls = []
+
+    async def fake_api(method, path, **kwargs):
+        actual = kwargs["json"]["event_id"]
+        calls.append(actual)
+        return {
+            "ok": True, "event_id": actual, "acceptance": "ACCEPTED",
+            "delivery_state": "QUEUED", "children": {},
+        }
+
+    monkeypatch.setattr(m, "_api", fake_api)
+
+    await m.send_file("/scope/report.pdf", event_id=event_id)
+
+    assert calls == [event_id]
+
+
+@pytest.mark.asyncio
 async def test_send_file_200_without_matching_receipt_exposes_event_and_no_retry(monkeypatch):
     import app.mcp_stdio as m
 

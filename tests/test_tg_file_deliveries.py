@@ -207,6 +207,57 @@ async def test_send_files_root_event_is_idempotent_for_the_ordered_manifest(batc
     assert conflict["error"]["code"] == "IDEMPOTENCY_CONFLICT"
 
 
+def test_file_delivery_keys_are_scoped_and_uuid_identity_is_unchanged():
+    from app.file_delivery_ids import normalize_file_delivery_event_id
+
+    key = "lada-kp27-0810"
+    first = normalize_file_delivery_event_id(key, "/projects/lada", "worker")
+
+    assert first != normalize_file_delivery_event_id(key, "/projects/seedon", "worker")
+    assert first != normalize_file_delivery_event_id(key, "/projects/lada", "another-worker")
+    assert normalize_file_delivery_event_id(
+        ROOT_EVENT, "/projects/lada", "worker",
+    ) == ROOT_EVENT
+
+
+@pytest.mark.asyncio
+async def test_scoped_slug_delivery_replays_one_receipt(batch_world):
+    world = batch_world
+    path = world.root / "slug.pdf"
+    path.write_bytes(b"slug payload")
+    from app.file_delivery_ids import normalize_file_delivery_event_id
+    event_id = normalize_file_delivery_event_id(
+        "nedorosl-fon-1410-v2", "/scope-402", "worker-402",
+    )
+    arguments = dict(
+        event_id=event_id,
+        source_session_id="source-402",
+        source_name="worker-402",
+        source_scope="/scope-402",
+        source_path=str(path),
+        caption="",
+        as_document=True,
+        orch_name="orch-402",
+        targets=[{
+            "target_kind": "primary", "chat_id": PRIMARY_CHAT,
+            "thread_id": PRIMARY_THREAD,
+        }],
+    )
+
+    first, first_status, _ = await world.deliveries.accept_file_delivery(**arguments)
+    second, second_status, _ = await world.deliveries.accept_file_delivery(**arguments)
+
+    assert (first_status, second_status) == (202, 202)
+    assert (first["acceptance"], second["acceptance"]) == (
+        "ACCEPTED", "ALREADY_ACCEPTED",
+    )
+    assert first["event_id"] == second["event_id"] == event_id
+    with world.db._conn() as connection:
+        assert connection.execute(
+            "SELECT count(*) FROM tg_file_deliveries WHERE event_id=?", (event_id,),
+        ).fetchone()[0] == 1
+
+
 @pytest.mark.asyncio
 async def test_send_file_same_event_replays_one_accepted_receipt(batch_world):
     world = batch_world
