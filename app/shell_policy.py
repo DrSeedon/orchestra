@@ -51,6 +51,10 @@ def violation_message(rule: str) -> str:
     return f"POLICY VIOLATION [{rule}]: {_RULES[rule]}"
 
 
+def _rg_available() -> bool:
+    return shutil.which("rg") is not None
+
+
 def classify_shell_command(command: str) -> str | None:
     """Return the one policy rule violated, or None for permitted commands."""
     if not isinstance(command, str) or not command.strip():
@@ -73,11 +77,13 @@ def classify_shell_command(command: str) -> str | None:
             duration = _sleep_duration(duration_args)
             if duration is None or duration > MAX_SHORT_SLEEP_SECONDS:
                 return "long_sleep"
-        if re.search(r"\bfind\b[^\n;&|]*", command) and not any(
+        if _rg_available() and re.search(r"\bfind\b[^\n;&|]*", command) and not any(
             option in command for option in _FIND_SEMANTIC_OPTIONS
         ):
             return "recursive_find"
-        if re.search(r"\bgrep\b[^\n;&|]*\s-(?:[^\s]*[rR]|[rR])(?:\s|$)", command):
+        if _rg_available() and re.search(
+            r"\bgrep\b[^\n;&|]*\s-(?:[^\s]*[rR]|[rR])(?:\s|$)", command,
+        ):
             return "recursive_grep"
         return None
 
@@ -191,14 +197,14 @@ def _classify_segment(tokens: list[str], depth: int) -> str | None:
             if rule:
                 return rule
 
-    if name == "find" and not any(
+    if name == "find" and _rg_available() and not any(
         token in _FIND_SEMANTIC_OPTIONS
         or any(token.startswith(option + "=") for option in ("-mtime", "-mmin", "-newer"))
         for token in args
     ):
         return "recursive_find"
 
-    if name in {"grep", "egrep", "fgrep"}:
+    if name in {"grep", "egrep", "fgrep"} and _rg_available():
         for token in args:
             if token == "--":
                 break

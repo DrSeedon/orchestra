@@ -14,17 +14,21 @@ Claude always installs its existing Bash `PreToolUse` hook, regardless of `CLAUD
 
 Grok's launch previously passed `--always-approve`, which bypassed per-tool permission requests. That flag is removed. ACP permission requests now inspect the shell call before execution, select a one-time allow for permitted shell commands, and select a reject option for policy violations; the rejection reason is attached to the resulting tool error and the permission handler queues a session violation event immediately. Non-shell permissions retain the existing approval behavior. Orchestra's harness checks the same policy before built-in Bash dispatch.
 
-The session event handler writes each policy refusal as a `policy_violation` log entry with the rule, tool, and explanation; the associated `tool_result` remains in the transcript. Codex contributes the completed blocked PreToolUse hook event; Grok contributes an event directly from the permission callback, so neither depends on a post-execution command item to count the refusal. Each row is one occurrence, so totals and per-agent/per-rule counts can be grouped from `logs` (`type='policy_violation'`) by session and the JSON `rule` field. The entry is visible in the session log.
+The session event handler writes each policy refusal as a `policy_violation` log entry with the rule, tool, and explanation; the associated `tool_result` remains in the transcript. Codex derives the event from its wrapper's refusal output, independent of the shell pipeline exit code; Grok emits one directly from the permission callback. Each row is one occurrence, so totals and per-agent/per-rule counts can be grouped from `logs` (`type='policy_violation'`) by session and the JSON `rule` field. The entry is visible in the session log.
 
 The general prompt now has one English instruction directing agents to `bg_create` for long waits and `rg` for recursive search. Enforcement does not depend on that prompt.
 
 ## Verification
 
-- `uv run --frozen python -m pytest tests/test_shell_policy.py tests/test_backend_claude.py tests/test_backend_codex.py tests/test_backend_grok.py tests/test_harness_tools.py -q` — 328 passed after the final Codex process-scope changes.
+- `uv run --frozen python -m pytest tests/test_shell_policy.py tests/test_backend_claude.py tests/test_backend_codex.py tests/test_backend_grok.py tests/test_harness_tools.py -q` — 331 passed after the final Codex process-scope and `rg`-availability changes.
 - Mutation check: changing the committed `sleep` branch so it no longer classified `sleep` made `tests/test_shell_policy.py::test_long_shell_wait_is_blocked[sleep 6]` fail (`None != 'long_sleep'`); the mutation was reverted.
 - The test process imported the guard from `/home/kesha/orchestra/worktrees/home-kesha-orchestra/feat-tool-guard/app/shell_policy.py`.
 - Codex wrapper tests check both process-context decisions: a direct Codex command and its `bash -c` shell are classified, while Python, Node, make, and script children bypass the guard. Bash integration checks exercise the wrappers on ordinary and application-child commands. Claude tests exercise both pre-tool decisions; Grok tests exercise ACP permission responses and one-time approval; harness tests exercise actual dispatch.
 - `uv run --frozen python scripts/check_instruction_contract.py` — passed after the change; `git diff --check` passed.
+
+## Follow-up: environments without ripgrep
+
+CI failed because `test_codex_managed_home_installs_path_policy_wrappers` directly executed `rg --files .`, but ripgrep is not installed on the runner. The wrapper integration test now exercises a shell builtin (`printf`) instead. `classify_shell_command` blocks recursive `find` and recursive grep only while `rg` is discoverable through PATH; if it is absent, both fall back to their installed system utilities. That decision keeps path and content search available without requiring a Python-specific fallback or a new project dependency. Tests force both capability states and the no-rg harness test runs a real scoped `find` successfully.
 
 ## Live CLI validation (2026-10-14)
 

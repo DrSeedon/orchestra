@@ -18,6 +18,14 @@ from app.shell_policy import (
 )
 
 
+@pytest.fixture
+def rg_available(monkeypatch):
+    monkeypatch.setattr(
+        "app.shell_policy.shutil.which",
+        lambda command: "/usr/bin/rg" if command == "rg" else None,
+    )
+
+
 @pytest.mark.parametrize("command", [
     "sleep 6",
     "sleep 1; sleep 10; tail log",
@@ -61,8 +69,17 @@ def test_permitted_shell_commands_keep_their_semantics(command):
     ("grep -rn TODO app", "recursive_grep"),
     ("find . -exec sleep 600 {} +", "long_sleep"),
 ])
-def test_recursive_path_searches_are_classified(command, rule):
+def test_recursive_path_searches_are_classified(command, rule, rg_available):
     assert classify_shell_command(command) == rule
+
+
+@pytest.mark.parametrize("command", [
+    "find . -name '*.py'",
+    "grep -R TODO .",
+])
+def test_recursive_search_fallback_passes_when_rg_is_unavailable(command, monkeypatch):
+    monkeypatch.setattr("app.shell_policy.shutil.which", lambda _command: None)
+    assert classify_shell_command(command) is None
 
 
 @pytest.mark.parametrize("command,rule", [
@@ -70,7 +87,7 @@ def test_recursive_path_searches_are_classified(command, rule):
     ("find . -name '*.py'", "recursive_find"),
     ("grep -R TODO .", "recursive_grep"),
 ])
-def test_claude_pretooluse_denies_policy_violations(command, rule):
+def test_claude_pretooluse_denies_policy_violations(command, rule, rg_available):
     got = _classify_bash_payload({"command": command})
     assert got == rule
     output = _pretool_output(got)["hookSpecificOutput"]
@@ -104,7 +121,7 @@ def test_codex_managed_home_installs_path_policy_wrappers(tmp_path, monkeypatch)
     for command in (
         "sleep 1",
         "printf x | grep x",
-        "rg --files .",
+        "printf ok",
         "echo ok && sleep 1",
         "python -c 'import subprocess; subprocess.run([\"sleep\", \"0.1\"], check=True)'",
     ):
@@ -133,7 +150,7 @@ def test_codex_managed_home_installs_path_policy_wrappers(tmp_path, monkeypatch)
     ("find . -name '*.py' | head -3", "recursive_find"),
     ("grep -R TODO .", "recursive_grep"),
 ])
-def test_codex_direct_tool_shell_commands_are_classified(command, rule):
+def test_codex_direct_tool_shell_commands_are_classified(command, rule, rg_available):
     got = codex_wrapper_rule(
         command,
         [("/usr/lib/codex", ["codex", "app-server", "--stdio"])],
@@ -178,7 +195,7 @@ def test_codex_wrapper_ignores_application_and_script_children(caller, argv, par
     ("find . -name '*.py'", "recursive_find"),
     ("grep -R TODO .", "recursive_grep"),
 ])
-async def test_grok_permission_gate_rejects_policy_violations(command, rule):
+async def test_grok_permission_gate_rejects_policy_violations(command, rule, rg_available):
     backend = GrokBackend(model="grok-4.5", cwd="/tmp")
     backend._write = AsyncMock()
     request = {
@@ -250,9 +267,22 @@ async def test_harness_bash_guard(command, blocked):
     ("find . -name '*.py'", "recursive_find"),
     ("grep -R TODO .", "recursive_grep"),
 ])
-async def test_harness_blocks_recursive_search(command, rule):
+async def test_harness_blocks_recursive_search(command, rule, rg_available):
     output, _ = await dispatch("bash", {"command": command}, "/tmp")
     assert output == violation_message(rule)
+
+
+@pytest.mark.asyncio
+async def test_harness_allows_find_when_rg_is_unavailable(tmp_path, monkeypatch):
+    monkeypatch.setattr("app.shell_policy.shutil.which", lambda _command: None)
+    match = tmp_path / "result.py"
+    match.write_text("ok\n", encoding="utf-8")
+
+    output, _ = await dispatch(
+        "bash", {"command": f"find {tmp_path} -name result.py"}, str(tmp_path),
+    )
+
+    assert output.splitlines()[-1] == str(match)
 
 
 @pytest.mark.asyncio
