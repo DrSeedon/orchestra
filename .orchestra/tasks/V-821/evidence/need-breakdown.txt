@@ -1,0 +1,9 @@
+katya: tasks 160; need extra dirs under own-id cone: 47 (29%); of them foreign dirs: 46, only own-named-differently: 1; with silent drop: 19
+   foreign dir kinds {'artifacts': 46, '.orchestra/tasks': 26} remedy MB: median 10.9 max 462.0
+   examples [('V-143', ['/artifacts/V-137/']), ('V-114', ['/.orchestra/tasks/V-165/', '/.orchestra/tasks/V-166/', '/artifacts/V-165/']), ('V-166', ['/.orchestra/tasks/V-159/', '/artifacts/V-159/']), ('V-162', ['/artifacts/V-161/', '/artifacts/V-163/'])]
+seedon: tasks 216; need extra dirs under own-id cone: 51 (23%); of them foreign dirs: 50, only own-named-differently: 1; with silent drop: 16
+   foreign dir kinds {'.orchestra/tasks': 21, 'resources': 60, 'artifacts': 2} remedy MB: median 14.5 max 142.4
+   examples [('V-226', ['/.orchestra/tasks/V-225/']), ('V-213', ['/.orchestra/tasks/V-212/']), ('V-115', ['/.orchestra/tasks/V-50/']), ('V-202', ['/.orchestra/tasks/V-87/'])]
+orchestra: tasks 248; need extra dirs under own-id cone: 16 (6%); of them foreign dirs: 16, only own-named-differently: 0; with silent drop: 9
+   foreign dir kinds {'.orchestra/tasks': 18} remedy MB: median 0 max 9.2
+   examples [('V-621', ['/.orchestra/tasks/V-633/', '/.orchestra/tasks/V-679/', '/.orchestra/tasks/V-831/']), ('V-806', ['/.orchestra/tasks/V-823/']), ('V-782', ['/.orchestra/tasks/V-776/']), ('V-771', ['/.orchestra/tasks/V-769/'])]

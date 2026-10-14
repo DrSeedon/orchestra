@@ -1,0 +1,23 @@
+/home/kesha/orchestra tasks 247 notask commits 139 files 71
+  own-task 202
+  other:tests 144
+  other:CHANGELOG.md 136
+  other:app 125
+  .orchestra-other 64
+  other:TODO.md 34
+  other:scripts 33
+  foreign-task 16
+  other:AGENTS.md 7
+  other:.github 6
+  other:README.md 5
+  other:.env.example 4
+  other:README.ru.md 4
+  other:CLAUDE.md 4
+  other:docs 3
+  other:.gitignore 2
+  other:deploy 2
+  other:CONTRIBUTING.md 1
+  other:pyproject.toml 1
+  other:uv.lock 1
+  other:.gitattributes 1
+ NOTASK files: [('other:tests', 19), ('other:app', 18), ('.orchestra-other', 16), ('foreign-task', 13), ('other:.gitignore', 1), ('other:CONTRIBUTING.md', 1), ('other:TODO.md', 1), ('other:AGENTS.md', 1)]

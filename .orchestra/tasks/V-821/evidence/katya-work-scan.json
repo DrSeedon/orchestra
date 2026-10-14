@@ -1,0 +1,1352 @@
+{
+ "V-143": {
+  "commits": 14,
+  "files": 402,
+  "cls": {
+   "own-task": 275,
+   "artifacts": 124,
+   "other:TODO.md": 1,
+   "other:AGENTS.md": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-171": {
+  "commits": 1,
+  "files": 6,
+  "cls": {
+   "own-task": 2,
+   "artifacts": 3,
+   "other:.gitignore": 1
+  }
+ },
+ "V-170": {
+  "commits": 1,
+  "files": 172,
+  "cls": {
+   "artifacts": 170,
+   "other:.gitignore": 1,
+   "own-task": 1
+  }
+ },
+ "V-169": {
+  "commits": 1,
+  "files": 100,
+  "cls": {
+   "artifacts": 98,
+   "own-task": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-168": {
+  "commits": 1,
+  "files": 135,
+  "cls": {
+   "artifacts": 133,
+   "own-task": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-114": {
+  "commits": 1,
+  "files": 531,
+  "cls": {
+   "foreign-task": 222,
+   "artifacts": 308,
+   "other:.gitignore": 1
+  }
+ },
+ "V-166": {
+  "commits": 1,
+  "files": 56,
+  "cls": {
+   "artifacts": 55,
+   "foreign-task": 1
+  }
+ },
+ "V-164": {
+  "commits": 1,
+  "files": 262,
+  "cls": {
+   "artifacts": 261,
+   "own-task": 1
+  }
+ },
+ "V-163": {
+  "commits": 1,
+  "files": 186,
+  "cls": {
+   "artifacts": 185,
+   "own-task": 1
+  }
+ },
+ "V-162": {
+  "commits": 1,
+  "files": 170,
+  "cls": {
+   "artifacts": 167,
+   ".orchestra-other": 1,
+   "own-task": 2
+  }
+ },
+ "V-161": {
+  "commits": 1,
+  "files": 68,
+  "cls": {
+   "artifacts": 67,
+   "own-task": 1
+  }
+ },
+ "V-159": {
+  "commits": 1,
+  "files": 65,
+  "cls": {
+   "own-task": 1,
+   "artifacts": 63,
+   "other:.gitignore": 1
+  }
+ },
+ "V-160": {
+  "commits": 1,
+  "files": 55,
+  "cls": {
+   "artifacts": 47,
+   "own-task": 8
+  }
+ },
+ "V-158": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-156": {
+  "commits": 1,
+  "files": 13,
+  "cls": {
+   "own-task": 4,
+   "artifacts": 9
+  }
+ },
+ "V-157": {
+  "commits": 2,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-153": {
+  "commits": 2,
+  "files": 29,
+  "cls": {
+   "artifacts": 26,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1,
+   "other:AGENTS.md": 1
+  }
+ },
+ "V-155": {
+  "commits": 2,
+  "files": 12,
+  "cls": {
+   "own-task": 11,
+   ".orchestra-other": 1
+  }
+ },
+ "V-154": {
+  "commits": 1,
+  "files": 12,
+  "cls": {
+   "artifacts": 9,
+   "own-task": 3
+  }
+ },
+ "V-151": {
+  "commits": 3,
+  "files": 3,
+  "cls": {
+   "own-task": 3
+  }
+ },
+ "V-152": {
+  "commits": 1,
+  "files": 1,
+  "cls": {
+   "own-task": 1
+  }
+ },
+ "V-149": {
+  "commits": 1,
+  "files": 11,
+  "cls": {
+   "artifacts": 9,
+   "other:.gitignore": 1,
+   "own-task": 1
+  }
+ },
+ "V-146": {
+  "commits": 1,
+  "files": 106,
+  "cls": {
+   "artifacts": 105,
+   "other:.gitignore": 1
+  }
+ },
+ "V-145": {
+  "commits": 5,
+  "files": 40,
+  "cls": {
+   "artifacts": 36,
+   "own-task": 2,
+   "other:.gitignore": 1,
+   "other:AGENTS.md": 1
+  }
+ },
+ "V-96": {
+  "commits": 2,
+  "files": 18,
+  "cls": {
+   "artifacts": 16,
+   "foreign-task": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-148": {
+  "commits": 1,
+  "files": 22,
+  "cls": {
+   "artifacts": 21,
+   "other:.gitignore": 1
+  }
+ },
+ "V-144": {
+  "commits": 2,
+  "files": 5,
+  "cls": {
+   "own-task": 4,
+   "other:AGENTS.md": 1
+  }
+ },
+ "V-142": {
+  "commits": 1,
+  "files": 10,
+  "cls": {
+   "own-task": 9,
+   "foreign-task": 1
+  }
+ },
+ "V-141": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "foreign-task": 1
+  }
+ },
+ "V-136": {
+  "commits": 6,
+  "files": 8,
+  "cls": {
+   "artifacts": 5,
+   "other:AGENTS.md": 1,
+   "own-task": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-124": {
+  "commits": 1,
+  "files": 626,
+  "cls": {
+   "artifacts": 617,
+   "own-task": 8,
+   "other:.gitignore": 1
+  }
+ },
+ "V-140": {
+  "commits": 1,
+  "files": 31,
+  "cls": {
+   "artifacts": 30,
+   "other:.gitignore": 1
+  }
+ },
+ "V-122": {
+  "commits": 2,
+  "files": 139,
+  "cls": {
+   "artifacts": 138,
+   "own-task": 1
+  }
+ },
+ "V-127": {
+  "commits": 1,
+  "files": 25,
+  "cls": {
+   "artifacts": 24,
+   "other:.gitignore": 1
+  }
+ },
+ "V-139": {
+  "commits": 1,
+  "files": 42,
+  "cls": {
+   "artifacts": 41,
+   "own-task": 1
+  }
+ },
+ "V-137": {
+  "commits": 1,
+  "files": 35,
+  "cls": {
+   "artifacts": 34,
+   "own-task": 1
+  }
+ },
+ "V-135": {
+  "commits": 1,
+  "files": 149,
+  "cls": {
+   "artifacts": 148,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-133": {
+  "commits": 3,
+  "files": 35,
+  "cls": {
+   "artifacts": 32,
+   "other:CHANGELOG.md": 1,
+   "own-task": 2
+  }
+ },
+ "V-132": {
+  "commits": 1,
+  "files": 1,
+  "cls": {
+   "foreign-task": 1
+  }
+ },
+ "V-131": {
+  "commits": 1,
+  "files": 1,
+  "cls": {
+   "own-task": 1
+  }
+ },
+ "V-130": {
+  "commits": 1,
+  "files": 150,
+  "cls": {
+   "artifacts": 150
+  }
+ },
+ "V-129": {
+  "commits": 1,
+  "files": 4,
+  "cls": {
+   "own-task": 4
+  }
+ },
+ "V-125": {
+  "commits": 1,
+  "files": 21,
+  "cls": {
+   "artifacts": 17,
+   "own-task": 3,
+   "other:.gitignore": 1
+  }
+ },
+ "V-107": {
+  "commits": 2,
+  "files": 80,
+  "cls": {
+   "artifacts": 72,
+   ".orchestra-other": 2,
+   "own-task": 5,
+   "other:.gitignore": 1
+  }
+ },
+ "V-120": {
+  "commits": 3,
+  "files": 14,
+  "cls": {
+   "artifacts": 13,
+   "other:.gitignore": 1
+  }
+ },
+ "V-123": {
+  "commits": 1,
+  "files": 6,
+  "cls": {
+   "artifacts": 5,
+   "other:.gitignore": 1
+  }
+ },
+ "V-121": {
+  "commits": 1,
+  "files": 60,
+  "cls": {
+   "artifacts": 60
+  }
+ },
+ "V-119": {
+  "commits": 1,
+  "files": 21,
+  "cls": {
+   "artifacts": 20,
+   "own-task": 1
+  }
+ },
+ "V-117": {
+  "commits": 1,
+  "files": 6,
+  "cls": {
+   "artifacts": 5,
+   "other:.gitignore": 1
+  }
+ },
+ "V-116": {
+  "commits": 1,
+  "files": 66,
+  "cls": {
+   "artifacts": 65,
+   "own-task": 1
+  }
+ },
+ "V-118": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "artifacts": 5
+  }
+ },
+ "V-115": {
+  "commits": 1,
+  "files": 8,
+  "cls": {
+   "artifacts": 8
+  }
+ },
+ "V-113": {
+  "commits": 1,
+  "files": 13,
+  "cls": {
+   "artifacts": 13
+  }
+ },
+ "V-102": {
+  "commits": 3,
+  "files": 148,
+  "cls": {
+   "artifacts": 144,
+   "own-task": 2,
+   ".orchestra-other": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-112": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "artifacts": 5
+  }
+ },
+ "V-111": {
+  "commits": 1,
+  "files": 14,
+  "cls": {
+   "artifacts": 14
+  }
+ },
+ "V-110": {
+  "commits": 1,
+  "files": 10,
+  "cls": {
+   "artifacts": 10
+  }
+ },
+ "V-109": {
+  "commits": 1,
+  "files": 10,
+  "cls": {
+   "artifacts": 10
+  }
+ },
+ "V-108": {
+  "commits": 1,
+  "files": 14,
+  "cls": {
+   "artifacts": 13,
+   "own-task": 1
+  }
+ },
+ "V-106": {
+  "commits": 1,
+  "files": 124,
+  "cls": {
+   "artifacts": 123,
+   "own-task": 1
+  }
+ },
+ "V-105": {
+  "commits": 1,
+  "files": 32,
+  "cls": {
+   "artifacts": 30,
+   "own-task": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-101": {
+  "commits": 1,
+  "files": 18,
+  "cls": {
+   "artifacts": 17,
+   "other:.gitignore": 1
+  }
+ },
+ "V-104": {
+  "commits": 1,
+  "files": 37,
+  "cls": {
+   "artifacts": 35,
+   "other:CHANGELOG.md": 1,
+   "foreign-task": 1
+  }
+ },
+ "V-103": {
+  "commits": 1,
+  "files": 40,
+  "cls": {
+   "artifacts": 38,
+   "other:CHANGELOG.md": 1,
+   "foreign-task": 1
+  }
+ },
+ "V-100": {
+  "commits": 1,
+  "files": 94,
+  "cls": {
+   "artifacts": 92,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1
+  }
+ },
+ "V-99": {
+  "commits": 1,
+  "files": 130,
+  "cls": {
+   "artifacts": 128,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1
+  }
+ },
+ "V-98": {
+  "commits": 1,
+  "files": 39,
+  "cls": {
+   "artifacts": 26,
+   "foreign-task": 4,
+   "other:reference": 8,
+   "own-task": 1
+  }
+ },
+ "V-94": {
+  "commits": 1,
+  "files": 119,
+  "cls": {
+   "artifacts": 68,
+   "foreign-task": 36,
+   "own-task": 14,
+   "other:.gitignore": 1
+  }
+ },
+ "V-97": {
+  "commits": 1,
+  "files": 25,
+  "cls": {
+   "artifacts": 17,
+   "own-task": 7,
+   "other:.gitignore": 1
+  }
+ },
+ "V-95": {
+  "commits": 1,
+  "files": 13,
+  "cls": {
+   "artifacts": 12,
+   "other:.gitignore": 1
+  }
+ },
+ "V-89": {
+  "commits": 4,
+  "files": 15,
+  "cls": {
+   "artifacts": 14,
+   "own-task": 1
+  }
+ },
+ "V-93": {
+  "commits": 1,
+  "files": 3,
+  "cls": {
+   "artifacts": 3
+  }
+ },
+ "V-91": {
+  "commits": 2,
+  "files": 2,
+  "cls": {
+   "artifacts": 2
+  }
+ },
+ "V-90": {
+  "commits": 1,
+  "files": 15,
+  "cls": {
+   "own-task": 15
+  }
+ },
+ "V-87": {
+  "commits": 3,
+  "files": 12,
+  "cls": {
+   "artifacts": 4,
+   "foreign-task": 7,
+   "own-task": 1
+  }
+ },
+ "V-88": {
+  "commits": 1,
+  "files": 37,
+  "cls": {
+   "artifacts": 35,
+   "own-task": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-86": {
+  "commits": 2,
+  "files": 82,
+  "cls": {
+   "artifacts": 72,
+   "own-task": 8,
+   "other:CHANGELOG.md": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-85": {
+  "commits": 1,
+  "files": 17,
+  "cls": {
+   "artifacts": 15,
+   "own-task": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-84": {
+  "commits": 1,
+  "files": 69,
+  "cls": {
+   "own-task": 69
+  }
+ },
+ "V-68": {
+  "commits": 11,
+  "files": 4,
+  "cls": {
+   "own-task": 1,
+   "other:TODO.md": 1,
+   "other:CHANGELOG.md": 1,
+   "other:reference": 1
+  }
+ },
+ "V-683": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "other:AGENTS.md": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-83": {
+  "commits": 1,
+  "files": 16,
+  "cls": {
+   "artifacts": 9,
+   "other:CHANGELOG.md": 1,
+   "other:TODO.md": 1,
+   "own-task": 5
+  }
+ },
+ "V-81": {
+  "commits": 1,
+  "files": 10,
+  "cls": {
+   "own-task": 10
+  }
+ },
+ "V-82": {
+  "commits": 4,
+  "files": 16,
+  "cls": {
+   "artifacts": 15,
+   ".orchestra-other": 1
+  }
+ },
+ "V-80": {
+  "commits": 2,
+  "files": 14,
+  "cls": {
+   "artifacts": 14
+  }
+ },
+ "V-78": {
+  "commits": 1,
+  "files": 36,
+  "cls": {
+   "artifacts": 34,
+   "other:CHANGELOG.md": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-77": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "artifacts": 5
+  }
+ },
+ "V-79": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "own-task": 3,
+   "artifacts": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-76": {
+  "commits": 1,
+  "files": 4,
+  "cls": {
+   "artifacts": 4
+  }
+ },
+ "V-73": {
+  "commits": 6,
+  "files": 14,
+  "cls": {
+   ".orchestra-other": 1,
+   "artifacts": 11,
+   "other:CHANGELOG.md": 1,
+   "other:reference": 1
+  }
+ },
+ "V-74": {
+  "commits": 1,
+  "files": 4,
+  "cls": {
+   "artifacts": 4
+  }
+ },
+ "V-75": {
+  "commits": 2,
+  "files": 45,
+  "cls": {
+   "own-task": 41,
+   "artifacts": 2,
+   "other:AGENTS.md": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-67": {
+  "commits": 13,
+  "files": 64,
+  "cls": {
+   "artifacts": 60,
+   "other:CHANGELOG.md": 1,
+   "other:TODO.md": 1,
+   ".orchestra-other": 1,
+   "own-task": 1
+  }
+ },
+ "V-72": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "own-task": 1,
+   "foreign-task": 3,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-71": {
+  "commits": 1,
+  "files": 33,
+  "cls": {
+   "own-task": 33
+  }
+ },
+ "V-60": {
+  "commits": 10,
+  "files": 48,
+  "cls": {
+   "artifacts": 42,
+   ".orchestra-other": 2,
+   "other:CHANGELOG.md": 1,
+   "own-task": 3
+  }
+ },
+ "V-69": {
+  "commits": 1,
+  "files": 14,
+  "cls": {
+   "artifacts": 2,
+   "own-task": 11,
+   "other:reference": 1
+  }
+ },
+ "V-64": {
+  "commits": 2,
+  "files": 46,
+  "cls": {
+   "artifacts": 45,
+   "own-task": 1
+  }
+ },
+ "V-45": {
+  "commits": 14,
+  "files": 118,
+  "cls": {
+   "own-task": 4,
+   "artifacts": 112,
+   "other:CHANGELOG.md": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-18": {
+  "commits": 10,
+  "files": 26,
+  "cls": {
+   "own-task": 23,
+   "other:CHANGELOG.md": 1,
+   ".orchestra-other": 1,
+   "artifacts": 1
+  }
+ },
+ "V-59": {
+  "commits": 9,
+  "files": 25,
+  "cls": {
+   "artifacts": 22,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-66": {
+  "commits": 1,
+  "files": 14,
+  "cls": {
+   "artifacts": 12,
+   "own-task": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-65": {
+  "commits": 6,
+  "files": 13,
+  "cls": {
+   "artifacts": 12,
+   "own-task": 1
+  }
+ },
+ "V-61": {
+  "commits": 2,
+  "files": 89,
+  "cls": {
+   "artifacts": 86,
+   "other:CHANGELOG.md": 1,
+   "own-task": 2
+  }
+ },
+ "V-58": {
+  "commits": 3,
+  "files": 59,
+  "cls": {
+   "artifacts": 57,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1
+  }
+ },
+ "V-62": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "own-task": 1,
+   "other:reference": 3,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-56": {
+  "commits": 2,
+  "files": 2,
+  "cls": {
+   "own-task": 2
+  }
+ },
+ "V-36": {
+  "commits": 5,
+  "files": 192,
+  "cls": {
+   "artifacts": 181,
+   "other:CHANGELOG.md": 1,
+   "own-task": 8,
+   "other:AGENTS.md": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-57": {
+  "commits": 1,
+  "files": 24,
+  "cls": {
+   "artifacts": 20,
+   "own-task": 2,
+   "other:CHANGELOG.md": 1,
+   "other:.gitignore": 1
+  }
+ },
+ "V-54": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-55": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "other:CHANGELOG.md": 1,
+   "own-task": 1
+  }
+ },
+ "V-50": {
+  "commits": 2,
+  "files": 54,
+  "cls": {
+   "artifacts": 50,
+   "other:CHANGELOG.md": 1,
+   "own-task": 2,
+   ".orchestra-other": 1
+  }
+ },
+ "V-53": {
+  "commits": 1,
+  "files": 28,
+  "cls": {
+   "own-task": 28
+  }
+ },
+ "V-49": {
+  "commits": 2,
+  "files": 64,
+  "cls": {
+   "own-task": 63,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-51": {
+  "commits": 1,
+  "files": 1,
+  "cls": {
+   "own-task": 1
+  }
+ },
+ "V-52": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-47": {
+  "commits": 1,
+  "files": 1,
+  "cls": {
+   "own-task": 1
+  }
+ },
+ "V-48": {
+  "commits": 2,
+  "files": 1,
+  "cls": {
+   "own-task": 1
+  }
+ },
+ "V-46": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 2
+  }
+ },
+ "V-2": {
+  "commits": 23,
+  "files": 44,
+  "cls": {
+   "foreign-task": 18,
+   "other:reference": 12,
+   "other:CHANGELOG.md": 1,
+   "own-task": 11,
+   "other:TODO.md": 1,
+   ".orchestra-other": 1
+  }
+ },
+ "V-44": {
+  "commits": 1,
+  "files": 12,
+  "cls": {
+   "artifacts": 9,
+   "own-task": 2,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-42": {
+  "commits": 2,
+  "files": 323,
+  "cls": {
+   "artifacts": 315,
+   "own-task": 6,
+   "other:.gitignore": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-43": {
+  "commits": 2,
+  "files": 26,
+  "cls": {
+   "artifacts": 21,
+   "other:CHANGELOG.md": 1,
+   "own-task": 3,
+   "foreign-task": 1
+  }
+ },
+ "V-41": {
+  "commits": 2,
+  "files": 311,
+  "cls": {
+   "artifacts": 301,
+   "own-task": 8,
+   ".orchestra-other": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-39": {
+  "commits": 1,
+  "files": 11,
+  "cls": {
+   "artifacts": 9,
+   "own-task": 1,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-40": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "other:site": 3,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1
+  }
+ },
+ "V-38": {
+  "commits": 3,
+  "files": 4,
+  "cls": {
+   "own-task": 4
+  }
+ },
+ "V-29": {
+  "commits": 1,
+  "files": 4,
+  "cls": {
+   "own-task": 1,
+   "other:CHANGELOG.md": 1,
+   "foreign-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-31": {
+  "commits": 1,
+  "files": 4,
+  "cls": {
+   "foreign-task": 1,
+   "other:CHANGELOG.md": 1,
+   "own-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-37": {
+  "commits": 7,
+  "files": 6,
+  "cls": {
+   "own-task": 6
+  }
+ },
+ "V-30": {
+  "commits": 1,
+  "files": 4,
+  "cls": {
+   "other:CHANGELOG.md": 1,
+   "own-task": 1,
+   "foreign-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-35": {
+  "commits": 1,
+  "files": 5,
+  "cls": {
+   "other:TODO.md": 1,
+   "foreign-task": 1,
+   "other:reference": 2,
+   "own-task": 1
+  }
+ },
+ "V-34": {
+  "commits": 1,
+  "files": 3,
+  "cls": {
+   "foreign-task": 1,
+   "other:reference": 1,
+   "own-task": 1
+  }
+ },
+ "V-33": {
+  "commits": 3,
+  "files": 6,
+  "cls": {
+   "foreign-task": 1,
+   "other:.gitignore": 1,
+   "other:reference": 3,
+   "own-task": 1
+  }
+ },
+ "V-28": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 2
+  }
+ },
+ "V-26": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "other:reference": 1,
+   "own-task": 1
+  }
+ },
+ "V-27": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-24": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-23": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-25": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 1,
+   "other:reference": 1
+  }
+ },
+ "V-22": {
+  "commits": 1,
+  "files": 6,
+  "cls": {
+   "own-task": 5,
+   ".orchestra-other": 1
+  }
+ },
+ "V-20": {
+  "commits": 5,
+  "files": 6,
+  "cls": {
+   "own-task": 5,
+   "other:AGENTS.md": 1
+  }
+ },
+ "V-8": {
+  "commits": 9,
+  "files": 14,
+  "cls": {
+   "own-task": 10,
+   "other:CHANGELOG.md": 1,
+   ".orchestra-other": 2,
+   "other:.gitignore": 1
+  }
+ },
+ "V-21": {
+  "commits": 3,
+  "files": 6,
+  "cls": {
+   "own-task": 5,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-16": {
+  "commits": 9,
+  "files": 19,
+  "cls": {
+   "artifacts": 14,
+   "other:CHANGELOG.md": 1,
+   "own-task": 3,
+   ".orchestra-other": 1
+  }
+ },
+ "V-15": {
+  "commits": 1,
+  "files": 18,
+  "cls": {
+   "artifacts": 17,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "V-17": {
+  "commits": 1,
+  "files": 28,
+  "cls": {
+   "own-task": 28
+  }
+ },
+ "V-13": {
+  "commits": 1,
+  "files": 198,
+  "cls": {
+   "artifacts": 195,
+   "other:TODO.md": 1,
+   "foreign-task": 1,
+   "own-task": 1
+  }
+ },
+ "V-12": {
+  "commits": 1,
+  "files": 73,
+  "cls": {
+   "artifacts": 72,
+   "own-task": 1
+  }
+ },
+ "V-621": {
+  "commits": 1,
+  "files": 1,
+  "cls": {
+   ".orchestra-other": 1
+  }
+ },
+ "V-10": {
+  "commits": 10,
+  "files": 21,
+  "cls": {
+   "own-task": 18,
+   "foreign-task": 1,
+   ".orchestra-other": 2
+  }
+ },
+ "V-11": {
+  "commits": 1,
+  "files": 52,
+  "cls": {
+   "own-task": 52
+  }
+ },
+ "V-9": {
+  "commits": 2,
+  "files": 17,
+  "cls": {
+   "own-task": 13,
+   "other:CHANGELOG.md": 1,
+   "other:TODO.md": 1,
+   ".orchestra-other": 2
+  }
+ },
+ "V-7": {
+  "commits": 1,
+  "files": 3,
+  "cls": {
+   "own-task": 2,
+   "foreign-task": 1
+  }
+ },
+ "V-6": {
+  "commits": 1,
+  "files": 3,
+  "cls": {
+   "own-task": 2,
+   "foreign-task": 1
+  }
+ },
+ "V-5": {
+  "commits": 1,
+  "files": 3,
+  "cls": {
+   "own-task": 1,
+   "other:CHANGELOG.md": 1,
+   "foreign-task": 1
+  }
+ },
+ "V-4": {
+  "commits": 1,
+  "files": 2,
+  "cls": {
+   "own-task": 2
+  }
+ },
+ "V-3": {
+  "commits": 3,
+  "files": 6,
+  "cls": {
+   "own-task": 5,
+   "other:CHANGELOG.md": 1
+  }
+ },
+ "NOTASK": {
+  "commits": 168,
+  "files": 152,
+  "cls": {
+   "other:reference": 106,
+   "artifacts": 29,
+   ".orchestra-other": 8,
+   "foreign-task": 4,
+   "other:TODO.md": 1,
+   "other:.gitattributes": 1,
+   "other:AGENTS.md": 1,
+   "other:.gitignore": 1,
+   "other:CLAUDE.md": 1
+  }
+ }
+}

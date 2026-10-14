@@ -1,0 +1,8 @@
+full rc=0
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+656 passed, 2 skipped, 2 warnings in 288.87s (0:04:48)
+sparse rc=1
+FAILED tests/test_secret_commit_gate.py::test_hook_lets_a_mention_through - F...
+FAILED tests/test_frontend.py::test_hidden_orchestrator_list_reuses_tab_status_and_cache
+10 failed, 645 passed, 3 skipped, 2 warnings in 247.43s (0:04:07)

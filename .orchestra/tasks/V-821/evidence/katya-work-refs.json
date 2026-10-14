@@ -1,0 +1,898 @@
+{
+ "V-143": {
+  "foreign-task": [
+   ".orchestra/tasks/V-132",
+   ".orchestra/tasks/V-141",
+   ".orchestra/tasks/V-142",
+   ".orchestra/tasks/V-144",
+   ".orchestra/tasks/V-53",
+   ".orchestra/tasks/V-90"
+  ],
+  "artifacts-own": [
+   "artifacts/V-143/deploy/backup.sh",
+   "artifacts/V-143/deploy/iskra-platform.service",
+   "artifacts/V-143/mvp",
+   "artifacts/V-143/mvp/.venv",
+   "artifacts/V-143/mvp/homework/data/fipi-2026-flashcards.json",
+   "artifacts/V-143/mvp/static/homework/images/iskra-logo.png"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-127/img/iskra-logo.png",
+   "artifacts/V-133/",
+   "artifacts/V-136/build.py",
+   "artifacts/V-137/",
+   "artifacts/V-137/build.py",
+   "artifacts/V-137/data.py",
+   "artifacts/task-17-lit-avito/photos/01-portrait.jpg",
+   "artifacts/task-V-100/img/stk/"
+  ]
+ },
+ "V-171": {
+  "artifacts-foreign": [
+   "artifacts/V-168/src/nedorosl-clean.txt"
+  ],
+  "artifacts-own": [
+   "artifacts/V-171/dl.sh"
+  ]
+ },
+ "V-170": {
+  "artifacts-own": [
+   "artifacts/V-170/zapiski.py"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-169/build_kd.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-169"
+  ]
+ },
+ "V-169": {
+  "artifacts-own": [
+   "artifacts/V-169/build_kd.py",
+   "artifacts/V-169/kontakt-list.pdf"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-69"
+  ]
+ },
+ "V-168": {
+  "artifacts-own": [
+   "artifacts/V-168/img/licenses-v168.json",
+   "artifacts/V-168/src/nedorosl-clean.txt",
+   "artifacts/V-168/teatr.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-53"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-166/src/"
+  ]
+ },
+ "V-166": {
+  "artifacts-own": [
+   "artifacts/V-166/",
+   "artifacts/V-166/src/nedorosl-"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-17"
+  ]
+ },
+ "V-164": {
+  "foreign-task": [
+   ".orchestra/tasks/V-163"
+  ],
+  "artifacts-own": [
+   "artifacts/V-164/",
+   "artifacts/V-164/licenses-pictures-v159.json",
+   "artifacts/V-164/out14/"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-159/img/licenses.json"
+  ]
+ },
+ "V-163": {
+  "foreign-task": [
+   ".orchestra/tasks/V-159"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-159/build_cl.py",
+   "artifacts/V-159/img"
+  ],
+  "artifacts-own": [
+   "artifacts/V-163-klassicizm/"
+  ]
+ },
+ "V-162": {
+  "foreign-task": [
+   ".orchestra/tasks/V-160"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-161/scene.py",
+   "artifacts/V-163/",
+   "artifacts/V-163/licenses-originals.json",
+   "artifacts/task-V-100/img/pd"
+  ]
+ },
+ "V-161": {
+  "artifacts-own": [
+   "artifacts/V-161/lesson.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-160"
+  ],
+  "artifacts-foreign": [
+   "artifacts/task-V-100/img/pd"
+  ]
+ },
+ "V-159": {
+  "artifacts-own": [
+   "artifacts/V-159/build_cl.py",
+   "artifacts/V-159/kontakt-list-V166.pdf",
+   "artifacts/V-159/kontakt-list.pdf"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-17",
+   ".orchestra/tasks/V-45"
+  ]
+ },
+ "V-160": {
+  "artifacts-own": [
+   "artifacts/V-160/"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/bank-oge-2027.md"
+  ]
+ },
+ "V-156": {
+  "artifacts-foreign": [
+   "artifacts/V-154/build.py"
+  ]
+ },
+ "V-157": {
+  "foreign-task": [
+   ".orchestra/tasks/V-155"
+  ]
+ },
+ "V-153": {
+  "artifacts-own": [
+   "artifacts/V-153/contacts/контакт-02-04.jpg",
+   "artifacts/V-153/out/. Исходный Google-экспорт и V-146 PPTX/PDF находятся в artifacts/V-153/source/ и не включены в commit."
+  ]
+ },
+ "V-154": {
+  "artifacts-foreign": [
+   "artifacts/V-145/text/tosk.txt"
+  ],
+  "artifacts-own": [
+   "artifacts/V-154/build.py"
+  ]
+ },
+ "V-151": {
+  "foreign-task": [
+   ".orchestra/tasks/V-17"
+  ]
+ },
+ "V-149": {
+  "artifacts-own": [
+   "artifacts/V-149/iskra-platforma-instrukciya.mp4",
+   "artifacts/V-149/video.py"
+  ]
+ },
+ "V-145": {
+  "artifacts-own": [
+   "artifacts/V-145/build.py",
+   "artifacts/V-145/build_docs.py"
+  ]
+ },
+ "V-142": {
+  "foreign-task": [
+   ".orchestra/tasks/V-139",
+   ".orchestra/tasks/V-140",
+   ".orchestra/tasks/V-141"
+  ]
+ },
+ "V-136": {
+  "artifacts-own": [
+   "artifacts/V-136/build.py",
+   "artifacts/V-136/rec/tr.txt"
+  ]
+ },
+ "V-124": {
+  "artifacts-own": [
+   "artifacts/V-124/gexp/",
+   "artifacts/V-124/r6/contact/kontakt-list.pdf"
+  ]
+ },
+ "V-122": {
+  "artifacts-own": [
+   "artifacts/task-V-122/masha_add.py."
+  ]
+ },
+ "V-139": {
+  "artifacts-own": [
+   "artifacts/V-139/nastya_add.py",
+   "artifacts/V-139/out/Настя",
+   "artifacts/V-139/src/"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-133/",
+   "artifacts/task-V-42/build_u11_v42.py",
+   "artifacts/task-V-83/build_conspect.py",
+   "artifacts/task-V-85/build_konspekt.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-42"
+  ]
+ },
+ "V-137": {
+  "foreign-task": [
+   ".orchestra/tasks/V-90"
+  ],
+  "artifacts-own": [
+   "artifacts/V-137/stress.py"
+  ]
+ },
+ "V-133": {
+  "artifacts-own": [
+   "artifacts/V-133/",
+   "artifacts/V-133/сравнение-parts.png"
+  ]
+ },
+ "V-131": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ]
+ },
+ "V-125": {
+  "artifacts-own": [
+   "artifacts/V-125/",
+   "artifacts/V-125/apply_log"
+  ]
+ },
+ "V-107": {
+  "artifacts-foreign": [
+   "artifacts/task-V-94/lesson1..3"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-107/"
+  ]
+ },
+ "V-119": {
+  "artifacts-own": [
+   "artifacts/task-V-119/card_sofia.py"
+  ]
+ },
+ "V-116": {
+  "foreign-task": [
+   ".orchestra/tasks/V-53"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-116/"
+  ]
+ },
+ "V-102": {
+  "artifacts-own": [
+   "artifacts/task-V-102/build.py",
+   "artifacts/task-V-102/fonts/",
+   "artifacts/task-V-102/out/01.jpg",
+   "artifacts/task-V-102/tekst-obyavleniya.md"
+  ],
+  "reference": [
+   "reference/avito-onlayn-2026-09/PRAVILA-KARTOCHEK.md"
+  ]
+ },
+ "V-108": {
+  "artifacts-own": [
+   "artifacts/task-V-108/fipi_oge_lit_full.html"
+  ]
+ },
+ "V-106": {
+  "artifacts-foreign": [
+   "artifacts/task-V-100/"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-106/",
+   "artifacts/task-V-106/final/",
+   "artifacts/task-V-106/src/literaturus.txt"
+  ]
+ },
+ "V-105": {
+  "artifacts-own": [
+   "artifacts/task-V-105/"
+  ]
+ },
+ "V-100": {
+  "artifacts-own": [
+   "artifacts/task-V-100/"
+  ]
+ },
+ "V-99": {
+  "artifacts-own": [
+   "artifacts/task-V-99/contact/",
+   "artifacts/task-V-99/make_all99.sh",
+   "artifacts/task-V-99/out/final/"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-17"
+  ]
+ },
+ "V-98": {
+  "foreign-task": [
+   ".orchestra/tasks/V-53",
+   ".orchestra/tasks/V-90"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/bank.json"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-98/",
+   "artifacts/task-V-98/out/contact-pdf.png",
+   "artifacts/task-V-98/out/vznaniya-export.txt",
+   "artifacts/task-V-98/used2.py"
+  ],
+  "artifacts-foreign": [
+   "artifacts/task-V-60/vznaniya_v2.txt"
+  ]
+ },
+ "V-97": {
+  "artifacts-own": [
+   "artifacts/V-97/deck_summary.json",
+   "artifacts/V-97/deck_summary.json. Учтены только runs с явным размером",
+   "artifacts/V-97/render/",
+   "artifacts/V-97/render/sheet_geroi.png",
+   "artifacts/V-97/render/sheet_u12.png",
+   "artifacts/V-97/render/sheet_z4.png"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/",
+   "reference/bank-zadaniy/README.md",
+   "reference/bank-zadaniy/bank.json"
+  ],
+  "artifacts-foreign": [
+   "artifacts/task-V-42/img/licenses.json"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-72"
+  ]
+ },
+ "V-89": {
+  "artifacts-own": [
+   "artifacts/V-89/"
+  ]
+ },
+ "V-87": {
+  "foreign-task": [
+   ".orchestra/tasks/V-81"
+  ]
+ },
+ "V-88": {
+  "artifacts-own": [
+   "artifacts/task-V-88/make_all.sh",
+   "artifacts/task-V-88/out/V88-obrazec-",
+   "artifacts/task-V-88/out/contact-01",
+   "artifacts/task-V-88/proto88.py"
+  ]
+ },
+ "V-86": {
+  "artifacts-own": [
+   "artifacts/task-V-86/make_all.sh",
+   "artifacts/task-V-86/out/contact-her-vs-ours-",
+   "artifacts/task-V-86/out/contact2-her-"
+  ],
+  "reference": [
+   "reference/bank-zadaniy"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-45"
+  ]
+ },
+ "V-85": {
+  "artifacts-own": [
+   "artifacts/task-V-85/",
+   "artifacts/task-V-85/contact/contact-01"
+  ]
+ },
+ "V-84": {
+  "reference": [
+   "reference/avito-onlayn-2026-09",
+   "reference/obrazcy/skript-9-zadanie-obrazec-Kati.pdf"
+  ]
+ },
+ "V-68": {
+  "reference": [
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/V-68-bank-export.txt",
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/V-68-bank-party3.txt",
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/V-68-bank-party4.txt"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ]
+ },
+ "V-81": {
+  "foreign-task": [
+   ".orchestra/tasks/V-10",
+   ".orchestra/tasks/V-2",
+   ".orchestra/tasks/V-71"
+  ]
+ },
+ "V-79": {
+  "artifacts-own": [
+   "artifacts/task-V-79/build_program_sheet.py"
+  ]
+ },
+ "V-71": {
+  "artifacts-foreign": [
+   "artifacts/task-V-67/"
+  ]
+ },
+ "V-60": {
+  "foreign-task": [
+   ".orchestra/tasks/V-53"
+  ],
+  "artifacts-foreign": [
+   "artifacts/task-V-36/ispr.py"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-60/build_deck.py",
+   "artifacts/task-V-60/img/licenses.json",
+   "artifacts/task-V-60/out/",
+   "artifacts/task-V-60/out/u11-contact.png"
+  ]
+ },
+ "V-69": {
+  "reference": [
+   "reference/bank-zadaniy/bank-ege-lit-2027.json"
+  ],
+  "artifacts-own": [
+   "artifacts/V-69/build_doc.py",
+   "artifacts/V-69/build_v69.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-17"
+  ]
+ },
+ "V-64": {
+  "artifacts-own": [
+   "artifacts/V-64/build_booklet.py",
+   "artifacts/V-64/fetch_portraits.py"
+  ]
+ },
+ "V-45": {
+  "foreign-task": [
+   ".orchestra/tasks/V-17",
+   ".orchestra/tasks/V-50"
+  ],
+  "artifacts-own": [
+   "artifacts/V-45/assets/pd/",
+   "artifacts/V-45/out/tasks/google-contact-sheet.png",
+   "artifacts/V-45/patch_napravleniya.py"
+  ]
+ },
+ "V-18": {
+  "artifacts-foreign": [
+   "artifacts/sources/gromov-8-1977.txt"
+  ]
+ },
+ "V-59": {
+  "artifacts-own": [
+   "artifacts/V-59/add_slides.py",
+   "artifacts/V-59/build_konspekt.py",
+   "artifacts/V-59/out/",
+   "artifacts/V-59/out/contact-sheet-google.png",
+   "artifacts/V-59/revise_deck.py",
+   "artifacts/V-59/sources.md"
+  ],
+  "artifacts-foreign": [
+   "artifacts/V-50/build_steps.py"
+  ]
+ },
+ "V-66": {
+  "artifacts-own": [
+   "artifacts/V-66-oge-terminy/cards.txt"
+  ]
+ },
+ "V-65": {
+  "foreign-task": [
+   ".orchestra/tasks/V-1"
+  ]
+ },
+ "V-61": {
+  "artifacts-foreign": [
+   "artifacts/task-V-36/ispr.py"
+  ],
+  "reference": [
+   "reference/brand-iskra/logo-cream.png"
+  ],
+  "artifacts-own": [
+   "artifacts/V-61/out/first-page-ege-1.png",
+   "artifacts/V-61/out/first-page-oge-1.png"
+  ]
+ },
+ "V-58": {
+  "artifacts-own": [
+   "artifacts/V-58/",
+   "artifacts/V-58/assets/licenses.json",
+   "artifacts/V-58/build_deck.py",
+   "artifacts/V-58/out/characters-iskra/",
+   "artifacts/V-58/out/google-qa/character-refresh/slide-03.png",
+   "artifacts/V-58/out/google-qa/characters-100pct-check.png",
+   "artifacts/V-58/out/google-qa/contact-sheet-46-iskra.jpg",
+   "artifacts/V-58/out/google-qa/contact-sheet-46.jpg",
+   "artifacts/V-58/out/google-qa/native-bubbles-100pct-check.png",
+   "artifacts/V-58/out/zadanie-13-iskra.pptx",
+   "artifacts/V-58/process_characters.py",
+   "artifacts/V-58/restyle_deck.py"
+  ]
+ },
+ "V-62": {
+  "reference": [
+   "reference/bank-zadaniy/bank-oge-2027.json",
+   "reference/bank-zadaniy/bank-oge-2027.md",
+   "reference/bank-zadaniy/build_oge_2027.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-53"
+  ]
+ },
+ "V-36": {
+  "artifacts-own": [
+   "artifacts/task-V-36/",
+   "artifacts/task-V-36/img/licenses.json",
+   "artifacts/task-V-36/out/google-qa-v16/contact-all-34.jpg",
+   "artifacts/task-V-36/out/google-qa-v16/slide-08.png",
+   "artifacts/task-V-36/out/google-qa-v16plus/contact-all-34-google-v16plus.jpg",
+   "artifacts/task-V-36/out/google-qa-v16plus/google-clicks-pdf-final.pdf",
+   "artifacts/task-V-36/sources.md"
+  ]
+ },
+ "V-57": {
+  "foreign-task": [
+   ".orchestra/tasks/V-53"
+  ],
+  "artifacts-foreign": [
+   "artifacts/sources/gromov-8-1977.txt"
+  ]
+ },
+ "V-50": {
+  "artifacts-own": [
+   "artifacts/V-50/out/google-contact-sheet.png",
+   "artifacts/V-50/out/probnoe-literatura.pptx",
+   "artifacts/V-50/source/probnoe-russkiy.pptx"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-17"
+  ]
+ },
+ "V-49": {
+  "foreign-task": [
+   ".orchestra/tasks/V-47"
+  ]
+ },
+ "V-51": {
+  "artifacts-foreign": [
+   "artifacts/oge-literatura/out/struktura-oge-literatura-2027.pptx"
+  ]
+ },
+ "V-47": {
+  "foreign-task": [
+   ".orchestra/tasks/V-46"
+  ]
+ },
+ "V-2": {
+  "reference": [
+   "reference/bank-zadaniy/README.md",
+   "reference/bank-zadaniy/bank.json",
+   "reference/bank-zadaniy/build_bank.py --source",
+   "reference/bank-zadaniy/parts/",
+   "reference/uchebniki-sssr/"
+  ],
+  "artifacts-foreign": [
+   "artifacts/task-6/inbox/rybchenkova-10-11-2024.pdf"
+  ]
+ },
+ "V-44": {
+  "foreign-task": [
+   ".orchestra/tasks/V-17"
+  ],
+  "artifacts-own": [
+   "artifacts/V-44/source/nedorosl-exercises.docx.",
+   "artifacts/V-44/source/nedorosl-source.pptx. Исходный Drive-файл не менялся."
+  ]
+ },
+ "V-42": {
+  "reference": [
+   "reference/bank-zadaniy/bank.json"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-42/build_u11_v42.py",
+   "artifacts/task-V-42/img/katya/",
+   "artifacts/task-V-42/img/licenses.json",
+   "artifacts/task-V-42/out/final-google-render/contact-all.png",
+   "artifacts/task-V-42/out/final-google-render/rules/rule-18.png",
+   "artifacts/task-V-42/out/worksheet/final-png-v4/page-1.png",
+   "artifacts/task-V-42/out/worksheet/google-qa-final-v3/png/",
+   "artifacts/task-V-42/sources/fipi/РУ-11 ЕГЭ 2027 КОДИФ.pdf",
+   "artifacts/task-V-42/sources/fipi/РУ-11 ЕГЭ 2027 СПЕЦ.pdf"
+  ]
+ },
+ "V-43": {
+  "artifacts-foreign": [
+   "artifacts/task-V-42/out/V43-slide26-local/slide-26.png",
+   "artifacts/task-V-42/out/final-google-v43/contact-new-slides.png",
+   "artifacts/task-V-42/out/worksheet/google-native-v43-final5-1.png"
+  ]
+ },
+ "V-41": {
+  "artifacts-foreign": [
+   "artifacts/task-V-15/",
+   "artifacts/task-V-15/assets/",
+   "artifacts/task-V-15/sources.md",
+   "artifacts/task-V-39/"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-41/img/licenses.json",
+   "artifacts/task-V-41/out/google-qa-slides-final/contact-all-18.png",
+   "artifacts/task-V-41/out/google-qa-slides-final/png/slide-03.png",
+   "artifacts/task-V-41/out/google-qa-slides-final/pnglarge/slide-14.png",
+   "artifacts/task-V-41/out/google-qa-worksheet-final/",
+   "artifacts/task-V-41/out/google-qa-worksheet-final/page-3.png"
+  ]
+ },
+ "V-39": {
+  "artifacts-foreign": [
+   "artifacts/task-V-15/assets"
+  ],
+  "artifacts-own": [
+   "artifacts/task-V-39/build_worksheet.py"
+  ]
+ },
+ "V-40": {
+  "site": [
+   "site/schedule/index.html",
+   "site/schedule/qa/desktop-1440.png",
+   "site/schedule/qa/iphone-13-chromium.png"
+  ],
+  "reference": [
+   "reference/brand-iskra/logo-bordo.png"
+  ]
+ },
+ "V-29": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/vzn.txt"
+  ]
+ },
+ "V-31": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/vzn.txt"
+  ]
+ },
+ "V-30": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/bank.json"
+  ]
+ },
+ "V-35": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ]
+ },
+ "V-34": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/vzn-m56.txt"
+  ]
+ },
+ "V-33": {
+  "foreign-task": [
+   ".orchestra/tasks/V-2"
+  ],
+  "reference": [
+   "reference/bank-zadaniy/build_bank.py --source reference/bank-zadaniy/bank.json --out /tmp/vzn-m4b.txt"
+  ]
+ },
+ "V-28": {
+  "reference": [
+   "reference/bank-zadaniy/bank.json"
+  ]
+ },
+ "V-26": {
+  "reference": [
+   "reference/bank-zadaniy/parts/d-m5-m6.json"
+  ]
+ },
+ "V-27": {
+  "reference": [
+   "reference/bank-zadaniy/parts/e-m7-m8.json"
+  ]
+ },
+ "V-24": {
+  "reference": [
+   "reference/bank-zadaniy/parts/b-m2-m3.json"
+  ]
+ },
+ "V-23": {
+  "reference": [
+   "reference/bank-zadaniy/parts/a-m0-is.json"
+  ]
+ },
+ "V-25": {
+  "reference": [
+   "reference/bank-zadaniy/parts/c-m1-m4.json"
+  ]
+ },
+ "V-8": {
+  "artifacts-foreign": [
+   "artifacts/oge-russkiy/out/contact-sheet-google.png",
+   "artifacts/oge-russkiy/out/contact-sheet.png",
+   "artifacts/oge-russkiy/out/slide-stats.json",
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027-urok.pptx",
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pdf",
+   "artifacts/oge-russkiy/out/struktura-oge-russkiy-2027.pptx",
+   "artifacts/oge-russkiy/work/img/demo/",
+   "artifacts/oge-russkiy/work/img/licenses.json",
+   "artifacts/oge-russkiy/work/render/p-01.png"
+  ]
+ },
+ "V-16": {
+  "artifacts-own": [
+   "artifacts/V-16/build_worksheet.py",
+   "artifacts/V-16/contact-sheet-google.png",
+   "artifacts/V-16/rewrite_minitasks.py",
+   "artifacts/V-16/slovo-ege-2027-google-final.pptx",
+   "artifacts/V-16/slovo-ege-2027-steps.pdf"
+  ],
+  "reference": [
+   "reference/urok-literatura-2026-09/fipi-2027/ЛИ-11 ЕГЭ 2027 КОДИФ.pdf"
+  ]
+ },
+ "V-13": {
+  "artifacts-foreign": [
+   "artifacts/task-30-simple-avito",
+   "artifacts/task-31-32-avito",
+   "artifacts/task-33-avito-ege",
+   "artifacts/task-34-avito-live/",
+   "artifacts/task-44/",
+   "artifacts/task-9-avito"
+  ]
+ },
+ "V-12": {
+  "artifacts-foreign": [
+   "artifacts/ по абсолютному рабочему",
+   "artifacts/lesson9-zadanie9",
+   "artifacts/task-10-video/__pycache__",
+   "artifacts/task-2/tooling/.cache",
+   "artifacts/task-2/tooling/node_modules",
+   "artifacts/task-5",
+   "artifacts/task-6/lesson-01/README.md",
+   "artifacts/task-6/lesson-render",
+   "artifacts/task-6/master-media",
+   "artifacts/task-6/master-render",
+   "artifacts/task-6/source",
+   "artifacts/task-9-avito/__pycache__"
+  ],
+  "docs": [
+   "docs/ в текущем checkout нет",
+   "docs/ и evidence-файлы"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-4",
+   ".orchestra/tasks/V-8",
+   ".orchestra/tasks/V-9"
+  ],
+  "research": [
+   "research/avito-market-audit-2026-08-31.md прямо называет их черновиками с ценами ниже прайса"
+  ]
+ },
+ "V-10": {
+  "foreign-task": [
+   ".orchestra/tasks/V-3"
+  ],
+  "reference": [
+   "reference/urok-literatura-2026-09/fipi-2027/"
+  ]
+ },
+ "V-9": {
+  "artifacts-foreign": [
+   "artifacts/task-10-video/build.py",
+   "artifacts/task-7/portfolio/content.md"
+  ],
+  "docs": [
+   "docs/tasks",
+   "docs/tasks/43"
+  ]
+ },
+ "V-7": {
+  "foreign-task": [
+   ".orchestra/tasks/V-3"
+  ]
+ },
+ "V-5": {
+  "foreign-task": [
+   ".orchestra/tasks/V-3"
+  ]
+ },
+ "V-4": {
+  "reference": [
+   "reference/brand-iskra/"
+  ]
+ },
+ "V-3": {
+  "artifacts-foreign": [
+   "artifacts/struktura-ege/work/"
+  ]
+ },
+ "V-114": {},
+ "V-158": {},
+ "V-155": {},
+ "V-152": {},
+ "V-146": {},
+ "V-96": {},
+ "V-148": {},
+ "V-144": {},
+ "V-141": {},
+ "V-140": {},
+ "V-127": {},
+ "V-135": {},
+ "V-132": {},
+ "V-130": {},
+ "V-129": {},
+ "V-120": {},
+ "V-123": {},
+ "V-121": {},
+ "V-117": {},
+ "V-118": {},
+ "V-115": {},
+ "V-113": {},
+ "V-112": {},
+ "V-111": {},
+ "V-110": {},
+ "V-109": {},
+ "V-101": {},
+ "V-104": {},
+ "V-103": {},
+ "V-94": {},
+ "V-95": {},
+ "V-93": {},
+ "V-91": {},
+ "V-90": {},
+ "V-683": {},
+ "V-83": {},
+ "V-82": {},
+ "V-80": {},
+ "V-78": {},
+ "V-77": {},
+ "V-76": {},
+ "V-73": {},
+ "V-74": {},
+ "V-75": {},
+ "V-67": {},
+ "V-72": {},
+ "V-56": {},
+ "V-54": {},
+ "V-55": {},
+ "V-53": {},
+ "V-52": {},
+ "V-48": {},
+ "V-46": {},
+ "V-38": {},
+ "V-37": {},
+ "V-22": {},
+ "V-20": {},
+ "V-21": {},
+ "V-15": {},
+ "V-17": {},
+ "V-621": {},
+ "V-11": {},
+ "V-6": {}
+}

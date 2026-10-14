@@ -1,0 +1,19 @@
+/home/kesha/projects/seedon tasks 216 notask commits 278 files 152
+  own-task 186
+  other:docs 53
+  .orchestra-other 35
+  resources 34
+  other:TODO.md 28
+  other:.gitignore 28
+  other:tools 26
+  foreign-task 21
+  other:ops 18
+  other:CHANGELOG-BUSINESS.md 16
+  other:CLAUDE.md 8
+  other:.claude 5
+  other:COMPANY-DATA.md 5
+  artifacts 3
+  other:tests 2
+  other:groom-demo-bot 1
+  other:service-demo-bot 1
+ NOTASK files: [('resources', 59), ('foreign-task', 39), ('.orchestra-other', 18), ('other:docs', 15), ('other:.claude', 7), ('other:tools', 4), ('other:ops', 2), ('other:CLAUDE.md', 1)]

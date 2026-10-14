@@ -1,0 +1,1011 @@
+{
+ "V-235": {
+  "tools": [
+   "tools/tender-collector"
+  ]
+ },
+ "V-234": {
+  "resources": [
+   "resources/brand/",
+   "resources/brand/bobik-master/",
+   "resources/brand/bobik-master/banner-1-conductor.png",
+   "resources/brand/logo/"
+  ],
+  "site": [
+   "site/assets/fonts/",
+   "site/css/service-landings.css",
+   "site/css/style.css"
+  ],
+  "artifacts-foreign": [
+   "artifacts/brand/brandbook.png",
+   "artifacts/brand/brandbook.png/.html",
+   "artifacts/logo-final",
+   "artifacts/logo-final/README.md"
+  ],
+  "docs": [
+   "docs/product/brand-voice.md"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-226"
+  ]
+ },
+ "V-233": {
+  "tools": [
+   "tools/price_scale/calc.py"
+  ]
+ },
+ "V-232": {
+  "tools": [
+   "tools/tender-collector/tests"
+  ]
+ },
+ "V-231": {
+  "tools": [
+   "tools/tender-collector/tender-model-worker.sh"
+  ]
+ },
+ "V-162": {
+  "ops": [
+   "ops/build.py",
+   "ops/remind.py add",
+   "ops/remind.py done reminder",
+   "ops/remind.py list",
+   "ops/remind.py snooze reminder",
+   "ops/test_wake.py",
+   "ops/wake.py"
+  ]
+ },
+ "V-214": {
+  "tools": [
+   "tools/tender-collector/model_shadow.py",
+   "tools/tender-collector/tender-model-worker.sh",
+   "tools/tender-collector/tender-report-shadow.sh",
+   "tools/tender-collector/tender_collector/model_triage.py"
+  ]
+ },
+ "V-227": {
+  "tools": [
+   "tools/tender-collector",
+   "tools/tender-collector/tender-report.sh"
+  ]
+ },
+ "V-226": {
+  "tools": [
+   "tools/price_scale/calc.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-223"
+  ]
+ },
+ "V-223": {
+  "tools": [
+   "tools/tender-collector/tender-report.sh"
+  ]
+ },
+ "V-218": {
+  "docs": [
+   "docs/buildalot_extract.py"
+  ]
+ },
+ "V-221": {
+  "tools": [
+   "tools/tender-collector/tender_collector/..."
+  ]
+ },
+ "V-215": {
+  "tools": [
+   "tools/tender-collector/tests -v"
+  ]
+ },
+ "V-213": {
+  "tools": [
+   "tools/tender-collector/tests -v"
+  ]
+ },
+ "V-212": {
+  "foreign-task": [
+   ".orchestra/tasks/V-211"
+  ]
+ },
+ "V-209": {
+  "tools": [
+   "tools/price_scale/calc.py"
+  ]
+ },
+ "V-208": {
+  "foreign-task": [
+   ".orchestra/tasks/V-167"
+  ]
+ },
+ "V-207": {
+  "docs": [
+   "docs/build.js",
+   "docs/sberunity-corporate-requests.docx",
+   "docs/sberunity-registration-and-profile.docx"
+  ],
+  "ops": [
+   "ops/items.yaml"
+  ]
+ },
+ "V-115": {
+  "foreign-task": [
+   ".orchestra/tasks/V-113",
+   ".orchestra/tasks/V-50",
+   ".orchestra/tasks/V-67"
+  ],
+  "docs": [
+   "docs/STATE.md",
+   "docs/sales/PARTNER-FORGETSHOP.md"
+  ]
+ },
+ "V-201": {
+  "tools": [
+   "tools/price_scale/",
+   "tools/price_scale/SCALE_det.md",
+   "tools/price_scale/calc.py",
+   "tools/price_scale/catalog.json"
+  ]
+ },
+ "V-198": {
+  "docs": [
+   "docs/STATE.md",
+   "docs/build.js",
+   "docs/form-answers.docx",
+   "docs/letter-variants.docx",
+   "docs/product/ORCHESTRA-CASES.md"
+  ],
+  "ops": [
+   "ops/items.yaml"
+  ]
+ },
+ "V-167": {
+  "ops": [
+   "ops/build.py",
+   "ops/items.yaml",
+   "ops/wake.py --state /tmp/x.state"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-152"
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ],
+  "resources": [
+   "resources/goszakupki/0371400000726000098-rybinsk/",
+   "resources/goszakupki/32616412951-kuzbass/",
+   "resources/goszakupki/32616412951-kuzbass/v2-80000/",
+   "resources/goszakupki/32616422874-kostroma/",
+   "resources/registraciya"
+  ]
+ },
+ "V-194": {
+  "resources": [
+   "resources/goszakupki/"
+  ]
+ },
+ "V-131": {
+  "foreign-task": [
+   ".orchestra/tasks/V-54"
+  ]
+ },
+ "V-193": {
+  "ops": [
+   "ops/items.yaml"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-99"
+  ]
+ },
+ "V-192": {
+  "foreign-task": [
+   ".orchestra/tasks/V-99"
+  ]
+ },
+ "V-70": {
+  "docs": [
+   "docs/STATE.md",
+   "docs/marketing/SEO-GEO-AUDIT-2026-08.md",
+   "docs/product/ORCHESTRA-CASES.md"
+  ]
+ },
+ "V-188": {
+  "foreign-task": [
+   ".orchestra/tasks/V-167"
+  ]
+ },
+ "V-180": {
+  "site": [
+   "site/main",
+   "site/skoro/claude-codex/index.html",
+   "site/skoro/podpiska/index.html"
+  ]
+ },
+ "V-186": {
+  "resources": [
+   "resources/goszakupki/"
+  ]
+ },
+ "V-93": {
+  "tools": [
+   "tools/docs/sidon-doc.js"
+  ],
+  "docs": [
+   "docs/STATE.md",
+   "docs/sales/EMAIL-LOG.md"
+  ],
+  "resources": [
+   "resources/registraciya/Устав-19.pdf",
+   "resources/vypiski/Выписка-ЕГРЮЛ-23.09.2026.pdf"
+  ]
+ },
+ "V-114": {
+  "resources": [
+   "resources/bank/07_реквизиты_точка.pdf",
+   "resources/registraciya/renamed/02_свидетельство_ИНН.pdf"
+  ]
+ },
+ "V-183": {
+  "tools": [
+   "tools/site_chrome.py"
+  ],
+  "docs": [
+   "docs/sales/LEAD-groom-salon.md"
+  ]
+ },
+ "V-181": {
+  "tools": [
+   "tools/site_audit.py",
+   "tools/site_audit.py --live https",
+   "tools/site_chrome.py"
+  ]
+ },
+ "V-179": {
+  "site": [
+   "site/skoro/podpiska/index.html"
+  ]
+ },
+ "V-178": {
+  "site": [
+   "site/skoro/podpiska/index.html"
+  ]
+ },
+ "V-173": {
+  "site": [
+   "site/ на VPS содержал вариант A",
+   "site/ не было записей. Оба первых экрана включали текст справа",
+   "site/skoro/ii-yurist/index.html не менялись. Патч к MiroFish сделан в AGPL-коде для внутреннего использования"
+  ],
+  "ops": [
+   "ops/mirofish-v173.sh",
+   "ops/run-mirofish-v173.py",
+   "ops/setup-mirofish-v173.sh"
+  ]
+ },
+ "V-170": {
+  "foreign-task": [
+   ".orchestra/tasks/V-152",
+   ".orchestra/tasks/V-167"
+  ]
+ },
+ "V-171": {
+  "tools": [
+   "tools/demand_pages.py"
+  ]
+ },
+ "V-50": {
+  "resources": [
+   "resources/brand/bobik-waitlist/"
+  ]
+ },
+ "V-168": {
+  "resources": [
+   "resources/otchetnost-2026/07-otpravka-july",
+   "resources/otchetnost-2026/10-otpravka-october/",
+   "resources/vypiski/it-accreditation-2026.pdf",
+   "resources/xsd/efs1-legacy-af2.99d/",
+   "resources/xsd/fns/",
+   "resources/xsd/fns/no_raschsv_1_162_00_05_08_02.xsd"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-151"
+  ],
+  "tools": [
+   "tools/mail.py inbox"
+  ],
+  "ops": [
+   "ops/build.py",
+   "ops/wake.py --state /tmp/x.state"
+  ]
+ },
+ "V-157": {
+  "resources": [
+   "resources/goszakupki/B0110261455234-labinsky-ai/"
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ]
+ },
+ "V-164": {
+  "tools": [
+   "tools/tender-collector/run.py --coverage-compact --db /home/kesha/.local/share/seedon/tender-collector.sqlite3",
+   "tools/tender-collector/tests -p",
+   "tools/tender-collector/tests -v"
+  ]
+ },
+ "V-142": {
+  "resources": [
+   "resources/goszakupki/RH30092600048-sakhalinenergo-ai/"
+  ]
+ },
+ "V-163": {
+  "docs": [
+   "docs/accounting/2026/payments.md"
+  ],
+  "resources": [
+   "resources/goszakupki/0860200000826008035-saratov/"
+  ]
+ },
+ "V-159": {
+  "resources": [
+   "resources/goszakupki/0158300034526000388-aksay/"
+  ]
+ },
+ "V-158": {
+  "resources": [
+   "resources/goszakupki/0137200001226007700-kaluga/Исх-18-сделка-не-крупная-0137200001226007700."
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ]
+ },
+ "V-156": {
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ]
+ },
+ "V-73": {
+  "docs": [
+   "docs/DOCS-REGISTRY.md",
+   "docs/STATE.md",
+   "docs/egrul",
+   "docs/reg",
+   "docs/sales/EMAIL-LOG.md"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-44"
+  ],
+  "resources": [
+   "resources/README.md",
+   "resources/buhuchet/Справка-расчёт-1-НМА-Orchestra.pdf",
+   "resources/contracts",
+   "resources/dogovory/otchuzhdenie-orchestra/gen.js",
+   "resources/dogovory/otchuzhdenie-orchestra/Акт-приёма-передачи-Orchestra.pdf",
+   "resources/dogovory/otchuzhdenie-orchestra/Договор-отчуждения-Orchestra.pdf",
+   "resources/prikazy/Приказ-2-о-принятии-НМА-Orchestra.pdf",
+   "resources/resheniya/Решение-3-согласие-на-отчуждение.pdf"
+  ],
+  "tools": [
+   "tools/docs/sidon-doc.js"
+  ]
+ },
+ "V-154": {
+  "docs": [
+   "docs/WORK-PROJECTS.md",
+   "docs/sales/PARTNER-sponsor-projects-2026-09.md"
+  ]
+ },
+ "V-150": {
+  "ops": [
+   "ops/cron.sh"
+  ]
+ },
+ "V-149": {
+  "ops": [
+   "ops/README.md"
+  ]
+ },
+ "V-148": {
+  "docs": [
+   "docs/accounting/2026/register.json",
+   "docs/business/ACCOUNTING.md"
+  ],
+  "resources": [
+   "resources/goszakupki/"
+  ],
+  "ops": [
+   "ops/index.html",
+   "ops/items.yaml"
+  ]
+ },
+ "V-61": {
+  "resources": [
+   "resources/resheniya/Решение-5-согласие-закупка-Иркутск.pdf"
+  ],
+  "tools": [
+   "tools/docs/sidon-doc.js"
+  ]
+ },
+ "V-88": {
+  "foreign-task": [
+   ".orchestra/tasks/V-64",
+   ".orchestra/tasks/V-86"
+  ]
+ },
+ "V-75": {
+  "foreign-task": [
+   ".orchestra/tasks/V-74"
+  ],
+  "docs": [
+   "docs/product/ORCHESTRA-CASES.md"
+  ]
+ },
+ "V-106": {
+  "docs": [
+   "docs/STATE.md",
+   "docs/WORK-PROJECTS.md",
+   "docs/product/ORCHESTRA-CASES.md",
+   "docs/product/PRODUCT-BIBLE.md",
+   "docs/sales/PARTNER-sponsor-projects-2026-09.md"
+  ]
+ },
+ "V-103": {
+  "tools": [
+   "tools/tender-collector/archive.py"
+  ]
+ },
+ "V-4": {
+  "resources": [
+   "resources/otchetnost-2026/vozrazheniya-sfr/",
+   "resources/otchetnost-2026/zhaloba-sfr/Жалоба-СФР-reshenie-240126100566603.docx",
+   "resources/perepiska/sfr-2026-09-25/Otvet_na_zhalobu_OOO_SIDONOut.pdf"
+  ]
+ },
+ "V-138": {
+  "resources": [
+   "resources/goszakupki/6231238-kurekhin-geo-seo/01-KP-kurekhin.docx/.pdf"
+  ]
+ },
+ "V-144": {
+  "docs": [
+   "docs/STATE.md",
+   "docs/marketing/",
+   "docs/sales/SUPPORT-REGISTRY.md"
+  ]
+ },
+ "V-141": {
+  "resources": [
+   "resources/goszakupki/32616421259-krasnoyarskenergosbyt/",
+   "resources/goszakupki/32616421259-krasnoyarskenergosbyt/generators/make_pack.sh"
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ]
+ },
+ "V-67": {
+  "foreign-task": [
+   ".orchestra/tasks/V-50"
+  ]
+ },
+ "V-136": {
+  "foreign-task": [
+   ".orchestra/tasks/V-103"
+  ]
+ },
+ "V-135": {
+  "foreign-task": [
+   ".orchestra/tasks/V-134"
+  ]
+ },
+ "V-127": {
+  "tools": [
+   "tools/tender-collector/",
+   "tools/tender-collector/tests"
+  ]
+ },
+ "V-130": {
+  "tools": [
+   "tools/list"
+  ]
+ },
+ "V-128": {
+  "resources": [
+   "resources/goszakupki/6222421-atb-seo-geo/benchmark/"
+  ]
+ },
+ "V-125": {
+  "resources": [
+   "resources/goszakupki/6225963-lada-sport/dogovor-ryba-2026-09-30.docx"
+  ]
+ },
+ "V-118": {
+  "tools": [
+   "tools/tender-collector/"
+  ]
+ },
+ "V-117": {
+  "resources": [
+   "resources/.../generators/platform-screens/",
+   "resources/goszakupki/6222421-atb-seo-geo/"
+  ]
+ },
+ "V-119": {
+  "resources": [
+   "resources/goszakupki/32616401070-marina/"
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ]
+ },
+ "V-110": {
+  "tools": [
+   "tools/tender-collector/tender_collector/"
+  ]
+ },
+ "V-113": {
+  "docs": [
+   "docs/product/COMPETITORS-RESEARCH.md"
+  ]
+ },
+ "V-111": {
+  "foreign-task": [
+   ".orchestra/tasks/V-108"
+  ]
+ },
+ "V-98": {
+  "foreign-task": [
+   ".orchestra/tasks/V-43"
+  ],
+  "tools": [
+   "tools/tender-collector/tests",
+   "tools/tender-collector/tests -v"
+  ]
+ },
+ "V-94": {
+  "site": [
+   "site/backend/main.py"
+  ],
+  "docs": [
+   "docs/STATE.md"
+  ]
+ },
+ "V-102": {
+  "tools": [
+   "tools/tender-collector/tender_collector/rts_market_browser.js"
+  ]
+ },
+ "V-101": {
+  "tools": [
+   "tools/tender-collector/tender_collector/eis.py"
+  ]
+ },
+ "V-79": {
+  "foreign-task": [
+   ".orchestra/tasks/V-44",
+   ".orchestra/tasks/V-610"
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ],
+  "resources": [
+   "resources/dogovory/kislinsky/contract-orchestra-kislinsky.docx",
+   "resources/resheniya/Решение-4-согласие-ссуда-ноутбука.pdf",
+   "resources/resheniya/Решение-учредителя-15.03.2026.pdf",
+   "resources/zayavleniya/reestr-po/Согласие-администратора-домена-seedon.pdf"
+  ]
+ },
+ "V-96": {
+  "docs": [
+   "docs/marketing/vc-article-direct-v2.md"
+  ]
+ },
+ "V-86": {
+  "docs": [
+   "docs/marketing/SEO-GEO-AUDIT-2026-08.md"
+  ],
+  "tools": [
+   "tools/service_landings.py",
+   "tools/waitlist_pages.py"
+  ]
+ },
+ "V-84": {
+  "resources": [
+   "resources/resheniya/Решение-учредителя-15.03.2026.pdf"
+  ]
+ },
+ "V-81": {
+  "resources": [
+   "resources/dogovory/kislinsky/Подтверждение-автора-согласие-на-лицензию-01-2026.pdf"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-44",
+   ".orchestra/tasks/V-584",
+   ".orchestra/tasks/V-610"
+  ],
+  "docs": [
+   "docs/DOCS-REGISTRY.md"
+  ]
+ },
+ "V-44": {
+  "foreign-task": [
+   ".orchestra/tasks/V-11",
+   ".orchestra/tasks/V-12",
+   ".orchestra/tasks/V-13",
+   ".orchestra/tasks/V-14",
+   ".orchestra/tasks/V-584",
+   ".orchestra/tasks/V-610",
+   ".orchestra/tasks/V-638",
+   ".orchestra/tasks/V-78",
+   ".orchestra/tasks/V-81"
+  ],
+  "resources": [
+   "resources/buhuchet/Справка-расчёт-1-НМА-Orchestra.docx",
+   "resources/dogovory/kislinsky/Подтверждение-автора-согласие-на-лицензию-01-2026.pdf",
+   "resources/dogovory/otchuzhdenie-orchestra/gen.js",
+   "resources/dogovory/otchuzhdenie-orchestra/Акт-приёма-передачи-Orchestra.docx",
+   "resources/dogovory/otchuzhdenie-orchestra/Договор-отчуждения-Orchestra.pdf",
+   "resources/prikazy/Приказ-1-вступление-в-должность-18.03.2026.docx",
+   "resources/prikazy/Приказ-2-о-принятии-НМА-Orchestra.docx",
+   "resources/prikazy/Приказ-2-о-принятии-НМА-Orchestra.pdf",
+   "resources/prikazy/Приказ-3-о-подтверждении-полномочий-и-бухучёте.pdf",
+   "resources/prikazy/Приказ-о-принятии-НМА-Orchestra.docx/.pdf",
+   "resources/registraciya/renamed/06_согласие_собственника.docx",
+   "resources/resheniya/Решение-3-согласие-на-отчуждение.pdf",
+   "resources/vypiski/Выписка-ЕГРЮЛ-23.09.2026.pdf",
+   "resources/zayavleniya/reestr-po/",
+   "resources/zayavleniya/reestr-po/Свидетельство-о-регистрации-домена-seedon.ru-REGRU-29.09.2026.pdf"
+  ],
+  "docs": [
+   "docs/accounting/2026/nma-registr.md"
+  ]
+ },
+ "V-65": {
+  "tools": [
+   "tools/tender-collector/tender_collector",
+   "tools/tender-collector/tests -v"
+  ]
+ },
+ "V-64": {
+  "docs": [
+   "docs/STATE.md"
+  ]
+ },
+ "V-57": {
+  "site": [
+   "site/skoro/"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-56"
+  ],
+  "docs": [
+   "docs/artifacts"
+  ]
+ },
+ "V-58": {
+  "foreign-task": [
+   ".orchestra/tasks/V-56"
+  ]
+ },
+ "V-49": {
+  "foreign-task": [
+   ".orchestra/tasks/V-44"
+  ]
+ },
+ "V-53": {
+  "docs": [
+   "docs/sales/LEADS-CRM.md"
+  ],
+  "research": [
+   "research/..."
+  ],
+  "archive": [
+   "archive/Материалы"
+  ]
+ },
+ "V-52": {
+  "docs": [
+   "docs/sales/LEAD-partner-1c.md",
+   "docs/sales/PARTNER-sponsor-projects-2026-09.md"
+  ]
+ },
+ "V-47": {
+  "foreign-task": [
+   ".orchestra/tasks/V-31",
+   ".orchestra/tasks/V-32"
+  ]
+ },
+ "V-45": {
+  "resources": [
+   "resources/docs/soglasie-nt-2026/",
+   "resources/personal/military/2026-08-12-status.md",
+   "resources/personal/military/2026-08-12-vklyuchenie-v-spisok.md"
+  ]
+ },
+ "V-37": {
+  "tools": [
+   "tools/tender-collector/",
+   "tools/tender-collector/run.py"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-35"
+  ]
+ },
+ "V-36": {
+  "resources": [
+   "resources/docs/renamed/01_лист_записи_ЕГРЮЛ.pdf",
+   "resources/reestr-startapov/Устав-19.pdf",
+   "resources/ЕГРЮЛ_27.04.2026.pdf"
+  ],
+  "docs": [
+   "docs/accounting/kudir-2026.md",
+   "docs/business/GRANTS-RESEARCH.md",
+   "docs/client-01/contract.md",
+   "docs/product/ORCHESTRA-WORKFLOW-INTERNAL.md",
+   "docs/product/PRODUCT-BIBLE.md"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-23",
+   ".orchestra/tasks/V-31"
+  ]
+ },
+ "V-34": {
+  "foreign-task": [
+   ".orchestra/tasks/V-20"
+  ]
+ },
+ "V-33": {
+  "docs": [
+   "docs/0335100003226000322/"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-20"
+  ]
+ },
+ "V-20": {
+  "resources": [
+   "resources/goszakupki/",
+   "resources/goszakupki/0335100003226000322-kaliningrad/"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-15"
+  ]
+ },
+ "V-24": {
+  "resources": [
+   "resources/granty/fasie-studstartup/polozhenie-sts-7.pdf"
+  ]
+ },
+ "V-30": {
+  "foreign-task": [
+   ".orchestra/tasks/V-32"
+  ]
+ },
+ "V-26": {
+  "docs": [
+   "docs/sales/LEAD-partner-1c-tz-analysis.md"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-27"
+  ]
+ },
+ "V-28": {
+  "resources": [
+   "resources/partner-1c/TZ1-zayavka-na-rashod.docx",
+   "resources/partner-1c/TZ2-cash-flow.docx"
+  ],
+  "docs": [
+   "docs/sales/LEAD-partner-1c"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-26"
+  ]
+ },
+ "V-27": {
+  "resources": [
+   "resources/partner-1c/TZ1-zayavka-na-rashod.docx",
+   "resources/partner-1c/TZ2-cash-flow.docx"
+  ],
+  "docs": [
+   "docs/sales/LEAD-partner-1c"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-26"
+  ]
+ },
+ "V-15": {
+  "resources": [
+   "resources/docs/renamed/06_согласие_собственника.docx",
+   "resources/docs/Приказ-1-вступление-в-должность-18.03.2026.docx",
+   "resources/reestr-po/",
+   "resources/reestr-po/Договор-отчуждения-Orchestra.docx",
+   "resources/reestr-po/Решение-2-согласие-на-отчуждение.docx"
+  ],
+  "foreign-task": [
+   ".orchestra/tasks/V-11",
+   ".orchestra/tasks/V-12",
+   ".orchestra/tasks/V-13",
+   ".orchestra/tasks/V-14"
+  ]
+ },
+ "V-14": {
+  "foreign-task": [
+   ".orchestra/tasks/V-12"
+  ],
+  "docs": [
+   "docs/tasks/sol-efficiency/calls_strict.tsv"
+  ]
+ },
+ "V-13": {
+  "resources": [
+   "resources/reestr-po/"
+  ]
+ },
+ "V-7": {
+  "docs": [
+   "docs/accounting/2026/payments.json",
+   "docs/business/BUSINESS-GUIDE.md"
+  ],
+  "resources": [
+   "resources/contracts/zaymy-uchreditelya/"
+  ]
+ },
+ "V-3": {
+  "docs": [
+   "docs/CALENDAR-OBYAZATELSTV.md",
+   "docs/STATE.md",
+   "docs/accounting/2026/ndfl-reconstruction.json. Новые файлы resources/otchetnost-2026/09-otpravka-september/ndfl/",
+   "docs/accounting/2026/register.json",
+   "docs/accounting/kudir-2026.md",
+   "docs/accounting/reglament-kudir.md",
+   "docs/artifacts/support-registry.html",
+   "docs/business/",
+   "docs/business/ACCOUNTING.md",
+   "docs/business/BUSINESS-GUIDE.md",
+   "docs/business/REPORTING-CALENDAR-VERIFIED.md",
+   "docs/direct-nightly/2026-08-26.md",
+   "docs/legal-review/archive/",
+   "docs/legal/",
+   "docs/marketing/2GIS-REKLAMA.md",
+   "docs/safety.md",
+   "docs/sales/EMAIL-LOG.md",
+   "docs/sales/LEAD-groom-salon.md",
+   "docs/sales/LEAD-partner-1c-tz-analysis.md",
+   "docs/sales/LEAD-partner-1c.md",
+   "docs/sales/LEADS-CRM.md",
+   "docs/sales/SUPPORT-REGISTRY.md"
+  ],
+  "tools": [
+   "tools/mail.py"
+  ],
+  "resources": [
+   "resources/brand/direct-ads-final/",
+   "resources/contracts/ip-rights-orchestra/",
+   "resources/contracts/td-director/trudovoy-dogovor-1.docx",
+   "resources/contracts/zaymy-uchreditelya/",
+   "resources/contracts/zaymy-uchreditelya/dogovor-zayma-04-2026-08-27-31100.docx",
+   "resources/docs/soglasie-nt-2026/",
+   "resources/otchetnost-2026/08-otpravka-august лежат оба XML от 05.09",
+   "resources/partner-1c/",
+   "resources/personal/military/2026-08-12-vklyuchenie-v-spisok.md",
+   "resources/personal/military/packet/",
+   "resources/reestr-startapov/Решение-учредителя-15.03.2026.pdf",
+   "resources/reestr-startapov/Устав-19.pdf",
+   "resources/xsd/",
+   "resources/ЕГРЮЛ_27.04.2026.pdf"
+  ],
+  "site": [
+   "site/.orchestra/workers/seo-cro.md",
+   "site/index.html",
+   "site/main"
+  ],
+  "artifacts-foreign": [
+   "artifacts/accounting-2026/seedon-accounting-2026.html"
+  ]
+ },
+ "V-236": {},
+ "V-176": {},
+ "V-177": {},
+ "V-229": {},
+ "V-230": {},
+ "V-228": {},
+ "V-225": {},
+ "V-224": {},
+ "V-222": {},
+ "V-220": {},
+ "V-814": {},
+ "V-219": {},
+ "V-216": {},
+ "V-217": {},
+ "V-211": {},
+ "V-206": {},
+ "V-210": {},
+ "V-204": {},
+ "V-205": {},
+ "V-203": {},
+ "V-202": {},
+ "V-196": {},
+ "V-200": {},
+ "V-199": {},
+ "V-197": {},
+ "V-69": {},
+ "V-195": {},
+ "V-72": {},
+ "V-191": {},
+ "V-190": {},
+ "V-185": {},
+ "V-82": {},
+ "V-182": {},
+ "V-175": {},
+ "V-723": {},
+ "V-174": {},
+ "V-172": {},
+ "V-169": {},
+ "V-166": {},
+ "V-165": {},
+ "V-161": {},
+ "V-160": {},
+ "V-152": {},
+ "V-155": {},
+ "V-151": {},
+ "V-153": {},
+ "V-147": {},
+ "V-8": {},
+ "V-139": {},
+ "V-137": {},
+ "V-146": {},
+ "V-145": {},
+ "V-68": {},
+ "V-140": {},
+ "V-132": {},
+ "V-134": {},
+ "V-133": {},
+ "V-123": {},
+ "V-122": {},
+ "V-124": {},
+ "V-121": {},
+ "V-120": {},
+ "V-109": {},
+ "V-107": {},
+ "V-108": {},
+ "V-105": {},
+ "V-104": {},
+ "V-100": {},
+ "V-99": {},
+ "V-92": {},
+ "V-87": {},
+ "V-97": {},
+ "V-95": {},
+ "V-91": {},
+ "V-83": {},
+ "V-80": {},
+ "V-78": {},
+ "V-76": {},
+ "V-71": {},
+ "V-66": {},
+ "V-621": {},
+ "V-63": {},
+ "V-62": {},
+ "V-59": {},
+ "V-60": {},
+ "V-56": {},
+ "V-55": {},
+ "V-54": {},
+ "V-51": {},
+ "V-43": {},
+ "V-48": {},
+ "V-41": {},
+ "V-42": {},
+ "V-38": {},
+ "V-40": {},
+ "V-39": {},
+ "V-35": {},
+ "V-23": {},
+ "V-31": {},
+ "V-32": {},
+ "V-29": {},
+ "V-12": {},
+ "V-242": {},
+ "V-6": {},
+ "V-10": {},
+ "V-5": {},
+ "V-256": {}
+}

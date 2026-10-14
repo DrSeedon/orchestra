@@ -1,0 +1,21 @@
+== katya units 363 tasks 160
+ policy A: ok-as-is 24, rejected(rc!=0) 261, SILENT-drop(rc=0,tree differs) 78, err 0; remedy ok 339/339; remedy MB median 0.1 max 462.0
+ policy B: ok-as-is 311, rejected(rc!=0) 30, SILENT-drop(rc=0,tree differs) 22, err 0; remedy ok 52/52; remedy MB median 10.9 max 462.0
+ B remedy dir kinds: [('artifacts', 63), ('.orchestra/tasks', 58)]
+ tasks needing remedy under B: 47 of 160
+ ex [('V-143', ['/.orchestra/tasks/V-143/', '/artifacts/V-137/', '/artifacts/V-143/'], 44.0), ('V-143', ['/.orchestra/tasks/V-143/', '/artifacts/V-137/', '/artifacts/V-143/'], 35.8), ('V-114', ['/.orchestra/tasks/V-165/', '/.orchestra/tasks/V-166/', '/artifacts/V-165/'], 0.0), ('V-166', ['/.orchestra/tasks/V-159/', '/artifacts/V-159/'], 51.3), ('V-162', ['/.orchestra/tasks/V-162/', '/artifacts/V-161/', '/artifacts/V-163/'], 22.1), ('V-156', ['/.orchestra/tasks/V-156/', '/artifacts/V-154/'], 23.1)]
+ silent ex [('V-151', 1), ('V-145', 1), ('V-143', 1), ('V-143', 1), ('V-143', 1)]
+== seedon units 431 tasks 216
+ policy A: ok-as-is 76, rejected(rc!=0) 286, SILENT-drop(rc=0,tree differs) 69, err 0; remedy ok 351/355; remedy MB median 0.0 max 211.9
+ policy B: ok-as-is 337, rejected(rc!=0) 69, SILENT-drop(rc=0,tree differs) 25, err 0; remedy ok 90/94; remedy MB median 6.4 max 142.4
+ B remedy dir kinds: [('resources', 98), ('.orchestra/tasks', 84), ('artifacts', 2)]
+ tasks needing remedy under B: 51 of 216
+ ex [('V-226', ['/.orchestra/tasks/V-225/', '/.orchestra/tasks/V-226/'], 0.0), ('V-213', ['/.orchestra/tasks/V-212/', '/.orchestra/tasks/V-213/'], 0.0), ('V-202', ['/.orchestra/tasks/V-87/'], 0.1), ('V-196', ['/.orchestra/tasks/V-193/', '/.orchestra/tasks/V-196/'], 0.2), ('V-199', ['/.orchestra/tasks/V-87/'], 0.1), ('V-167', ['/.orchestra/tasks/V-167/', '/resources/goszakupki/'], 28.1)]
+ silent ex [('V-220', 2), ('V-214', 4), ('V-215', 1), ('V-207', 2), ('V-202', 2)]
+== orchestra units 349 tasks 248
+ policy A: ok-as-is 111, rejected(rc!=0) 224, SILENT-drop(rc=0,tree differs) 14, err 0; remedy ok 238/238; remedy MB median 0.0 max 10.4
+ policy B: ok-as-is 331, rejected(rc!=0) 9, SILENT-drop(rc=0,tree differs) 9, err 0; remedy ok 18/18; remedy MB median 0.0 max 9.2
+ B remedy dir kinds: [('.orchestra/tasks', 25)]
+ tasks needing remedy under B: 16 of 248
+ ex [('V-621', ['/.orchestra/tasks/V-831/'], 0.0), ('V-806', ['/.orchestra/tasks/V-823/'], 0.0), ('V-782', ['/.orchestra/tasks/V-776/', '/.orchestra/tasks/V-782/'], 0.1), ('V-771', ['/.orchestra/tasks/V-769/'], 0.3), ('V-763', ['/.orchestra/tasks/V-761/'], 0.0), ('V-762', ['/.orchestra/tasks/V-760/'], 0.0)]
+ silent ex [('V-822', 1), ('V-762', 4), ('V-751', 2), ('V-731', 1), ('V-731', 2)]
