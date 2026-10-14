@@ -175,6 +175,29 @@ def _git(cwd: Path, *args: str) -> str | None:
     return proc.stdout
 
 
+def _is_orchestra_worktree(worktree: str) -> bool:
+    source_root = Path(__file__).resolve().parents[1]
+    target_root = Path(worktree).resolve()
+    source_common = _git(
+        source_root,
+        "rev-parse", "--path-format=absolute", "--git-common-dir",
+    )
+    if not source_common:
+        return False
+    orchestra_root = Path(source_common.strip()).resolve().parent
+    if not target_root.is_relative_to(orchestra_root):
+        return False
+    target_common = _git(
+        target_root,
+        "rev-parse", "--path-format=absolute", "--git-common-dir",
+    )
+    return bool(
+        source_common
+        and target_common
+        and Path(source_common.strip()).resolve() == Path(target_common.strip()).resolve()
+    )
+
+
 def changed_paths(
     worktree: str,
     *,
@@ -251,12 +274,13 @@ def pytest_argv(
     *,
     interpreter: str | None = None,
     per_test_timeout: float | None = None,
+    orchestra_project: bool = False,
+    rootdir: str | None = None,
+    inifile: str | None = None,
 ) -> list[str]:
     # No -x / --exitfirst / --maxfail=1: one red must not hide the rest.
-    # `-m "not live_probe"` снимает с гейта пробы, тратящие настоящий ход провайдера: они
-    # краснеют от квоты и недоступности, а не от диффа, и блокируют чужие мержи (18.08:
-    # codex-проба стояла красной по rate_limit в самом main). Умолчание безопасное — новая
-    # проба БЕЗ маркера гоняется гейтом и падает громко; исчезнуть незаметно она не может.
+    # Orchestra-only selection and xdist flags are opt-in; foreign project worktrees use
+    # their own pytest environment even when nested below the Orchestra checkout.
     #
     # `-vv` рядом с `-q` — не косметика, а единственный источник, по которому «набор
     # красный» отличимо от «мы не успели»: pytest печатает вердикт КАЖДОГО теста отдельной
@@ -268,17 +292,27 @@ def pytest_argv(
     # +1 — тот же режим, что голый `-v`. Писать `-q -v` НЕЛЬЗЯ: сумма 0, снова точки.
     #
     # `--timeout` / `--timeout-method` — потолок на ОДИН узел (см. PER_TEST_TIMEOUT_SECONDS).
-    # Флаг стоит только здесь, а не в `[tool.pytest.ini_options]`: ручной прогон и живые пробы
-    # ограничивать нечем и незачем, потолок нужен ровно гейту, который держит чужие мержи.
+    # Он нужен гейту, который держит чужие мержи; локальный полный набор ограничивает
+    # собственный runner, а ручной целевой запуск остаётся без этого потолка.
     python = interpreter or sys.executable
     ceiling = PER_TEST_TIMEOUT_SECONDS if per_test_timeout is None else per_test_timeout
-    return [
+    argv = [
         python, "-m", "pytest", "-q", "-vv",
+    ]
+    if rootdir:
+        argv.extend(["--rootdir", rootdir])
+    if inifile:
+        argv.extend(["-c", inifile])
+    argv.extend([
         f"--timeout={ceiling:g}",
         f"--timeout-method={PER_TEST_TIMEOUT_METHOD}",
-        "-m", f"not {LIVE_PROBE_MARKER} and not {BROWSER_MARKER}",
-        *tests,
-    ]
+    ])
+    if orchestra_project:
+        argv.extend([
+            "-m", f"not {LIVE_PROBE_MARKER} and not {BROWSER_MARKER}",
+            "-n", "2", "--dist=loadscope",
+        ])
+    return [*argv, *tests]
 
 
 # `tests/test_x.py::test_name[param] PASSED [ 12%]`.
@@ -380,7 +414,9 @@ def run_pytest(
 ) -> dict:
     budget = budget_for(len(tests)) if timeout is None else timeout
     interpreter = interpreter or _pytest_interpreter(worktree)
-    argv = pytest_argv(tests, interpreter=interpreter)
+    orchestra_project = _is_orchestra_worktree(worktree)
+    project_root = _git(Path(worktree), "rev-parse", "--show-toplevel")
+    project_root = Path(project_root.strip()).resolve() if project_root else Path(worktree).resolve()
     env = os.environ.copy()
     # Merge-gate runs beside the live Orchestra process.  Its state selectors must never
     # point pytest at the service database/task repository (the latter once consumed a
@@ -395,11 +431,25 @@ def run_pytest(
         "QUOTA_TOLERANCE_END_PP", "QUOTA_CURVE_EXPONENT",
     ):
         env.pop(name, None)
-    root = str(Path(worktree).resolve())
     prior = env.get("PYTHONPATH", "")
-    env["PYTHONPATH"] = root if not prior else f"{root}{os.pathsep}{prior}"
+    env["PYTHONPATH"] = str(project_root) if not prior else f"{project_root}{os.pathsep}{prior}"
     try:
         with tempfile.TemporaryDirectory(prefix="orchestra-merge-gate-") as isolated:
+            project_config = next((
+                project_root / name
+                for name in ("pytest.ini", ".pytest.ini", "pyproject.toml", "tox.ini", "setup.cfg")
+                if (project_root / name).is_file()
+            ), None)
+            if project_config is None:
+                project_config = Path(isolated) / "pytest.ini"
+                project_config.write_text("[pytest]\n", encoding="utf-8")
+            argv = pytest_argv(
+                tests,
+                interpreter=interpreter,
+                orchestra_project=orchestra_project,
+                rootdir=str(project_root),
+                inifile=str(project_config),
+            )
             env["ORCHESTRA_DB_PATH"] = str(Path(isolated) / "orchestra.db")
             env["ORCHESTRA_TASK_REPOSITORY"] = str(Path(isolated) / "tasks")
             proc = subprocess.run(

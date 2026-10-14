@@ -99,7 +99,7 @@ jobs:
           # тесты гоняются отдельной джобой ниже: одно их зависание не должно съедать
           # потолок шарда и прятать состав СОСЕДЕЙ по нему (07.09 так и вышло —
           # `test_orchestra_layout_430` не успел отработать за `test_frontend.py`).
-          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest --rootdir=. -n 2 --dist=loadscope -v -rf --timeout=30 \
             -m "not live_probe and not browser" "${files[@]}"
 
   browser:
@@ -120,5 +120,5 @@ jobs:
       - run: uv run playwright install --with-deps chromium
       - name: pytest browser
         run: |
-          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest -v -rf --timeout=30 \
+          PYTHONUNBUFFERED=1 /usr/bin/time -v uv run pytest --rootdir=. -n 2 --dist=loadscope -v -rf --timeout=30 \
             -m "browser" tests/
