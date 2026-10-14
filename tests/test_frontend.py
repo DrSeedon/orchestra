@@ -824,6 +824,8 @@ def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
     stream_code = source.split("let streamBubble = null;", 1)[1].split(
         "function _renderJsonGrid", 1,
     )[0]
+    live_source = (Path(__file__).parent.parent / "app/static/js/live-activity.js").read_text()
+    pacer_code = "class LivePacer" + live_source.split("class LivePacer", 1)[1].split("\n}\n", 1)[0] + "\n}\n"
     page = dashboard_browser.new_page()
     page.set_content(
         '<div id="chat"><div id="stream"><p>Streaming text to copy</p>'
@@ -838,6 +840,7 @@ def test_stream_updates_preserve_chat_selection(dashboard_browser: Browser):
             function addTimestamp() {{}}
             function _chatAtBottom() {{ return true; }}
             function _markChatHasNewBelow() {{}}
+            {pacer_code}
             let streamBubble = null;
             {stream_code}
         """
