@@ -1,0 +1,14 @@
+...                                                                      [100%]
+============================= slowest 20 durations =============================
+8.41s setup    tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+1.48s call     tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+1.14s call     tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+1.02s teardown tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+0.67s setup    tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+0.64s call     tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+0.12s teardown tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+
+(2 durations < 0.005s hidden.  Use -vv to show these durations.)
+3 passed in 13.76s
+
+EXIT_CODE=0

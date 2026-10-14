@@ -1,0 +1,288 @@
+Using CPython 3.12.3 interpreter at: /usr/bin/python3
+Creating virtual environment at: .venv
+Installed 76 packages in 304ms
+........................................................................ [  1%]
+.....sssssssssssssssssssssssssssssssssssssss............................ [  3%]
+........................................................................ [  4%]
+........................................................................ [  6%]
+........................................................................ [  7%]
+........................................................................ [  9%]
+........................................................................ [ 11%]
+........................................................................ [ 12%]
+........................................................................ [ 14%]
+....s................................................................... [ 15%]
+........................................................................ [ 17%]
+........................................................................ [ 19%]
+........................................................................ [ 20%]
+........................................................................ [ 22%]
+........................................................................ [ 23%]
+........................................................................ [ 25%]
+........................................................................ [ 27%]
+........................................................................ [ 28%]
+......................s................................................. [ 30%]
+........................................................................ [ 31%]
+........................................................................ [ 33%]
+........................................................................ [ 35%]
+........................................................................ [ 36%]
+...........F............................................................ [ 38%]
+........................................................................ [ 39%]
+........................................................................ [ 41%]
+........................................................................ [ 43%]
+........................................................................ [ 44%]
+........................................................................ [ 46%]
+........................................................................ [ 47%]
+........................................................................ [ 49%]
+........................................................................ [ 51%]
+..................................................F............sss....s. [ 52%]
+........................................................................ [ 54%]
+........................................................................ [ 55%]
+........................................................................ [ 57%]
+........................................................................ [ 59%]
+........................................................................ [ 60%]
+........................................................................ [ 62%]
+........................................................................ [ 63%]
+........................................................................ [ 65%]
+.....................................................F.................. [ 67%]
+........................................................................ [ 68%]
+........................................................................ [ 70%]
+........................................................................ [ 71%]
+............ss.......................................................... [ 73%]
+........................................................................ [ 75%]
+........................................................................ [ 76%]
+........................................................................ [ 78%]
+........................................................................ [ 79%]
+........................................................................ [ 81%]
+.......................................................................s [ 83%]
+ssssss.................................................................. [ 84%]
+........................................................................ [ 86%]
+........................................................................ [ 87%]
+........................FF.............................................. [ 89%]
+........................................................................ [ 91%]
+........................................................................ [ 92%]
+........................................................................ [ 94%]
+........................................................................ [ 95%]
+........................................................................ [ 97%]
+........................................................................ [ 99%]
+............................................                             [100%]
+=================================== FAILURES ===================================
+________ test_final_tool_call_is_persisted_and_retires_the_live_replay _________
+
+session = AgentSession(id='live-831', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0)
+
+    @pytest.mark.asyncio
+    async def test_final_tool_call_is_persisted_and_retires_the_live_replay(session):
+        from app.live_broker import broker
+        broker.clear_live(session.id)
+        session._handle_event(AgentEvent("tool_input_stream", '{"command": "ls"}',
+                                         {"tool_use_id": "toolu_F", "tool_name": "Bash"}))
+>       assert ("tool_input_stream", "toolu_F") in broker._live.get(session.id, {})
+E       AssertionError: assert ('tool_input_stream', 'toolu_F') in {}
+E        +  where {} = <built-in method get of dict object at 0x7e7d64b0d780>('live-831', {})
+E        +    where <built-in method get of dict object at 0x7e7d64b0d780> = {}.get
+E        +      where {} = <app.live_broker.LiveBroker object at 0x7e7d660c2810>._live
+E        +    and   'live-831' = AgentSession(id='live-831', name='w1', scope='/test', cwd='/tmp', model='claude-sonnet-5-5[1m]', system_prompt='test',...otal_input_tokens=0, total_output_tokens=0, total_cache_read_tokens=0, total_cache_create_tokens=0, total_tool_calls=0).id
+
+tests/test_live_tool_activity_831.py:85: AssertionError
+__________________ test_encoding_matches_real_cli_directories __________________
+
+    def test_encoding_matches_real_cli_directories():
+        """Сверка с ЖИВЫМИ парами (cwd → имя каталога), взятыми из самих транскриптов.
+    
+        Не подгонка под список имён: cwd читается из первой строки .jsonl, то есть
+        из того, что CLI записал сам. Нет каталогов на машине → тест пропускается.
+        """
+        root = pathlib.Path.home() / ".claude" / "projects"
+        if not root.is_dir():
+            pytest.skip("нет ~/.claude/projects на этой машине")
+    
+        pairs = []
+        for directory in sorted(root.iterdir()):
+            if not directory.is_dir():
+                continue
+            transcript = next(iter(sorted(directory.glob("*.jsonl"))), None)
+            if not transcript:
+                continue
+            with transcript.open() as fh:
+                for line in fh:
+                    try:
+                        cwd = (json.loads(line) or {}).get("cwd")
+                    except (json.JSONDecodeError, AttributeError):
+                        break
+                    if cwd:
+                        pairs.append((cwd, directory.name))
+                        break
+        if not pairs:
+            pytest.skip("не нашёл ни одной пары cwd → каталог")
+    
+        mismatched = [(c, real) for c, real in pairs if migrate_agent.enc_cli_dir(c) != real]
+>       assert not mismatched, f"кодирование разошлось с реальностью: {mismatched[:3]}"
+E       AssertionError: кодирование разошлось с реальностью: [('/tmp/v11-opus-wnuo_okv', '-tmp-v11-opus-wnuo-okv')]
+E       assert not [('/tmp/v11-opus-wnuo_okv', '-tmp-v11-opus-wnuo-okv')]
+
+tests/test_migrate_agent.py:71: AssertionError
+________ test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback ________
+
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-21224/test_t1_clean_supervisor_exit_0')
+
+    @pytest.mark.skipif(
+        not callable(getattr(os, "pidfd_open", None)),
+        reason="host Python lacks os.pidfd_open; injected unit coverage below",
+    )
+    def test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback(tmp_path):
+        assert _GUARD_MODULE.is_file(), (
+            "bounded supervisor-exit guard is missing from the production package"
+        )
+        target = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(0.3)"])
+        target_start = process_start_time(target.pid)
+        read_fd, write_fd = os.pipe()
+        guard = None
+        event_log = tmp_path / "clean.jsonl"
+        try:
+            guard = _start_guard(target, read_fd, event_log, budget=0.8)
+            os.close(read_fd)
+            read_fd = -1
+            _send_phase(write_fd, "application_teardown_complete", "post_lifespan_runtime")
+            os.close(write_fd)
+            write_fd = -1
+    
+            target.wait(timeout=2)
+>           _stdout, stderr = guard.communicate(timeout=2)
+                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+tests/test_restart_generation_liveness.py:103: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/lib/python3.12/subprocess.py:1209: in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/lib/python3.12/subprocess.py:2116: in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <Popen: returncode: -15 args: ['/home/kesha/orchestra/worktrees/home-kesha-o...>
+endtime = 6221375.946682499, orig_timeout = 2, stdout_seq = None
+stderr_seq = [], skip_check_and_raise = False
+
+    def _check_timeout(self, endtime, orig_timeout, stdout_seq, stderr_seq,
+                       skip_check_and_raise=False):
+        """Convenience for checking if a timeout has expired."""
+        if endtime is None:
+            return
+        if skip_check_and_raise or _time() > endtime:
+>           raise TimeoutExpired(
+                    self.args, orig_timeout,
+                    output=b''.join(stdout_seq) if stdout_seq else None,
+                    stderr=b''.join(stderr_seq) if stderr_seq else None)
+E           subprocess.TimeoutExpired: Command '['/home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/bin/python', '-m', 'app.restart_guard', '--pid', '3915968', '--start-ticks', '622137297', '--progress-fd', '12', '--post-cleanup-budget', '0.8', '--event-log', '/tmp/pytest-of-kesha/pytest-21224/test_t1_clean_supervisor_exit_0/clean.jsonl']' timed out after 2 seconds
+
+/usr/lib/python3.12/subprocess.py:1253: TimeoutExpired
+___________________ test_worktree_instance_refuses_to_start ____________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e7d620e9b80>
+tmp_path = PosixPath('/tmp/pytest-of-kesha/pytest-21224/test_worktree_instance_refuses0')
+manager_stub = <tests.test_tg_bridge_instance_guard.manager_stub.<locals>._Manager object at 0x7e7d514ecb00>
+bridge_body_tripwire = None
+
+    @pytest.mark.asyncio
+    async def test_worktree_instance_refuses_to_start(
+        monkeypatch, tmp_path, manager_stub, bridge_body_tripwire
+    ):
+        _as_worktree_instance(monkeypatch, tmp_path)
+    
+        with pytest.raises(UnmanagedInstanceError) as excinfo:
+            await start_bridge(manager_stub)
+    
+>       assert tb.bot is None
+E       assert <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7e7d514f9df0> is None
+E        +  where <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7e7d514f9df0> = tb.bot
+
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/tests/test_tg_bridge_instance_guard.py:70: AssertionError
+______________________ test_bare_process_refuses_to_start ______________________
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x7e7d620eafc0>
+manager_stub = <tests.test_tg_bridge_instance_guard.manager_stub.<locals>._Manager object at 0x7e7d519bf2f0>
+bridge_body_tripwire = None
+
+    @pytest.mark.asyncio
+    async def test_bare_process_refuses_to_start(
+        monkeypatch, manager_stub, bridge_body_tripwire
+    ):
+        """No systemd variables at all — the guard must fail closed, not open."""
+        for key in ("LISTEN_PID", "LISTEN_FDS", "NOTIFY_SOCKET", "SYSTEMD_EXEC_PID"):
+            monkeypatch.delenv(key, raising=False)
+    
+        with pytest.raises(UnmanagedInstanceError) as excinfo:
+            await start_bridge(manager_stub)
+    
+>       assert tb.bot is None
+E       assert <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7e7d514f9df0> is None
+E        +  where <tests.test_tg_bridge.test_v681_rejected_video_album_is_resent_as_documents.<locals>._Bot object at 0x7e7d514f9df0> = tb.bot
+
+tests/test_tg_bridge_instance_guard.py:90: AssertionError
+=============================== warnings summary ===============================
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+tests/test_auth.py::test_openapi_docs_require_auth_but_authenticated_cookie_can_read_schema
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/.venv/lib/python3.12/site-packages/fastapi/openapi/utils.py:252: UserWarning: Duplicate Operation ID open_artifact_api_artifacts_open__locator__get for function open_artifact at /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/app/routes/artifacts.py
+    warnings.warn(message, stacklevel=1)
+
+tests/test_mailbox.py::test_impl1_concurrent_claim_does_not_double_deliver
+  /usr/lib/python3.12/unittest/mock.py:2188: RuntimeWarning: coroutine '_S._notify_scope_idle' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+tests/test_merge_operations.py::test_schema_and_cross_process_arbitration_allow_one_owner
+  /usr/lib/python3.12/multiprocessing/popen_fork.py:66: DeprecationWarning: This process (pid=3877031) is multi-threaded, use of fork() may lead to deadlocks in the child.
+    self.pid = os.fork()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+===================== ПРОПУЩЕНЫ ПРОВЕРКИ ВЛАДЕНИЯ ФАЙЛАМИ ======================
+4 теста(ов) не выполнялись: нет беспарольного sudo. Владение файлами нельзя проверить заглушками — нужны два реальных владельца.
+  test_migrated_worker_can_actually_commit, test_nested_repo_worker_migrates_into_its_own_repo, test_no_permanent_safe_directory_is_written_on_the_host, test_nothing_is_left_behind_for_the_login_user
+============================= slowest 30 durations =============================
+28.27s call     tests/test_merge_test_gate.py::test_browser_inventory_is_explicit
+23.71s call     tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+20.47s call     tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+20.01s setup    tests/test_system_chat_entry.py::test_system_entry_is_not_an_agent_bubble
+15.55s call     tests/test_sigterm_sse_shutdown_v630.py::test_sigterm_exits_with_open_dashboard_sse
+15.12s setup    tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+14.00s setup    tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox
+13.53s call     tests/test_orchestra_layout_430.py::test_t3_repository_move_has_content_receipt_and_no_old_roots
+11.20s call     tests/test_t344_quota_lines_browser.py::test_live_quota_map_history_and_two_hour_labels
+10.98s call     tests/test_tailwind_css.py::test_committed_css_matches_current_sources
+10.97s call     tests/test_orchestra_layout_430.py::test_t5_classified_path_audit_is_clean_and_historical_evidence_resolves
+10.73s call     tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+10.70s setup    tests/test_frontend_context_panel_468.py::test_live_stream_completion_refreshes_selected_agent_context
+10.48s call     tests/test_frontend.py::test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff
+10.28s call     tests/test_frontend.py::test_restart_signal_failure_reaches_frontend_on_heartbeat
+9.16s setup    tests/test_compact_chat_672.py::test_compact_journal_rows_render_as_one_separate_collapsible_block
+8.83s call     tests/test_migrate_agent.py::test_encoding_matches_real_cli_directories
+8.25s call     tests/test_orchestra_layout_430.py::test_t1_partial_missing_and_dirty_states_are_loud_and_repairable
+7.80s setup    tests/test_i18n_dashboard.py::test_dictionary_reaches_static_markup
+7.47s call     tests/test_tool_scoping.py::test_real_stdio_worker_stand
+7.45s call     tests/test_merge_target_oracle_386.py::test_t386_t1_nested_target_passes_while_main_and_mapped_regression_reject
+7.16s call     tests/test_t344_quota_lines_browser.py::test_timeline_centers_now_repeats_thresholds_and_shades_nights
+6.76s call     tests/test_frontend.py::test_load_more_increases_visible_cards
+6.66s call     tests/test_api.py::TestSendMessage::test_send
+6.65s call     tests/test_t344_quota_lines_browser.py::test_claude_lane_label_follows_dashboard_language
+6.56s call     tests/test_frontend.py::test_dashboard_polling_pauses_hidden_and_resumes_after_visibility_and_online
+6.51s call     tests/test_frontend.py::test_html_preview_uses_protected_raw_url_and_opaque_origin_sandbox
+6.46s call     tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+6.42s call     tests/test_frontend.py::test_silent_turn_marker_is_hidden_only_when_exact_text_in_history
+6.34s call     tests/test_t344_quota_lines_browser.py::test_unified_panel_has_four_points_without_console_errors
+=========================== short test summary info ============================
+FAILED tests/test_live_tool_activity_831.py::test_final_tool_call_is_persisted_and_retires_the_live_replay
+FAILED tests/test_migrate_agent.py::test_encoding_matches_real_cli_directories
+FAILED tests/test_restart_generation_liveness.py::test_t1_clean_supervisor_exit_is_distinct_from_forced_fallback
+FAILED tests/test_tg_bridge_instance_guard.py::test_worktree_instance_refuses_to_start
+FAILED tests/test_tg_bridge_instance_guard.py::test_bare_process_refuses_to_start
+5 failed, 4449 passed, 54 skipped, 4 deselected, 6 warnings in 1945.74s (0:32:25)
+
+EXIT_CODE=1

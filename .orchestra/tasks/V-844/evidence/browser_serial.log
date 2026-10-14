@@ -1,0 +1,26 @@
+...E                                                                     [100%]
+==================================== ERRORS ====================================
+_ ERROR at setup of test_dynamic_workflow_call_renders_detail_card_and_expands_answer _
+file /home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/tests/test_workflow_cards.py, line 129
+  def test_dynamic_workflow_call_renders_detail_card_and_expands_answer(dashboard_browser):
+E       fixture 'dashboard_browser' not found
+>       available fixtures: _artifacts_recorder, _asyncio_loop_factory, _class_scoped_runner, _forbid_restart_guard_on_test_runner, _function_scoped_runner, _hermetic_dashboard_env, _isolate_production_db, _isolate_project_catalog, _isolate_worktree_root, _isolated_git_task_owner, _isolated_managed_cli_home, _module_scoped_runner, _no_agentic_compact, _no_tg_bridge, _package_scoped_runner, _pw_artifacts_folder, _session_scoped_runner, _stable_worker_quota, _verify_url, anyio_backend, anyio_backend_name, anyio_backend_options, base_url, browser, browser_channel, browser_context_args, browser_name, browser_type, browser_type_launch_args, cache, capfd, capfdbinary, caplog, capsys, capsysbinary, capteesys, codex_bin_stub, connect_options, context, delete_output_dir, device, doctest_namespace, event_loop_policy, free_tcp_port, free_tcp_port_factory, free_udp_port, free_udp_port_factory, is_chromium, is_firefox, is_webkit, launch_browser, live_harness_route, monkeypatch, new_context, no_real_exit_guard, output_path, page, playwright, pytestconfig, record_property, record_testsuite_property, record_xml_attribute, recwarn, subtests, testrun_uid, tmp_path, tmp_path_factory, tmpdir, tmpdir_factory, unused_tcp_port, unused_tcp_port_factory, unused_udp_port, unused_udp_port_factory, worker_id
+>       use 'pytest --fixtures [testpath]' for help on them.
+
+/home/kesha/orchestra/worktrees/home-kesha-orchestra/perf-audit/tests/test_workflow_cards.py:129
+============================= slowest 20 durations =============================
+8.30s setup    tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+2.14s call     tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+1.35s call     tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+1.25s call     tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+1.08s teardown tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+0.62s setup    tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+0.08s teardown tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+0.01s setup    tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+
+(3 durations < 0.005s hidden.  Use -vv to show these durations.)
+=========================== short test summary info ============================
+ERROR tests/test_workflow_cards.py::test_dynamic_workflow_call_renders_detail_card_and_expands_answer
+3 passed, 1 error in 15.03s
+
+EXIT_CODE=1
