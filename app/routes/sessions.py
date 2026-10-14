@@ -8,6 +8,7 @@ import math
 import re
 import sqlite3
 import subprocess
+import time
 import uuid
 from app.task_refs import task_ref as public_task_ref
 
@@ -88,12 +89,17 @@ def _worker_not_found(name: str, scope: str) -> JSONResponse:
 
 
 async def _wait_for_merge_idle(session) -> bool:
-    """Wait for the current turn's explicit terminal signal; only IDLE is ready."""
+    """Wait for an explicit turn-completion signal before changing worker branches."""
     if session.status.value == "idle":
         return True
     if not session.loaded or session.status.value != "running":
         return False
     return await session.wait_for_turn_completion()
+
+
+def _merge_worker_is_idle(session) -> bool:
+    """A merge refuses a busy worker immediately; retry after its turn completes."""
+    return session.status.value == "idle"
 
 
 def _existing_branch_verdict(worktree_path: str, branch: str, scope: str,
@@ -2587,7 +2593,7 @@ async def execute_merge_session(
                 worker_head=pinned_head,
             )
 
-        if not await _wait_for_merge_idle(found):
+        if not _merge_worker_is_idle(found):
             status = found.status.value
             return _merge_not_reached(
                 f"worker is {status} — wait for idle before merge",
@@ -2697,6 +2703,7 @@ async def execute_merge_session(
                 if operation_id:
                     _ops.save_prepared_finalization(operation_id, finalization)
 
+            git_started = time.perf_counter()
             try:
                 result = await asyncio.to_thread(
                     merge_worktree_to_main,
@@ -2717,10 +2724,11 @@ async def execute_merge_session(
                     commit_receipt=commit_receipt,
                 )
             except Exception as e:
+                git_ms = max(0, round((time.perf_counter() - git_started) * 1000))
                 # Реmержа не было видно ни одной стороной: исход Git неизвестен, поэтому
                 # резервация НЕ снимается — иначе задачу заберёт другой воркер, пока
                 # никто не знает, коммитнулась она или нет.
-                return {
+                failed = {
                     **_merge_not_reached(
                         f"merge execution failed: {type(e).__name__}: {e}",
                         target_branch=target,
@@ -2731,6 +2739,12 @@ async def execute_merge_session(
                     "state": "partial",
                     "commit_point": "unknown",
                 }
+                failed["phase_durations_ms"] = {"git": git_ms}
+                return failed
+
+            git_ms = max(0, round((time.perf_counter() - git_started) * 1000))
+            if isinstance(result, dict):
+                result.setdefault("phase_durations_ms", {})["git"] = git_ms
 
             if (
                 isinstance(result, dict)
@@ -2762,9 +2776,10 @@ async def execute_merge_session(
                     await asyncio.to_thread(_tm.release_merge_finalization, finalization)
                 return result
 
+            finalization_started = time.perf_counter()
             merged_commits = result.pop("merged_commits", {})
             if finalization is not None:
-                return await _finalize_committed_merge(
+                finalized = await _finalize_committed_merge(
                     result=result,
                     finalization=finalization,
                     found=found,
@@ -2772,6 +2787,10 @@ async def execute_merge_session(
                     row_scope=row_scope,
                     merged_commits=merged_commits,
                 )
+                finalized.setdefault("phase_durations_ms", {})[
+                    "finalization"
+                ] = max(0, round((time.perf_counter() - finalization_started) * 1000))
+                return finalized
 
             link_results = {}
             for task_ref, commits in merged_commits.items():
@@ -2831,6 +2850,9 @@ async def execute_merge_session(
                         "ok": False,
                         "error": "task not updated because switch was skipped",
                     }
+                result.setdefault("phase_durations_ms", {})[
+                    "finalization"
+                ] = max(0, round((time.perf_counter() - finalization_started) * 1000))
                 return result
 
 
@@ -2933,6 +2955,9 @@ async def execute_merge_session(
                                 quarantine_status["error"]
                             )
                 result["switch"] = switch_result
+            result.setdefault("phase_durations_ms", {})[
+                "finalization"
+            ] = max(0, round((time.perf_counter() - finalization_started) * 1000))
             return result
 
 

@@ -2507,7 +2507,7 @@ async def test_switch_rejects_non_boolean_force():
 
 
 @pytest.mark.asyncio
-async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
+async def test_merge_refuses_running_worker_without_waiting_for_its_turn(db, monkeypatch):
     import asyncio
     import app.main as mainmod
     import app.routes.sessions as sessmod
@@ -2528,8 +2528,7 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
 
         async def wait_for_turn_completion(self):
             wait_started.set()
-            await turn_finished.wait()
-            return self.status.value == "idle"
+            raise AssertionError("merge must not wait for a busy worker")
 
         async def interrupt(self):
             raise AssertionError("merge must not interrupt the worker")
@@ -2538,7 +2537,6 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
     _save_merge_session_record(session)
     merge_called = False
     wait_started = asyncio.Event()
-    turn_finished = asyncio.Event()
 
     def fake_merge(*_args, **_kwargs):
         nonlocal merge_called
@@ -2559,19 +2557,12 @@ async def test_merge_waits_for_running_worker_to_finish_turn(db, monkeypatch):
 
     monkeypatch.setattr(mainmod.manager, "persist_lifecycle", persist_lifecycle)
 
-    merge_task = asyncio.create_task(
-        _call_merge_session(sessmod, "w", {"scope": "/s"}),
-    )
-    await asyncio.wait_for(wait_started.wait(), timeout=0.2)
+    result = await _call_merge_session(sessmod, "w", {"scope": "/s"})
+
+    assert result.status_code == 400
+    assert "worker is running — wait for idle before merge" in result.body.decode()
+    assert wait_started.is_set() is False
     assert merge_called is False
-    assert merge_task.done() is False
-
-    session.status.value = "idle"
-    turn_finished.set()
-    result = await asyncio.wait_for(merge_task, timeout=0.2)
-
-    assert result["ok"] is True
-    assert merge_called is True
 
 
 @pytest.mark.asyncio

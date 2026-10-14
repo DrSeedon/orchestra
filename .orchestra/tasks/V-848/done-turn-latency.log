@@ -1,0 +1,8 @@
+cutoff_utc_date= 2026-10-07 through_utc= 2026-10-14T11:00:43.683735+00:00
+tables=logs,turn_usage; sessions=worker/full-cycle; read_only=1
+turn_end_logs= 1248 sessions= 111 turn_usage_event_id_matches= 1247 / 1248
+DONE_prefix_send_message_calls= 460 paired_turns= 444 multi_DONE_turns= 8 missing_matching_tool_result= 0
+send_message_call_start_to_turn_end_seconds= {'p50': 7.233, 'p90': 17.287, 'p95': 40.174, 'p99': 694.81} max= 999.166138
+send_message_tool_result_to_turn_end_seconds= {'p50': 6.479, 'p75': 10.0, 'p90': 14.918, 'p95': 38.742, 'p99': 693.64} max= 998.547419
+tool_result_to_turn_end_over_seconds= {5: 281, 10: 111, 15: 43, 30: 25, 60: 19, 90: 16}
+turn_usage_timestamp_matches_done_pairs= 444 p95= 40.174
