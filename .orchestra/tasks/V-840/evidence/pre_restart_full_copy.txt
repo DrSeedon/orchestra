@@ -1,0 +1,7 @@
+[size] rc=0
+4.9G	/home/kesha/orchestra/worktrees/home-kesha-katya-work/urok-svyaz
+
+[sparse] rc=128
+fatal: this worktree is not sparse
+
+[config] rc=1

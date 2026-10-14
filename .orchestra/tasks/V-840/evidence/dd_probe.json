@@ -1,0 +1,20 @@
+{
+  "device_path": "/home/kesha/v840-io-0trrnpda.bin",
+  "bytes": 33554432,
+  "results": [
+    {
+      "label": "direct_write_32MiB",
+      "elapsed_s": 0.044501316733658314,
+      "returncode": 0,
+      "stderr": "",
+      "MiB_s": 719.079846367714
+    },
+    {
+      "label": "direct_read_32MiB",
+      "elapsed_s": 0.021174748428165913,
+      "returncode": 0,
+      "stderr": "",
+      "MiB_s": 1511.2340110466066
+    }
+  ]
+}

@@ -1,0 +1,1158 @@
+{
+  "db": "/home/kesha/orchestra/data/orchestra.db",
+  "cutoff_utc": "2026-10-07T08:02:16.012801+00:00",
+  "snapshot_max_id": 667698,
+  "lower_id": 576096,
+  "metadata_rows_scanned": 61762,
+  "calls_in_window": 31143,
+  "calls_by_runtime": {
+    "claude": 20601,
+    "codex": 10509,
+    "harness": 33
+  },
+  "paired_in_window": 30260,
+  "unpaired_calls_in_window": 883,
+  "negative_duration_pairs_in_window": 0,
+  "tool_result_rows_without_matching_call_in_window": 359,
+  "total_paired_tool_seconds": 132159.864353,
+  "turn_usage_totals_by_runtime": {
+    "claude": {
+      "count": 1872,
+      "turn_seconds": 189676.406,
+      "tool_duration_sum_seconds": 0.0,
+      "tool_union_seconds": 0.0,
+      "missing_tool_intervals": 0
+    },
+    "codex": {
+      "count": 230,
+      "turn_seconds": 128451.772,
+      "tool_duration_sum_seconds": 22295.407,
+      "tool_union_seconds": 19305.318,
+      "missing_tool_intervals": 0
+    }
+  },
+  "turn_wall_seconds_sum": 318128.17799999996,
+  "tool_seconds_as_turn_time_share": 0.41542960822854247,
+  "groups": [
+    {
+      "tool_name": "Bash",
+      "runtime": "claude",
+      "count": 12894,
+      "p50_s": 0.300976,
+      "p90_s": 16.26852,
+      "p99_s": 112.642036,
+      "sum_s": 91932.348589,
+      "share_of_all_turn_seconds_pct": 28.89789554856722
+    },
+    {
+      "tool_name": "Bash",
+      "runtime": "codex",
+      "count": 6030,
+      "p50_s": 0.014649,
+      "p90_s": 5.103881,
+      "p99_s": 44.05743,
+      "sum_s": 15264.302652,
+      "share_of_all_turn_seconds_pct": 4.798161152515073
+    },
+    {
+      "tool_name": "Edit",
+      "runtime": "claude",
+      "count": 143,
+      "p50_s": 0.039419,
+      "p90_s": 0.235798,
+      "p99_s": 1.901088,
+      "sum_s": 35.415204,
+      "share_of_all_turn_seconds_pct": 0.011132369418719019
+    },
+    {
+      "tool_name": "FileChange",
+      "runtime": "claude",
+      "count": 549,
+      "p50_s": 0.005007,
+      "p90_s": 0.026029,
+      "p99_s": 0.272215,
+      "sum_s": 14.142945,
+      "share_of_all_turn_seconds_pct": 0.004445675038568888
+    },
+    {
+      "tool_name": "FileChange",
+      "runtime": "codex",
+      "count": 1664,
+      "p50_s": 0.007342,
+      "p90_s": 0.048875,
+      "p99_s": 0.27727,
+      "sum_s": 42.856288,
+      "share_of_all_turn_seconds_pct": 0.013471390138851517
+    },
+    {
+      "tool_name": "Read",
+      "runtime": "claude",
+      "count": 1690,
+      "p50_s": 0.137114,
+      "p90_s": 3.975673,
+      "p99_s": 68.398029,
+      "sum_s": 4426.096155,
+      "share_of_all_turn_seconds_pct": 1.391293340572931
+    },
+    {
+      "tool_name": "Skill",
+      "runtime": "claude",
+      "count": 15,
+      "p50_s": 0.042674,
+      "p90_s": 0.296377,
+      "p99_s": 0.565009,
+      "sum_s": 1.583875,
+      "share_of_all_turn_seconds_pct": 0.0004978732188885199
+    },
+    {
+      "tool_name": "TaskStop",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 0.102346,
+      "p90_s": 0.102346,
+      "p99_s": 0.102346,
+      "sum_s": 0.102346,
+      "share_of_all_turn_seconds_pct": 3.217130926390306e-05
+    },
+    {
+      "tool_name": "ToolSearch",
+      "runtime": "claude",
+      "count": 48,
+      "p50_s": 0.014033,
+      "p90_s": 0.046303,
+      "p99_s": 0.068507,
+      "sum_s": 0.943535,
+      "share_of_all_turn_seconds_pct": 0.00029658957151541604
+    },
+    {
+      "tool_name": "ViewImage",
+      "runtime": "claude",
+      "count": 247,
+      "p50_s": 0.00414,
+      "p90_s": 0.009289,
+      "p99_s": 0.049912,
+      "sum_s": 1.43956,
+      "share_of_all_turn_seconds_pct": 0.00045250942844805153
+    },
+    {
+      "tool_name": "ViewImage",
+      "runtime": "codex",
+      "count": 559,
+      "p50_s": 0.003617,
+      "p90_s": 0.008951,
+      "p99_s": 0.022904,
+      "sum_s": 2.900237,
+      "share_of_all_turn_seconds_pct": 0.000911656747363008
+    },
+    {
+      "tool_name": "WebFetch",
+      "runtime": "claude",
+      "count": 231,
+      "p50_s": 5.992106,
+      "p90_s": 12.631696,
+      "p99_s": 61.012287,
+      "sum_s": 1837.215402,
+      "share_of_all_turn_seconds_pct": 0.5775079131783166
+    },
+    {
+      "tool_name": "WebSearch",
+      "runtime": "claude",
+      "count": 449,
+      "p50_s": 2.284093,
+      "p90_s": 14.017048,
+      "p99_s": 32.933408,
+      "sum_s": 2847.9080480000002,
+      "share_of_all_turn_seconds_pct": 0.895207732274505
+    },
+    {
+      "tool_name": "WebSearch",
+      "runtime": "codex",
+      "count": 308,
+      "p50_s": 1.716413,
+      "p90_s": 2.482098,
+      "p99_s": 5.299773,
+      "sum_s": 599.654761,
+      "share_of_all_turn_seconds_pct": 0.18849470196883977
+    },
+    {
+      "tool_name": "Write",
+      "runtime": "claude",
+      "count": 274,
+      "p50_s": 0.029742,
+      "p90_s": 0.144099,
+      "p99_s": 0.545572,
+      "sum_s": 18.7413,
+      "share_of_all_turn_seconds_pct": 0.005891116001676532
+    },
+    {
+      "tool_name": "bash",
+      "runtime": "claude",
+      "count": 14,
+      "p50_s": 0.00099,
+      "p90_s": 0.004542,
+      "p99_s": 0.011404,
+      "sum_s": 0.029752999999999998,
+      "share_of_all_turn_seconds_pct": 9.352519536952179e-06
+    },
+    {
+      "tool_name": "bash",
+      "runtime": "harness",
+      "count": 11,
+      "p50_s": 0.896737,
+      "p90_s": 89.986091,
+      "p99_s": 120.469331,
+      "sum_s": 224.061705,
+      "share_of_all_turn_seconds_pct": 0.07043126654439269
+    },
+    {
+      "tool_name": "bash_placeholder",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 0.002746,
+      "p90_s": 0.002746,
+      "p99_s": 0.002746,
+      "sum_s": 0.002746,
+      "share_of_all_turn_seconds_pct": 8.631740882758271e-07
+    },
+    {
+      "tool_name": "kill_worker",
+      "runtime": "harness",
+      "count": 8,
+      "p50_s": 0.819939,
+      "p90_s": 1.207791,
+      "p99_s": 1.207791,
+      "sum_s": 6.69727,
+      "share_of_all_turn_seconds_pct": 0.0021052111894344677
+    },
+    {
+      "tool_name": "list_agents",
+      "runtime": "harness",
+      "count": 3,
+      "p50_s": 1.013919,
+      "p90_s": 2.110502,
+      "p99_s": 2.110502,
+      "sum_s": 3.292574,
+      "share_of_all_turn_seconds_pct": 0.0010349834524875066
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.batch_update_document",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 0.68474,
+      "p90_s": 1.925702,
+      "p99_s": 1.925702,
+      "sum_s": 2.610442,
+      "share_of_all_turn_seconds_pct": 0.0008205629618889026
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.batch_update_presentation",
+      "runtime": "codex",
+      "count": 150,
+      "p50_s": 1.182063,
+      "p90_s": 1.982021,
+      "p99_s": 2.976852,
+      "sum_s": 195.174884,
+      "share_of_all_turn_seconds_pct": 0.06135102059396952
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.export_file",
+      "runtime": "claude",
+      "count": 8,
+      "p50_s": 2.707166,
+      "p90_s": 9.316361,
+      "p99_s": 9.316361,
+      "sum_s": 33.826114,
+      "share_of_all_turn_seconds_pct": 0.01063285692347567
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.export_file",
+      "runtime": "codex",
+      "count": 49,
+      "p50_s": 3.959614,
+      "p90_s": 14.914356,
+      "p99_s": 15.731461,
+      "sum_s": 347.72321900000003,
+      "share_of_all_turn_seconds_pct": 0.10930286690919912
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.fetch",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 1.754542,
+      "p90_s": 1.754542,
+      "p99_s": 1.754542,
+      "sum_s": 1.754542,
+      "share_of_all_turn_seconds_pct": 0.000551520462924853
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.fetch",
+      "runtime": "codex",
+      "count": 89,
+      "p50_s": 3.461584,
+      "p90_s": 7.60116,
+      "p99_s": 11.531701,
+      "sum_s": 349.151581,
+      "share_of_all_turn_seconds_pct": 0.10975185637281085
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_document",
+      "runtime": "claude",
+      "count": 8,
+      "p50_s": 0.881991,
+      "p90_s": 1.177043,
+      "p99_s": 1.177043,
+      "sum_s": 7.859529,
+      "share_of_all_turn_seconds_pct": 0.002470554180208457
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_document",
+      "runtime": "codex",
+      "count": 7,
+      "p50_s": 0.7412,
+      "p90_s": 1.869722,
+      "p99_s": 1.869722,
+      "sum_s": 4.9826250000000005,
+      "share_of_all_turn_seconds_pct": 0.001566231897886141
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_document_text",
+      "runtime": "claude",
+      "count": 9,
+      "p50_s": 0.99444,
+      "p90_s": 2.170291,
+      "p99_s": 2.170291,
+      "sum_s": 10.418658,
+      "share_of_all_turn_seconds_pct": 0.0032749874800464865
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_file_metadata",
+      "runtime": "claude",
+      "count": 5,
+      "p50_s": 0.46292,
+      "p90_s": 1.585517,
+      "p99_s": 1.585517,
+      "sum_s": 4.236359,
+      "share_of_all_turn_seconds_pct": 0.0013316516086795682
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_file_metadata",
+      "runtime": "codex",
+      "count": 105,
+      "p50_s": 0.388776,
+      "p90_s": 1.299011,
+      "p99_s": 1.90254,
+      "sum_s": 56.68415,
+      "share_of_all_turn_seconds_pct": 0.01781802239473424
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_presentation",
+      "runtime": "claude",
+      "count": 6,
+      "p50_s": 1.33044,
+      "p90_s": 1.907346,
+      "p99_s": 1.907346,
+      "sum_s": 9.419505000000001,
+      "share_of_all_turn_seconds_pct": 0.00296091501834836
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_presentation",
+      "runtime": "codex",
+      "count": 143,
+      "p50_s": 1.582312,
+      "p90_s": 1.995816,
+      "p99_s": 3.03731,
+      "sum_s": 229.355708,
+      "share_of_all_turn_seconds_pct": 0.0720953766000571
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_presentation_outline",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 1.535493,
+      "p90_s": 1.535493,
+      "p99_s": 1.535493,
+      "sum_s": 1.535493,
+      "share_of_all_turn_seconds_pct": 0.0004826648835866404
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_presentation_outline",
+      "runtime": "codex",
+      "count": 4,
+      "p50_s": 0.116319,
+      "p90_s": 1.082728,
+      "p99_s": 1.082728,
+      "sum_s": 2.2427639999999998,
+      "share_of_all_turn_seconds_pct": 0.0007049875349300243
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_presentation_text",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 0.723648,
+      "p90_s": 1.534407,
+      "p99_s": 1.534407,
+      "sum_s": 2.258055,
+      "share_of_all_turn_seconds_pct": 0.0007097940880923791
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_presentation_text",
+      "runtime": "codex",
+      "count": 12,
+      "p50_s": 1.18326,
+      "p90_s": 1.692383,
+      "p99_s": 2.44303,
+      "sum_s": 15.956308,
+      "share_of_all_turn_seconds_pct": 0.005015685218553637
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_slide",
+      "runtime": "codex",
+      "count": 1,
+      "p50_s": 1.406005,
+      "p90_s": 1.406005,
+      "p99_s": 1.406005,
+      "sum_s": 1.406005,
+      "share_of_all_turn_seconds_pct": 0.0004419617931486723
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.get_slide_thumbnail",
+      "runtime": "codex",
+      "count": 157,
+      "p50_s": 2.729646,
+      "p90_s": 4.505462,
+      "p99_s": 5.674907,
+      "sum_s": 445.798118,
+      "share_of_all_turn_seconds_pct": 0.1401316038090785
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.import_document",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 7.050734,
+      "p90_s": 7.050734,
+      "p99_s": 7.050734,
+      "sum_s": 7.050734,
+      "share_of_all_turn_seconds_pct": 0.0022163186060179807
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.list_file_revisions",
+      "runtime": "codex",
+      "count": 20,
+      "p50_s": 1.966018,
+      "p90_s": 5.072446,
+      "p99_s": 5.788813,
+      "sum_s": 56.970054000000005,
+      "share_of_all_turn_seconds_pct": 0.017907893088301034
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.list_folder",
+      "runtime": "codex",
+      "count": 5,
+      "p50_s": 0.66361,
+      "p90_s": 0.687928,
+      "p99_s": 0.687928,
+      "sum_s": 2.802161,
+      "share_of_all_turn_seconds_pct": 0.0008808276643762126
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.search",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 1.205877,
+      "p90_s": 1.205877,
+      "p99_s": 1.205877,
+      "sum_s": 1.205877,
+      "share_of_all_turn_seconds_pct": 0.0003790538164777093
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.search",
+      "runtime": "codex",
+      "count": 12,
+      "p50_s": 0.94334,
+      "p90_s": 3.040256,
+      "p99_s": 7.841684,
+      "sum_s": 19.282706,
+      "share_of_all_turn_seconds_pct": 0.006061300863452594
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.update_file",
+      "runtime": "claude",
+      "count": 8,
+      "p50_s": 2.804495,
+      "p90_s": 4.840965,
+      "p99_s": 4.840965,
+      "sum_s": 26.314459,
+      "share_of_all_turn_seconds_pct": 0.008271653006480929
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.update_file",
+      "runtime": "codex",
+      "count": 50,
+      "p50_s": 2.951028,
+      "p90_s": 4.224112,
+      "p99_s": 5.468674,
+      "sum_s": 158.468248,
+      "share_of_all_turn_seconds_pct": 0.04981270411073112
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.upload_file",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 3.105909,
+      "p90_s": 3.566043,
+      "p99_s": 3.566043,
+      "sum_s": 6.671952,
+      "share_of_all_turn_seconds_pct": 0.0020972527620612097
+    },
+    {
+      "tool_name": "mcp__codex_apps__google_drive.upload_file",
+      "runtime": "codex",
+      "count": 2,
+      "p50_s": 3.238383,
+      "p90_s": 3.55488,
+      "p99_s": 3.55488,
+      "sum_s": 6.793263,
+      "share_of_all_turn_seconds_pct": 0.0021353855048954515
+    },
+    {
+      "tool_name": "mcp__mailru__mail_read",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 1.195095,
+      "p90_s": 1.195095,
+      "p99_s": 1.195095,
+      "sum_s": 1.195095,
+      "share_of_all_turn_seconds_pct": 0.00037566461654333565
+    },
+    {
+      "tool_name": "mcp__orchestra__bg_cancel",
+      "runtime": "claude",
+      "count": 48,
+      "p50_s": 0.119603,
+      "p90_s": 0.829396,
+      "p99_s": 5.310294,
+      "sum_s": 19.505475,
+      "share_of_all_turn_seconds_pct": 0.006131325782779294
+    },
+    {
+      "tool_name": "mcp__orchestra__bg_cancel",
+      "runtime": "codex",
+      "count": 2,
+      "p50_s": 0.096612,
+      "p90_s": 0.263957,
+      "p99_s": 0.263957,
+      "sum_s": 0.36056900000000003,
+      "share_of_all_turn_seconds_pct": 0.0001133407930937825
+    },
+    {
+      "tool_name": "mcp__orchestra__bg_create",
+      "runtime": "claude",
+      "count": 721,
+      "p50_s": 0.159991,
+      "p90_s": 0.874199,
+      "p99_s": 21.157961,
+      "sum_s": 1084.388087,
+      "share_of_all_turn_seconds_pct": 0.3408651487011629
+    },
+    {
+      "tool_name": "mcp__orchestra__bg_create",
+      "runtime": "codex",
+      "count": 191,
+      "p50_s": 0.137287,
+      "p90_s": 0.607562,
+      "p99_s": 13.802998,
+      "sum_s": 270.693728,
+      "share_of_all_turn_seconds_pct": 0.08508951633954287
+    },
+    {
+      "tool_name": "mcp__orchestra__bg_list",
+      "runtime": "claude",
+      "count": 33,
+      "p50_s": 0.229379,
+      "p90_s": 4.860871,
+      "p99_s": 22.765115,
+      "sum_s": 71.893251,
+      "share_of_all_turn_seconds_pct": 0.022598831531358412
+    },
+    {
+      "tool_name": "mcp__orchestra__bg_list",
+      "runtime": "codex",
+      "count": 5,
+      "p50_s": 0.084495,
+      "p90_s": 0.53185,
+      "p99_s": 0.53185,
+      "sum_s": 0.8575520000000001,
+      "share_of_all_turn_seconds_pct": 0.00026956178650732414
+    },
+    {
+      "tool_name": "mcp__orchestra__cancel_message_delivery",
+      "runtime": "claude",
+      "count": 10,
+      "p50_s": 0.050079,
+      "p90_s": 0.095579,
+      "p99_s": 0.13844,
+      "sum_s": 0.64183,
+      "share_of_all_turn_seconds_pct": 0.00020175201204591193
+    },
+    {
+      "tool_name": "mcp__orchestra__change_worker_model",
+      "runtime": "claude",
+      "count": 11,
+      "p50_s": 0.142968,
+      "p90_s": 0.374796,
+      "p99_s": 2.43898,
+      "sum_s": 3.8506329999999998,
+      "share_of_all_turn_seconds_pct": 0.0012104029967442871
+    },
+    {
+      "tool_name": "mcp__orchestra__check_conflict",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 0.081099,
+      "p90_s": 0.098445,
+      "p99_s": 0.098445,
+      "sum_s": 0.179544,
+      "share_of_all_turn_seconds_pct": 5.6437628734666823e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__dynamic_workflow",
+      "runtime": "claude",
+      "count": 23,
+      "p50_s": 0.379579,
+      "p90_s": 0.826164,
+      "p99_s": 15.532081,
+      "sum_s": 25.754989,
+      "share_of_all_turn_seconds_pct": 0.00809578993030916
+    },
+    {
+      "tool_name": "mcp__orchestra__dynamic_workflow",
+      "runtime": "codex",
+      "count": 6,
+      "p50_s": 0.336933,
+      "p90_s": 0.53441,
+      "p99_s": 0.53441,
+      "sum_s": 2.066538,
+      "share_of_all_turn_seconds_pct": 0.0006495928820237987
+    },
+    {
+      "tool_name": "mcp__orchestra__file_delivery_status",
+      "runtime": "claude",
+      "count": 5,
+      "p50_s": 0.367838,
+      "p90_s": 0.896761,
+      "p99_s": 0.896761,
+      "sum_s": 2.032816,
+      "share_of_all_turn_seconds_pct": 0.0006389927521604201
+    },
+    {
+      "tool_name": "mcp__orchestra__get_worker_info",
+      "runtime": "claude",
+      "count": 26,
+      "p50_s": 0.091489,
+      "p90_s": 1.431474,
+      "p99_s": 5.815665,
+      "sum_s": 17.152091,
+      "share_of_all_turn_seconds_pct": 0.005391566100127101
+    },
+    {
+      "tool_name": "mcp__orchestra__get_worker_logs",
+      "runtime": "claude",
+      "count": 20,
+      "p50_s": 1.036124,
+      "p90_s": 24.675792,
+      "p99_s": 502.458352,
+      "sum_s": 600.414628,
+      "share_of_all_turn_seconds_pct": 0.18873355757879456
+    },
+    {
+      "tool_name": "mcp__orchestra__kill_worker",
+      "runtime": "claude",
+      "count": 84,
+      "p50_s": 1.391034,
+      "p90_s": 8.07075,
+      "p99_s": 28.438367,
+      "sum_s": 320.88126,
+      "share_of_all_turn_seconds_pct": 0.10086540023499586
+    },
+    {
+      "tool_name": "mcp__orchestra__kill_worker",
+      "runtime": "codex",
+      "count": 3,
+      "p50_s": 0.612976,
+      "p90_s": 0.882008,
+      "p99_s": 0.882008,
+      "sum_s": 1.923228,
+      "share_of_all_turn_seconds_pct": 0.0006045450019834459
+    },
+    {
+      "tool_name": "mcp__orchestra__list_agents",
+      "runtime": "claude",
+      "count": 81,
+      "p50_s": 0.446712,
+      "p90_s": 4.969048,
+      "p99_s": 33.587714,
+      "sum_s": 206.42525,
+      "share_of_all_turn_seconds_pct": 0.06488744609099042
+    },
+    {
+      "tool_name": "mcp__orchestra__list_agents",
+      "runtime": "codex",
+      "count": 20,
+      "p50_s": 0.172932,
+      "p90_s": 14.169488,
+      "p99_s": 30.326952,
+      "sum_s": 83.866131,
+      "share_of_all_turn_seconds_pct": 0.02636237114462712
+    },
+    {
+      "tool_name": "mcp__orchestra__list_orchestrators",
+      "runtime": "claude",
+      "count": 9,
+      "p50_s": 0.141628,
+      "p90_s": 45.896971,
+      "p99_s": 45.896971,
+      "sum_s": 49.356311,
+      "share_of_all_turn_seconds_pct": 0.015514598961428686
+    },
+    {
+      "tool_name": "mcp__orchestra__list_orchestrators",
+      "runtime": "codex",
+      "count": 3,
+      "p50_s": 0.730919,
+      "p90_s": 41.976545,
+      "p99_s": 41.976545,
+      "sum_s": 43.342931,
+      "share_of_all_turn_seconds_pct": 0.013624360870038996
+    },
+    {
+      "tool_name": "mcp__orchestra__merge_worker",
+      "runtime": "claude",
+      "count": 406,
+      "p50_s": 3.234056,
+      "p90_s": 47.197578,
+      "p99_s": 65.124848,
+      "sum_s": 4890.312205,
+      "share_of_all_turn_seconds_pct": 1.537214413304816
+    },
+    {
+      "tool_name": "mcp__orchestra__merge_worker",
+      "runtime": "codex",
+      "count": 2,
+      "p50_s": 0.062381,
+      "p90_s": 0.114386,
+      "p99_s": 0.114386,
+      "sum_s": 0.176767,
+      "share_of_all_turn_seconds_pct": 5.5564710146486936e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__message_delivery_status",
+      "runtime": "claude",
+      "count": 6,
+      "p50_s": 0.190464,
+      "p90_s": 7.547213,
+      "p99_s": 7.547213,
+      "sum_s": 8.397017,
+      "share_of_all_turn_seconds_pct": 0.002639507462932127
+    },
+    {
+      "tool_name": "mcp__orchestra__notify_user",
+      "runtime": "claude",
+      "count": 8,
+      "p50_s": 0.066972,
+      "p90_s": 0.107286,
+      "p99_s": 0.107286,
+      "sum_s": 0.577073,
+      "share_of_all_turn_seconds_pct": 0.0001813963804237423
+    },
+    {
+      "tool_name": "mcp__orchestra__publish_artifact",
+      "runtime": "claude",
+      "count": 4,
+      "p50_s": 0.107178,
+      "p90_s": 0.167605,
+      "p99_s": 0.167605,
+      "sum_s": 0.46214900000000003,
+      "share_of_all_turn_seconds_pct": 0.00014527131890844326
+    },
+    {
+      "tool_name": "mcp__orchestra__publish_artifact",
+      "runtime": "codex",
+      "count": 1,
+      "p50_s": 0.067532,
+      "p90_s": 0.067532,
+      "p99_s": 0.067532,
+      "sum_s": 0.067532,
+      "share_of_all_turn_seconds_pct": 2.1227921532936327e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__report_bug",
+      "runtime": "claude",
+      "count": 8,
+      "p50_s": 0.120134,
+      "p90_s": 0.383176,
+      "p99_s": 0.383176,
+      "sum_s": 1.1755120000000001,
+      "share_of_all_turn_seconds_pct": 0.0003695089216523285
+    },
+    {
+      "tool_name": "mcp__orchestra__report_bug",
+      "runtime": "codex",
+      "count": 1,
+      "p50_s": 0.098807,
+      "p90_s": 0.098807,
+      "p99_s": 0.098807,
+      "sum_s": 0.098807,
+      "share_of_all_turn_seconds_pct": 3.105886458130723e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__resolve_merge_operation",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 0.106859,
+      "p90_s": 1.021373,
+      "p99_s": 1.021373,
+      "sum_s": 1.1282320000000001,
+      "share_of_all_turn_seconds_pct": 0.0003546469876051031
+    },
+    {
+      "tool_name": "mcp__orchestra__retry_initial_delivery",
+      "runtime": "claude",
+      "count": 3,
+      "p50_s": 0.059055,
+      "p90_s": 0.059379,
+      "p99_s": 0.059379,
+      "sum_s": 0.167637,
+      "share_of_all_turn_seconds_pct": 5.269479775538777e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__send_file",
+      "runtime": "claude",
+      "count": 129,
+      "p50_s": 0.210375,
+      "p90_s": 0.76868,
+      "p99_s": 12.300901,
+      "sum_s": 73.780127,
+      "share_of_all_turn_seconds_pct": 0.023191949692680163
+    },
+    {
+      "tool_name": "mcp__orchestra__send_file",
+      "runtime": "codex",
+      "count": 5,
+      "p50_s": 0.116342,
+      "p90_s": 0.195665,
+      "p99_s": 0.195665,
+      "sum_s": 0.684735,
+      "share_of_all_turn_seconds_pct": 0.00021523871425183848
+    },
+    {
+      "tool_name": "mcp__orchestra__send_files",
+      "runtime": "claude",
+      "count": 53,
+      "p50_s": 0.312154,
+      "p90_s": 3.273315,
+      "p99_s": 7.963003,
+      "sum_s": 56.942764,
+      "share_of_all_turn_seconds_pct": 0.017899314784998392
+    },
+    {
+      "tool_name": "mcp__orchestra__send_message",
+      "runtime": "claude",
+      "count": 1238,
+      "p50_s": 0.49851,
+      "p90_s": 2.506221,
+      "p99_s": 30.262541,
+      "sum_s": 2603.338511,
+      "share_of_all_turn_seconds_pct": 0.8183300603444189
+    },
+    {
+      "tool_name": "mcp__orchestra__send_message",
+      "runtime": "codex",
+      "count": 195,
+      "p50_s": 0.442739,
+      "p90_s": 3.001089,
+      "p99_s": 11.986989,
+      "sum_s": 223.47699,
+      "share_of_all_turn_seconds_pct": 0.07024746798757325
+    },
+    {
+      "tool_name": "mcp__orchestra__spawn_worker",
+      "runtime": "claude",
+      "count": 72,
+      "p50_s": 7.159965,
+      "p90_s": 22.742094,
+      "p99_s": 96.244942,
+      "sum_s": 804.494739,
+      "share_of_all_turn_seconds_pct": 0.2528838357097686
+    },
+    {
+      "tool_name": "mcp__orchestra__spawn_worker",
+      "runtime": "codex",
+      "count": 7,
+      "p50_s": 0.914391,
+      "p90_s": 1.835189,
+      "p99_s": 1.835189,
+      "sum_s": 6.894133,
+      "share_of_all_turn_seconds_pct": 0.0021670928502284387
+    },
+    {
+      "tool_name": "mcp__orchestra__stop_worker",
+      "runtime": "claude",
+      "count": 4,
+      "p50_s": 0.146507,
+      "p90_s": 0.236261,
+      "p99_s": 0.236261,
+      "sum_s": 0.646123,
+      "share_of_all_turn_seconds_pct": 0.00020310146811327104
+    },
+    {
+      "tool_name": "mcp__orchestra__stop_worker",
+      "runtime": "codex",
+      "count": 1,
+      "p50_s": 0.1085,
+      "p90_s": 0.1085,
+      "p99_s": 0.1085,
+      "sum_s": 0.1085,
+      "share_of_all_turn_seconds_pct": 3.4105749664212394e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__switch_worker_branch",
+      "runtime": "claude",
+      "count": 85,
+      "p50_s": 1.334054,
+      "p90_s": 4.838488,
+      "p99_s": 30.747491,
+      "sum_s": 231.404312,
+      "share_of_all_turn_seconds_pct": 0.07273933213171706
+    },
+    {
+      "tool_name": "mcp__orchestra__task_create",
+      "runtime": "claude",
+      "count": 269,
+      "p50_s": 0.462045,
+      "p90_s": 3.235608,
+      "p99_s": 30.495596,
+      "sum_s": 473.439113,
+      "share_of_all_turn_seconds_pct": 0.1488202384260347
+    },
+    {
+      "tool_name": "mcp__orchestra__task_create",
+      "runtime": "codex",
+      "count": 2,
+      "p50_s": 0.113803,
+      "p90_s": 0.175698,
+      "p99_s": 0.175698,
+      "sum_s": 0.289501,
+      "share_of_all_turn_seconds_pct": 9.100136989437008e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__task_get",
+      "runtime": "claude",
+      "count": 38,
+      "p50_s": 0.124333,
+      "p90_s": 6.621453,
+      "p99_s": 9.766264,
+      "sum_s": 62.283661,
+      "share_of_all_turn_seconds_pct": 0.0195781654399693
+    },
+    {
+      "tool_name": "mcp__orchestra__task_get",
+      "runtime": "codex",
+      "count": 11,
+      "p50_s": 0.079633,
+      "p90_s": 0.124166,
+      "p99_s": 0.779589,
+      "sum_s": 1.643587,
+      "share_of_all_turn_seconds_pct": 0.0005166430117359802
+    },
+    {
+      "tool_name": "mcp__orchestra__task_list",
+      "runtime": "claude",
+      "count": 6,
+      "p50_s": 0.310368,
+      "p90_s": 7.665671,
+      "p99_s": 7.665671,
+      "sum_s": 8.958739999999999,
+      "share_of_all_turn_seconds_pct": 0.002816078744209826
+    },
+    {
+      "tool_name": "mcp__orchestra__task_list",
+      "runtime": "codex",
+      "count": 2,
+      "p50_s": 0.199749,
+      "p90_s": 0.235657,
+      "p99_s": 0.235657,
+      "sum_s": 0.435406,
+      "share_of_all_turn_seconds_pct": 0.00013686495887830474
+    },
+    {
+      "tool_name": "mcp__orchestra__task_update",
+      "runtime": "claude",
+      "count": 12,
+      "p50_s": 1.894594,
+      "p90_s": 4.751795,
+      "p99_s": 6.83617,
+      "sum_s": 27.510596,
+      "share_of_all_turn_seconds_pct": 0.008647645163956524
+    },
+    {
+      "tool_name": "mcp__orchestra__update_progress",
+      "runtime": "claude",
+      "count": 94,
+      "p50_s": 0.059541,
+      "p90_s": 0.275976,
+      "p99_s": 7.675247,
+      "sum_s": 16.82442,
+      "share_of_all_turn_seconds_pct": 0.005288566421802473
+    },
+    {
+      "tool_name": "mcp__orchestra__update_progress",
+      "runtime": "codex",
+      "count": 25,
+      "p50_s": 0.050915,
+      "p90_s": 0.075218,
+      "p99_s": 0.212,
+      "sum_s": 1.400202,
+      "share_of_all_turn_seconds_pct": 0.0004401376856343735
+    },
+    {
+      "tool_name": "mcp__orchestra__update_worker_description",
+      "runtime": "claude",
+      "count": 3,
+      "p50_s": 0.076957,
+      "p90_s": 0.096345,
+      "p99_s": 0.096345,
+      "sum_s": 0.235929,
+      "share_of_all_turn_seconds_pct": 7.416161670532689e-05
+    },
+    {
+      "tool_name": "mcp__orchestra__worker_wip",
+      "runtime": "claude",
+      "count": 236,
+      "p50_s": 0.232618,
+      "p90_s": 2.564801,
+      "p99_s": 30.26773,
+      "sum_s": 528.739883,
+      "share_of_all_turn_seconds_pct": 0.1662034109408567
+    },
+    {
+      "tool_name": "mcp__orchestra__worker_wip",
+      "runtime": "codex",
+      "count": 4,
+      "p50_s": 0.094308,
+      "p90_s": 0.298281,
+      "p99_s": 0.298281,
+      "sum_s": 0.567559,
+      "share_of_all_turn_seconds_pct": 0.00017840576196931544
+    },
+    {
+      "tool_name": "mcp__yandex-direct__get_account_balance",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 0.557468,
+      "p90_s": 4.330452,
+      "p99_s": 4.330452,
+      "sum_s": 4.88792,
+      "share_of_all_turn_seconds_pct": 0.0015364624506792356
+    },
+    {
+      "tool_name": "mcp__yandex-direct__get_campaign",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 0.804598,
+      "p90_s": 0.804598,
+      "p99_s": 0.804598,
+      "sum_s": 0.804598,
+      "share_of_all_turn_seconds_pct": 0.000252916294638949
+    },
+    {
+      "tool_name": "mcp__yandex-direct__get_campaign_spend",
+      "runtime": "claude",
+      "count": 4,
+      "p50_s": 0.319218,
+      "p90_s": 3.86138,
+      "p99_s": 3.86138,
+      "sum_s": 5.194318,
+      "share_of_all_turn_seconds_pct": 0.0016327752016987317
+    },
+    {
+      "tool_name": "mcp__yandex-direct__list_ads",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 1.414647,
+      "p90_s": 4.357827,
+      "p99_s": 4.357827,
+      "sum_s": 5.772474000000001,
+      "share_of_all_turn_seconds_pct": 0.0018145120109417034
+    },
+    {
+      "tool_name": "mcp__yandex-direct__list_campaigns",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 0.207155,
+      "p90_s": 0.207155,
+      "p99_s": 0.207155,
+      "sum_s": 0.207155,
+      "share_of_all_turn_seconds_pct": 6.511683476211908e-05
+    },
+    {
+      "tool_name": "mcp__yandex-direct__manage_campaigns",
+      "runtime": "claude",
+      "count": 2,
+      "p50_s": 1.489801,
+      "p90_s": 1.737593,
+      "p99_s": 1.737593,
+      "sum_s": 3.227394,
+      "share_of_all_turn_seconds_pct": 0.0010144948555924525
+    },
+    {
+      "tool_name": "send_message",
+      "runtime": "harness",
+      "count": 2,
+      "p50_s": 0.571078,
+      "p90_s": 2.141577,
+      "p99_s": 2.141577,
+      "sum_s": 2.712655,
+      "share_of_all_turn_seconds_pct": 0.0008526924641048301
+    },
+    {
+      "tool_name": "task_list",
+      "runtime": "harness",
+      "count": 1,
+      "p50_s": 18.459539,
+      "p90_s": 18.459539,
+      "p99_s": 18.459539,
+      "sum_s": 18.459539,
+      "share_of_all_turn_seconds_pct": 0.005802547613371112
+    },
+    {
+      "tool_name": "update_progress",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 0.001326,
+      "p90_s": 0.001326,
+      "p99_s": 0.001326,
+      "sum_s": 0.001326,
+      "share_of_all_turn_seconds_pct": 4.168131249285312e-07
+    },
+    {
+      "tool_name": "update_progress_placeholder",
+      "runtime": "claude",
+      "count": 1,
+      "p50_s": 0.000845,
+      "p90_s": 0.000845,
+      "p99_s": 0.000845,
+      "sum_s": 0.000845,
+      "share_of_all_turn_seconds_pct": 2.6561620706229935e-07
+    },
+    {
+      "tool_name": "worker_wip",
+      "runtime": "harness",
+      "count": 8,
+      "p50_s": 1.614535,
+      "p90_s": 7.279248,
+      "p99_s": 7.279248,
+      "sum_s": 17.463272,
+      "share_of_all_turn_seconds_pct": 0.0054893823331801815
+    }
+  ]
+}
