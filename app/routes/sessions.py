@@ -97,11 +97,6 @@ async def _wait_for_merge_idle(session) -> bool:
     return await session.wait_for_turn_completion()
 
 
-def _merge_worker_is_idle(session) -> bool:
-    """A merge refuses a busy worker immediately; retry after its turn completes."""
-    return session.status.value == "idle"
-
-
 def _existing_branch_verdict(worktree_path: str, branch: str, scope: str,
                              force: bool) -> dict:
     """Что делать с УЖЕ существующей целевой веткой при возврате воркера на задачу (#61).
@@ -2593,10 +2588,18 @@ async def execute_merge_session(
                 worker_head=pinned_head,
             )
 
-        if not _merge_worker_is_idle(found):
+        try:
+            worker_idle = await asyncio.wait_for(
+                _wait_for_merge_idle(found),
+                timeout=_ops.MERGE_BUSY_WAIT_SECONDS,
+            )
+        except asyncio.TimeoutError:
+            worker_idle = False
+        if not worker_idle:
             status = found.status.value
             return _merge_not_reached(
-                f"worker is {status} — wait for idle before merge",
+                f"worker is {status} — turn did not finish within "
+                f"{_ops.MERGE_BUSY_WAIT_SECONDS:g}s; retry after idle",
                 target_branch=target, worker_branch=pinned_branch,
                 worker_head=pinned_head, http_status=400,
             )

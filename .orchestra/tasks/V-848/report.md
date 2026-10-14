@@ -24,6 +24,16 @@
 
 От возврата `send_message` до конца хода: p50 6.48 с, p75 10.00 с, p90 14.92 с, p95 38.74 с, p99 693.64 с, максимум 998.55 с. Через 60 секунд ещё не закончились 19/444 хода (4.28%); через 90 — 16/444 (3.60%), то есть дополнительное ожидание 30 секунд покрывает только ещё 3 хода (0.68 п.п.). Поэтому выбран нижний край диапазона, а длинный хвост завершится явным `WORKER_BUSY`. `done-turn-latency.log` содержит фактический агрегированный вывод и counting definition. MCP POST timeout установлен в 120 секунд, чтобы вместить 60 секунд ожидания плюс измеренный V-840 максимум pre-operation 42.84 секунды.
 
+## Сохранение проверки идентичности при ожидании
+
+CI на `main` выявил, что session merge route перестал вызывать `_wait_for_merge_idle`: ранний `_merge_worker_is_idle` немедленно отказывал busy worker, поэтому drift, созданный тестом в окне ожидания, фактически не происходил. Маршрут снова ожидает завершение через `_wait_for_merge_idle` под дедлайном 60 секунд. `pinned_branch` и `pinned_head` по-прежнему считываются до ожидания; после него `classify_head_drift` различает допустимый новый commit, переписанную историю и смену ветки. Проверки `test_worker_commit_during_wait_is_merged_not_rejected`, `test_history_rewrite_during_wait_is_refused_with_reason`, `test_branch_change_during_wait_is_refused_with_reason` и explicit acceptance после нового commit прошли без изменения их контрактов.
+
+У `_verify_accepted_snapshot` отсутствие доступного session status не превращается в `worker_busy:`; при наличии текущего task-run сначала остаётся применимой проверка его acceptance identity. Известные статусы, отличные от `idle`, продолжают блокировать runner.
+
+Повторная проверка после CI-регрессии: тестовые пути `tests/test_api.py`, `tests/test_identity_drift.py`, `tests/test_work_acceptance.py`, `tests/test_work_review_jobs.py`, `tests/test_merge*.py`, `tests/test_task*.py`, `tests/test_session*.py`, `tests/test_switch_*.py`, `tests/test_lifecycle_quarantine_499.py` и `tests/test_v848_merge_timings.py` дали `720 passed, 7 skipped` за 219.80 с. Полный project suite не запускался: `acquire_test_lock` вернул `BUSY`, holder `perf-audit`. Полный вывод тестового набора: [ci-regression-suite.log](ci-regression-suite.log).
+
+Мутация положительного плеча (после ожидания принудительно оставить `worker_idle=False`) покраснила committed `test_merge_waits_for_running_worker_then_proceeds`. Мутация отрицательного плеча (не обработать `worker_idle=False` после timeout) покраснила committed `test_merge_times_out_waiting_for_running_worker`. После восстановления кода повторно прошли все CI-указанные тесты и оба route-теста: `46 passed` за 18.53 с.
+
 ## Проверки
 
 Добавлены `tests/test_v848_merge_timings.py` и проверка полного `already_current` ожидания в `tests/test_api.py`. Новые тесты проверяют короткий отказ при active operation и busy worker, отсутствие snapshot/admission/operation-row для busy worker, выдачу snapshot/admission/pre-operation и отдельных test/mutation timer, сохранение таймеров в БД и терминальном результате, а также git/finalization durations.

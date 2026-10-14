@@ -2507,7 +2507,7 @@ async def test_switch_rejects_non_boolean_force():
 
 
 @pytest.mark.asyncio
-async def test_merge_refuses_running_worker_without_waiting_for_its_turn(db, monkeypatch):
+async def test_merge_waits_for_running_worker_then_proceeds(db, monkeypatch):
     import asyncio
     import app.main as mainmod
     import app.routes.sessions as sessmod
@@ -2528,7 +2528,9 @@ async def test_merge_refuses_running_worker_without_waiting_for_its_turn(db, mon
 
         async def wait_for_turn_completion(self):
             wait_started.set()
-            raise AssertionError("merge must not wait for a busy worker")
+            await asyncio.sleep(0.01)
+            self.status.value = "idle"
+            return True
 
         async def interrupt(self):
             raise AssertionError("merge must not interrupt the worker")
@@ -2559,9 +2561,64 @@ async def test_merge_refuses_running_worker_without_waiting_for_its_turn(db, mon
 
     result = await _call_merge_session(sessmod, "w", {"scope": "/s"})
 
+    assert wait_started.is_set() is True
+    assert merge_called is True
+    assert result.get("ok") is True
+
+
+@pytest.mark.asyncio
+async def test_merge_times_out_waiting_for_running_worker(db, monkeypatch):
+    import asyncio
+    import app.main as mainmod
+    import app.routes.sessions as sessmod
+    import app.merge_operations as operations
+
+    class Status:
+        value = "running"
+
+    class FakeSession:
+        loaded = True
+        status = Status()
+        _lifecycle_lock = asyncio.Lock()
+        worktree_path = "/wt"
+        scope = "/s"
+        id = "merge-timeout"
+        name = "w"
+        branch = "task-90/w"
+        base_branch = "master"
+
+        async def wait_for_turn_completion(self):
+            await asyncio.Event().wait()
+
+        async def interrupt(self):
+            raise AssertionError("merge must not interrupt the worker")
+
+    session = FakeSession()
+    _save_merge_session_record(session)
+    merge_called = False
+    monkeypatch.setattr(operations, "MERGE_BUSY_WAIT_SECONDS", 0.05)
+
+    def fake_merge(*_args, **_kwargs):
+        nonlocal merge_called
+        merge_called = True
+        return {"ok": True, "merged_commits": {}}
+
+    monkeypatch.setattr("app.workspace.merge_worktree_to_main", fake_merge)
+    monkeypatch.setattr(mainmod.manager, "get_by_name", lambda name, scope: session)
+    monkeypatch.setattr(mainmod.manager, "get", lambda _session_id: session)
+    monkeypatch.setattr(
+        "app.workspace.inspect_worktree_identity",
+        lambda _path: (session.branch, "a" * 40),
+    )
+    monkeypatch.setattr(sessmod, "_session_base_branch", lambda *_args: "master")
+
+    started = asyncio.get_running_loop().time()
+    result = await _call_merge_session(sessmod, "w", {"scope": "/s"})
+    elapsed = asyncio.get_running_loop().time() - started
+
     assert result.status_code == 400
-    assert "worker is running — wait for idle before merge" in result.body.decode()
-    assert wait_started.is_set() is False
+    assert "did not finish within 0.05s" in result.body.decode()
+    assert elapsed < 0.5
     assert merge_called is False
 
 

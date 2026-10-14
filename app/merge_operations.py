@@ -1083,7 +1083,7 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
     if mismatches:
         return current, f"session identity changed before merge: {', '.join(mismatches)}"
     status = _current_session_status(record["session_id"])
-    if status != "idle":
+    if status and status != "idle":
         return current, f"worker_busy:{status}"
     return current, ""
 
