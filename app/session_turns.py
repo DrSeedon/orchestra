@@ -417,7 +417,9 @@ class TurnManager:
         if not ok:
             # CLI injects [ede_diagnostic] telemetry on interrupt — cosmetic noise, not real errors
             errors = [e for e in (meta.get("errors") or []) if not str(e).startswith("[ede_diagnostic]")]
-            if errors and not (
+            if sr == "interrupted":
+                s._log("status", f"turn interrupted ({sr})")
+            elif errors and not (
                 subscription_limited
                 and all(str(error).lower() == "rate_limit" for error in errors)
             ):

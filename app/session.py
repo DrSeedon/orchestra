@@ -2774,6 +2774,8 @@ class AgentSession:
             self._lifecycle_lock.release()
 
     def _on_task_done(self, task: asyncio.Task) -> None:
+        if task is not self._listen_task:
+            return
         try:
             exc = task.exception()
         except asyncio.CancelledError:

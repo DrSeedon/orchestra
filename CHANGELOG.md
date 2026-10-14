@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Прерывание хода не считается ошибкой, а старый listener не завершает новый ход** (`app/session_turns.py`, `app/session.py`; V-856). При `stop_reason="interrupted"` метаданные CLI могли содержать `errors=["error"]`, из-за чего штатный stop/steer логировался как `turn FAILED: error`. Done-callback завершившегося per-turn listener также мог сработать после запуска следующего хода и принять его `RUNNING` за смерть listener. Прерывание теперь остаётся статусом; callback устаревшей задачи не меняет состояние текущего хода, а настоящие сбои продолжают логироваться как ошибки.
+
 ### Added
 - **Блокировка долгих shell-пауз и рекурсивного поиска** (`app/shell_policy.py`, backend Claude/Codex/Grok и harness; V-846). Единый guard отклоняет `sleep` дольше 5 секунд, рекурсивные `find`-поиски и `grep -r/-R`, когда `rg` доступен в PATH; без `rg` эти поиски остаются разрешены, чтобы у агента сохранялся работающий fallback. Короткие проверки и обычный grep в пайпе разрешены. `find` с временными/метаданными фильтрами или действиями вроде `-mtime`, `-newer`, `-exec`, `-printf` проходит этот performance guard, поскольку его семантику `rg` не заменяет; существующий Claude safety guard отдельно отклоняет `find -delete`. Claude и Grok проверяют запрос до запуска shell-tool. Codex code-mode не вызвал настроенный PreToolUse hook для вложенного `exec_command`, поэтому его per-session PATH содержит обёртки, которые проверяют процесс-родителя: блокируют прямую команду Codex app-server и его `bash -c`, пропуская вызовы из Python/Node/make и исполняемых shell-скриптов. Codex сохраняет `approvalPolicy=never`; интерактивные approval-запросы не используются. Каждое срабатывание пишется в session log как `policy_violation`. Триггер: в V-844 за неделю найдено 4,786 ч явных shell-пауз и повторяющиеся рекурсивные поиски, хотя подсказка использовать `bg_create` уже была в промпте.
 
