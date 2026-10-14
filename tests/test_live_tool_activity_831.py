@@ -312,3 +312,30 @@ def test_background_task_clock_survives_being_built_before_insertion():
         card.isConnected = false; intervals[0]();
         console.log(JSON.stringify([before, text, !!card.querySelector('.sa-clock')]));""")
     assert out[0] is True and "1:0" in out[1] and out[2] is False
+
+
+def test_agent_cli_streams_tool_arguments_finely():
+    """Without the flag the CLI (DISABLE_TELEMETRY → remote flag default off) streams tool
+    arguments per JSON value: measured 3 451 chars after 12.7 s silence vs ~14 chars/50 ms
+    with it (.orchestra/tasks/V-831/stream-timing)."""
+    from app.backend_claude import ClaudeBackend
+    options = ClaudeBackend(model="claude-opus-5-5[1m]", cwd="/tmp")._make_client().options
+    assert options.include_partial_messages is True
+    assert options.env["CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING"] == "1"
+
+
+def test_pacer_spreads_a_burst_over_the_observed_gap():
+    out = _node("""const P = (vm.runInContext('LivePacer', ctx));
+        const p = new P(); const seen = [];
+        let now = 0;
+        p.push(190, now);                       // first burst
+        for (; now < 600; now += 16) seen.push(p.step(now));
+        p.push(380, 600);                       // next burst 600 ms later
+        for (; now < 1300; now += 16) seen.push(p.step(now));
+        const jumps = seen.slice(1).map((v, i) => v - seen[i]);
+        console.log(JSON.stringify([seen[seen.length - 1], Math.max(...jumps), seen.filter(v => v > 0).length]));""")
+    final, biggest_jump, frames_with_text = out
+    assert final == 380
+    # Never more than a few dozen chars per frame: a 190-char burst is not painted at once.
+    assert biggest_jump <= 30
+    assert frames_with_text > 40

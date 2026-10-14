@@ -166,3 +166,12 @@ Claude CLI 2.1.293 (SDK 0.2.164) с `--include-partial-messages` стримит 
 удаляется. SDK этот вывод не стримит, его можно только читать с диска. Codex app-server 0.160.0
 дельт аргументов не имеет (список уведомлений — `.orchestra/tasks/V-831/codex-notifications.txt`).
 Отчёт и захват: `.orchestra/tasks/V-831/report.md`.
+
+**Мелкозернистый стрим аргументов выключается нашим же env (V-831, 14.10.2026).** CLI 2.1.293
+включает fine-grained tool streaming по удалённому флагу `tengu_fgts` (или явной переменной
+`CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING=1`). С `DISABLE_TELEMETRY=1` +
+`DISABLE_NON_ESSENTIAL_MODEL_CALLS=1`, которые Orchestra ставит агентам, флаг остаётся
+выключенным: аргументы инструмента приходят по целым JSON-значениям (замер Opus 5.5: 3 451 символ
+после 12.7 с тишины; с переменной — ~14 символов каждые 50 мс). Текст Opus 5.5 приходит в CLI
+пачками ~190 символов раз в ~600 мс независимо от env — это до CLI, сглаживать можно только
+отображение. Замеры: `.orchestra/tasks/V-831/stream-timing/report.md`.

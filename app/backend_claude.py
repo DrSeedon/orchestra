@@ -1072,6 +1072,11 @@ class ClaudeBackend:
         # #56: kill non-essential background haiku calls (tips/banter/flavor) + telemetry
         env["DISABLE_NON_ESSENTIAL_MODEL_CALLS"] = "1"
         env["DISABLE_TELEMETRY"] = "1"
+        # The CLI enables fine-grained tool streaming from a remote feature flag that the
+        # flags above leave at its default (off): tool arguments then arrive per JSON value,
+        # e.g. 3 451 chars after 12.7 s of silence instead of ~14 chars every 50 ms
+        # (V-831 stream-timing, CLI 2.1.293).
+        env["CLAUDE_CODE_ENABLE_FINE_GRAINED_TOOL_STREAMING"] = "1"
         env["ORCHESTRA_CLAUDE_CREDIT_API_KEY"] = ""
         env["ANTHROPIC_API_KEY"] = ""
         # Профиль: переопределяем CLAUDE_CONFIG_DIR подпроцесса (SDK строит
