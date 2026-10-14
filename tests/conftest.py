@@ -18,6 +18,25 @@ from urllib.parse import unquote, urlsplit
 
 import pytest
 
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "needs_two_users: file ownership checks need passwordless sudo and two real users",
+    )
+    config.addinivalue_line(
+        "markers",
+        "needs_model: embedding tests need the optional orchestra[rag] dependencies",
+    )
+    config.addinivalue_line(
+        "markers",
+        "browser: uses real Playwright Chromium and is run outside the merge gate",
+    )
+    config.addinivalue_line(
+        "markers",
+        "live_probe: spends a real provider turn and runs only when explicitly requested",
+    )
+
 # MCP proofs in tests must never depend on a developer's or runner's secret.
 os.environ["INTERNAL_TOKEN"] = "orchestra-pytest-only-token"
 

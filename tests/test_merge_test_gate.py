@@ -10,6 +10,7 @@ from tests.task_seeds import create_task as seed_task
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import uuid
 from datetime import datetime, timezone
@@ -421,6 +422,7 @@ def test_run_pytest_isolates_live_state_environment(tmp_path, monkeypatch):
     monkeypatch.setenv("ORCHESTRA_TASK_REPOSITORY", "/production/tasks")
     monkeypatch.setenv("ORCHESTRA_TASK_PREFIX", "V-")
     monkeypatch.setenv("QUOTA_GATED_LANES", "claude")
+    monkeypatch.setattr(gate, "_git", lambda *_args: None)
     monkeypatch.setattr(gate.subprocess, "run", fake_run)
 
     result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
@@ -614,7 +616,15 @@ def test_pytest_argv_has_no_exitfirst():
     # `python -m pytest`. Теперь `-m` два: второй несёт выражение маркеров, поэтому
     # проверяем обе роли поимённо, а не считаем вхождения.
     assert argv[:4] == [sys.executable, "-m", "pytest", "-q"]
+    assert "-n" not in argv
     assert "pytest" in argv
+
+
+def test_orchestra_worktree_is_detected_by_git_common_dir():
+    from app.merge_test_gate import _is_orchestra_worktree
+
+    root = Path(__file__).resolve().parents[1]
+    assert _is_orchestra_worktree(str(root)) is True
 
 
 def test_pytest_argv_deselects_live_probes_after_the_module_flag():
@@ -625,7 +635,7 @@ def test_pytest_argv_deselects_live_probes_after_the_module_flag():
     """
     from app.merge_test_gate import BROWSER_MARKER, LIVE_PROBE_MARKER, pytest_argv
 
-    argv = pytest_argv(["tests/test_widget.py"])
+    argv = pytest_argv(["tests/test_widget.py"], orchestra_project=True)
 
     expression = f"not {LIVE_PROBE_MARKER} and not {BROWSER_MARKER}"
     assert expression in argv, argv
@@ -635,6 +645,87 @@ def test_pytest_argv_deselects_live_probes_after_the_module_flag():
     # Второй `-m` обязан идти ПОСЛЕ `python -m pytest`, иначе он подменит имя модуля.
     assert marker_flag > argv.index("pytest")
     assert argv[-1] == "tests/test_widget.py"
+    assert argv[argv.index("-n") + 1] == "2"
+    assert argv[argv.index("--dist=loadscope") - 1] == "2"
+
+
+def test_foreign_nested_worktree_gets_no_orchestra_pytest_options(tmp_path, monkeypatch):
+    import json
+    from app import merge_test_gate as gate
+
+    root = Path(__file__).resolve().parents[1]
+    worktrees = root / "worktrees"
+    had_worktrees = worktrees.is_dir()
+    worktrees.mkdir(exist_ok=True)
+    try:
+        with tempfile.TemporaryDirectory(prefix="pytest-foreign-", dir=worktrees) as directory:
+            foreign = Path(directory)
+            subprocess.run(
+                ["git", "init", "-q"], cwd=foreign, check=True,
+                capture_output=True, text=True,
+            )
+            (foreign / "tests").mkdir()
+            (foreign / "tests" / "test_foreign.py").write_text(
+                "def test_foreign_project_runs():\n    assert True\n",
+                encoding="utf-8",
+            )
+
+            interpreter = foreign / ".venv" / "bin" / "python"
+            interpreter.parent.mkdir(parents=True)
+            argv_log = tmp_path / "gate-argv.json"
+            interpreter.write_text(
+                f"#!{sys.executable}\n"
+                "import json, os, sys\n"
+                "from pathlib import Path\n"
+                "Path(os.environ['V855_ARGV_LOG']).write_text(json.dumps(sys.argv[1:]), encoding='utf-8')\n"
+                "env = os.environ.copy()\n"
+                "env['PYTEST_DISABLE_PLUGIN_AUTOLOAD'] = '1'\n"
+                "env['PYTEST_PLUGINS'] = 'pytest_timeout'\n"
+                "env['PYTHONDONTWRITEBYTECODE'] = '1'\n"
+                "env.pop('PYTEST_ADDOPTS', None)\n"
+                "os.execve(sys.executable, [sys.executable, *sys.argv[1:]], env)\n",
+                encoding="utf-8",
+            )
+            interpreter.chmod(0o755)
+            monkeypatch.setenv("V855_ARGV_LOG", str(argv_log))
+
+            gate_result = gate.run_pytest(
+                str(foreign), ["tests/test_foreign.py"], timeout=30,
+            )
+
+            assert gate_result["status"] == gate.PASSED, gate_result["output"]
+            assert gate_result["passed_count"] == 1
+            assert f"rootdir: {foreign}" in gate_result["output"]
+            gate_argv = json.loads(argv_log.read_text(encoding="utf-8"))
+            assert "-n" not in gate_argv
+            assert "--dist=loadscope" not in gate_argv
+            assert gate_argv.count("-m") == 1  # только `python -m pytest`
+            assert "not live_probe and not browser" not in gate_argv
+            config_path = Path(gate_argv[gate_argv.index("-c") + 1])
+            assert config_path.name == "pytest.ini"
+            assert config_path.parent.name.startswith("orchestra-merge-gate-")
+
+            manual_argv_log = tmp_path / "manual-argv.json"
+            monkeypatch.setenv("V855_ARGV_LOG", str(manual_argv_log))
+            isolated_config = tmp_path / "manual-pytest.ini"
+            isolated_config.write_text("[pytest]\n", encoding="utf-8")
+            manual = subprocess.run(
+                [str(interpreter), "-m", "pytest", "--rootdir", str(foreign),
+                 "-c", str(isolated_config), "tests/"],
+                cwd=foreign,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            assert manual.returncode == 0, manual.stdout + manual.stderr
+            assert f"rootdir: {foreign}" in manual.stdout + manual.stderr
+            assert "-n" not in json.loads(manual_argv_log.read_text(encoding="utf-8"))
+    finally:
+        if not had_worktrees:
+            try:
+                worktrees.rmdir()
+            except OSError:
+                pass
 
 
 def test_run_pytest_reports_all_deselected_as_skipped_not_failed(tmp_path, monkeypatch):
@@ -682,6 +773,7 @@ def test_run_pytest_prefers_worktree_venv_and_prints_interpreter(tmp_path, monke
         calls.append(argv)
         return subprocess.CompletedProcess(argv, 0, "two passed", "")
 
+    monkeypatch.setattr(gate, "_git", lambda *_args: None)
     monkeypatch.setattr(gate.subprocess, "run", fake_run)
 
     result = gate.run_pytest(str(worktree), ["tests/test_widget.py"])
@@ -803,6 +895,7 @@ def test_run_pytest_reports_project_pytest_missing_without_fallback(tmp_path, mo
             argv, 1, "", f"{argv[0]}: No module named pytest",
         )
 
+    monkeypatch.setattr(gate, "_git", lambda *_args: None)
     monkeypatch.setattr(gate.subprocess, "run", fake_run)
 
     result = gate.run_pytest(str(worktree), ["tests/test_widget.py"])
@@ -849,6 +942,7 @@ def test_run_pytest_uses_orchestra_python_when_project_venv_is_absent(tmp_path, 
         calls.append(argv)
         return subprocess.CompletedProcess(argv, 0, "two passed", "")
 
+    monkeypatch.setattr(gate, "_git", lambda *_args: None)
     monkeypatch.setattr(gate.subprocess, "run", fake_run)
 
     result = gate.run_pytest(str(tmp_path), ["tests/test_widget.py"])
@@ -933,7 +1027,8 @@ def test_browser_inventory_is_explicit():
     }
 
     result = subprocess.run(
-        [sys.executable, "-m", "pytest", "--collect-only", "-q", "-m", "browser", "-n", "0", "tests/"],
+        [sys.executable, "-m", "pytest", "--rootdir", str(root), "-c", str(root / "pyproject.toml"),
+         "--collect-only", "-q", "-m", "browser", "tests/"],
         cwd=root, capture_output=True, text=True, timeout=600,
     )
     assert result.returncode == 0, result.stdout[-2000:] + result.stderr[-2000:]
