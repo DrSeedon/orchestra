@@ -1841,13 +1841,16 @@ def _format_worker_log(log: dict) -> str:
 @mcp.tool()
 async def get_worker_logs(name: str, limit: int = 20) -> str:
     """Get recent logs from a worker."""
-    logs = await _api("GET", f"/api/sessions/{name}/logs", params={"scope": SCOPE, "after_id": 0})
+    logs = await _api(
+        "GET", f"/api/sessions/{name}/logs",
+        params={"scope": SCOPE, "after_id": 0, "limit": limit},
+    )
     if isinstance(logs, dict) and logs.get("error"):
         return f"Error: {logs['error']}"
     if not logs:
         return f"No logs for '{name}'"
     lines = []
-    for l in logs[-limit:]:
+    for l in logs:
         formatted = _format_worker_log(l)
         if formatted:
             lines.append(formatted)
