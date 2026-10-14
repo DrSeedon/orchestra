@@ -2115,6 +2115,7 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
         if method == "GET":
             return {"merge_schema_version": 2, "capabilities": ["task-lifecycle-v2"]}
         captured["path"] = path
+        captured["timeout"] = kw.get("timeout")
         captured["json"] = kw.get("json", {})
         operation_id = captured["json"]["operation_id"]
         return {"result": {
@@ -2133,6 +2134,7 @@ async def test_merge_worker_with_next_task_id(monkeypatch):
             task_id="task-42", task_outcome="complete",
         )
     assert captured["path"] == "/api/merge-operations"
+    assert captured["timeout"] == 120
     assert captured["json"]["name"] == "coder"
     assert captured["json"]["scope"] == "/s"
     assert captured["json"]["operation_id"]

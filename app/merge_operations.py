@@ -11,6 +11,7 @@ import json
 import logging
 import sqlite3
 import subprocess
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -23,6 +24,10 @@ logger = logging.getLogger("orchestra.merge_operations")
 
 ACTIVE_STATES = ("PENDING", "RUNNING", "PARTIAL", "UNKNOWN")
 TERMINAL_STATES = ("SUCCEEDED", "PARTIAL", "FAILED", "UNKNOWN")
+MERGE_PHASES = (
+    "pre_operation", "snapshot", "admission", "queue", "acceptance",
+    "test_gate", "mutation_gate", "git", "finalization",
+)
 
 # Стадии, чей провал НЕ разводит git и БД сессий: индекс поиска и подготовка следующей
 # задачи. Когда коммит в target уже состоялся, а провалились только они, операция
@@ -31,6 +36,7 @@ TERMINAL_STATES = ("SUCCEEDED", "PARTIAL", "FAILED", "UNKNOWN")
 # не доходит вовсе (см. `_link_status`), а недоступная БД задач обязана оставаться
 # провалом. Спорить про границу — здесь, в одном месте, а не в трёх ветках `if`.
 SECONDARY_STAGES = ("NEXT_TASK_FAILED",)
+MERGE_BUSY_WAIT_SECONDS = 60.0
 _runner_tasks: dict[str, asyncio.Task[None]] = {}
 
 
@@ -40,6 +46,73 @@ def _now() -> str:
 
 def _json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+
+
+def _elapsed_ms(started: float) -> int:
+    return max(0, round((time.perf_counter() - started) * 1000))
+
+
+def record_phase_duration(
+    operation_id: str,
+    phase: str,
+    duration_ms: int,
+    *,
+    accumulate: bool = True,
+) -> bool:
+    """Persist a measured phase in the operation's queryable result JSON."""
+    with _conn() as connection:
+        row = connection.execute(
+            "SELECT result_json FROM merge_operations WHERE operation_id=?",
+            (operation_id,),
+        ).fetchone()
+        if not row:
+            return False
+        result = json.loads(row["result_json"])
+        phases = {name: None for name in MERGE_PHASES}
+        phases.update(result.get("phase_durations_ms") or {})
+        measured = max(0, int(duration_ms))
+        if accumulate:
+            phases[phase] = int(phases.get(phase) or 0) + measured
+        else:
+            phases[phase] = measured
+        result["phase_durations_ms"] = phases
+        now = _now()
+        connection.execute(
+            "UPDATE merge_operations SET result_json=?, result_hash=?, updated_at=? "
+            "WHERE operation_id=?",
+            (_json(result), _hash(result), now, operation_id),
+        )
+        return True
+
+
+def _current_session_status(session_id: str, row: dict[str, Any] | None = None) -> str:
+    from app.deps import manager
+
+    session = manager.get(session_id)
+    if session is not None:
+        status = getattr(session, "status", "")
+        return str(getattr(status, "value", status) or "")
+    if row is None:
+        row = get_session(session_id)
+    return str((row or {}).get("status") or "")
+
+
+async def _wait_for_session_idle(session_id: str, deadline: float) -> str:
+    status = await asyncio.to_thread(_current_session_status, session_id)
+    if status != "running":
+        return status
+    from app.deps import manager
+
+    session = manager.get(session_id)
+    waiter = getattr(session, "wait_for_turn_completion", None) if session else None
+    remaining = deadline - time.monotonic()
+    if not callable(waiter) or remaining <= 0:
+        return status
+    try:
+        await asyncio.wait_for(waiter(), timeout=remaining)
+    except asyncio.TimeoutError:
+        pass
+    return await asyncio.to_thread(_current_session_status, session_id)
 
 
 def _hash(value: Any) -> str:
@@ -384,6 +457,44 @@ def _blocked_by_active(
     return blocked, False, 200
 
 
+def get_active_operation_for_session(session_id: str) -> dict[str, Any] | None:
+    with _conn() as connection:
+        row = connection.execute(
+            "SELECT * FROM merge_operations WHERE session_id=? AND resolved_at IS NULL "
+            "AND state IN ('PENDING','RUNNING','PARTIAL','UNKNOWN') "
+            "ORDER BY created_at DESC LIMIT 1",
+            (session_id,),
+        ).fetchone()
+    return _decode_record(row) if row else None
+
+
+def _active_operation_result(
+    operation_id: str, active: dict[str, Any],
+) -> tuple[dict[str, Any], int]:
+    result, _created, status = _blocked_by_active(active, operation_id)
+    return result, status
+
+
+def _busy_worker_result(operation_id: str, status: str) -> tuple[dict[str, Any], int]:
+    error = _error(
+        "WORKER_BUSY",
+        f"Worker is {status}; wait until it is idle, then start a new merge operation.",
+        operation_id=operation_id,
+        status=409,
+        retryable=True,
+        details={"worker_status": status},
+    )
+    return _base_result(
+        operation_id,
+        "FAILED",
+        error=error,
+        next_action=_action(
+            "WAIT_UNTIL_IDLE_THEN_NEW_OPERATION",
+            "Wait until the worker is idle, then retry with a new operation_id.",
+        ),
+    ), 409
+
+
 def resolve_operation(
     operation_id: str, *, reason: str, actor: str = "",
 ) -> tuple[dict[str, Any], int]:
@@ -572,6 +683,13 @@ def accept_operation_snapshot(
             worker_head=accepted["worker_head"],
             retryable=True,
         )
+        phases = {phase: None for phase in MERGE_PHASES}
+        phases.update({
+            key: max(0, int(value))
+            for key, value in (accepted.get("phase_durations_ms") or {}).items()
+            if value is not None
+        })
+        result["phase_durations_ms"] = phases
         admission = accepted.get("admission", {})
         if admission:
             result["admission"] = _admission_evidence(
@@ -644,7 +762,8 @@ def claim_operation(operation_id: str, owner_token: str) -> bool:
     with _conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute(
-            "SELECT result_json FROM merge_operations WHERE operation_id=? AND state='PENDING'",
+            "SELECT result_json,created_at FROM merge_operations "
+            "WHERE operation_id=? AND state='PENDING'",
             (operation_id,),
         ).fetchone()
         if not row:
@@ -659,6 +778,16 @@ def claim_operation(operation_id: str, owner_token: str) -> bool:
             "different merge request; do not merge manually.",
         )
         now = _now()
+        phases = {phase: None for phase in MERGE_PHASES}
+        phases.update(result.get("phase_durations_ms") or {})
+        if phases.get("queue") is None:
+            try:
+                created = datetime.fromisoformat(str(row["created_at"]))
+                started = datetime.fromisoformat(now)
+                phases["queue"] = max(0, round((started - created).total_seconds() * 1000))
+            except (TypeError, ValueError):
+                phases["queue"] = 0
+        result["phase_durations_ms"] = phases
         cursor = connection.execute(
             """UPDATE merge_operations
                SET state='RUNNING', owner_token=?, result_json=?, result_hash=?,
@@ -953,6 +1082,9 @@ def _verify_accepted_snapshot(record: dict[str, Any]) -> tuple[dict[str, Any] | 
             mismatches.append("task_run")
     if mismatches:
         return current, f"session identity changed before merge: {', '.join(mismatches)}"
+    status = _current_session_status(record["session_id"])
+    if status != "idle":
+        return current, f"worker_busy:{status}"
     return current, ""
 
 
@@ -1382,6 +1514,16 @@ def finish_operation(
     finalization = result.get("finalization")
     now = _now()
     with _conn() as connection:
+        current = connection.execute(
+            "SELECT result_json FROM merge_operations WHERE operation_id=? "
+            "AND state='RUNNING' AND owner_token=?",
+            (operation_id, owner_token),
+        ).fetchone()
+        if current:
+            stored_result = json.loads(current["result_json"])
+            phases = {phase: None for phase in MERGE_PHASES}
+            phases.update(stored_result.get("phase_durations_ms") or {})
+            result["phase_durations_ms"] = phases
         cursor = connection.execute(
             """UPDATE merge_operations
                SET state=?, commit_point=?, result_json=?, result_hash=?,
@@ -1673,8 +1815,15 @@ async def _run_operation(operation_id: str) -> None:
         return
     if record["finalization_stage"] == "PENDING" and record["commit_point"] == "REACHED":
         # Git уже сделал свой единственный коммит: повтор доделывает ТОЛЬКО стадию БД.
+        finalization_started = time.perf_counter()
         try:
             result = await _resume_finalization(record)
+            await asyncio.to_thread(
+                record_phase_duration,
+                operation_id,
+                "finalization",
+                _elapsed_ms(finalization_started),
+            )
             terminal = None
             try:
                 terminal = await asyncio.to_thread(
@@ -1693,14 +1842,38 @@ async def _run_operation(operation_id: str) -> None:
                 exception_type=type(exc).__name__,
             )
             await asyncio.to_thread(
+                record_phase_duration,
+                operation_id,
+                "finalization",
+                _elapsed_ms(finalization_started),
+            )
+            await asyncio.to_thread(
                 finish_operation, operation_id, owner_token, result, None,
             )
             if isinstance(exc, asyncio.CancelledError):
                 raise
         return
+    acceptance_started = time.perf_counter()
     try:
         current, mismatch = await asyncio.to_thread(_verify_accepted_snapshot, record)
-        if mismatch:
+        if mismatch.startswith("worker_busy:"):
+            worker_status = await _wait_for_session_idle(
+                record["session_id"],
+                time.monotonic() + MERGE_BUSY_WAIT_SECONDS,
+            )
+            if worker_status == "idle":
+                current, mismatch = await asyncio.to_thread(
+                    _verify_accepted_snapshot, record,
+                )
+        if mismatch.startswith("worker_busy:"):
+            result, _ = _busy_worker_result(operation_id, mismatch.partition(":")[2])
+            await asyncio.to_thread(
+                record_phase_duration,
+                operation_id,
+                "acceptance",
+                _elapsed_ms(acceptance_started),
+            )
+        elif mismatch:
             error = _error(
                 "SESSION_IDENTITY_CHANGED", mismatch, operation_id=operation_id,
                 status=409, details={"exception_type": "SessionIdentityChanged"},
@@ -1718,6 +1891,12 @@ async def _run_operation(operation_id: str) -> None:
                     "new operation WITHOUT operation_id: admission re-pins identity from "
                     "the worktree. Repeating this same operation_id cannot help.",
                 ),
+            )
+            await asyncio.to_thread(
+                record_phase_duration,
+                operation_id,
+                "acceptance",
+                _elapsed_ms(acceptance_started),
             )
         else:
             from app import acceptance as acceptance_module
@@ -1782,6 +1961,12 @@ async def _run_operation(operation_id: str) -> None:
                 if bool(oracle.get("required"))
                 else acceptance["status"] in {FAILED, INCONCLUSIVE}
             )
+            await asyncio.to_thread(
+                record_phase_duration,
+                operation_id,
+                "acceptance",
+                _elapsed_ms(acceptance_started),
+            )
             if acceptance_blocks:
                 code = (
                     "ACCEPTANCE_FAILED"
@@ -1824,6 +2009,15 @@ async def _run_operation(operation_id: str) -> None:
                     target_ref=str(target.get("branch") or ""),
                     target_sha=str(target.get("sha") or ""),
                 )
+                for phase, duration_ms in (
+                    test_gate.get("phase_durations_ms") or {}
+                ).items():
+                    await asyncio.to_thread(
+                        record_phase_duration,
+                        operation_id,
+                        phase,
+                        duration_ms,
+                    )
                 strict_mapped = bool(oracle.get("required"))
                 mutation_gate = test_gate.get("mutation_gate") or {}
                 mutation_failed = mutation_gate.get("status") == FAILED
@@ -1909,6 +2103,17 @@ async def _run_operation(operation_id: str) -> None:
                             "target": str(target.get("branch") or ""),
                         },
                     )
+                    raw_phases = (
+                        raw.get("phase_durations_ms") or {}
+                        if isinstance(raw, dict) else {}
+                    )
+                    for phase, duration_ms in raw_phases.items():
+                        await asyncio.to_thread(
+                            record_phase_duration,
+                            operation_id,
+                            phase,
+                            duration_ms,
+                        )
                     if isinstance(raw, dict) and raw.get("finalization_checkpoint_lost"):
                         raw = await asyncio.to_thread(
                             _recover_lost_checkpoint, operation_id, raw,
@@ -2116,6 +2321,22 @@ async def accept_merge_operation(
             operation_id=canonical_id, status=404,
         )
         return _base_result(canonical_id, "FAILED", error=error), 404
+
+    active = await asyncio.to_thread(get_active_operation_for_session, row["id"])
+    if active:
+        return _active_operation_result(canonical_id, active)
+    pre_operation_started = time.perf_counter()
+    busy_deadline = time.monotonic() + MERGE_BUSY_WAIT_SECONDS
+    worker_status = await _wait_for_session_idle(row["id"], busy_deadline)
+    if worker_status != "idle":
+        result, status = _busy_worker_result(canonical_id, worker_status)
+        result["phase_durations_ms"] = {
+            "pre_operation": _elapsed_ms(pre_operation_started),
+        }
+        return result, status
+
+    phase_durations: dict[str, int] = {}
+    snapshot_started = time.perf_counter()
     try:
         accepted = await asyncio.to_thread(_session_snapshot, row["id"])
     except Exception as exc:
@@ -2130,6 +2351,8 @@ async def accept_merge_operation(
             target_branch=request["target"], worker_branch=row.get("branch") or "",
             error=error,
         ), 409
+    phase_durations["snapshot"] = _elapsed_ms(snapshot_started)
+    admission_started = time.perf_counter()
     try:
         accepted["admission"] = await asyncio.to_thread(
             _prepare_admission_snapshot, accepted, request,
@@ -2156,6 +2379,7 @@ async def accept_merge_operation(
                 "Repair the authoritative task oracle or target, then start a new operation.",
             ),
         ), 409
+    phase_durations["admission"] = _elapsed_ms(admission_started)
     review = dict(accepted.get("admission", {}).get("review") or {})
     from app.work_review import assignment
     task_run = assignment(request["scope"], str(accepted["session_id"]), str(accepted.get("task_id") or ""))
@@ -2174,12 +2398,35 @@ async def accept_merge_operation(
             "task_run_id": review["task_run_id"],
         }
 
+    worker_status = await _wait_for_session_idle(row["id"], busy_deadline)
+    if worker_status != "idle":
+        result, status = _busy_worker_result(canonical_id, worker_status)
+        result["phase_durations_ms"] = {
+            **phase_durations,
+            "pre_operation": _elapsed_ms(pre_operation_started),
+        }
+        return result, status
+
+    accepted["phase_durations_ms"] = {
+        **phase_durations,
+        "pre_operation": _elapsed_ms(pre_operation_started),
+    }
     result, _created, status = await asyncio.to_thread(
         accept_operation_snapshot,
         operation_id=canonical_id,
         request=request,
         accepted=accepted,
     )
+    if _created:
+        pre_operation_ms = _elapsed_ms(pre_operation_started)
+        await asyncio.to_thread(
+            record_phase_duration,
+            canonical_id,
+            "pre_operation",
+            pre_operation_ms,
+            accumulate=False,
+        )
+        result.setdefault("phase_durations_ms", {})["pre_operation"] = pre_operation_ms
     if result["operation_state"] == "PENDING":
         ensure_operation_runner(result["operation_id"])
     return result, status

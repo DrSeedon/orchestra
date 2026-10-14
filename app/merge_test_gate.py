@@ -899,6 +899,7 @@ def evaluate_test_gate(
     target_ref: str = "",
     target_sha: str = "",
 ) -> dict:
+    test_gate_started = time.monotonic()
     if target_ref or target_sha:
         changed = changed_paths(
             worktree, target_ref=target_ref, target_sha=target_sha,
@@ -919,6 +920,9 @@ def evaluate_test_gate(
                 "status": SKIPPED, "reason": "no_diff", "tests": [],
                 "changed_tests": [], "changed_sources": [],
                 "interpreter": _pytest_interpreter(worktree),
+            },
+            "phase_durations_ms": {
+                "test_gate": max(0, round((time.monotonic() - test_gate_started) * 1000)),
             },
             **evidence,
         }
@@ -942,6 +946,9 @@ def evaluate_test_gate(
                 "changed_sources": changed_sources,
                 "interpreter": interpreter,
             },
+            "phase_durations_ms": {
+                "test_gate": max(0, round((time.monotonic() - test_gate_started) * 1000)),
+            },
             **evidence,
         }
     if len(tests) > MAX_TEST_FILES:
@@ -957,13 +964,19 @@ def evaluate_test_gate(
         "interpreter": _pytest_interpreter(worktree),
         **evidence,
     }
+    test_gate_ms = max(0, round((time.monotonic() - test_gate_started) * 1000))
+    phase_durations_ms = {"test_gate": test_gate_ms}
     if result["status"] == PASSED:
+        mutation_started = time.monotonic()
         mutation = evaluate_mutation_gate(
             worktree,
             changed,
             target_ref=target_ref,
             target_sha=target_sha,
             interpreter=result["interpreter"],
+        )
+        phase_durations_ms["mutation_gate"] = max(
+            0, round((time.monotonic() - mutation_started) * 1000),
         )
     else:
         mutation = {
@@ -977,6 +990,7 @@ def evaluate_test_gate(
             "interpreter": result["interpreter"],
         }
     result["mutation_gate"] = mutation
+    result["phase_durations_ms"] = phase_durations_ms
     if mutation["status"] == FAILED:
         result["status"] = FAILED
         result["reason"] = mutation.get("reason") or "mutation_failed"

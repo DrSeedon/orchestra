@@ -2579,7 +2579,8 @@ async def merge_worker(
         body["task_outcome"] = task_outcome
     try:
         try:
-            payload = await _api("POST", "/api/merge-operations", json=body)
+            # 60s bounded turn wait plus V-840's 42.84s observed pre-operation maximum.
+            payload = await _api("POST", "/api/merge-operations", json=body, timeout=120)
             result = _merge_payload_result(payload)
         except ApiToolError as api_error:
             if isinstance(api_error.result, dict):
