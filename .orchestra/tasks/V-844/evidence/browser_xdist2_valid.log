@@ -1,0 +1,18 @@
+bringing up nodes...
+bringing up nodes...
+
+...                                                                      [100%]
+============================= slowest 20 durations =============================
+7.33s setup    tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+3.82s setup    tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+1.86s call     tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+1.31s call     tests/test_frontend.py::test_new_worker_initial_snapshot_requests_and_renders_last_100_rows
+0.79s teardown tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+0.77s call     tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+0.15s teardown tests/test_t344_quota_lines_browser.py::test_point_moves_with_utilization
+0.01s setup    tests/test_frontend.py::test_image_generation_history_restores_full_result_and_survives_chat_reentry
+
+(1 durations < 0.005s hidden.  Use -vv to show these durations.)
+3 passed in 12.12s
+
+EXIT_CODE=0

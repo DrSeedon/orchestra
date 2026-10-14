@@ -1,0 +1,53 @@
+rows 522 reason_counts 52
+claude katya-work own process/output polling 97 1.682 1.292
+claude University own process/output polling 21 1.619 1.614
+claude orchestra own process/output polling 33 0.425 0.421
+claude dnd-game-master own process/output polling 36 0.424 0.382
+claude VPN-Service own process/output polling 23 0.344 0.054
+claude seedon Claude subagent output polling 8 0.291 0.196
+claude seedon own process/output polling 32 0.253 0.307
+claude University embedded sleep reference; execution unconfirmed 16 0.18 0.0
+claude katya-work embedded sleep reference; execution unconfirmed 30 0.166 0.0
+claude katya-work Python embedded sleep syntax; execution unconfirmed 19 0.155 0.0
+claude katya-work service restart/readiness check 22 0.127 0.018
+claude katya-work Claude subagent output polling 9 0.118 0.118
+claude seedon explicit wait; target not visible in command 7 0.106 0.027
+claude seedon embedded sleep reference; execution unconfirmed 16 0.104 0.0
+claude katya-work remote service/network polling 16 0.101 0.044
+claude dnd-game-master service restart/readiness check 26 0.069 0.027
+codex seedon embedded sleep reference; execution unconfirmed 9 0.061 0.0
+claude kesha-tg-bot service restart/readiness check 3 0.053 0.013
+claude dnd-game-master embedded sleep reference; execution unconfirmed 12 0.048 0.0
+claude katya-work explicit wait; target not visible in command 14 0.043 0.01
+claude orchestra Claude subagent output polling 2 0.04 0.04
+claude cog-second-brain own process/output polling 5 0.035 0.031
+claude University Claude subagent output polling 2 0.035 0.029
+claude seedon own long-running process/build 3 0.03 0.007
+claude kesha-tg-bot own process/output polling 1 0.028 0.028
+claude kesha-tg-bot embedded sleep reference; execution unconfirmed 2 0.027 0.0
+claude dnd-game-master explicit wait; target not visible in command 1 0.025 0.025
+claude seedon remote service/network polling 4 0.025 0.011
+claude VPN-Service remote service/network polling 2 0.022 0.003
+claude dnd-game-master Claude subagent output polling 1 0.017 0.017
+claude comfy-image-pipeline Claude subagent output polling 1 0.017 0.017
+claude dnd-game-master Python embedded sleep syntax; execution unconfirmed 1 0.016 0.0
+claude orchestra explicit wait; target not visible in command 4 0.014 0.01
+claude orchestra another session state polling 2 0.013 0.013
+claude VPN-Service service restart/readiness check 2 0.01 0.003
+claude katya-work own long-running process/build 4 0.01 0.003
+claude orchestra another worker/agent status 1 0.008 0.008
+codex orchestra short process-exit check 3 0.007 0.001
+claude orchestra service restart/readiness check 1 0.007 0.001
+claude orchestra embedded sleep reference; execution unconfirmed 8 0.006 0.0
+claude orchestra remote service/network polling 2 0.006 0.002
+claude orchestra own long-running process/build 7 0.004 0.01
+claude VPN-Service embedded sleep reference; execution unconfirmed 2 0.003 0.0
+claude comfy-image-pipeline explicit wait; target not visible in command 1 0.002 0.002
+codex seedon Python embedded sleep syntax; execution unconfirmed 1 0.002 0.0
+claude dnd-game-master remote service/network polling 2 0.002 0.001
+claude cog-second-brain remote service/network polling 1 0.001 0.001
+claude University own long-running process/build 2 0.001 0.001
+claude orchestra short process-exit check 1 0.0 0.0
+claude University short process-exit check 1 0.0 0.0
+claude seedon short process-exit check 1 0.0 0.0
+claude seedon Python embedded sleep syntax; execution unconfirmed 2 0.0 0.0
