@@ -12,6 +12,25 @@ defaults:
   worktree:
     symlinks: []
     copies:   [CLAUDE.md, .mcp.json, .env, .worktreeinclude]
+    # Partial (sparse) worker copies. `exclude` stays out of the copy; `own` are the task's own
+    # directories ({id} = task number, e.g. V-821), present from the first turn; `include` always
+    # stays; `reference_scan` lists source directories whose mentions of an excluded directory
+    # (KB links, test fixtures) pull that directory into the copy. A project overrides by a glob
+    # on its repository root; `enabled: false` there (or here) gives a full copy again.
+    sparse:
+      enabled: true
+      exclude: [artifacts, .orchestra/tasks]
+      own:
+        - ".orchestra/tasks/{id}"
+        - "artifacts/{id}"
+        - "artifacts/task-{id}"
+        - "artifacts/{id}-*"
+        - "artifacts/task-{id}-*"
+      projects:
+        "*/katya-work":
+          include: [artifacts/task-2/tooling]
+        "*/orchestra":
+          reference_scan: [.orchestra/kb, tests, scripts]
   base_branch_strategy: main
   docs_scaffold: false
 # `&effort_policy` — единственное YAML-определение карты модель→ступень; остальные роли ссылаются

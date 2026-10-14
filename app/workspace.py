@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     # циклической зависимости (pipeline ← workspace).
     from app.pipeline import Symlink, Worktree as WorktreeCfg
 
+from app import sparse_worktree
+
 logger = logging.getLogger(__name__)
 
 WORKTREE_ROOT = Path(__file__).parent.parent / "worktrees"
@@ -616,6 +618,22 @@ def _exclude_worktree_artifacts(
         f.write("".join(f"{p}\n" for p in missing))
 
 
+def _enter_sparse_or_full(repo: Path, wt_path: Path, rule, task_id: str, ref: str) -> None:
+    """Populate a `--no-checkout` worktree through the sparse rule. A failure to set the rule up
+    must not block the spawn: fall back to a full copy and say so."""
+    patterns = sparse_worktree.build_patterns(rule, task_id, _git_cmd, repo, ref)
+    error = sparse_worktree.apply_patterns(wt_path, patterns, _git_cmd)
+    if error:
+        logger.warning("sparse checkout rule not applied to %s, using a full copy: %s", wt_path, error)
+        _git_cmd(["git", "sparse-checkout", "disable"], cwd=str(wt_path),
+                 capture_output=True, text=True)
+    filled = _git_cmd(["git", "reset", "-q", "--hard", "HEAD"], cwd=str(wt_path),
+                      capture_output=True, text=True)
+    if filled.returncode != 0:
+        raise RuntimeError(
+            f"git checkout of new worktree failed: {filled.stderr.strip() or filled.stdout.strip()}")
+
+
 def create_worktree(repo_path: str, name: str, task_id: str = "",
                     base_branch: str = "",
                     worktree_cfg: "WorktreeCfg | None" = None,
@@ -651,21 +669,35 @@ def create_worktree(repo_path: str, name: str, task_id: str = "",
 
         branch_initial_oid = _inspect_branch_ref(repo, branch)
         branch_created = branch_initial_oid is None
+        sparse_rule = sparse_worktree.resolve_rule(
+            worktree_cfg.sparse if worktree_cfg is not None else None, repo)
+        no_checkout = ["--no-checkout"] if sparse_rule else []
         if branch_created:
             branch_initial_oid = _resolve_commit_oid(repo, base_ref)
             result = _git_cmd(
-                ["git", "worktree", "add", "--detach", str(wt_path), branch_initial_oid],
+                ["git", "worktree", "add", *no_checkout, "--detach", str(wt_path), branch_initial_oid],
                 cwd=str(repo), capture_output=True, text=True,
             )
         else:
             if _is_branch_checked_out_elsewhere(str(repo), branch, wt_path):
                 raise ValueError(f"Branch '{branch}' is checked out in another worktree.")
             result = _git_cmd(
-                ["git", "worktree", "add", str(wt_path), branch],
+                ["git", "worktree", "add", *no_checkout, str(wt_path), branch],
                 cwd=str(repo), capture_output=True, text=True,
             )
         if result.returncode != 0:
             raise RuntimeError(f"git worktree add failed: {result.stderr.strip()}")
+        if sparse_rule:
+            try:
+                _enter_sparse_or_full(
+                    repo, wt_path, sparse_rule,
+                    sparse_worktree.task_id_from_branch(branch),
+                    branch_initial_oid or branch,
+                )
+            except Exception:
+                _git_cmd(["git", "worktree", "remove", str(wt_path), "--force"],
+                         cwd=str(repo), capture_output=True, text=True)
+                raise
 
         if branch_created:
             try:
@@ -942,6 +974,26 @@ def _clean_worktree_error(path: Path, label: str) -> str | None:
         f"{label} working tree is dirty at '{path.resolve()}' "
         f"({len(dirty_lines)} file(s): "
         f"{', '.join(dirty_files)}{suffix}) — commit or discard first"
+        + _sparse_hidden_hint(path, [line[3:] for line in dirty_lines])
+    )
+
+
+def _sparse_hidden_hint(path: Path, dirty: list[str]) -> str:
+    """Explain dirty paths that git cannot stage because they lie outside a sparse checkout:
+    `git add -A` returns 0 for a modified tracked file there and the commit silently lacks it, so
+    the plain 'commit or discard' advice would send the worker round in a circle."""
+    if not sparse_worktree.is_orchestra_sparse(path, _git_cmd):
+        return ""
+    hidden = sparse_worktree.hidden_paths(path, [d.strip('"') for d in dirty], _git_cmd)
+    if not hidden:
+        return ""
+    prefixes = sparse_worktree.current_exclude(path, _git_cmd)
+    dirs = sorted({sparse_worktree.suggest_dir(p, prefixes) for p in hidden})
+    return (
+        f". {len(hidden)} of them lie outside this worktree's sparse checkout, so git add and "
+        f"commit skip them (first: {', '.join(hidden[:3])}). Run "
+        + "; ".join(f"`git sparse-checkout add {d}`" for d in dirs[:5])
+        + ", then git add and commit the files again"
     )
 
 
@@ -2276,6 +2328,10 @@ def promote_worktree_branch(
                 "branch": promoted_branch,
                 "head": promoted_head,
             }
+        retarget_error = sparse_worktree.retarget(
+            wt, sparse_worktree.task_id_from_branch(new_branch), _git_cmd, repo)
+        if retarget_error:
+            logger.warning("sparse rule of %s not retargeted to %s: %s", wt, new_branch, retarget_error)
         return {
             "ok": True,
             "state": "promoted_current_work",
@@ -2734,6 +2790,11 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 detail = checkout.stderr.strip() or checkout.stdout.strip()
                 return rollback(f"branch create failed: {detail}")
 
+        retarget_error = sparse_worktree.retarget(
+            wt, sparse_worktree.task_id_from_branch(new_branch), _git_cmd, repo)
+        if retarget_error:
+            logger.warning("sparse rule of %s not retargeted to %s: %s", wt, new_branch, retarget_error)
+
         actual_branch_result = _git_cmd(
             ["git", "symbolic-ref", "--quiet", "--short", "HEAD"],
             cwd=str(wt), capture_output=True, text=True,
@@ -2765,6 +2826,85 @@ def switch_worktree_branch(worktree_path: str, new_branch: str,
                 "actual_head": actual_head,
             }
         return {"ok": True, "branch": new_branch}
+
+
+def _processes_inside(path: Path) -> list[int]:
+    """PIDs whose current directory is inside `path` (a live agent works there)."""
+    inside = []
+    prefix = str(path) + os.sep
+    for entry in Path("/proc").iterdir():
+        if not entry.name.isdigit():
+            continue
+        try:
+            cwd = os.readlink(entry / "cwd")
+        except OSError:
+            continue
+        if cwd == str(path) or cwd.startswith(prefix):
+            inside.append(int(entry.name))
+    return inside
+
+
+def _dir_mb(path: Path) -> float:
+    total = 0
+    for root, _dirs, files in os.walk(path):
+        for f in files:
+            try:
+                total += os.lstat(os.path.join(root, f)).st_size
+            except OSError:
+                pass
+    return round(total / 1e6, 1)
+
+
+def convert_worktree_to_sparse(
+    worktree_path: str, worktree_cfg: "WorktreeCfg", *, apply: bool = False, allow_busy: bool = False,
+) -> dict:
+    """Move an existing full worktree onto the sparse rule without losing anything.
+
+    Refuses (and changes nothing) when the tree has modified or untracked files, a merge/rebase/
+    cherry-pick is in progress, or a process works inside it (unless `allow_busy`). Only tracked,
+    committed files outside the cone leave the disk; untracked and ignored files stay, and the
+    directories holding them are listed so nobody mistakes the leftovers for freed space.
+    Dry run by default."""
+    wt = Path(worktree_path).resolve()
+    repo = _resolve_repo(str(wt), str(wt))
+    rule = sparse_worktree.resolve_rule(worktree_cfg.sparse, repo)
+    if rule is None:
+        return {"state": "skipped", "reason": "sparse rule is off for this project"}
+    if sparse_worktree.is_orchestra_sparse(wt, _git_cmd):
+        return {"state": "skipped", "reason": "already sparse"}
+    status = _git_cmd(["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True)
+    if status.returncode != 0:
+        return {"state": "refused", "reason": f"git status failed: {status.stderr.strip()}"}
+    if status.stdout.strip():
+        lines = status.stdout.strip().splitlines()
+        return {"state": "refused", "reason": f"{len(lines)} modified or untracked path(s): "
+                + ", ".join(line[3:] for line in lines[:8])}
+    for marker in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply"):
+        found = _git_cmd(["git", "rev-parse", "--git-path", marker], cwd=str(wt),
+                         capture_output=True, text=True).stdout.strip()
+        found_path = Path(found) if os.path.isabs(found) else wt / found
+        if found and found_path.exists():
+            return {"state": "refused", "reason": f"{marker} in progress"}
+    busy = _processes_inside(wt)
+    if busy and not allow_busy:
+        return {"state": "refused", "reason": f"process(es) work inside: {busy[:5]}"}
+    branch = _git_cmd(["git", "symbolic-ref", "--quiet", "--short", "HEAD"], cwd=str(wt),
+                      capture_output=True, text=True).stdout.strip()
+    task_id = sparse_worktree.task_id_from_branch(branch)
+    present_mb = {d.strip("/"): _dir_mb(wt / d.strip("/")) for d in rule.exclude if (wt / d.strip("/")).is_dir()}
+    result = {"branch": branch, "task_id": task_id, "excluded_mb_on_disk": present_mb}
+    if not apply:
+        return {"state": "would_convert", **result}
+    with repo_mutation_lock(repo):
+        patterns = sparse_worktree.build_patterns(rule, task_id, _git_cmd, repo, "HEAD")
+        error = sparse_worktree.apply_patterns(wt, patterns, _git_cmd)
+        if error:
+            _git_cmd(["git", "sparse-checkout", "disable"], cwd=str(wt), capture_output=True, text=True)
+            return {"state": "failed", "reason": error, **result}
+    after = _git_cmd(["git", "status", "--porcelain"], cwd=str(wt), capture_output=True, text=True)
+    left = {d.strip("/"): _dir_mb(wt / d.strip("/")) for d in rule.exclude if (wt / d.strip("/")).is_dir()}
+    return {"state": "converted", "status_clean": not after.stdout.strip(),
+            "left_on_disk_mb": left, **result}
 
 
 def remove_worktree(repo_path: str, worktree_path: str) -> None:

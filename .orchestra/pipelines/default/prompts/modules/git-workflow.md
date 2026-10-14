@@ -15,6 +15,12 @@
 - Worktrees isolate repository edits, not shared services or credentials.
 - Do not use `git stash` in repositories with linked worktrees: the stash stack is shared by all of them. Keep unfinished work in your task branch or in a task-local patch.
 
+### Partial worktree
+- Your worktree may be a partial (sparse) copy: large or historical directories (by default `artifacts/` and the `.orchestra/tasks/` of other tasks) are absent, while your own task directories and all source are present.
+- To READ something that is absent, do not load it. Read it from the main checkout of your project, which holds the merged work of past tasks: its root is the parent directory of `git rev-parse --git-common-dir` (run it in your worktree; never guess the path, each project has its own). `git show main:<path>` and `git grep <pattern> main -- <dir>` work from your worktree on any backend, including ones that cannot read outside it.
+- Load a directory (`git sparse-checkout add /<dir>/`) only when you are going to CHANGE a file in it. Signs that you need it: `git add` says paths "exist outside of your sparse-checkout definition", or `git status` shows a modified file that `git add`/`git commit` leaves out, or `merge_worker` refuses because changes lie outside the sparse checkout. Run the command from the message, then `git add` and commit again. Never copy files in by hand.
+- New files of your task go into your own directories (for example `.orchestra/tasks/<your-id>/`), which are present.
+
 ### Conflict prevention
 - Coordinate overlapping edits and interfaces with the relevant worker; file overlap alone
   does not imply a conflict, and separate directories do not prove semantic compatibility.
