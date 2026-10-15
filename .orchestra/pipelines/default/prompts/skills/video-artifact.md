@@ -66,7 +66,7 @@ HTML scene: `STEPS` with `t`/`say`/`sub`/`hold`, and the same `say` rules. Each 
 fractions of the remaining step, `run_time=self.left() * 0.4`, so phrase and rate changes stay
 synchronized; overrunning a step stops the build with a clear error. `VoiceScene` draws heading
 and subtitles; style comes from its constants and `text()` (`BLUE_`, `GOLD_`, `PANEL`). `VoiceScene`
-uses `MovingCameraScene`, CMU Serif and a black background by default; subclasses may override
+uses `MovingCameraScene`, bundled CMU Serif (OFL, `fonts/`) and a black background by default; captions wrap by measured width and an unknown font name fails the build; subclasses may override
 `TEXT_FONT` and `BACKGROUND_COLOR`, or call `self.text(..., font="CMU Serif")`. Minimal example:
 
 ```python

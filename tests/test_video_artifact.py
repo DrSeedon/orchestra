@@ -649,3 +649,40 @@ def test_tera_cache_separates_voices_and_keeps_stress_setting(tmp_path, monkeypa
     second = make.synthesize(step, cache, 1, 1.15, voice="ru_f1", engine="tera", stress=False)
     assert first[0] != second[0]
     assert [(job["voice"], job["stress"]) for job in jobs_seen] == [("ru_m5", True), ("ru_f1", False)]
+
+
+MANIM_PY = Path.home() / ".local/share/orchestra-manim/env/bin/python"
+_FONT_PROBE = """
+import sys
+sys.path.insert(0, {dir!r})
+from manim import config
+from manim_voice import VoiceScene, text
+{body}
+"""
+
+
+def _manim(body: str, cwd: Path):
+    import subprocess
+    code = _FONT_PROBE.format(dir=str(Path(make.__file__).parent), body=body)
+    return subprocess.run([str(MANIM_PY), "-c", code], capture_output=True, text=True, timeout=120, cwd=cwd)
+
+
+@pytest.mark.skipif(not MANIM_PY.exists(), reason="окружение Manim не установлено")
+def test_manim_missing_font_fails_instead_of_silent_substitution(tmp_path):
+    run = _manim("text('x', font='No Such Face 9')", tmp_path)
+    assert run.returncode != 0 and "не найден" in run.stderr
+
+
+@pytest.mark.skipif(not MANIM_PY.exists(), reason="окружение Manim не установлено")
+def test_default_cmu_serif_is_bundled_and_long_caption_fits_frame(tmp_path):
+    run = _manim("""
+class S(VoiceScene):
+    STEPS = [{"t": "t", "say": "x"}]
+s = S(); s.setup()
+long = "Длинный субтитр проверяет, что перенос строк считается по реальной ширине шрифта, а не по числу знаков, " * 2
+lines = s.wrap_caption(long)
+widths = [s.text(l, 26).width for l in lines]
+assert len(lines) > 1 and max(widths) <= config.frame_width - 2 * s.CAPTION_MARGIN, widths
+print("ok")
+""", tmp_path)
+    assert run.returncode == 0 and "ok" in run.stdout, run.stderr

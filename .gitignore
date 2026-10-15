@@ -35,3 +35,6 @@ docs/vps-*.md
 # Офлайн-комплект поставки (scripts/build_offline_bundle.sh)
 /wheels/
 /dist/
+
+# Manim writes media/ into the cwd
+media/
