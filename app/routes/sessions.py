@@ -19,7 +19,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, StrictInt, field_validator, model_validator
 
 from app.db import (
     get_all_sessions,
@@ -270,6 +270,39 @@ class SendRequest(BaseModel):
     after_turn: bool = False
 
 
+class TaskProposalRequest(BaseModel):
+    title: str
+    summary: str
+    project: str
+    model: str
+    quota_pool: Literal["Claude", "Codex"]
+
+
+class ChecklistUpdateRequest(BaseModel):
+    items: list[str]
+    completed: list[StrictInt]
+    current: StrictInt | None = None
+
+
+def _verified_mcp_session(request: Request) -> dict | None:
+    from app.mcp_proof import check_mcp_proof
+
+    session_id = request.headers.get("x-orchestra-session-id", "").strip()
+    proof = request.headers.get("x-orchestra-mcp-proof", "")
+    if not session_id or not check_mcp_proof(session_id, proof):
+        return None
+    row = get_session_row(session_id)
+    if not row or row.get("status") == "archived":
+        return None
+    return row
+
+
+def _is_orchestrator_row(row: dict) -> bool:
+    return bool(row.get("is_orchestrator")) or row.get("role") in {
+        "orchestrator", "sub-orchestrator",
+    }
+
+
 class InitialDeliveryRequest(BaseModel):
     delivery_id: str
     message: str
@@ -345,8 +378,267 @@ async def list_sessions(request: Request, scope: Optional[str] = None):
     # Snapshotting 80+ live/persisted sessions performs two SQLite reads and JSON-ready
     # projection. Keep that work off the event loop so one cold disk/swap page cannot freeze
     # SSE and make every browser retry the same request at once.
-    payload = await asyncio.to_thread(manager.list_sessions, scope)
+    def snapshot():
+        from app.checklists import summaries_for_sessions
+
+        rows = manager.list_sessions(scope)
+        summaries = summaries_for_sessions(rows)
+        for row in rows:
+            if row.get("id") in summaries:
+                row["checklist_progress"] = summaries[row["id"]]
+        return rows
+
+    payload = await asyncio.to_thread(snapshot)
     return _conditional(request, payload)
+
+
+@router.get("/api/sessions/{name}/info-panel")
+async def get_info_panel(name: str, scope: str):
+    from app import checklists, task_proposals
+
+    target = get_session_by_name(name, scope)
+    if not target:
+        return JSONResponse({"error": f"session '{name}' not found"}, status_code=404)
+    is_orchestrator = _is_orchestrator_row(target)
+    live = manager.sessions.get(target["id"])
+    live_status = getattr(live, "status", target.get("status", "idle"))
+    payload = {
+        "session": {
+            "id": target["id"], "name": name, "is_orchestrator": is_orchestrator,
+            "status": getattr(live_status, "value", live_status),
+            "model": live.model if live else target.get("model", ""),
+            "task_id": live.task_id if live else target.get("task_id", ""),
+        },
+        "checklist": checklists.get_checklist(target["id"], target.get("task_id") or ""),
+        "children": [],
+        "proposals": task_proposals.list_for_session(target["id"]) if is_orchestrator else [],
+    }
+    if is_orchestrator:
+        rows = await asyncio.to_thread(manager.list_sessions, scope)
+        for row in rows:
+            if row["id"] == target["id"]:
+                continue
+            if row.get("parent_id") != target["id"] and row.get("parent_name") != name:
+                continue
+            row["checklist"] = checklists.get_checklist(
+                row["id"], row.get("task_id") or "",
+            )
+            payload["children"].append(row)
+    return payload
+
+
+@router.post("/api/task-proposals", status_code=201)
+async def create_task_proposal(req: TaskProposalRequest, request: Request):
+    from app import task_proposals
+
+    actor = _verified_mcp_session(request)
+    if actor is None:
+        return JSONResponse(
+            {"error": "A valid Orchestra MCP session proof is required to propose a task."},
+            status_code=403,
+        )
+    if not _is_orchestrator_row(actor):
+        return JSONResponse(
+            {"error": "Only orchestrator sessions may propose follow-up tasks."},
+            status_code=403,
+        )
+    try:
+        proposal = task_proposals.create(
+            actor["id"], title=req.title, summary=req.summary,
+            project=req.project, model=req.model, quota_pool=req.quota_pool,
+        )
+    except PermissionError as error:
+        return JSONResponse({"error": str(error)}, status_code=403)
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=422)
+    return {"ok": True, "proposal": proposal}
+
+
+def _dashboard_owner_request(request: Request) -> tuple[bool, bool]:
+    """Return (allowed, authenticated); MCP identities cannot decide owner cards."""
+    from app.auth import is_auth_enabled, validate_session
+
+    authenticated = validate_session(request.cookies.get("session", ""))
+    if is_auth_enabled():
+        return authenticated, authenticated
+    if request.headers.get("x-orchestra-session-id"):
+        return False, False
+    return True, False
+
+
+@router.post("/api/task-proposals/{proposal_id}/approve")
+async def approve_task_proposal(proposal_id: str, request: Request):
+    import os
+    from app import message_deliveries, task_proposals
+    from app.events import MessageProvenance
+
+    allowed, authenticated = _dashboard_owner_request(request)
+    if not allowed:
+        return JSONResponse({"error": "Only the dashboard owner can approve a task proposal."}, status_code=403)
+    proposal = task_proposals.begin_approval(proposal_id)
+    if proposal is None:
+        return JSONResponse({"error": "Task proposal not found."}, status_code=404)
+    if proposal["status"] == "approved":
+        return {"ok": True, "proposal": proposal, "already_decided": True}
+    if proposal["status"] == "rejected":
+        return JSONResponse({"error": "Task proposal was rejected."}, status_code=409)
+
+    owner_message = f"владелец одобрил: {proposal['title']} — {proposal['summary']}"
+    target_row = get_session_row(proposal["session_id"])
+    if not target_row or target_row.get("status") == "archived":
+        task_proposals.finish_approval(proposal_id, approved=False)
+        return JSONResponse({"error": "The proposing orchestrator is no longer active."}, status_code=409)
+    target = manager.sessions.get(proposal["session_id"])
+    if target is None:
+        target = await manager.ensure_loaded_by_id(proposal["session_id"])
+    if target is None:
+        task_proposals.finish_approval(proposal_id, approved=False)
+        return JSONResponse({"error": "The proposing orchestrator could not be loaded."}, status_code=503)
+
+    quota_wait = await _preflight_or_quota_wait(target.id)
+    generation = (
+        f"session={target.id}|task={getattr(target, 'task_id', '')}|"
+        f"branch={getattr(target, 'branch', '')}|"
+        f"needs_switch={int(bool(getattr(target, 'needs_switch', False)))}"
+    )
+    provenance = MessageProvenance(
+        origin="user" if authenticated else "unknown",
+        senders=("user",) if authenticated else ("dashboard",),
+        subtype="dashboard", ref=proposal["approval_delivery_id"],
+    )
+    try:
+        existing = message_deliveries._row(proposal["approval_delivery_id"])
+        if existing is not None and existing["state"] == "CANCELLED":
+            proposal = task_proposals.rotate_cancelled_approval(
+                proposal_id, proposal["approval_delivery_id"],
+            )
+            if proposal is None:
+                return JSONResponse({"error": "Task proposal changed before approval retry."}, status_code=409)
+            provenance = MessageProvenance(
+                origin="user" if authenticated else "unknown",
+                senders=("user",) if authenticated else ("dashboard",),
+                subtype="dashboard", ref=proposal["approval_delivery_id"],
+            )
+            existing = None
+        if existing is not None:
+            if existing["target_session_id"] != target.id or existing["message"] != owner_message:
+                return JSONResponse({"error": "Approval receipt is bound to different content."}, status_code=409)
+            if existing["state"] in {"DELIVERY_UNKNOWN", "DELIVERY_UNKNOWN_ORPHANED"}:
+                return JSONResponse({
+                    "error": "Approval message outcome is unknown; check the orchestrator chat before retrying.",
+                    "outcome_unknown": True,
+                }, status_code=409)
+            if existing["state"] == "FAILED_BEFORE_SUBMIT":
+                retry_provenance = MessageProvenance.from_storage(
+                    existing["origin"], existing["origin_detail"],
+                )
+                receipt, status_code = await message_deliveries.accept_message_delivery(
+                    delivery_id=existing["delivery_id"],
+                    source_session_id=existing["source_session_id"],
+                    source_principal=existing["source_principal"],
+                    source_name=existing["source_name"],
+                    source_scope=existing["source_scope"],
+                    source_task_id=existing["source_task_id"],
+                    target_session_id=existing["target_session_id"],
+                    target_name=existing["target_name"],
+                    target_scope=existing["target_scope"],
+                    target_task_id=existing["target_task_id"],
+                    target_generation=existing["target_generation"],
+                    message=existing["message"],
+                    rendered_message=existing["rendered_message"],
+                    message_kind=existing["message_kind"],
+                    wake=bool(existing["wake"]),
+                    provenance=retry_provenance,
+                    quota_wait=quota_wait,
+                )
+            else:
+                if existing["state"] in {"QUEUED", "PREPARING"}:
+                    message_deliveries.ensure_target_runner(target.id)
+                receipt, status_code = message_deliveries._resource(
+                    existing, acceptance="ALREADY_ACCEPTED",
+                ), 202
+        else:
+            receipt, status_code = await message_deliveries.accept_message_delivery(
+                delivery_id=proposal["approval_delivery_id"],
+                source_session_id=None,
+                source_principal=(
+                    f"operator:{os.environ.get('DASHBOARD_USER', '')}"
+                    if authenticated else "dashboard:local"
+                ),
+                source_name="",
+                source_scope=target.scope,
+                source_task_id="",
+                target_session_id=target.id,
+                target_name=target.name,
+                target_scope=target.scope,
+                target_task_id=getattr(target, "task_id", "") or "",
+                target_generation=generation,
+                message=owner_message,
+                rendered_message=owner_message,
+                wake=True,
+                provenance=provenance,
+                quota_wait=quota_wait,
+            )
+    except Exception as error:
+        logger.exception("task proposal approval delivery failed: %s", proposal_id)
+        return JSONResponse({"error": err_text(error)}, status_code=503)
+    if status_code >= 400:
+        task_proposals.finish_approval(proposal_id, approved=False)
+        return JSONResponse(receipt, status_code=status_code)
+    updated = task_proposals.finish_approval(proposal_id, approved=True)
+    return {"ok": True, "proposal": updated, "delivery": receipt}
+
+
+@router.post("/api/task-proposals/{proposal_id}/reject")
+async def reject_task_proposal(proposal_id: str, request: Request):
+    from app import task_proposals
+
+    allowed, _authenticated = _dashboard_owner_request(request)
+    if not allowed:
+        return JSONResponse({"error": "Only the dashboard owner can reject a task proposal."}, status_code=403)
+    proposal = task_proposals.reject(proposal_id)
+    if proposal is None:
+        return JSONResponse({"error": "Task proposal not found."}, status_code=404)
+    if proposal["status"] not in {"rejected", "proposed"}:
+        return JSONResponse({"error": "Task proposal is already being approved or approved."}, status_code=409)
+    return {"ok": True, "proposal": proposal}
+
+
+@router.post("/api/sessions/{name}/checklist")
+async def update_session_checklist(name: str, req: ChecklistUpdateRequest, request: Request):
+    from app import checklists
+
+    actor = _verified_mcp_session(request)
+    if actor is None:
+        return JSONResponse({"error": "A valid Orchestra MCP session proof is required."}, status_code=403)
+    if actor["name"] != name:
+        return JSONResponse({"error": "A session may update only its own checklist."}, status_code=403)
+    if _is_orchestrator_row(actor):
+        return JSONResponse({"error": "Task checklists are available to worker sessions."}, status_code=403)
+    session = manager.sessions.get(actor["id"])
+    if session is None or not session.loaded or session.status != AgentStatus.RUNNING:
+        return JSONResponse({"error": "The worker must be in an active turn to update its checklist."}, status_code=409)
+    turn_key = session._checklist_turn_key or checklists.make_turn_key(session.id, session._turn_gen)
+    try:
+        result = await asyncio.to_thread(
+            checklists.save_checklist,
+            session.id,
+            session.task_id or "",
+            turn_key,
+            items=req.items,
+            completed=req.completed,
+            current=req.current,
+        )
+    except ValueError as error:
+        return JSONResponse({"error": str(error)}, status_code=422)
+    session._checklist_turn_key = turn_key
+    session._checklist_activity_event.set()
+    session._log(
+        "checklist_update",
+        f"Checklist updated: {result['completed']} of {result['total']} steps complete",
+        event_id=turn_key,
+    )
+    return {"ok": True, **result}
 
 
 @router.post("/api/sessions", status_code=201)

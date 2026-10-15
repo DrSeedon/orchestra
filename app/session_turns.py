@@ -297,6 +297,7 @@ class TurnManager:
 
     def handle_turn_end(self, event: AgentEvent) -> None:
         s = self.s
+        s._cancel_checklist_reminder()
         meta = event.metadata
         cost_unaccounted = meta.get("cost_unaccounted") is True
         s._turn_start = 0
@@ -495,6 +496,7 @@ class TurnManager:
     def finish_turn_status(self) -> None:
         """Set IDLE or WAITING based on bg jobs, then persist."""
         s = self.s
+        s._cancel_checklist_reminder()
         from app.bg_jobs import bg_manager
         if bg_manager and bg_manager.has_active_jobs(s.id):
             s.status = AgentStatus.WAITING

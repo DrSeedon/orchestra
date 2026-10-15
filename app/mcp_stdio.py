@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 from mcp.server.fastmcp import FastMCP
@@ -2218,6 +2219,43 @@ async def update_progress(percent: int, status: str) -> str:
     if isinstance(result, dict) and result.get("error"):
         return f"Progress update failed: {result['error']}"
     return f"Progress: {percent}% — {status}"
+
+
+@mcp.tool()
+async def propose_task(
+    title: str, summary: str, project: str, model: str, quota_pool: str,
+) -> str:
+    """Propose one useful follow-up to the owner with a concise 1-2 line summary, project, worker model, and quota pool. Orchestrator sessions only; this stores a card and never creates a task or starts a worker."""
+    result = await _api("POST", "/api/task-proposals", json={
+        "title": title,
+        "summary": summary,
+        "project": project,
+        "model": model,
+        "quota_pool": quota_pool,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Task proposal refused: {result['error']}"
+    proposal = result.get("proposal") if isinstance(result, dict) else None
+    if not isinstance(proposal, dict) or not proposal.get("id"):
+        raise ApiToolError(code="invalid_response", message="proposal API returned no durable card id")
+    return f"Task proposal saved for owner review: {proposal['id']} — {proposal['title']}"
+
+
+@mcp.tool()
+async def update_checklist(
+    items: list[str], completed: list[int], current: int | None = None,
+) -> str:
+    """Create or update your task checklist. Send the full ordered item list, zero-based indexes already completed, and the zero-based current index (or null)."""
+    result = await _api("POST", f"/api/sessions/{quote(WORKER_NAME, safe='')}/checklist", json={
+        "items": items,
+        "completed": completed,
+        "current": current,
+    })
+    if isinstance(result, dict) and result.get("error"):
+        return f"Checklist update failed: {result['error']}"
+    completed_count = result.get("completed", 0) if isinstance(result, dict) else 0
+    total_count = result.get("total", 0) if isinstance(result, dict) else 0
+    return f"Checklist updated: {completed_count} of {total_count} steps complete."
 
 
 @mcp.tool()

@@ -349,6 +349,12 @@
   ]
  ],
  [
+  "/api/sessions/{name}/checklist",
+  [
+   "POST"
+  ]
+ ],
+ [
   "/api/sessions/{name}/clear-session",
   [
    "POST"
@@ -376,6 +382,12 @@
   "/api/sessions/{name}/hibernate",
   [
    "POST"
+  ]
+ ],
+ [
+  "/api/sessions/{name}/info-panel",
+  [
+   "GET"
   ]
  ],
  [
@@ -532,6 +544,24 @@
   "/api/subagents/{session_id}",
   [
    "GET"
+  ]
+ ],
+ [
+  "/api/task-proposals",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/task-proposals/{proposal_id}/approve",
+  [
+   "POST"
+  ]
+ ],
+ [
+  "/api/task-proposals/{proposal_id}/reject",
+  [
+   "POST"
   ]
  ],
  [

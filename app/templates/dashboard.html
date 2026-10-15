@@ -32,6 +32,7 @@
         <div class="flex items-center gap-2 flex-1 min-w-0">
             <h1 class="text-lg font-bold tracking-tight shrink-0">🎼</h1>
             <div id="orch-tabs" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar"></div>
+            <button id="mobile-info-open" class="hidden px-2 py-1 bg-slate-800 border border-slate-700 rounded-lg text-[11px] text-slate-300 shrink-0" type="button" aria-controls="file-panel" aria-expanded="false" data-i18n>INFO</button>
             <select id="orch-picker" class="hidden"></select>
             <button id="new-orch-btn" class="px-2.5 py-1.5 bg-slate-800/50 hover:bg-slate-700 border border-dashed border-slate-700 rounded-full text-xs transition-colors shrink-0" title="New orchestrator" data-i18n-title>+</button>
             <button id="hidden-tabs-btn" class="px-2 py-1.5 hover:bg-slate-700 rounded-full text-xs transition-colors text-slate-500 hover:text-slate-300 shrink-0 hidden" title="Show hidden tabs" data-i18n-title>👁</button>
@@ -200,17 +201,21 @@
 
     <!-- Main Layout -->
     <div class="flex flex-1 overflow-hidden">
-        <!-- Left Panel (Files / Tasks tabs) -->
-        <div id="file-panel" class="w-[250px] border-r border-slate-800/50 flex flex-col overflow-hidden">
+        <!-- Left Panel (Info / Files / Tasks / Jobs tabs) -->
+        <div id="file-panel" class="w-[250px] border-r border-slate-800/50 flex flex-col overflow-hidden" style="--file-panel-width:380px">
             <div class="flex border-b border-slate-800/50">
-                <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('files')" data-i18n>FILES</button>
+                <button data-left-tab="info" class="left-tab flex-1 px-2 py-2 text-[10px] font-bold text-white border-b-2 border-indigo-500 transition-colors" onclick="switchLeftTab('info')" data-i18n>INFO</button>
+                <button data-left-tab="files" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('files')" data-i18n>FILES</button>
                 <button data-left-tab="tasks" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('tasks')" data-i18n>TASKS</button>
                 <button data-left-tab="jobs" class="left-tab flex-1 px-3 py-2 text-xs font-bold text-slate-500 border-b-2 border-transparent hover:text-slate-300 transition-colors" onclick="switchLeftTab('jobs')" data-i18n>JOBS</button>
                 <button id="open-folder-btn" title="Open in file manager" data-i18n-title style="background:none;border:none;cursor:pointer;font-size:14px;opacity:0.5;padding:2px;transition:opacity 0.15s" onmouseenter="this.style.opacity='0.9'" onmouseleave="this.style.opacity='0.5'">📂</button>
+                <button id="mobile-info-close" class="hidden ml-auto px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300" type="button" aria-label="Close info panel" data-i18n-aria-label>✕</button>
             </div>
-            <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1"></div>
+            <div id="info-panel" class="flex-1 overflow-y-auto text-xs p-1"></div>
+            <div id="file-tree" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
             <div id="tasks-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
             <div id="jobs-panel" class="flex-1 overflow-y-auto text-xs p-1 hidden"></div>
+            <div id="file-panel-resize" class="file-panel-resize" role="separator" aria-orientation="vertical" aria-label="Resize info panel" data-i18n-aria-label tabindex="0"></div>
         </div>
 
         <!-- Chat -->
@@ -276,6 +281,8 @@
             </div>
         </div>
     </div>
+
+    <div id="mobile-info-backdrop" class="hidden" aria-hidden="true"></div>
 
     <!-- File Preview Modal -->
     <div id="file-preview-modal" class="fixed inset-0 z-50 items-center justify-center hidden" style="pointer-events:none">
