@@ -1230,6 +1230,8 @@ class AgentSession:
                 ):
                     return
                 checklist = checklists.get_checklist(self.id, self.task_id)
+                if checklist and checklist["completed"] >= checklist["total"]:
+                    return
                 estimated_delay = checklists.estimated_reminder_delay_seconds(checklist)
                 if estimated_delay is not None and estimated_delay > 0:
                     continue

@@ -412,6 +412,8 @@ async def get_info_panel(name: str, scope: str):
                 continue
             if row.get("parent_id") != target["id"] and row.get("parent_name") != name:
                 continue
+            if row.get("status") not in ("running", "waiting"):
+                continue
             row["checklist"] = checklists.get_checklist(
                 row["id"], row.get("task_id") or "",
             )
