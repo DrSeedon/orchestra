@@ -900,6 +900,16 @@ function restoreDraft() {
 
 
 document.addEventListener('DOMContentLoaded', () => {
+    initResizableFilePanel();
+    switchLeftTab('info');
+    $('#mobile-info-open')?.addEventListener('click', () => toggleMobileInfoPanel(true));
+    $('#mobile-info-close')?.addEventListener('click', () => toggleMobileInfoPanel(false));
+    $('#mobile-info-backdrop')?.addEventListener('click', () => toggleMobileInfoPanel(false));
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && $('#file-panel')?.classList.contains('mobile-open')) {
+            toggleMobileInfoPanel(false);
+        }
+    });
     window.OrchestraOwnerActivity?.init();
     $('#send-btn').addEventListener('click', sendChat);
     $('#send-after-turn-btn').addEventListener('click', () => sendChat({afterTurn: true}));
@@ -2650,7 +2660,8 @@ async function onOrchestratorChange() {
     // (sessions+stats, затем orchestrators), а нам для показа чата не нужно ни одного (D2).
     _showChatFor(selectedAgent, currentScope);
     refreshSessions();
-    initFilePanel();
+    if (_infoTabActive) loadInfoPanel();
+    else if (!_tasksTabActive && !_jobsTabActive) initFilePanel();
     if (_tasksTabActive) loadTasks();
     if (_jobsTabActive) loadJobs();
 }
@@ -2673,6 +2684,7 @@ async function selectAgent(name) {
     refreshQueuedMessages();
     const hadContext = Boolean(contextCache[`${currentScope}:${name}`]);
     renderAgentList(currentSessions);
+    if (_infoTabActive) loadInfoPanel();
     if (hadContext) fetchAgentContext(name);
     await _showChatFor(name, currentScope);
 }
@@ -3244,6 +3256,21 @@ function createAgentItem(s) {
         fill.title = T('{pct}% context', {pct});
         bar.appendChild(fill);
         info.appendChild(bar);
+    }
+    const checklist = s.checklist_progress;
+    if (checklist && checklist.total > 0) {
+        const row = document.createElement('div');
+        row.className = 'agent-checklist-summary';
+        const label = document.createElement('span');
+        label.textContent = `${checklist.completed} ${T('of')} ${checklist.total}`;
+        label.title = checklist.current || T('Checklist');
+        const track = document.createElement('span');
+        track.className = 'info-check-track';
+        const fill = document.createElement('span');
+        fill.style.width = `${Math.round(checklist.completed * 100 / checklist.total)}%`;
+        track.appendChild(fill);
+        row.append(label, track);
+        info.appendChild(row);
     }
     item.append(icon, info);
 
@@ -3820,9 +3847,193 @@ function _parseRateLimitStatus(content) {
 let _tasksTabActive = false;
 
 let _jobsTabActive = false;
+let _infoTabActive = true;
+const _LEFT_PANEL_WIDTH_KEY = 'orchestra.filePanelWidth.v1';
+
+function initResizableFilePanel() {
+    const panel = $('#file-panel');
+    const handle = $('#file-panel-resize');
+    if (!panel || !handle || handle._resizeBound) return;
+    handle._resizeBound = true;
+    const mobile = () => window.matchMedia('(max-width: 540px)').matches;
+    const bounds = () => mobile()
+        ? [Math.min(window.innerWidth * 0.72, 300), window.innerWidth * 0.9]
+        : [220, Math.min(700, window.innerWidth - 320)];
+    let preferredWidth = 380;
+    const setWidth = (value, save = false) => {
+        const [min, max] = bounds();
+        const width = Math.round(Math.max(min, Math.min(max, value)));
+        panel.style.setProperty('--file-panel-width', `${width}px`);
+        handle.setAttribute('aria-valuemin', String(Math.round(min)));
+        handle.setAttribute('aria-valuemax', String(Math.round(max)));
+        handle.setAttribute('aria-valuenow', String(width));
+        if (save) {
+            preferredWidth = width;
+            try { localStorage.setItem(_LEFT_PANEL_WIDTH_KEY, String(width)); } catch {}
+        }
+        return width;
+    };
+    let stored = 380;
+    try {
+        const raw = Number(localStorage.getItem(_LEFT_PANEL_WIDTH_KEY));
+        if (Number.isFinite(raw) && raw > 0) stored = raw;
+    } catch {}
+    preferredWidth = stored;
+    setWidth(stored);
+
+    let startX = 0;
+    let startWidth = 0;
+    handle.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        handle.setPointerCapture(event.pointerId);
+        startX = event.clientX;
+        startWidth = panel.getBoundingClientRect().width;
+        panel.classList.add('is-resizing');
+        handle.classList.add('is-dragging');
+        document.body.classList.add('panel-resizing');
+    });
+    handle.addEventListener('pointermove', event => {
+        if (handle.hasPointerCapture(event.pointerId)) setWidth(startWidth + event.clientX - startX);
+    });
+    const finish = event => {
+        if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+        panel.classList.remove('is-resizing');
+        handle.classList.remove('is-dragging');
+        document.body.classList.remove('panel-resizing');
+        setWidth(panel.getBoundingClientRect().width, true);
+        window.getSelection()?.removeAllRanges();
+    };
+    handle.addEventListener('pointerup', finish);
+    handle.addEventListener('pointercancel', finish);
+    handle.addEventListener('keydown', event => {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        setWidth(panel.getBoundingClientRect().width + (event.key === 'ArrowRight' ? 20 : -20), true);
+    });
+    window.addEventListener('resize', () => {
+        setWidth(preferredWidth);
+    });
+}
+
+function toggleMobileInfoPanel(open) {
+    const panel = $('#file-panel');
+    const backdrop = $('#mobile-info-backdrop');
+    const button = $('#mobile-info-open');
+    if (!panel || !backdrop) return;
+    panel.classList.toggle('mobile-open', open);
+    document.body.classList.toggle('file-panel-open', open);
+    backdrop.classList.toggle('is-open', open);
+    backdrop.setAttribute('aria-hidden', String(!open));
+    button?.setAttribute('aria-expanded', String(open));
+}
+
+function _infoTime(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+}
+
+function _checklistCardHtml(session) {
+    const checklist = session.checklist;
+    const name = escHtml(session.name || '');
+    const model = escHtml(_shortModel(session.model || ''));
+    const state = Object.hasOwn(_STATUS_COLOR, session.status) ? session.status : 'stopped';
+    const stateColor = _STATUS_COLOR[state];
+    if (!checklist || !checklist.total) {
+        return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[10px] text-slate-500 mt-1">${escHtml(T(session.status || 'idle'))} · ${T('No checklist yet')}</div></article>`;
+    }
+    const percent = Math.round(checklist.completed * 100 / checklist.total);
+    const items = checklist.items.map(item => {
+        const state = item.done ? 'done' : item.current ? 'current' : '';
+        const label = item.done ? T('Done') : item.current ? T('Current step') : T('Remaining');
+        return `<div class="info-check-item ${state}"><span class="mark">${item.done ? '✓' : item.current ? '●' : '·'}</span><span>${escHtml(item.text)}<small>${label}</small></span></div>`;
+    }).join('');
+    const reminder = checklist.reminded_at
+        ? `<div class="checklist-reminder"><strong>⏱ ${T('Reminder sent')} · ${escHtml(_infoTime(checklist.reminded_at))}</strong>${T('No checklist update for five minutes.')}</div>` : '';
+    return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[9px] text-slate-500 mt-1">${escHtml(T(session.status || 'running'))}${checklist.updated_at ? ` · ${T('Updated')} ${escHtml(_infoTime(checklist.updated_at))}` : ''}</div><div class="info-check-progress"><div class="info-check-progress-head"><span>${T('Checklist')}</span><strong>${checklist.completed} ${T('of')} ${checklist.total}</strong></div><div class="info-check-track"><span style="width:${percent}%"></span></div>${checklist.current ? `<div class="info-check-current">${T('Current step')}: ${escHtml(checklist.current)}</div>` : ''}</div><div class="info-checklist">${items}</div>${reminder}</article>`;
+}
+
+function _proposalCardHtml(proposal) {
+    const status = proposal.status;
+    const labels = {proposed: T('Proposed'), approving: T('Sending approval'), approved: T('Approved · sent to chat'), rejected: T('Rejected')};
+    const details = `<div class="task-proposal-meta"><span>${T('Project')} <b>${escHtml(proposal.project)}</b></span><span>${T('Model')} <b>${escHtml(proposal.model)}</b></span><span>${T('Quota')} <b>${escHtml(proposal.quota_pool)}</b></span></div>`;
+    let actions = '';
+    if (status === 'proposed' || status === 'approving') {
+        const launch = status === 'approving' ? T('Retry approval') : T('Launch');
+        actions = `<div class="task-proposal-actions"><button type="button" data-proposal-action="approve" data-proposal-id="${escHtml(proposal.id)}">${launch}</button>${status === 'proposed' ? `<button type="button" class="reject" data-proposal-action="reject" data-proposal-id="${escHtml(proposal.id)}">${T('Reject')}</button>` : ''}</div><small class="task-proposal-help">${T('Approval sends a message to the orchestrator. It does not start a worker.')}</small>`;
+    } else if (status === 'approved') {
+        actions = `<div class="task-proposal-note">✓ ${T('Owner approval message sent · the orchestrator decides what to do next')}</div>`;
+    }
+    return `<article class="task-proposal-card ${status}" data-proposal-state="${status}"><div class="task-proposal-title"><span>${escHtml(proposal.title)}</span><b class="task-proposal-state">${labels[status] || escHtml(status)}</b></div><p class="task-proposal-summary">${escHtml(proposal.summary)}</p>${details}${actions}</article>`;
+}
+
+function renderInfoPanel(data) {
+    const panel = $('#info-panel');
+    if (!panel) return;
+    if (!data) {
+        panel.innerHTML = `<div class="p-4 text-center text-slate-500">${T('Select a session')}</div>`;
+        return;
+    }
+    const session = currentSessions.find(s => s.name === data.session?.name) || {name: data.session?.name || selectedAgent};
+    let html = '';
+    if (data.session?.is_orchestrator) {
+        html += `<div class="info-panel-heading">${T('Workers this session')}</div>`;
+        html += data.children?.length
+            ? data.children.map(child => _checklistCardHtml(child)).join('')
+            : `<div class="p-3 text-center text-slate-500">${T('No workers yet')}</div>`;
+        if (data.children?.length) {
+            const working = data.children.filter(c => c.status === 'running').length;
+            const waiting = data.children.filter(c => c.status === 'waiting').length;
+            html += `<details class="mx-1 mb-2 rounded-lg border border-slate-800 bg-slate-900/40"><summary class="cursor-pointer select-none px-2 py-2 text-[10px] text-slate-300">${T('Child work')} · ${data.children.length}<span class="float-right text-slate-500">${working} ${T('working agents')} · ${waiting} ${T('waiting agents')}</span></summary><div class="border-t border-slate-800 px-1 py-1">${data.children.map(c => `<div class="info-child-row"><span>${escHtml(c.name)}</span><span class="child-state">${escHtml(T(c.status || 'idle'))}${c.checklist ? ` · ${c.checklist.completed}/${c.checklist.total}` : ''}</span></div>`).join('')}</div></details>`;
+        }
+        html += `<div class="info-panel-heading">${T('Suggested tasks')} <span class="float-right font-normal tracking-normal">${T('from orchestrator')}</span></div>`;
+        html += data.proposals?.length
+            ? data.proposals.map(_proposalCardHtml).join('')
+            : `<div class="p-3 text-center text-slate-500">${T('No proposed tasks')}</div>`;
+    } else {
+        html += `<div class="info-panel-heading">${T('Task progress')}</div>`;
+        html += _checklistCardHtml({...data.session, ...session, checklist: data.checklist});
+    }
+    panel.innerHTML = html;
+    panel.querySelectorAll('[data-proposal-action]').forEach(button => {
+        button.addEventListener('click', () => decideTaskProposal(button.dataset.proposalId, button.dataset.proposalAction, button));
+    });
+}
+
+async function loadInfoPanel() {
+    if (!_infoTabActive || !selectedAgent || !currentScope) return;
+    try {
+        const data = await api(`/api/sessions/${encodeURIComponent(selectedAgent)}/info-panel?scope=${encodeURIComponent(currentScope)}`, {pollKey: 'info-panel'});
+        if (selectedAgent === data.session?.name) renderInfoPanel(data);
+    } catch (error) {
+        const panel = $('#info-panel');
+        if (panel && _infoTabActive) panel.innerHTML = `<div class="p-3 text-center text-slate-500">${T('Could not load information panel')}: ${escHtml(error.message)}</div>`;
+    }
+}
+
+async function decideTaskProposal(id, action, button) {
+    if (!id || !['approve', 'reject'].includes(action)) return;
+    const original = button.textContent;
+    button.disabled = true;
+    try {
+        await api(`/api/task-proposals/${encodeURIComponent(id)}/${action}`, {method: 'POST', body: '{}'});
+        await loadInfoPanel();
+    } catch (error) {
+        button.disabled = false;
+        button.textContent = original;
+        const panel = $('#info-panel');
+        if (panel) {
+            const note = document.createElement('div');
+            note.className = 'text-[10px] text-red-400 px-2 py-1';
+            note.textContent = `${T('Task decision failed')}: ${error.message}`;
+            panel.prepend(note);
+        }
+    }
+}
 
 function switchLeftTab(tab) {
     const fileTree = document.getElementById('file-tree');
+    const infoPanel = document.getElementById('info-panel');
     const tasksPanel = document.getElementById('tasks-panel');
     const jobsPanel = document.getElementById('jobs-panel');
     document.querySelectorAll('.left-tab').forEach(btn => {
@@ -3832,14 +4043,13 @@ function switchLeftTab(tab) {
         btn.classList.toggle('text-slate-500', !isActive);
         btn.classList.toggle('border-transparent', !isActive);
     });
+    if (infoPanel) infoPanel.classList.toggle('hidden', tab !== 'info');
     if (fileTree) fileTree.classList.toggle('hidden', tab !== 'files');
     if (tasksPanel) tasksPanel.classList.toggle('hidden', tab !== 'tasks');
     if (jobsPanel) jobsPanel.classList.toggle('hidden', tab !== 'jobs');
     _tasksTabActive = tab === 'tasks';
     _jobsTabActive = tab === 'jobs';
-    // Карточки заданий с текстом «зачем» и временем в 250px нечитаемы.
-    const filePanel = document.getElementById('file-panel');
-    if (filePanel) filePanel.style.width = tab === 'jobs' ? '380px' : '';
+    _infoTabActive = tab === 'info';
     if (tab === 'files') initFilePanel();
     else _pollStop('files');
     if (_tasksTabActive) {
@@ -3850,6 +4060,10 @@ function switchLeftTab(tab) {
         _pollRegister('jobs', loadJobs, 10000);
         _pollWake('jobs');
     } else _pollStop('jobs');
+    if (_infoTabActive) {
+        _pollRegister('info-panel', loadInfoPanel, 5000);
+        _pollWake('info-panel');
+    } else _pollStop('info-panel');
 }
 
 function openClientModal() {

@@ -9,6 +9,7 @@ Built-in task tracker. Agents create, update, and close tasks.
 - `task_update(par, status="", title="", price=-1, tags=[...], ...)` — update task. Only provided fields change. par: the exact returned reference, e.g. "42" or "V-42"
 - `task_list(project="", status="", assignee="", tags="a,b")` — list tasks with optional filters
 - `task_get(par)` — full task details with payment history and linked commits
+- `update_checklist(items, completed, current)` — persist the worker's ordered task steps and their state
 
 ### Automatic lifecycle
 - spawn/send/merge responses carry the fresh task state; `list_agents` includes a bounded live
@@ -29,6 +30,7 @@ Built-in task tracker. Agents create, update, and close tasks.
   `#161 · laptop` are different tasks. Quote `source` whenever it is set.
 
 ### Rules
+- When doing worker-assigned work, start with a short `update_checklist` plan and keep its completed indexes and current step accurate as work proceeds.
 - Before approved work that will leave a persistent `.orchestra/` artifact (research, audit,
   knowledge base, plan/report), use its existing task number or call `task_create`; include that
   number in the worker message. An exact 1–2 line edit with no persistent artifact may stay untracked

@@ -499,6 +499,9 @@ class AgentSession:
     _pending_messages: list = field(default_factory=list, repr=False)
     _pending_owner_initiated_turn: bool = field(default=False, repr=False)
     _owner_initiated_turn: bool = field(default=False, repr=False)
+    _checklist_activity_event: asyncio.Event = field(default_factory=asyncio.Event, repr=False)
+    _checklist_reminder_task: Optional[asyncio.Task] = field(default=None, repr=False)
+    _checklist_turn_key: str = field(default="", repr=False)
     on_idle: Optional[callable] = field(default=None, repr=False)
     on_turn_blocked: Optional[callable] = field(default=None, repr=False)
     _quota_block_notice_signature: str = field(default="", repr=False)
@@ -1156,6 +1159,95 @@ class AgentSession:
         self._last_msg_time = self._turn_start
         self.status = AgentStatus.RUNNING
         self._persist()
+        self._start_checklist_reminder()
+
+    def _cancel_checklist_reminder(self) -> None:
+        task = self._checklist_reminder_task
+        self._checklist_reminder_task = None
+        try:
+            current_task = asyncio.current_task()
+        except RuntimeError:
+            current_task = None
+        if task is not None and task is not current_task and not task.done():
+            task.cancel()
+
+    def _start_checklist_reminder(self) -> None:
+        self._cancel_checklist_reminder()
+        from app import checklists
+
+        self._checklist_turn_key = checklists.make_turn_key(self.id, self._turn_gen)
+        self._checklist_activity_event.clear()
+        if self.is_orchestrator or not checklists.reminders_enabled():
+            return
+        try:
+            registered = checklists.register_turn(
+                self.id, self.task_id, self._turn_gen, self._checklist_turn_key,
+            )
+        except Exception as error:
+            logger.warning(
+                "[%s] checklist reminder unavailable for this turn: %s",
+                self.name, err_text(error),
+            )
+            return
+        if not registered:
+            return
+        task = asyncio.create_task(self._watch_checklist_reminder(
+            self._turn_gen, self._checklist_turn_key,
+        ))
+        self._checklist_reminder_task = task
+
+    async def _watch_checklist_reminder(self, turn_gen: int, turn_key: str) -> None:
+        from app import checklists
+
+        current_task = asyncio.current_task()
+        try:
+            while (
+                self.status == AgentStatus.RUNNING
+                and self._turn_gen == turn_gen
+                and checklists.reminders_enabled()
+            ):
+                try:
+                    await asyncio.wait_for(
+                        self._checklist_activity_event.wait(),
+                        timeout=checklists.REMINDER_DELAY_SECONDS,
+                    )
+                    self._checklist_activity_event.clear()
+                    continue
+                except asyncio.TimeoutError:
+                    pass
+                if (
+                    self.status != AgentStatus.RUNNING
+                    or self._turn_gen != turn_gen
+                    or not checklists.reminders_enabled()
+                    or not checklists.claim_reminder(turn_key)
+                ):
+                    return
+                message = (
+                    "Update your checklist: mark what is done and which step is current."
+                )
+                self._log(
+                    "checklist_reminder", message, event_id=turn_key,
+                )
+                try:
+                    await self.send(
+                        message,
+                        provenance=MessageProvenance(
+                            origin="platform", senders=("Orchestra",),
+                            subtype="checklist_reminder", ref=turn_key,
+                        ),
+                    )
+                except Exception as error:
+                    self._log("error", f"checklist reminder delivery failed: {err_text(error)}")
+                return
+        except asyncio.CancelledError:
+            raise
+        except Exception as error:
+            logger.warning(
+                "[%s] checklist reminder failed: %s", self.name, err_text(error),
+            )
+        finally:
+            if self._checklist_reminder_task is current_task:
+                self._checklist_reminder_task = None
 
     async def send(
         self, message: str | InjectedMessage, *, provenance: MessageProvenance,
