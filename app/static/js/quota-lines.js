@@ -261,6 +261,24 @@ function _qlApplyWindowResetHistory(data, history) {
     }
 }
 
+function _qlMonotoneTimelinePoints(points) {
+    let previousReset = null;
+    let peak = -Infinity;
+    return points.map(point => {
+        const resetValue = point.resets_at;
+        const reset = Number.isFinite(Number(resetValue))
+            ? Number(resetValue)
+            : Date.parse(resetValue) / 1000;
+        const utilization = Number(point.utilization);
+        if (Number.isFinite(reset) && previousReset !== null && reset > previousReset) {
+            peak = -Infinity;
+        }
+        if (Number.isFinite(reset)) previousReset = reset;
+        peak = Math.max(peak, utilization);
+        return {...point, utilization: peak};
+    });
+}
+
 function _qlLaneLabel(laneId) {
     const found = _qlAllLanes().find(lane => lane.lane === laneId);
     return T(found ? (found.label || laneId) : laneId);
@@ -560,11 +578,18 @@ function _qlTimelineSvg(panel, rule) {
         if (histories.has(bucket.bucket)) continue;
         histories.add(bucket.bucket);
         const points = bucket.timeline?.points || [];
-        const coords = points.map(point => [Number(point.ts) * 1000, Number(point.utilization)])
+        const current = _qlPoint(bucket);
+        const tracePoints = _qlMonotoneTimelinePoints([
+            ...points.filter(point => Number(point.ts) * 1000 >= from && Number(point.ts) * 1000 <= now),
+            ...(current ? [{
+                ts: now / 1000,
+                utilization: current.util,
+                resets_at: bucket.window?.resets_at,
+            }] : []),
+        ]);
+        const coords = tracePoints.map(point => [Number(point.ts) * 1000, Number(point.utilization)])
             .filter(([ts, util]) => Number.isFinite(ts) && Number.isFinite(util) && ts >= from && ts <= now)
             .map(([ts, util]) => `${x(ts)},${y(util)}`);
-        const current = _qlPoint(bucket);
-        if (current) coords.push(`${x(now)},${y(current.util)}`);
         if (coords.length > 1) p.push(`<polyline class="ql-trace ql-timeline-history ql-trace-${bucket.bucket.replace('_', '-') }" data-ql-timeline-history="${_escHtml(bucket.bucket)}" points="${coords.join(' ')}"/>`);
     }
     const edgeLabelBands = [];
