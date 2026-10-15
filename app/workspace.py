@@ -9,6 +9,7 @@ import logging
 import os
 import re
 import subprocess
+import tempfile
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -169,6 +170,83 @@ def _conflict_paths(cwd: str) -> list[str]:
     if result.returncode != 0:
         return []
     return [path for path in result.stdout.split("\0") if path]
+
+
+def _git_blob(repo: str, revision: str, path: str) -> bytes | None:
+    result = _git_cmd(
+        ["git", "show", f"{revision}:{path}"], cwd=repo, capture_output=True,
+    )
+    return result.stdout if result.returncode == 0 else None
+
+
+def _appended_lines_union(base: bytes | None, ours: bytes | None, theirs: bytes | None) -> bytes | None:
+    if base is None or ours is None or theirs is None:
+        return None
+    base_lines = base.splitlines(keepends=True)
+    ours_lines = ours.splitlines(keepends=True)
+    theirs_lines = theirs.splitlines(keepends=True)
+    if ours_lines[:len(base_lines)] != base_lines or theirs_lines[:len(base_lines)] != base_lines:
+        return None
+
+    merged = list(base_lines)
+    seen = set(base_lines)
+    for line in (*ours_lines[len(base_lines):], *theirs_lines[len(base_lines):]):
+        if line not in seen:
+            merged.append(line)
+            seen.add(line)
+    return b"".join(merged)
+
+
+def _gitignore_append_union(repo: str, base_ref: str, ours_ref: str, theirs_ref: str) -> bytes | None:
+    return _appended_lines_union(
+        _git_blob(repo, base_ref, ".gitignore"),
+        _git_blob(repo, ours_ref, ".gitignore"),
+        _git_blob(repo, theirs_ref, ".gitignore"),
+    )
+
+
+def _tree_with_gitignore(repo: str, tree_oid: str, content: bytes) -> str | None:
+    blob = _git_cmd(
+        ["git", "hash-object", "-w", "--stdin"], cwd=repo,
+        input=content, capture_output=True,
+    )
+    if blob.returncode != 0:
+        return None
+    entry = _git_cmd(
+        ["git", "ls-tree", tree_oid, "--", ".gitignore"], cwd=repo,
+        capture_output=True, text=True,
+    )
+    mode = entry.stdout.split(" ", 1)[0] if entry.returncode == 0 and entry.stdout else "100644"
+    fd, index_path = tempfile.mkstemp(prefix=".orchestra-merge-index-", dir=repo)
+    os.close(fd)
+    try:
+        env = os.environ.copy()
+        env["GIT_INDEX_FILE"] = index_path
+        read = _git_cmd(["git", "read-tree", tree_oid], cwd=repo, env=env, capture_output=True)
+        if read.returncode != 0:
+            return None
+        update = _git_cmd(
+            [
+                "git", "update-index", "--add", "--cacheinfo",
+                f"{mode},{blob.stdout.decode().strip()},.gitignore",
+            ],
+            cwd=repo, env=env, capture_output=True,
+        )
+        if update.returncode != 0:
+            return None
+        written = _git_cmd(["git", "write-tree"], cwd=repo, env=env, capture_output=True, text=True)
+        return written.stdout.strip() if written.returncode == 0 else None
+    finally:
+        Path(index_path).unlink(missing_ok=True)
+
+
+def _resolve_gitignore_index(cwd: str, base_ref: str, ours_ref: str, theirs_ref: str) -> bool:
+    merged = _gitignore_append_union(cwd, base_ref, ours_ref, theirs_ref)
+    if merged is None:
+        return False
+    (Path(cwd) / ".gitignore").write_bytes(merged)
+    staged = _git_cmd(["git", "add", "--", ".gitignore"], cwd=cwd, capture_output=True)
+    return staged.returncode == 0
 
 
 def _repo_lock_path(repo: str | Path) -> Path:
@@ -1701,7 +1779,40 @@ def merge_worktree_to_main(
                                                 conflict_files = [
                                                     path for path in records[1:] if path
                                                 ]
-                                                if not conflict_files:
+                                                tree_oid = records[0].strip() if records else ""
+                                                if ".gitignore" in conflict_files and tree_oid:
+                                                    base_oid = merge_base.stdout.strip()
+                                                    merged_gitignore = _gitignore_append_union(
+                                                        merge_cwd, base_oid, target_branch, worker_head,
+                                                    )
+                                                    remaining = [
+                                                        path for path in conflict_files
+                                                        if path != ".gitignore"
+                                                    ]
+                                                    if merged_gitignore is not None and not remaining:
+                                                        expected_tree = _tree_with_gitignore(
+                                                            merge_cwd, tree_oid, merged_gitignore,
+                                                        ) or ""
+                                                        if expected_tree:
+                                                            logger.info(
+                                                                "merge precheck resolved append-only .gitignore conflict: repo=%s branch=%s",
+                                                                repo, branch,
+                                                            )
+                                                        else:
+                                                            result = {
+                                                                "ok": False,
+                                                                "error": "could not prepare merged .gitignore tree",
+                                                            }
+                                                            precheck_ok = False
+                                                    elif merged_gitignore is not None and remaining:
+                                                        result = _merge_conflict_result(branch, remaining)
+                                                        precheck_ok = False
+                                                    else:
+                                                        result = _merge_conflict_result(
+                                                            branch, conflict_files,
+                                                        )
+                                                        precheck_ok = False
+                                                elif not conflict_files:
                                                     err = (
                                                         precheck.stderr.strip()
                                                         or precheck.stdout.strip()
@@ -1719,7 +1830,7 @@ def merge_worktree_to_main(
                                                     result = _merge_conflict_result(
                                                         branch, conflict_files,
                                                     )
-                                                precheck_ok = False
+                                                    precheck_ok = False
                                             else:
                                                 # `--write-tree` печатает OID итогового
                                                 # дерева первой записью: это ровно то
@@ -1812,30 +1923,38 @@ def merge_worktree_to_main(
                                                     capture_output=True,
                                                     text=True,
                                                 )
-                                                if merge.returncode != 0:
+                                                merge_succeeded = merge.returncode == 0
+                                                if not merge_succeeded:
                                                     conflict_files = _conflict_paths(merge_cwd)
-                                                    _git_cmd(
-                                                        ["git", "reset", "--merge"],
-                                                        cwd=merge_cwd,
-                                                        capture_output=True,
-                                                        text=True,
-                                                    )
-                                                    err = (
-                                                        merge.stderr.strip()
-                                                        or merge.stdout.strip()
-                                                        or f"git merge exit code {merge.returncode}"
-                                                    )
-                                                    logger.error(
-                                                        "merge_worktree squash failed: "
-                                                        "repo=%s branch=%s err=%s",
-                                                        repo, branch, err,
-                                                    )
-                                                    result = (
-                                                        _merge_conflict_result(branch, conflict_files)
-                                                        if conflict_files
-                                                        else {"ok": False, "error": err}
-                                                    )
-                                                else:
+                                                    if ".gitignore" in conflict_files:
+                                                        merge_succeeded = _resolve_gitignore_index(
+                                                            merge_cwd, merge_base.stdout.strip(),
+                                                            target_branch, worker_head,
+                                                        ) and not _conflict_paths(merge_cwd)
+                                                    if not merge_succeeded:
+                                                        conflict_files = _conflict_paths(merge_cwd)
+                                                        _git_cmd(
+                                                            ["git", "reset", "--merge"],
+                                                            cwd=merge_cwd,
+                                                            capture_output=True,
+                                                            text=True,
+                                                        )
+                                                        err = (
+                                                            merge.stderr.strip()
+                                                            or merge.stdout.strip()
+                                                            or f"git merge exit code {merge.returncode}"
+                                                        )
+                                                        logger.error(
+                                                            "merge_worktree squash failed: "
+                                                            "repo=%s branch=%s err=%s",
+                                                            repo, branch, err,
+                                                        )
+                                                        result = (
+                                                            _merge_conflict_result(branch, conflict_files)
+                                                            if conflict_files
+                                                            else {"ok": False, "error": err}
+                                                        )
+                                                if merge_succeeded:
                                                     staged = _git_cmd(
                                                         ["git", "diff", "--cached", "--quiet"],
                                                         cwd=merge_cwd,

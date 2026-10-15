@@ -65,6 +65,84 @@ def test_conflict_paths_and_resolution_action_are_preserved(tmp_path, monkeypatc
     assert "tracked.txt" in normalized["error"]["message"]
 
 
+def _diverged_gitignore_repo(
+    tmp_path: Path, *, conflict_tracked: bool = False, gitignore_conflict: bool = True,
+):
+    import app.workspace as workspace
+
+    repo = _repo(tmp_path)
+    (repo / ".gitignore").write_text("base-entry\n")
+    _commit(repo, "add base ignore")
+    worktree_root = tmp_path / "worktrees"
+    worktree_root.mkdir()
+    worker = workspace.create_worktree(
+        str(repo), "gitignore-worker", task_id="872", base_branch="main",
+    )
+    worker_path = Path(worker.path)
+    (worker_path / ".gitignore").write_text("base-entry\nshared-entry\nworker-entry\n")
+    if conflict_tracked:
+        (worker_path / "tracked.txt").write_text("worker\n")
+    _commit(worker_path, "append worker ignores")
+
+    target_ignore = (
+        "base-entry\nshared-entry\ntarget-entry\n"
+        if gitignore_conflict else "base-entry\n"
+    )
+    (repo / ".gitignore").write_text(target_ignore)
+    if conflict_tracked:
+        (repo / "tracked.txt").write_text("target\n")
+    _commit(repo, "append target ignores")
+    return workspace, repo, worker
+
+
+def test_append_conflict_in_gitignore_is_unioned_in_squash_merge(tmp_path, monkeypatch):
+    workspace, repo, worker = _diverged_gitignore_repo(tmp_path)
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
+    prepared = []
+
+    result = workspace.merge_worktree_to_main(
+        worker.path, str(repo), target_branch="main", waive_diff_budget=True,
+        prepare=lambda target_before, expected_tree: prepared.append(expected_tree),
+    )
+
+    assert result["ok"] is True
+    assert (repo / ".gitignore").read_text() == (
+        "base-entry\nshared-entry\ntarget-entry\nworker-entry\n"
+    )
+    assert (repo / ".gitignore").read_text().count("shared-entry\n") == 1
+    committed_tree = _git(repo, "rev-parse", "HEAD^{tree}").stdout.strip()
+    assert prepared == [committed_tree]
+
+
+def test_ordinary_conflict_remains_a_conflict(tmp_path, monkeypatch):
+    workspace, repo, worker = _diverged_gitignore_repo(
+        tmp_path, conflict_tracked=True, gitignore_conflict=False,
+    )
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
+
+    result = workspace.merge_worktree_to_main(
+        worker.path, str(repo), target_branch="main", waive_diff_budget=True,
+    )
+
+    assert result["ok"] is False
+    assert result["state"] == "conflict"
+    assert result["conflicts"] == ["tracked.txt"]
+    assert (repo / ".gitignore").read_text() == "base-entry\n"
+
+
+def test_gitignore_and_ordinary_conflicts_report_only_ordinary_file(tmp_path, monkeypatch):
+    workspace, repo, worker = _diverged_gitignore_repo(tmp_path, conflict_tracked=True)
+    monkeypatch.setattr(workspace, "WORKTREE_ROOT", tmp_path / "worktrees")
+
+    result = workspace.merge_worktree_to_main(
+        worker.path, str(repo), target_branch="main", waive_diff_budget=True,
+    )
+
+    assert result["ok"] is False
+    assert result["state"] == "conflict"
+    assert result["conflicts"] == ["tracked.txt"]
+
+
 def test_empty_branch_keeps_no_commits_merged_behavior(tmp_path, monkeypatch):
     import app.workspace as workspace
 
