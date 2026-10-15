@@ -1876,9 +1876,23 @@ async function restartServer() {
 let orchData = [];
 const _unreadTabs = new Set();
 
+// A foreign tab turns red when its orchestrator finished a turn since the last list we
+// saw: status left 'running', or last_turn_ts moved (a turn shorter than the poll gap).
+function _markUnreadTurns(previous, current) {
+    for (const fresh of current) {
+        const old = previous.find(o => o.name === fresh.name && o.scope === fresh.scope);
+        if (!old || fresh.scope === currentScope) continue;
+        const newTurn = fresh.last_turn_ts && fresh.last_turn_ts !== old.last_turn_ts;
+        if (_orchestratorTurnFinished(old, fresh) || newTurn) _unreadTabs.add(fresh.scope);
+    }
+}
+
 function _renderOrchestrators(allOrchs) {
     // Sub-orchestrators (have parent) get TG topics but don't show in top tab bar
-    orchData = allOrchs.filter(o => !o.parent_name);
+    const fresh = allOrchs.filter(o => !o.parent_name);
+    // The 60 s poll replaces orchData wholesale; compare first, or the transition is lost.
+    _markUnreadTurns(orchData, fresh);
+    orchData = fresh;
     const picker = $('#orch-picker');
     picker.innerHTML = '';
     for (const o of orchData) {
@@ -3552,13 +3566,12 @@ async function refreshSessions() {
         if (Date.now() - _orchFreshAt >= _ORCH_REFRESH_MS) try {
             _orchFreshAt = Date.now();
             const freshOrchs = await api('/api/orchestrators', { signal });
+            _markUnreadTurns(orchData, freshOrchs);
             for (const fo of freshOrchs) {
                 const existing = orchData.find(o => o.name === fo.name);
                 if (existing) {
-                    if (_orchestratorTurnFinished(existing, fo) && fo.scope !== currentScope) {
-                        _unreadTabs.add(fo.scope);
-                    }
                     existing.status = fo.status; existing.cost_usd = fo.cost_usd; existing.any_running = fo.any_running;
+                    existing.last_turn_ts = fo.last_turn_ts;
                 }
             }
             updateOrchTabDots();
