@@ -10,7 +10,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/your-org/orchestra.git
+git clone https://github.com/DrSeedon/orchestra.git
 cd orchestra
 
 # Install dependencies
@@ -38,7 +38,7 @@ false positive is fixed by tightening the format there, not by bypassing the hoo
 ## Running tests
 
 ```bash
-uv run pytest -x -q
+uv run --frozen python scripts/run_tests.py
 ```
 
 Tests are in `tests/`. No external services required — SQLite uses an in-memory DB for tests (see `tests/conftest.py`).
