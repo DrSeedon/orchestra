@@ -6,6 +6,25 @@
 
 ## Unreleased
 
+## v2.46.0 — 2026-10-15 — voice input, checklists with time estimates, mechanical rules, evidence-gated merges
+
+### Highlights
+
+- **Voice input in the dashboard.** Recordings are saved locally while you speak, transcribed on the server, and sent once to the agent that was selected when recording started.
+- **Worker checklists with time estimates.** Each worker keeps a durable step list shown in the INFO panel; steps accept a minute estimate that is compared with the time actually spent, and reminders follow the estimate.
+- **Dashboard design system.** Model colors, statuses and surfaces now come from one source (`design-system.css`, `theme.js`) instead of per-screen copies.
+- **Rules enforced by mechanism, not by trust.** A shell guard rejects long `sleep` calls and recursive `find`/`grep -r` before the command runs; violations are recorded. It is a narrow policy, not a sandbox.
+- **Merge gate with mutation checks.** Mapped tests run before a merge, and changed tests must fail against the pre-change sources; failed or inconclusive required gates block the merge. Merge stages are timed.
+- **Orchestrators talk across projects.** Project orchestrators can message each other, and deliveries show whether quota is holding dispatch.
+- **Partial (sparse) worker worktrees.** New worker worktrees are created without a full checkout, which keeps large repositories fast to start.
+- **Quota gate override until a chosen time.** The dashboard can lift a worker quota gate until a date and time picked in the browser's time zone.
+- **Local Russian voice-over for explainer videos.** `video-artifact` uses the local TeraTTSv2 voice with automatic stress, timed pauses, Manim scenes with 3Blue1Brown-style defaults, and a bundled CMU Serif font.
+- **Live chat activity.** Streaming generation and running-tool output appear in the dashboard chat as they happen, and attachments show as compact chips with progress.
+- **Safer merges of `.gitignore`.** Append-only conflicts in `.gitignore` are merged automatically instead of blocking the squash.
+- **Refreshed public guides.** README (English and Russian) and CONTRIBUTING describe current workflows, setup and work in progress.
+
+Removed in this release (internal MCP tools and API, not part of the install or configuration surface): project-memory search (agents use `rg` over `.orchestra/kb/` and `.orchestra/tasks/`), the suggested-task cards, the `idle` background-job type and the `vps-deploy` skill. Details are in the entries below.
+
 ### Changed
 - **Public project guides refreshed around current workflows** (`README.md`, `README.ru.md`, `CONTRIBUTING.md`; V-879). Replaced stale dated comparisons, metrics, and private-project examples with user-facing team scenarios and capabilities cross-checked against current behavior; corrected the contribution clone URL and test command. Trigger: the published overview and contributor setup no longer matched the repository.
 - **Voice transcription sends as one message and uses a compact status chip** (`app/static/js/chat.js`, `app/static/css/style.css`, `app/static/js/i18n.js`; V-874). After transcription, the existing draft and marked voice text are sent once to the agent captured at recording start; recovered recordings follow the same path. The short progress/error row now sits above the input, and saved audio remains available until the send succeeds. Trigger: the owner asked for automatic delivery and a compact file-chip style status instead of reviewing the transcript before sending.
