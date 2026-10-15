@@ -33,7 +33,8 @@ def _next_action(row: sqlite3.Row | dict) -> dict | None:
             "arguments": {"delivery_id": delivery_id},
             "retryable": False,
             "message": (
-                "This initial task is already queued. If the spawn call outcome was "
+                "This initial task is queued for delivery now; the quota gate is not "
+                "holding it. If the spawn call outcome was "
                 "unclear, repeat the same spawn_worker call with the same delivery_id; "
                 "it returns this receipt without creating another worker or task."
             ),
