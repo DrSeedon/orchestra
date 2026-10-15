@@ -278,6 +278,18 @@ class TaskProposalRequest(BaseModel):
     quota_pool: Literal["Claude", "Codex"]
 
 
+class TaskProposalDecisionRequest(BaseModel):
+    reason: str = ""
+
+    @field_validator("reason")
+    @classmethod
+    def validate_reason(cls, value: str) -> str:
+        value = value.strip()
+        if len(value) > 2000:
+            raise ValueError("reason must be at most 2000 characters")
+        return value
+
+
 class ChecklistUpdateRequest(BaseModel):
     items: list[str]
     completed: list[StrictInt]
@@ -466,33 +478,46 @@ def _dashboard_owner_request(request: Request) -> tuple[bool, bool]:
     return True, False
 
 
-@router.post("/api/task-proposals/{proposal_id}/approve")
-async def approve_task_proposal(proposal_id: str, request: Request):
+async def _decide_task_proposal(
+    proposal_id: str, request: Request, *, action: Literal["approve", "reject"], reason: str,
+):
     import os
     from app import message_deliveries, task_proposals
     from app.events import MessageProvenance
 
     allowed, authenticated = _dashboard_owner_request(request)
     if not allowed:
-        return JSONResponse({"error": "Only the dashboard owner can approve a task proposal."}, status_code=403)
-    proposal = task_proposals.begin_approval(proposal_id)
+        verb = "approve" if action == "approve" else "reject"
+        return JSONResponse({"error": f"Only the dashboard owner can {verb} a task proposal."}, status_code=403)
+    proposal = task_proposals.get(proposal_id)
     if proposal is None:
         return JSONResponse({"error": "Task proposal not found."}, status_code=404)
-    if proposal["status"] == "approved":
-        return {"ok": True, "proposal": proposal, "already_decided": True}
-    if proposal["status"] == "rejected":
-        return JSONResponse({"error": "Task proposal was rejected."}, status_code=409)
+    if proposal["status"] == "approving":
+        if proposal["decision_action"] != action:
+            return JSONResponse({"error": "Task proposal is already sending the opposite decision."}, status_code=409)
+        owner_message = proposal["decision_message"]
+    else:
+        owner_message = task_proposals.format_decision_message(proposal, action=action, reason=reason)
+    proposal = task_proposals.begin_decision(proposal_id, action=action, reason=reason)
+    if proposal is None:
+        return JSONResponse({"error": "Task proposal not found."}, status_code=404)
+    final_status = "approved" if action == "approve" else "rejected"
+    if proposal["status"] in {"approved", "rejected"}:
+        if proposal["status"] == final_status:
+            return {"ok": True, "proposal": proposal, "already_decided": True}
+        return JSONResponse({"error": "Task proposal already has the opposite decision."}, status_code=409)
+    if proposal["decision_action"] != action or proposal["decision_message"] != owner_message:
+        return JSONResponse({"error": "Task proposal decision is already being sent with different content."}, status_code=409)
 
-    owner_message = f"владелец одобрил: {proposal['title']} — {proposal['summary']}"
     target_row = get_session_row(proposal["session_id"])
     if not target_row or target_row.get("status") == "archived":
-        task_proposals.finish_approval(proposal_id, approved=False)
+        task_proposals.finish_decision(proposal_id, delivered=False)
         return JSONResponse({"error": "The proposing orchestrator is no longer active."}, status_code=409)
     target = manager.sessions.get(proposal["session_id"])
     if target is None:
         target = await manager.ensure_loaded_by_id(proposal["session_id"])
     if target is None:
-        task_proposals.finish_approval(proposal_id, approved=False)
+        task_proposals.finish_decision(proposal_id, delivered=False)
         return JSONResponse({"error": "The proposing orchestrator could not be loaded."}, status_code=503)
 
     quota_wait = await _preflight_or_quota_wait(target.id)
@@ -508,12 +533,15 @@ async def approve_task_proposal(proposal_id: str, request: Request):
     )
     try:
         existing = message_deliveries._row(proposal["approval_delivery_id"])
-        if existing is not None and existing["state"] == "CANCELLED":
-            proposal = task_proposals.rotate_cancelled_approval(
+        if existing is not None and (
+            existing["state"] == "CANCELLED"
+            or (existing["state"] == "FAILED_BEFORE_SUBMIT" and existing["message"] != owner_message)
+        ):
+            proposal = task_proposals.rotate_unsent_decision(
                 proposal_id, proposal["approval_delivery_id"],
             )
             if proposal is None:
-                return JSONResponse({"error": "Task proposal changed before approval retry."}, status_code=409)
+                return JSONResponse({"error": "Task proposal changed before decision retry."}, status_code=409)
             provenance = MessageProvenance(
                 origin="user" if authenticated else "unknown",
                 senders=("user",) if authenticated else ("dashboard",),
@@ -522,10 +550,10 @@ async def approve_task_proposal(proposal_id: str, request: Request):
             existing = None
         if existing is not None:
             if existing["target_session_id"] != target.id or existing["message"] != owner_message:
-                return JSONResponse({"error": "Approval receipt is bound to different content."}, status_code=409)
+                return JSONResponse({"error": "Decision receipt is bound to different content."}, status_code=409)
             if existing["state"] in {"DELIVERY_UNKNOWN", "DELIVERY_UNKNOWN_ORPHANED"}:
                 return JSONResponse({
-                    "error": "Approval message outcome is unknown; check the orchestrator chat before retrying.",
+                    "error": "Decision message outcome is unknown; check the orchestrator chat before retrying.",
                     "outcome_unknown": True,
                 }, status_code=409)
             if existing["state"] == "FAILED_BEFORE_SUBMIT":
@@ -580,28 +608,27 @@ async def approve_task_proposal(proposal_id: str, request: Request):
                 quota_wait=quota_wait,
             )
     except Exception as error:
-        logger.exception("task proposal approval delivery failed: %s", proposal_id)
+        logger.exception("task proposal decision delivery failed: %s", proposal_id)
         return JSONResponse({"error": err_text(error)}, status_code=503)
     if status_code >= 400:
-        task_proposals.finish_approval(proposal_id, approved=False)
+        task_proposals.finish_decision(proposal_id, delivered=False)
         return JSONResponse(receipt, status_code=status_code)
-    updated = task_proposals.finish_approval(proposal_id, approved=True)
+    updated = task_proposals.finish_decision(proposal_id, delivered=True)
     return {"ok": True, "proposal": updated, "delivery": receipt}
 
 
-@router.post("/api/task-proposals/{proposal_id}/reject")
-async def reject_task_proposal(proposal_id: str, request: Request):
-    from app import task_proposals
+@router.post("/api/task-proposals/{proposal_id}/approve")
+async def approve_task_proposal(
+    proposal_id: str, request: Request, req: TaskProposalDecisionRequest = TaskProposalDecisionRequest(),
+):
+    return await _decide_task_proposal(proposal_id, request, action="approve", reason=req.reason)
 
-    allowed, _authenticated = _dashboard_owner_request(request)
-    if not allowed:
-        return JSONResponse({"error": "Only the dashboard owner can reject a task proposal."}, status_code=403)
-    proposal = task_proposals.reject(proposal_id)
-    if proposal is None:
-        return JSONResponse({"error": "Task proposal not found."}, status_code=404)
-    if proposal["status"] not in {"rejected", "proposed"}:
-        return JSONResponse({"error": "Task proposal is already being approved or approved."}, status_code=409)
-    return {"ok": True, "proposal": proposal}
+
+@router.post("/api/task-proposals/{proposal_id}/reject")
+async def reject_task_proposal(
+    proposal_id: str, request: Request, req: TaskProposalDecisionRequest = TaskProposalDecisionRequest(),
+):
+    return await _decide_task_proposal(proposal_id, request, action="reject", reason=req.reason)
 
 
 @router.post("/api/sessions/{name}/checklist")

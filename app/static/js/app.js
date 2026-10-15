@@ -3966,16 +3966,27 @@ function _checklistCardHtml(session) {
     return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[9px] text-slate-500 mt-1">${escHtml(T(session.status || 'running'))}${checklist.updated_at ? ` · ${T('Updated')} ${escHtml(_infoTime(checklist.updated_at))}` : ''}</div><div class="info-check-progress"><div class="info-check-progress-head"><span>${T('Checklist')}</span><strong>${checklist.completed} ${T('of')} ${checklist.total}</strong></div><div class="info-check-track"><span style="width:${percent}%"></span></div>${checklist.current ? `<div class="info-check-current">${T('Current step')}: ${escHtml(checklist.current)}</div>` : ''}</div><div class="info-checklist">${items}</div>${reminder}</article>`;
 }
 
+const _proposalReasons = new Map();
+const _proposalReasonOpen = new Set();
+
 function _proposalCardHtml(proposal) {
     const status = proposal.status;
-    const labels = {proposed: T('Proposed'), approving: T('Sending approval'), approved: T('Approved · sent to chat'), rejected: T('Rejected')};
+    const labels = {proposed: T('Proposed'), approving: T('Sending decision'), approved: T('Approved · sent to chat'), rejected: T('Rejected · sent to chat')};
     const details = `<div class="task-proposal-meta"><span>${T('Project')} <b>${escHtml(proposal.project)}</b></span><span>${T('Model')} <b>${escHtml(proposal.model)}</b></span><span>${T('Quota')} <b>${escHtml(proposal.quota_pool)}</b></span></div>`;
     let actions = '';
     if (status === 'proposed' || status === 'approving') {
-        const launch = status === 'approving' ? T('Retry approval') : T('Launch');
-        actions = `<div class="task-proposal-actions"><button type="button" data-proposal-action="approve" data-proposal-id="${escHtml(proposal.id)}">${launch}</button>${status === 'proposed' ? `<button type="button" class="reject" data-proposal-action="reject" data-proposal-id="${escHtml(proposal.id)}">${T('Reject')}</button>` : ''}</div><small class="task-proposal-help">${T('Approval sends a message to the orchestrator. It does not start a worker.')}</small>`;
+        const action = status === 'approving' ? proposal.decision_action : '';
+        const approve = status === 'proposed' || action === 'approve'
+            ? `<button type="button" data-proposal-action="approve" data-proposal-id="${escHtml(proposal.id)}">${status === 'approving' ? T('Retry decision') : T('Launch')}</button>` : '';
+        const reject = status === 'proposed' || action === 'reject'
+            ? `<button type="button" class="reject" data-proposal-action="reject" data-proposal-id="${escHtml(proposal.id)}">${status === 'approving' ? T('Retry decision') : T('Reject')}</button>` : '';
+        const reason = _proposalReasons.get(proposal.id) || '';
+        const reasonOpen = _proposalReasonOpen.has(proposal.id);
+        actions = `<div class="task-proposal-actions">${approve}${reject}<button type="button" class="reason" data-proposal-reason-toggle="${escHtml(proposal.id)}" aria-expanded="${reasonOpen}">${T('Reason')}</button></div><div class="task-proposal-reason${reasonOpen ? '' : ' hidden'}"><textarea maxlength="2000" ${status === 'approving' ? 'disabled' : ''} placeholder="${T('Optional reason or instructions')}">${escHtml(reason)}</textarea></div><small class="task-proposal-help">${T('Decision sends a message to the orchestrator. It does not start a worker.')}</small>`;
     } else if (status === 'approved') {
         actions = `<div class="task-proposal-note">✓ ${T('Owner approval message sent · the orchestrator decides what to do next')}</div>`;
+    } else if (status === 'rejected') {
+        actions = `<div class="task-proposal-note">✓ ${T('Owner rejection message sent to chat')}</div>`;
     }
     return `<article class="task-proposal-card ${status}" data-proposal-state="${status}"><div class="task-proposal-title"><span>${escHtml(proposal.title)}</span><b class="task-proposal-state">${labels[status] || escHtml(status)}</b></div><p class="task-proposal-summary">${escHtml(proposal.summary)}</p>${details}${actions}</article>`;
 }
@@ -4011,6 +4022,21 @@ function renderInfoPanel(data) {
     panel.querySelectorAll('[data-proposal-action]').forEach(button => {
         button.addEventListener('click', () => decideTaskProposal(button.dataset.proposalId, button.dataset.proposalAction, button));
     });
+    panel.querySelectorAll('[data-proposal-reason-toggle]').forEach(button => {
+        button.addEventListener('click', () => {
+            const id = button.dataset.proposalReasonToggle;
+            const field = button.closest('.task-proposal-card')?.querySelector('.task-proposal-reason');
+            if (!field) return;
+            const open = field.classList.toggle('hidden') === false;
+            button.setAttribute('aria-expanded', String(open));
+            if (open) field.querySelector('textarea')?.focus();
+            if (open) _proposalReasonOpen.add(id); else _proposalReasonOpen.delete(id);
+        });
+    });
+    panel.querySelectorAll('.task-proposal-reason textarea').forEach(textarea => {
+        const id = textarea.closest('.task-proposal-card')?.querySelector('[data-proposal-reason-toggle]')?.dataset.proposalReasonToggle;
+        if (id) textarea.addEventListener('input', () => _proposalReasons.set(id, textarea.value));
+    });
 }
 
 async function loadInfoPanel() {
@@ -4027,9 +4053,14 @@ async function loadInfoPanel() {
 async function decideTaskProposal(id, action, button) {
     if (!id || !['approve', 'reject'].includes(action)) return;
     const original = button.textContent;
+    const reason = _proposalReasons.get(id)
+        ?? button.closest('.task-proposal-card')?.querySelector('.task-proposal-reason textarea')?.value
+        ?? '';
     button.disabled = true;
     try {
-        await api(`/api/task-proposals/${encodeURIComponent(id)}/${action}`, {method: 'POST', body: '{}'});
+        await api(`/api/task-proposals/${encodeURIComponent(id)}/${action}`, {method: 'POST', body: JSON.stringify({reason: reason.trim()})});
+        _proposalReasons.delete(id);
+        _proposalReasonOpen.delete(id);
         await loadInfoPanel();
     } catch (error) {
         button.disabled = false;

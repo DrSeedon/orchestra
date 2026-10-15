@@ -23,7 +23,9 @@ def ensure_schema(connection: sqlite3.Connection | None = None) -> None:
             CHECK(status IN ('proposed','approving','approved','rejected')),
         created_at TEXT NOT NULL,
         decided_at TEXT NOT NULL DEFAULT '',
-        approval_delivery_id TEXT NOT NULL UNIQUE
+        approval_delivery_id TEXT NOT NULL UNIQUE,
+        decision_action TEXT NOT NULL DEFAULT '',
+        decision_message TEXT NOT NULL DEFAULT ''
     );
     CREATE INDEX IF NOT EXISTS idx_task_proposals_session_created
         ON task_proposals(session_id, created_at DESC);
@@ -31,8 +33,24 @@ def ensure_schema(connection: sqlite3.Connection | None = None) -> None:
     if connection is None:
         with db._conn() as owned:
             owned.executescript(ddl)
+            _ensure_decision_columns(owned)
     else:
         connection.executescript(ddl)
+        _ensure_decision_columns(connection)
+
+
+def _ensure_decision_columns(connection: sqlite3.Connection) -> None:
+    columns = {row[1] for row in connection.execute("PRAGMA table_info(task_proposals)").fetchall()}
+    if "decision_action" not in columns:
+        connection.execute("ALTER TABLE task_proposals ADD COLUMN decision_action TEXT NOT NULL DEFAULT ''")
+    if "decision_message" not in columns:
+        connection.execute("ALTER TABLE task_proposals ADD COLUMN decision_message TEXT NOT NULL DEFAULT ''")
+    connection.execute(
+        """UPDATE task_proposals
+           SET decision_action='approve',
+               decision_message='владелец одобрил: ' || title || ' — ' || summary
+           WHERE status='approving' AND decision_action=''"""
+    )
 
 
 def _check_text(value: str, label: str, max_length: int) -> str:
@@ -99,17 +117,33 @@ def get(proposal_id: str, *, connection: sqlite3.Connection | None = None) -> di
         return get(proposal_id, connection=owned)
 
 
-def begin_approval(proposal_id: str) -> dict | None:
-    """Reserve one approval; an interrupted send can retry its stable delivery ID."""
+def format_decision_message(proposal: dict, *, action: str, reason: str = "") -> str:
+    if action == "approve":
+        message = f"владелец одобрил: {proposal['title']} — {proposal['summary']}"
+    elif action == "reject":
+        message = f"владелец отклонил: {proposal['title']}"
+    else:
+        raise ValueError("action must be approve or reject")
+    if reason:
+        message += f"\nПричина / указания владельца: {reason}"
+    return message
+
+
+def begin_decision(proposal_id: str, *, action: str, reason: str = "") -> dict | None:
+    """Reserve one owner decision and bind retries to its original message."""
+    if action not in {"approve", "reject"}:
+        raise ValueError("action must be approve or reject")
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
         row = connection.execute("SELECT * FROM task_proposals WHERE id=?", (proposal_id,)).fetchone()
         if row is None:
             return None
+        message = format_decision_message(dict(row), action=action, reason=reason)
         if row["status"] == "proposed":
             connection.execute(
-                "UPDATE task_proposals SET status='approving' WHERE id=? AND status='proposed'",
-                (proposal_id,),
+                """UPDATE task_proposals SET status='approving',decision_action=?,decision_message=?
+                   WHERE id=? AND status='proposed'""",
+                (action, message, proposal_id),
             )
             row = connection.execute("SELECT * FROM task_proposals WHERE id=?", (proposal_id,)).fetchone()
         elif row["status"] == "approving":
@@ -119,21 +153,29 @@ def begin_approval(proposal_id: str) -> dict | None:
         return dict(row)
 
 
-def finish_approval(proposal_id: str, *, approved: bool) -> dict | None:
+def finish_decision(proposal_id: str, *, delivered: bool) -> dict | None:
     now = datetime.now(timezone.utc).isoformat()
-    status = "approved" if approved else "proposed"
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
-        connection.execute(
-            "UPDATE task_proposals SET status=?, decided_at=? WHERE id=? AND status='approving'",
-            (status, now if approved else "", proposal_id),
-        )
+        row = connection.execute("SELECT * FROM task_proposals WHERE id=?", (proposal_id,)).fetchone()
+        if row is None:
+            return None
+        if row["status"] == "approving":
+            status = ("approved" if row["decision_action"] == "approve" else "rejected") if delivered else "proposed"
+            action = row["decision_action"] if delivered else ""
+            message = row["decision_message"] if delivered else ""
+            connection.execute(
+                """UPDATE task_proposals
+                   SET status=?,decided_at=?,decision_action=?,decision_message=?
+                   WHERE id=? AND status='approving'""",
+                (status, now if delivered else "", action, message, proposal_id),
+            )
         row = connection.execute("SELECT * FROM task_proposals WHERE id=?", (proposal_id,)).fetchone()
         return dict(row) if row else None
 
 
-def rotate_cancelled_approval(proposal_id: str, previous_delivery_id: str) -> dict | None:
-    """A cancelled receipt is known not to be in flight, so a retry gets a fresh id."""
+def rotate_unsent_decision(proposal_id: str, previous_delivery_id: str) -> dict | None:
+    """A known-unsent decision may change its text only under a fresh delivery ID."""
     delivery_id = str(uuid.uuid4())
     with db._conn() as connection:
         connection.execute("BEGIN IMMEDIATE")
@@ -144,18 +186,3 @@ def rotate_cancelled_approval(proposal_id: str, previous_delivery_id: str) -> di
         )
         row = connection.execute("SELECT * FROM task_proposals WHERE id=?", (proposal_id,)).fetchone()
         return dict(row) if row else None
-
-
-def reject(proposal_id: str) -> dict | None:
-    now = datetime.now(timezone.utc).isoformat()
-    with db._conn() as connection:
-        connection.execute("BEGIN IMMEDIATE")
-        row = connection.execute("SELECT * FROM task_proposals WHERE id=?", (proposal_id,)).fetchone()
-        if row is None:
-            return None
-        if row["status"] == "proposed":
-            connection.execute(
-                "UPDATE task_proposals SET status='rejected', decided_at=? WHERE id=? AND status='proposed'",
-                (now, proposal_id),
-            )
-        return get(proposal_id, connection=connection)
