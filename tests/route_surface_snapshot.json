@@ -547,24 +547,6 @@
   ]
  ],
  [
-  "/api/task-proposals",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/task-proposals/{proposal_id}/approve",
-  [
-   "POST"
-  ]
- ],
- [
-  "/api/task-proposals/{proposal_id}/reject",
-  [
-   "POST"
-  ]
- ],
- [
   "/api/test-lock",
   [
    "GET"

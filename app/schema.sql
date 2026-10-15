@@ -397,25 +397,6 @@ CREATE TABLE checklist_turns (
 CREATE INDEX idx_checklist_turns_reminders
                 ON checklist_turns(reminded_at) WHERE reminded_at!='';
 
-CREATE TABLE task_proposals (
-                id TEXT PRIMARY KEY,
-                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-                title TEXT NOT NULL,
-                summary TEXT NOT NULL,
-                project TEXT NOT NULL,
-                model TEXT NOT NULL,
-                quota_pool TEXT NOT NULL CHECK(quota_pool IN ('Claude','Codex')),
-                status TEXT NOT NULL DEFAULT 'proposed'
-                    CHECK(status IN ('proposed','approving','approved','rejected')),
-                created_at TEXT NOT NULL,
-                decided_at TEXT NOT NULL DEFAULT '',
-                approval_delivery_id TEXT NOT NULL UNIQUE,
-                decision_action TEXT NOT NULL DEFAULT '',
-                decision_message TEXT NOT NULL DEFAULT ''
-            );
-CREATE INDEX idx_task_proposals_session_created
-                ON task_proposals(session_id, created_at DESC);
-
 CREATE TABLE task_projection_meta(singleton INTEGER PRIMARY KEY CHECK(singleton=1), git_head TEXT NOT NULL);
 
 CREATE TABLE test_lock (
