@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Added
+- **Orchestrator checks whether a reported number supports the claim** (`.orchestra/pipelines/default/prompts/roles/orchestrator.md`; V-867). Comparative, causal, trend, and generalized figures are reported only after checking sample N/unit, denominator, comparable control, and noise; exact finite-set counts instead state their coverage. Trigger: owner decision 2026-10-15 to avoid elevating numerically precise but unsupported claims.
+
 ### Fixed
 - **Delivery receipts state whether quota is holding dispatch** (`app/mcp_stdio.py`, `app/initial_deliveries.py`, `app/quota_queue.py`; V-866). Spawn/send receipts for ordinary queued or submitted deliveries say dispatch is proceeding without a quota hold; `WAITING_QUOTA` receipts say delivery is deferred by the quota gate and retain its reason/estimate. The initial-delivery API's existing `next_action.message` carries the same distinction for `retry_initial_delivery`. Trigger: an orchestrator mistook `state=QUEUED` for quota-gated delivery although quota was open and both workers started seconds later.
 - **Mutation-gate verdicts use changed test nodes only** (`app/merge_test_gate.py`; V-861). Added/modified test functions are isolated from unrelated tests in the same module, and the mutation run applies Orchestra's `browser`/`live_probe` exclusions. If every changed test is excluded or a changed test node cannot be identified, the mutation result is `SKIPPED` with a reason; a changed non-browser test that passes against target sources still fails the gate. Trigger: a helper and four browser tests were added together, so AST fallback ran 14 unchanged green tests and reported `tests_not_guarding_source`.
