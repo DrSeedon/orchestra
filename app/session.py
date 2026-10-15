@@ -1209,18 +1209,28 @@ class AgentSession:
                 try:
                     await asyncio.wait_for(
                         self._checklist_activity_event.wait(),
-                        timeout=checklists.REMINDER_DELAY_SECONDS,
+                        timeout=checklists.reminder_delay_seconds(
+                            checklists.get_checklist(self.id, self.task_id),
+                        ),
                     )
                     self._checklist_activity_event.clear()
                     continue
                 except asyncio.TimeoutError:
                     pass
+                if self._checklist_activity_event.is_set():
+                    self._checklist_activity_event.clear()
+                    continue
                 if (
                     self.status != AgentStatus.RUNNING
                     or self._turn_gen != turn_gen
                     or not checklists.reminders_enabled()
-                    or not checklists.claim_reminder(turn_key)
                 ):
+                    return
+                checklist = checklists.get_checklist(self.id, self.task_id)
+                estimated_delay = checklists.estimated_reminder_delay_seconds(checklist)
+                if estimated_delay is not None and estimated_delay > 0:
+                    continue
+                if not checklists.claim_reminder(turn_key):
                     return
                 message = (
                     "Update your checklist: mark what is done and which step is current."

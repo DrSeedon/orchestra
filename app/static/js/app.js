@@ -3926,6 +3926,31 @@ function _infoTime(value) {
     return Number.isNaN(date.getTime()) ? '' : date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
 }
 
+let _infoChecklistTimer = null;
+
+function _formatChecklistElapsed(seconds) {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const rest = total % 60;
+    return hours
+        ? `${hours}:${String(minutes).padStart(2, '0')}:${String(rest).padStart(2, '0')}`
+        : `${minutes}:${String(rest).padStart(2, '0')}`;
+}
+
+function _updateChecklistElapsed(panel) {
+    if (!panel) return;
+    const now = Date.now() / 1000;
+    panel.querySelectorAll('[data-checklist-elapsed]').forEach(node => {
+        const base = Number(node.dataset.actualSeconds) || 0;
+        const activeSince = node.dataset.activeSince === undefined
+            ? NaN : Number(node.dataset.activeSince);
+        node.textContent = _formatChecklistElapsed(
+            base + (Number.isFinite(activeSince) ? Math.max(0, now - activeSince) : 0),
+        );
+    });
+}
+
 function _checklistCardHtml(session) {
     const checklist = session.checklist;
     const name = escHtml(session.name || '');
@@ -3940,7 +3965,15 @@ function _checklistCardHtml(session) {
     const items = checklist.items.map(item => {
         const state = item.done ? 'done' : item.current ? 'current' : '';
         const label = item.done ? T('Done') : item.current ? T('Current step') : T('Remaining');
-        return `<div class="info-check-item ${state}"><span class="mark">${item.done ? '✓' : item.current ? '●' : '·'}</span><span>${escHtml(item.text)}<small>${label}</small></span></div>`;
+        const estimate = item.estimate_minutes == null
+            ? T('No estimate')
+            : `<span class="info-check-estimate" data-estimate-minutes="${Number(item.estimate_minutes)}">${T('Estimate')}: ${new Intl.NumberFormat(undefined, {maximumFractionDigits: 1}).format(item.estimate_minutes)} ${T('min')}</span>`;
+        const activeSince = Number.isFinite(Number(item.active_since)) && item.active_since != null
+            ? ` data-active-since="${Number(item.active_since)}"` : '';
+        const actual = item.actual_seconds == null
+            ? '—'
+            : `<span class="info-check-elapsed" data-checklist-elapsed data-actual-seconds="${Number(item.actual_seconds)}"${activeSince}>0:00</span>`;
+        return `<div class="info-check-item ${state}"><span class="mark">${item.done ? '✓' : item.current ? '●' : '·'}</span><span>${escHtml(item.text)}<small>${label} · ${estimate} · ${T('Actual')}: ${actual}</small></span></div>`;
     }).join('');
     const reminder = checklist.reminded_at
         ? `<div class="checklist-reminder"><strong>⏱ ${T('Reminder sent')} · ${escHtml(_infoTime(checklist.reminded_at))}</strong>${T('No checklist update for five minutes.')}</div>` : '';
@@ -3968,6 +4001,10 @@ function renderInfoPanel(data) {
             : `<div class="p-3 text-center text-slate-500">${T('No worker checklists yet')}</div>`;
     }
     panel.innerHTML = html;
+    _updateChecklistElapsed(panel);
+    if (!_infoChecklistTimer) {
+        _infoChecklistTimer = setInterval(() => _updateChecklistElapsed($('#info-panel')), 1000);
+    }
 }
 
 async function loadInfoPanel() {

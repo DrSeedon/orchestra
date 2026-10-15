@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
@@ -60,6 +60,130 @@ def test_checklist_counts_survive_end_of_turn(checklist_db, monkeypatch):
     assert persisted["completed"] == 2
     assert persisted["total"] == 4
     assert persisted["current"] == "Check the UI"
+
+
+def test_step_time_sums_intervals_when_worker_returns_to_a_step(checklist_db):
+    db, checklists = checklist_db
+    from app import tm
+
+    _insert_session(db, "worker-clock", "task-1")
+    with db._conn() as connection:
+        tm.ensure_project(connection, "orchestra", scope="/v858")
+    start = datetime(2026, 10, 15, 12, tzinfo=timezone.utc)
+    checklists.save_checklist(
+        "worker-clock", "task-1", "turn-1",
+        items=["Inspect source", "Review patch"], completed=[], current=0,
+        estimates_minutes=[4, 5], model="gpt-6-luna", now=start,
+    )
+    checklists.save_checklist(
+        "worker-clock", "task-1", "turn-1",
+        items=["Inspect source", "Review patch"], completed=[0], current=1,
+        now=start + timedelta(seconds=60),
+    )
+    checklists.save_checklist(
+        "worker-clock", "task-1", "turn-1",
+        items=["Review patch", "Inspect source"], completed=[0], current=1,
+        now=start + timedelta(seconds=90),
+    )
+    checklists.save_checklist(
+        "worker-clock", "task-1", "turn-1",
+        items=["Inspect source", "Review patch"], completed=[0], current=1,
+        now=start + timedelta(seconds=105),
+    )
+
+    checklist = checklists.get_checklist("worker-clock", "task-1")
+    by_text = {item["text"]: item for item in checklist["items"]}
+    assert by_text["Inspect source"]["actual_seconds"] == 75
+    assert by_text["Inspect source"]["estimate_minutes"] == 4
+    assert by_text["Review patch"]["actual_seconds"] == 30
+    assert by_text["Review patch"]["active_since"] == (start + timedelta(seconds=105)).timestamp()
+    with db._conn() as connection:
+        metric = connection.execute(
+            "SELECT model,project,task_id FROM checklist_step_metrics WHERE session_id='worker-clock' AND step_text='Inspect source'"
+        ).fetchone()
+    assert tuple(metric) == ("gpt-6-luna", "orchestra", "task-1")
+
+
+def test_estimate_accuracy_report_groups_completed_steps_by_model_and_period(checklist_db):
+    db, checklists = checklist_db
+    _insert_session(db, "worker-estimates", "task-1")
+    start = datetime(2026, 10, 15, 12, tzinfo=timezone.utc)
+    items = ["Half", "On time", "Double", "Unestimated"]
+    estimates = [2, 1, 1, None]
+    observations = [
+        (60, [0], 1),
+        (120, [0, 1], 2),
+        (240, [0, 1, 2], 3),
+        (300, [0, 1, 2, 3], None),
+    ]
+    checklists.save_checklist(
+        "worker-estimates", "task-1", "turn-report",
+        items=items, completed=[], current=0, estimates_minutes=estimates,
+        model="gpt-6-luna", project="orchestra", now=start,
+    )
+    for seconds, completed, current in observations:
+        checklists.save_checklist(
+            "worker-estimates", "task-1", "turn-report",
+            items=items, completed=completed, current=current,
+            now=start + timedelta(seconds=seconds),
+        )
+
+    report = checklists.estimate_accuracy_report(
+        since=start.isoformat(), until=(start + timedelta(seconds=301)).isoformat(),
+    )
+    model = report["by_model"]["gpt-6-luna"]
+    assert model["steps"] == 4
+    assert model["measured_steps"] == 4
+    assert model["estimated_steps"] == 3
+    assert model["unestimated_steps"] == 1
+    assert model["unmeasured_steps"] == 0
+    assert model["median_actual_estimate_ratio"] == 1
+    assert model["ratio_p25"] == 0.75
+    assert model["ratio_p75"] == 1.5
+    assert model["ratio_iqr"] == 0.75
+    assert model["projects"] == ["orchestra"]
+
+
+def test_estimated_reminder_fires_when_current_step_is_over_estimate(checklist_db, monkeypatch):
+    db, checklists = checklist_db
+    from app.session import AgentSession, AgentStatus
+
+    _insert_session(db, "worker-estimate-reminder", "task-1")
+    monkeypatch.setattr(checklists, "REMINDER_CUTOFF", date(2026, 10, 22))
+    started = datetime.now(timezone.utc) - timedelta(minutes=1)
+    checklists.save_checklist(
+        "worker-estimate-reminder", "task-1", "turn-estimate-reminder",
+        items=["Slow step"], completed=[], current=0, estimates_minutes=[0.5],
+        now=started,
+    )
+    session = AgentSession(
+        id="worker-estimate-reminder", name="worker", scope="/v858", cwd="/v858",
+        status=AgentStatus.RUNNING, task_id="task-1",
+    )
+    session._turn_gen = 1
+    session.send = AsyncMock()
+    session._log = Mock()
+    turn_key = checklists.make_turn_key(session.id, 1)
+    checklists.register_turn(session.id, session.task_id, 1, turn_key)
+
+    asyncio.run(session._watch_checklist_reminder(1, turn_key))
+
+    session.send.assert_awaited_once()
+    logged = [call for call in session._log.call_args_list if call.args[0] == "checklist_reminder"]
+    assert len(logged) == 1
+
+
+def test_reminder_delay_uses_estimate_or_five_minute_fallback():
+    from app import checklists
+
+    estimated = {
+        "items": [{
+            "current": True, "estimate_minutes": 2, "actual_seconds": 30, "active_since": 100,
+        }],
+    }
+    assert checklists.reminder_delay_seconds(estimated, now=160) == 30
+    unestimated = {"items": [{"current": True, "estimate_minutes": None}]}
+    assert checklists.reminder_delay_seconds(unestimated, now=160) == 300
 
 
 def test_summary_is_attached_by_session_and_current_task(checklist_db):
@@ -216,7 +340,10 @@ async def test_checklist_route_binds_tool_to_its_worker_session(checklist_db, mo
 
     accepted = await routes.update_session_checklist(
         "worker",
-        routes.ChecklistUpdateRequest(items=["Inspect", "Implement"], completed=[0], current=1),
+        routes.ChecklistUpdateRequest(
+            items=["Inspect", "Implement"], completed=[0], current=1,
+            estimates_minutes=[None, 12.5],
+        ),
         request_for("worker"),
     )
     spoofed = await routes.update_session_checklist(
@@ -231,9 +358,21 @@ async def test_checklist_route_binds_tool_to_its_worker_session(checklist_db, mo
     )
 
     assert accepted["completed"] == 1 and accepted["total"] == 2
+    assert accepted["items"][1]["estimate_minutes"] == 12.5
     assert worker._checklist_activity_event.is_set()
     assert spoofed.status_code == 403
     assert orchestrator.status_code == 403
+
+
+def test_checklist_mcp_schema_accepts_optional_per_step_estimates():
+    import app.mcp_stdio as mcp_stdio
+
+    tool = next(tool for tool in mcp_stdio.mcp._tool_manager.list_tools() if tool.name == "update_checklist")
+    properties = tool.parameters["properties"]
+    assert "estimates_minutes" not in tool.parameters["required"]
+    assert properties["estimates_minutes"]["anyOf"][0]["items"]["anyOf"] == [
+        {"type": "number"}, {"type": "null"},
+    ]
 
 
 @pytest.mark.asyncio

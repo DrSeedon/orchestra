@@ -31,6 +31,7 @@ Built-in task tracker. Agents create, update, and close tasks.
 
 ### Rules
 - When doing worker-assigned work, start with a short `update_checklist` plan and keep its completed indexes and current step accurate as work proceeds.
+- When first setting a task checklist, provide an estimated duration in minutes for every step; use a null estimate only when you cannot estimate it.
 - Before approved work that will leave a persistent `.orchestra/` artifact (research, audit,
   knowledge base, plan/report), use its existing task number or call `task_create`; include that
   number in the worker message. An exact 1–2 line edit with no persistent artifact may stay untracked
