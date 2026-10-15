@@ -3097,6 +3097,7 @@ def test_dashboard_polling_scheduler_coalesces_wake_and_file_failure_backoff(
         page.wait_for_function("() => window.__schedulerCalls301 === 2", timeout=5000)
         page.evaluate("() => _pollStop('scheduler-oracle-301')")
 
+        page.evaluate("() => switchLeftTab('files')")
         page.wait_for_function(
             "() => document.querySelector('#file-tree')?.innerText.includes('ok.txt')",
             timeout=5000,
