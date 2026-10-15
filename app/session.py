@@ -523,6 +523,9 @@ class AgentSession:
     )
     # Пара поколений хода: устаревший ретрай/автопродолжение сверяет обе и не стреляет.
     _turn_gen: int = field(default=0, repr=False)
+    # (task, turn generation) of the last per-turn listener that finished; lets its
+    # done-callback tell "superseded by a newer turn" from a genuine death (V-882).
+    _ended_listener: Optional[tuple] = field(default=None, repr=False)
     _turn_start_cancel_gen: int = field(default=0, repr=False)
     _handoff_config_dir: str = field(default="", repr=False)
     _handoff_recovery_required: bool = field(default=False, repr=False)
@@ -2436,6 +2439,7 @@ class AgentSession:
         logger.info(f"[{self.name}] {self.backend_type} turn started")
         backend = self._backend
         cancelled = False
+        my_gen = self._turn_gen
         try:
             async for event in backend.events():
                 self._last_msg_time = asyncio.get_event_loop().time()
@@ -2463,7 +2467,12 @@ class AgentSession:
             logger.error(f"[{self.name}] {self.backend_type} turn error: {e}")
             self._log("error", f"{self.backend_type} turn error: {e}")
         finally:
-            if self.status == AgentStatus.RUNNING:
+            self._ended_listener = (asyncio.current_task(), my_gen)
+            if self.status == AgentStatus.RUNNING and self._turn_gen != my_gen:
+                # A mailbox/steer continuation already started the next turn while this
+                # listener was finishing the previous one; RUNNING belongs to that turn.
+                pass
+            elif self.status == AgentStatus.RUNNING:
                 backend = self._backend
                 if (
                     self.backend_type == "codex"
@@ -2888,6 +2897,16 @@ class AgentSession:
             logger.error(f"[{self.name}] listen task died with exception: {exc}\n{tb}")
             self._log("error", f"listen task died: {exc}")
             self._finish_failed_running_turn(f"listen task exception: {exc}")
+        elif (
+            self.status == AgentStatus.RUNNING
+            and (ended := getattr(self, "_ended_listener", None)) is not None
+            and ended[0] is task
+            and ended[1] != self._turn_gen
+        ):
+            # V-882: the listener of turn N finished after a continuation (mailbox,
+            # steer) had already set RUNNING for turn N+1 but before its own listener
+            # replaced `_listen_task`. Not a death: the new turn owns the status.
+            logger.debug(f"[{self.name}] superseded listener finished, status={self.status}")
         elif self.status != AgentStatus.RUNNING:
             # Штатный конец потока после turn_end или подавленная отмена (V-648: 474 из 475 за неделю).
             logger.debug(f"[{self.name}] listen task finished, status={self.status}")

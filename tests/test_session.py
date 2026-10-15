@@ -456,6 +456,38 @@ class TestTurn:
         assert session._turn_finished_event.is_set() is True
 
     @pytest.mark.asyncio
+    async def test_v882_continuation_turn_started_during_listener_exit_is_not_failed(
+        self, session, monkeypatch,
+    ):
+        """Mailbox continuation flips RUNNING for turn N+1 while listener N is still exiting."""
+        from app.events import AgentEvent
+        from app.session import AgentStatus
+
+        class Backend:
+            active_turn_id = None
+
+            async def events(inner):
+                yield AgentEvent(type="turn_end", metadata={"ok": True, "stop_reason": "end_turn"})
+                session._turns.bump_turn_gen()
+                session.status = AgentStatus.RUNNING
+
+        failures = []
+        session.backend_type = "codex"
+        session._backend = Backend()
+        session._log = lambda *_args, **_kwargs: None
+        session._turns.bump_turn_gen()
+        session.status = AgentStatus.RUNNING
+        monkeypatch.setattr(session, "_handle_event", lambda event: setattr(session, "status", AgentStatus.IDLE))
+        monkeypatch.setattr(session, "_finish_failed_running_turn", failures.append)
+        monkeypatch.setattr(session._turns, "report_abnormal_end", failures.append)
+        monkeypatch.setattr(session, "_spawn_bg", lambda coroutine: coroutine.close())
+
+        await session._turn_event_loop()
+
+        assert failures == []
+        assert session.status == AgentStatus.RUNNING
+
+    @pytest.mark.asyncio
     async def test_waiting_status_finishes_turn_but_is_not_merge_ready(
         self, session, monkeypatch,
     ):
