@@ -1,0 +1,3 @@
+# V-865 candidate instruction (B arm; frozen before runs)
+
+For comparative or causal claims, name the outcome and analysis unit, and verify that the baseline/control is comparable. Separate exact counts over a complete fixed set from estimates about a noisy or sampled population. Quantify uncertainty only for the latter, using the independent unit and respecting paired or clustered data. If no valid control exists, or uncertainty still allows materially different decisions, state that the claim is unresolved; ask for more runs only when they could change the decision and name their cost. Do not attach significance tests to deterministic enumeration or treat p < .05 as proof of causation.

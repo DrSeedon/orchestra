@@ -1,0 +1,136 @@
+{
+  "results": [
+    {
+      "case_id": "C01",
+      "rationale": "Both say the −600 ms result measured Tailwind removal, which changed styling and layout cost; the proposed replacement remains untested.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C02",
+      "rationale": "Both identify baseline instability without a code change and avoid attributing a result to code; each appropriately limits what the control-host transfer establishes.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C03",
+      "rationale": "Both report that the estimators reverse the Sol/Astra ordering, so the ranking is unresolved; Y also notes the withdrawn claim.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C04",
+      "rationale": "Both separate the dollar recalculation and reserve figures as model-based from the limited direct pool evidence; neither presents the 1.6× estimate as established.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C05",
+      "rationale": "Both state weekly_scoped is a cap within the common pool and do not attribute the counter increase to Fable; they account for the other project's turns.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C06",
+      "rationale": "Both recognize that method constraints and turn counts changed, so the cost difference does not isolate model capability; observed free-method outcomes are described accurately.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C07",
+      "rationale": "Both distinguish the initial 9/9 pass from the second-round 5/9 result and conclude full path coverage is unsupported.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C08",
+      "rationale": "Both report higher observed seq3 scores while treating superiority as unresolved given repeat variation and incomplete, noisy holdout coverage.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C09",
+      "rationale": "Both report the 0.50 pp observed difference and explain that unavailable paired outcomes prevent establishing a new SOTA; the rough interval includes zero.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C10",
+      "rationale": "Both give exact counts: instruction followed 20/20, work saved 15/20, and marker erased in 8 runs per arm. Both correctly identify what 20/20 measures.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C11",
+      "rationale": "Both state 12/12 for each field per model and calculate 180/180 correct model×field checks overall.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    },
+    {
+      "case_id": "C12",
+      "rationale": "Both give the observed differences exactly: low exceeded medium by 1 and max by 2 acceptances, without claiming a population-level effect.",
+      "winner": "tie_both_correct",
+      "x_correct": 1,
+      "x_overclaim": false,
+      "x_unnecessary_inference": false,
+      "y_correct": 1,
+      "y_overclaim": false,
+      "y_unnecessary_inference": false
+    }
+  ]
+}
