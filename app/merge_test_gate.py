@@ -275,6 +275,7 @@ def pytest_argv(
     interpreter: str | None = None,
     per_test_timeout: float | None = None,
     orchestra_project: bool = False,
+    exclude_orchestra_markers: bool = False,
     rootdir: str | None = None,
     inifile: str | None = None,
 ) -> list[str]:
@@ -307,11 +308,12 @@ def pytest_argv(
         f"--timeout={ceiling:g}",
         f"--timeout-method={PER_TEST_TIMEOUT_METHOD}",
     ])
-    if orchestra_project:
+    if orchestra_project or exclude_orchestra_markers:
         argv.extend([
             "-m", f"not {LIVE_PROBE_MARKER} and not {BROWSER_MARKER}",
-            "-n", "2", "--dist=loadscope",
         ])
+    if orchestra_project:
+        argv.extend(["-n", "2", "--dist=loadscope"])
     return [*argv, *tests]
 
 
@@ -411,6 +413,7 @@ def run_pytest(
     *,
     timeout: float | None = None,
     interpreter: str | None = None,
+    exclude_orchestra_markers: bool = False,
 ) -> dict:
     budget = budget_for(len(tests)) if timeout is None else timeout
     interpreter = interpreter or _pytest_interpreter(worktree)
@@ -447,6 +450,7 @@ def run_pytest(
                 tests,
                 interpreter=interpreter,
                 orchestra_project=orchestra_project,
+                exclude_orchestra_markers=exclude_orchestra_markers,
                 rootdir=str(project_root),
                 inifile=str(project_config),
             )
@@ -717,7 +721,7 @@ def _changed_added_lines(worktree: str, target_commit: str, path: str) -> set[in
 
 
 def _test_nodes_for_file(path: str, source: str, changed_lines: set[int]) -> list[str] | None:
-    """Map changed lines to pytest node IDs; None requests a safe file fallback."""
+    """Map changed lines to pytest node IDs; None means no changed node is identifiable."""
     try:
         tree = ast.parse(source, filename=path)
     except SyntaxError:
@@ -746,21 +750,16 @@ def _test_nodes_for_file(path: str, source: str, changed_lines: set[int]) -> lis
         return None
     selected = [identity for identity, start, end in nodes
                 if any(start <= line <= end for line in changed_lines)]
-    covered = {
-        line for _identity, start, end in nodes
-        for line in changed_lines if start <= line <= end
-    }
-    # A changed import/helper/fixture/class setup is semantically shared by tests. Running
-    # one guessed node would claim proof for siblings, so keep the whole file in that case.
-    if covered != changed_lines:
-        return None
-    return sorted(set(selected)) or None
+    if selected:
+        return sorted(set(selected))
+    # Shared helper/import edits do not identify a changed test; the caller skips that file.
+    return None
 
 
 def changed_test_nodes(
     worktree: str, target_commit: str, tests: list[str],
 ) -> tuple[list[str], list[str]]:
-    """Select changed test functions, with file fallback for ambiguous Python diffs."""
+    """Select changed test functions and report files whose changed nodes are ambiguous."""
     selected: list[str] = []
     fallback: list[str] = []
     for path in tests:
@@ -876,16 +875,26 @@ def evaluate_mutation_gate(
             "output": "cannot resolve target commit for mutation tree",
         }
     selected_nodes, fallback_files = changed_test_nodes(worktree, commit, tests)
-    selected_tests = selected_nodes + fallback_files
-    if not selected_tests:
+    if fallback_files:
         return {
             **result,
-            "status": INCONCLUSIVE,
-            "reason": "changed_test_nodes_unavailable",
-            "output": "changed test files contain no selectable test nodes",
+            "status": SKIPPED,
+            "reason": "changed_test_nodes_unresolved",
+            "output": "cannot isolate changed test nodes in: " + ", ".join(fallback_files),
+            "selected_nodes": selected_nodes,
+            "fallback_files": fallback_files,
+        }
+    if not selected_nodes:
+        return {
+            **result,
+            "status": SKIPPED,
+            "reason": "no_changed_test_nodes",
+            "output": "changed test files contain no identifiable changed test functions",
             "selected_nodes": [],
             "fallback_files": [],
         }
+    selected_tests = selected_nodes
+    exclude_orchestra_markers = _is_orchestra_worktree(worktree)
     try:
         with _mutation_tree(
             worktree, commit, test_artifacts, source_artifacts=sources,
@@ -894,12 +903,27 @@ def evaluate_mutation_gate(
                 str(control_tree), selected_tests,
                 timeout=MUTATION_MAX_TIMEOUT_SECONDS,
                 interpreter=result["interpreter"],
+                exclude_orchestra_markers=exclude_orchestra_markers,
             )
+        if control["status"] == SKIPPED and control.get("reason") == "no_tests_after_deselect":
+            return {
+                **result,
+                "status": SKIPPED,
+                "reason": "changed_tests_excluded",
+                "output": "all changed test nodes are excluded by the browser/live_probe policy",
+                "target_sha": commit,
+                "interpreter": result["interpreter"],
+                "selected_nodes": selected_nodes,
+                "fallback_files": [],
+                "control_status": control["status"],
+                "control_reason": control.get("reason", ""),
+            }
         with _mutation_tree(worktree, commit, test_artifacts) as tree:
             second = run_pytest(
                 str(tree), selected_tests,
                 timeout=MUTATION_MAX_TIMEOUT_SECONDS,
                 interpreter=result["interpreter"],
+                exclude_orchestra_markers=exclude_orchestra_markers,
             )
     except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
         return {

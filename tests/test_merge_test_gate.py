@@ -135,9 +135,7 @@ def _mutation_repo(tmp_path: Path, test_body: str, *, source_changed: bool = Tru
     (repo / "tests").mkdir()
     (repo / "app" / "__init__.py").write_text("", encoding="utf-8")
     (repo / "app" / "widget.py").write_text("VALUE = 1\n", encoding="utf-8")
-    (repo / "tests" / "test_widget.py").write_text(
-        test_body + "# target-only marker\n", encoding="utf-8",
-    )
+    (repo / "tests" / "test_widget.py").write_text(test_body, encoding="utf-8")
     _git(repo, "add", "-A")
     _git(repo, "commit", "-m", "base")
     target = subprocess.run(
@@ -145,7 +143,14 @@ def _mutation_repo(tmp_path: Path, test_body: str, *, source_changed: bool = Tru
         capture_output=True, text=True,
     ).stdout.strip()
     _git(repo, "checkout", "-b", "worker")
-    (repo / "tests" / "test_widget.py").write_text(test_body, encoding="utf-8")
+    changed_test_body = []
+    for line in test_body.splitlines():
+        changed_test_body.append(line)
+        if line.lstrip().startswith("def test_"):
+            changed_test_body.append("    # worker changed this test")
+    (repo / "tests" / "test_widget.py").write_text(
+        "\n".join(changed_test_body) + "\n", encoding="utf-8",
+    )
     if source_changed:
         (repo / "app" / "widget.py").write_text("VALUE = 2\n", encoding="utf-8")
     _git(repo, "add", "-A")
@@ -264,6 +269,71 @@ def test_mutation_gate_rejects_test_that_stays_green_on_target_sources(tmp_path)
     assert "no regression is guarded" in result["mutation_gate"]["output"]
 
 
+@pytest.mark.parametrize("marker", ["browser", "live_probe"])
+def test_mutation_gate_skips_when_all_changed_tests_are_excluded(tmp_path, monkeypatch, marker):
+    from app import merge_test_gate as gate
+
+    repo = tmp_path / "marked-mutation-repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "t@t")
+    _git(repo, "config", "user.name", "t")
+    (repo / "app").mkdir()
+    (repo / "tests").mkdir()
+    (repo / "app" / "__init__.py").write_text("", encoding="utf-8")
+    (repo / "app" / "widget.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (repo / "tests" / "test_widget.py").write_text(
+        "def test_existing_neighbor():\n    assert True\n", encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "base")
+    target = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo, check=True,
+        capture_output=True, text=True,
+    ).stdout.strip()
+    _git(repo, "checkout", "-b", "worker")
+    (repo / "app" / "widget.py").write_text("VALUE = 2\n", encoding="utf-8")
+    (repo / "tests" / "test_widget.py").write_text(
+        "import pytest\n\n"
+        "def _new_test_helper():\n    return True\n\n"
+        f"@pytest.mark.{marker}\n"
+        "def test_added_browser_flow():\n    assert _new_test_helper()\n",
+        encoding="utf-8",
+    )
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-m", "add marked test and helper")
+    monkeypatch.setattr(
+        gate, "_is_orchestra_worktree",
+        lambda worktree: Path(worktree).resolve() == repo.resolve(),
+    )
+
+    result = gate.evaluate_mutation_gate(str(repo), ["app/widget.py", "tests/test_widget.py"],
+                                         target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.SKIPPED
+    assert result["reason"] == "changed_tests_excluded"
+    assert result["control_status"] == gate.SKIPPED
+    assert result["selected_nodes"] == ["tests/test_widget.py::test_added_browser_flow"]
+    assert result["fallback_files"] == []
+
+
+def test_mutation_gate_still_fails_for_changed_non_guarding_test(tmp_path):
+    from app import merge_test_gate as gate
+
+    repo, target = _mutation_repo(
+        tmp_path,
+        "from app.widget import VALUE\n\n"
+        "def test_widget():\n    assert VALUE in {1, 2}\n",
+    )
+
+    result = gate.evaluate_mutation_gate(str(repo), ["app/widget.py", "tests/test_widget.py"],
+                                         target_ref="main", target_sha=target)
+
+    assert result["status"] == gate.FAILED
+    assert result["reason"] == "tests_not_guarding_source"
+    assert result["selected_nodes"] == ["tests/test_widget.py::test_widget"]
+
+
 def test_mutation_gate_treats_pytest_missing_text_in_assertion_as_real_failure(tmp_path):
     from app import merge_test_gate as gate
 
@@ -340,7 +410,7 @@ def test_mutation_gate_timeout_is_visible_and_not_a_false_pass(tmp_path, monkeyp
     )
     calls = []
 
-    def fake_run(worktree, tests, *, timeout=None, interpreter=None):
+    def fake_run(worktree, tests, *, timeout=None, interpreter=None, exclude_orchestra_markers=False):
         calls.append((worktree, list(tests), timeout, interpreter))
         return {
             "status": gate.PASSED if len(calls) == 1 else gate.INCONCLUSIVE,
