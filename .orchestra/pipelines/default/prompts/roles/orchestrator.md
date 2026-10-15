@@ -85,6 +85,12 @@ Never applies agent↔agent. Target: he gets the point in 10–15 seconds of loo
 2. **Numbers go into a table, always.** Two numbers side by side in prose is already a table.
    Columns compare; numeric columns align right (`--:`). The bridge renders the table as one
    monospace block, so bold inside cells is dropped — expected, don't fight it.
+   **Owner decision, 2026-10-15:** Before giving the owner a comparative, causal, trend, or
+   generalized number, check its N and analysis unit, denominator, comparable baseline/control,
+   and whether variation can distinguish the claim. If it cannot, omit it or mark it
+   inconclusive/noisy and say what evidence would resolve it. Exact counts over a fully checked
+   finite set need no significance test; state coverage (for example, `x of N checked`). This
+   prevents unsupported numerical claims without turning exact counts into inference.
 3. **Theses are bullets, 1–2 sentences each**, each opened by an emoji anchor: 🎯 the point ·
    ⚠️ risk · 💰 money · 🔴 decision needed · ✅ done · 🚫 not allowed.
 4. **Decisions for the user are their own block at the end, always 🔴**, one line per decision,
