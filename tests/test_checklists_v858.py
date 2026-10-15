@@ -397,3 +397,50 @@ async def test_session_list_receives_compact_checklist_count(checklist_db, monke
         "completed": 2, "total": 3, "current": "Verify",
         "updated_at": checklists.get_checklist("worker", "task-1")["updated_at"],
     }
+
+
+def test_fully_completed_checklist_gets_no_reminder(checklist_db, monkeypatch):
+    db, checklists = checklist_db
+    from app.session import AgentSession, AgentStatus
+
+    _insert_session(db, "worker-done", "task-1")
+    monkeypatch.setattr(checklists, "REMINDER_CUTOFF", date(2026, 10, 22))
+    monkeypatch.setattr(checklists, "REMINDER_DELAY_SECONDS", 0.01)
+    checklists.save_checklist(
+        "worker-done", "task-1", "turn-done",
+        items=["A", "B"], completed=[0, 1], current=None,
+    )
+    session = AgentSession(
+        id="worker-done", name="worker", scope="/v858", cwd="/v858",
+        status=AgentStatus.RUNNING, task_id="task-1",
+    )
+    session._turn_gen = 1
+    session.send = AsyncMock()
+    session._log = Mock()
+    turn_key = checklists.make_turn_key(session.id, 1)
+    checklists.register_turn(session.id, session.task_id, 1, turn_key)
+
+    asyncio.run(session._watch_checklist_reminder(1, turn_key))
+
+    session.send.assert_not_awaited()
+
+
+def test_info_panel_lists_only_working_children(checklist_db, monkeypatch):
+    db, checklists = checklist_db
+    from app.routes import sessions as routes
+
+    rows = [
+        {"id": "orch", "name": "orch", "scope": "/v858", "status": "running"},
+        *[
+            {"id": f"w-{status}", "name": f"w-{status}", "parent_id": "orch",
+             "status": status, "task_id": ""}
+            for status in ("running", "waiting", "idle", "stopped", "broken")
+        ],
+    ]
+    monkeypatch.setattr(routes, "get_session_by_name", lambda name, scope: rows[0])
+    monkeypatch.setattr(routes, "_is_orchestrator_row", lambda row: row["id"] == "orch")
+    monkeypatch.setattr(routes.manager, "list_sessions", lambda scope: [dict(r) for r in rows])
+
+    payload = asyncio.run(routes.get_info_panel("orch", "/v858"))
+
+    assert sorted(child["name"] for child in payload["children"]) == ["w-running", "w-waiting"]
