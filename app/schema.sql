@@ -409,7 +409,9 @@ CREATE TABLE task_proposals (
                     CHECK(status IN ('proposed','approving','approved','rejected')),
                 created_at TEXT NOT NULL,
                 decided_at TEXT NOT NULL DEFAULT '',
-                approval_delivery_id TEXT NOT NULL UNIQUE
+                approval_delivery_id TEXT NOT NULL UNIQUE,
+                decision_action TEXT NOT NULL DEFAULT '',
+                decision_message TEXT NOT NULL DEFAULT ''
             );
 CREATE INDEX idx_task_proposals_session_created
                 ON task_proposals(session_id, created_at DESC);
