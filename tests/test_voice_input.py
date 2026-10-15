@@ -170,3 +170,30 @@ def test_ffprobe_reads_actual_audio_duration(tmp_path):
     duration = asyncio.run(tg._audio_duration_seconds(str(path)))
 
     assert 0.99 <= duration <= 1.01
+
+
+def test_transcribe_route_accepts_chromium_chunked_webm(monkeypatch):
+    audio = Path(__file__).parent / "fixtures" / "dashboard_voice_chunked.webm"
+    duration = asyncio.run(tg._audio_duration_seconds(str(audio)))
+    assert 3.0 <= duration <= 4.0
+
+    seen = {}
+
+    async def transcribe(path, _unique_id, **kwargs):
+        seen.update(content=Path(path).read_bytes(), **kwargs)
+        return "recorded speech", None
+
+    monkeypatch.setattr("app.transcription.transcribe_audio", transcribe)
+    with _client() as client:
+        response = client.post(
+            "/api/transcribe",
+            files={"audio": ("voice.webm", audio.read_bytes(), "audio/webm")},
+            data={"session_name": "recording-agent", "scope": "/repo"},
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"text": "recorded speech"}
+    assert seen["content"] == audio.read_bytes()
+    assert seen["content_type"] == "audio/webm"
+    assert seen["session_name"] == "recording-agent"
+    assert seen["scope"] == "/repo"

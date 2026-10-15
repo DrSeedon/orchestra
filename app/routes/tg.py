@@ -51,9 +51,40 @@ async def _audio_duration_seconds(path: str) -> float:
         detail = stderr.decode(errors="replace").strip()[:160]
         raise ValueError(f"invalid audio: {detail or 'ffprobe failed'}")
     try:
-        return float(stdout.decode().strip())
-    except ValueError as e:
-        raise ValueError("invalid audio duration") from e
+        duration = float(stdout.decode().strip())
+    except ValueError:
+        return await _decoded_audio_duration(path)
+    if not math.isfinite(duration) or duration <= 0:
+        return await _decoded_audio_duration(path)
+    return duration
+
+
+async def _decoded_audio_duration(path: str) -> float:
+    process = await asyncio.create_subprocess_exec(
+        "ffmpeg", "-nostdin", "-v", "error", "-i", path,
+        "-map", "0:a:0", "-f", "null", "-", "-progress", "pipe:1", "-nostats",
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=10)
+    except TimeoutError:
+        process.kill()
+        await process.communicate()
+        raise ValueError("audio duration check timed out")
+    if process.returncode != 0:
+        detail = stderr.decode(errors="replace").strip()[:160]
+        raise ValueError(f"invalid audio: {detail or 'ffmpeg decode failed'}")
+    duration_us = None
+    for line in stdout.decode(errors="replace").splitlines():
+        if line.startswith("out_time_us="):
+            try:
+                duration_us = int(line.removeprefix("out_time_us="))
+            except ValueError:
+                pass
+    if duration_us is None or duration_us <= 0:
+        raise ValueError("invalid audio duration")
+    return duration_us / 1_000_000
 
 
 _voice_tasks: set[asyncio.Task] = set()
