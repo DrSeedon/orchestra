@@ -3966,31 +3966,6 @@ function _checklistCardHtml(session) {
     return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[9px] text-slate-500 mt-1">${escHtml(T(session.status || 'running'))}${checklist.updated_at ? ` · ${T('Updated')} ${escHtml(_infoTime(checklist.updated_at))}` : ''}</div><div class="info-check-progress"><div class="info-check-progress-head"><span>${T('Checklist')}</span><strong>${checklist.completed} ${T('of')} ${checklist.total}</strong></div><div class="info-check-track"><span style="width:${percent}%"></span></div>${checklist.current ? `<div class="info-check-current">${T('Current step')}: ${escHtml(checklist.current)}</div>` : ''}</div><div class="info-checklist">${items}</div>${reminder}</article>`;
 }
 
-const _proposalReasons = new Map();
-const _proposalReasonOpen = new Set();
-
-function _proposalCardHtml(proposal) {
-    const status = proposal.status;
-    const labels = {proposed: T('Proposed'), approving: T('Sending decision'), approved: T('Approved · sent to chat'), rejected: T('Rejected · sent to chat')};
-    const details = `<div class="task-proposal-meta"><span>${T('Project')} <b>${escHtml(proposal.project)}</b></span><span>${T('Model')} <b>${escHtml(proposal.model)}</b></span><span>${T('Quota')} <b>${escHtml(proposal.quota_pool)}</b></span></div>`;
-    let actions = '';
-    if (status === 'proposed' || status === 'approving') {
-        const action = status === 'approving' ? proposal.decision_action : '';
-        const approve = status === 'proposed' || action === 'approve'
-            ? `<button type="button" data-proposal-action="approve" data-proposal-id="${escHtml(proposal.id)}">${status === 'approving' ? T('Retry decision') : T('Launch')}</button>` : '';
-        const reject = status === 'proposed' || action === 'reject'
-            ? `<button type="button" class="reject" data-proposal-action="reject" data-proposal-id="${escHtml(proposal.id)}">${status === 'approving' ? T('Retry decision') : T('Reject')}</button>` : '';
-        const reason = _proposalReasons.get(proposal.id) || '';
-        const reasonOpen = _proposalReasonOpen.has(proposal.id);
-        actions = `<div class="task-proposal-actions">${approve}${reject}<button type="button" class="reason" data-proposal-reason-toggle="${escHtml(proposal.id)}" aria-expanded="${reasonOpen}">${T('Reason')}</button></div><div class="task-proposal-reason${reasonOpen ? '' : ' hidden'}"><textarea maxlength="2000" ${status === 'approving' ? 'disabled' : ''} placeholder="${T('Optional reason or instructions')}">${escHtml(reason)}</textarea></div><small class="task-proposal-help">${T('Decision sends a message to the orchestrator. It does not start a worker.')}</small>`;
-    } else if (status === 'approved') {
-        actions = `<div class="task-proposal-note">✓ ${T('Owner approval message sent · the orchestrator decides what to do next')}</div>`;
-    } else if (status === 'rejected') {
-        actions = `<div class="task-proposal-note">✓ ${T('Owner rejection message sent to chat')}</div>`;
-    }
-    return `<article class="task-proposal-card ${status}" data-proposal-state="${status}"><div class="task-proposal-title"><span>${escHtml(proposal.title)}</span><b class="task-proposal-state">${labels[status] || escHtml(status)}</b></div><p class="task-proposal-summary">${escHtml(proposal.summary)}</p>${details}${actions}</article>`;
-}
-
 function renderInfoPanel(data) {
     const panel = $('#info-panel');
     if (!panel) return;
@@ -4001,42 +3976,17 @@ function renderInfoPanel(data) {
     const session = currentSessions.find(s => s.name === data.session?.name) || {name: data.session?.name || selectedAgent};
     let html = '';
     if (data.session?.is_orchestrator) {
+        const workers = (data.children || []).filter(child => child.checklist?.total > 0);
         html += `<div class="info-panel-heading">${T('Workers this session')}</div>`;
-        html += data.children?.length
-            ? data.children.map(child => _checklistCardHtml(child)).join('')
-            : `<div class="p-3 text-center text-slate-500">${T('No workers yet')}</div>`;
-        if (data.children?.length) {
-            const working = data.children.filter(c => c.status === 'running').length;
-            const waiting = data.children.filter(c => c.status === 'waiting').length;
-            html += `<details class="mx-1 mb-2 rounded-lg border border-slate-800 bg-slate-900/40"><summary class="cursor-pointer select-none px-2 py-2 text-[10px] text-slate-300">${T('Child work')} · ${data.children.length}<span class="float-right text-slate-500">${working} ${T('working agents')} · ${waiting} ${T('waiting agents')}</span></summary><div class="border-t border-slate-800 px-1 py-1">${data.children.map(c => `<div class="info-child-row"><span>${escHtml(c.name)}</span><span class="child-state">${escHtml(T(c.status || 'idle'))}${c.checklist ? ` · ${c.checklist.completed}/${c.checklist.total}` : ''}</span></div>`).join('')}</div></details>`;
-        }
-        html += `<div class="info-panel-heading">${T('Suggested tasks')} <span class="float-right font-normal tracking-normal">${T('from orchestrator')}</span></div>`;
-        html += data.proposals?.length
-            ? data.proposals.map(_proposalCardHtml).join('')
-            : `<div class="p-3 text-center text-slate-500">${T('No proposed tasks')}</div>`;
+        html += workers.length
+            ? workers.map(child => _checklistCardHtml(child)).join('')
+            : `<div class="p-3 text-center text-slate-500">${T('No worker checklists yet')}</div>`;
     } else {
-        html += `<div class="info-panel-heading">${T('Task progress')}</div>`;
-        html += _checklistCardHtml({...data.session, ...session, checklist: data.checklist});
+        html += data.checklist?.total
+            ? `<div class="info-panel-heading">${T('Task progress')}</div>${_checklistCardHtml({...data.session, ...session, checklist: data.checklist})}`
+            : `<div class="p-3 text-center text-slate-500">${T('No worker checklists yet')}</div>`;
     }
     panel.innerHTML = html;
-    panel.querySelectorAll('[data-proposal-action]').forEach(button => {
-        button.addEventListener('click', () => decideTaskProposal(button.dataset.proposalId, button.dataset.proposalAction, button));
-    });
-    panel.querySelectorAll('[data-proposal-reason-toggle]').forEach(button => {
-        button.addEventListener('click', () => {
-            const id = button.dataset.proposalReasonToggle;
-            const field = button.closest('.task-proposal-card')?.querySelector('.task-proposal-reason');
-            if (!field) return;
-            const open = field.classList.toggle('hidden') === false;
-            button.setAttribute('aria-expanded', String(open));
-            if (open) field.querySelector('textarea')?.focus();
-            if (open) _proposalReasonOpen.add(id); else _proposalReasonOpen.delete(id);
-        });
-    });
-    panel.querySelectorAll('.task-proposal-reason textarea').forEach(textarea => {
-        const id = textarea.closest('.task-proposal-card')?.querySelector('[data-proposal-reason-toggle]')?.dataset.proposalReasonToggle;
-        if (id) textarea.addEventListener('input', () => _proposalReasons.set(id, textarea.value));
-    });
 }
 
 async function loadInfoPanel() {
@@ -4047,31 +3997,6 @@ async function loadInfoPanel() {
     } catch (error) {
         const panel = $('#info-panel');
         if (panel && _infoTabActive) panel.innerHTML = `<div class="p-3 text-center text-slate-500">${T('Could not load information panel')}: ${escHtml(error.message)}</div>`;
-    }
-}
-
-async function decideTaskProposal(id, action, button) {
-    if (!id || !['approve', 'reject'].includes(action)) return;
-    const original = button.textContent;
-    const reason = _proposalReasons.get(id)
-        ?? button.closest('.task-proposal-card')?.querySelector('.task-proposal-reason textarea')?.value
-        ?? '';
-    button.disabled = true;
-    try {
-        await api(`/api/task-proposals/${encodeURIComponent(id)}/${action}`, {method: 'POST', body: JSON.stringify({reason: reason.trim()})});
-        _proposalReasons.delete(id);
-        _proposalReasonOpen.delete(id);
-        await loadInfoPanel();
-    } catch (error) {
-        button.disabled = false;
-        button.textContent = original;
-        const panel = $('#info-panel');
-        if (panel) {
-            const note = document.createElement('div');
-            note.className = 'text-[10px] text-red-400 px-2 py-1';
-            note.textContent = `${T('Task decision failed')}: ${error.message}`;
-            panel.prepend(note);
-        }
     }
 }
 

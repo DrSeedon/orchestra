@@ -2222,26 +2222,6 @@ async def update_progress(percent: int, status: str) -> str:
 
 
 @mcp.tool()
-async def propose_task(
-    title: str, summary: str, project: str, model: str, quota_pool: str,
-) -> str:
-    """Propose one useful follow-up to the owner with a concise 1-2 line summary, project, worker model, and quota pool. Orchestrator sessions only; this stores a card and never creates a task or starts a worker."""
-    result = await _api("POST", "/api/task-proposals", json={
-        "title": title,
-        "summary": summary,
-        "project": project,
-        "model": model,
-        "quota_pool": quota_pool,
-    })
-    if isinstance(result, dict) and result.get("error"):
-        return f"Task proposal refused: {result['error']}"
-    proposal = result.get("proposal") if isinstance(result, dict) else None
-    if not isinstance(proposal, dict) or not proposal.get("id"):
-        raise ApiToolError(code="invalid_response", message="proposal API returned no durable card id")
-    return f"Task proposal saved for owner review: {proposal['id']} — {proposal['title']}"
-
-
-@mcp.tool()
 async def update_checklist(
     items: list[str], completed: list[int], current: int | None = None,
 ) -> str:

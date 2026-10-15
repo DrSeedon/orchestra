@@ -1420,6 +1420,24 @@ def test_agent_info_panel_exists(dashboard_page: Page):
     expect(info).to_be_visible()
 
 
+def test_info_panel_shows_only_workers_with_checklists(dashboard_page: Page):
+    dashboard_page.evaluate("""() => renderInfoPanel({
+        session: {name: selectedAgent, is_orchestrator: true},
+        children: [
+            {name: 'worker-with-checklist', model: 'codex', status: 'running',
+             checklist: {completed: 1, total: 2, current: 'Review patch',
+               items: [{text: 'Inspect source', done: true}, {text: 'Review patch', current: true}]}},
+            {name: 'worker-without-checklist', model: 'sonnet', status: 'running'},
+        ],
+    })""")
+    panel = dashboard_page.locator("#info-panel")
+    cards = panel.locator(".info-worker-card")
+    expect(cards).to_have_count(1)
+    assert "worker-with-checklist" in cards.first.inner_text()
+    assert "worker-without-checklist" not in panel.inner_text()
+    expect(panel.locator("details")).to_have_count(0)
+
+
 def test_no_js_errors(dashboard_browser: Browser):
     errors = []
     page = dashboard_browser.new_page()

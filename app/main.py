@@ -478,9 +478,10 @@ async def lifespan(app: FastAPI):
     init_db()
     from app.quota_gate import initialize_gate_override
     initialize_gate_override()
-    from app import checklists as _checklists, task_proposals as _task_proposals
+    from app import checklists as _checklists
     _checklists.ensure_schema()
-    _task_proposals.ensure_schema()
+    with database._conn() as connection:
+        connection.execute("DROP TABLE IF EXISTS task_proposals")
     app.state.turn_usage_timing_schema_columns_added = database.ensure_turn_usage_timing_schema()
     app.state.owner_activity_backfill = database.ensure_owner_activity_schema()
     from app.quota_gate import initialize_quota_policy_history
