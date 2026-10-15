@@ -257,6 +257,38 @@ def test_timeline_centers_now_repeats_thresholds_and_shades_nights(browser, tmp_
     page.close()
 
 
+@pytest.mark.parametrize("bucket_id", ["codex", "anthropic"])
+def test_timeline_usage_is_monotone_until_provider_reset(browser, bucket_id):
+    payload = _payload(codex_util=1.0, codex_progress=0.01, claude_util=1.0, claude_progress=0.01)
+    payload["generated_at"] = "2026-10-13T07:20:00+00:00"
+    bucket = next(item for item in payload["buckets"] if item["bucket"] == bucket_id)
+    bucket["window"]["resets_at"] = "2026-10-20T07:15:00+00:00"
+    bucket["window"]["utilization"] = 2.0
+    bucket["timeline"] = {"points": [
+        {"ts": datetime(2026, 10, 13, 7, 0, tzinfo=timezone.utc).timestamp(),
+         "utilization": 17.0, "resets_at": 1791874800},
+        {"ts": datetime(2026, 10, 13, 7, 5, tzinfo=timezone.utc).timestamp(),
+         "utilization": 16.0, "resets_at": 1791874800},
+        {"ts": datetime(2026, 10, 13, 7, 10, tzinfo=timezone.utc).timestamp(),
+         "utilization": 17.0, "resets_at": 1791874800},
+        {"ts": datetime(2026, 10, 13, 7, 15, tzinfo=timezone.utc).timestamp(),
+         "utilization": 0.0, "resets_at": 1792470900},
+        {"ts": datetime(2026, 10, 13, 7, 20, tzinfo=timezone.utc).timestamp(),
+         "utilization": 2.0, "resets_at": 1792470900},
+    ]}
+
+    page, errors = _render(browser, payload)
+    line = page.locator(f"[data-ql-timeline-history='{bucket_id}']")
+    points = [tuple(map(float, point.split(","))) for point in line.get_attribute("points").split()]
+
+    assert points[1][1] == pytest.approx(points[0][1])
+    assert points[2][1] == pytest.approx(points[1][1])
+    assert points[3][1] > points[2][1]
+    assert points[4][1] < points[3][1]
+    assert errors == [], errors
+    page.close()
+
+
 def test_codex_threshold_uses_observed_boundaries_after_early_reset(browser):
     payload = _payload(codex_util=9.0, codex_progress=0.04)
     payload["generated_at"] = "2026-10-11T09:05:54+00:00"
