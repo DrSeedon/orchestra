@@ -168,6 +168,113 @@ let _voiceStartedAt = 0;
 let _voiceCancelled = false;
 let _voiceStarting = false;
 let _voiceStopping = false;
+let _voiceDraftId = null;
+let _voiceTarget = null;
+let _voiceChunkIndex = 0;
+let _voicePersistChain = Promise.resolve();
+let _voiceDraftBlob = null;
+let _voiceXhr = null;
+let _voiceDbPromise = null;
+let _voicePageHiding = false;
+let _voiceStorageError = null;
+let _voiceStorageAvailable = true;
+let _voiceSessionActive = false;
+let _voiceRestorePending = true;
+let _voiceDeleteRequested = false;
+
+function _voiceDb() {
+    if (_voiceDbPromise) return _voiceDbPromise;
+    _voiceDbPromise = new Promise((resolve, reject) => {
+        const request = indexedDB.open('orchestra-voice-draft', 1);
+        request.onupgradeneeded = () => {
+            const db = request.result;
+            if (!db.objectStoreNames.contains('drafts')) db.createObjectStore('drafts', {keyPath: 'id'});
+            if (!db.objectStoreNames.contains('chunks')) db.createObjectStore('chunks', {keyPath: 'key'});
+        };
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error || new Error('voice storage unavailable'));
+    });
+    return _voiceDbPromise;
+}
+
+async function _voiceStore(storeName, operation) {
+    const db = await _voiceDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(storeName, 'readwrite');
+        const result = operation(tx.objectStore(storeName));
+        tx.oncomplete = () => resolve(result?.result);
+        tx.onerror = () => reject(tx.error || new Error('voice storage failed'));
+        tx.onabort = () => reject(tx.error || new Error('voice storage failed'));
+    });
+}
+
+function _voiceStorageFailed(error) {
+    _voiceStorageAvailable = false;
+    _voiceStorageError = error;
+    if (_voiceSessionActive) _showVoiceError(T('Voice recording is not being saved. Keep this page open until transcription finishes.'));
+}
+
+async function _voiceLoadDraft() {
+    const db = await _voiceDb();
+    const draft = await new Promise((resolve, reject) => {
+        const request = db.transaction('drafts').objectStore('drafts').get('pending');
+        request.onsuccess = () => resolve(request.result || null);
+        request.onerror = () => reject(request.error);
+    });
+    if (!draft) return null;
+    const chunks = await new Promise((resolve, reject) => {
+        const request = db.transaction('chunks').objectStore('chunks').getAll();
+        request.onsuccess = () => resolve(request.result.filter(chunk => chunk.id === draft.voiceId).sort((a, b) => a.index - b.index));
+        request.onerror = () => reject(request.error);
+    });
+    const blob = new Blob(chunks.map(chunk => chunk.data), {type: draft.type || chunks[0]?.data?.type || 'audio/webm'});
+    return blob.size ? {...draft, id: draft.voiceId, blob} : null;
+}
+
+async function _voiceDeleteDraft(id = _voiceDraftId) {
+    if (!id) return;
+    const db = await _voiceDb();
+    await new Promise((resolve, reject) => {
+        const tx = db.transaction(['drafts', 'chunks'], 'readwrite');
+        tx.objectStore('drafts').delete('pending');
+        const store = tx.objectStore('chunks');
+        const request = store.getAll();
+        request.onsuccess = () => request.result.filter(chunk => chunk.id === id).forEach(chunk => store.delete(chunk.key));
+        tx.oncomplete = resolve;
+        tx.onerror = () => reject(tx.error);
+    });
+    _voiceDraftId = null;
+    _voiceTarget = null;
+    _voiceDraftBlob = null;
+}
+
+function _voiceDraftPanel(state = 'idle', detail = '') {
+    const panel = $('#voice-draft');
+    if (!panel) return;
+    panel.dataset.state = state;
+    panel.hidden = state === 'idle';
+    $('#voice-draft-label').textContent = detail;
+    $('#voice-retry-btn').hidden = state !== 'ready' && state !== 'error';
+    $('#voice-delete-btn').hidden = state === 'idle';
+}
+
+async function _voiceRestoreDraft() {
+    try {
+        const draft = await _voiceLoadDraft();
+        if (!draft) return;
+        _voiceDraftId = draft.id;
+        _voiceTarget = {
+            sessionName: draft.sessionName || selectedAgent || '',
+            scope: draft.scope || currentScope || '',
+        };
+        _voiceDraftBlob = draft.blob;
+        _voiceDraftPanel('ready', T('Voice recording recovered. Ready to transcribe.'));
+    } catch (error) {
+        _voiceStorageFailed(error);
+    } finally {
+        _voiceRestorePending = false;
+    }
+}
 
 function _voiceMimeType() {
     const choices = [
@@ -184,9 +291,8 @@ function _voiceSetState(state) {
     const controls = $('#voice-controls');
     if (!controls) return;
     controls.dataset.state = state;
-    $('#voice-btn').disabled = state === 'processing' || state === 'requesting' || state === 'stopping';
-    $('#voice-state-label').textContent = state === 'requesting'
-        ? T('Microphone…') : (state === 'stopping' ? T('Finishing…') : T('Recording'));
+    $('#voice-btn').disabled = state === 'requesting' || state === 'stopping' || state === 'uploading' || state === 'transcribing';
+    $('#voice-state-label').textContent = ({requesting: T('Microphone…'), stopping: T('Finishing…'), recording: T('Recording'), uploading: T('Uploading… 0%'), transcribing: T('Transcribing…')})[state] || T('Recording');
     $('#voice-cancel-btn').disabled = state !== 'recording';
 }
 
@@ -248,38 +354,107 @@ function _voiceExtension(mimeType) {
     return 'webm';
 }
 
+function _appendVoiceTranscript(text) {
+    const target = _voiceTarget || {sessionName: selectedAgent || '', scope: currentScope || ''};
+    const append = value => `${value}${value.trim() ? '\n\n' : ''}🎙 ${T('Voice transcription')}:\n${text.trim()}`;
+    if (selectedAgent === target.sessionName && currentScope === target.scope) {
+        const input = $('#chat-input');
+        input.value = append(input.value);
+        input.dispatchEvent(new Event('input', {bubbles: true}));
+        input.focus();
+        drafts[target.sessionName] = {text: input.value, images: [...pastedImages]};
+        return;
+    }
+    const draft = drafts[target.sessionName] || {text: '', images: []};
+    draft.text = append(draft.text || '');
+    drafts[target.sessionName] = draft;
+}
+
 async function _sendVoiceBlob(blob, mimeType) {
-    _voiceSetState('idle');
+    _voiceDraftBlob = blob;
+    _voiceDeleteRequested = false;
+    _voiceDraftPanel('uploading', T('Uploading… 0%'));
+    $('#voice-progress-bar')?.style.setProperty('width', '0%');
+    _voiceSetState('uploading');
     const body = new FormData();
     body.append('audio', blob, `voice.${_voiceExtension(mimeType)}`);
-    body.append('session_name', selectedAgent || '');
-    body.append('scope', currentScope || '');
+    body.append('session_name', _voiceTarget?.sessionName || selectedAgent || '');
+    body.append('scope', _voiceTarget?.scope || currentScope || '');
     try {
-        body.append('send', 'true');
-        const response = await fetch('/api/transcribe', {
-            method: 'POST',
-            body,
-            signal: AbortSignal.timeout(60000),
+        const result = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            _voiceXhr = xhr;
+            xhr.open('POST', '/api/transcribe');
+            xhr.timeout = 60000;
+            xhr.upload.addEventListener('progress', event => {
+                if (event.lengthComputable && event.total > 0) {
+                    const percent = Math.round(event.loaded / event.total * 100);
+                    _voiceDraftPanel('uploading', T('Uploading… {percent}%', {percent}));
+                    $('#voice-progress-bar')?.style.setProperty('width', `${percent}%`);
+                    $('#voice-state-label').textContent = T('Uploading… {percent}%', {percent});
+                }
+            });
+            xhr.upload.addEventListener('load', () => {
+                _voiceSetState('transcribing');
+                _voiceDraftPanel('transcribing', T('Transcribing…'));
+            });
+            xhr.addEventListener('load', () => {
+                let data = {};
+                try { data = JSON.parse(xhr.responseText || '{}'); } catch {}
+                if (xhr.status < 200 || xhr.status >= 300) return reject(new Error(data.error || data.detail || `HTTP ${xhr.status}`));
+                resolve(data);
+            });
+            xhr.addEventListener('error', () => reject(new Error(T('Network error.'))));
+            xhr.addEventListener('timeout', () => reject(new Error(T('Transcription timed out.'))));
+            xhr.send(body);
         });
-        const result = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(result.error || result.detail || `HTTP ${response.status}`);
+        _voiceXhr = null;
+        _voiceSetState('transcribing');
+        _voiceDraftPanel('transcribing', T('Transcribing…'));
+        if (!result.text?.trim()) throw new Error(T('Speech was not recognized.'));
+        _appendVoiceTranscript(result.text);
+        if (!_voiceStorageAvailable) {
+            try { await _voiceDeleteDraft(); } catch {}
+            _voiceDraftId = null;
+            _voiceTarget = null;
+            _voiceDraftBlob = null;
+            _voiceDraftPanel('idle');
+            _showVoiceError('');
+            _voiceSessionActive = false;
+            return;
+        }
+        try { await _voiceDeleteDraft(); } catch (error) {
+            _voiceDraftPanel('cleanup', T('Transcription added; saved audio could not be removed: {error}', {error: error.message}));
+            _showVoiceError(`${T('Voice input')}: ${error.message}`);
+            return;
+        }
+        _voiceDraftPanel('idle');
         _showVoiceError('');
+        _voiceSessionActive = false;
     } catch (error) {
-        const detail = error.name === 'TimeoutError'
-            ? T('Voice message send did not respond within 60 seconds.')
-            : error.message;
-        _showVoiceError(`${T('Voice input')}: ${detail}`);
+        if (_voiceDeleteRequested) return;
+        _voiceDraftPanel('error', `${T('Transcription failed')}: ${error.message}`);
+        _voiceDraftBlob = blob;
+        _voiceSessionActive = true;
+        _voiceSetState('idle');
     } finally {
+        _voiceXhr = null;
         _voiceSetState('idle');
     }
 }
 
 async function startVoiceInput() {
+    if (_voiceRestorePending) await _voiceRestoreDraft();
+    if (_voiceDraftId && !_voiceRecorder) {
+        _showVoiceError(T('Resolve the saved voice recording first.'));
+        return;
+    }
     if (_voiceRecorder?.state === 'recording') {
         stopVoiceInput();
         return;
     }
     if (_voiceStarting || _voiceStopping) return;
+    _voicePageHiding = false;
     _showVoiceError('');
     if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
         _showVoiceError(window.isSecureContext
@@ -298,8 +473,28 @@ async function startVoiceInput() {
         const chunks = [];
         _voiceRecorder = recorder;
         _voiceCancelled = false;
+        _voiceDraftId = `${Date.now()}-${crypto.randomUUID()}`;
+        _voiceTarget = {sessionName: selectedAgent || '', scope: currentScope || ''};
+        _voiceChunkIndex = 0;
+        _voiceSessionActive = true;
+        if (_voiceStorageAvailable) {
+            try {
+                await _voiceStore('drafts', store => store.put({id: 'pending', voiceId: _voiceDraftId, type: recorder.mimeType || mimeType || 'audio/webm', sessionName: _voiceTarget.sessionName, scope: _voiceTarget.scope, status: 'recording', createdAt: Date.now()}));
+            } catch (error) {
+                _voiceStorageFailed(error);
+            }
+        } else {
+            _voiceStorageFailed(_voiceStorageError);
+        }
         recorder.addEventListener('dataavailable', event => {
-            if (event.data.size) chunks.push(event.data);
+            if (event.data.size) {
+                chunks.push(event.data);
+                const id = _voiceDraftId;
+                const index = _voiceChunkIndex++;
+                _voicePersistChain = _voicePersistChain.then(() => {
+                    if (_voiceStorageAvailable) return _voiceStore('chunks', store => store.put({key: `${id}:${index}`, id, index, data: event.data}));
+                }).catch(_voiceStorageFailed);
+            }
         });
         recorder.addEventListener('error', event => {
             _showVoiceError(_voiceCaptureError(event.error));
@@ -315,15 +510,34 @@ async function startVoiceInput() {
             _voiceStopping = false;
             _stopVoiceCapture();
             if (cancelled) {
+                _voicePersistChain.then(() => _voiceDeleteDraft()).catch(() => {});
+                _voiceSessionActive = false;
+                _voiceDraftPanel('idle');
                 _voiceSetState('idle');
                 return;
             }
             if (!blob.size) {
                 _showVoiceError(T('Voice input: browser returned empty recording.'));
+                _voicePersistChain.then(() => _voiceDeleteDraft()).catch(() => {});
+                _voiceDraftPanel('idle');
                 _voiceSetState('idle');
                 return;
             }
-            _sendVoiceBlob(blob, actualType);
+            _voiceDraftBlob = blob;
+            _voicePersistChain.then(async () => {
+                if (_voiceStorageAvailable) {
+                    try {
+                        await _voiceStore('drafts', store => store.put({id: 'pending', voiceId: _voiceDraftId, type: actualType, sessionName: _voiceTarget.sessionName, scope: _voiceTarget.scope, status: 'ready', createdAt: Date.now()}));
+                    } catch (error) {
+                        _voiceStorageFailed(error);
+                    }
+                }
+                _voiceDraftPanel('ready', T('Voice recording ready.'));
+                if (!_voicePageHiding) _sendVoiceBlob(blob, actualType);
+            }).catch(error => {
+                _voiceDraftPanel('error', `${T('Could not save recording')}: ${error.message}`);
+                _voiceSetState('idle');
+            });
         }, {once: true});
 
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
@@ -338,7 +552,7 @@ async function startVoiceInput() {
         $('#voice-timer').textContent = '0:00';
         _voiceStarting = false;
         _voiceSetState('recording');
-        recorder.start();
+        recorder.start(1000);
         _voiceFrame = requestAnimationFrame(_drawVoiceLevel);
     } catch (error) {
         _voiceStarting = false;
@@ -388,12 +602,49 @@ function initVoiceInput() {
     error.className = 'voice-error';
     error.setAttribute('role', 'alert');
     input.parentElement.after(error);
+    const draft = document.createElement('div');
+    draft.id = 'voice-draft';
+    draft.className = 'voice-draft';
+    draft.hidden = true;
+    draft.innerHTML = `<span id="voice-draft-label" aria-live="polite"></span><div class="voice-progress"><span id="voice-progress-bar"></span></div><button id="voice-retry-btn" type="button">${T('Transcribe again')}</button><button id="voice-delete-btn" type="button">${T('Delete recording')}</button>`;
+    error.after(draft);
     $('#voice-btn').addEventListener('click', startVoiceInput);
     $('#voice-cancel-btn').addEventListener('click', () => stopVoiceInput(true));
-    window.addEventListener('pagehide', () => stopVoiceInput(true));
+    $('#voice-retry-btn').addEventListener('click', async () => {
+        if (!_voiceDraftBlob) await _voiceRestoreDraft();
+        if (_voiceDraftBlob) _sendVoiceBlob(_voiceDraftBlob, _voiceDraftBlob.type || 'audio/webm');
+    });
+    $('#voice-delete-btn').addEventListener('click', async () => {
+        _voiceDeleteRequested = true;
+        _voiceXhr?.abort();
+        if (!_voiceStorageAvailable) {
+            _voiceDraftId = null;
+            _voiceTarget = null;
+            _voiceDraftBlob = null;
+            _voiceDraftPanel('idle');
+            _voiceSessionActive = false;
+            _showVoiceError('');
+            return;
+        }
+        try {
+            await _voiceDeleteDraft();
+            _voiceDraftPanel('idle');
+            _voiceSetState('idle');
+            _showVoiceError('');
+        } catch (error) {
+            _voiceDeleteRequested = false;
+            _voiceDraftPanel('error', `${T('Could not delete recording')}: ${error.message}`);
+        }
+    });
+    window.addEventListener('pagehide', () => {
+        _voicePageHiding = true;
+        if (_voiceRecorder?.state === 'recording') stopVoiceInput(false);
+        _voiceXhr?.abort();
+    });
     document.addEventListener('keydown', event => {
         if (event.key === 'Escape' && _voiceRecorder?.state === 'recording') stopVoiceInput(true);
     });
+    _voiceRestoreDraft();
 }
 
 function showWaitingIndicator() {
