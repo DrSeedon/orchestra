@@ -72,7 +72,7 @@ function _paceIndicator(currentPct, isoStr, windowMs) {
     const elapsedMs = windowMs - remainMs;
     const idealPct = (elapsedMs / windowMs) * 100;
     const delta = currentPct - idealPct;
-    if (delta <= 5) return `<span style="color:#22c55e" title="${T('Usage does not outpace linear window pace')}">${T('pace ok')}</span>`;
+    if (delta <= 5) return `<span style="color:var(--ok)" title="${T('Usage does not outpace linear window pace')}">${T('pace ok')}</span>`;
     const cooldownMin = Math.round(delta * windowMs / 100 / 60000);
     const color = delta <= 20 ? '#eab308' : '#ef4444';
     let label;
@@ -199,7 +199,7 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
     if (elapsedMs <= 0) return '';
     const rate = currentPct / elapsedMs;
     const pctLeft = 100 - currentPct;
-    if (pctLeft <= 0) return `<span style="color:#ef4444">${T('⚡ limit!')}</span>`;
+    if (pctLeft <= 0) return `<span style="color:var(--danger)">${T('⚡ limit!')}</span>`;
     const etaMs = pctLeft / rate;
     const etaMin = Math.round(etaMs / 60000);
     const color = etaMin < 30 ? '#ef4444' : etaMin < 120 ? '#eab308' : '#22c55e';
@@ -212,12 +212,12 @@ function _etaToLimit(currentPct, isoStr, windowMs) {
 
 function _miniBar(pct, color) {
     const formatted = _formatPercent(pct);
-    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:#e2e8f0;font-weight:600">${formatted}%</span></span>`;
+    return `<span style="display:inline-flex;align-items:center;gap:4px"><span style="position:relative;display:inline-block;width:80px;height:6px;border-radius:3px;background:rgba(51,65,85,0.5);overflow:hidden;vertical-align:middle"><span style="display:block;width:${Math.min(Number(formatted), 100)}%;height:100%;border-radius:3px;background:${color}"></span></span><span style="color:var(--ink);font-weight:600">${formatted}%</span></span>`;
 }
 
 function _usageProviderAccent(providerId) {
     const meta = _PROVIDER_META[providerId] || {};
-    return meta.usageAccent || _PROVIDER_COLORS[meta.provider] || _PROVIDER_COLORS.unknown;
+    return providerColorVar(meta.provider);
 }
 
 function _usageProviderWindows(providerId, capacity) {
@@ -235,13 +235,13 @@ function _usageProviderWindows(providerId, capacity) {
 function _usageFreshnessHtml() {
     if (Connection.ownsErrors()) return '';
     if (_usageFetchPromise) {
-        return `<span id="usage-freshness" style="color:#38bdf8">${T('updating…')}</span>`;
+        return `<span id="usage-freshness" style="color:var(--accent-alt)">${T('updating…')}</span>`;
     }
     if (!_usageLastSuccessAt) return '';
     const ageMinutes = Math.floor((Date.now() - _usageLastSuccessAt) / 60000);
     const age = ageMinutes < 1 ? T('just now') : T('{min} min ago', {min: ageMinutes});
     if (_usageError) {
-        return `<span id="usage-freshness" style="color:#eab308">${T('update error · data from {age}', {age})}</span>`;
+        return `<span id="usage-freshness" style="color:var(--warn)">${T('update error · data from {age}', {age})}</span>`;
     }
     const stale = Date.now() - _usageLastSuccessAt >= _USAGE_REFRESH_INTERVAL_MS;
     return `<span id="usage-freshness" style="color:${stale ? '#eab308' : '#64748b'}">${T('{status} {age}', {status: stale ? T('stale') : T('updated'), age})}</span>`;
@@ -263,7 +263,7 @@ function renderUsageBar() {
                 bar.style.display = 'none';
                 return;
             }
-            bar.style.cssText = 'display:flex;align-items:center;padding:0 12px;height:28px;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#eab308;flex-shrink:0';
+            bar.style.cssText = 'display:flex;align-items:center;padding:0 12px;height:28px;background:var(--surface);border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:var(--warn);flex-shrink:0';
             bar.textContent = T('⚠ Usage unavailable');
         } else {
             bar.innerHTML = '';
@@ -271,7 +271,7 @@ function renderUsageBar() {
         }
         return;
     }
-    bar.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:4px 12px;min-height:28px;height:auto;background:#0f172a;border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:#94a3b8;flex-shrink:0;overflow:visible;white-space:nowrap;cursor:pointer';
+    bar.style.cssText = 'display:flex;align-items:flex-start;gap:10px;padding:4px 12px;min-height:28px;height:auto;background:var(--surface);border-bottom:1px solid rgba(30,41,59,0.5);font-size:11px;color:var(--ink-muted);flex-shrink:0;overflow:visible;white-space:nowrap;cursor:pointer';
     bar.title = T('Click to refresh usage data');
 
     const a = _usageData.anthropic || {};
@@ -281,32 +281,32 @@ function renderUsageBar() {
     const claudeParts = [];
 
     if (_usageError && !Connection.ownsErrors()) {
-        claudeParts.push(`<span style="color:#eab308" title="${T('Using cached data')}">⚠️</span>`);
+        claudeParts.push(`<span style="color:var(--warn)" title="${T('Using cached data')}">⚠️</span>`);
     }
 
     const fh = a.five_hour;
     if (fh) {
         const rpNum = _resetPctNum(fh.resets_at, 5 * 3600000);
         const c = _usageColor(fh.utilization, rpNum);
-        const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
+        const rp = rpNum != null ? ` <span style="color:var(--ink-dim)">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(fh.resets_at);
         const release = '';
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('5h')}: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('5h')}: ${_miniBar(fh.utilization, c)}${rp}${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}${release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     const sd = a.seven_day;
     if (sd) {
         const rpNum = _resetPctNum(sd.resets_at, 7 * 86400000);
         const c = _usageColor(sd.utilization, rpNum);
-        const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
+        const rp = rpNum != null ? ` <span style="color:var(--ink-dim)">(${_resetPctText(rpNum)}%)</span>` : '';
         const cd = _resetCountdown(sd.resets_at);
         const release = _quotaMapLaneStatusText(sd, 'anthropic');
         const headroom = _quotaMapLaneHeadroomText(sd, 'anthropic');
-        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('7d')}: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+        claudeParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${T('7d')}: ${_miniBar(sd.utilization, c)}${rp}${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
     }
     if (claudeParts.length) {
         groups.push(
             '<span class="usage-provider-group" data-usage-compact-provider="claude">'
-            + '<span class="usage-provider-title" style="color:#38bdf8;font-weight:600">Claude</span>'
+            + `<span class="usage-provider-title" style="color:${_usageProviderAccent('claude')};font-weight:600">Claude</span>`
             + `<span class="usage-provider-values">${claudeParts.join('')}</span>`
             + '</span>',
         );
@@ -314,14 +314,14 @@ function renderUsageBar() {
 
     const or = _usageData.openrouter || null;
     if (or) {
-        const accent = '#a78bfa';
+        const accent = 'var(--provider-openrouter)';
         if (!or.available) {
             // #368: недоступный счётчик — явное «нет данных», не ноль: ноль
             // читается как «квота свободна».
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
                 + `<span class="usage-provider-title" style="color:${accent};font-weight:600">OpenRouter</span>`
-                + `<span class="usage-provider-values"><span style="color:#64748b">${_usageNoDataLabel()}</span></span>`
+                + `<span class="usage-provider-values"><span style="color:var(--ink-dim)">${_usageNoDataLabel()}</span></span>`
                 + '</span>',
             );
         } else {
@@ -337,7 +337,7 @@ function renderUsageBar() {
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="openrouter">`
                 + `<span class="usage-provider-title" style="color:${accent};font-weight:600">${T('OpenRouter')}</span>`
-                + `<span class="usage-provider-values"><span style="display:inline-flex;align-items:center;gap:3px">${T('daily')}: ${_miniBar(util, c)} <span style="color:#64748b">${used}/${dailyLimit}</span>${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}</span> <span style="display:inline-flex;align-items:center;gap:3px">${T('minute')}: <span style="color:${(m.count || 0) >= minuteLimit ? '#f87171' : '#94a3b8'}">${m.count || 0}/${minuteLimit}</span></span></span>`
+                + `<span class="usage-provider-values"><span style="display:inline-flex;align-items:center;gap:3px">${T('daily')}: ${_miniBar(util, c)} <span style="color:var(--ink-dim)">${used}/${dailyLimit}</span>${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}</span> <span style="display:inline-flex;align-items:center;gap:3px">${T('minute')}: <span style="color:${(m.count || 0) >= minuteLimit ? '#f87171' : '#94a3b8'}">${m.count || 0}/${minuteLimit}</span></span></span>`
                 + '</span>',
             );
         }
@@ -357,7 +357,7 @@ function renderUsageBar() {
                 groups.push(
                     `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
                     + `<span class="usage-provider-title" style="color:${color};font-weight:600">${T(provider.compactTitle || meta.compactTitle || meta.title)}</span>`
-                    + `<span class="usage-provider-values"><span style="color:#64748b">${_usageNoDataLabel()}</span></span>`
+                    + `<span class="usage-provider-values"><span style="color:var(--ink-dim)">${_usageNoDataLabel()}</span></span>`
                     + '</span>'
                 );
                 continue;
@@ -367,12 +367,12 @@ function renderUsageBar() {
                 const windowMs = window.window_minutes * 60000;
                 const rpNum = _resetPctNum(window.resets_at, windowMs);
                 const c = _usageColor(window.utilization, rpNum);
-                const rp = rpNum != null ? ` <span style="color:#64748b">(${_resetPctText(rpNum)}%)</span>` : '';
+                const rp = rpNum != null ? ` <span style="color:var(--ink-dim)">(${_resetPctText(rpNum)}%)</span>` : '';
                 const cd = _resetCountdown(window.resets_at);
                 const release = _quotaMapLaneStatusText(window, provider.bucketId);
                 const headroom = _quotaMapLaneHeadroomText(window, provider.bucketId);
                 const label = windowLabel(window.window_minutes);
-                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:#64748b">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
+                providerParts.push(`<span style="display:inline-flex;align-items:center;gap:3px">${label}: ${_miniBar(window.utilization, c)}${rp}${cd ? ` <span style="color:var(--ink-dim)">${cd}</span>` : ''}${headroom ? ` <span style="font-size:10px">·</span> <span data-quota-headroom="true">${headroom}</span>` : release ? ` <span style="font-size:10px">·</span> ${release}` : ''}</span>`);
             }
             groups.push(
                 `<span class="usage-provider-group" data-usage-compact-provider="${provider.id}">`
@@ -440,7 +440,7 @@ function renderUsageBar() {
                 const codexMeta = _PROVIDER_META.codex;
                 const codexProviders = [
                     {title:codexMeta.usageTitle, accent:_usageProviderAccent('codex'), windowAccent:codexMeta.windowAccent, windows:_usageProviderWindows('codex', _c).map(item => item.window)},
-                    {title:'⚡ GPT-5.3-Codex-Spark', accent:'#f59e0b', windowAccent:'#fcd34d', windows:_usageProviderWindows('codex', _c.spark).map(item => item.window)},
+                    {title:'⚡ GPT-5.3-Codex-Spark', accent:'var(--model-spark)', windowAccent:'var(--model-spark-soft)', windows:_usageProviderWindows('codex', _c.spark).map(item => item.window)},
                 ].filter(provider => provider.windows.length);
                 let codexHtml = '<section data-usage-provider="codex" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
                 for (const provider of codexProviders) {
@@ -463,7 +463,7 @@ function renderUsageBar() {
                     }
                     grokHtml += `<div data-usage-history="${grokMeta.historyProviders.join(',')}"></div>`;
                 } else {
-                    grokHtml += `<div style="color:#64748b;font-style:italic">${T('Limit data unavailable')}</div>`;
+                    grokHtml += `<div style="color:var(--ink-dim);font-style:italic">${T('Limit data unavailable')}</div>`;
                 }
                 grokHtml += '</section>';
 
@@ -471,9 +471,9 @@ function renderUsageBar() {
                 let orHtml = '';
                 if (orMeta) {
                     orHtml = '<section data-usage-provider="openrouter" style="min-width:0;border-left:1px solid rgba(51,65,85,0.65);padding-left:14px">';
-                    orHtml += `<div style="color:#a78bfa;font-weight:700;margin-bottom:7px">${T('OpenRouter (free)')}</div>`;
+                    orHtml += `<div style="color:var(--accent-violet);font-weight:700;margin-bottom:7px">${T('OpenRouter (free)')}</div>`;
                     if (!orMeta.available) {
-                        orHtml += `<div style="color:#64748b;font-style:italic">${escHtml(orMeta.reason || T('Data unavailable'))}</div>`;
+                        orHtml += `<div style="color:var(--ink-dim);font-style:italic">${escHtml(orMeta.reason || T('Data unavailable'))}</div>`;
                     } else {
                         const d = orMeta.daily || {}, m = orMeta.minute || {};
                         orHtml += _row(T('Daily'), `${d.count}/${d.limit}`, '#cbd5e1');
@@ -481,10 +481,10 @@ function renderUsageBar() {
                         orHtml += _row(T('Count source'), T('local'), '#64748b');
                         const rec = orMeta.reconciliation;
                         if (rec) {
-                            orHtml += `<div style="margin-top:4px;color:#94a3b8">${T('Yesterday ({day}): provider {provider}, local {local}, Δ {delta}', {day: escHtml(rec.day), provider: rec.provider_requests, local: rec.local_requests, delta: rec.delta})}</div>`;
+                            orHtml += `<div style="margin-top:4px;color:var(--ink-muted)">${T('Yesterday ({day}): provider {provider}, local {local}, Δ {delta}', {day: escHtml(rec.day), provider: rec.provider_requests, local: rec.local_requests, delta: rec.delta})}</div>`;
                             const bs = rec.local_by_status || {};
                             const parts = Object.keys(bs).map(k => `${k}×${bs[k]}`).join(', ');
-                            if (parts) orHtml += `<div style="color:#64748b;font-size:10px">${T('Local attempts yesterday: {parts}', {parts: escHtml(parts)})}</div>`;
+                            if (parts) orHtml += `<div style="color:var(--ink-dim);font-size:10px">${T('Local attempts yesterday: {parts}', {parts: escHtml(parts)})}</div>`;
                         }
                     }
                     orHtml += '</section>';
@@ -507,10 +507,10 @@ function renderUsageBar() {
                     h += '</div>';
                 }
                 if (typeof _o.agents_count === 'number') {
-                    h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 ${T('Agents')}: <span style="color:#cbd5e1">${_o.agents_count}</span></div>`;
+                    h += `<div style="border-top:1px solid rgba(51,65,85,0.5);padding-top:6px;margin-top:4px">📈 ${T('Agents')}: <span style="color:var(--ink-body)">${_o.agents_count}</span></div>`;
                 }
                 tip = document.createElement('div');
-                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;width:min(940px,calc(100vw - 24px));max-height:calc(100vh - 52px);overflow:auto;overscroll-behavior:contain;backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,0.5);font-size:12px;line-height:1.6;color:#94a3b8';
+                tip.style.cssText = 'position:fixed;z-index:9999;background:rgba(15,23,42,0.97);border:1px solid rgba(71,85,105,0.5);border-radius:12px;padding:16px;width:min(940px,calc(100vw - 24px));max-height:calc(100vh - 52px);overflow:auto;overscroll-behavior:contain;backdrop-filter:blur(12px);box-shadow:0 12px 36px rgba(0,0,0,0.5);font-size:12px;line-height:1.6;color:var(--ink-muted)';
                 tip.innerHTML = h;
                 const rect = infoBtn.getBoundingClientRect();
                 tip.style.right = '12px';
@@ -684,11 +684,12 @@ function _renderSparklines(slot, providerFilter = null) {
     if (!data || data.length < 1) return;
     const PL = 28, W = 280, H = 50, gw = W - PL, gh = H;
     const DAYS = T('Sun Mon Tue Wed Thu Fri Sat').split(' ');
+    // Линии в SVG-атрибутах: нужен вычисленный цвет, var() туда не подставится.
     const providerColors = {
-        anthropic: ['#38bdf8', '#f97316'],
-        codex: ['#22c55e', '#a3e635'],
-        codex_spark: ['#f59e0b', '#fcd34d'],
-        grok: [_PROVIDER_COLORS['x-ai'], '#94a3b8'],
+        anthropic: [cssToken('--provider-anthropic', '#94a3b8'), cssToken('--provider-anthropic-soft', '#94a3b8')],
+        codex: [cssToken('--provider-openai', '#94a3b8'), cssToken('--provider-openai-soft', '#94a3b8')],
+        codex_spark: [cssToken('--model-spark', '#94a3b8'), cssToken('--model-spark-soft', '#94a3b8')],
+        grok: [cssToken('--provider-x-ai', '#94a3b8'), cssToken('--ink-muted', '#94a3b8')],
     };
 
     const mkSvg = (pts, idealPts, color, guides) => {
@@ -814,13 +815,13 @@ function _renderSparklines(slot, providerFilter = null) {
             const current = period[period.length - 1].utilization;
             const points = mkPts(period);
             const older = isAnchor && hasOlder
-                ? `<span data-spark-nav="older" data-spark-key="${series.key}" data-spark-periods="${periods.length}" style="cursor:pointer;color:#64748b">◀</span>`
-                : isAnchor ? '<span style="color:#1e293b">◀</span>' : '';
+                ? `<span data-spark-nav="older" data-spark-key="${series.key}" data-spark-periods="${periods.length}" style="cursor:pointer;color:var(--ink-dim)">◀</span>`
+                : isAnchor ? '<span style="color:var(--surface-2)">◀</span>' : '';
             const newer = isAnchor && hasNewer
-                ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:#64748b">▶</span>`
-                : isAnchor ? '<span style="color:#1e293b">▶</span>' : '';
-            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${T(series.windowLabel)}</span><span style="color:#64748b">${_formatPercent(current)}% · ${periodLabel}</span>${newer}</div>`;
-            html += `<div style="font-size:8px;color:#475569;margin-bottom:2px">${T('━ usage ┈ ideal pace')}</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
+                ? `<span data-spark-nav="newer" data-spark-key="${series.key}" style="cursor:pointer;color:var(--ink-dim)">▶</span>`
+                : isAnchor ? '<span style="color:var(--surface-2)">▶</span>' : '';
+            html += `<div data-usage-series="${series.key}" style="margin-bottom:5px"><div style="font-size:10px;display:flex;align-items:center;gap:4px">${older}<span style="color:${color};font-weight:600">${T(series.windowLabel)}</span><span style="color:var(--ink-dim)">${_formatPercent(current)}% · ${periodLabel}</span>${newer}</div>`;
+            html += `<div style="font-size:8px;color:var(--ink-ghost);margin-bottom:2px">${T('━ usage ┈ ideal pace')}</div>${mkSvg(points.pts, points.ideal, color, getGuides(period))}</div>`;
         });
         html += '</div>';
     }
@@ -836,7 +837,7 @@ function _renderSparklines(slot, providerFilter = null) {
         const since = firstTs && !isNaN(firstTs)
             ? T(' Tracking since {date}.', {date: firstTs.toLocaleDateString()})
             : '';
-        slot.innerHTML = '<div style="font-size:10px;color:#475569;font-style:italic"></div>';
+        slot.innerHTML = '<div style="font-size:10px;color:var(--ink-ghost);font-style:italic"></div>';
         slot.firstChild.textContent = hasPoints
             ? T('Not enough points: chart needs ≥2 measurements in one window.{since}', {since})
             : T('This provider has no history.{since}', {since});

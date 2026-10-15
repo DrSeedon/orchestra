@@ -179,7 +179,7 @@ function _analyticsRenderSpeeds(body) {
         const day = dayByModel.get(key);
         const basis = _analyticsDurationBasis((hour || day || {}).duration_basis);
         return `<article class="analytics-speed-card" data-analytics-speed-model="${_analyticsEsc(item.model)}">
-            <div><strong>${_analyticsEsc(item.model)}</strong><span>${_analyticsEsc(item.runtime)}</span></div>
+            <div><strong class="ds-model-text" style="--ds-c:${modelColorVar(item.model)}">${_analyticsEsc(item.model)}</strong><span>${_analyticsEsc(item.runtime)}</span></div>
             <div class="analytics-speed-value"><b>${_analyticsSpeed((hour || {}).median_tokens_per_second)}</b><small>${T('last hour')} · ${T('{n} turns', {n: _analyticsNumber((hour || {}).samples || 0)})}</small></div>
             <div class="analytics-speed-value"><b>${_analyticsSpeed((day || {}).median_tokens_per_second)}</b><small>${T('last 24 hours')} · ${T('{n} turns', {n: _analyticsNumber((day || {}).samples || 0)})}</small></div>
             <span class="analytics-speed-basis">${basis}</span>
@@ -225,16 +225,16 @@ async function _analyticsRenderSpeedChart(series) {
     const models = [...new Map(series.map(point => [
         `${point.runtime}:${point.model}`, point,
     ])).values()];
-    const colors = ['#a78bfa', '#22d3ee', '#f59e0b', '#4ade80', '#fb7185', '#60a5fa', '#e879f9'];
-    const datasets = models.map((item, index) => {
+    // Линия модели — её цвет из дизайн-системы, тот же, что у бейджа в списке агентов.
+    const datasets = models.map(item => {
         const key = `${item.runtime}:${item.model}`;
         const points = new Map(series.filter(point => `${point.runtime}:${point.model}` === key)
             .map(point => [point.bucket, point]));
         return {
             label: `${item.model} (${item.runtime})`,
             data: labels.map(label => points.get(label)?.median_tokens_per_second ?? null),
-            borderColor: colors[index % colors.length],
-            backgroundColor: colors[index % colors.length],
+            borderColor: modelColor(item.model, item.provider),
+            backgroundColor: modelColor(item.model, item.provider),
             pointRadius: 2,
             tension: .2,
             spanGaps: false,
@@ -436,10 +436,10 @@ async function _analyticsScheduleWake(button) {
 
 function _analyticsProviderCard(provider, stats) {
     const meta = _PROVIDER_META[provider] || {
-        title: provider, runtime: '', tone: 'slate', windows: () => [],
+        title: provider, runtime: '', provider: 'unknown', windows: () => [],
     };
     const capacity = _analyticsCapacity(provider);
-    const { title, runtime, tone } = meta;
+    const { title, runtime } = meta;
     const ttl = stats.cache_ttl_seconds
         ? `${Math.round(stats.cache_ttl_seconds / 60)} min${stats.cache_ttl_approximate ? ' ≈' : ''}`
         : '—';
@@ -457,7 +457,7 @@ function _analyticsProviderCard(provider, stats) {
             }
         }
     }
-    return `<article class="analytics-provider analytics-provider-${tone}" data-analytics-provider="${provider}">
+    return `<article class="analytics-provider" style="--ds-c:${providerColorVar(meta.provider)}" data-analytics-provider="${provider}">
         <div class="analytics-provider-head">
             <div><span class="analytics-provider-dot"></span><div><h3>${T(title)}</h3><p>${T(runtime)}</p></div></div>
             <strong>${_analyticsMoney(stats.cost_usd)}${stats.unaccounted_turns ? ` <small>· ${T('{n} unaccounted', {n: _analyticsNumber(stats.unaccounted_turns)})}</small>` : ''}</strong>
@@ -547,7 +547,7 @@ function _analyticsRenderAgents(body) {
                     <tbody id="analytics-agent-table">${agents.map(agent => `
                         <tr data-analytics-agent="${_analyticsEsc(agent.id)}" class="${agent.anomaly ? 'analytics-row-anomaly' : ''}">
                             <td><strong>${_analyticsEsc(agent.name || T('unknown'))}</strong>${agent.anomaly ? `<span class="analytics-badge analytics-badge-warn">${T('4× signal')}</span>` : ''}<small>${_analyticsEsc(agent.scope || '')}</small></td>
-                            <td>${_analyticsEsc(agent.model || T('unknown'))}</td>
+                            <td><span class="ds-model-text" style="--ds-c:${modelColorVar(agent.model)}">${_analyticsEsc(agent.model || T('unknown'))}</span></td>
                             <td><span class="analytics-provider-tag analytics-provider-tag-${_analyticsEsc(agent.provider)}">${_analyticsEsc(agent.provider)}</span></td>
                             <td>${_analyticsNumber(agent.turns)}</td>
                             <td>${_analyticsMoney(agent.cost_usd)}${agent.unaccounted_turns ? `<small>${T('{n} unaccounted', {n: _analyticsNumber(agent.unaccounted_turns)})}</small>` : ''}</td>
@@ -577,7 +577,7 @@ function _analyticsRenderAgents(body) {
 function _analyticsAgentDetail(agent) {
     return `<div><span class="analytics-kicker">${T('Agent drill-down')}</span><h3>${_analyticsEsc(agent.name)}</h3><p>${_analyticsEsc(agent.scope || T('folder unknown'))}</p></div>
         <dl>
-            <div><dt>${T('Model')}</dt><dd>${_analyticsEsc(agent.model || T('unknown'))}</dd></div>
+            <div><dt>${T('Model')}</dt><dd class="ds-model-text" style="--ds-c:${modelColorVar(agent.model)}">${_analyticsEsc(agent.model || T('unknown'))}</dd></div>
             <div><dt>${T('Provider')}</dt><dd>${_analyticsEsc(agent.provider || T('unknown'))}</dd></div>
             <div><dt>${T('Turns')}</dt><dd>${_analyticsNumber(agent.turns)}</dd></div>
             <div><dt>${T('Observed cost')}</dt><dd>${_analyticsMoney(agent.cost_usd)}</dd></div>
@@ -614,7 +614,7 @@ function _analyticsRenderEfficiency(body) {
                         const pct = model.cost_share_pct == null ? '—' : _formatPercent(model.cost_share_pct, 1) + '%';
                         const trackPct = _formatPercent(Math.max(0, Math.min(Number(model.cost_share_pct) || 0, 100)), 1);
                         return `<div class="analytics-model-row">
-                            <div><strong>${_analyticsEsc(model.model || T('unknown'))}</strong><span>${_analyticsEsc(model.provider)} · ${T('priced: {n}', {n: priced})}${unaccounted}</span></div>
+                            <div><strong class="ds-model-text" style="--ds-c:${modelColorVar(model.model)}">${_analyticsEsc(model.model || T('unknown'))}</strong><span>${_analyticsEsc(model.provider)} · ${T('priced: {n}', {n: priced})}${unaccounted}</span></div>
                             <div class="analytics-model-value"><b>${pct}</b><span>${_analyticsMoney(model.cost_usd)}</span></div>
                             <div class="analytics-model-track"><i class="analytics-model-${_analyticsEsc(model.provider)}" style="width:${trackPct}%"></i></div>
                         </div>`;
@@ -714,8 +714,8 @@ async function _analyticsRenderChart(daily) {
                         const value = (((day.providers || {}).claude || {}).cost_usd);
                         return value == null ? null : Number(value);
                     }),
-                    backgroundColor: 'rgba(167, 139, 250, .72)',
-                    borderColor: '#a78bfa',
+                    backgroundColor: providerColor('anthropic') + 'b8',
+                    borderColor: providerColor('anthropic'),
                     borderWidth: 1,
                 },
                 {
@@ -724,8 +724,8 @@ async function _analyticsRenderChart(daily) {
                         const value = (((day.providers || {}).codex || {}).cost_usd);
                         return value == null ? null : Number(value);
                     }),
-                    backgroundColor: 'rgba(34, 211, 238, .65)',
-                    borderColor: '#22d3ee',
+                    backgroundColor: providerColor('openai') + 'a6',
+                    borderColor: providerColor('openai'),
                     borderWidth: 1,
                 },
             ],

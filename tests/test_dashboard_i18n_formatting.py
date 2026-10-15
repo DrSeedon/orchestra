@@ -23,6 +23,7 @@ def _formatting_page(browser, language):
     page.route("http://harness.local/**", lambda route: route.fulfill(
         status=200, content_type="text/html", body="<body></body>"))
     page.goto("http://harness.local/")
+    page.add_script_tag(path=str(ROOT / "app/static/js/theme.js"))
     page.add_script_tag(path=str(ROOT / "app/static/js/utils.js"))
     page.add_script_tag(path=str(ROOT / "app/static/js/i18n.js"))
     page.add_script_tag(path=str(ROOT / "app/static/js/usage.js"))

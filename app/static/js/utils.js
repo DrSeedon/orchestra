@@ -27,11 +27,6 @@ function _formatPercent(value, digits = 0) {
     return Number.isFinite(number) ? number.toFixed(digits) : '—';
 }
 
-const _PROVIDER_COLORS = {
-    anthropic: '#fb923c', openai: '#22c55e', 'x-ai': '#e2e8f0',
-    openrouter: '#a78bfa', gigachat: '#ef4444', deepseek: '#60a5fa',
-    unknown: '#94a3b8',
-};
 
 // === Кеш последнего успешного ответа (#197) ===
 // Канал юзера теряет ~17% TLS-хендшейков. Провал в середине сессии переживают те панели,
@@ -101,29 +96,29 @@ function windowLabel(windowMinutes) {
 const _PROVIDER_META = {
     claude: {
         title: 'Claude Max', usageTitle: '☕ Claude Max', runtime: 'Opus · orchestrators',
-        provider: 'anthropic', capacityKey: 'anthropic', tone: 'violet',
-        usageAccent: '#38bdf8', windowAccent: '#38bdf8',
+        provider: 'anthropic', capacityKey: 'anthropic',
+        windowAccent: 'var(--provider-anthropic-soft)',
         historyProviders: ['anthropic'],
         windows: c => [['5h', c.five_hour, 300], ['7d', c.seven_day, 10080]],
     },
     codex: {
         title: 'Codex Pro', usageTitle: '✦ Codex Pro', compactTitle: 'Codex',
         runtime: 'Sol · workers', provider: 'openai', capacityKey: 'codex',
-        tone: 'cyan', windowAccent: '#86efac',
+        windowAccent: 'var(--provider-openai-soft)',
         historyProviders: ['codex', 'codex_spark'],
         windows: c => [c.primary, c.secondary].filter(Boolean).map(w => [windowLabel(w.window_minutes), w]),
     },
     grok: {
         title: 'Grok', usageTitle: '𝕏 Grok', compactTitle: 'Grok',
         runtime: 'Grok 4.5 · workers', provider: 'x-ai', capacityKey: 'grok',
-        tone: 'slate', windowAccent: '#cbd5e1',
+        windowAccent: 'var(--ink-body)',
         historyProviders: ['grok'],
         windows: c => [['7d', c.primary]],
     },
     harness: {
         title: 'OpenRouter', usageTitle: 'OpenRouter',
         runtime: 'Own agent loop · free models', provider: 'openrouter', capacityKey: null,
-        tone: 'violet', windowAccent: '#a78bfa',
+        windowAccent: 'var(--provider-openrouter)',
         historyProviders: ['openrouter'],
         // Quota here is a REQUEST count per UTC day, not a rolling token window —
         // the openrouter bar in usage.js owns it (#368), so no window rows.
@@ -132,7 +127,7 @@ const _PROVIDER_META = {
     unknown: {
         title: 'Unknown', usageTitle: 'Unknown runtime',
         runtime: 'Unclassified historical rows', provider: 'unknown', capacityKey: null,
-        tone: 'slate', windowAccent: '#94a3b8',
+        windowAccent: 'var(--provider-unknown)',
         historyProviders: ['unknown'],
         windows: () => [],
     },

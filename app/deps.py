@@ -28,7 +28,7 @@ def static_url(path: str) -> str:
         return f"/static/{path}"
 
 
-_BUILD_GLOBS = ("js/*.js", "css/style.css")
+_BUILD_GLOBS = ("js/*.js", "css/style.css", "css/design-system.css")
 
 
 def build_id() -> str:

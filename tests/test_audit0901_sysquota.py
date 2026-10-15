@@ -180,6 +180,7 @@ def test_lane_label_prints_the_threshold_that_actually_gates_it():
         page.goto("http://harness.local/")
         for vendor in VENDOR_JS:
             page.add_script_tag(path=str(vendor))
+        page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
         page.add_script_tag(path=str(UTILS_JS))
         page.add_script_tag(path=str(CONNECTION_JS))
         page.evaluate("""window.T = (key, values = {}) => Object.entries(values).reduce(

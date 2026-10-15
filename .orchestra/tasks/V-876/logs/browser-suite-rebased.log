@@ -1,0 +1,19 @@
+ssssss.................................................................. [ 14%]
+.................................................................s...... [ 29%]
+........................................................................ [ 43%]
+........................................................................ [ 58%]
+........................................................................ [ 73%]
+........................................................................ [ 87%]
+...........................................................              [100%]
+=============================== warnings summary ===============================
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/design-system/.venv/lib/python3.12/site-packages/websockets/legacy/__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/test_artifacts_browser.py::test_t3_chromium_keeps_active_html_in_the_sandboxed_child
+  /home/kesha/orchestra/worktrees/home-kesha-orchestra/design-system/.venv/lib/python3.12/site-packages/uvicorn/protocols/websockets/websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+484 passed, 7 skipped, 2 warnings in 442.12s (0:07:22)
+EXIT=0

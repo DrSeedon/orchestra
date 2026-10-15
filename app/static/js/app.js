@@ -6,11 +6,6 @@
 // старшее уходит из DOM, но не из истории — оно возвращается кнопкой «загрузить ещё».
 const MAX_CHAT_NODES = 200;
 function fmtCost(v) { v = Number(v) || 0; if (v === 0) return MODEL_COST_CURRENCY + '0.00'; if (v < 0.01) return MODEL_COST_CURRENCY + v.toFixed(4); return MODEL_COST_CURRENCY + v.toFixed(2); }
-const _MODEL_COLORS = {
-    'claude-opus-5[1m]': '#d8b4fe',
-    'claude-sonnet-5-5[1m]': '#38bdf8', 'claude-haiku-5-5': '#4ade80',
-    'claude-fable-5-1[1m]': '#fb923c', 'gpt-5.5': '#f472b6',
-};
 function _modelMeta(id) {
     return _MODELS.find(m => m.id === id) || null;
 }
@@ -18,9 +13,9 @@ function _modelLabel(id) {
     const meta = _modelMeta(id);
     return meta?.label || id || '?';
 }
+// Цвет модели — из дизайн-системы (theme.js → токены design-system.css).
 function _modelColor(id) {
-    const meta = _modelMeta(id);
-    return _MODEL_COLORS[id] || _PROVIDER_COLORS[meta?.provider || 'unknown'] || '#94a3b8';
+    return modelColorVar(id);
 }
 let currentScope = null;
 let selectedAgent = null;
@@ -190,7 +185,7 @@ function _sendFileButton(label, onClick) {
     const button = document.createElement('button');
     button.type = 'button';
     button.textContent = label;
-    button.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
+    button.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:var(--accent-mute);cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
     button.onmouseenter = () => { button.style.borderColor = 'rgba(99,102,241,0.6)'; button.style.color = '#c7d2fe'; };
     button.onmouseleave = () => { button.style.borderColor = 'rgba(99,102,241,0.3)'; button.style.color = '#a5b4fc'; };
     button.onclick = onClick;
@@ -233,12 +228,12 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         details.style.cssText = 'min-width:0;flex:1;overflow:hidden';
         const name = document.createElement('div');
         name.textContent = _sendFileName(path);
-        name.style.cssText = 'font-size:11px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        name.style.cssText = 'font-size:11px;color:var(--ink-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         name.title = path;
         const pathEl = document.createElement('div');
         pathEl.textContent = path;
         pathEl.title = path;
-        pathEl.style.cssText = 'font-size:10px;color:#475569;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+        pathEl.style.cssText = 'font-size:10px;color:var(--ink-ghost);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
         details.append(name, pathEl);
         row.appendChild(details);
         if (downloads && _SEND_FILE_OPENABLE.test(path)) {
@@ -254,7 +249,7 @@ function renderSendFilesToolCard(node, paths, {downloads = false} = {}) {
         toggle.type = 'button';
         toggle.className = 'sf-list-toggle';
         toggle.textContent = T('▼ Show all {n} files', {n: paths.length});
-        toggle.style.cssText = 'align-self:flex-start;padding:2px 8px;font-size:11px;border:0;background:transparent;color:#a5b4fc;cursor:pointer';
+        toggle.style.cssText = 'align-self:flex-start;padding:2px 8px;font-size:11px;border:0;background:transparent;color:var(--accent-mute);cursor:pointer';
         let expanded = false;
         toggle.onclick = () => {
             expanded = !expanded;
@@ -1534,9 +1529,9 @@ function _renderPromptBlocks(container, blocks) {
     let html = `<div class="pb-summary">
         <span class="pb-stat"><b>${blocks.length}</b> ${T('blocks')}</span>
         ${counts.file ? `<span class="pb-stat" style="color:#3b82f6"><b>${counts.file}</b> ${T('files')}</span>` : ''}
-        ${counts.module ? `<span class="pb-stat" style="color:#a78bfa"><b>${counts.module}</b> ${T('modules')}</span>` : ''}
-        ${counts.dynamic ? `<span class="pb-stat" style="color:#f59e0b"><b>${counts.dynamic}</b> ${T('dynamic')}</span>` : ''}
-        ${counts.skill ? `<span class="pb-stat" style="color:#22c55e"><b>${counts.skill}</b> ${T('skills')}</span>` : ''}
+        ${counts.module ? `<span class="pb-stat" style="color:var(--accent-violet)"><b>${counts.module}</b> ${T('modules')}</span>` : ''}
+        ${counts.dynamic ? `<span class="pb-stat" style="color:var(--warn-strong)"><b>${counts.dynamic}</b> ${T('dynamic')}</span>` : ''}
+        ${counts.skill ? `<span class="pb-stat" style="color:var(--ok)"><b>${counts.skill}</b> ${T('skills')}</span>` : ''}
         <span class="pb-stat"><b>~${totalTokens >= 1000 ? (totalTokens/1000).toFixed(1)+'k' : totalTokens}</b> ${T('tokens')}</span>
     </div>`;
 
@@ -1980,22 +1975,7 @@ function _setHiddenTabs(set) {
     localStorage.setItem('orchestra_hidden_tabs', JSON.stringify([...set]));
 }
 
-// One status vocabulary for the whole dashboard — sidebar badges and orch tabs.
-// Icon carries the state, so it no longer rides on hue alone (idle/waiting were
-// indistinguishable as plain yellow vs orange dots).
-const _STATUS_ICON = {running: '⚡', idle: '☕️', waiting: '📆', broken: '⛔'};
-// broken красный, а не серый: это не «нет данных», а «задачу слать бесполезно».
-// error/stopped/starting приходят только в выводе инструментов (см. _STATUS_COLOR ниже).
-const _STATUS_COLOR = {running: '#22c55e', idle: '#eab308', waiting: '#f59e0b', broken: '#ef4444',
-                       error: '#ef4444', stopped: '#6b7280', starting: '#f97316'};
-const _STATUS_BG = {running: 'rgba(34,197,94,0.15)', idle: 'rgba(234,179,8,0.12)', waiting: 'rgba(245,158,11,0.15)',
-                    broken: 'rgba(239,68,68,0.15)'};
-const _STATUS_TITLE = {
-    running: T('running — agent is working on a task'),
-    waiting: T('waiting — agent is waiting for a background task or confirmation'),
-    idle: T('idle — agent is free'),
-    broken: T('broken — agent worktree does not exist: sending tasks is useless, needs respawn'),
-};
+// Словарь статусов (_STATUS_ICON/_COLOR/_BG/_TITLE) — в theme.js, цвета — токены --status-*.
 
 function _orchState(o) {
     // broken важнее занятости: у сломанного worktree «running» не значит ничего.
@@ -2007,7 +1987,7 @@ function _orchState(o) {
 
 function _paintStatusDot(dot, o) {
     const state = _orchState(o);
-    dot.style.color = state === 'broken' ? _STATUS_COLOR.broken : '';
+    dot.style.color = state === 'broken' ? statusColor('broken') : '';
     dot.textContent = _STATUS_ICON[state];
     dot.style.backgroundColor = _STATUS_BG[state];
     dot.title = _STATUS_TITLE[state];
@@ -2022,7 +2002,7 @@ function _syncUnreadDot(tab, scope) {
     if (_unreadTabs.has(scope) && !existing) {
         const unread = document.createElement('span');
         unread.className = 'tab-unread';
-        unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:#ef4444;border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
+        unread.style.cssText = 'position:absolute;top:-2px;right:-2px;width:8px;height:8px;background:var(--danger);border-radius:50%;box-shadow:0 0 4px rgba(239,68,68,0.6)';
         tab.appendChild(unread);
     } else if (!_unreadTabs.has(scope) && existing) {
         existing.remove();
@@ -2061,6 +2041,14 @@ function renderOrchTabs(sorted) {
         label.textContent = shortName;
         label.dataset.i18nSkip = '1';  // имя оркестратора — данные, не надпись
         tab.append(dot, label);
+        if (o.model) {
+            // Точка модели — тот же токен --model-*, что у бейджа в списке агентов.
+            const modelDot = document.createElement('span');
+            modelDot.className = 'ds-model-dot orch-tab-model';
+            modelDot.style.setProperty('--ds-c', modelColorVar(o.model));
+            modelDot.title = _shortModel(o.model);
+            tab.appendChild(modelDot);
+        }
         // Cache indicator on orch tab — reuse _cachePill / _renderCachePill so countdown ticks them
         const orchPill = _orchCachePill(o);
         if (orchPill) {
@@ -2391,7 +2379,7 @@ function _renderHiddenTabsDropdown(dd) {
     for (const o of items) {
         const item = document.createElement('div');
         item.dataset.orchName = o.name;
-        item.style.cssText = 'display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:12px;color:#94a3b8;cursor:pointer;white-space:nowrap';
+        item.style.cssText = 'display:flex;align-items:center;gap:7px;padding:6px 10px;font-size:12px;color:var(--ink-muted);cursor:pointer;white-space:nowrap';
 
         const restore = document.createElement('span');
         restore.textContent = '👁';
@@ -2922,18 +2910,15 @@ function updateAgentInfo(session) {
     $('#compact-btn').disabled = isRunning;
     $('#compact-btn').title = isRunning ? T('Wait for idle') : T('Compact context');
     $('#ai-name').textContent = session.name;
-    const st = $('#ai-status');
-    const runtimeDetail = _runtimeStatusDetail(session);
-    st.textContent = `● ${session.status}${runtimeDetail ? ' · ' + runtimeDetail : ''}`;
-    st.title = runtimeDetail;
-    st.className = `text-xs font-mono status-${session.status}`;
+    _paintAiStatus(session.status, _runtimeStatusDetail(session));
     const modelEl = $('#ai-model');
     modelEl.textContent = session.model || '-';
+    modelEl.style.color = session.model ? modelColorVar(session.model) : '';
     let changeBtn = $('#ai-model-change');
     if (!changeBtn) {
         changeBtn = document.createElement('span');
         changeBtn.id = 'ai-model-change';
-        changeBtn.style.cssText = 'cursor:pointer;font-size:10px;margin-left:4px;color:#475569;transition:color 0.15s';
+        changeBtn.style.cssText = 'cursor:pointer;font-size:10px;margin-left:4px;color:var(--ink-ghost);transition:color 0.15s';
         changeBtn.textContent = '⇄';
         changeBtn.addEventListener('mouseenter', () => changeBtn.style.color = '#94a3b8');
         changeBtn.addEventListener('mouseleave', () => changeBtn.style.color = '#475569');
@@ -3087,8 +3072,7 @@ fetch('/api/role-icons').then(r=>r.json()).then(d=>{_roleIcons={..._roleIcons,..
 
 // Cache timer pill. Claude has an exact 1h policy; Codex exposes a ≈30m reference window.
 function _shortModel(m) {
-    const meta = _modelMeta(m);
-    return meta?.label || m.replace('claude-', '').replace('[1m]', '').replace('-1m', '');
+    return modelShortLabel(m);
 }
 
 function _cachePillState({running, expiresAt, ttlMs, approximate, nowMs = Date.now()}) {
@@ -3229,11 +3213,8 @@ function createAgentItem(s) {
     nameEl.textContent = s.name;
     nameEl.dataset.i18nSkip = '1';  // имя агента — данные, не надпись
     const statusEl = document.createElement('span');
-    statusEl.className = 'agent-status text-xs font-mono font-bold shrink-0';
-    statusEl.style.color = _STATUS_COLOR[s.status] || '#6b7280';
-    statusEl.style.backgroundColor = _STATUS_BG[s.status] || 'rgba(107,114,128,0.1)';
-    statusEl.style.padding = '1px 6px';
-    statusEl.style.borderRadius = '4px';
+    statusEl.className = 'agent-status ds-status';
+    statusEl.dataset.status = s.status || '';
     statusEl.textContent = `${_STATUS_ICON[s.status] || '●'} ${T(s.status)}`;
     statusEl.title = [_STATUS_TITLE[s.status], _runtimeStatusDetail(s)].filter(Boolean).join(' · ');
     nameRow.append(nameEl, statusEl);
@@ -3242,12 +3223,7 @@ function createAgentItem(s) {
     meta.className = 'text-xs text-slate-600 mt-0.5 flex items-center gap-1';
     const pill = _cachePill(s);
     if (pill) meta.appendChild(pill);
-    const modelSpan = document.createElement('span');
-    const mc = _modelColor(s.model);
-    modelSpan.textContent = _shortModel(s.model || '');
-    modelSpan.title = s.model || '';
-    modelSpan.style.cssText = `color:${mc};border:1px solid ${mc}44;padding:0 4px;border-radius:4px;font-size:10px`;
-    meta.appendChild(modelSpan);
+    meta.appendChild(modelBadge(s.model || ''));
     if (s.cost_usd > 0) {
         const costSpan = document.createElement('span');
         costSpan.className = 'text-green-400';
@@ -3306,17 +3282,21 @@ function _applyLiveAgentStatus(name, status) {
     );
     const badge = item?.querySelector('.agent-status');
     if (badge) {
-        badge.style.color = _STATUS_COLOR[status] || '#6b7280';
-        badge.style.backgroundColor = _STATUS_BG[status] || 'rgba(107,114,128,0.1)';
-        badge.textContent = `${_STATUS_ICON[status]} ${status}`;
+        badge.dataset.status = status;
+        badge.textContent = `${_STATUS_ICON[status]} ${T(status)}`;
         badge.title = [_STATUS_TITLE[status], runtimeDetail].filter(Boolean).join(' · ');
     }
     if (name !== selectedAgent) return;
-    const selected = $('#ai-status');
-    selected.textContent = `● ${status}${runtimeDetail ? ' · ' + runtimeDetail : ''}`;
-    selected.title = runtimeDetail;
-    selected.className = `text-xs font-mono status-${status}`;
+    _paintAiStatus(status, runtimeDetail);
     updateStopButton(status);
+}
+
+// Статус в шапке «Инфо» — тот же словарь (иконка + перевод), что у бейджа в списке агентов.
+function _paintAiStatus(status, runtimeDetail) {
+    const el = $('#ai-status');
+    el.textContent = `${_STATUS_ICON[status] || '●'} ${T(status)}${runtimeDetail ? ' · ' + runtimeDetail : ''}`;
+    el.title = runtimeDetail;
+    el.className = `text-xs font-mono status-${status}`;
 }
 
 function _refreshContextAfterTurn(name, status) {
@@ -3456,7 +3436,7 @@ function _createFileItem(f, container) {
         const sendBtn = document.createElement('span');
         sendBtn.textContent = '➜';
         sendBtn.title = T('Send path to chat');
-        sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:#818cf8;transition:opacity 0.15s';
+        sendBtn.style.cssText = 'position:absolute;right:4px;top:1px;opacity:0;cursor:pointer;font-size:11px;color:var(--accent);transition:opacity 0.15s';
         sendBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             const url = /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(f.path)
@@ -3603,7 +3583,7 @@ async function refreshSessions() {
 
 function _renderSessionsAndStats(sessions, stats) {
     $('#stats-line').innerHTML = T('{active} active · {total} total', {active: stats.active, total: stats.total_sessions})
-        + `<br><span style="color:#64748b;font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd}${T(' (w/o cache)')}</span>`;
+        + `<br><span style="color:var(--ink-dim);font-size:10px">${MODEL_COST_CURRENCY}${stats.total_cost_usd}${T(' (w/o cache)')}</span>`;
     renderAgentList(sessions);
 }
 
@@ -3949,9 +3929,10 @@ function _infoTime(value) {
 function _checklistCardHtml(session) {
     const checklist = session.checklist;
     const name = escHtml(session.name || '');
-    const model = escHtml(_shortModel(session.model || ''));
+    // Тот же бейдж модели, что в списке агентов справа: цвет из токена --model-*.
+    const model = modelBadgeHtml(session.model || '');
     const state = Object.hasOwn(_STATUS_COLOR, session.status) ? session.status : 'stopped';
-    const stateColor = _STATUS_COLOR[state];
+    const stateColor = statusColor(state);
     if (!checklist || !checklist.total) {
         return `<article class="info-worker-card"><div class="info-worker-head"><span style="color:${stateColor}">●</span><span class="info-worker-name">${name}</span><span class="info-worker-model">${model}</span></div><div class="text-[10px] text-slate-500 mt-1">${escHtml(T(session.status || 'idle'))} · ${T('No checklist yet')}</div></article>`;
     }
@@ -4574,7 +4555,7 @@ async function showTaskDetail(par, projectSelector = '') {
                 const msg = (c.message || '').length > 50 ? c.message.slice(0, 50) + '…' : (c.message || '');
                 const date = (c.date || '').slice(0, 10);
                 const ins = c.insertions || 0; const del = c.deletions || 0; const files = c.files || 0;
-                html += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.6"><span style="color:#a78bfa;font-family:monospace;flex-shrink:0">${escHtml(hash)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#e2e8f0">${escHtml(msg)}</span><span style="color:#64748b;flex-shrink:0">${escHtml(date)}</span><span style="flex-shrink:0"><span style="color:#22c55e">+${ins}</span>/<span style="color:#ef4444">-${del}</span></span><span style="color:#64748b;flex-shrink:0">${files}f</span></div>`;
+                html += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;line-height:1.6"><span style="color:var(--accent-violet);font-family:monospace;flex-shrink:0">${escHtml(hash)}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink)">${escHtml(msg)}</span><span style="color:var(--ink-dim);flex-shrink:0">${escHtml(date)}</span><span style="flex-shrink:0"><span style="color:var(--ok)">+${ins}</span>/<span style="color:var(--danger)">-${del}</span></span><span style="color:var(--ink-dim);flex-shrink:0">${files}f</span></div>`;
             }
             html += '</div>';
         }

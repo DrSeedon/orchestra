@@ -193,7 +193,7 @@ def test_usage_bar_renders_worker_headroom_from_quota_map(browser):
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
     """)
-    for script in ("utils.js", "connection.js", "usage.js"):
+    for script in ("theme.js", "utils.js", "connection.js", "usage.js"):
         page.add_script_tag(path=str(ROOT / "app/static/js" / script))
     page.evaluate(
         "([usage, quota]) => { _usageData = usage; _quotaMapData = quota; renderUsageBar(); }",
@@ -235,7 +235,7 @@ def test_usage_bar_formats_fractional_provider_utilization(browser):
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
     """)
-    for script in ("utils.js", "connection.js", "usage.js"):
+    for script in ("theme.js", "utils.js", "connection.js", "usage.js"):
         page.add_script_tag(path=str(ROOT / "app/static/js" / script))
     page.evaluate(
         """utilization => {
