@@ -27,7 +27,6 @@ from __future__ import annotations
 
 import json
 import os
-import textwrap
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -49,19 +48,28 @@ BG, PANEL, LINE, MUTED = "#000000", "#151a24", "#2a3142", "#8b93a7"
 BLUE_, GREEN_, RED_, GOLD_, FG = "#58c4dd", "#83c167", "#fc6255", "#f0ac5f", "#e6e6e6"
 FONT, MONO = "CMU Serif", "JetBrains Mono"
 
-for ttf in ("Manrope.ttf", "JetBrainsMono.ttf"):
+for ttf in ("Manrope.ttf", "JetBrainsMono.ttf", "cmunrm.ttf", "cmunbx.ttf"):
     manimpango.register_font(str(FONTS / ttf))
 config.background_color = BG
+_FAMILIES = set(manimpango.list_fonts())
+
+
+def require_font(family: str) -> None:
+    """Подмена шрифта на DejaVu меняет ширину текста и выводит подписи за кадр: падаем, а не подменяем."""
+    if family not in _FAMILIES:
+        raise ValueError(f"шрифт «{family}» не найден; доступны встроенные CMU Serif, Manrope, JetBrains Mono "
+                         "(scripts/video_artifact/fonts) и системные. Поставь шрифт или задай TEXT_FONT")
 
 
 def text(s: str, size: float = 30, color: str = FG, weight: str = "NORMAL", font: str = FONT, **kw) -> Text:
     """Text с нашим шрифтом. Размер 30 ≈ 24 px в кадре 1080p; мельче 24 с телефона не читается."""
+    require_font(font)
     return Text(s, font=font, font_size=size, color=color, weight=weight, **kw)
 
 
 class VoiceScene(MovingCameraScene):
     STEPS: list[dict] = []
-    CAPTION_CHARS = 66  # строка субтитра при размере 26 на ширину кадра
+    CAPTION_MARGIN = 0.6  # отступ субтитра от краёв кадра, дюймы Manim
     TEXT_FONT = FONT
     BACKGROUND_COLOR = BG
 
@@ -88,9 +96,20 @@ class VoiceScene(MovingCameraScene):
         end = self.starts[self.cur] + self.durations[self.cur]
         return max(end - self.time, 1 / config.frame_rate)
 
+    def wrap_caption(self, value: str) -> list[str]:
+        """Перенос по реальной ширине шрифта, а не по числу знаков: смена шрифта не выводит текст за кадр."""
+        limit = config.frame_width - 2 * self.CAPTION_MARGIN
+        lines: list[str] = []
+        for word in value.split():
+            if lines and self.text(f"{lines[-1]} {word}", 26).width <= limit:
+                lines[-1] += f" {word}"
+            else:
+                lines.append(word)
+        return lines
+
     def _chrome(self, step: dict) -> VGroup:
         title = self.text(step["t"], 34, "#ffffff", "BOLD").to_corner(UL, buff=0.45)
-        lines = textwrap.wrap(caption_text(step), self.CAPTION_CHARS)
+        lines = self.wrap_caption(caption_text(step))
         caption = VGroup(*(self.text(line, 26, "#d5d8df") for line in lines))
         caption.arrange(DOWN, aligned_edge=LEFT, buff=0.14).to_edge(DOWN, buff=0.38).to_edge(LEFT, buff=0.6)
         return VGroup(title, caption)
