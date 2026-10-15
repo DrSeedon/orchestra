@@ -604,10 +604,22 @@ def render_part(args) -> None:
         raise RuntimeError(f"ffmpeg не собрал кусок {path}")
 
 
+def fresh_text_cache(media: Path) -> None:
+    """Manim keys cached text SVGs by font name only; a changed font file under the same name would reuse stale glyphs."""
+    stamp = media / "texts.fonts"
+    digest = hashlib.sha256(b"".join(f.read_bytes() for f in sorted((HERE / "fonts").glob("*.ttf")))).hexdigest()
+    if stamp.is_file() and stamp.read_text() == digest:
+        return
+    shutil.rmtree(media / "texts", ignore_errors=True)
+    media.mkdir(parents=True, exist_ok=True)
+    stamp.write_text(digest)
+
+
 def render_manim(scene: Path, cls: str, timing: dict, out: Path, name: str, fps: int, video: bool) -> None:
     """Manim сам пишет MP4; длительности шагов получает через VIDEO_ARTIFACT_VOICE (см. manim_voice.py).
     --stills тоже рендерит, но в 480p: кадр Manim нельзя снять без проигрыша сцены до него."""
     media = out / ".manim"
+    fresh_text_cache(media)
     quality = ["-r", "1920,1080", "--fps", str(fps)] if video else ["-ql"]
     voice = {"d": [row["d"] for row in timing["steps"]], "pre": PRE, "post": POST}
     run(str(MANIM_BIN / "manim"), "render", *quality, "--media_dir", str(media), "-o", name,
@@ -640,6 +652,7 @@ def preview_manim(scene: Path, cls: str, out: Path, name: str, first_step: int, 
     except ValueError as exc:
         fail(str(exc))
     media = out / ".preview-manim"
+    fresh_text_cache(media)
     out_dir = out / f".preview-renders-{first_step}-{last_step}"
     out_dir.mkdir(parents=True, exist_ok=True)
     for step_no in range(first_step, last_step + 1):
@@ -696,6 +709,7 @@ def manim_timing_check(scene: Path, cls: str, timing: dict, out: Path, name: str
     if not report["complete"]:
         print("статическая проверка таймингов неприменима; запускаю Manim --dry_run", flush=True)
         voice = {"d": [row["d"] for row in timing["steps"]], "pre": PRE, "post": POST}
+        fresh_text_cache(out / ".timing-manim")
         run(str(MANIM_BIN / "manim"), "render", "-ql", "--dry_run", "--media_dir", str(out / ".timing-manim"),
             "-o", f"{name}-timing", str(scene.resolve()), cls,
             env={**os.environ, "VIDEO_ARTIFACT_VOICE": json.dumps(voice), "PYTHONPATH": str(HERE),

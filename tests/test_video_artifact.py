@@ -711,3 +711,25 @@ assert rms(a) < rms(clipped)
 """ % str(Path(make.__file__).parent)
     run = subprocess.run([str(MANIM_PY), "-c", code], capture_output=True, text=True, timeout=60, cwd=tmp_path)
     assert run.returncode == 0, run.stderr
+
+
+def test_manim_text_cache_is_dropped_when_bundled_fonts_change(tmp_path, monkeypatch):
+    fonts = tmp_path / "fonts"
+    fonts.mkdir()
+    (fonts / "a.ttf").write_bytes(b"font-v1")
+    monkeypatch.setattr(make, "HERE", tmp_path)
+    media = tmp_path / "media"
+    (media / "texts").mkdir(parents=True)
+    (media / "texts" / "stale.svg").write_text("dejavu glyphs")
+
+    make.fresh_text_cache(media)  # no stamp yet: cache of unknown origin is dropped
+    assert not (media / "texts").exists()
+
+    (media / "texts").mkdir()
+    (media / "texts" / "ok.svg").write_text("cmu glyphs")
+    make.fresh_text_cache(media)
+    assert (media / "texts" / "ok.svg").exists()
+
+    (fonts / "a.ttf").write_bytes(b"font-v2")
+    make.fresh_text_cache(media)
+    assert not (media / "texts").exists()
