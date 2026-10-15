@@ -5919,8 +5919,17 @@ def voice_fake_mic_browser(dashboard_browser: Browser):
 def voice_test_page(voice_fake_mic_browser: Browser):
     contexts = []
 
-    def open_page(init_script: str | None = None):
-        context = voice_fake_mic_browser.new_context()
+    def open_page(
+        init_script: str | None = None,
+        viewport: dict | None = None,
+        is_mobile: bool = False,
+    ):
+        context = voice_fake_mic_browser.new_context(
+            viewport=viewport or {"width": 1280, "height": 800},
+            is_mobile=is_mobile,
+            has_touch=is_mobile,
+            device_scale_factor=2 if is_mobile else 1,
+        )
         contexts.append(context)
         page = context.new_page()
         if init_script:
@@ -5953,15 +5962,35 @@ def _voice_screenshot(page: Page, name: str):
     })
 
 
-def test_dashboard_voice_appends_transcript_without_sending(
+def _voice_v874_screenshot(page: Page, name: str):
+    path = Path(__file__).resolve().parent.parent / ".orchestra/tasks/V-874/screenshots"
+    path.mkdir(parents=True, exist_ok=True)
+    row = page.locator("#chat-input").evaluate("el => el.parentElement.getBoundingClientRect().toJSON()")
+    chip = page.locator("#voice-draft").bounding_box()
+    viewport = page.viewport_size
+    x = max(0, row["x"])
+    y = max(0, chip["y"] - 6)
+    right = min(viewport["width"], row["x"] + row["width"])
+    bottom = min(viewport["height"], row["y"] + row["height"] + 6)
+    page.screenshot(path=str(path / f"{name}.png"), clip={
+        "x": x, "y": y, "width": right - x, "height": bottom - y,
+    })
+
+
+def test_dashboard_voice_appends_transcript_and_sends_once(
     voice_test_page,
 ):
     page = voice_test_page()
     sends = []
-    def unexpected_send(route):
-        sends.append(route.request.url)
-        route.abort()
-    page.route("**/api/sessions/*/send", unexpected_send)
+
+    def send(route):
+        sends.append({
+            "url": route.request.url,
+            "body": json.loads(route.request.post_data or "{}"),
+        })
+        route.fulfill(status=200, content_type="application/json", json={"ok": True})
+
+    page.route("**/api/sessions/*/send", send)
     page.route("**/api/transcribe", lambda route: route.fulfill(
         status=200, content_type="application/json", json={"text": "spoken words"},
     ))
@@ -5970,23 +5999,29 @@ def test_dashboard_voice_appends_transcript_without_sending(
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
     page.evaluate("""() => {
         window.__voiceStateTransitions = [];
-        new MutationObserver(() => {
-            const state = $('#voice-draft')?.dataset.state;
-            if (state && window.__voiceStateTransitions.at(-1) !== state) window.__voiceStateTransitions.push(state);
-        }).observe(document.querySelector('#voice-draft'), {attributes: true, attributeFilter: ['data-state']});
+        const panel = document.querySelector('#voice-draft');
+        new MutationObserver(records => {
+            const states = records.map(record => record.oldValue).filter(Boolean);
+            states.push(panel.dataset.state);
+            for (const state of states) {
+                if (window.__voiceStateTransitions.at(-1) !== state) window.__voiceStateTransitions.push(state);
+            }
+        }).observe(panel, {attributes: true, attributeOldValue: true, attributeFilter: ['data-state']});
     }""")
     _voice_screenshot(page, "recording")
     page.wait_for_timeout(1200)
-    with page.expect_response("**/api/transcribe"):
-        page.locator("#voice-btn").click()
+    with page.expect_response("**/api/sessions/*/send") as send_response:
+        with page.expect_response("**/api/transcribe"):
+            page.locator("#voice-btn").click()
+    assert send_response.value.status == 200
     page.wait_for_function("() => $('#voice-draft')?.hidden")
     states = page.evaluate("window.__voiceStateTransitions")
     assert "uploading" in states and "transcribing" in states, states
-    value = page.locator("#chat-input").input_value()
-    assert value.startswith("already typed")
-    assert "Voice transcription:" in value and "spoken words" in value
-    assert not sends
-    _voice_screenshot(page, "transcription-appended")
+    assert page.locator("#chat-input").input_value() == ""
+    assert len(sends) == 1
+    assert sends[0]["url"].endswith(f"/api/sessions/{page.evaluate('selectedAgent')}/send")
+    assert sends[0]["body"]["message"] == "already typed\n\n🎙 Voice transcription:\nspoken words"
+    assert sends[0]["body"]["scope"] == page.evaluate("currentScope")
 
 
 def test_dashboard_voice_recording_survives_reload(voice_test_page):
@@ -5998,12 +6033,18 @@ def test_dashboard_voice_recording_survives_reload(voice_test_page):
         original_agent,
     )
     request_bodies = []
+    sends = []
 
     def transcribe(route):
         request_bodies.append(route.request.post_data_buffer or b"")
         route.fulfill(status=200, content_type="application/json", json={"text": "recovered words"})
 
+    def send(route):
+        sends.append({"url": route.request.url, "body": json.loads(route.request.post_data or "{}")})
+        route.fulfill(status=200, content_type="application/json", json={"ok": True})
+
     page.route("**/api/transcribe", transcribe)
+    page.route("**/api/sessions/*/send", send)
     page.locator("#voice-btn").click()
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
     page.wait_for_timeout(1800)
@@ -6014,14 +6055,18 @@ def test_dashboard_voice_recording_survives_reload(voice_test_page):
     _voice_screenshot(page, "recording-recovered-after-reload")
     page.evaluate("name => { void selectAgent(name); }", other_agent)
     page.wait_for_function("name => selectedAgent === name", arg=other_agent)
-    with page.expect_response("**/api/transcribe"):
-        page.locator("#voice-retry-btn").click()
+    with page.expect_response("**/api/sessions/*/send"):
+        with page.expect_response("**/api/transcribe"):
+            page.locator("#voice-retry-btn").click()
     page.wait_for_function("() => $('#voice-draft')?.hidden")
-    expect(page.locator("#chat-input")).not_to_have_value(re.compile("recovered words"))
+    expect(page.locator("#chat-input")).to_have_value("")
+    assert len(sends) == 1
+    assert sends[0]["url"].endswith(f"/api/sessions/{original_agent}/send")
+    assert sends[0]["body"]["message"] == "🎙 Voice transcription:\nrecovered words"
     assert f'name="session_name"\r\n\r\n{original_agent}'.encode() in request_bodies[0]
     page.evaluate("name => { void selectAgent(name); }", original_agent)
     page.wait_for_function("name => selectedAgent === name", arg=original_agent)
-    expect(page.locator("#chat-input")).to_have_value(re.compile("recovered words"))
+    expect(page.locator("#chat-input")).to_have_value("")
 
 
 def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
@@ -6029,6 +6074,7 @@ def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
 ):
     page = voice_test_page()
     attempts = 0
+    sends = []
 
     def transcribe(route):
         nonlocal attempts
@@ -6038,7 +6084,12 @@ def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
         else:
             route.fulfill(status=200, content_type="application/json", json={"text": "retried words"})
 
+    def send(route):
+        sends.append(json.loads(route.request.post_data or "{}"))
+        route.fulfill(status=200, content_type="application/json", json={"ok": True})
+
     page.route("**/api/transcribe", transcribe)
+    page.route("**/api/sessions/*/send", send)
     page.locator("#voice-btn").click()
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
     page.wait_for_timeout(1200)
@@ -6046,12 +6097,16 @@ def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
         page.locator("#voice-btn").click()
     expect(page.locator("#voice-draft-label")).to_contain_text("Transcription failed")
     expect(page.locator("#voice-retry-btn")).to_be_visible()
+    expect(page.locator("#voice-delete-btn")).to_be_visible()
     assert page.evaluate("() => _voiceDraftBlob?.size || 0") > 0
     _voice_screenshot(page, "transcription-error-retry-available")
-    with page.expect_response("**/api/transcribe"):
-        page.locator("#voice-retry-btn").click()
-    expect(page.locator("#chat-input")).to_have_value(re.compile("retried words"))
+    with page.expect_response("**/api/sessions/*/send"):
+        with page.expect_response("**/api/transcribe"):
+            page.locator("#voice-retry-btn").click()
+    expect(page.locator("#chat-input")).to_have_value("")
     assert attempts == 2
+    assert len(sends) == 1
+    assert sends[0]["message"] == "🎙 Voice transcription:\nretried words"
 
 
 def test_dashboard_voice_transcribes_when_indexeddb_is_unavailable(
@@ -6066,14 +6121,24 @@ def test_dashboard_voice_transcribes_when_indexeddb_is_unavailable(
     page.route("**/api/transcribe", lambda route: route.fulfill(
         status=200, content_type="application/json", json={"text": "spoken without storage"},
     ))
+    sends = []
+
+    def send(route):
+        sends.append(json.loads(route.request.post_data or "{}"))
+        route.fulfill(status=200, content_type="application/json", json={"ok": True})
+
+    page.route("**/api/sessions/*/send", send)
     assert page.evaluate("() => indexedDB.open.toString().includes('storage blocked')")
     page.locator("#voice-btn").click()
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
     expect(page.locator("#voice-error")).to_be_visible()
     page.wait_for_timeout(1200)
-    with page.expect_response("**/api/transcribe"):
-        page.locator("#voice-btn").click()
-    expect(page.locator("#chat-input")).to_have_value(re.compile("spoken without storage"))
+    with page.expect_response("**/api/sessions/*/send"):
+        with page.expect_response("**/api/transcribe"):
+            page.locator("#voice-btn").click()
+    expect(page.locator("#chat-input")).to_have_value("")
+    assert len(sends) == 1
+    assert sends[0]["message"] == "🎙 Voice transcription:\nspoken without storage"
 
 
 def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_changes(
@@ -6090,13 +6155,19 @@ def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_ch
     page.locator("#chat-input").fill("draft for original agent")
     pending_route = None
     request_bodies = []
+    sends = []
 
     def transcribe(route):
         nonlocal pending_route
         pending_route = route
         request_bodies.append(route.request.post_data_buffer or b"")
 
+    def send(route):
+        sends.append({"url": route.request.url, "body": json.loads(route.request.post_data or "{}")})
+        route.fulfill(status=200, content_type="application/json", json={"ok": True})
+
     page.route("**/api/transcribe", transcribe)
+    page.route("**/api/sessions/*/send", send)
     page.locator("#voice-btn").click()
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
     page.wait_for_timeout(1200)
@@ -6109,11 +6180,13 @@ def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_ch
         page.evaluate("name => { void selectAgent(name); }", other_agent)
         page.wait_for_function("name => selectedAgent === name", arg=other_agent, timeout=5000)
         assert pending_route is not None
-        with page.expect_response("**/api/transcribe"):
-            pending_route.fulfill(
-                status=200, content_type="application/json",
-                json={"text": "original agent transcript"},
-            )
+        with page.expect_response("**/api/sessions/*/send") as send_response:
+            with page.expect_response("**/api/transcribe"):
+                pending_route.fulfill(
+                    status=200, content_type="application/json",
+                    json={"text": "original agent transcript"},
+                )
+        assert send_response.value.status == 200
         request_body = request_bodies[0]
     finally:
         if pending_route is not None:
@@ -6122,11 +6195,60 @@ def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_ch
             except Exception:
                 pass
     page.wait_for_function("() => $('#voice-draft')?.hidden", timeout=10000)
-    expect(page.locator("#chat-input")).not_to_have_value(re.compile("original agent transcript"))
+    expect(page.locator("#chat-input")).to_have_value("")
     page.evaluate("name => { void selectAgent(name); }", original_agent)
     page.wait_for_function("name => selectedAgent === name", arg=original_agent)
-    expect(page.locator("#chat-input")).to_have_value(re.compile(r"draft for original agent[\s\S]*original agent transcript"))
+    expect(page.locator("#chat-input")).to_have_value("")
     assert f'name="session_name"\r\n\r\n{original_agent}'.encode() in request_body
+    assert len(sends) == 1
+    assert sends[0]["url"].endswith(f"/api/sessions/{original_agent}/send")
+    assert sends[0]["body"]["message"] == "draft for original agent\n\n🎙 Voice transcription:\noriginal agent transcript"
+
+
+@pytest.mark.parametrize(("name", "viewport", "is_mobile"), [
+    ("desktop", {"width": 1280, "height": 800}, False),
+    ("phone", {"width": 390, "height": 844}, True),
+])
+def test_dashboard_voice_status_is_compact_above_input(
+    voice_test_page, name, viewport, is_mobile,
+):
+    page = voice_test_page(viewport=viewport, is_mobile=is_mobile)
+    pending_send = None
+
+    def transcribe(route):
+        route.fulfill(status=200, content_type="application/json", json={"text": "compact words"})
+
+    def send(route):
+        nonlocal pending_send
+        pending_send = route
+
+    page.route("**/api/transcribe", transcribe)
+    page.route("**/api/sessions/*/send", send)
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    page.wait_for_timeout(1200)
+    with page.expect_request("**/api/sessions/*/send"):
+        with page.expect_response("**/api/transcribe"):
+            page.locator("#voice-btn").click()
+    try:
+        page.wait_for_function("() => $('#voice-draft')?.dataset.state === 'sending'")
+        chip = page.locator("#voice-draft").bounding_box()
+        row = page.locator("#chat-input").evaluate("el => el.parentElement.getBoundingClientRect().toJSON()")
+        assert chip and chip["height"] <= 38, chip
+        assert chip["y"] + chip["height"] <= row["y"]
+        assert chip["width"] <= row["width"] + 2
+        assert page.locator("#voice-progress").get_attribute("role") == "progressbar"
+        _voice_v874_screenshot(page, f"{name}-sending-chip")
+        assert pending_send is not None
+        with page.expect_response("**/api/sessions/*/send"):
+            pending_send.fulfill(status=200, content_type="application/json", json={"ok": True})
+    finally:
+        if pending_send is not None:
+            try:
+                pending_send.abort()
+            except Exception:
+                pass
+    page.wait_for_function("() => $('#voice-draft')?.hidden")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
