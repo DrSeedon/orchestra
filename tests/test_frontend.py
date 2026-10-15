@@ -5851,6 +5851,222 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
     context.close()
 
 
+@pytest.fixture(scope="module")
+def voice_fake_mic_browser(dashboard_browser: Browser):
+    """Chromium's real MediaRecorder and IndexedDB with its built-in fake microphone."""
+    browser = dashboard_browser.browser_type.launch(args=[
+        "--use-fake-device-for-media-stream",
+        "--use-fake-ui-for-media-stream",
+    ])
+    yield browser
+    browser.close()
+
+
+def _voice_test_page(browser: Browser, init_script: str | None = None):
+    page = browser.new_page()
+    if init_script:
+        page.add_init_script(init_script)
+    _route_frontend_sources(page)
+    root = Path(__file__).resolve().parent.parent
+    chat_source = (root / "app/static/js/chat.js").read_text()
+    page.route("**/static/js/chat.js*", lambda route: route.fulfill(
+        status=200, content_type="application/javascript", body=chat_source,
+    ))
+    _goto_dashboard(page)
+    page.wait_for_function("() => typeof startVoiceInput === 'function' && $('#voice-btn')")
+    page.wait_for_function("() => Boolean(selectedAgent && currentScope)")
+    return page
+
+
+def _voice_screenshot(page: Page, name: str):
+    path = Path(__file__).resolve().parent.parent / ".orchestra/tasks/V-860/screenshots"
+    path.mkdir(parents=True, exist_ok=True)
+    row = page.locator("#chat-input").evaluate("el => el.parentElement.getBoundingClientRect().toJSON()")
+    panel = page.locator("#voice-draft").bounding_box()
+    bottom = panel["y"] + panel["height"] if panel else row["y"] + row["height"]
+    page.screenshot(path=str(path / f"{name}.png"), clip={
+        "x": row["x"], "y": max(0, row["y"] - 8), "width": row["width"],
+        "height": bottom - row["y"] + 16,
+    })
+
+
+def test_dashboard_voice_appends_transcript_without_sending(
+    voice_fake_mic_browser: Browser,
+):
+    page = _voice_test_page(voice_fake_mic_browser)
+    sends = []
+    def unexpected_send(route):
+        sends.append(route.request.url)
+        route.abort()
+    page.route("**/api/sessions/*/send", unexpected_send)
+    page.route("**/api/transcribe", lambda route: route.fulfill(
+        status=200, content_type="application/json", json={"text": "spoken words"},
+    ))
+    page.locator("#chat-input").fill("already typed")
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    page.evaluate("""() => {
+        window.__voiceStateTransitions = [];
+        new MutationObserver(() => {
+            const state = $('#voice-draft')?.dataset.state;
+            if (state && window.__voiceStateTransitions.at(-1) !== state) window.__voiceStateTransitions.push(state);
+        }).observe(document.querySelector('#voice-draft'), {attributes: true, attributeFilter: ['data-state']});
+    }""")
+    _voice_screenshot(page, "recording")
+    page.wait_for_timeout(1200)
+    with page.expect_response("**/api/transcribe"):
+        page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-draft')?.hidden")
+    states = page.evaluate("window.__voiceStateTransitions")
+    assert "uploading" in states and "transcribing" in states, states
+    value = page.locator("#chat-input").input_value()
+    assert value.startswith("already typed")
+    assert "Voice transcription:" in value and "spoken words" in value
+    assert not sends
+    _voice_screenshot(page, "transcription-appended")
+    page.close()
+
+
+def test_dashboard_voice_recording_survives_reload(voice_fake_mic_browser: Browser):
+    page = _voice_test_page(voice_fake_mic_browser)
+    page.wait_for_function("() => document.querySelectorAll('#agent-list .agent-item').length >= 2")
+    original_agent = page.evaluate("selectedAgent")
+    other_agent = page.locator("#agent-list .agent-item").evaluate_all(
+        "(nodes, current) => nodes.map(node => node.dataset.agentName).find(name => name !== current)",
+        original_agent,
+    )
+    request_bodies = []
+
+    def transcribe(route):
+        request_bodies.append(route.request.post_data_buffer or b"")
+        route.fulfill(status=200, content_type="application/json", json={"text": "recovered words"})
+
+    page.route("**/api/transcribe", transcribe)
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    page.wait_for_timeout(1800)
+    page.reload(wait_until="domcontentloaded")
+    page.wait_for_function("() => $('#voice-draft') && !$('#voice-draft').hidden", timeout=10000)
+    expect(page.locator("#voice-draft-label")).to_contain_text("Voice recording recovered")
+    assert page.evaluate("() => _voiceDraftBlob?.size || 0") > 0
+    _voice_screenshot(page, "recording-recovered-after-reload")
+    page.evaluate("name => { void selectAgent(name); }", other_agent)
+    page.wait_for_function("name => selectedAgent === name", arg=other_agent)
+    with page.expect_response("**/api/transcribe"):
+        page.locator("#voice-retry-btn").click()
+    page.wait_for_function("() => $('#voice-draft')?.hidden")
+    expect(page.locator("#chat-input")).not_to_have_value(re.compile("recovered words"))
+    assert f'name="session_name"\r\n\r\n{original_agent}'.encode() in request_bodies[0]
+    page.evaluate("name => { void selectAgent(name); }", original_agent)
+    page.wait_for_function("name => selectedAgent === name", arg=original_agent)
+    expect(page.locator("#chat-input")).to_have_value(re.compile("recovered words"))
+    page.close()
+
+
+def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
+    voice_fake_mic_browser: Browser,
+):
+    page = _voice_test_page(voice_fake_mic_browser)
+    attempts = 0
+
+    def transcribe(route):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            route.fulfill(status=502, content_type="application/json", json={"error": "transcription unavailable"})
+        else:
+            route.fulfill(status=200, content_type="application/json", json={"text": "retried words"})
+
+    page.route("**/api/transcribe", transcribe)
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    page.wait_for_timeout(1200)
+    with page.expect_response("**/api/transcribe"):
+        page.locator("#voice-btn").click()
+    expect(page.locator("#voice-draft-label")).to_contain_text("Transcription failed")
+    expect(page.locator("#voice-retry-btn")).to_be_visible()
+    assert page.evaluate("() => _voiceDraftBlob?.size || 0") > 0
+    _voice_screenshot(page, "transcription-error-retry-available")
+    with page.expect_response("**/api/transcribe"):
+        page.locator("#voice-retry-btn").click()
+    expect(page.locator("#chat-input")).to_have_value(re.compile("retried words"))
+    assert attempts == 2
+    page.close()
+
+
+def test_dashboard_voice_transcribes_when_indexeddb_is_unavailable(
+    voice_fake_mic_browser: Browser,
+):
+    page = _voice_test_page(voice_fake_mic_browser, """
+        Object.defineProperty(window, 'indexedDB', {
+            configurable: true,
+            value: {open() { throw new DOMException('storage blocked', 'SecurityError'); }},
+        });
+    """)
+    page.route("**/api/transcribe", lambda route: route.fulfill(
+        status=200, content_type="application/json", json={"text": "spoken without storage"},
+    ))
+    assert page.evaluate("() => indexedDB.open.toString().includes('storage blocked')")
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    expect(page.locator("#voice-error")).to_be_visible()
+    page.wait_for_timeout(1200)
+    with page.expect_response("**/api/transcribe"):
+        page.locator("#voice-btn").click()
+    expect(page.locator("#chat-input")).to_have_value(re.compile("spoken without storage"))
+    page.close()
+
+
+def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_changes(
+    voice_fake_mic_browser: Browser,
+):
+    page = _voice_test_page(voice_fake_mic_browser)
+    page.wait_for_function("() => document.querySelectorAll('#agent-list .agent-item').length >= 2")
+    original_agent = page.evaluate("selectedAgent")
+    other_agent = page.locator("#agent-list .agent-item").evaluate_all(
+        "(nodes, current) => nodes.map(node => node.dataset.agentName).find(name => name !== current)",
+        original_agent,
+    )
+    assert other_agent
+    page.locator("#chat-input").fill("draft for original agent")
+    page.evaluate("""() => {
+        const open = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...args) {
+            this.__voiceRequestUrl = String(url);
+            return open.call(this, method, url, ...args);
+        };
+        const add = XMLHttpRequest.prototype.addEventListener;
+        XMLHttpRequest.prototype.addEventListener = function(type, callback, options) {
+            if (type === 'load' && this.__voiceRequestUrl === '/api/transcribe') {
+                return add.call(this, type, event => setTimeout(() => callback.call(this, event), 5000), options);
+            }
+            return add.call(this, type, callback, options);
+        };
+    }""")
+    request_bodies = []
+
+    def transcribe(route):
+        request_bodies.append(route.request.post_data_buffer or b"")
+        route.fulfill(status=200, content_type="application/json", json={"text": "original agent transcript"})
+
+    page.route("**/api/transcribe", transcribe)
+    page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
+    page.wait_for_timeout(1200)
+    with page.expect_response("**/api/transcribe"):
+        page.locator("#voice-btn").click()
+    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'transcribing'")
+    page.evaluate("name => { void selectAgent(name); }", other_agent)
+    page.wait_for_function("name => selectedAgent === name", arg=other_agent)
+    page.wait_for_function("() => $('#voice-draft')?.hidden", timeout=10000)
+    expect(page.locator("#chat-input")).not_to_have_value(re.compile("original agent transcript"))
+    page.evaluate("name => { void selectAgent(name); }", original_agent)
+    page.wait_for_function("name => selectedAgent === name", arg=original_agent)
+    expect(page.locator("#chat-input")).to_have_value(re.compile(r"draft for original agent[\s\S]*original agent transcript"))
+    assert f'name="session_name"\r\n\r\n{original_agent}'.encode() in request_bodies[0]
+    page.close()
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # #197 — интерфейс переживает канал, где часть запросов не доходит
 # ─────────────────────────────────────────────────────────────────────────────
