@@ -29,6 +29,7 @@ import math
 import time
 import os
 import json
+import logging
 from dataclasses import dataclass, fields, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -391,14 +392,47 @@ LANE_LABELS = {
 
 # Временное снятие гейта владельцем (#V-578). Снимается ТОЛЬКО наша дополнительная
 # осторожность — диагональ и потолок отдельной полосы; общий жёсткий стоп остаётся,
-# потому что за ним стоит предел провайдера, а не наше правило: пропустив туда, мы
-# обменяли бы отказ гейта на 429 у провайдера и сожгли ход.
-# Состояние живёт в памяти процесса и НЕ переживает рестарт. Это выбрано намеренно:
-# забытое бессрочное снятие мы уже проходили (`QUOTA_GATED_LANES=` простояло пустым
-# с 12.09 по 15.09.2026), а потеря снятия при рестарте отказывает в безопасную сторону.
-MAX_GATE_OVERRIDE_SECONDS = 6 * 3600.0
+# потому что за ним стоит предел провайдера. Абсолютное окончание хранится в kv,
+# восстанавливается после старта и ограничено 14 днями.
+MAX_GATE_OVERRIDE_SECONDS = 14 * 24 * 3600.0
+_GATE_OVERRIDE_KV_KEY = "quota_gate_override_until"
+_gate_override_logger = logging.getLogger(__name__)
 _gate_override_lock = Lock()
 _gate_override_until = 0.0
+
+
+def initialize_gate_override() -> None:
+    """Restore the owner-set expiry from the active database; absent/invalid data closes the gate."""
+    global _gate_override_until
+    from app import db
+
+    with _gate_override_lock:
+        try:
+            raw = db.kv_get(_GATE_OVERRIDE_KV_KEY)
+        except Exception as error:
+            if "no such table: kv" not in str(error).lower():
+                _gate_override_logger.warning(
+                    "quota gate override could not be restored: %s: %s",
+                    type(error).__name__, error,
+                )
+            _gate_override_until = 0.0
+            return
+        now = time.time()
+        try:
+            until = float(raw) if raw else 0.0
+            if not math.isfinite(until) or until - now > MAX_GATE_OVERRIDE_SECONDS:
+                raise ValueError("stored expiry is invalid or exceeds 14 days")
+        except (TypeError, ValueError):
+            _gate_override_logger.warning("discarding invalid stored quota gate override")
+            try:
+                db.kv_delete(_GATE_OVERRIDE_KV_KEY)
+            except Exception as error:
+                _gate_override_logger.warning(
+                    "invalid quota gate override could not be removed: %s: %s",
+                    type(error).__name__, error,
+                )
+            until = 0.0
+        _gate_override_until = until if until > now else 0.0
 
 
 def set_gate_override(seconds: float, *, now: float | None = None) -> float:
@@ -407,17 +441,36 @@ def set_gate_override(seconds: float, *, now: float | None = None) -> float:
     seconds = float(seconds)
     if not math.isfinite(seconds) or not (0.0 < seconds <= MAX_GATE_OVERRIDE_SECONDS):
         raise ValueError(
-            f"override seconds must be in (0, {MAX_GATE_OVERRIDE_SECONDS:g}], got {seconds!r}"
+            f"override duration must be in (0, {MAX_GATE_OVERRIDE_SECONDS:g}] seconds (14 days), got {seconds!r}"
         )
     moment = time.time() if now is None else float(now)
+    return set_gate_override_until(moment + seconds, now=moment)
+
+
+def set_gate_override_until(until: float, *, now: float | None = None) -> float:
+    """Persist an absolute Unix expiry, enforcing a positive duration of at most 14 days."""
+    global _gate_override_until
+    until = float(until)
+    moment = time.time() if now is None else float(now)
+    seconds = until - moment
+    if not math.isfinite(until) or not math.isfinite(moment) or not (0.0 < seconds <= MAX_GATE_OVERRIDE_SECONDS):
+        raise ValueError(
+            f"override expiry must be in the future and within 14 days, got {until!r}"
+        )
+    from app import db
+
     with _gate_override_lock:
-        _gate_override_until = moment + seconds
-        return _gate_override_until
+        db.kv_set(_GATE_OVERRIDE_KV_KEY, repr(until))
+        _gate_override_until = until
+        return until
 
 
 def clear_gate_override() -> None:
     global _gate_override_until
+    from app import db
+
     with _gate_override_lock:
+        db.kv_delete(_GATE_OVERRIDE_KV_KEY)
         _gate_override_until = 0.0
 
 
@@ -426,6 +479,14 @@ def gate_override_remaining(now: float | None = None) -> float:
     moment = time.time() if now is None else float(now)
     with _gate_override_lock:
         return max(0.0, _gate_override_until - moment)
+
+
+def gate_override_expiry() -> str | None:
+    """The active expiry in UTC ISO-8601, or None when the additional gate is on."""
+    if gate_override_remaining() <= 0:
+        return None
+    with _gate_override_lock:
+        return datetime.fromtimestamp(_gate_override_until, timezone.utc).isoformat()
 
 
 def tolerance_pp(progress: float, policy: QuotaPolicy | None = None) -> float:

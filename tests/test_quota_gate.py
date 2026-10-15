@@ -994,9 +994,12 @@ def test_deciding_window_follows_length_not_field_name():
 
 @pytest.fixture(autouse=True)
 def _no_gate_override():
-    quota_gate.clear_gate_override()
+    from app import db
+
+    db.init_db()
+    quota_gate._gate_override_until = 0.0
     yield
-    quota_gate.clear_gate_override()
+    quota_gate._gate_override_until = 0.0
 
 
 def test_gate_override_admits_a_worker_the_line_refused():
@@ -1042,8 +1045,45 @@ def test_gate_override_lifts_the_lane_ceiling_but_keeps_the_general_one():
     assert _decide("gpt-6.1-sol", _providers(codex=99.4, progress=0.9)).state == "blocked"
 
 
-@pytest.mark.parametrize("seconds", [0.0, -1.0, 6 * 3600.0 + 1.0, float("inf")])
+@pytest.mark.parametrize("seconds", [0.0, -1.0, 14 * 24 * 3600.0 + 1.0, float("inf")])
 def test_gate_override_refuses_a_nonsense_duration(seconds):
-    with pytest.raises(ValueError, match="override seconds"):
+    with pytest.raises(ValueError, match="override duration"):
         quota_gate.set_gate_override(seconds)
     assert quota_gate.gate_override_remaining() == 0.0
+
+
+def test_gate_override_persists_and_closes_again_at_its_expiry():
+    now = time.time()
+    expiry = quota_gate.set_gate_override_until(now + 600, now=now)
+
+    quota_gate._gate_override_until = 0.0
+    quota_gate.initialize_gate_override()
+
+    providers = _providers(claude=27.0, progress=0.1385)
+    providers["anthropic"]["windows"][0]["resets_at"] = _iso(
+        now + 10080 * 60 * (1 - 0.1385),
+    )
+    assert _decide(
+        "claude-opus-5-5[1m]", providers, observed_at=now + 599, now=now + 599,
+    ).state == "available"
+    assert _decide(
+        "claude-opus-5-5[1m]", providers, observed_at=expiry + 1, now=expiry + 1,
+    ).state == "blocked"
+
+
+def test_gate_override_accepts_the_14_day_limit():
+    now = time.time()
+    expiry = quota_gate.set_gate_override(14 * 24 * 3600, now=now)
+
+    assert expiry == pytest.approx(now + 14 * 24 * 3600)
+    assert quota_gate.gate_override_remaining(now=now) == pytest.approx(14 * 24 * 3600)
+
+
+def test_gate_override_discards_corrupt_persisted_expiry():
+    from app import db
+
+    db.kv_set("quota_gate_override_until", "not-a-timestamp")
+    quota_gate.initialize_gate_override()
+
+    assert quota_gate.gate_override_remaining() == 0.0
+    assert db.kv_get("quota_gate_override_until") == ""

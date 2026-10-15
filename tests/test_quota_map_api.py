@@ -217,6 +217,7 @@ async def test_rule_constants_travel_with_the_payload(mapped):
         "gated_lanes": ["claude", "sol"],
         # Остаток временного снятия (#V-578): 0 — снятия нет.
         "override_seconds_left": 0.0,
+        "override_until": None,
     }
     assert payload["observation_max_age_seconds"] == 300.0
     history = payload["rule_history"]
@@ -360,6 +361,7 @@ async def test_rule_constants_reflect_environment_overrides(mapped, configured_q
         "gated_lanes": [],
         # Снятие настройкой и снятие кнопкой — разные состояния: здесь кнопку не жали.
         "override_seconds_left": 0.0,
+        "override_until": None,
     }
     codex = _pool(payload, "codex")
     assert all(not lane["gated"] for lane in codex["lanes"] if lane["lane"] in ("sol", "luna"))
@@ -793,6 +795,7 @@ async def test_panel_sees_the_manual_override_and_its_expiry(mapped):
     Иначе временное снятие неотличимо от «правила такие», и его снова забудут:
     пустой `QUOTA_GATED_LANES` простоял так трое суток.
     """
+    db.init_db()
     try:
         quota_gate.set_gate_override(1800.0)
         payload = await mapped(_observation(
