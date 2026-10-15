@@ -16,6 +16,14 @@ Playwright-сценарии запускают Chromium с `--use-fake-device-fo
 
 `node --check app/static/js/chat.js`, `node --check app/static/js/i18n.js` и `git diff --check` прошли. Скриншоты: `screenshots/recording.png`, `screenshots/transcription-appended.png`, `screenshots/recording-recovered-after-reload.png`, `screenshots/transcription-error-retry-available.png`. Серверная часть не менялась, поэтому рестарт не нужен; JS и CSS подхватываются браузером без перезапуска Python.
 
+## CI follow-up: переключение агента и очистка браузера
+
+В CI run `38704809000`, attempts 1 и 2, четыре первых voice-сценария прошли, но тест переключения агента завершился по 30-секундному таймауту; два последующих теста того же xdist worker тоже упали по таймауту. В тесте ответ `/api/transcribe` задерживался правкой `XMLHttpRequest` listener, а страница закрывалась только в конце успешного сценария.
+
+Тест теперь удерживает ответ на Playwright route, переключает агента, пока запрос остаётся в `uploading`, затем освобождает запрос и проверяет, что расшифровка попала в черновик исходного агента. Route отменяется при ошибке. Каждый voice-тест получает отдельный browser context с teardown fixture; мобильный пропускаемый сценарий тоже регистрирует закрытие контекста как finalizer.
+
+Пять тестов видны в `pytest --collect-only -m browser` и прошли с CI-настройками xdist: `5 passed in 35.05s`. Полный запуск CI browser-команды `uv run --frozen pytest --rootdir=. -n 2 --dist=loadscope -v -rf --timeout=30 -m 'browser' tests/` завершился: **199 passed, 7 skipped, 206 collected, 301.17s**. В нём четыре сценария, шедшие после теста переключения агента, тоже прошли. Исправление только в тестах; приложение и его lifecycle не менялись.
+
 ## Ограничение
 
 Запись защищена сохранёнными MediaRecorder-чанками. При аварийном закрытии до первого завершённого чанка восстановить аудио нельзя; в штатной записи чанки пишутся с интервалом 1 секунда.

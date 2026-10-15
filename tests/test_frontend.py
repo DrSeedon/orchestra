@@ -5749,7 +5749,7 @@ def test_truncated_image_generation_history_recovers_without_server_restart(
 # Тест ждёт вставки текста в поле ввода, которой в новом контракте не происходит.
 # Переписывать под новый контракт — отдельная задача; блокировать чужие мержи он не должен.
 @pytest.mark.skip(reason="проверяет синхронный голосовой ввод, отменённый в #365")
-def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: Browser):
+def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: Browser, request):
     root = Path(__file__).parent.parent
     app_source = (root / "app/static/js/app.js").read_text()
     css_source = (root / "app/static/css/style.css").read_text()
@@ -5759,6 +5759,7 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
         has_touch=True,
         device_scale_factor=3,
     )
+    request.addfinalizer(context.close)
     page = context.new_page()
     page_errors = []
     page.on("pageerror", lambda error: page_errors.append(str(error)))
@@ -5883,7 +5884,6 @@ def test_mobile_voice_input_records_transcribes_and_cancels(dashboard_browser: B
     )
     page.locator("#voice-btn").click()
     expect(page.locator("#voice-error")).to_contain_text("Доступ к микрофону запрещён")
-    context.close()
 
 
 @pytest.fixture(scope="module")
@@ -5897,20 +5897,30 @@ def voice_fake_mic_browser(dashboard_browser: Browser):
     browser.close()
 
 
-def _voice_test_page(browser: Browser, init_script: str | None = None):
-    page = browser.new_page()
-    if init_script:
-        page.add_init_script(init_script)
-    _route_frontend_sources(page)
-    root = Path(__file__).resolve().parent.parent
-    chat_source = (root / "app/static/js/chat.js").read_text()
-    page.route("**/static/js/chat.js*", lambda route: route.fulfill(
-        status=200, content_type="application/javascript", body=chat_source,
-    ))
-    _goto_dashboard(page)
-    page.wait_for_function("() => typeof startVoiceInput === 'function' && $('#voice-btn')")
-    page.wait_for_function("() => Boolean(selectedAgent && currentScope)")
-    return page
+@pytest.fixture
+def voice_test_page(voice_fake_mic_browser: Browser):
+    contexts = []
+
+    def open_page(init_script: str | None = None):
+        context = voice_fake_mic_browser.new_context()
+        contexts.append(context)
+        page = context.new_page()
+        if init_script:
+            page.add_init_script(init_script)
+        _route_frontend_sources(page)
+        root = Path(__file__).resolve().parent.parent
+        chat_source = (root / "app/static/js/chat.js").read_text()
+        page.route("**/static/js/chat.js*", lambda route: route.fulfill(
+            status=200, content_type="application/javascript", body=chat_source,
+        ))
+        _goto_dashboard(page)
+        page.wait_for_function("() => typeof startVoiceInput === 'function' && $('#voice-btn')")
+        page.wait_for_function("() => Boolean(selectedAgent && currentScope)")
+        return page
+
+    yield open_page
+    for context in contexts:
+        context.close()
 
 
 def _voice_screenshot(page: Page, name: str):
@@ -5926,9 +5936,9 @@ def _voice_screenshot(page: Page, name: str):
 
 
 def test_dashboard_voice_appends_transcript_without_sending(
-    voice_fake_mic_browser: Browser,
+    voice_test_page,
 ):
-    page = _voice_test_page(voice_fake_mic_browser)
+    page = voice_test_page()
     sends = []
     def unexpected_send(route):
         sends.append(route.request.url)
@@ -5959,11 +5969,10 @@ def test_dashboard_voice_appends_transcript_without_sending(
     assert "Voice transcription:" in value and "spoken words" in value
     assert not sends
     _voice_screenshot(page, "transcription-appended")
-    page.close()
 
 
-def test_dashboard_voice_recording_survives_reload(voice_fake_mic_browser: Browser):
-    page = _voice_test_page(voice_fake_mic_browser)
+def test_dashboard_voice_recording_survives_reload(voice_test_page):
+    page = voice_test_page()
     page.wait_for_function("() => document.querySelectorAll('#agent-list .agent-item').length >= 2")
     original_agent = page.evaluate("selectedAgent")
     other_agent = page.locator("#agent-list .agent-item").evaluate_all(
@@ -5995,13 +6004,12 @@ def test_dashboard_voice_recording_survives_reload(voice_fake_mic_browser: Brows
     page.evaluate("name => { void selectAgent(name); }", original_agent)
     page.wait_for_function("name => selectedAgent === name", arg=original_agent)
     expect(page.locator("#chat-input")).to_have_value(re.compile("recovered words"))
-    page.close()
 
 
 def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
-    voice_fake_mic_browser: Browser,
+    voice_test_page,
 ):
-    page = _voice_test_page(voice_fake_mic_browser)
+    page = voice_test_page()
     attempts = 0
 
     def transcribe(route):
@@ -6026,13 +6034,12 @@ def test_dashboard_voice_transcription_failure_keeps_retryable_recording(
         page.locator("#voice-retry-btn").click()
     expect(page.locator("#chat-input")).to_have_value(re.compile("retried words"))
     assert attempts == 2
-    page.close()
 
 
 def test_dashboard_voice_transcribes_when_indexeddb_is_unavailable(
-    voice_fake_mic_browser: Browser,
+    voice_test_page,
 ):
-    page = _voice_test_page(voice_fake_mic_browser, """
+    page = voice_test_page("""
         Object.defineProperty(window, 'indexedDB', {
             configurable: true,
             value: {open() { throw new DOMException('storage blocked', 'SecurityError'); }},
@@ -6049,13 +6056,12 @@ def test_dashboard_voice_transcribes_when_indexeddb_is_unavailable(
     with page.expect_response("**/api/transcribe"):
         page.locator("#voice-btn").click()
     expect(page.locator("#chat-input")).to_have_value(re.compile("spoken without storage"))
-    page.close()
 
 
 def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_changes(
-    voice_fake_mic_browser: Browser,
+    voice_test_page,
 ):
-    page = _voice_test_page(voice_fake_mic_browser)
+    page = voice_test_page()
     page.wait_for_function("() => document.querySelectorAll('#agent-list .agent-item').length >= 2")
     original_agent = page.evaluate("selectedAgent")
     other_agent = page.locator("#agent-list .agent-item").evaluate_all(
@@ -6064,42 +6070,45 @@ def test_dashboard_voice_transcript_stays_with_recording_agent_when_selection_ch
     )
     assert other_agent
     page.locator("#chat-input").fill("draft for original agent")
-    page.evaluate("""() => {
-        const open = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(method, url, ...args) {
-            this.__voiceRequestUrl = String(url);
-            return open.call(this, method, url, ...args);
-        };
-        const add = XMLHttpRequest.prototype.addEventListener;
-        XMLHttpRequest.prototype.addEventListener = function(type, callback, options) {
-            if (type === 'load' && this.__voiceRequestUrl === '/api/transcribe') {
-                return add.call(this, type, event => setTimeout(() => callback.call(this, event), 5000), options);
-            }
-            return add.call(this, type, callback, options);
-        };
-    }""")
+    pending_route = None
     request_bodies = []
 
     def transcribe(route):
+        nonlocal pending_route
+        pending_route = route
         request_bodies.append(route.request.post_data_buffer or b"")
-        route.fulfill(status=200, content_type="application/json", json={"text": "original agent transcript"})
 
     page.route("**/api/transcribe", transcribe)
     page.locator("#voice-btn").click()
     page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'recording'")
     page.wait_for_timeout(1200)
-    with page.expect_response("**/api/transcribe"):
+    with page.expect_request("**/api/transcribe"):
         page.locator("#voice-btn").click()
-    page.wait_for_function("() => $('#voice-controls')?.dataset.state === 'transcribing'")
-    page.evaluate("name => { void selectAgent(name); }", other_agent)
-    page.wait_for_function("name => selectedAgent === name", arg=other_agent)
+    try:
+        page.wait_for_function(
+            "() => $('#voice-controls')?.dataset.state === 'uploading'", timeout=5000,
+        )
+        page.evaluate("name => { void selectAgent(name); }", other_agent)
+        page.wait_for_function("name => selectedAgent === name", arg=other_agent, timeout=5000)
+        assert pending_route is not None
+        with page.expect_response("**/api/transcribe"):
+            pending_route.fulfill(
+                status=200, content_type="application/json",
+                json={"text": "original agent transcript"},
+            )
+        request_body = request_bodies[0]
+    finally:
+        if pending_route is not None:
+            try:
+                pending_route.abort()
+            except Exception:
+                pass
     page.wait_for_function("() => $('#voice-draft')?.hidden", timeout=10000)
     expect(page.locator("#chat-input")).not_to_have_value(re.compile("original agent transcript"))
     page.evaluate("name => { void selectAgent(name); }", original_agent)
     page.wait_for_function("name => selectedAgent === name", arg=original_agent)
     expect(page.locator("#chat-input")).to_have_value(re.compile(r"draft for original agent[\s\S]*original agent transcript"))
-    assert f'name="session_name"\r\n\r\n{original_agent}'.encode() in request_bodies[0]
-    page.close()
+    assert f'name="session_name"\r\n\r\n{original_agent}'.encode() in request_body
 
 
 # ─────────────────────────────────────────────────────────────────────────────
