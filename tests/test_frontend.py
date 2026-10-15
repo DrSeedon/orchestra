@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import time
 import socket
 import subprocess
 import tempfile
@@ -1436,6 +1437,36 @@ def test_info_panel_shows_only_workers_with_checklists(dashboard_page: Page):
     assert "worker-with-checklist" in cards.first.inner_text()
     assert "worker-without-checklist" not in panel.inner_text()
     expect(panel.locator("details")).to_have_count(0)
+
+
+def test_info_panel_displays_step_estimate_and_live_elapsed_time(dashboard_page: Page):
+    payload = {
+        "session": {"name": dashboard_page.evaluate("() => selectedAgent"), "is_orchestrator": True},
+        "children": [{
+            "name": "worker-estimates", "model": "codex", "status": "running",
+            "checklist": {
+                "completed": 1, "total": 2, "current": "Implement",
+                "items": [
+                    {"text": "Plan", "done": True, "estimate_minutes": 10, "actual_seconds": 120},
+                    {"text": "Implement", "current": True, "estimate_minutes": 5,
+                     "actual_seconds": 30, "active_since": time.time() - 30},
+                ],
+            },
+        }],
+    }
+    dashboard_page.route("**/info-panel*", lambda route: route.fulfill(json=payload))
+    dashboard_page.evaluate("() => loadInfoPanel()")
+    panel = dashboard_page.locator("#info-panel")
+    expect(panel.locator('[data-estimate-minutes="10"]')).to_be_visible()
+    expect(panel.locator('[data-estimate-minutes="5"]')).to_be_visible()
+    elapsed = panel.locator("[data-checklist-elapsed]").nth(1)
+    initial = elapsed.inner_text()
+    assert elapsed.get_attribute("data-active-since") is not None
+    dashboard_page.wait_for_function(
+        "initial => document.querySelectorAll('#info-panel [data-checklist-elapsed]')[1].textContent !== initial",
+        arg=initial,
+        timeout=2500,
+    )
 
 
 def test_no_js_errors(dashboard_browser: Browser):

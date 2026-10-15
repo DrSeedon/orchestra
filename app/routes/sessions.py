@@ -19,7 +19,7 @@ from typing import Optional, Literal
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 from starlette.responses import StreamingResponse
-from pydantic import BaseModel, StrictInt, field_validator, model_validator
+from pydantic import BaseModel, StrictFloat, StrictInt, field_validator, model_validator
 
 from app.db import (
     get_all_sessions,
@@ -274,6 +274,7 @@ class ChecklistUpdateRequest(BaseModel):
     items: list[str]
     completed: list[StrictInt]
     current: StrictInt | None = None
+    estimates_minutes: list[StrictFloat | StrictInt | None] | None = None
 
 
 def _verified_mcp_session(request: Request) -> dict | None:
@@ -442,6 +443,8 @@ async def update_session_checklist(name: str, req: ChecklistUpdateRequest, reque
             items=req.items,
             completed=req.completed,
             current=req.current,
+            estimates_minutes=req.estimates_minutes,
+            model=str(getattr(session, "model", "") or ""),
         )
     except ValueError as error:
         return JSONResponse({"error": str(error)}, status_code=422)

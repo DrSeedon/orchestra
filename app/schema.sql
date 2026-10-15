@@ -385,6 +385,23 @@ CREATE TABLE session_checklists (
                 PRIMARY KEY(session_id, task_id)
             );
 
+CREATE TABLE checklist_step_metrics (
+                session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                task_id TEXT NOT NULL DEFAULT '',
+                step_id TEXT NOT NULL,
+                step_text TEXT NOT NULL,
+                estimate_minutes REAL,
+                actual_seconds REAL,
+                active_since REAL,
+                model TEXT NOT NULL DEFAULT '',
+                project TEXT NOT NULL DEFAULT '',
+                completed_at TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(session_id, task_id, step_id)
+            );
+CREATE INDEX idx_checklist_step_metrics_completed
+                ON checklist_step_metrics(completed_at) WHERE completed_at!='';
+
 CREATE TABLE checklist_turns (
                 turn_key TEXT PRIMARY KEY,
                 session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

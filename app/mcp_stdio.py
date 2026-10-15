@@ -2224,12 +2224,14 @@ async def update_progress(percent: int, status: str) -> str:
 @mcp.tool()
 async def update_checklist(
     items: list[str], completed: list[int], current: int | None = None,
+    estimates_minutes: list[float | None] | None = None,
 ) -> str:
-    """Create or update your task checklist. Send the full ordered item list, zero-based indexes already completed, and the zero-based current index (or null)."""
+    """Create or update your task checklist. Send one optional estimate in minutes per item; use null for unknown estimates."""
     result = await _api("POST", f"/api/sessions/{quote(WORKER_NAME, safe='')}/checklist", json={
         "items": items,
         "completed": completed,
         "current": current,
+        "estimates_minutes": estimates_minutes,
     })
     if isinstance(result, dict) and result.get("error"):
         return f"Checklist update failed: {result['error']}"
