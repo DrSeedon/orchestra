@@ -55,3 +55,26 @@ def test_stale_listener_end_does_not_fail_a_new_running_turn(caplog):
     assert not [r for r in caplog.records if "silent death" in r.getMessage()]
     session._finish_failed_running_turn.assert_not_called()
     session._turns.publish_turn_finished.assert_not_called()
+
+
+def test_v882_listener_superseded_by_continuation_turn_is_not_a_death(caplog):
+    """Mailbox continuation sets RUNNING for turn N+1 before the old listener's callback runs."""
+    session, task = _stub(AgentStatus.RUNNING)
+    session._turn_gen = 5
+    session._ended_listener = (task, 4)
+
+    with caplog.at_level(logging.WARNING, logger="app.session"):
+        AgentSession._on_task_done(session, task)
+
+    assert not [r for r in caplog.records if "silent death" in r.getMessage()]
+    session._finish_failed_running_turn.assert_not_called()
+
+
+def test_v882_same_turn_listener_end_while_running_still_fails_turn():
+    session, task = _stub(AgentStatus.RUNNING)
+    session._turn_gen = 4
+    session._ended_listener = (task, 4)
+
+    AgentSession._on_task_done(session, task)
+
+    session._finish_failed_running_turn.assert_called_once()
