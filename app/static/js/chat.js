@@ -181,6 +181,7 @@ let _voiceStorageAvailable = true;
 let _voiceSessionActive = false;
 let _voiceRestorePending = true;
 let _voiceDeleteRequested = false;
+let _voicePendingMessage = null;
 
 function _voiceDb() {
     if (_voiceDbPromise) return _voiceDbPromise;
@@ -255,7 +256,16 @@ function _voiceDraftPanel(state = 'idle', detail = '') {
     panel.hidden = state === 'idle';
     $('#voice-draft-label').textContent = detail;
     $('#voice-retry-btn').hidden = state !== 'ready' && state !== 'error';
+    $('#voice-retry-btn').textContent = T(_voicePendingMessage ? 'Send again' : 'Transcribe again');
     $('#voice-delete-btn').hidden = state === 'idle';
+    $('#voice-delete-btn').disabled = state === 'sending';
+}
+
+function _voiceSetProgress(percent) {
+    const progress = $('.voice-progress');
+    const value = Math.max(0, Math.min(100, Number(percent) || 0));
+    $('#voice-progress-bar')?.style.setProperty('width', `${value}%`);
+    progress?.setAttribute('aria-valuenow', String(value));
 }
 
 async function _voiceRestoreDraft() {
@@ -291,8 +301,8 @@ function _voiceSetState(state) {
     const controls = $('#voice-controls');
     if (!controls) return;
     controls.dataset.state = state;
-    $('#voice-btn').disabled = state === 'requesting' || state === 'stopping' || state === 'uploading' || state === 'transcribing';
-    $('#voice-state-label').textContent = ({requesting: T('Microphone…'), stopping: T('Finishing…'), recording: T('Recording'), uploading: T('Uploading… 0%'), transcribing: T('Transcribing…')})[state] || T('Recording');
+    $('#voice-btn').disabled = state === 'requesting' || state === 'stopping' || state === 'uploading' || state === 'transcribing' || state === 'sending';
+    $('#voice-state-label').textContent = ({requesting: T('Microphone…'), stopping: T('Finishing…'), recording: T('Recording'), uploading: T('Uploading… 0%'), transcribing: T('Transcribing…'), sending: T('Sending voice message…')})[state] || T('Recording');
     $('#voice-cancel-btn').disabled = state !== 'recording';
 }
 
@@ -356,25 +366,89 @@ function _voiceExtension(mimeType) {
 
 function _appendVoiceTranscript(text) {
     const target = _voiceTarget || {sessionName: selectedAgent || '', scope: currentScope || ''};
-    const append = value => `${value}${value.trim() ? '\n\n' : ''}🎙 ${T('Voice transcription')}:\n${text.trim()}`;
-    if (selectedAgent === target.sessionName && currentScope === target.scope) {
-        const input = $('#chat-input');
-        input.value = append(input.value);
+    const isSelected = selectedAgent === target.sessionName && currentScope === target.scope;
+    const saved = drafts[target.sessionName] || {text: '', images: []};
+    const input = isSelected ? $('#chat-input') : null;
+    const existing = input ? input.value : saved.text || '';
+    const message = `${existing.trim() ? `${existing.trimEnd()}\n\n` : ''}🎙 ${T('Voice transcription')}:\n${text.trim()}`;
+    drafts[target.sessionName] = {
+        ...saved,
+        text: message,
+        images: input ? [...pastedImages] : [...(saved.images || [])],
+    };
+    if (input) {
+        input.value = message;
         input.dispatchEvent(new Event('input', {bubbles: true}));
-        input.focus();
-        drafts[target.sessionName] = {text: input.value, images: [...pastedImages]};
-        return;
     }
-    const draft = drafts[target.sessionName] || {text: '', images: []};
-    draft.text = append(draft.text || '');
-    drafts[target.sessionName] = draft;
+    return {target, message};
+}
+
+function _voiceRemoveSentPrefix(value, message) {
+    if (value === message) return '';
+    return value.startsWith(message) ? value.slice(message.length).replace(/^\n+/, '') : value;
+}
+
+async function _sendVoiceMessage(message, target) {
+    _voicePendingMessage = message;
+    _voiceDraftPanel('sending', T('Sending voice message…'));
+    _voiceSetState('sending');
+    const input = selectedAgent === target.sessionName && currentScope === target.scope
+        ? $('#chat-input') : null;
+    const sendButton = input ? $('#send-btn') : null;
+    if (input) input.disabled = true;
+    if (sendButton) sendButton.disabled = true;
+    try {
+        await api(`/api/sessions/${encodeURIComponent(target.sessionName)}/send`, {
+            method: 'POST',
+            body: JSON.stringify({
+                message,
+                scope: target.scope,
+                channel: 'dashboard',
+                after_turn: false,
+            }),
+            signal: AbortSignal.timeout(15000),
+        });
+        _voicePendingMessage = null;
+        const draft = drafts[target.sessionName] || {text: '', images: []};
+        const originalDraftText = draft.text || '';
+        draft.text = _voiceRemoveSentPrefix(originalDraftText, message);
+        if (!draft.text) draft.images = [];
+        drafts[target.sessionName] = draft;
+        if (input) {
+            input.value = _voiceRemoveSentPrefix(input.value, message);
+            input.dispatchEvent(new Event('input', {bubbles: true}));
+            if (!input.value && selectedAgent === target.sessionName && currentScope === target.scope) clearPastePreview();
+        }
+        if (_voiceStorageAvailable) {
+            try {
+                await _voiceDeleteDraft();
+            } catch (error) {
+                _voiceDraftPanel('cleanup', T('Message sent, but the saved voice recording could not be deleted: {error}', {error: error.message}));
+                _showVoiceError(`${T('Voice input')}: ${error.message}`);
+                return;
+            }
+        } else {
+            _voiceDraftId = null;
+            _voiceTarget = null;
+            _voiceDraftBlob = null;
+        }
+        _voiceDraftPanel('idle');
+        _showVoiceError('');
+        _voiceSessionActive = false;
+    } catch (error) {
+        _voiceDraftPanel('error', T('Voice message send failed: {error}', {error: error.message}));
+        _voiceSessionActive = true;
+    } finally {
+        if (sendButton && selectedAgent === target.sessionName && currentScope === target.scope) updateInputState();
+        _voiceSetState('idle');
+    }
 }
 
 async function _sendVoiceBlob(blob, mimeType) {
     _voiceDraftBlob = blob;
     _voiceDeleteRequested = false;
     _voiceDraftPanel('uploading', T('Uploading… 0%'));
-    $('#voice-progress-bar')?.style.setProperty('width', '0%');
+    _voiceSetProgress(0);
     _voiceSetState('uploading');
     const body = new FormData();
     body.append('audio', blob, `voice.${_voiceExtension(mimeType)}`);
@@ -390,13 +464,14 @@ async function _sendVoiceBlob(blob, mimeType) {
                 if (event.lengthComputable && event.total > 0) {
                     const percent = Math.round(event.loaded / event.total * 100);
                     _voiceDraftPanel('uploading', T('Uploading… {percent}%', {percent}));
-                    $('#voice-progress-bar')?.style.setProperty('width', `${percent}%`);
+                    _voiceSetProgress(percent);
                     $('#voice-state-label').textContent = T('Uploading… {percent}%', {percent});
                 }
             });
             xhr.upload.addEventListener('load', () => {
                 _voiceSetState('transcribing');
                 _voiceDraftPanel('transcribing', T('Transcribing…'));
+                _voiceSetProgress(100);
             });
             xhr.addEventListener('load', () => {
                 let data = {};
@@ -411,26 +486,10 @@ async function _sendVoiceBlob(blob, mimeType) {
         _voiceXhr = null;
         _voiceSetState('transcribing');
         _voiceDraftPanel('transcribing', T('Transcribing…'));
+        _voiceSetProgress(100);
         if (!result.text?.trim()) throw new Error(T('Speech was not recognized.'));
-        _appendVoiceTranscript(result.text);
-        if (!_voiceStorageAvailable) {
-            try { await _voiceDeleteDraft(); } catch {}
-            _voiceDraftId = null;
-            _voiceTarget = null;
-            _voiceDraftBlob = null;
-            _voiceDraftPanel('idle');
-            _showVoiceError('');
-            _voiceSessionActive = false;
-            return;
-        }
-        try { await _voiceDeleteDraft(); } catch (error) {
-            _voiceDraftPanel('cleanup', T('Transcription added; saved audio could not be removed: {error}', {error: error.message}));
-            _showVoiceError(`${T('Voice input')}: ${error.message}`);
-            return;
-        }
-        _voiceDraftPanel('idle');
-        _showVoiceError('');
-        _voiceSessionActive = false;
+        const appended = _appendVoiceTranscript(result.text);
+        await _sendVoiceMessage(appended.message, appended.target);
     } catch (error) {
         if (_voiceDeleteRequested) return;
         _voiceDraftPanel('error', `${T('Transcription failed')}: ${error.message}`);
@@ -445,8 +504,8 @@ async function _sendVoiceBlob(blob, mimeType) {
 
 async function startVoiceInput() {
     if (_voiceRestorePending) await _voiceRestoreDraft();
-    if (_voiceDraftId && !_voiceRecorder) {
-        _showVoiceError(T('Resolve the saved voice recording first.'));
+    if ((_voiceDraftId || _voiceDraftBlob || _voicePendingMessage) && !_voiceRecorder) {
+        _showVoiceError(T('Resolve the existing voice message first.'));
         return;
     }
     if (_voiceRecorder?.state === 'recording') {
@@ -601,21 +660,27 @@ function initVoiceInput() {
     error.id = 'voice-error';
     error.className = 'voice-error';
     error.setAttribute('role', 'alert');
-    input.parentElement.after(error);
+    const inputRow = input.parentElement;
     const draft = document.createElement('div');
     draft.id = 'voice-draft';
     draft.className = 'voice-draft';
     draft.hidden = true;
-    draft.innerHTML = `<span id="voice-draft-label" aria-live="polite"></span><div class="voice-progress"><span id="voice-progress-bar"></span></div><button id="voice-retry-btn" type="button">${T('Transcribe again')}</button><button id="voice-delete-btn" type="button">${T('Delete recording')}</button>`;
-    error.after(draft);
+    draft.innerHTML = `<span class="voice-draft-icon" aria-hidden="true">🎙</span><span id="voice-draft-label" aria-live="polite"></span><div id="voice-progress" class="voice-progress" role="progressbar" aria-label="${T('Voice input progress')}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="voice-progress-bar"></span></div><button id="voice-retry-btn" type="button">${T('Transcribe again')}</button><button id="voice-delete-btn" type="button">${T('Delete recording')}</button>`;
+    inputRow.parentElement.insertBefore(error, inputRow);
+    inputRow.parentElement.insertBefore(draft, inputRow);
     $('#voice-btn').addEventListener('click', startVoiceInput);
     $('#voice-cancel-btn').addEventListener('click', () => stopVoiceInput(true));
     $('#voice-retry-btn').addEventListener('click', async () => {
+        if (_voicePendingMessage && _voiceTarget) {
+            await _sendVoiceMessage(_voicePendingMessage, _voiceTarget);
+            return;
+        }
         if (!_voiceDraftBlob) await _voiceRestoreDraft();
         if (_voiceDraftBlob) _sendVoiceBlob(_voiceDraftBlob, _voiceDraftBlob.type || 'audio/webm');
     });
     $('#voice-delete-btn').addEventListener('click', async () => {
         _voiceDeleteRequested = true;
+        _voicePendingMessage = null;
         _voiceXhr?.abort();
         if (!_voiceStorageAvailable) {
             _voiceDraftId = null;
