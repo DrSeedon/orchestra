@@ -59,6 +59,21 @@ def add_silence(samples, seconds: float, sample_rate: int = 44_100):
     return np.concatenate((samples, zeros), axis=0)
 
 
+PEAK_CEILING = 10 ** (-3 / 20)
+RMS_TARGET = 10 ** (-20 / 20)
+
+
+def level_phrase(samples):
+    """Model output exceeds ±1.0 and save_wav clips it hard. Bring phrases to one RMS level, never above the peak ceiling."""
+    if isinstance(samples, bytes) or not len(samples):
+        return samples
+    peak = float(max(samples.max(), -samples.min()))
+    rms = float((samples.astype("float64") ** 2).mean() ** 0.5)
+    if peak == 0.0 or rms == 0.0:
+        return samples
+    return samples * min(RMS_TARGET / rms, PEAK_CEILING / peak)
+
+
 def compose_audio(pieces, sample_rate: int = 44_100):
     output = None
     for kind, value in pieces:
@@ -141,7 +156,7 @@ def main() -> None:
                 seed=1234 + int(job["index"]) + segment_no,
             )
             pieces.append((kind, samples))
-        waveform = compose_audio(pieces)
+        waveform = level_phrase(compose_audio(pieces))
         model.save_wav(temp, waveform)
         os.replace(temp, raw)
         return int(job["index"])
