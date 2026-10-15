@@ -111,8 +111,8 @@ def quota_wait_action(row) -> dict:
         "retryable": False,
         "eta_at": details.get("eta_at"),
         "message": (
-            "Accepted and durably queued: the quota gate is closed, so this delivery "
-            f"goes out automatically when it opens — {_eta_text(details)}. Do NOT resend "
+            "Delivery is deferred by the quota gate (WAITING_QUOTA); it is durably "
+            f"queued and goes out automatically when the gate opens — {_eta_text(details)}. Do NOT resend "
             "and do NOT set a retry timer; a restart does not lose it. Order to the same "
             "target is preserved; the owner's gate override releases it at once."
         ),

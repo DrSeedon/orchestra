@@ -692,10 +692,14 @@ def _delivery_receipt_text(
         details = error.get("details") if isinstance(error.get("details"), dict) else {}
         reason = str(details.get("reason") or "quota gate is closed")
         headline = (
-            "Task accepted and QUEUED — the worker exists but the quota gate is closed, so "
-            f"its task goes out automatically when the gate opens (no retry, no timer needed). Reason: {reason}. "
+            "Task delivery is deferred by the quota gate (WAITING_QUOTA); it will go out "
+            f"automatically when the gate opens. Reason: {reason}. "
             f"{_safe_response_text(str(action.get('message') or ''))}"
         )
+    elif state in {"QUEUED", "PREPARING"}:
+        headline = "Task accepted; delivery is proceeding now and the quota gate is not holding it."
+    elif state == "SUBMITTED":
+        headline = "Task was submitted; the quota gate did not hold it."
     elif state == "CANCELLED":
         headline = (
             "The initial task was cancelled before provider submission; this worker has no task. "
@@ -1420,7 +1424,8 @@ def _message_delivery_receipt_text(
     elif state == "WAITING_QUOTA" or action.get("code") == "BEHIND_QUOTA_WAIT":
         # Не отказ и не «доставлено»: платформа сама держит сообщение за гейтом квот.
         output = (
-            f"Message accepted and QUEUED{target}; delivery_id={delivery_id}; state={state}.\n"
+            f"Message delivery is deferred by a quota gate{target}; "
+            f"delivery_id={delivery_id}; state={state}.\n"
             f"{_safe_response_text(str(action.get('message') or ''))}\n"
             f"Withdraw it with cancel_message_delivery(delivery_id=\"{delivery_id}\")."
         )
@@ -1474,6 +1479,16 @@ def _message_delivery_receipt_text(
             f"state={state}: a restart settled this delivery and released the queue, "
             "which did not deliver this message.\n"
             "Do not read this as delivered; confirm with the target before acting."
+        )
+    elif state == "QUEUED":
+        output = (
+            f"Message accepted; delivery is proceeding now{target}, and the quota gate is not holding it. "
+            f"delivery_id={delivery_id}; state={state}."
+        )
+    elif state == "SUBMITTED":
+        output = (
+            f"Message was submitted{target}; the quota gate did not hold it. "
+            f"delivery_id={delivery_id}; state={state}."
         )
     else:
         output = f"Message accepted{target}; delivery_id={delivery_id}; state={state}."
