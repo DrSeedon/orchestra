@@ -2226,7 +2226,7 @@ async def update_checklist(
     items: list[str], completed: list[int], current: int | None = None,
     estimates_minutes: list[float | None] | None = None,
 ) -> str:
-    """Create or update your task checklist. Send one optional estimate in minutes per item; use null for unknown estimates."""
+    """Create or update your task checklist. Every new or changed step needs a positive estimate in minutes in estimates_minutes (one per item, same order); steps with unchanged text keep their stored estimate, so null is accepted only for those (owner decision, 2026-10-15)."""
     result = await _api("POST", f"/api/sessions/{quote(WORKER_NAME, safe='')}/checklist", json={
         "items": items,
         "completed": completed,
