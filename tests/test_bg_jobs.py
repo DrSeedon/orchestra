@@ -1698,3 +1698,78 @@ async def test_t2_385_running_bg_delivery_logs_provenance_once_then_queues_text(
         if session._listen_task and not session._listen_task.done():
             session._listen_task.cancel()
             await asyncio.gather(session._listen_task, return_exceptions=True)
+
+
+# ── V-886: a watcher ending silently must not strand the target in WAITING ──
+
+def _v886_setup(job_type, extra_active=False):
+    from types import SimpleNamespace
+    from app.bg_jobs import BgJobManager
+    from app.db import bg_save_job, save_session
+    from app.session import AgentSession, AgentStatus
+
+    now = datetime.now(timezone.utc)
+    session = AgentSession(
+        id=f"s-886-{job_type}-{extra_active}", name="w886", scope="/scope-886",
+        cwd="/scope-886", model="gpt-5.6-sol", system_prompt="t", created_at=now,
+    )
+    session.status = AgentStatus.WAITING
+    save_session(session._to_db_dict())
+    session._persist = MagicMock()
+    session._hibernate.schedule = MagicMock()
+    session._turns.publish_turn_finished = MagicMock()
+    sent = []
+
+    class Manager:
+        async def ensure_loaded_by_id(self, sid):
+            return session
+
+        async def send(self, sid, message, *, provenance):
+            sent.append(message)
+
+    jobs = BgJobManager()
+    jobs.set_session_manager(Manager())
+
+    def save(job_id, jtype):
+        bg_save_job({
+            "id": job_id, "type": jtype, "config": json.dumps({}),
+            "message": "wait RIG_DONE", "target_session_id": session.id,
+            "target_name": session.name, "target_scope": session.scope,
+            "created_by_name": session.name, "status": "active",
+            "expires_at": (now + timedelta(hours=1)).isoformat(),
+            "trigger_at": None, "created_at": now.isoformat(), "last_output": "",
+        })
+
+    save("bg-886-main", job_type)
+    if extra_active:
+        save("bg-886-other", "file")
+    return jobs, session, sent
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("how", ["expire", "fail"])
+async def test_v886_last_watcher_ending_wakes_waiting_target(db, how):
+    jobs, session, sent = _v886_setup("file")
+    if how == "expire":
+        await jobs._expire_settle("bg-886-main")
+    else:
+        await jobs._fail_settle("bg-886-main", "tail exited without match")
+    assert len(sent) == 1
+    assert "nothing else will wake you" in sent[0].text
+
+
+@pytest.mark.asyncio
+async def test_v886_non_last_watcher_does_not_wake(db):
+    jobs, session, sent = _v886_setup("file", extra_active=True)
+    await jobs._expire_settle("bg-886-main")
+    assert sent == []
+
+
+@pytest.mark.asyncio
+async def test_v886_cron_schedule_end_returns_to_idle_without_wake(db):
+    from app.session import AgentStatus
+
+    jobs, session, sent = _v886_setup("cron")
+    await jobs._expire_settle("bg-886-main")
+    assert sent == []
+    assert session.status == AgentStatus.IDLE

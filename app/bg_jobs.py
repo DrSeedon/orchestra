@@ -17,6 +17,7 @@ from uuid import uuid4
 from croniter import croniter
 
 from app.db import (
+    get_session,
     bg_save_job, bg_claim_trigger, bg_finish_trigger, bg_fail_job,
     bg_cancel_job, bg_cancel_removed_idle, bg_expire_job, bg_update_output, bg_get_active_all,
     bg_expire_overdue, bg_count_active, bg_cancel_by_session,
@@ -26,6 +27,7 @@ from app.db import (
     bg_reset_wake_triggering,
 )
 from app.pidfd_exec import pidfd_send_group
+from app.session_state import AgentStatus
 from app.events import InjectedMessage, MessageProvenance
 from app.tasks import spawn_supervised
 
@@ -553,6 +555,8 @@ class BgJobManager:
             if task and not task.done():
                 task.cancel()
             row = bg_get_job(jid)
+            if row and row.get("type") != "run":
+                await self._job_ended(jid, "expired")
             if row and row.get("type") == "run":
                 timeout = max(
                     1,
@@ -592,6 +596,7 @@ class BgJobManager:
             remaining = (datetime.fromisoformat(row["expires_at"]) - datetime.now(timezone.utc)).total_seconds()
             if remaining <= 0:
                 bg_expire_job(row["id"])
+                await self._job_ended(row["id"], "expired")
                 continue
             self._start_task(
                 row["id"], row["type"], config, row["message"],
@@ -724,6 +729,50 @@ class BgJobManager:
     def _expire(self, job_id: str) -> None:
         bg_expire_job(job_id)
         self._procs.pop(job_id, None)
+
+    async def _expire_settle(self, job_id: str) -> None:
+        self._expire(job_id)
+        await self._job_ended(job_id, "expired")
+
+    async def _fail_settle(self, job_id: str, error: str) -> None:
+        self._fail_if_active(job_id, error)
+        await self._job_ended(job_id, "failed", error)
+
+    async def _job_ended(self, job_id: str, outcome: str, detail: str = "") -> None:
+        """A watcher ended without telling its target (V-886).
+
+        The target sits in WAITING only because of active jobs. When the last one ends
+        silently nothing would ever move it, so: a cron running out its schedule is the
+        normal end and just returns the session to IDLE; an expired/failed watcher wakes
+        it with the reason. Another active job keeps the session waiting, untouched.
+        """
+        try:
+            row = bg_get_job(job_id) or {}
+            sid = str(row.get("target_session_id") or "")
+            stored = get_session(sid) if sid else None
+            if not stored or stored.get("status") != AgentStatus.WAITING.value or self.has_active_jobs(sid):
+                return
+            session = await self._session_manager.ensure_loaded_by_id(sid)
+            if session is None or session.status != AgentStatus.WAITING:
+                return
+            if outcome == "expired" and row.get("type") in ("cron", "cron_command"):
+                session._turns.finish_turn_status()
+                session._hibernate.schedule()
+                return
+            reason = (
+                "the deadline passed without a match" if outcome == "expired"
+                else f"the watcher failed: {detail}"
+            )
+            body = (
+                f"[Background job {outcome.upper()}] {row.get('message', '')}\n"
+                f"{reason}. No other background jobs are active, so nothing else will wake you."
+            )
+            await self._notify_job_target(
+                job_id, outcome, body, row.get("target_name", ""), row.get("target_scope", ""),
+            )
+        except Exception as error:
+            logger.warning("bg_job %s: settling target failed: %s: %s",
+                           job_id, type(error).__name__, error)
 
     async def _expire_notify(self, job_id, message, target_name, target_scope,
                              timeout, output=""):
@@ -862,11 +911,12 @@ class BgJobManager:
                     await self._fire_cron(
                         job_id, message, target_name, target_scope,
                     )
-            self._expire(job_id)
+            await self._expire_settle(job_id)
         except asyncio.CancelledError:
             pass
         except Exception as e:
             bg_fail_job(job_id, str(e)[:500])
+            await self._job_ended(job_id, "failed", str(e)[:500])
 
     async def _fire_cron(self, job_id, message, target_name, target_scope):
         if not bg_cron_should_fire(job_id):
@@ -1000,13 +1050,13 @@ class BgJobManager:
                     if re.search(pattern, text):
                         await self._trigger(job_id, message, target_name, target_scope, text.strip())
                         return
-            self._fail_if_active(job_id, "tail exited without match")
+            await self._fail_settle(job_id, "tail exited without match")
         except asyncio.TimeoutError:
-            self._expire(job_id)
+            await self._expire_settle(job_id)
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            self._fail_if_active(job_id, str(e)[:500])
+            await self._fail_settle(job_id, str(e)[:500])
         finally:
             self._procs.pop(job_id, None)
             if proc:
@@ -1036,11 +1086,12 @@ class BgJobManager:
                     return
                 await asyncio.sleep(interval)
             if deadline is not None:
-                self._expire(job_id)
+                await self._expire_settle(job_id)
         except asyncio.CancelledError:
             pass
         except Exception as e:
             bg_fail_job(job_id, str(e)[:500])
+            await self._job_ended(job_id, "failed", str(e)[:500])
 
     async def _run_ssh_watch(self, job_id, host, command, pattern, message,
                               target_name, target_scope, timeout):
@@ -1058,13 +1109,13 @@ class BgJobManager:
                     if re.search(pattern, text):
                         await self._trigger(job_id, message, target_name, target_scope, text.strip())
                         return
-            self._fail_if_active(job_id, "ssh exited without match")
+            await self._fail_settle(job_id, "ssh exited without match")
         except asyncio.TimeoutError:
-            self._expire(job_id)
+            await self._expire_settle(job_id)
         except asyncio.CancelledError:
             pass
         except Exception as e:
-            self._fail_if_active(job_id, str(e)[:500])
+            await self._fail_settle(job_id, str(e)[:500])
         finally:
             self._procs.pop(job_id, None)
             if proc:
