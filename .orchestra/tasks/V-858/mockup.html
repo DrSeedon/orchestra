@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Orchestra — прогресс и предложенные задачи</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f172a'/%3E%3Cpath d='M18 17v30m0-15h27m0 0-9-9m9 9-9 9' fill='none' stroke='%23818cf8' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='18' cy='17' r='4' fill='%2322c55e'/%3E%3C/svg%3E">
+  <style>
+    :root{--bg:#0a0e17;--surface:#0f172a;--surface-2:#1e293b;--border:#334155;--border-soft:#1e293b;--ink:#e2e8f0;--soft:#a6b3c6;--faint:#8595ab;--faintest:#6b7c93;--ok:#22c55e;--warn:#eab308;--red:#f87171;--accent:#818cf8;--accent-alt:#38bdf8;--sans:Inter,system-ui,-apple-system,sans-serif;--mono:'JetBrains Mono','Fira Code',ui-monospace,monospace}
+    *{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg);color:#c8d6e5;font:13px/1.45 var(--sans)}button{font:inherit;color:inherit}button:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--accent-alt);outline-offset:2px}
+    .topbar{height:50px;display:flex;align-items:center;gap:14px;padding:0 18px;background:#0b111d;border-bottom:1px solid rgba(51,65,85,.65)}.brand{font-weight:750;font-size:16px;color:#f1f5f9;white-space:nowrap}.brand i{font-style:normal;color:var(--accent);margin-right:7px}.workspace-tabs{display:flex;gap:6px;align-items:center;min-width:0}.tab{padding:6px 10px;border-radius:7px;color:var(--faint);white-space:nowrap}.tab.selected{background:rgba(129,140,248,.13);color:#c7d2fe;border:1px solid rgba(129,140,248,.18)}.top-meta{margin-left:auto;display:flex;align-items:center;gap:13px;color:var(--faint);font-size:11px}.live-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block;margin-right:5px;box-shadow:0 0 9px #22c55e66}.icon-btn{background:var(--surface-2);border:1px solid var(--border);height:29px;width:31px;border-radius:8px;color:var(--soft)}
+    .layout{height:calc(100vh - 50px);min-height:760px;display:grid;grid-template-columns:256px minmax(0,1fr)}.sidebar{background:#0b111d;border-right:1px solid var(--border-soft);padding:14px 10px;overflow:auto}.side-title{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 11px;color:var(--faintest);font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}.side-title strong{color:#64748b;font:11px var(--mono)}.session{padding:10px 9px;margin:2px 0;border-radius:8px;color:var(--soft)}.session.active{background:rgba(129,140,248,.12);border:1px solid rgba(129,140,248,.19);color:var(--ink)}.session-name{display:flex;gap:8px;align-items:center;font-size:12px}.session-meta{padding:5px 0 0 18px;color:var(--faintest);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.state-dot{width:7px;height:7px;flex:none;border-radius:50%;background:var(--ok)}.state-dot.wait{background:var(--warn)}.state-dot.idle{background:#64748b}.session-child{margin-left:18px}.mini-progress{margin:8px 0 0 18px;display:flex;align-items:center;gap:7px}.track{height:4px;background:#263246;border-radius:9px;overflow:hidden;flex:1}.track span{height:100%;display:block;background:var(--accent);border-radius:9px}.pct{font:10px var(--mono);color:#a5b4fc}
+    .main{min-width:0;display:flex;flex-direction:column;background:radial-gradient(ellipse at 53% -25%,rgba(49,46,129,.13),transparent 45%),var(--bg)}.chat-head{display:flex;align-items:center;min-height:59px;padding:9px 22px;border-bottom:1px solid var(--border-soft);gap:12px;flex-wrap:wrap}.avatar{width:30px;height:30px;display:grid;place-items:center;background:linear-gradient(145deg,#29345a,#171f33);border:1px solid #3e4c6a;border-radius:9px;font-size:14px}.head-copy{min-width:0}.head-title{font-weight:650;color:#e7edf6}.head-sub{font-size:10px;color:var(--faintest);margin-top:1px}.head-actions{margin-left:auto;display:flex;gap:7px}.quiet-btn{border:1px solid var(--border);background:var(--surface);border-radius:7px;padding:5px 9px;color:var(--soft);font-size:11px}.header-progress{flex-basis:100%;display:flex;align-items:center;gap:8px;margin:-2px 0 1px 42px;color:#91a1b7;font-size:9px}.header-progress strong{color:#cbd5e1;font-weight:550}.header-progress .track{max-width:220px;height:4px}.header-progress .pct{font-size:9px}.chat-scroll{overflow:auto;flex:1;padding:18px 22px 30px}.content{max-width:950px;margin:0 auto}.day-stamp{text-align:center;color:#58677c;font-size:10px;margin:0 0 14px}.message{display:flex;gap:10px;margin:13px 0 18px}.message.user{justify-content:flex-end}.bubble{max-width:760px;padding:10px 13px;border:1px solid var(--border-soft);border-radius:4px 12px 12px 12px;background:#101827;color:#cbd5e1}.user .bubble{border-color:#373c65;background:#1b2038;border-radius:12px 4px 12px 12px}.message-avatar{width:25px;height:25px;flex:none;border:1px solid #35415a;background:#172033;border-radius:8px;display:grid;place-items:center;font-size:11px}.time{color:#58677c;font-size:9px;margin-left:8px}.status-line{display:flex;align-items:center;gap:7px;color:#a5b4fc;font-size:11px;padding-bottom:8px}.status-line .state-dot{background:var(--ok)}
+    .progress-panel{padding:11px 12px;margin-top:9px;background:rgba(15,23,42,.76);border:1px solid #273449;border-radius:9px}.progress-top{display:flex;align-items:center;gap:10px}.progress-top strong{color:#e4eaf4;font-size:12px}.progress-top .pct{margin-left:auto}.progress-track{height:6px;margin:9px 0 7px;background:#263246;border-radius:8px;overflow:hidden}.progress-track span{height:100%;width:68%;display:block;background:linear-gradient(90deg,#6366f1,#818cf8);border-radius:8px}.progress-note{color:var(--soft);font-size:11px}.progress-foot{display:flex;justify-content:space-between;color:var(--faintest);font-size:9px;margin-top:7px}.checklist{margin-top:10px;display:grid;gap:6px}.check-row{display:flex;align-items:flex-start;gap:8px;font-size:11px;color:var(--soft)}.check-row.current{color:#dbe5f2}.check-mark{width:15px;height:15px;flex:none;display:grid;place-items:center;border-radius:50%;font-size:9px;background:rgba(34,197,94,.13);color:#4ade80}.current .check-mark{border-radius:4px;background:rgba(129,140,248,.17);color:#c7d2fe}.todo .check-mark{border:1px solid #475569;background:transparent;color:transparent}.check-label small{display:block;font-size:9px;color:var(--faintest);margin-top:1px}.step-head{display:flex;justify-content:space-between;align-items:center;color:var(--faintest);font-size:9px;margin-bottom:3px}.demo-tag{font:9px var(--mono);color:#7c8ba1}
+    .task-section{margin:19px 0 0 35px;max-width:760px}.section-head{display:flex;align-items:center;gap:8px;margin:0 0 9px;color:#dbe4f0;font-size:12px;font-weight:650}.section-head .spark{color:#a5b4fc;font-size:14px}.section-head small{color:var(--faintest);font-weight:400;margin-left:auto;font-size:10px}.task-list{display:grid;gap:8px}.task-card{padding:11px 12px;background:linear-gradient(130deg,rgba(21,31,49,.96),rgba(14,22,36,.96));border:1px solid #2d3a4d;border-radius:10px}.task-card.proposed{border-left:2px solid #818cf8}.task-card.launched{border-left:2px solid var(--ok)}.task-card.rejected{border-left:2px solid #64748b;opacity:.72}.task-card-top{display:flex;gap:8px;align-items:flex-start}.task-mark{width:23px;height:23px;display:grid;place-items:center;flex:none;border-radius:7px;background:#202a3b;color:#a5b4fc;font-size:11px}.task-title{font-weight:620;color:#e3eaf4;font-size:12px}.task-desc{color:#9eacc0;font-size:10.5px;margin-top:3px;line-height:1.45;max-width:650px}.state-label{margin-left:auto;white-space:nowrap;border:1px solid #4b426f;background:#2b2844;color:#c4b5fd;border-radius:99px;padding:2px 7px;font-size:9px}.launched .state-label{border-color:#28573f;background:#10281e;color:#86efac}.rejected .state-label{border-color:#374151;background:#202a36;color:#94a3b8}.task-facts{margin:9px 0 0 31px;display:flex;gap:7px;flex-wrap:wrap}.chip{background:#1d293a;border:1px solid #2e3b4e;border-radius:5px;padding:3px 7px;color:#a9b8ca;font-size:9px}.chip b{color:#e2e8f0;font-weight:550}.chip .cost{color:#7dd3fc}.task-actions{margin:10px 0 0 31px;display:flex;align-items:center;gap:8px}.action-primary{border:1px solid #6865cc;background:#5554ba;color:white;padding:6px 11px;border-radius:7px;font-size:10px;cursor:pointer}.action-primary:hover{background:#6866d4}.action-secondary{border:1px solid #39475a;background:transparent;color:#9ba9bb;padding:6px 10px;border-radius:7px;font-size:10px;cursor:pointer}.action-secondary:hover{background:#1b2738;color:#e2e8f0}.launched-link{display:inline-flex;margin:9px 0 0 31px;color:#86efac;text-decoration:none;font-size:10px}.launched-link:hover{text-decoration:underline}.rejected-copy{margin:9px 0 0 31px;color:#8290a3;font-size:10px}
+    .child-panel{max-width:760px;margin:13px 0 0 35px;border:1px solid var(--border-soft);border-radius:9px;background:rgba(12,19,31,.7)}.child-panel summary{list-style:none;display:flex;align-items:center;gap:8px;padding:9px 11px;color:#b9c5d4;cursor:pointer;font-size:10px}.child-panel summary::-webkit-details-marker{display:none}.chevron{color:#8291a7;transition:transform .15s}.child-panel[open] .chevron{transform:rotate(90deg)}.count{font:9px var(--mono);color:#8d9db3;background:#1b2738;border-radius:10px;padding:2px 6px}.child-hint{margin-left:auto;color:#63738a}.child-list{border-top:1px solid #1d293a;padding:4px 10px 8px}.child-row{display:grid;grid-template-columns:minmax(120px,1fr) 80px minmax(90px,1.3fr) 32px;align-items:center;gap:8px;padding:7px 1px;border-bottom:1px solid rgba(51,65,85,.36);font-size:10px}.child-row:last-child{border:0}.child-name{display:flex;align-items:center;gap:6px;color:#cbd5e1}.child-state{color:#8fa0b5}.child-state.waiting{color:#e7c86d}.child-desc{color:#75869e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.child-pct{font:9px var(--mono);color:#a5b4fc;text-align:right}
+    .composer{padding:11px 22px 13px;border-top:1px solid var(--border-soft);background:rgba(10,14,23,.93)}.compose-box{max-width:950px;margin:0 auto;border:1px solid #334155;background:#111a29;border-radius:11px;padding:10px 12px}.placeholder{color:#617187}.compose-foot{display:flex;justify-content:space-between;align-items:center;margin-top:12px;color:#617187;font-size:10px}.send-btn{background:#4f46b5;border:0;border-radius:7px;padding:5px 10px;color:white;font-size:10px}
+    @media(max-width:900px){.layout{grid-template-columns:220px minmax(0,1fr)}.chat-scroll{padding-left:16px;padding-right:16px}.chat-head{padding-left:16px;padding-right:16px}.task-section,.child-panel{margin-left:0}.bubble{max-width:100%}}
+    @media(max-width:640px){html,body{height:auto;min-height:100%;overflow-x:hidden}.topbar{height:48px;padding:0 12px;gap:8px}.brand{font-size:14px}.workspace-tabs .tab:not(.selected){display:none}.workspace-tabs{overflow:hidden}.top-meta{gap:7px;font-size:0}.top-meta .live-label{display:none}.top-meta .icon-btn{height:28px}.layout{height:auto;min-height:calc(100dvh - 48px);display:flex;flex-direction:column}.sidebar{display:none}.main{min-height:calc(100dvh - 48px)}.chat-head{min-height:57px;padding:8px 12px;gap:8px}.avatar{width:29px;height:29px}.head-actions .quiet-btn{font-size:10px;padding:5px 7px}.header-progress{gap:6px;margin:-1px 0 1px 37px;font-size:8px}.header-progress .track{max-width:90px}.chat-scroll{overflow:visible;padding:12px 12px 24px}.day-stamp{margin-bottom:10px}.message{gap:7px;margin:10px 0 14px}.message-avatar{width:23px;height:23px}.bubble{padding:9px 10px;font-size:12px}.progress-panel{padding:10px}.progress-note{font-size:10px}.task-section{margin-top:15px}.task-card{padding:10px}.task-desc{font-size:10px}.task-facts{margin-left:0;gap:5px}.task-actions{margin-left:0}.launched-link,.rejected-copy{margin-left:0}.task-mark{display:none}.task-card-top{gap:5px}.task-title{font-size:11px}.state-label{font-size:8px;padding:2px 6px}.child-panel{margin:12px 0 0}.child-hint{display:none}.child-row{grid-template-columns:minmax(105px,1fr) 66px 30px}.child-desc{display:none}.composer{padding:9px 12px 11px}.compose-box{padding:9px 10px}.compose-foot{margin-top:9px}}
+    @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><i>♫</i>Orchestra</div>
+    <nav class="workspace-tabs" aria-label="Оркестраторы"><span class="tab selected">🎼 release-coordinator</span><span class="tab">🧪 тесты</span><span class="tab">＋</span></nav>
+    <div class="top-meta"><span class="live-label"><span class="live-dot"></span>подключено</span><span>3 агента</span><button class="icon-btn" aria-label="Уведомления">♧</button></div>
+  </header>
+  <div class="layout">
+    <aside class="sidebar" aria-label="Сессии">
+      <div class="side-title">Сессии <strong>3 / 5</strong></div>
+      <div class="session active"><div class="session-name"><span class="state-dot"></span><span>release-coordinator</span></div><div class="session-meta">/home/kesha/orchestra</div></div>
+      <div class="session session-child"><div class="session-name"><span class="state-dot"></span><span>audit-progress-ui</span></div><div class="session-meta">работает · обновлено 1 мин назад</div><div class="mini-progress"><div class="track"><span style="width:68%"></span></div><span class="pct">68%</span></div></div>
+      <div class="session session-child"><div class="session-name"><span class="state-dot wait"></span><span>docs-check</span></div><div class="session-meta">ждёт ответа владельца</div></div>
+      <div class="session session-child"><div class="session-name"><span class="state-dot idle"></span><span>ci-investigation</span></div><div class="session-meta">свободен</div></div>
+      <div class="side-title" style="margin-top:18px">Недавние <strong>2</strong></div>
+      <div class="session"><div class="session-name"><span class="state-dot idle"></span><span>worker-task-cards</span></div><div class="session-meta">завершён · сегодня, 14:12</div></div>
+      <div class="session"><div class="session-name"><span class="state-dot idle"></span><span>review-api-contract</span></div><div class="session-meta">завершён · вчера</div></div>
+      <div style="margin:22px 8px 0;padding-top:12px;border-top:1px solid var(--border-soft);color:#58677c;font-size:9px;line-height:1.6">Прогресс показывается, только когда воркер передаёт статус.<br><span style="color:#75869e">В примере: 68% · демо-данные</span></div>
+    </aside>
+    <main class="main">
+      <div class="chat-head">
+        <div class="avatar">🎼</div>
+        <div class="head-copy"><div class="head-title">release-coordinator <span style="color:#76869b;font-weight:400">· Codex</span></div><div class="head-sub"><span class="live-dot"></span>работает · /home/kesha/orchestra</div></div>
+        <div class="head-actions"><button class="quiet-btn">Работы <span style="color:#a5b4fc">3</span></button><button class="quiet-btn">⋯</button></div>
+        <div class="header-progress" id="worker-progress-header"><span class="state-dot"></span><span>Воркер <strong>audit-progress-ui</strong></span><span class="track"><span style="width:68%"></span></span><span class="pct">68%</span><span>Проверка мобильной компоновки</span></div>
+      </div>
+      <section class="chat-scroll">
+        <div class="content">
+          <div class="day-stamp">Сегодня, 14:18</div>
+          <div class="message user"><div class="bubble">Проверь, что прогресс и панель предложений понятны на телефоне.</div><div class="message-avatar">Я</div></div>
+          <div class="message"><div class="message-avatar">🎼</div><div class="bubble"><div class="status-line"><span class="state-dot"></span>Проверяю основные состояния интерфейса <span class="time">14:19</span></div><div>Сейчас сверю список сессий, карточки follow-up и дочерние работы. Пока обновил вид прогресса для воркера.</div>
+            <div class="progress-panel">
+              <div class="progress-top"><strong>Проверка карточек на узкой ширине</strong><span class="pct">68%</span></div>
+              <div class="progress-track"><span></span></div>
+              <div class="progress-note">Сверяю переносы текста и доступность действий на экране телефона.</div>
+              <div class="progress-foot"><span>Обновлено 14:19</span><span>Пример статуса воркера</span></div>
+              <div class="checklist" aria-label="Этапы работы">
+                <div class="step-head"><span>Этапы задачи</span><span class="demo-tag">вариант чеклиста</span></div>
+                <div class="check-row"><span class="check-mark">✓</span><span class="check-label">Сверить существующие состояния<span><small>Сессия, воркеры и фоновые задания</small></span></span></div>
+                <div class="check-row current"><span class="check-mark">●</span><span class="check-label">Проверить мобильную компоновку<span><small>Текущий шаг · карточки и панель работ</small></span></span></div>
+                <div class="check-row todo"><span class="check-mark">·</span><span class="check-label">Собрать замечания для владельца<span><small>Осталось</small></span></span></div>
+              </div>
+            </div>
+          </div></div>
+          <section class="task-section" aria-labelledby="tasks-title">
+            <h2 class="section-head" id="tasks-title"><span class="spark">✦</span>Предложенные задачи <small>Выбор за владельцем</small></h2>
+            <div class="task-list">
+              <article class="task-card proposed" data-state="proposed">
+                <div class="task-card-top"><span class="task-mark">↗</span><div><div class="task-title">Добавить проверку переполнения чата</div><div class="task-desc">Проверить длинные tool-ответы на мобильной ширине и предложить компактное отображение.</div></div><span class="state-label">Предложено</span></div>
+                <div class="task-facts"><span class="chip">Проект <b>Orchestra</b></span><span class="chip">Модель <b>Codex · Luna</b></span><span class="chip">Лимит <b class="cost">Codex</b></span></div>
+                <div class="task-actions"><button class="action-primary" data-action="launch">Запустить</button><button class="action-secondary" data-action="reject">Отклонить</button></div>
+              </article>
+              <article class="task-card launched" data-state="launched">
+                <div class="task-card-top"><span class="task-mark">✓</span><div><div class="task-title">Проверить прогресс в сессии audit-progress-ui</div><div class="task-desc">Сверить статусы running, waiting и idle с текущими подписями.</div></div><span class="state-label">Запущено</span></div>
+                <div class="task-facts"><span class="chip">Проект <b>Orchestra</b></span><span class="chip">Модель <b>Claude · Sonnet</b></span><span class="chip">Лимит <b class="cost">Claude</b></span></div>
+                <a class="launched-link" href="#worker-progress-header" data-worker-link>↗ Воркер: audit-progress-ui</a>
+              </article>
+              <article class="task-card rejected" data-state="rejected">
+                <div class="task-card-top"><span class="task-mark">×</span><div><div class="task-title">Перенести фильтры окружений Claude Desktop</div><div class="task-desc">Отдельная архитектурная задача; сейчас не входит в выбранные направления.</div></div><span class="state-label">Отклонено</span></div>
+                <div class="task-facts"><span class="chip">Проект <b>Orchestra</b></span><span class="chip">Модель <b>Codex · Luna</b></span><span class="chip">Лимит <b class="cost">Codex</b></span></div>
+                <div class="rejected-copy">Отклонено владельцем · 14:17</div>
+              </article>
+            </div>
+          </section>
+          <details class="child-panel">
+            <summary><span class="chevron">›</span><strong>Дочерние работы этой сессии</strong><span class="count">3</span><span class="child-hint">1 работает · 1 ждёт · 1 фон</span></summary>
+            <div class="child-list">
+              <div class="child-row"><span class="child-name"><i class="state-dot"></i>audit-progress-ui</span><span class="child-state">Воркер</span><span class="child-desc">Проверяет карточки на мобильной ширине</span><span class="child-pct">68%</span></div>
+              <div class="child-row"><span class="child-name"><i class="state-dot wait"></i>docs-check</span><span class="child-state waiting">Ждёт</span><span class="child-desc">Ожидает подтверждения формулировки</span><span class="child-pct">—</span></div>
+              <div class="child-row"><span class="child-name"><i class="state-dot"></i>pytest · 1842</span><span class="child-state">Фоновая задача</span><span class="child-desc">Целевой набор тестов</span><span class="child-pct">В работе</span></div>
+            </div>
+          </details>
+        </div>
+      </section>
+      <footer class="composer"><div class="compose-box"><div class="placeholder">Написать сообщение…</div><div class="compose-foot"><span>＋　Прикрепить　 ·　 / для команд</span><button class="send-btn">↑</button></div></div></footer>
+    </main>
+  </div>
+  <script>
+    document.querySelectorAll('.task-card[data-state="proposed"] [data-action]').forEach(button=>button.addEventListener('click',()=>{
+      const card=button.closest('.task-card');
+      if(button.dataset.action==='launch'){
+        card.dataset.state='launched';card.classList.remove('proposed');card.classList.add('launched');card.querySelector('.state-label').textContent='Запущено';
+        const actions=card.querySelector('.task-actions');actions.remove();
+        const link=document.createElement('a');link.className='launched-link';link.href='#worker-progress-header';link.dataset.workerLink='';link.textContent='↗ Воркер: mobile-chat-overflow';card.append(link);
+      }else{
+        card.dataset.state='rejected';card.classList.remove('proposed');card.classList.add('rejected');card.querySelector('.state-label').textContent='Отклонено';
+        card.querySelector('.task-actions').remove();const note=document.createElement('div');note.className='rejected-copy';note.textContent='Отклонено владельцем · сейчас';card.append(note);
+      }
+    }));
+  </script>
+</body>
+</html>
