@@ -322,7 +322,7 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
     trimmed, jobs, ready, job_indices, job_by_index, queued = [], [], {}, {}, {}, {}
     for i, step in enumerate(steps):
         if engine == "tera":
-            engine_key = f"tera|{TERA_REVISION}|{voice or 'ru_m1'}|stress={int(stress)}|audio-v2"
+            engine_key = f"tera|{TERA_REVISION}|{voice or 'ru_m1'}|stress={int(stress)}|audio-v3"
             text = step["say"]
         elif engine == "kokoro":
             engine_key = f"kokoro-v1.0|{voice}"

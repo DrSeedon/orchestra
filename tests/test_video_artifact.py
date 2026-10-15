@@ -686,3 +686,28 @@ assert len(lines) > 1 and max(widths) <= config.frame_width - 2 * s.CAPTION_MARG
 print("ok")
 """, tmp_path)
     assert run.returncode == 0 and "ok" in run.stdout, run.stderr
+
+
+@pytest.mark.skipif(not MANIM_PY.exists(), reason="нужен numpy из окружения Manim")
+def test_tera_level_phrase_removes_overs_and_evens_levels(tmp_path):
+    import subprocess
+
+    code = """
+import sys
+sys.path.insert(0, %r)
+import numpy as np
+import tts_worker_tera as t
+rng = np.random.default_rng(1)
+clipped = (rng.standard_normal(4000) * 0.9).astype('float32')
+clipped[100] = 1.7
+quiet = (rng.standard_normal(4000) * 0.03).astype('float32')
+a, b = t.level_phrase(clipped), t.level_phrase(quiet)
+for x in (a, b):
+    assert np.abs(x).max() <= t.PEAK_CEILING + 1e-6
+    assert (np.abs(np.rint(np.clip(x, -1, 1) * 32767)) >= 32767).sum() == 0
+rms = lambda x: float((x.astype('float64') ** 2).mean() ** 0.5)
+assert abs(20 * np.log10(rms(b) / t.RMS_TARGET)) < 0.1
+assert rms(a) < rms(clipped)
+""" % str(Path(make.__file__).parent)
+    run = subprocess.run([str(MANIM_PY), "-c", code], capture_output=True, text=True, timeout=60, cwd=tmp_path)
+    assert run.returncode == 0, run.stderr

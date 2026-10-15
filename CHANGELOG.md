@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Fixed
+- **Tera raw phrases no longer clip** (`scripts/video_artifact/tts_worker_tera.py`, `make.py`; V-885). The model returns floats beyond ±1.0 and `save_wav` hard-clipped them: 57–203 full-scale samples per 3–6 s phrase, 0.04 % over University's 45-phrase film. `level_phrase()` now levels each phrase to RMS −20 dBFS with a −3 dBFS peak ceiling; the Tera cache key moved to `audio-v3`, so old clipped clips are regenerated. Kokoro and Vosk measured clean (peaks −2…−6 dBFS) and are untouched. Known tradeoff: short high-crest phrases stay quieter than the rest because the peak ceiling binds.
+
 ## v2.46.0 — 2026-10-15 — voice input, checklists with time estimates, mechanical rules, evidence-gated merges
 
 ### Highlights
