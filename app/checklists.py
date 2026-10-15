@@ -140,7 +140,7 @@ def validate_items(
     if estimates_minutes is not None and (
         not isinstance(estimates_minutes, list) or len(estimates_minutes) != len(normalized)
     ):
-        raise ValueError("estimates_minutes must have one value per item")
+        raise ValueError("estimates_minutes must be a list with one value per item")
     estimates = estimates_minutes if estimates_minutes is not None else [None] * len(normalized)
     normalized_estimates = []
     for index, estimate in enumerate(estimates):
@@ -148,13 +148,13 @@ def validate_items(
             normalized_estimates.append(None)
             continue
         if isinstance(estimate, bool) or not isinstance(estimate, (int, float)):
-            raise ValueError(f"estimates_minutes[{index}] must be a nonnegative number or null")
+            raise ValueError(f"estimates_minutes[{index}] must be a positive number of minutes")
         try:
             numeric_estimate = float(estimate)
         except (OverflowError, ValueError):
             numeric_estimate = math.inf
-        if not math.isfinite(numeric_estimate) or numeric_estimate < 0:
-            raise ValueError(f"estimates_minutes[{index}] must be a nonnegative number or null")
+        if not math.isfinite(numeric_estimate) or numeric_estimate <= 0:
+            raise ValueError(f"estimates_minutes[{index}] must be a positive number of minutes")
         normalized_estimates.append(numeric_estimate)
     if not isinstance(completed, list) or any(
         isinstance(index, bool) or not isinstance(index, int) for index in completed
@@ -171,22 +171,33 @@ def validate_items(
         raise ValueError("current step cannot also be completed")
     if current is None:
         current = next((i for i in range(len(normalized)) if i not in done), None)
-    previous_ids: dict[str, deque[str]] = defaultdict(deque)
+    previous: dict[str, deque[tuple[str, float | None]]] = defaultdict(deque)
     for item in previous_items or []:
         text = item.get("text") if isinstance(item, dict) else None
         step_id = item.get("step_id") if isinstance(item, dict) else None
         if isinstance(text, str) and isinstance(step_id, str) and step_id:
-            previous_ids[text].append(step_id)
-    return [
-        {
-            "step_id": previous_ids[text].popleft() if previous_ids[text] else uuid.uuid4().hex,
-            "text": text,
-            "done": i in done,
-            "current": i == current,
-            "estimate_minutes": normalized_estimates[i],
-        }
-        for i, text in enumerate(normalized)
-    ]
+            previous[text].append((step_id, item.get("estimate_minutes")))
+    steps = []
+    missing = []
+    for i, text in enumerate(normalized):
+        step_id, kept = previous[text].popleft() if previous[text] else (uuid.uuid4().hex, None)
+        estimate = normalized_estimates[i]
+        if estimate is None and isinstance(kept, (int, float)) and kept > 0:
+            estimate = float(kept)
+        if estimate is None:
+            missing.append(f"items[{i}] {text!r}")
+        steps.append({
+            "step_id": step_id, "text": text, "done": i in done,
+            "current": i == current, "estimate_minutes": estimate,
+        })
+    if missing:
+        raise ValueError(
+            "every step needs a positive estimate in minutes; missing for new or changed steps: "
+            + "; ".join(missing)
+            + ". Resend update_checklist with estimates_minutes holding one positive number per item "
+            "(null is accepted only for steps whose text is unchanged since your last update)"
+        )
+    return steps
 
 
 def save_checklist(

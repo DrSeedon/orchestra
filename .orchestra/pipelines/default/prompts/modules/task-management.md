@@ -31,7 +31,7 @@ Built-in task tracker. Agents create, update, and close tasks.
 
 ### Rules
 - When doing worker-assigned work, start with a short `update_checklist` plan and keep its completed indexes and current step accurate as work proceeds.
-- When first setting a task checklist, provide an estimated duration in minutes for every step; use a null estimate only when you cannot estimate it.
+- Every new or changed checklist step needs a positive estimate in minutes (`estimates_minutes`, one per item); the platform rejects the update otherwise. Steps whose text is unchanged keep their stored estimate, so a call that only marks steps done or moves the current step may send null for them (owner decision, 2026-10-15: the estimate is mandatory).
 - Before approved work that will leave a persistent `.orchestra/` artifact (research, audit,
   knowledge base, plan/report), use its existing task number or call `task_create`; include that
   number in the worker message. An exact 1–2 line edit with no persistent artifact may stay untracked

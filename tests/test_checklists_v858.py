@@ -47,7 +47,7 @@ def test_checklist_counts_survive_end_of_turn(checklist_db, monkeypatch):
     checklists.save_checklist(
         session.id, session.task_id, turn_key,
         items=["Inspect the code", "Write the change", "Check the UI", "Report"],
-        completed=[0, 1], current=2,
+        completed=[0, 1], current=2, estimates_minutes=[1, 1, 1, 1],
     )
     session.progress_pct = 76
     session._turn_gen = 4
@@ -109,7 +109,7 @@ def test_estimate_accuracy_report_groups_completed_steps_by_model_and_period(che
     _insert_session(db, "worker-estimates", "task-1")
     start = datetime(2026, 10, 15, 12, tzinfo=timezone.utc)
     items = ["Half", "On time", "Double", "Unestimated"]
-    estimates = [2, 1, 1, None]
+    estimates = [2, 1, 1, 1]
     observations = [
         (60, [0], 1),
         (120, [0, 1], 2),
@@ -126,6 +126,10 @@ def test_estimate_accuracy_report_groups_completed_steps_by_model_and_period(che
             "worker-estimates", "task-1", "turn-report",
             items=items, completed=completed, current=current,
             now=start + timedelta(seconds=seconds),
+        )
+    with db._conn() as connection:
+        connection.execute(
+            "UPDATE checklist_step_metrics SET estimate_minutes=NULL WHERE step_text='Unestimated'"
         )
 
     report = checklists.estimate_accuracy_report(
@@ -191,7 +195,7 @@ def test_summary_is_attached_by_session_and_current_task(checklist_db):
     _insert_session(db, "worker", "task-1")
     checklists.save_checklist(
         "worker", "task-1", "turn-a",
-        items=["A", "B", "C"], completed=[0], current=1,
+        items=["A", "B", "C"], completed=[0], current=1, estimates_minutes=[1, 1, 1],
     )
     summary = checklists.summaries_for_sessions([
         {"id": "worker", "task_id": "task-1"},
@@ -259,6 +263,7 @@ def test_update_after_reminder_is_counted_for_that_turn(checklist_db):
     checklists.save_checklist(
         "worker", "task-1", turn_key,
         items=["Plan", "Implement", "Verify"], completed=[0], current=1,
+        estimates_minutes=[1, 1, 1],
     )
     assert checklists.reminder_effect_counts() == {"reminders": 1, "followed_by_update": 1}
 
@@ -342,18 +347,22 @@ async def test_checklist_route_binds_tool_to_its_worker_session(checklist_db, mo
         "worker",
         routes.ChecklistUpdateRequest(
             items=["Inspect", "Implement"], completed=[0], current=1,
-            estimates_minutes=[None, 12.5],
+            estimates_minutes=[3, 12.5],
         ),
         request_for("worker"),
     )
     spoofed = await routes.update_session_checklist(
         "orch",
-        routes.ChecklistUpdateRequest(items=["Inspect"], completed=[], current=0),
+        routes.ChecklistUpdateRequest(
+            items=["Inspect"], completed=[], current=0, estimates_minutes=[1],
+        ),
         request_for("worker"),
     )
     orchestrator = await routes.update_session_checklist(
         "orch",
-        routes.ChecklistUpdateRequest(items=["Inspect"], completed=[], current=0),
+        routes.ChecklistUpdateRequest(
+            items=["Inspect"], completed=[], current=0, estimates_minutes=[1],
+        ),
         request_for("orch"),
     )
 
@@ -364,7 +373,7 @@ async def test_checklist_route_binds_tool_to_its_worker_session(checklist_db, mo
     assert orchestrator.status_code == 403
 
 
-def test_checklist_mcp_schema_accepts_optional_per_step_estimates():
+def test_checklist_mcp_schema_accepts_per_step_estimates():
     import app.mcp_stdio as mcp_stdio
 
     tool = next(tool for tool in mcp_stdio.mcp._tool_manager.list_tools() if tool.name == "update_checklist")
@@ -383,6 +392,7 @@ async def test_session_list_receives_compact_checklist_count(checklist_db, monke
     checklists.save_checklist(
         "worker", "task-1", "turn-list",
         items=["Inspect", "Implement", "Verify"], completed=[0, 1], current=2,
+        estimates_minutes=[1, 1, 1],
     )
     monkeypatch.setattr(routes.manager, "list_sessions", lambda _scope: [
         {"id": "worker", "name": "worker", "task_id": "task-1"},
@@ -408,7 +418,7 @@ def test_fully_completed_checklist_gets_no_reminder(checklist_db, monkeypatch):
     monkeypatch.setattr(checklists, "REMINDER_DELAY_SECONDS", 0.01)
     checklists.save_checklist(
         "worker-done", "task-1", "turn-done",
-        items=["A", "B"], completed=[0, 1], current=None,
+        items=["A", "B"], completed=[0, 1], current=None, estimates_minutes=[1, 1],
     )
     session = AgentSession(
         id="worker-done", name="worker", scope="/v858", cwd="/v858",
@@ -444,3 +454,30 @@ def test_info_panel_lists_only_working_children(checklist_db, monkeypatch):
     payload = asyncio.run(routes.get_info_panel("orch", "/v858"))
 
     assert sorted(child["name"] for child in payload["children"]) == ["w-running", "w-waiting"]
+
+
+def test_estimate_is_mandatory_for_new_or_changed_steps_only(checklist_db):
+    db, checklists = checklist_db
+    _insert_session(db, "worker-mandatory", "task-1")
+
+    def save(items, completed, estimates=None):
+        return checklists.save_checklist(
+            "worker-mandatory", "task-1", "turn-mandatory",
+            items=items, completed=completed, current=None, estimates_minutes=estimates,
+        )
+
+    for bad in (None, [None, 2], [0, 2], [-1, 2], [True, 2]):
+        with pytest.raises(ValueError, match="positive") as error:
+            save(["First", "Second"], [], bad)
+        assert "estimates_minutes" in str(error.value)
+
+    save(["First", "Second"], [], [3, 4])
+    marked = save(["First", "Second"], [0])
+    assert [item["estimate_minutes"] for item in marked["items"]] == [3, 4]
+
+    with pytest.raises(ValueError, match="Third"):
+        save(["First", "Second", "Third"], [0])
+    with pytest.raises(ValueError, match="Second"):
+        save(["First", "Second changed"], [0])
+    added = save(["First", "Second", "Third"], [0], [None, None, 5])
+    assert [item["estimate_minutes"] for item in added["items"]] == [3, 4, 5]
