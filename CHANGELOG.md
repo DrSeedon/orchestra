@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Changed
+- **Public project guides refreshed around current workflows** (`README.md`, `README.ru.md`, `CONTRIBUTING.md`; V-879). Replaced stale dated comparisons, metrics, and private-project examples with user-facing team scenarios and capabilities cross-checked against current behavior; corrected the contribution clone URL and test command. Trigger: the published overview and contributor setup no longer matched the repository.
+
 ### Added
 - **Orchestrator checks whether a reported number supports the claim** (`.orchestra/pipelines/default/prompts/roles/orchestrator.md`; V-867). Comparative, causal, trend, and generalized figures are reported only after checking sample N/unit, denominator, comparable control, and noise; exact finite-set counts instead state their coverage. Trigger: owner decision 2026-10-15 to avoid elevating numerically precise but unsupported claims.
 - **Orchestrator task cards support owner reasons and rejection messages** (`app/routes/sessions.py`, `app/task_proposals.py`, dashboard `app.js`/`i18n.js`/`style.css`; V-871). Approving or rejecting a card sends one durable message to its proposing orchestrator; an optional owner reason/instruction is included in that same message, with the decision intent bound to its idempotency receipt. Trigger: the owner asked to explain approvals/rejections and have explicit rejections reach the orchestrator.
