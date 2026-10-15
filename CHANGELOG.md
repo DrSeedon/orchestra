@@ -7,6 +7,7 @@
 ## Unreleased
 
 ### Fixed
+- **Mutation-gate verdicts use changed test nodes only** (`app/merge_test_gate.py`; V-861). Added/modified test functions are isolated from unrelated tests in the same module, and the mutation run applies Orchestra's `browser`/`live_probe` exclusions. If every changed test is excluded or a changed test node cannot be identified, the mutation result is `SKIPPED` with a reason; a changed non-browser test that passes against target sources still fails the gate. Trigger: a helper and four browser tests were added together, so AST fallback ran 14 unchanged green tests and reported `tests_not_guarding_source`.
 - **Сглажены случайные падения линии фактического расхода** (`app/static/js/quota-lines.js`; V-859). История внутри одного окна отображается накопительным максимумом, а при продвижении `resets_at` начинается новая последовательность, поэтому дрожание процента провайдера не выглядит возвратом квоты, а настоящий сброс остаётся виден.
 - **Прерывание хода не считается ошибкой, а старый listener не завершает новый ход** (`app/session_turns.py`, `app/session.py`; V-856). При `stop_reason="interrupted"` метаданные CLI могли содержать `errors=["error"]`, из-за чего штатный stop/steer логировался как `turn FAILED: error`. Done-callback завершившегося per-turn listener также мог сработать после запуска следующего хода и принять его `RUNNING` за смерть listener. Прерывание теперь остаётся статусом; callback устаревшей задачи не меняет состояние текущего хода, а настоящие сбои продолжают логироваться как ошибки.
 
