@@ -44,7 +44,12 @@ const _QL_LANE_MARKERS = [
     {dx: 12, dy: 17},
     {dx: -12, dy: 26},
 ];
-const _QL_LANE_COLORS = {sol: '#f472b6', luna: '#38bdf8', spark: '#c084fc', claude: '#fb923c'};
+// Цвет полосы = цвет её модели/пула из дизайн-системы (design-system.css). SVG-атрибуту
+// нужен вычисленный цвет, поэтому cssToken, а не var().
+const _QL_LANE_TOKENS = {sol: '--model-sol', luna: '--model-luna', spark: '--model-spark', claude: '--provider-anthropic'};
+function _qlLaneColor(lane) {
+    return cssToken(_QL_LANE_TOKENS[lane] || '--ink', '#e2e8f0');
+}
 
 // Форма диагонали допуска между началом и концом окна. Значение В ТЕКУЩЕЙ точке
 // берётся из lanes[].limit_pct сервера, а не отсюда, — иначе панель и гейт разойдутся.
@@ -552,7 +557,7 @@ function _qlTimelineSvg(panel, rule) {
                                 text: T('threshold {label}', {label: laneName}),
                                 title,
                                 y: y(value) - 5,
-                                color: lane === 'sol' ? '#f472b6' : '#fb923c',
+                                color: _qlLaneColor(lane === 'sol' ? 'sol' : 'claude'),
                             });
                         }
                     }
@@ -566,7 +571,7 @@ function _qlTimelineSvg(panel, rule) {
     for (const lane of _qlLanes(panel)) {
         const point = _qlPoint(lane.bucket);
         if (!point) continue;
-        const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
+        const color = _qlLaneColor(lane.lane);
         p.push(`<circle data-ql-timeline-point="${_escHtml(lane.lane)}" cx="${x(now)}" cy="${y(point.util)}" r="${5.5 + pointIndex * 2}" fill="none" stroke="${color}" stroke-width="2.5"><title>${_escHtml(T(lane.label || lane.lane))}: ${_formatPercent(point.util)}%</title></circle>`);
         const lowPoint = point.util < 15;
         const leftLabel = lowPoint && pointIndex % 2 === 1;
@@ -650,8 +655,8 @@ function _qlChartSvg(panel, rule) {
         const claudeSuffix = gatedLanes.includes('claude') ? '' : T(' — lifted');
         const solTitle = `${T('Sol threshold')}${solSuffix}`;
         const claudeTitle = `${T('Claude threshold')}${claudeSuffix}`;
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(limitAt(0.30, 'sol')) - 9}" fill="#f472b6"><title>${_escHtml(solTitle)}</title>${T('Sol threshold')}</text>`);
-        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(limitAt(0.62, 'claude')) + 17}" fill="#fb923c"><title>${_escHtml(claudeTitle)}</title>${T('Claude threshold')}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.30)}" y="${_qlY(limitAt(0.30, 'sol')) - 9}" fill="${_qlLaneColor('sol')}"><title>${_escHtml(solTitle)}</title>${T('Sol threshold')}</text>`);
+        p.push(`<text class="ql-axis ql-halo" x="${_qlX(0.62)}" y="${_qlY(limitAt(0.62, 'claude')) + 17}" fill="${_qlLaneColor('claude')}"><title>${_escHtml(claudeTitle)}</title>${T('Claude threshold')}</text>`);
     }
 
     const hard = Number(rule.hard_stop_pct);
@@ -722,7 +727,7 @@ function _qlChartSvg(panel, rule) {
         const right = point.progress > 0.6;
         const dx = right ? -Math.abs(offset.dx) : offset.dx;
         const dy = offset.dy;
-        const color = _QL_LANE_COLORS[lane.lane] || 'var(--ink)';
+        const color = _qlLaneColor(lane.lane);
         const label = _escHtml(String(T(lane.label || lane.lane)));
         const markerClass = `ql-point-${lane.lane || 'lane'}`;
         const anchor = right ? 'end' : 'start';
@@ -826,10 +831,10 @@ function _qlPanelHtml(panel) {
         ${_qlTimelineSvg(panel, rule)}
         ${chart.svg}
         <div class="ql-legend">
-            <span><i style="background:#8595ab"></i>${T('steady burn')}</span>
-            <span><i style="background:#f472b6"></i>${T('threshold for gated lanes')}</span>
+            <span><i style="background:var(--ink-faint)"></i>${T('steady burn')}</span>
+            <span><i style="background:var(--model-sol)"></i>${T('threshold for gated lanes')}</span>
             <span><i style="background:#fb923c"></i>${T('hard {pct}%', {pct: _formatPercent(rule.hard_stop_pct)})}</span>
-            <span><i style="background:#818cf8"></i>${T('orchestrator — no limit')}</span>
+            <span><i style="background:var(--accent)"></i>${T('orchestrator — no limit')}</span>
         </div>
         ${traceNotices ? `<div class="ql-trace-notices">${traceNotices}</div>` : ''}
         <p class="ql-verdict ${_qlTone(verdict)}" data-ql-verdict>${_escHtml(verdict.text)}</p>

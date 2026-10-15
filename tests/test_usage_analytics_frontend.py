@@ -18,7 +18,7 @@ def test_frontend_provider_metadata_is_exhaustive():
     from app.models import PROVIDER_METADATA
 
     source = UTILS_JS.read_text()
-    colors_block = source.split("const _PROVIDER_COLORS = {", 1)[1].split("};", 1)[0]
+    colors_block = UTILS_JS.with_name("theme.js").read_text().split("const _PROVIDER_COLORS = {", 1)[1].split("};", 1)[0]
     color_ids = {
         quoted or bare
         for quoted, bare in re.findall(
@@ -41,6 +41,9 @@ def test_frontend_provider_metadata_is_exhaustive():
         for provider in metadata.model_providers
     }
     assert model_providers <= color_ids
+    # Каждый var(--provider-*) из theme.js обязан иметь токен, иначе цвет молча пропадёт.
+    tokens = (ROOT / "app/static/css/design-system.css").read_text()
+    assert {pid for pid in color_ids if f"--provider-{pid}:" not in tokens} == set()
 
 
 @pytest.fixture(scope="module")
@@ -336,6 +339,7 @@ def _page(browser: Browser, width=1600, height=1000) -> Page:
         _payload(),
     )
     page.add_style_tag(path=str(ROOT / "app/static/css/style.css"))
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(ANALYTICS_JS))
     return page

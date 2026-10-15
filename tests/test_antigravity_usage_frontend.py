@@ -35,6 +35,7 @@ def _page(browser: Browser, antigravity, *, width: int = 1440):
             window.DOMPurify = {addHook() {}};
         }"""
     )
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))

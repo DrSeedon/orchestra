@@ -292,7 +292,7 @@ function renderEditDiff(body) {
 
         const moreEl = document.createElement('div');
         moreEl.className = 'diff-file';
-        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px';
         moreEl.textContent = T('▼ {n} more lines', {n: restLines.length});
         moreEl.dataset.count = restLines.length;
         container.appendChild(moreEl);
@@ -428,7 +428,7 @@ function renderGlobView(pattern, resultText) {
 
     const headerEl = document.createElement('div');
     headerEl.className = 'grep-result-row';
-    headerEl.style.cssText = 'color:#38bdf8;font-size:11px;font-weight:600;padding:4px 8px;border-bottom:1px solid #1e293b';
+    headerEl.style.cssText = 'color:var(--accent-alt);font-size:11px;font-weight:600;padding:4px 8px;border-bottom:1px solid var(--border-soft)';
     headerEl.textContent = T('📂 {n} files', {n: files.length});
     container.appendChild(headerEl);
 
@@ -466,7 +466,7 @@ function renderGlobView(pattern, resultText) {
         const moreEl = document.createElement('div');
         moreEl.dataset.role = 'read-more';
         moreEl.dataset.count = restFiles.length;
-        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px;padding:4px 0';
         moreEl.textContent = T('▼ {n} more files', {n: restFiles.length});
         container.appendChild(moreEl);
     }
@@ -549,7 +549,7 @@ function renderGrepResults(raw, pattern) {
         const moreEl = document.createElement('div');
         moreEl.dataset.role = 'read-more';
         moreEl.dataset.count = restLines.length;
-        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px;padding:4px 0';
+        moreEl.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px;padding:4px 0';
         moreEl.textContent = T('▼ {n} more lines', {n: restLines.length});
         container.appendChild(moreEl);
     }
@@ -569,7 +569,7 @@ function _wsCompactLinks(links) {
         const a = document.createElement('a');
         a.href = url;
         a.target = '_blank';
-        a.style.cssText = 'display:block;font-size:10px;margin-top:2px;color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
+        a.style.cssText = 'display:block;font-size:10px;margin-top:2px;color:var(--ink-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
         a.onmouseenter = () => a.style.color = '#94a3b8';
         a.onmouseleave = () => a.style.color = '#64748b';
         a.textContent = `[${i + 1}] ${title || domain}${title && domain ? ' — ' + domain : ''}`;
@@ -593,7 +593,7 @@ function _wsCollapsible(el) {
     body.style.cssText += ';max-height:' + PREVIEW_HEIGHT + 'px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
 
     const hint = document.createElement('div');
-    hint.style.cssText = 'color:#38bdf8;font-size:10px;cursor:pointer;margin-top:4px';
+    hint.style.cssText = 'color:var(--accent-alt);font-size:10px;cursor:pointer;margin-top:4px';
     hint.textContent = T('▼ expand');
     let expanded = false;
 
@@ -640,7 +640,7 @@ function renderWebSearchResults(raw) {
             const el = document.createElement('div');
             const body = document.createElement('div');
             body.className = 'text-xs markdown-body';
-            body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+            body.style.cssText = 'line-height:1.5;color:var(--ink-body)';
             body.innerHTML = DOMPurify.sanitize(marked.parse(data.result));
             el.appendChild(body);
             if (Array.isArray(data.citations) && data.citations.length > 0) {
@@ -655,7 +655,7 @@ function renderWebSearchResults(raw) {
             const el = document.createElement('div');
             const body = document.createElement('div');
             body.className = 'text-xs markdown-body';
-            body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+            body.style.cssText = 'line-height:1.5;color:var(--ink-body)';
             const md = results.slice(0, 6).map((r, i) => {
                 const title = r.title || r.name || '';
                 const url = r.url || r.link || r.href || '';
@@ -684,7 +684,7 @@ function renderWebSearchResults(raw) {
                 const textAfterLinks = raw.slice(arrEnd).trim();
                 const body = document.createElement('div');
                 body.className = 'text-xs markdown-body';
-                body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+                body.style.cssText = 'line-height:1.5;color:var(--ink-body)';
                 if (textAfterLinks) {
                     body.innerHTML = DOMPurify.sanitize(marked.parse(textAfterLinks));
                 } else {
@@ -708,14 +708,14 @@ function renderWebSearchResults(raw) {
         const el = document.createElement('div');
         if (metaMatch) {
             const meta = document.createElement('div');
-            meta.style.cssText = 'font-size:10px;color:#64748b;margin-bottom:4px';
+            meta.style.cssText = 'font-size:10px;color:var(--ink-dim);margin-bottom:4px';
             meta.textContent = metaMatch[1].replace(/^_|_$/g, '').trim();
             el.appendChild(meta);
         }
         const text = metaMatch ? raw.slice(raw.indexOf(metaMatch[0]) + metaMatch[0].length).trim() : raw;
         const body = document.createElement('div');
         body.className = 'text-xs markdown-body';
-        body.style.cssText = 'line-height:1.5;color:#cbd5e1';
+        body.style.cssText = 'line-height:1.5;color:var(--ink-body)';
         body.innerHTML = DOMPurify.sanitize(marked.parse(text));
         el.appendChild(body);
         return _wsCollapsible(el);

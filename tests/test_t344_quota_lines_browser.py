@@ -158,6 +158,7 @@ def _render(browser: Browser, payload, as_json: bool = False, language: str = "e
     for vendor in VENDOR_JS:
         page.add_script_tag(path=str(vendor))
     page.add_script_tag(path=str(I18N_JS))
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(QUOTA_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
@@ -916,7 +917,7 @@ def test_panel_is_absent_outside_owner_mode(browser):
         status=200, content_type="text/html", body="<body><div id='usage-bar'></div></body>"))
     page.goto("http://harness.local/")
     page.add_style_tag(path=str(STYLE_CSS))
-    for script in [*VENDOR_JS, I18N_JS, UTILS_JS, QUOTA_JS, CONNECTION_JS, APP_JS]:
+    for script in [*VENDOR_JS, I18N_JS, UTILS_JS.with_name("theme.js"), UTILS_JS, QUOTA_JS, CONNECTION_JS, APP_JS]:
         page.add_script_tag(path=str(script))
     page.evaluate("""async () => {
         api = async () => ({data_available: false, error: 'owner_mode_only'});

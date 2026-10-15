@@ -1343,7 +1343,7 @@ function _renderJsonGrid(obj, container, maxDepth) {
     for (const [key, val] of entries) {
         if (key === 'system_prompt' || key === 'error_trace' || key === '_codex_item_id') continue;
         const keyEl = document.createElement('span');
-        keyEl.style.cssText = 'color:#64748b;white-space:nowrap;font-family:monospace';
+        keyEl.style.cssText = 'color:var(--ink-dim);white-space:nowrap;font-family:monospace';
         keyEl.textContent = key;
         grid.appendChild(keyEl);
         const valEl = document.createElement('span');
@@ -1391,7 +1391,7 @@ function _renderJsonGrid(obj, container, maxDepth) {
                     if (_arrExp) {
                         valEl.textContent = '';
                         const pre = document.createElement('pre');
-                        pre.style.cssText = 'font-size:10px;color:#94a3b8;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow-y:auto';
+                        pre.style.cssText = 'font-size:10px;color:var(--ink-muted);margin:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow-y:auto';
                         pre.textContent = JSON.stringify(val, null, 2);
                         valEl.appendChild(pre);
                     } else {
@@ -1417,7 +1417,7 @@ function _renderJsonGrid(obj, container, maxDepth) {
                     if (_objExp) {
                         valEl.textContent = '';
                         const pre = document.createElement('pre');
-                        pre.style.cssText = 'font-size:10px;color:#94a3b8;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow-y:auto';
+                        pre.style.cssText = 'font-size:10px;color:var(--ink-muted);margin:0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow-y:auto';
                         pre.textContent = JSON.stringify(val, null, 2);
                         valEl.appendChild(pre);
                     } else {
@@ -1982,11 +1982,11 @@ function _taskDescriptionHtml(description) {
     const collapsible = text.length > 180 || text.split('\n').length > 3;
     const bodyStyle = collapsible ? 'max-height:64px;overflow:hidden' : '';
     const button = collapsible
-        ? '<button type="button" data-task-description-toggle onclick="event.stopPropagation();_toggleTaskDescription(this)" style="margin-top:3px;padding:0;border:0;background:none;color:#818cf8;font-size:10px;cursor:pointer">' + T('▼ Expand') + '</button>'
+        ? '<button type="button" data-task-description-toggle onclick="event.stopPropagation();_toggleTaskDescription(this)" style="margin-top:3px;padding:0;border:0;background:none;color:var(--accent);font-size:10px;cursor:pointer">' + T('▼ Expand') + '</button>'
         : '';
     return `<div data-task-description style="margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:5px">
-        <div style="font-size:9px;color:#64748b;margin-bottom:2px">${T('DESCRIPTION')}</div>
-        <div data-task-description-body class="markdown-body text-xs" style="${bodyStyle};overflow-wrap:anywhere;line-height:1.4;color:#94a3b8">${DOMPurify.sanitize(marked.parse(text))}</div>
+        <div style="font-size:9px;color:var(--ink-dim);margin-bottom:2px">${T('DESCRIPTION')}</div>
+        <div data-task-description-body class="markdown-body text-xs" style="${bodyStyle};overflow-wrap:anywhere;line-height:1.4;color:var(--ink-muted)">${DOMPurify.sanitize(marked.parse(text))}</div>
         ${button}
     </div>`;
 }
@@ -2005,23 +2005,23 @@ function _taskCardBodyHtml(task) {
     const rows = [];
     const safe = (value) => DOMPurify.sanitize(String(value));
     const statusColor = {'done':'#22c55e','paid':'#22c55e','in_progress':'#38bdf8','new':'#e2e8f0','cancelled':'#ef4444'}[task.status] || '#e2e8f0';
-    if (task.status) rows.push(`<div><span style="color:#64748b">${T('Status:')}</span> <b style="color:${statusColor}">${T(safe(task.status))}</b></div>`);
-    if (task.project) rows.push(`<div><span style="color:#64748b">${T('Project:')}</span> <span style="color:#94a3b8">${safe(String(task.project).replace(/^scope:/, ''))}</span></div>`);
+    if (task.status) rows.push(`<div><span style="color:var(--ink-dim)">${T('Status:')}</span> <b style="color:${statusColor}">${T(safe(task.status))}</b></div>`);
+    if (task.project) rows.push(`<div><span style="color:var(--ink-dim)">${T('Project:')}</span> <span style="color:var(--ink-muted)">${safe(String(task.project).replace(/^scope:/, ''))}</span></div>`);
     const price = task.price_rub ?? task.price;
-    if (Number(price) > 0) rows.push(`<div><span style="color:#64748b">${T('Price:')}</span> <b style="color:#eab308">${_taskMoney(price)} ${CUR}</b></div>`);
-    if (task.assignee) rows.push(`<div><span style="color:#64748b">${T('Assignee:')}</span> ${safe(task.assignee)}</div>`);
+    if (Number(price) > 0) rows.push(`<div><span style="color:var(--ink-dim)">${T('Price:')}</span> <b style="color:var(--warn)">${_taskMoney(price)} ${CUR}</b></div>`);
+    if (task.assignee) rows.push(`<div><span style="color:var(--ink-dim)">${T('Assignee:')}</span> ${safe(task.assignee)}</div>`);
     if (task.priority != null && _TASK_PRIORITY_META[task.priority]) {
         const [icon, label] = _TASK_PRIORITY_META[task.priority];
-        rows.push(`<div><span style="color:#64748b">${T('Priority:')}</span> ${icon} ${T(label)}</div>`);
+        rows.push(`<div><span style="color:var(--ink-dim)">${T('Priority:')}</span> ${icon} ${T(label)}</div>`);
     }
     const taskId = task.task_id ?? task.id;
-    if (taskId != null && taskId !== '') rows.push(`<div><span style="color:#64748b">${T('Task ID:')}</span> <span style="font-family:monospace">${safe(taskId)}</span></div>`);
-    if (task.created_at) rows.push(`<div><span style="color:#64748b">${T('Created:')}</span> ${safe(String(task.created_at).slice(0, 10))}</div>`);
-    if (task.updated_at) rows.push(`<div><span style="color:#64748b">${T('Updated:')}</span> ${safe(String(task.updated_at).slice(0, 10))}</div>`);
-    if (task.completed_at) rows.push(`<div><span style="color:#64748b">${T('Done:')}</span> ${safe(String(task.completed_at).slice(0, 10))}</div>`);
-    if (task.paid_at) rows.push(`<div><span style="color:#64748b">${T('Paid at:')}</span> ${safe(String(task.paid_at).slice(0, 10))}</div>`);
+    if (taskId != null && taskId !== '') rows.push(`<div><span style="color:var(--ink-dim)">${T('Task ID:')}</span> <span style="font-family:monospace">${safe(taskId)}</span></div>`);
+    if (task.created_at) rows.push(`<div><span style="color:var(--ink-dim)">${T('Created:')}</span> ${safe(String(task.created_at).slice(0, 10))}</div>`);
+    if (task.updated_at) rows.push(`<div><span style="color:var(--ink-dim)">${T('Updated:')}</span> ${safe(String(task.updated_at).slice(0, 10))}</div>`);
+    if (task.completed_at) rows.push(`<div><span style="color:var(--ink-dim)">${T('Done:')}</span> ${safe(String(task.completed_at).slice(0, 10))}</div>`);
+    if (task.paid_at) rows.push(`<div><span style="color:var(--ink-dim)">${T('Paid at:')}</span> ${safe(String(task.paid_at).slice(0, 10))}</div>`);
     const fields = rows.length
-        ? `<div data-task-fields style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:#94a3b8">${rows.join('')}</div>`
+        ? `<div data-task-fields style="display:grid;grid-template-columns:1fr 1fr;gap:2px 8px;font-size:10px;color:var(--ink-muted)">${rows.join('')}</div>`
         : '';
     return fields + _taskDescriptionHtml(task.description);
 }
@@ -2031,7 +2031,7 @@ function _attachTaskRows(host, container, total, preview, expandedDisplay) {
     if (total <= preview) return;
     const hint = document.createElement('div');
     hint.className = 'text-xs mt-1';
-    hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+    hint.style.cssText = 'color:var(--accent-violet);cursor:pointer;text-align:center';
     let expanded = false;
     const render = () => {
         container.querySelectorAll('[data-task-row]').forEach((row, index) => {
@@ -2053,7 +2053,7 @@ function _appendCaption(host, caption) {
     if (!caption) return;
     const element = document.createElement('div');
     element.className = 'text-xs';
-    element.style.cssText = 'margin-top:2px;color:#cbd5e1';
+    element.style.cssText = 'margin-top:2px;color:var(--ink-body)';
     element.textContent = caption;
     host.appendChild(element);
 }
@@ -2076,11 +2076,11 @@ function _appendToolTechnicalDetails(card, content) {
     details.dataset.toolTechnicalDetails = '1';
     details.style.cssText = 'margin-top:6px;border-top:1px solid rgba(51,65,85,0.55);padding-top:4px';
     const summary = document.createElement('summary');
-    summary.style.cssText = 'font-size:10px;color:#64748b;cursor:pointer;user-select:none';
+    summary.style.cssText = 'font-size:10px;color:var(--ink-dim);cursor:pointer;user-select:none';
     summary.textContent = T('Technical details');
     details.addEventListener('click', event => event.stopPropagation());
     const raw = document.createElement('pre');
-    raw.style.cssText = 'margin:5px 0 0;padding:6px 8px;border-radius:6px;background:#0d1117;color:#64748b;font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto';
+    raw.style.cssText = 'margin:5px 0 0;padding:6px 8px;border-radius:6px;background:#0d1117;color:var(--ink-dim);font-size:10px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:220px;overflow:auto';
     try { raw.textContent = JSON.stringify(JSON.parse(content), null, 2); }
     catch { raw.textContent = content; }
     details.append(summary, raw);
@@ -2198,7 +2198,7 @@ function _renderSendChartResult(card, content, ts) {
     if (receipt) {
         const receiptEl = document.createElement('div');
         receiptEl.className = 'text-xs';
-        receiptEl.style.cssText = 'margin-top:6px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere';
+        receiptEl.style.cssText = 'margin-top:6px;color:var(--ink-body);white-space:pre-wrap;overflow-wrap:anywhere';
         receiptEl.textContent = receipt;
         card.appendChild(receiptEl);
     }
@@ -2207,7 +2207,7 @@ function _renderSendChartResult(card, content, ts) {
     const chartStatus = document.createElement('div');
     chartStatus.className = 'text-xs';
     chartStatus.dataset.role = 'chart-status';
-    chartStatus.style.cssText = 'margin-top:4px;color:#64748b';
+    chartStatus.style.cssText = 'margin-top:4px;color:var(--ink-dim)';
     if (!/^\S+\.png$/i.test(filename)) {
         chartStatus.textContent = T('⚠️ Chart unavailable: invalid file — {path}', {path: chartPath});
         card.appendChild(chartStatus);
@@ -2462,7 +2462,7 @@ function _startSubagentClock(element, ts) {
     if (Date.now() - base > _SA_CLOCK_MAX_AGE_MS) return;
     const clock = document.createElement('span');
     clock.className = 'sa-clock';
-    clock.style.cssText = 'margin-left:6px;color:#a78bfa;font-size:10px;font-variant-numeric:tabular-nums';
+    clock.style.cssText = 'margin-left:6px;color:var(--accent-violet);font-size:10px;font-variant-numeric:tabular-nums';
     (element.firstElementChild || element).appendChild(clock);
     const tick = () => {
         // The first tick runs before the card is inserted: only a card that WAS in the
@@ -2513,21 +2513,21 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
     element.style.cssText = 'font-size:11px;padding:4px 10px;margin:2px 0;border-radius:6px;overflow-wrap:anywhere';
 
     if (type === 'subagent_start') {
-        element.style.cssText += ';border-left:3px solid #a78bfa;background:rgba(99,102,241,0.06);color:#c4b5fd';
+        element.style.cssText += ';border-left:3px solid var(--accent-violet);background:rgba(99,102,241,0.06);color:#c4b5fd';
         if (subagentId) element.dataset.subagentId = subagentId;
         if (meta.tool_use_id) element.dataset.saToolUseId = meta.tool_use_id;
         element.dataset.subagentKind = isBackground ? 'background' : 'agent';
         const header = document.createElement('div');
         header.style.cssText = 'cursor:pointer;user-select:none';
         const noun = isBackground ? T('Background task') : T('Sub-agent');
-        header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:#e2e8f0">${noun}: "${DOMPurify.sanitize(description)}"</span>${meta.type ? ` <span style="color:#64748b;font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
+        header.innerHTML = `<span class="sa-caret">▶</span> ${isBackground ? '⚙️' : '🤖'} <span style="color:var(--ink)">${noun}: "${DOMPurify.sanitize(description)}"</span>${meta.type ? ` <span style="color:var(--ink-dim);font-size:10px">(${DOMPurify.sanitize(meta.type)})</span>` : ''}`;
         // Между `subagent_start` и `subagent_end` НЕТ ни одного события (замер 28.08:
         // 239 задач, только два события на задачу). Поэтому единственный честный признак
         // жизни — часы, которые идут у клиента. Медиана задачи 3.5 с, но p90 = 34 с и
         // максимум 598 с: без тикающего счётчика долгая задача неотличима от повисшей.
         const body = document.createElement('div');
         body.className = 'sa-body';
-        body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:#94a3b8;white-space:pre-wrap;max-height:300px;overflow-y:auto';
+        body.style.cssText = 'margin-top:4px;padding-left:14px;border-left:1px dashed #4c1d95;display:none;font-size:10px;color:var(--ink-muted);white-space:pre-wrap;max-height:300px;overflow-y:auto';
         let expanded = false;
         header.addEventListener('click', () => {
             expanded = !expanded;
@@ -2547,13 +2547,13 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
             if (!progress) {
                 progress = document.createElement('div');
                 progress.className = 'sa-progress';
-                progress.style.cssText = 'font-size:10px;color:#64748b;padding-left:14px;margin-top:2px';
+                progress.style.cssText = 'font-size:10px;color:var(--ink-dim);padding-left:14px;margin-top:2px';
                 host.appendChild(progress);
             }
             progress.textContent = line;
             return true;
         }
-        element.style.cssText += ';color:#64748b';
+        element.style.cssText += ';color:var(--ink-dim)';
         element.textContent = `⏳ ${isBackground ? T('Background task') : T('Sub-agent')} "${description}" — ${line}`;
     } else {
         const succeeded = !meta.status || ['completed', 'shutdown'].includes(meta.status);
@@ -2562,13 +2562,13 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
         if (host) {
             const header = host.querySelector('div');
             const noun = host.dataset.subagentKind === 'background' ? T('Background task') : T('Sub-agent');
-            if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? T('done') : T('failed')}: "${DOMPurify.sanitize(description)}"</span>`;
+            if (header) header.innerHTML = `<span class="sa-caret">▶</span> ${succeeded ? '✅' : '❌'} <span style="color:var(--ink)">${noun} ${succeeded ? T('done') : T('failed')}: "${DOMPurify.sanitize(description)}"</span>`;
             host.querySelector('.sa-progress')?.remove();
             _stopSubagentClock(host);
             host.dataset.subagentDone = '1';
             if (summary) {
                 const summaryElement = document.createElement('div');
-                summaryElement.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:14px;white-space:pre-wrap';
+                summaryElement.style.cssText = 'font-size:10px;color:var(--ink-muted);margin-top:2px;padding-left:14px;white-space:pre-wrap';
                 summaryElement.textContent = summary;
                 host.appendChild(summaryElement);
             }
@@ -2577,10 +2577,10 @@ function _renderSubagentLifecycleEntry(type, content, ts, payload, chat, insertA
         }
         element.style.cssText += `;border-left:3px solid ${succeeded ? '#22c55e' : '#ef4444'};background:rgba(${succeeded ? '34,197,94' : '239,68,68'},0.06);color:${succeeded ? '#86efac' : '#fca5a5'}`;
         const noun = isBackground ? 'Background task' : 'Sub-agent';
-        element.innerHTML = `${succeeded ? '✅' : '❌'} <span style="color:#e2e8f0">${noun} ${succeeded ? 'completed' : 'failed'}${description ? ': "'+DOMPurify.sanitize(description)+'"' : ''}</span>`;
+        element.innerHTML = `${succeeded ? '✅' : '❌'} <span style="color:var(--ink)">${noun} ${succeeded ? 'completed' : 'failed'}${description ? ': "'+DOMPurify.sanitize(description)+'"' : ''}</span>`;
         if (summary) {
             const summaryElement = document.createElement('div');
-            summaryElement.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;padding-left:20px;white-space:pre-wrap';
+            summaryElement.style.cssText = 'font-size:10px;color:var(--ink-muted);margin-top:2px;padding-left:20px;white-space:pre-wrap';
             summaryElement.textContent = summary.length > 300 ? summary.slice(0, 300) + '…' : summary;
             element.appendChild(summaryElement);
         }
@@ -2678,7 +2678,7 @@ function _workflowInputCard(div, data, header) {
     div.dataset.workflowMode = mode;
     const summary = document.createElement('div');
     summary.className = 'workflow-card-summary';
-    summary.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin-top:5px;font-size:10px;color:#cbd5e1';
+    summary.style.cssText = 'display:grid;grid-template-columns:auto 1fr;gap:2px 10px;margin-top:5px;font-size:10px;color:var(--ink-body)';
     const row = (label, value) => {
         if (value == null || value === '') return;
         const key = document.createElement('span'); key.style.color = '#64748b'; key.textContent = label;
@@ -2701,7 +2701,7 @@ function _workflowInputCard(div, data, header) {
     groups.forEach((group, stageIndex) => {
         if (group.title) {
             const title = document.createElement('div');
-            title.style.cssText = 'font-size:10px;color:#a78bfa;font-weight:600;margin-top:3px';
+            title.style.cssText = 'font-size:10px;color:var(--accent-violet);font-weight:600;margin-top:3px';
             title.textContent = group.title;
             list.appendChild(title);
         }
@@ -2711,58 +2711,59 @@ function _workflowInputCard(div, data, header) {
             : group.tasks.length > 1 ? _compactWorkflowPrompts(group.tasks) : null;
         if (compact) {
             const item = document.createElement('div');
-            item.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
+            item.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:var(--ink-body)';
             const promptDetails = document.createElement('details');
             const summary = document.createElement('summary');
             summary.style.cssText = 'cursor:pointer;display:flex;gap:7px;align-items:center';
-            const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:none';
+            const label = document.createElement('span'); label.style.cssText = 'color:var(--ink-dim);flex:none';
             label.textContent = `×${group.tasks.length}`;
             const preview = document.createElement('span'); preview.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
             preview.textContent = _workflowShortText(compact.template, 110);
             const models = [...new Set(group.tasks.map(task => _workflowModelLabel(task.model)))];
-            const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none';
+            const model = document.createElement('span'); model.style.cssText = 'color:var(--accent-violet);flex:none';
             model.textContent = models.join(', ');
             summary.append(label, preview, model);
             const full = document.createElement('div');
-            full.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:#94a3b8;margin:5px 0 0 20px';
+            full.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink-muted);margin:5px 0 0 20px';
             full.textContent = compact.template;
             promptDetails.append(summary, full);
             item.appendChild(promptDetails);
             if (templateItems.length) {
                 const values = document.createElement('div');
-                values.style.cssText = 'margin:4px 0 0 20px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere';
+                values.style.cssText = 'margin:4px 0 0 20px;color:var(--ink-body);white-space:pre-wrap;overflow-wrap:anywhere';
                 values.textContent = T('Items: {values}', {
                     values: templateItems.map(value => _workflowShortText(typeof value === 'string' ? value : JSON.stringify(value), 80)).join(' · '),
                 });
                 item.appendChild(values);
             } else if (compact.variants.length && compact.variants.some(value => value !== compact.variants[0])) {
                 const differences = document.createElement('div');
-                differences.style.cssText = 'margin:4px 0 0 20px;color:#cbd5e1;white-space:pre-wrap;overflow-wrap:anywhere';
+                differences.style.cssText = 'margin:4px 0 0 20px;color:var(--ink-body);white-space:pre-wrap;overflow-wrap:anywhere';
                 differences.textContent = T('Differs: {values}', {
                     values: compact.variants.map(value => _workflowShortText(value, 80)).join(' · '),
                 });
                 item.appendChild(differences);
             } else if (compact.variants.every(value => value === compact.variants[0])) {
                 const identical = document.createElement('div');
-                identical.style.cssText = 'margin:4px 0 0 20px;color:#64748b';
+                identical.style.cssText = 'margin:4px 0 0 20px;color:var(--ink-dim)';
                 identical.textContent = T('{n} identical prompts', {n: compact.variants.length});
                 item.appendChild(identical);
             }
             list.appendChild(item);
         } else group.tasks.forEach((task, taskIndex) => {
             const item = document.createElement('details');
-            item.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
+            item.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:var(--ink-body)';
             const prompt = String(task.prompt || '');
             const summary = document.createElement('summary');
             summary.style.cssText = 'cursor:pointer;display:flex;gap:7px;align-items:center';
-            const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:none';
+            const label = document.createElement('span'); label.style.cssText = 'color:var(--ink-dim);flex:none';
             label.textContent = mode === 'stages' ? `${stageIndex + 1}.${taskIndex + 1}` : `${taskIndex + 1}.`;
             const preview = document.createElement('span'); preview.style.cssText = 'min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1';
             preview.textContent = _workflowShortText(prompt, 110) || T('No prompt');
-            const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none';
+            const model = document.createElement('span'); model.className = 'ds-model-text'; model.style.cssText = 'flex:none';
+            model.style.setProperty('--ds-c', modelColorVar(task.model || 'luna'));
             model.textContent = _workflowModelLabel(task.model);
             summary.append(label, preview, model);
-            const full = document.createElement('div'); full.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:#94a3b8;margin:5px 0 0 20px';
+            const full = document.createElement('div'); full.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink-muted);margin:5px 0 0 20px';
             full.textContent = prompt;
             item.append(summary, full);
             list.appendChild(item);
@@ -2771,7 +2772,7 @@ function _workflowInputCard(div, data, header) {
     div.appendChild(list);
     const status = document.createElement('div');
     status.dataset.role = 'workflow-status';
-    status.style.cssText = 'margin-top:7px;font-size:10px;color:#64748b';
+    status.style.cssText = 'margin-top:7px;font-size:10px;color:var(--ink-dim)';
     status.textContent = T('Loading run status…');
     div.appendChild(status);
     const detail = document.createElement('div');
@@ -2803,7 +2804,7 @@ function _renderWorkflowStatus(card, data) {
     const scheduler = data.scheduler || {};
     if (scheduler.limit != null) {
         const line = document.createElement('div');
-        line.style.cssText = 'margin-top:5px;color:#94a3b8;font-size:10px';
+        line.style.cssText = 'margin-top:5px;color:var(--ink-muted);font-size:10px';
         line.textContent = T('Shared slots {active}/{limit} · queued {queued} · {reason}', {
             active: Number(scheduler.active || 0), limit: Number(scheduler.limit),
             queued: Number(scheduler.queued || 0),
@@ -2816,31 +2817,31 @@ function _renderWorkflowStatus(card, data) {
         section.style.cssText = 'display:flex;flex-direction:column;gap:3px;margin-top:5px';
         if (card.dataset.workflowMode === 'stages') {
             const heading = document.createElement('div');
-            heading.style.cssText = 'font-size:10px;color:#a78bfa;font-weight:600';
+            heading.style.cssText = 'font-size:10px;color:var(--accent-violet);font-weight:600';
             heading.textContent = T('Stage {n}', {n: Number(stage.index) + 1});
             section.appendChild(heading);
         }
         for (const task of stage.tasks || []) {
             const row = document.createElement('div');
-            row.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:#cbd5e1';
+            row.style.cssText = 'padding:5px 7px;border-radius:6px;background:rgba(30,41,59,.38);font-size:10px;color:var(--ink-body)';
             const state = {running: '🔵', waiting: '⏳', completed: '✅', failed: '❌', pending: '◯'}[task.status] || '◯';
             const line = document.createElement('div');
             line.style.cssText = 'display:flex;gap:7px;align-items:center';
-            const label = document.createElement('span'); label.style.cssText = 'color:#64748b;flex:1'; label.textContent = task.label || '';
-            const model = document.createElement('span'); model.style.cssText = 'color:#a78bfa;flex:none'; model.textContent = _workflowModelLabel(task.model);
+            const label = document.createElement('span'); label.style.cssText = 'color:var(--ink-dim);flex:1'; label.textContent = task.label || '';
+            const model = document.createElement('span'); model.className = 'ds-model-text'; model.style.cssText = 'flex:none'; model.style.setProperty('--ds-c', modelColorVar(task.model || 'luna')); model.textContent = _workflowModelLabel(task.model);
             const badge = document.createElement('span'); badge.textContent = task.status === 'waiting' ? T('⏳ queue {position}', {position: task.position || '?'}) : state; badge.title = task.status === 'waiting' ? T('Waiting in shared queue · position {position}', {position: task.position || '?'}) : task.status || '';
             line.append(label, model, badge);
             row.appendChild(line);
             if (task.error) {
-                const error = document.createElement('div'); error.style.cssText = 'margin:4px 0 0 22px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere'; error.textContent = task.error;
+                const error = document.createElement('div'); error.style.cssText = 'margin:4px 0 0 22px;color:var(--danger-ink);white-space:pre-wrap;overflow-wrap:anywhere'; error.textContent = task.error;
                 row.appendChild(error);
             }
             const answerPreview = task.answer_preview ?? task.answer;
             if (answerPreview != null) {
                 const answer = document.createElement('details'); answer.style.margin = '4px 0 0 22px';
-                const answerSummary = document.createElement('summary'); answerSummary.style.cssText = 'cursor:pointer;color:#4ade80';
+                const answerSummary = document.createElement('summary'); answerSummary.style.cssText = 'cursor:pointer;color:var(--ok-soft)';
                 answerSummary.textContent = T('Answer: {preview}', {preview: _workflowShortText(typeof answerPreview === 'string' ? answerPreview : JSON.stringify(answerPreview), 100)});
-                const answerBody = document.createElement('pre'); answerBody.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:#cbd5e1;font:inherit;margin:4px 0';
+                const answerBody = document.createElement('pre'); answerBody.style.cssText = 'white-space:pre-wrap;overflow-wrap:anywhere;color:var(--ink-body);font:inherit;margin:4px 0';
                 answerBody.textContent = task.answer != null ? (typeof task.answer === 'string' ? task.answer : JSON.stringify(task.answer, null, 2)) : T('Loading…');
                 answer.append(answerSummary, answerBody); row.appendChild(answer);
                 if (task.result_url) {
@@ -2857,7 +2858,7 @@ function _renderWorkflowStatus(card, data) {
                         }
                     });
                     const link = document.createElement('a'); link.href = task.result_url; link.target = '_blank'; link.rel = 'noopener noreferrer';
-                    link.style.cssText = 'display:inline-block;margin:3px 0 0 22px;color:#818cf8;text-decoration:underline';
+                    link.style.cssText = 'display:inline-block;margin:3px 0 0 22px;color:var(--accent);text-decoration:underline';
                     link.textContent = T('📎 Open result file'); row.appendChild(link);
                 }
             }
@@ -2935,7 +2936,7 @@ function _renderFullToolCall(content, payload, div) {
     header.style.color = isOrch ? '#a78bfa' : '#38bdf8';
     let toolDesc = '';
     try { toolDesc = JSON.parse(body).description || ''; } catch {}
-    header.innerHTML = `${icon} ${DOMPurify.sanitize(T(short))}${toolDesc ? ` <span style="color:#64748b;font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
+    header.innerHTML = `${icon} ${DOMPurify.sanitize(T(short))}${toolDesc ? ` <span style="color:var(--ink-dim);font-weight:normal">— ${DOMPurify.sanitize(toolDesc)}</span>` : ''}`;
     div.appendChild(header);
 
     // Единственный вызов, которым оркестратор зовёт юзера (#241). Красный и без JSON:
@@ -2968,7 +2969,7 @@ function _renderFullToolCall(content, payload, div) {
             div.appendChild(bodyEl);
             const hint = document.createElement('div');
             hint.className = 'text-xs mt-1';
-            hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+            hint.style.cssText = 'color:var(--accent-violet);cursor:pointer';
             hint.textContent = T('▼ expand');
             div.appendChild(hint);
             div.style.cursor = 'pointer';
@@ -3007,17 +3008,15 @@ function _renderFullToolCall(content, payload, div) {
             div.dataset.workerName = workerName;
 
             if (model) {
-                const badge = document.createElement('span');
-                const color = _modelColor(model);
-                badge.textContent = _modelLabel(model);
-                badge.style.cssText = `font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:${color};border-color:${color};opacity:0.8;vertical-align:middle;margin-left:6px`;
+                const badge = modelBadge(model, {label: _modelLabel(model), pill: true});
+                badge.style.marginLeft = '6px';
                 header.appendChild(badge);
             }
             const role = d.role || '';
             if (role && role !== 'worker') {
                 const roleBadge = document.createElement('span');
                 roleBadge.textContent = role;
-                roleBadge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:#fbbf24;border-color:#fbbf24;opacity:0.8;vertical-align:middle;margin-left:4px';
+                roleBadge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid;color:var(--warn-ink);border-color:var(--warn-ink);opacity:0.8;vertical-align:middle;margin-left:4px';
                 header.appendChild(roleBadge);
             }
 
@@ -3048,13 +3047,13 @@ function _renderFullToolCall(content, payload, div) {
             if (sysPrompt) {
                 const promptLabel = document.createElement('div');
                 promptLabel.className = 'text-xs mt-2';
-                promptLabel.style.cssText = 'color:#64748b;font-weight:500';
+                promptLabel.style.cssText = 'color:var(--ink-dim);font-weight:500';
                 promptLabel.textContent = T('📋 System prompt');
                 promptLabel.style.display = 'none';
                 div.appendChild(promptLabel);
                 expandables.push(promptLabel);
                 const promptEl = document.createElement('div');
-                promptEl.style.cssText = 'margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid #1e293b;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:#94a3b8;max-height:200px;overflow-y:auto;display:none';
+                promptEl.style.cssText = 'margin-top:4px;padding:6px 8px;background:#0d1117;border:1px solid var(--border-soft);border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;color:var(--ink-muted);max-height:200px;overflow-y:auto;display:none';
                 promptEl.textContent = sysPrompt;
                 div.appendChild(promptEl);
                 expandables.push(promptEl);
@@ -3062,7 +3061,7 @@ function _renderFullToolCall(content, payload, div) {
 
             if (repoPath) {
                 const pathEl = document.createElement('div');
-                pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                pathEl.style.cssText = 'font-size:10px;color:var(--ink-ghost);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
                 pathEl.textContent = repoPath;
                 pathEl.title = repoPath;
                 div.appendChild(pathEl);
@@ -3071,7 +3070,7 @@ function _renderFullToolCall(content, payload, div) {
             if (expandables.length) {
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
-                hint.style.cssText = 'color:#a78bfa;cursor:pointer';
+                hint.style.cssText = 'color:var(--accent-violet);cursor:pointer';
                 hint.textContent = T('▼ expand');
                 div.appendChild(hint);
                 div.style.cursor = 'pointer';
@@ -3098,9 +3097,8 @@ function _renderFullToolCall(content, payload, div) {
             div.dataset.isCodexWebSearch = '1';
             updateCodexWebSearchActivity(div, codexWebSearchSpec(d));
             if (d.model) {
-                const badge = document.createElement('span');
-                badge.textContent = d.model;
-                badge.style.cssText = 'font-size:9px;padding:1px 6px;border-radius:9999px;border:1px solid #38bdf8;color:#38bdf8;opacity:0.8;vertical-align:middle;margin-left:6px';
+                const badge = modelBadge(d.model, {label: d.model, pill: true});
+                badge.style.marginLeft = '6px';
                 header.appendChild(badge);
             }
         } catch {}
@@ -3125,7 +3123,7 @@ function _renderFullToolCall(content, payload, div) {
                 const PREVIEW = 5;
                 const descEl = document.createElement('div');
                 descEl.className = 'text-xs markdown-body';
-                descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+                descEl.style.cssText = 'margin-top:4px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:var(--ink-body)';
                 descEl.innerHTML = DOMPurify.sanitize(marked.parse(d.description));
                 div.appendChild(descEl);
                 if (descLines.length > PREVIEW) {
@@ -3160,7 +3158,7 @@ function _renderFullToolCall(content, payload, div) {
                 const linkEl = document.createElement('a');
                 linkEl.href = url;
                 linkEl.target = '_blank';
-                linkEl.style.cssText = 'display:block;font-size:10px;color:#64748b;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
+                linkEl.style.cssText = 'display:block;font-size:10px;color:var(--ink-dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:none';
                 linkEl.textContent = url;
                 linkEl.onmouseenter = () => linkEl.style.color = '#94a3b8';
                 linkEl.onmouseleave = () => linkEl.style.color = '#64748b';
@@ -3169,13 +3167,13 @@ function _renderFullToolCall(content, payload, div) {
             if (d.prompt) {
                 const promptEl = document.createElement('div');
                 promptEl.className = 'text-xs';
-                promptEl.style.cssText = 'margin-top:4px;color:#94a3b8;max-height:90px;overflow:hidden;white-space:pre-wrap';
+                promptEl.style.cssText = 'margin-top:4px;color:var(--ink-muted);max-height:90px;overflow:hidden;white-space:pre-wrap';
                 promptEl.textContent = d.prompt;
                 div.appendChild(promptEl);
                 if (d.prompt.split('\n').length > 5 || d.prompt.length > 300) {
                     const hint = document.createElement('div');
                     hint.className = 'text-xs mt-1';
-                    hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                    hint.style.cssText = 'color:var(--accent-alt);cursor:pointer';
                     hint.textContent = T('▼ expand');
                     div.appendChild(hint);
                     let fetchExpanded = false;
@@ -3203,7 +3201,7 @@ function _renderFullToolCall(content, payload, div) {
             _appendCaption(div, d.caption);
             if (filePath) {
                 const pathEl = document.createElement('div');
-                pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                pathEl.style.cssText = 'font-size:10px;color:var(--ink-ghost);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
                 pathEl.textContent = filePath;
                 pathEl.title = filePath;
                 div.appendChild(pathEl);
@@ -3276,7 +3274,7 @@ function _renderFullToolCall(content, payload, div) {
             header.style.color = cfg.color;
             if (cfg.sub) {
                 const subEl = document.createElement('div');
-                subEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+                subEl.style.cssText = 'font-size:10px;color:var(--ink-ghost);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
                 subEl.textContent = cfg.sub;
                 div.appendChild(subEl);
             }
@@ -3290,7 +3288,7 @@ function _renderFullToolCall(content, payload, div) {
             header.style.color = '#38bdf8';
             if (d.path) {
                 const pathEl = document.createElement('div');
-                pathEl.style.cssText = 'font-size:10px;color:#475569;margin-top:2px';
+                pathEl.style.cssText = 'font-size:10px;color:var(--ink-ghost);margin-top:2px';
                 pathEl.textContent = d.path;
                 div.appendChild(pathEl);
             }
@@ -3336,7 +3334,7 @@ function _renderFullToolCall(content, payload, div) {
                 hint.className = 'diff-file';
                 hint.dataset.role = 'bash-hint';
                 hint.dataset.count = cmdLines.length - PREVIEW_LINES;
-                hint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                hint.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px';
                 hint.textContent = T('▼ {n} more lines', {n: cmdLines.length - PREVIEW_LINES});
                 cmdWrap.appendChild(hint);
             }
@@ -3494,7 +3492,7 @@ function _renderFullToolCall(content, payload, div) {
                     hint.className = 'diff-file';
                     hint.dataset.role = 'agent-hint';
                     hint.dataset.count = promptLines.length - PREVIEW_LINES;
-                    hint.style.cssText = 'cursor:pointer;text-align:center;color:#a78bfa;font-size:10px';
+                    hint.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-violet);font-size:10px';
                     hint.textContent = T('▼ {n} more lines', {n: promptLines.length - PREVIEW_LINES});
                     promptWrap.appendChild(hint);
                 }
@@ -3710,7 +3708,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         } else {
             const placeholder = document.createElement('div');
             placeholder.className = 'text-xs';
-            placeholder.style.cssText = 'color:#64748b;margin-top:4px';
+            placeholder.style.cssText = 'color:var(--ink-dim);margin-top:4px';
             placeholder.textContent = T('🖼 [Image result]');
             target.appendChild(placeholder);
         }
@@ -3766,7 +3764,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
     if (lastTool && /^\[read error\] \[Errno 2\]/.test(content)) {
         const absent = document.createElement('div');
         absent.className = 'text-xs';
-        absent.style.cssText = 'margin-top:4px;color:#64748b';
+        absent.style.cssText = 'margin-top:4px;color:var(--ink-dim)';
         absent.textContent = T('File does not exist yet');
         lastTool.appendChild(absent);
         completeCodexToolCard(lastTool);
@@ -3879,7 +3877,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 const _fileBtn = (label, onClick) => {
                     const b = document.createElement('button');
                     b.textContent = label;
-                    b.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:#a5b4fc;cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
+                    b.style.cssText = 'padding:3px 10px;font-size:11px;border-radius:6px;border:1px solid rgba(99,102,241,0.3);background:rgba(15,23,42,0.95);color:var(--accent-mute);cursor:pointer;transition:all 0.15s;backdrop-filter:blur(8px)';
                     b.onmouseenter = () => { b.style.borderColor = 'rgba(99,102,241,0.6)'; b.style.color = '#c7d2fe'; };
                     b.onmouseleave = () => { b.style.borderColor = 'rgba(99,102,241,0.3)'; b.style.color = '#a5b4fc'; };
                     b.onclick = onClick;
@@ -3943,7 +3941,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 if (parsed.sync_revision) sys.push(`rev: ${parsed.sync_revision}`);
                 if (sys.length > 0) {
                     const sEl = document.createElement('div');
-                    sEl.style.cssText = 'margin-top:4px;font-size:9px;color:#475569;font-family:monospace';
+                    sEl.style.cssText = 'margin-top:4px;font-size:9px;color:var(--ink-ghost);font-family:monospace';
                     sEl.textContent = sys.join(' · ');
                     lastTool.appendChild(sEl);
                 }
@@ -3972,7 +3970,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 if (parsed.old_title && parsed.title && parsed.old_title !== parsed.title) {
                     const titleDiff = document.createElement('div');
                     titleDiff.style.cssText = 'margin-top:3px;font-size:10px';
-                    titleDiff.innerHTML = `<span style="color:#64748b;text-decoration:line-through">${DOMPurify.sanitize(parsed.old_title.slice(0,60))}</span> → <span style="color:#e2e8f0">${DOMPurify.sanitize(parsed.title.slice(0,60))}</span>`;
+                    titleDiff.innerHTML = `<span style="color:var(--ink-dim);text-decoration:line-through">${DOMPurify.sanitize(parsed.old_title.slice(0,60))}</span> → <span style="color:var(--ink)">${DOMPurify.sanitize(parsed.title.slice(0,60))}</span>`;
                     lastTool.appendChild(titleDiff);
                 }
                 if (parsed.description && (parsed.updated || []).includes('description')) {
@@ -3980,12 +3978,12 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     descWrap.style.cssText = 'margin-top:4px';
                     if (parsed.old_description) {
                         const oldEl = document.createElement('div');
-                        oldEl.style.cssText = 'font-size:10px;color:#64748b;text-decoration:line-through;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                        oldEl.style.cssText = 'font-size:10px;color:var(--ink-dim);text-decoration:line-through;max-height:40px;overflow:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
                         oldEl.textContent = parsed.old_description.split('\n').slice(0,3).join('\n');
                         descWrap.appendChild(oldEl);
                     }
                     const newEl = document.createElement('div');
-                    newEl.style.cssText = 'font-size:10px;color:#86efac;max-height:40px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px';
+                    newEl.style.cssText = 'font-size:10px;color:var(--ok-ink);max-height:40px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px';
                     newEl.textContent = parsed.description.split('\n').slice(0,3).join('\n') + (parsed.description.split('\n').length > 3 ? '…' : '');
                     descWrap.appendChild(newEl);
                     lastTool.appendChild(descWrap);
@@ -4002,8 +4000,8 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     }
                 }
                 const detail = document.createElement('div');
-                detail.style.cssText = 'margin-top:3px;font-size:10px;color:#64748b;display:flex;gap:8px;flex-wrap:wrap';
-                if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:#eab308">${_kr(parsed.price_rub)} ${CUR}</b></span>`;
+                detail.style.cssText = 'margin-top:3px;font-size:10px;color:var(--ink-dim);display:flex;gap:8px;flex-wrap:wrap';
+                if (parsed.price_rub > 0) detail.innerHTML += `<span>Price: <b style="color:var(--warn)">${_kr(parsed.price_rub)} ${CUR}</b></span>`;
                 if (detail.innerHTML) lastTool.appendChild(detail);
             } else if (tn === 'mcp__orchestra__task_list') {
                 const tasks = parsed.tasks || [];
@@ -4020,7 +4018,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         const card = document.createElement('div');
                         card.style.cssText = `padding:6px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${t.status==='done'||t.status==='paid'?'#22c55e':t.status==='in_progress'?'#38bdf8':'#334155'}${i >= PREVIEW ? ';display:none' : ''}`;
                         card.dataset.taskRow = '1';
-                        let h = `<div style="font-size:11px;color:#e2e8f0;font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
+                        let h = `<div style="font-size:11px;color:var(--ink);font-weight:600">${DOMPurify.sanitize(t.par)}: ${DOMPurify.sanitize(t.title)}</div>`;
                         h += _taskCardBodyHtml(t);
                         card.innerHTML = h;
                         container.appendChild(card);
@@ -4032,10 +4030,10 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     const PREVIEW = 4;
                     for (const [i, t] of tasks.entries()) {
                         const row = document.createElement('div');
-                        row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
+                        row.style.cssText = `font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:var(--ink-body);display:flex;gap:6px;align-items:center${i >= PREVIEW ? ';display:none' : ''}`;
                         row.dataset.taskRow = '1';
-                        const priceStr = t.price && t.price !== '0' ? `<span style="color:#eab308">${t.price}</span>` : '';
-                        row.innerHTML = `<span style="color:#64748b;font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:#64748b">${DOMPurify.sanitize(T(t.status || ''))}</span>${priceStr}`;
+                        const priceStr = t.price && t.price !== '0' ? `<span style="color:var(--warn)">${t.price}</span>` : '';
+                        row.innerHTML = `<span style="color:var(--ink-dim);font-family:monospace;min-width:32px">#${t.par}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(t.title)}</span><span style="color:var(--ink-dim)">${DOMPurify.sanitize(T(t.status || ''))}</span>${priceStr}`;
                         container.appendChild(row);
                     }
                     _attachTaskRows(lastTool, container, tasks.length, PREVIEW, 'flex');
@@ -4050,21 +4048,21 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         const icon = _JOB_ICONS[j.type] || '⚙️';
                         const st = _JOB_STATUS[j.status] || '⚪';
                         const row = document.createElement('div');
-                        row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:#cbd5e1;display:flex;gap:4px;align-items:center';
+                        row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:4px;background:rgba(30,41,59,0.4);color:var(--ink-body);display:flex;gap:4px;align-items:center';
                         row.innerHTML = `<span>${icon}</span><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(j.target_name || '')} ${DOMPurify.sanitize((j.message||'').slice(0,30))}</span><span>${st}</span>`;
                         container.appendChild(row);
                     }
                     lastTool.appendChild(container);
                 }
             } else if (tn === 'mcp__orchestra__get_worker_info') {
-                const stColor = _STATUS_COLOR[parsed.status] || '#94a3b8';
+                const stColor = statusColor(parsed.status);
                 const modelShort = _modelLabel(parsed.model);
                 if (hdr) {
-                    hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> <span style="font-size:10px;color:#64748b">(${DOMPurify.sanitize(modelShort)})</span> — <span style="color:${stColor}">${T(parsed.status) || '?'}</span>`;
+                    hdr.innerHTML = `🤖 <b>${DOMPurify.sanitize(parsed.name || '?')}</b> ${modelBadgeHtml(parsed.model || '', {label: modelShort})} — <span style="color:${stColor}">${T(parsed.status) || '?'}</span>`;
                 }
                 const grid = document.createElement('div');
                 grid.style.cssText = 'margin-top:4px;display:grid;grid-template-columns:auto 1fr;gap:1px 10px;font-size:10px';
-                const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:#64748b">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
+                const _row = (label, val, color) => { if (val != null && val !== '') grid.innerHTML += `<span style="color:var(--ink-dim)">${label}</span><span style="color:${color||'#cbd5e1'}">${DOMPurify.sanitize(String(val))}</span>`; };
                 _row(T('Role'), parsed.is_orchestrator ? `🎯 ${T('orchestrator')}` : `⚙️ ${T('worker')}`);
                 _row(T('Branch'), parsed.branch, '#818cf8');
                 const ctxPct = parsed.context_pct || 0;
@@ -4078,7 +4076,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 lastTool.appendChild(grid);
                 if (parsed.description) {
                     const descEl = document.createElement('div');
-                    descEl.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;font-style:italic;max-height:40px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere';
+                    descEl.style.cssText = 'margin-top:4px;font-size:10px;color:var(--ink-muted);font-style:italic;max-height:40px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere';
                     descEl.textContent = parsed.description;
                     lastTool.appendChild(descEl);
                     if (parsed.description.length > 120) {
@@ -4145,7 +4143,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         hdr.style.color = '#ef4444';
                     }
                     const errEl = document.createElement('div');
-                    errEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fca5a5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
+                    errEl.style.cssText = 'margin-top:4px;font-size:10px;color:var(--danger-ink);white-space:pre-wrap;overflow-wrap:anywhere;max-height:54px;overflow-y:hidden;overflow-x:hidden';
                     errEl.dataset.i18nSkip = '1';  // текст ошибки отдаёт инструмент, не интерфейс
                     errEl.textContent = clean;
                     lastTool.appendChild(errEl);
@@ -4177,12 +4175,12 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     const chars = sumMatch[1];
                     const summaryText = sumMatch[2].trim();
                     const charEl = document.createElement('div');
-                    charEl.style.cssText = 'font-size:10px;color:#64748b;margin-top:2px';
+                    charEl.style.cssText = 'font-size:10px;color:var(--ink-dim);margin-top:2px';
                     charEl.textContent = `Summary: ${chars} chars`;
                     lastTool.appendChild(charEl);
                     if (summaryText) {
                         const sumEl = document.createElement('div');
-                        sumEl.style.cssText = 'font-size:10px;color:#94a3b8;margin-top:2px;max-height:48px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
+                        sumEl.style.cssText = 'font-size:10px;color:var(--ink-muted);margin-top:2px;max-height:48px;overflow-y:hidden;overflow-x:hidden;white-space:pre-wrap;overflow-wrap:anywhere';
                         sumEl.textContent = summaryText;
                         lastTool.appendChild(sumEl);
                         if (summaryText.split('\n').length > 3 || summaryText.length > 200) {
@@ -4228,11 +4226,11 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                         row.style.cssText = `padding:4px 8px;border-radius:6px;background:rgba(30,41,59,0.4);border-left:3px solid ${isRunning ? '#22c55e' : '#334155'}`;
                         if (i >= PREVIEW_COUNT) row.style.display = 'none';
                         row.dataset.agentRow = '1';
-                        let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:#e2e8f0;font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(T(status.trim()))}</span></div>`;
-                        h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:#64748b"><span>${DOMPurify.sanitize(model)}</span>`;
-                        if (taskId) h += `<span style="color:#a78bfa;font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
+                        let h = `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--ink);font-weight:600">${icon} ${DOMPurify.sanitize(nameClean)}</span><span style="margin-left:auto;font-size:10px;color:${isRunning ? '#22c55e' : '#64748b'}">${DOMPurify.sanitize(T(status.trim()))}</span></div>`;
+                        h += `<div style="display:flex;align-items:center;gap:8px;margin-top:2px;font-size:10px;color:var(--ink-dim)"><span>${DOMPurify.sanitize(model)}</span>`;
+                        if (taskId) h += `<span style="color:var(--accent-violet);font-weight:600">#${DOMPurify.sanitize(taskId.replace(/^[A-Z]+-/, ''))}</span>`;
                         h += `<span style="display:inline-flex;align-items:center;gap:3px">${T('ctx:')}<span style="color:${ctxColor}">${ctxPct}%</span></span></div>`;
-                        if (desc) h += `<div style="font-size:10px;color:#64748b;font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
+                        if (desc) h += `<div style="font-size:10px;color:var(--ink-dim);font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${DOMPurify.sanitize(desc)}</div>`;
                         row.innerHTML = h;
                         container.appendChild(row);
                     }
@@ -4245,22 +4243,22 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     const counts = agentSummary.counts;
                     const summary = document.createElement('div');
                     summary.dataset.agentSummary = '1';
-                    summary.style.cssText = 'margin-top:4px;font-size:10px;color:#94a3b8;display:flex;gap:10px;flex-wrap:wrap';
+                    summary.style.cssText = 'margin-top:4px;font-size:10px;color:var(--ink-muted);display:flex;gap:10px;flex-wrap:wrap';
                     const countText = _agentCountText(counts);
-                    summary.innerHTML = `<span style="color:#4ade80">${countText[0]}</span><span style="color:${counts.waiting ? '#f59e0b' : '#64748b'}">${countText[1]}</span><span style="color:${counts.broken ? '#ef4444' : '#64748b'}">${countText[2]}</span>`;
+                    summary.innerHTML = `<span style="color:var(--ok-soft)">${countText[0]}</span><span style="color:${counts.waiting ? '#f59e0b' : '#64748b'}">${countText[1]}</span><span style="color:${counts.broken ? '#ef4444' : '#64748b'}">${countText[2]}</span>`;
                     lastTool.insertBefore(summary, container);
                     const attention = agentSummary.agents.filter(agent => agent.status === 'waiting' || agent.status === 'broken');
                     if (attention.length) {
                         const attentionEl = document.createElement('div');
                         attentionEl.dataset.agentAttention = '1';
-                        attentionEl.style.cssText = 'margin-top:4px;font-size:10px;color:#fbbf24';
+                        attentionEl.style.cssText = 'margin-top:4px;font-size:10px;color:var(--warn-ink)';
                         attentionEl.textContent = T('Require attention: {list}', {list: attention.map(agent => `${agent.name} — ${agent.status}`).join(', ')});
                         lastTool.insertBefore(attentionEl, container);
                     }
                     if (agentLines.length > PREVIEW_COUNT) {
                         const hint = document.createElement('div');
                         hint.className = 'text-xs mt-1';
-                        hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                        hint.style.cssText = 'color:var(--accent-violet);cursor:pointer;text-align:center';
                         hint.textContent = T('▼ {n} more', {n: agentLines.length - PREVIEW_COUNT});
                         lastTool.appendChild(hint);
                         let _alExp = false;
@@ -4290,7 +4288,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     container.style.cssText = 'margin-top:4px;display:flex;flex-direction:column;gap:1px';
                     for (const [i, line] of lines.entries()) {
                         const row = document.createElement('div');
-                        row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;color:#cbd5e1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+                        row.style.cssText = 'font-size:10px;padding:2px 6px;border-radius:3px;color:var(--ink-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
                         row.dataset.logRow = '1';
                         if (i >= PREVIEW_LOG) row.style.display = 'none';
                         if (line.startsWith('❌')) row.style.color = '#f87171';
@@ -4304,7 +4302,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     if (lines.length > PREVIEW_LOG) {
                         const hint = document.createElement('div');
                         hint.className = 'text-xs mt-1';
-                        hint.style.cssText = 'color:#a78bfa;cursor:pointer;text-align:center';
+                        hint.style.cssText = 'color:var(--accent-violet);cursor:pointer;text-align:center';
                         hint.textContent = T('▼ {n} more', {n: lines.length - PREVIEW_LOG});
                         lastTool.appendChild(hint);
                         let _logExp = false;
@@ -4322,14 +4320,14 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             }
             const resultEl = document.createElement('div');
             resultEl.className = 'text-xs markdown-body';
-            resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:#cbd5e1';
+            resultEl.style.cssText = 'margin-top:6px;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word;line-height:1.5;color:var(--ink-body)';
             resultEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
             lastTool.appendChild(resultEl);
             const resLines = clean.split('\n');
             if (resLines.length > 5) {
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
-                hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                hint.style.cssText = 'color:var(--accent-alt);cursor:pointer';
                 hint.textContent = T('▼ {n} more lines', {n: resLines.length - 5});
                 lastTool.appendChild(hint);
                 let _orchExp = false;
@@ -4371,7 +4369,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
             } else {
                 const noMatch = document.createElement('div');
                 noMatch.className = 'text-xs';
-                noMatch.style.cssText = 'margin-top:4px;color:#64748b;font-style:italic';
+                noMatch.style.cssText = 'margin-top:4px;color:var(--ink-dim);font-style:italic';
                 noMatch.textContent = T('No files found');
                 lastTool.appendChild(noMatch);
             }
@@ -4381,7 +4379,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         if (lastTool.dataset.toolRawName === 'Skill') {
             const resultEl = document.createElement('div');
             resultEl.className = 'text-xs';
-            resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:#cbd5e1';
+            resultEl.style.cssText = 'margin-top:6px;overflow-wrap:anywhere;white-space:pre-wrap;color:var(--ink-body)';
             resultEl.textContent = clean.length > 300 ? clean.slice(0, 300) + '…' : clean;
             if (clean.length > 5) lastTool.appendChild(resultEl);
             addTimestamp(lastTool, ts);
@@ -4391,14 +4389,14 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         if (isWebFetchResult) {
             const bodyEl = document.createElement('div');
             bodyEl.className = 'text-xs markdown-body';
-            bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:#cbd5e1;max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
+            bodyEl.style.cssText = 'margin-top:6px;line-height:1.5;color:var(--ink-body);max-height:90px;overflow-y:hidden;overflow-x:hidden;overflow-wrap:anywhere;word-break:break-word';
             bodyEl.innerHTML = DOMPurify.sanitize(marked.parse(clean));
             lastTool.appendChild(bodyEl);
             const fetchLines = clean.split('\n');
             if (fetchLines.length > 5) {
                 const hint = document.createElement('div');
                 hint.className = 'text-xs mt-1';
-                hint.style.cssText = 'color:#38bdf8;cursor:pointer';
+                hint.style.cssText = 'color:var(--accent-alt);cursor:pointer';
                 hint.textContent = T('▼ {n} more lines', {n: fetchLines.length - 5});
                 lastTool.appendChild(hint);
                 let wfExpanded = false;
@@ -4469,7 +4467,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                 resHint.className = 'diff-file';
                 resHint.dataset.role = 'bash-result-hint';
                 resHint.dataset.count = resLines.length - BASH_PREVIEW;
-                resHint.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                resHint.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px';
                 resHint.textContent = T('▼ {n} more lines', {n: resLines.length - BASH_PREVIEW});
                 resWrap.appendChild(resHint);
             }
@@ -4517,7 +4515,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     moreEl.className = 'diff-file';
                     moreEl.dataset.role = 'read-more';
                     moreEl.dataset.count = '0';
-                    moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                    moreEl.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px';
                     moreEl.textContent = T('▼ more');
                     readContainer.appendChild(moreEl);
                     requestAnimationFrame(() => {
@@ -4568,7 +4566,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
                     moreEl.className = 'diff-file';
                     moreEl.dataset.role = 'read-more';
                     moreEl.dataset.count = restL.length;
-                    moreEl.style.cssText = 'cursor:pointer;text-align:center;color:#38bdf8;font-size:10px';
+                    moreEl.style.cssText = 'cursor:pointer;text-align:center;color:var(--accent-alt);font-size:10px';
                     moreEl.textContent = T('▼ {n} more lines', {n: restL.length});
                     readContainer.appendChild(moreEl);
                 }
@@ -4618,7 +4616,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
         if (full) {
             const rHint = document.createElement('div');
             rHint.className = 'text-xs mt-1 result-hint';
-            rHint.style.cssText = 'color:#38bdf8;cursor:pointer';
+            rHint.style.cssText = 'color:var(--accent-alt);cursor:pointer';
             rHint.textContent = T('▼ {n} more lines', {n: _resultLines.length - _RESULT_PREVIEW});
             lastTool.appendChild(rHint);
             let rExpanded = false;
@@ -4670,7 +4668,7 @@ function _renderFullToolResult(content, ts, payload, anchor, div, _insertAndFoll
     if (full) {
         const sHint = document.createElement('div');
         sHint.className = 'text-xs mt-1';
-        sHint.style.cssText = 'color:#38bdf8;cursor:pointer';
+        sHint.style.cssText = 'color:var(--accent-alt);cursor:pointer';
         sHint.textContent = T('▼ {n} more lines', {n: _resultLines.length - _RESULT_PREVIEW});
         div.appendChild(sHint);
         let sExpanded = false;

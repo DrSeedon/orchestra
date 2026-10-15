@@ -1,0 +1,148 @@
+/* Orchestra design system — единственный источник цветов и общих компонентов дашборда (V-876).
+ *
+ * Правило: цвет, у которого есть смысл (модель, поставщик, статус, успех/ошибка), берётся
+ * ТОЛЬКО отсюда — в CSS через var(--…), в JS через theme.js (modelColor, statusColor,
+ * cssToken). Новый hex в style.css или JS — это второй источник правды, и через месяц
+ * он разойдётся с первым: так Opus в списке агентов стал оранжевым, а в «Инфо» серым.
+ * Брендбук: docs/design-system.md.
+ *
+ * Загружается ПЕРВЫМ из наших стилей: style.css и tailwind.css стоят после и могут
+ * уточнять компоненты, но не переопределяют токены.
+ */
+:root {
+  /* Поверхности: фон страницы → панель → приподнятая панель → граница */
+  --bg: #0a0e17; --surface: #0f172a; --surface-2: #1e293b; --surface-3: #334155;
+  --border: #334155; --border-soft: #1e293b; --border-strong: #475569;
+
+  /* Текст. Бледные оттенки подняты до WCAG AA на --bg */
+  --ink-strong: #f1f5f9; --ink: #e2e8f0; --ink-body: #cbd5e1;
+  --ink-soft: #a6b3c6; --ink-faint: #8595ab; --ink-faintest: #6b7c93;
+  --ink-muted: #94a3b8; --ink-dim: #64748b; --ink-ghost: #475569; /* ghost — неактивный текст */
+
+  /* Смысл: успех / предупреждение / опасность / сведения */
+  --ok: #22c55e; --ok-soft: #4ade80; --ok-ink: #86efac;
+  --warn: #eab308; --warn-strong: #f59e0b; --warn-ink: #fbbf24;
+  --danger: #ef4444; --danger-soft: #f87171; --danger-ink: #fca5a5;
+  --info: #38bdf8;
+
+  /* Один акцент интерфейса + второй для ссылок и инструментов */
+  --accent: #818cf8; --accent-strong: #6366f1; --accent-ink: #c7d2fe; --accent-mute: #a5b4fc;
+  --accent-alt: #38bdf8; --accent-violet: #a78bfa;
+  --accent-soft: rgba(129,140,248,0.15);
+
+  /* Статусы агента. Иконка несёт смысл, цвет его дублирует (не наоборот) */
+  --status-running: #22c55e; --status-running-bg: rgba(34,197,94,0.15);
+  --status-idle: #eab308;    --status-idle-bg: rgba(234,179,8,0.12);
+  --status-waiting: #f59e0b; --status-waiting-bg: rgba(245,158,11,0.15);
+  --status-broken: #ef4444;  --status-broken-bg: rgba(239,68,68,0.15);
+  --status-error: #ef4444;   --status-error-bg: rgba(239,68,68,0.15);
+  --status-stopped: #6b7280; --status-stopped-bg: rgba(107,114,128,0.1);
+  --status-starting: #f97316; --status-starting-bg: rgba(249,115,22,0.15);
+
+  /* Модели: одна модель — один цвет на всех экранах (список агентов, «Инфо»,
+     вкладки оркестраторов, карточки чата, графики лимитов). Семейство определяет
+     theme.js по id или псевдониму: claude-opus-5-5[1m] и opus → --model-opus. */
+  --model-opus: #fb923c;   /* оранжевый — флагман Anthropic */
+  --model-sonnet: #38bdf8; /* голубой */
+  --model-haiku: #4ade80;  /* зелёный */
+  --model-fable: #fb7185;  /* розово-красный */
+  --model-luna: #2dd4bf;   /* бирюзовый — рабочая лошадь Codex */
+  --model-sol: #f472b6;    /* розовый */
+  --model-astra: #c084fc;  /* фиолетовый */
+  --model-spark: #e879f9;  /* фуксия */
+  --model-grok: #e2e8f0;   /* белый, как у x-ai */
+
+  /* Поставщики и пулы квот = цвет их флагманской модели */
+  --provider-anthropic: var(--model-opus);
+  --provider-openai: var(--model-luna);
+  --provider-x-ai: var(--model-grok);
+  --provider-openrouter: #a78bfa;
+  --provider-gigachat: #ef4444;
+  --provider-deepseek: #60a5fa;
+  --provider-unknown: #94a3b8;
+  /* Светлые пары — второе окно квоты (7 д рядом с 5 ч) на графиках истории */
+  --provider-anthropic-soft: #fdba74; --provider-openai-soft: #99f6e4; --model-spark-soft: #f5d0fe;
+
+  /* Радиусы, отступы, шрифты */
+  --r-sm: 6px; --r-md: 8px; --r-lg: 12px; --r-pill: 9999px;
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+}
+
+/* ── Бейдж модели ─────────────────────────────────────────────────────────────
+   <span class="ds-model" style="--ds-c: var(--model-opus)">Opus 5.5</span>
+   Создавать через theme.js → modelBadge(id) / modelBadgeHtml(id): он сам выберет цвет. */
+.ds-model {
+  --ds-c: var(--provider-unknown);
+  display: inline-flex; align-items: center; gap: 3px; max-width: 100%;
+  padding: 0 4px; border-radius: 4px; border: 1px solid color-mix(in srgb, var(--ds-c) 27%, transparent);
+  color: var(--ds-c); font-size: 10px; line-height: 15px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;
+}
+.ds-model.ds-pill { border-radius: var(--r-pill); padding: 1px 6px; font-size: 9px; }
+/* Текст в цвете модели без рамки — для строк «Модель: …» */
+.ds-model-text { color: var(--ds-c, var(--ink)); }
+/* Точка модели: вкладки оркестраторов, легенды графиков */
+.ds-model-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+  background: var(--ds-c, var(--provider-unknown)); flex: none; vertical-align: middle;
+}
+
+/* ── Бейдж статуса агента ─────────────────────────────────────────────────────
+   <span class="ds-status" data-status="running">⚡ выполняется</span> */
+.ds-status {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono);
+  font-size: 12px; line-height: 16px; font-weight: 700;
+  color: var(--status-stopped); background: var(--status-stopped-bg);
+}
+.ds-status[data-status="running"]  { color: var(--status-running);  background: var(--status-running-bg); }
+.ds-status[data-status="idle"]     { color: var(--status-idle);     background: var(--status-idle-bg); }
+.ds-status[data-status="waiting"]  { color: var(--status-waiting);  background: var(--status-waiting-bg); }
+.ds-status[data-status="broken"]   { color: var(--status-broken);   background: var(--status-broken-bg); }
+.ds-status[data-status="error"]    { color: var(--status-error);    background: var(--status-error-bg); }
+.ds-status[data-status="starting"] { color: var(--status-starting); background: var(--status-starting-bg); }
+/* Точка статуса без подписи: карточки «Инфо» */
+.ds-status-dot { color: var(--status-stopped); }
+.ds-status-dot[data-status="running"]  { color: var(--status-running); }
+.ds-status-dot[data-status="idle"]     { color: var(--status-idle); }
+.ds-status-dot[data-status="waiting"]  { color: var(--status-waiting); }
+.ds-status-dot[data-status="broken"],
+.ds-status-dot[data-status="error"]    { color: var(--status-broken); }
+.ds-status-dot[data-status="starting"] { color: var(--status-starting); }
+
+/* ── Нейтральный бейдж / чип ─────────────────────────────────────────────────── */
+.ds-chip {
+  display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px;
+  border-radius: var(--r-pill); border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--ink-soft); font-size: 10px; line-height: 16px;
+}
+.ds-chip[data-tone="ok"]     { color: var(--ok-ink); border-color: color-mix(in srgb, var(--ok) 40%, transparent); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.ds-chip[data-tone="warn"]   { color: var(--warn-ink); border-color: color-mix(in srgb, var(--warn) 40%, transparent); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.ds-chip[data-tone="danger"] { color: var(--danger-ink); border-color: color-mix(in srgb, var(--danger) 40%, transparent); background: color-mix(in srgb, var(--danger) 10%, transparent); }
+.ds-chip[data-tone="accent"] { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-soft); }
+
+/* ── Кнопки ──────────────────────────────────────────────────────────────────── */
+.ds-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 5px 12px; border-radius: var(--r-md); border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--ink-body); font: 600 12px/1.3 var(--font-sans);
+  cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+}
+.ds-btn:hover { background: var(--surface-3); border-color: var(--border-strong); color: var(--ink); }
+.ds-btn:disabled { opacity: .5; cursor: not-allowed; }
+.ds-btn-primary { background: #4f46e5; border-color: var(--accent-strong); color: #fff; }
+.ds-btn-primary:hover { background: var(--accent-strong); border-color: var(--accent); color: #fff; }
+.ds-btn-danger { background: #7f1d1d; border-color: #991b1b; color: var(--danger-ink); }
+.ds-btn-danger:hover { background: #991b1b; border-color: var(--danger); color: #fff; }
+.ds-btn-ghost { background: transparent; border-color: transparent; color: var(--ink-soft); }
+.ds-btn-ghost:hover { background: var(--surface-2); border-color: var(--border); }
+
+/* ── Карточка ────────────────────────────────────────────────────────────────── */
+.ds-card {
+  border: 1px solid var(--border-soft); border-radius: var(--r-md);
+  background: rgba(15,23,42,.72); padding: var(--sp-2) 10px;
+}
+.ds-card-title { color: var(--ink); font-weight: 700; font-size: 12px; }
+.ds-card-meta { color: var(--ink-dim); font-size: 10px; }

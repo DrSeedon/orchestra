@@ -47,6 +47,7 @@ def _page_with_api(browser: Browser):
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
     """)
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(APP_JS))
@@ -57,11 +58,14 @@ def _slot_text(browser: Browser, api_script: str) -> str:
     """Отдаём _loadSparkline подставной api() и возвращаем текст слота Claude."""
     page = browser.new_page()
     page.set_content('<body><div id="usage-bar"></div></body>')
+    # Цвета линий — токены дизайн-системы (V-876): без её CSS они не вычислятся.
+    page.add_style_tag(path=str(ROOT / "app/static/css/design-system.css"))
     page.add_script_tag(content="""
         window.T = (key, values = {}) => Object.entries(values).reduce(
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
     """)
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
@@ -203,8 +207,8 @@ def test_hole_in_data_breaks_the_line_instead_of_bridging_it(browser):
     solid = _slot_text(browser, prelude + f"window.api = async () => {_history(8, step=10)};")
     holed = _slot_text(browser, prelude + f"window.api = async () => {_history(8, step=10, skip=6)};")
 
-    assert solid["anthropic"].count('stroke="#38bdf8"') == 1, solid["anthropic"]
-    assert holed["anthropic"].count('stroke="#38bdf8"') == 2, holed["anthropic"]
+    assert solid["anthropic"].count('stroke="#fb923c"') == 1, solid["anthropic"]
+    assert holed["anthropic"].count('stroke="#fb923c"') == 2, holed["anthropic"]
 
 
 def test_null_pct_is_a_hole_not_a_zero(browser):
@@ -219,7 +223,7 @@ def test_null_pct_is_a_hole_not_a_zero(browser):
 
     # Сравниваем сами линии расхода: разметку целиком нельзя — метка сброса
     # считается от Date.now() и уезжает на доли пикселя между двумя прогонами
-    line = lambda html: re.findall(r'points="([^"]+)" fill="none" stroke="#38bdf8"', html)
+    line = lambda html: re.findall(r'points="([^"]+)" fill="none" stroke="#fb923c"', html)
 
     assert len(line(nulled["anthropic"])) == 2, nulled["anthropic"]
     assert line(nulled["anthropic"]) == line(missing["anthropic"])
@@ -257,6 +261,7 @@ def test_older_period_is_fetched_on_demand(browser):
             (text, [name, value]) => text.replaceAll(`{${name}}`, value), key,
         );
     """)
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))

@@ -40,6 +40,7 @@ def _page(browser: Browser, grok):
             window.DOMPurify = { addHook() {} };
         }"""
     )
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
@@ -89,6 +90,7 @@ def _interactive_page(browser: Browser):
             };
         }"""
     )
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
@@ -265,6 +267,7 @@ def test_usage_bar_renders_each_provider_as_two_columns(browser, tmp_path):
             window.DOMPurify = { addHook() {} };
             window.api = async () => ({});
         }""")
+        page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
         page.add_script_tag(path=str(UTILS_JS))
         page.add_script_tag(path=str(CONNECTION_JS))
         page.add_script_tag(path=str(USAGE_JS))
@@ -387,6 +390,7 @@ def test_usage_fetch_failure_stays_visible_and_logs_exception(browser):
             };
         }"""
     )
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))
@@ -420,6 +424,7 @@ def test_usage_refresh_uses_one_long_budget_for_external_aggregation(browser):
             };
         }"""
     )
+    page.add_script_tag(path=str(UTILS_JS.with_name("theme.js")))
     page.add_script_tag(path=str(UTILS_JS))
     page.add_script_tag(path=str(CONNECTION_JS))
     page.add_script_tag(path=str(USAGE_JS))

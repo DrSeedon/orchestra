@@ -33,12 +33,12 @@ window.Connection = (() => {
         banner.id = 'build-banner';
         banner.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:99998;'
             + 'display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;'
-            + 'background:#1e293b;border:1px solid #f59e0b66;color:#fde68a;font-size:12px;'
+            + 'background:var(--surface-2);border:1px solid #f59e0b66;color:#fde68a;font-size:12px;'
             + 'box-shadow:0 8px 24px rgba(0,0,0,.4)';
         banner.innerHTML = '<span>' + T('Server updated — refresh page to get new version') + '</span>';
         const close = document.createElement('button');
-        close.style.cssText = 'padding:3px 10px;border:1px solid #475569;border-radius:6px;'
-            + 'background:transparent;color:#cbd5e1;cursor:pointer;font-size:12px';
+        close.style.cssText = 'padding:3px 10px;border:1px solid var(--border-strong);border-radius:6px;'
+            + 'background:transparent;color:var(--ink-body);cursor:pointer;font-size:12px';
         close.textContent = T('Hide');
         close.onclick = () => banner.remove();
         banner.appendChild(close);

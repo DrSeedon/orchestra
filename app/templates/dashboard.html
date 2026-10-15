@@ -13,6 +13,8 @@
     <script src="{{ g.asset('css/vendor/diff_match_patch.js') }}"></script>
     <script src="{{ g.asset('css/vendor/highlight.min.js') }}"></script>
     <link rel="stylesheet" href="{{ g.asset('css/vendor/highlight-github-dark.min.css') }}">
+    <!-- Токены и общие компоненты — до style.css: тот уточняет компоненты, токены живут здесь. -->
+    <link rel="stylesheet" href="{{ g.asset('css/design-system.css') }}">
     <link rel="stylesheet" href="{{ g.asset('css/style.css') }}">
     <!-- Собранный CSS вместо Play-CDN Tailwind: тот же результат, но без 407 КБ компилятора,
          который пересобирал стили в браузере на каждую вставку узла (#64).
@@ -300,6 +302,7 @@
         </div>
     </div>
 
+    <script src="{{ g.asset('js/theme.js') }}"></script>
     <script src="{{ g.asset('js/utils.js') }}"></script>
     <script src="{{ g.asset('js/tool-renderers.js') }}"></script>
     <script src="{{ g.asset('js/live-activity.js') }}"></script>
