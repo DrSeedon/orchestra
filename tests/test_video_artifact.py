@@ -13,6 +13,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts/video_artifact"))
 from video_text import caption_text, normalize_vosk_text, UnsupportedVoskSymbol
+from tts_worker_tera import add_wordwise_russian_stress, compose_audio, split_pause_segments
 
 spec = importlib.util.spec_from_file_location("video_artifact_make", ROOT / "scripts/video_artifact/make.py")
 make = importlib.util.module_from_spec(spec)
@@ -115,6 +116,9 @@ def test_tera_requires_spelled_numbers_and_preserves_manual_stress(tmp_path, mon
     make._tera_character_table.cache_clear()
 
     assert make.check_steps([{"t": "ok", "say": "В две тысячи двадцать шестом году лим+ита."}], "ru", "tera")
+    assert make.check_steps([{"t": "pause", "say": "Фраза [0.6] продолжается."}], "ru", "tera")
+    with pytest.raises(SystemExit, match="поддерживает только TeraTTS"):
+        make.check_steps([{"t": "pause", "say": "Фраза [0.6] дальше."}], "ru", "vosk")
     with pytest.raises(SystemExit):
         make.check_steps([{"t": "number", "say": "В 2026 году лимита."}], "ru", "tera")
     with pytest.raises(SystemExit, match="шаг 1: символ '•'"):
@@ -126,6 +130,65 @@ def test_tera_uses_its_own_stress_path_without_external_ruaccent(monkeypatch):
     steps = [{"say": "лим+ита дальше"}]
     assert make.mark_stress(steps, "ru", enabled=True, engine="tera") == steps
     assert "_tts_text" not in steps[0]
+
+
+def test_tera_manual_stress_does_not_disable_automatic_stress_for_other_words():
+    class Accentizer:
+        def process_all(self, word):
+            return f"<{word}>"
+
+    marked = add_wordwise_russian_stress("<ru>руч+ной остальные.</ru>", Accentizer())
+    assert marked == "<ru>руч+ной <остальные.></ru>"
+
+
+def test_tera_worker_patches_the_imported_normalizer_globals(monkeypatch):
+    import types
+    import tts_worker_tera
+
+    module = types.ModuleType("remote_tera")
+    namespace = {"add_russian_stress": lambda _text, _accentizer: "old"}
+    exec("def normalize_text(): return add_russian_stress", namespace)
+    module.normalize_text = namespace["normalize_text"]
+    class Model:
+        pass
+    Model.__module__ = "remote_tera"
+    monkeypatch.setitem(sys.modules, "remote_tera", module)
+
+    tts_worker_tera.patch_wordwise_stress(Model())
+
+    assert module.normalize_text() is add_wordwise_russian_stress
+
+
+def test_tera_punctuation_and_explicit_pause_insert_silence_in_samples():
+    segments = split_pause_segments("Раз, два. Ответ [0.6] готов")
+    assert [value for kind, value in segments if kind == "pause"] == [0.33, 0.63, 0.6]
+    pieces = [("text", b"\x01\x00" * 100) if kind == "text" else (kind, value)
+              for kind, value in segments]
+    audio = compose_audio(pieces, sample_rate=1000)
+    cursor = 100 * 2
+    for duration in (0.33, 0.63, 0.6):
+        count = round(duration * 1000) * 2
+        assert audio[cursor:cursor + count] == b"\0" * count
+        cursor += count + 100 * 2
+    assert len(audio) == cursor
+
+
+def test_silent_step_requires_hold_and_has_no_lead_time(tmp_path):
+    silent = {"t": "Пауза", "say": "", "sub": None, "hold": 1.5}
+    assert make.check_steps([silent], "ru", "tera") == [silent]
+    with pytest.raises(SystemExit, match="без фразы say"):
+        make.check_steps([{**silent, "hold": None}], "ru", "tera")
+    clips = make.synthesize([silent], tmp_path / "cache", 1, 1.0)
+    timing = make.plan([silent], clips, 1.0)
+    assert timing["steps"][0]["phrase_start"] == 0
+    assert timing["steps"][0]["d"] == 1.5
+
+
+def test_numeral_run_warning_threshold_is_three_consecutive_terms(capsys):
+    assert make.repeated_numeral_run("два и пять яблок") == 1
+    assert make.repeated_numeral_run("двадцать пять тысяч") == 3
+    make.warn_numeral_runs([{"say": "двадцать пять тысяч рублей"}])
+    assert "подряд 3 числительных" in capsys.readouterr().err
 
 
 def test_tera_worker_loads_one_model_for_parallel_phrase_jobs(tmp_path, monkeypatch, capsys):

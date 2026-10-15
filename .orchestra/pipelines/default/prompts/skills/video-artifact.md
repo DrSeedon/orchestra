@@ -13,7 +13,7 @@ every artifact.
 
 **Voice sets the timing.** Each step has a `say` phrase; the tool synthesizes phrases in parallel
 with one loaded TTS model, then sets step duration to intro + phrase + pause (0.35 and 0.55 s
-divided by `--rate`, default 1.15; `hold: seconds` replaces 0.55 on the last step to allow viewing). Do not write `d` in
+divided by `--rate`, default 1.0; `hold: seconds` replaces the default end pause on any step to give the viewer time). Do not write `d` in
 steps: it is replaced. State changes are constructed to begin with the phrase. The phrase fills
 almost the whole step, so `w: {id: [a, b]}` approximates its fraction: an object mentioned in
 the middle uses `[.4, .6]`. For a second precise accent, split the phrase into two steps rather
@@ -39,7 +39,9 @@ for all phrases because `construct()` needs the complete timing plan.
   numeric literals, but does not infer their grammatical case (`в 2026 году` becomes an uninflected
   «две тысячи двадцать шесть году»). Write Russian numbers as words with the required case for both
   Tera and Vosk (for example «в две тысячи двадцать шестом году»). Use 1–2 sentences, 2–6 s at
-  rate 1.15, and 30–90 s total. Avoid officialese; write as spoken.
+  rate 1.0, and 30–90 s total. Tera inserts 0.33 s after commas, colons, semicolons and dashes,
+  and 0.63 s after sentence punctuation inside a phrase; add `[0.6]` in `say` for an explicit pause.
+  A silent beat uses `say: ""` with a positive `hold`. Avoid officialese; write as spoken.
 - **English video:** `make.py … --lang en` uses Kokoro-82M instead of Vosk and Deepgram with
   `language=en`. English `say` may contain digits, names, and `#2`; Kokoro reads them, rejecting
   only Cyrillic. Voice `--voice af_heart` (default, female) or `am_michael` (male); five tested
@@ -63,8 +65,9 @@ HTML scene: `STEPS` with `t`/`say`/`sub`/`hold`, and the same `say` rules. Each 
 `with self.step(i):` block containing ordinary `self.play(...)`. Set animation durations as
 fractions of the remaining step, `run_time=self.left() * 0.4`, so phrase and rate changes stay
 synchronized; overrunning a step stops the build with a clear error. `VoiceScene` draws heading
-and subtitles; style comes from its constants and `text()` (`BLUE_`, `GOLD_`, `PANEL`,
-Manrope/JetBrains Mono). Minimal example:
+and subtitles; style comes from its constants and `text()` (`BLUE_`, `GOLD_`, `PANEL`). `VoiceScene`
+uses `MovingCameraScene`, CMU Serif and a black background by default; subclasses may override
+`TEXT_FONT` and `BACKGROUND_COLOR`, or call `self.text(..., font="CMU Serif")`. Minimal example:
 
 ```python
 from manim import *
@@ -130,15 +133,14 @@ parallel Chromium frame writers via `--jobs`; one thread took 25 min). Phrases c
 `<folder>/.tts-cache`; changing the scene without changing `say` does not reload the model.
 `--stills` skips video and produces phrase timing/contact sheets; `--check-only` checks an
 existing MP4. `--speaker` selects the Vosk voice (1 is its default; 0–2 are female and 3–4 male).
-`--rate` defaults to 1.15 (1.5 was too fast on 2026-10-03; 1.25 also too
-fast on 2026-10-04; speech and pauses shorten together; recognition at 1.25–1.5 matched 1.0 in
-V-684); 1.0 is slow.
+`--rate` defaults to 1.0; speech and standard punctuation pauses shorten together.
 
 Russian video uses local TeraTTSv2 by default (`ru_m1`); choose a Tera voice with `--voice m1|m5|f1|f2` (`m1` is default, `f2` is the alternate female voice),
 or pass `--tts-engine vosk` to use Vosk. TeraTTSv2 expands numbers in Russian tags and applies its
 bundled RUAccent-derived stress pass. If a word needs correction, put `+` before the stressed vowel
-(`лим+ита`): manual markers win over automatic stress. `--stress-only` prints the normalized text
-before synthesis; `--no-stress` disables automatic stress but keeps manual markers. The existing
+(`лим+ита`): manual markers win for that word, while RUAccent still accents other words in the phrase.
+`--stress-only` prints the normalized text before synthesis and warns when more than two numerals are
+consecutive; `--no-stress` disables automatic stress but keeps manual markers. The existing
 `--rate` maps to Tera's inverse `duration_scale`, so timing and pause semantics remain the same.
 
 Vosk remains available as an explicit Russian fallback and keeps its separate RUAccent worker.

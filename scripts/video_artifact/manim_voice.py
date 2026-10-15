@@ -33,7 +33,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import manimpango
-from manim import DOWN, LEFT, UL, UP, Scene, TexTemplate, Text, VGroup, config
+from manim import DOWN, LEFT, UL, UP, MovingCameraScene, TexTemplate, Text, VGroup, config
 from video_text import caption_text
 
 FONTS = Path(__file__).resolve().parent / "fonts"
@@ -45,9 +45,9 @@ if TEX_BIN.is_dir():
 config.tex_template = TexTemplate(preamble="\n".join((
     r"\usepackage[T2A]{fontenc}", r"\usepackage[utf8]{inputenc}", r"\usepackage[english,russian]{babel}",
     r"\usepackage{amsmath}", r"\usepackage{amssymb}")))
-BG, PANEL, LINE, MUTED = "#0b0e14", "#151a24", "#2a3142", "#8b93a7"
+BG, PANEL, LINE, MUTED = "#000000", "#151a24", "#2a3142", "#8b93a7"
 BLUE_, GREEN_, RED_, GOLD_, FG = "#58c4dd", "#83c167", "#fc6255", "#f0ac5f", "#e6e6e6"
-FONT, MONO = "Manrope", "JetBrains Mono"
+FONT, MONO = "CMU Serif", "JetBrains Mono"
 
 for ttf in ("Manrope.ttf", "JetBrainsMono.ttf"):
     manimpango.register_font(str(FONTS / ttf))
@@ -59,16 +59,22 @@ def text(s: str, size: float = 30, color: str = FG, weight: str = "NORMAL", font
     return Text(s, font=font, font_size=size, color=color, weight=weight, **kw)
 
 
-class VoiceScene(Scene):
+class VoiceScene(MovingCameraScene):
     STEPS: list[dict] = []
     CAPTION_CHARS = 66  # строка субтитра при размере 26 на ширину кадра
+    TEXT_FONT = FONT
+    BACKGROUND_COLOR = BG
+
+    def text(self, value: str, size: float = 30, color: str = FG, weight: str = "NORMAL", **kw) -> Text:
+        return text(value, size, color, weight, font=kw.pop("font", self.TEXT_FONT), **kw)
 
     def setup(self):
+        self.camera.background_color = self.BACKGROUND_COLOR
         voice = json.loads(os.environ.get("VIDEO_ARTIFACT_VOICE", "null"))
         if voice:
             self.durations, self.pre, self.post = voice["d"], voice["pre"], voice["post"]
         else:
-            self.durations = [0.35 + len(s["say"]) / 15 + s.get("hold", 0.55) for s in self.STEPS]
+            self.durations = [s.get("hold", 0.55) if not s["say"].strip() else 0.35 + len(s["say"]) / 15 + s.get("hold", 0.55) for s in self.STEPS]
             self.pre, self.post = 0.3, 1.0
         if len(self.durations) != len(self.STEPS):
             raise ValueError("число длительностей озвучки не совпадает с STEPS")
@@ -83,9 +89,9 @@ class VoiceScene(Scene):
         return max(end - self.time, 1 / config.frame_rate)
 
     def _chrome(self, step: dict) -> VGroup:
-        title = text(step["t"], 34, "#ffffff", "BOLD").to_corner(UL, buff=0.45)
+        title = self.text(step["t"], 34, "#ffffff", "BOLD").to_corner(UL, buff=0.45)
         lines = textwrap.wrap(caption_text(step), self.CAPTION_CHARS)
-        caption = VGroup(*(text(line, 26, "#d5d8df") for line in lines))
+        caption = VGroup(*(self.text(line, 26, "#d5d8df") for line in lines))
         caption.arrange(DOWN, aligned_edge=LEFT, buff=0.14).to_edge(DOWN, buff=0.38).to_edge(LEFT, buff=0.6)
         return VGroup(title, caption)
 

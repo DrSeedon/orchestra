@@ -17,7 +17,7 @@
 каждая фраза), `<имя>-contact.png` (кадры конца шагов для просмотра глазами) и, если
 есть DEEPGRAM_API_KEY, `<имя>.check.json` — распознанный текст и сдвиг каждой фразы.
 
-Ключи: --speaker 0..4 (1 — по умолчанию, 0–2 женские, 3 и 4 мужские), --rate 1.15 (темп: речь и паузы между
+Ключи: --speaker 0..4 (1 — по умолчанию, 0–2 женские, 3 и 4 мужские), --rate 1.0 (темп: речь и паузы между
 фразами; 1.0 — темп V-681), --fps 30,
 --stills (только озвучка, тайминг и контакт-лист, без видео), --stress-only (только разметка
 ударений RUAccent: `<имя>.stress.txt` и вывод по фразам, без синтеза), --no-check.
@@ -78,6 +78,12 @@ PRE, POST = 0.4, 1.6  # стоп-кадр до начала и после кон
 NOT_SPEAKABLE = re.compile(r"[A-Za-z0-9]")
 # Kokoro читает английский, цифры и названия сам; кириллицу он произнести не может.
 NOT_SPEAKABLE_EN = re.compile(r"[А-Яа-яЁё]")
+RUSSIAN_NUMERAL_WORDS = set("ноль один одна одно одни два две три четыре пять шесть семь восемь девять десять "
+                            "одиннадцать двенадцать тринадцать четырнадцать пятнадцать шестнадцать "
+                            "семнадцать восемнадцать девятнадцать двадцать тридцать сорок пятьдесят "
+                            "шестьдесят семьдесят восемьдесят девяносто сто двести триста четыреста "
+                            "пятьсот шестьсот семьсот восемьсот девятьсот тысяча тысячи тысяч миллион "
+                            "миллиона миллионов миллиард миллиарда миллиардов".split())
 
 VOICE_JS = """
 window.__VOICE = %s;
@@ -165,24 +171,53 @@ def tera_unsupported_characters(text: str) -> list[str]:
 
 def check_steps(steps: list[dict], lang: str, engine: str | None = "vosk") -> list[dict]:
     for i, step in enumerate(steps, 1):
-        if not step["say"].strip():
+        silent = not step["say"].strip()
+        if silent and (step.get("hold") is None or float(step["hold"]) <= 0):
             fail(f"шаг {i} «{step['t']}» без фразы say")
+        if silent:
+            continue
+        pause_markers = re.findall(r"\[(\d+(?:\.\d+)?)\]", step["say"])
+        if pause_markers and engine != "tera":
+            fail(f"шаг {i}: явные паузы `[секунды]` поддерживает только TeraTTS")
+        for marker in pause_markers:
+            if not 0.05 <= float(marker) <= 10:
+                fail(f"шаг {i}: пауза [{marker}] должна быть от 0.05 до 10 секунд")
+        spoken_text = re.sub(r"\[(?:\d+(?:\.\d+)?)\]", "", step["say"])
         if lang == "en":
-            if bad := sorted(set(NOT_SPEAKABLE_EN.findall(step["say"]))):
+            if bad := sorted(set(NOT_SPEAKABLE_EN.findall(spoken_text))):
                 fail(f"шаг {i}: в say есть {''.join(bad)} — английский голос не читает кириллицу")
-        elif engine == "vosk" and (bad := sorted(set(NOT_SPEAKABLE.findall(step["say"])))):
+        elif engine == "vosk" and (bad := sorted(set(NOT_SPEAKABLE.findall(spoken_text)))):
             fail(f"шаг {i}: в say есть {''.join(bad)} — латиницу и цифры пиши словами по-русски")
         elif lang == "ru" and engine == "vosk":
             try:
-                normalize_vosk_text(step["say"])
+                normalize_vosk_text(spoken_text)
             except UnsupportedVoskSymbol as exc:
                 fail(f"шаг {i}: символ {exc.symbol!r} не поддержан русским Vosk TTS; замени или убери его")
         elif lang == "ru" and engine == "tera":
-            if bad := sorted(set(NOT_SPEAKABLE.findall(step["say"]))):
+            if bad := sorted(set(NOT_SPEAKABLE.findall(spoken_text))):
                 fail(f"шаг {i}: в say есть {''.join(bad)} — числа пиши словами с нужным падежом, латиницу произноси по-русски")
-            if bad := tera_unsupported_characters(step["say"]):
+            if bad := tera_unsupported_characters(spoken_text):
                 fail(f"шаг {i}: символ {bad[0]!r} не поддержан русским TeraTTS")
     return steps
+
+
+def repeated_numeral_run(text: str) -> int:
+    longest = current = 0
+    for word in re.findall(r"[А-Яа-яЁё0-9]+", text.lower()):
+        if word.isdigit() or word in RUSSIAN_NUMERAL_WORDS:
+            current += 1
+            longest = max(longest, current)
+        else:
+            current = 0
+    return longest
+
+
+def warn_numeral_runs(steps: list[dict]) -> None:
+    for i, step in enumerate(steps, 1):
+        count = repeated_numeral_run(step["say"])
+        if count > 2:
+            print(f"предупреждение: шаг {i} — подряд {count} числительных; проверь, можно ли часть показать на экране",
+                  file=sys.stderr, flush=True)
 
 
 MANIM_STEPS_JS = """
@@ -287,7 +322,7 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
     trimmed, jobs, ready, job_indices, job_by_index, queued = [], [], {}, {}, {}, {}
     for i, step in enumerate(steps):
         if engine == "tera":
-            engine_key = f"tera|{TERA_REVISION}|{voice or 'ru_m1'}|stress={int(stress)}"
+            engine_key = f"tera|{TERA_REVISION}|{voice or 'ru_m1'}|stress={int(stress)}|audio-v2"
             text = step["say"]
         elif engine == "kokoro":
             engine_key = f"kokoro-v1.0|{voice}"
@@ -299,6 +334,14 @@ def synthesize(steps: list[dict], cache: Path, speaker: int, rate: float, voice:
         key = hashlib.sha1(f"{text}|{rate}|{engine_key}".encode()).hexdigest()[:16]
         raw, cut = cache / f"{key}.raw.wav", cache / f"{key}.wav"
         trimmed.append(cut)
+        if not text.strip():
+            with wave.open(str(cut), "wb") as output:
+                output.setnchannels(1)
+                output.setsampwidth(2)
+                output.setframerate(SR)
+                output.writeframes(b"")
+            ready[i] = cut
+            continue
         if cut.exists():
             ready[i] = cut
         elif raw.exists():
@@ -392,7 +435,7 @@ def plan(steps: list[dict], clips: list[Path], rate: float) -> dict:
         length = wav_seconds(clip)
         # Паузы ускоряются вместе с речью, иначе при rate 1.5 ролик короче лишь в 1.4 раза;
         # hold — время досмотреть итог, его темп не трогает.
-        lead = LEAD / rate
+        lead = LEAD / rate if step["say"].strip() else 0
         d = round(lead + length + (step["hold"] if step["hold"] is not None else GAP / rate), 3)
         rows.append({"title": step["t"], "say": step["say"], "sub": step["sub"], "step_start": round(at, 3),
                      "phrase_start": round(at + lead, 3), "phrase_end": round(at + lead + length, 3), "d": d,
@@ -874,7 +917,7 @@ def _main() -> None:
                     help="en — английская озвучка Kokoro")
     ap.add_argument("--voice", choices=["m1", "m5", "f1", "f2", "af_heart", "am_michael"],
                     help="Tera: m1 (default), m5, f1, f2; Kokoro: af_heart (default), am_michael")
-    ap.add_argument("--rate", type=float, default=1.15)
+    ap.add_argument("--rate", type=float, default=1.0)
     ap.add_argument("--no-stress", action="store_true", help="отключить автоматическую разметку русского ударения")
     ap.add_argument("--stress-only", action="store_true",
                     help="показать нормализованные фразы и ударения без генерации WAV")
@@ -899,6 +942,7 @@ def _main() -> None:
     else:
         steps = read_steps(args.scene, args.lang)
     steps = check_steps(steps, args.lang, engine=None)
+    warn_numeral_runs(steps)
     print("stage 1/4: scene and speech plan", flush=True)
     if args.preview_step or args.preview_range:
         if args.preview_step:
