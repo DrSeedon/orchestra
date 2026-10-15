@@ -1781,7 +1781,7 @@ async def quota_map():
 
 @router.post("/api/usage/quota-override")
 async def quota_override(req: dict):
-    """Снять гейт на `minutes` минут или вернуть его немедленно (`minutes` = 0).
+    """Снять гейт до `expires_at`, на `minutes` минут, или вернуть его сразу.
 
     Действие ВЛАДЕЛЬЦА с панели: агентам оно не выдаётся ни тулом, ни параметром
     спавна — иначе решение о расходе пула уезжает к тем, кто его тратит.
@@ -1789,30 +1789,59 @@ async def quota_override(req: dict):
     from app.quota_gate import (
         MAX_GATE_OVERRIDE_SECONDS,
         clear_gate_override,
+        gate_override_expiry,
         gate_override_remaining,
         set_gate_override,
+        set_gate_override_until,
     )
 
-    raw = req.get("minutes", 0)
-    try:
-        minutes = float(raw)
-    except (TypeError, ValueError):
-        return JSONResponse({"error": f"minutes must be a number, got {raw!r}"}, status_code=400)
-    if minutes <= 0:
-        clear_gate_override()
-        return {"override_seconds_left": 0.0}
-    try:
-        set_gate_override(minutes * 60.0)
-    except ValueError as error:
-        return JSONResponse(
-            {"error": str(error), "max_minutes": MAX_GATE_OVERRIDE_SECONDS / 60.0},
-            status_code=400,
-        )
+    if "expires_at" in req:
+        if "minutes" in req:
+            return JSONResponse(
+                {"error": "provide either expires_at or minutes, not both"},
+                status_code=400,
+            )
+        raw = req.get("expires_at")
+        try:
+            if not isinstance(raw, str):
+                raise ValueError
+            expires_at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            if expires_at.tzinfo is None:
+                raise ValueError
+            set_gate_override_until(expires_at.astimezone(timezone.utc).timestamp())
+        except (TypeError, ValueError, OverflowError):
+            return JSONResponse(
+                {
+                    "error": "expires_at must be a future ISO 8601 timestamp with timezone, within 14 days",
+                    "max_seconds": MAX_GATE_OVERRIDE_SECONDS,
+                },
+                status_code=400,
+            )
+    else:
+        raw = req.get("minutes", 0)
+        try:
+            minutes = float(raw)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": f"minutes must be a number, got {raw!r}"}, status_code=400)
+        if minutes <= 0:
+            clear_gate_override()
+            return {"override_seconds_left": 0.0, "override_until": None}
+        try:
+            set_gate_override(minutes * 60.0)
+        except ValueError as error:
+            return JSONResponse(
+                {"error": str(error), "max_minutes": MAX_GATE_OVERRIDE_SECONDS / 60.0},
+                status_code=400,
+            )
     # Доставки, ждавшие гейт, уходят сразу, а не на следующем минутном проходе.
     from app.quota_queue import release_waiting
 
     released = await release_waiting()
-    return {"override_seconds_left": gate_override_remaining(), "released_deliveries": released}
+    return {
+        "override_seconds_left": gate_override_remaining(),
+        "override_until": gate_override_expiry(),
+        "released_deliveries": released,
+    }
 
 
 async def build_quota_map() -> dict:
@@ -1831,6 +1860,7 @@ async def build_quota_map() -> dict:
         deciding_window,
         evaluate_worker_admission,
         gate_override_remaining,
+        gate_override_expiry,
         line_limit,
         parse_quota_timestamp,
         quota_policy,
@@ -2174,9 +2204,9 @@ async def build_quota_map() -> dict:
         "observation_max_age_seconds": QUOTA_OBSERVATION_MAX_AGE,
         "rule": {
             **quota_policy_snapshot(policy),
-            # Остаток временного снятия (#V-578): панель обязана отличать «правила
-            # такие» от «владелец снял на 20 минут», иначе снятие снова забудется.
+            # Остаток и абсолютное время окончания ручного снятия гейта.
             "override_seconds_left": gate_override_remaining(),
+            "override_until": gate_override_expiry(),
         },
         "rule_history": db.quota_policy_history_for_window(
             now - 84 * 60 * 60, now + 84 * 60 * 60,

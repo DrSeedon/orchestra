@@ -139,10 +139,13 @@ def _payload(codex_util=30.0, codex_progress=0.5, spark_util=39.0, spark_progres
 
 
 def _render(browser: Browser, payload, as_json: bool = False, language: str = "en",
-            reset_history: dict | None = None) -> "tuple":
+            reset_history: dict | None = None, timezone_id: str | None = None) -> "tuple":
     """Открыть страницу, подменить api() и отрисовать панель РАСКРЫТОЙ."""
     errors: list = []
-    page = browser.new_page()
+    page = (
+        browser.new_context(timezone_id=timezone_id).new_page()
+        if timezone_id else browser.new_page()
+    )
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
     page.route("http://harness.local/**", lambda route: route.fulfill(
@@ -670,6 +673,65 @@ def test_calm_window_says_everyone_works(browser):
     assert "ql-verdict-open" in (verdict.get_attribute("class") or "")
     assert page.locator("[data-ql-panel='all'] .ql-badge-blocked").count() == 0
     page.close()
+
+
+def test_gate_override_uses_a_browser_local_datetime_and_shows_an_expiry(browser):
+    payload = _payload()
+    page, errors = _render(browser, payload, timezone_id="Asia/Krasnoyarsk")
+    expiry = page.locator("#quota-gate-until")
+    assert expiry.get_attribute("type") == "datetime-local"
+    expiry.fill("2026-10-20T14:00")
+    page.locator(".ql-bar").screenshot(
+        path=".orchestra/tasks/V-862/quota-override-form.png",
+    )
+    page.evaluate("window.__expectedLocalExpiry = new Date('2026-10-20T14:00').toISOString()")
+    page.evaluate(
+        """raw => {
+            api = async (path, options) => {
+                if (path === '/api/usage/quota-override') {
+                    window.__overrideRequest = JSON.parse(options.body);
+                    return {};
+                }
+                return raw;
+            };
+        }""",
+        payload,
+    )
+
+    page.locator("#quota-gate-submit").click()
+
+    result = page.evaluate("[window.__overrideRequest, window.__expectedLocalExpiry]")
+    assert result[0]["expires_at"] == result[1] == "2026-10-20T07:00:00.000Z"
+    assert errors == [], errors
+    page.close()
+    page.context.close()
+
+    active = _payload()
+    active["rule"]["override_seconds_left"] = 3600
+    active["rule"]["override_until"] = "2026-10-20T07:00:00+00:00"
+    active_page, active_errors = _render(browser, active)
+    formatted = active_page.evaluate(
+        "new Date('2026-10-20T07:00:00+00:00').toLocaleString()",
+    )
+    assert formatted in active_page.locator("[data-ql-gate='override']").inner_text()
+    assert active_page.locator("#quota-gate-submit").count() == 1
+    assert active_page.locator("#quota-gate-until").count() == 0
+    active_page.evaluate(
+        """raw => {
+            api = async (path, options) => {
+                if (path === '/api/usage/quota-override') {
+                    window.__restoreRequest = JSON.parse(options.body);
+                    return {};
+                }
+                return raw;
+            };
+        }""",
+        active,
+    )
+    active_page.locator("#quota-gate-submit").click()
+    assert active_page.evaluate("window.__restoreRequest") == {"minutes": 0}
+    active_page.close()
+    assert active_errors == [], active_errors
 
 
 def _badge_is_blocked(page, lane: str) -> bool:

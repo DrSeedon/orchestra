@@ -311,10 +311,13 @@ function _qlGateState() {
     // otherwise temporary lift would silently stretch for three days unnoticed.
     const left = Number(rule.override_seconds_left) || 0;
     if (left > 0) {
+        const until = rule.override_until
+            ? new Date(rule.override_until).toLocaleString()
+            : T('{min} min', {min: Math.ceil(left / 60)});
         return {
             state: 'override',
-            text: T('gate MANUALLY LIFTED — returns in {min} min · ceiling: {ceiling}', {
-                min: Math.ceil(left / 60),
+            text: T('gate MANUALLY LIFTED until {until} · ceiling: {ceiling}', {
+                until,
                 ceiling: ceilings,
             }),
         };
@@ -857,13 +860,15 @@ function renderQuotaLines() {
     const overrideOn = gate.state === 'override';
     // Button always present except on connection loss: pressing it blindly,
     // not knowing gate state, means lifting rule at random.
-    const button = gate.state === 'nodata' ? '' :
-        `<button type="button" id="quota-gate-override" class="ql-gate-btn">${overrideOn ? T('restore gate') : T('lift for 2 h')}</button>`;
+    const overrideControls = gate.state === 'nodata' ? '' : overrideOn
+        ? `<button type="button" id="quota-gate-submit" class="ql-gate-btn">${T('return gate now')}</button>`
+        : `<label class="ql-gate-expiry"><span>${T('lift gate until')}</span><input id="quota-gate-until" type="datetime-local" aria-label="${T('gate expiry date and time')}"></label><button type="button" id="quota-gate-submit" class="ql-gate-btn">${T('lift gate')}</button>`;
     root.innerHTML = `
         <div class="ql-bar">
             <button type="button" id="quota-lines-toggle" aria-expanded="${_quotaLinesOpen}">${_quotaLinesOpen ? '▾' : '▸'} ${T('allowance rule')}</button>
             <span class="ql-gate ql-gate-${gate.state}" data-ql-gate="${gate.state}">${_escHtml(gate.text)}</span>
-            ${button}
+            ${overrideControls}
+            <span class="ql-gate-error" id="quota-gate-error" role="alert"></span>
             <div class="ql-sum">${_qlSummary()}</div>
         </div>
         <div class="ql-body" ${_quotaLinesOpen ? '' : 'hidden'}>${body}</div>`;
@@ -871,20 +876,35 @@ function renderQuotaLines() {
         _quotaLinesOpen = !_quotaLinesOpen;
         renderQuotaLines();
     };
-    const overrideButton = root.querySelector('#quota-gate-override');
+    const overrideButton = root.querySelector('#quota-gate-submit');
     if (overrideButton) {
         overrideButton.onclick = async () => {
+            const expiryInput = root.querySelector('#quota-gate-until');
+            const selected = expiryInput ? new Date(expiryInput.value) : null;
+            if (!overrideOn && (!expiryInput.value || Number.isNaN(selected.getTime()))) {
+                root.querySelector('#quota-gate-error').textContent = T('choose a valid expiry date and time');
+                return;
+            }
             overrideButton.disabled = true;
+            let errorText = '';
             try {
                 await api('/api/usage/quota-override', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({minutes: overrideOn ? 0 : 120}),
+                    body: JSON.stringify(overrideOn
+                        ? {minutes: 0}
+                        : {expires_at: selected.toISOString()}),
                 });
+            } catch (error) {
+                errorText = error && error.message ? error.message : T('request failed');
             } finally {
                 // State redraws from server response, not from our intent.
                 _quotaMapData = null;
                 await fetchQuotaLines();
+                if (errorText) {
+                    const errorNode = root.querySelector('#quota-gate-error');
+                    if (errorNode) errorNode.textContent = errorText;
+                }
             }
         };
     }

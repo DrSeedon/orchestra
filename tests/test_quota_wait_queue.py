@@ -8,7 +8,7 @@
 import asyncio
 import json
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -224,7 +224,52 @@ async def test_owner_override_releases_the_queue_immediately(env):
 
     assert response["released_deliveries"] == 1
     assert quota_gate.gate_override_remaining() > 0
+    assert response["override_until"] is not None
     assert env.manager.delivered == ["[from:x] override"]
+
+
+@pytest.mark.asyncio
+async def test_owner_override_accepts_zoned_absolute_expiry(env):
+    from app import quota_gate
+    from app.routes.system import quota_override
+
+    until = datetime.now(timezone.utc).replace(microsecond=0) + timedelta(hours=3)
+    response = await quota_override({"expires_at": until.isoformat()})
+
+    assert response["override_until"] == until.isoformat()
+    assert response["override_seconds_left"] == pytest.approx(3 * 3600, abs=1)
+    assert quota_gate.gate_override_remaining() > 0
+
+
+@pytest.mark.asyncio
+async def test_owner_can_restore_the_gate_and_clear_persisted_expiry(env):
+    from app import quota_gate
+    from app.routes.system import quota_override
+
+    await quota_override({"minutes": 30})
+    assert quota_gate.gate_override_remaining() > 0
+
+    response = await quota_override({"minutes": 0})
+
+    assert response == {"override_seconds_left": 0.0, "override_until": None}
+    assert quota_gate.gate_override_remaining() == 0.0
+    assert env.db.kv_get("quota_gate_override_until") == ""
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("days,include_timezone", [(-1, True), (5, False), (15, True)])
+async def test_owner_override_rejects_past_naive_or_more_than_14_day_expiry(
+    env, days, include_timezone,
+):
+    from app.routes.system import quota_override
+
+    expires_at = datetime.now(timezone.utc) + timedelta(days=days)
+    if not include_timezone:
+        expires_at = expires_at.replace(tzinfo=None)
+    response = await quota_override({"expires_at": expires_at.isoformat()})
+
+    assert response.status_code == 400
+    assert "error" in response.body.decode()
 
 
 @pytest.mark.asyncio

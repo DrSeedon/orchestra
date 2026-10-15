@@ -1134,6 +1134,9 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 }
 .ql-gate-btn:hover { border-color: var(--accent); color: var(--ink); }
 .ql-gate-btn:disabled { opacity: .5; cursor: default; }
+.ql-gate-expiry { display: inline-flex; align-items: center; gap: 5px; color: var(--ink-faint); }
+.ql-gate-expiry input { width: 190px; padding: 2px 5px; border: 1px solid var(--border); border-radius: var(--r-sm); background: var(--surface-2); color: var(--ink); font: 11px/1.4 var(--font-mono); }
+.ql-gate-error { color: #fda4af; }
 .ql-sum { display: flex; flex-wrap: wrap; gap: 4px 18px; min-width: 0; color: var(--ink-faint); }
 .ql-sum-item b { color: var(--ink-soft); font-weight: 600; }
 .ql-body { max-height: 62vh; overflow: auto; padding: 4px 12px 12px; }
