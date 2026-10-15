@@ -1108,12 +1108,47 @@ def test_hidden_orchestrator_list_reuses_tab_status_and_cache(dashboard_browser:
     assert result["afterLiveUpdate"]["cache"] == "🔥"
 
 
+def test_unread_dot_survives_orchestrator_list_poll(dashboard_browser: Browser):
+    """V-863: the 60 s list poll replaces orchData; the dot must still appear and clear."""
+    source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
+
+    def function_source(name):
+        marker = f"function {name}"
+        return marker + source.split(marker, 1)[1].split("\n}\n", 1)[0] + "\n}"
+
+    page = dashboard_browser.new_page()
+    page.set_content("<div id='tab'></div>")
+    page.add_script_tag(content="\n".join([
+        "const _unreadTabs = new Set(); let orchData = []; let currentScope = '/mine';",
+        "let selectedAgent = null; const $ = s => document.querySelector(s);",
+        function_source("_orchestratorTurnFinished"),
+        function_source("_markUnreadTurns"),
+        function_source("_syncUnreadDot"),
+        # the real _renderOrchestrators minus DOM picker work: only the compare-then-replace order matters
+        "function _poll(list) { const fresh = list.filter(o => !o.parent_name);"
+        " _markUnreadTurns(orchData, fresh); orchData = fresh; }",
+    ]))
+    result = page.evaluate("""() => {
+        const o = (scope, status, ts) => ({name: scope.slice(1), scope, status, last_turn_ts: ts});
+        const tab = document.getElementById('tab');
+        const dot = scope => { _syncUnreadDot(tab, scope); return tab.querySelectorAll('.tab-unread').length; };
+        _poll([o('/mine', 'idle', 't0'), o('/other', 'running', 't0'), o('/quick', 'idle', 't0')]);
+        const quiet = dot('/other');
+        _poll([o('/mine', 'idle', 't1'), o('/other', 'idle', 't1'), o('/quick', 'idle', 't1')]);
+        const finishedOther = _unreadTabs.has('/other');
+        const shortTurn = _unreadTabs.has('/quick');
+        const ownTab = _unreadTabs.has('/mine');
+        const shown = dot('/other');
+        _unreadTabs.delete('/other');
+        return {quiet, finishedOther, shortTurn, ownTab, shown, cleared: dot('/other')};
+    }""")
+    page.close()
+    assert result == {"quiet": 0, "finishedOther": True, "shortTurn": True,
+                      "ownTab": False, "shown": 1, "cleared": 0}
+
+
 def test_orchestrator_unread_tracks_own_turn_only(dashboard_browser: Browser):
     source = (Path(__file__).parent.parent / "app/static/js/app.js").read_text()
-    assert source.count("_unreadTabs.add(") == 1
-    assert source.count("className = 'tab-unread'") == 1
-    assert "_orchestratorTurnFinished(existing, fo)" in source
-
     def function_source(name):
         marker = f"function {name}"
         return marker + source.split(marker, 1)[1].split("\n}\n", 1)[0] + "\n}"
