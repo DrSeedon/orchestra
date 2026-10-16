@@ -216,6 +216,13 @@ def _fmt_role_catalog_entry(rr) -> str:
         entry += f"\n- ✅ **When**: {rr.when.strip()}"
     if rr.not_for:
         entry += f"\n- ❌ **Not for**: {rr.not_for.strip()}"
+    if "*" in rr.can_spawn:
+        spawn = "any role"
+    elif rr.can_spawn:
+        spawn = ", ".join(f"`{r}`" for r in rr.can_spawn)
+    else:
+        spawn = "none (cannot spawn)"
+    entry += f"\n- 🌱 **Can spawn**: {spawn}"
     skills = rr.skills
     if isinstance(skills, list) and skills:
         entry += f"\n- 🔧 **Skills**: {', '.join(skills)}"

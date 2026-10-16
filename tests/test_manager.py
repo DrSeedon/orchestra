@@ -2936,6 +2936,39 @@ class TestRolesCatalogFromManifest:
         assert "### `boss`" not in cat
 
 
+class TestRolesCatalogSpawnLine:
+    def _catalog(self, tmp_path, monkeypatch, can_spawn_a, name):
+        import app.pipeline as pl
+        root = tmp_path / "pipelines"
+        root.mkdir(exist_ok=True)
+        manifest = (
+            f"name: {name}\nvalidation: fail-open\n"
+            "roles:\n"
+            "  boss: {kind: orchestrator, label: Boss, order: 0, can_spawn: ['*']}\n"
+            f"  a: {{kind: worker, label: A, order: 1, can_spawn: {can_spawn_a}}}\n"
+            "  b: {kind: worker, label: B, order: 2, can_spawn: []}\n"
+        )
+        _write_pipeline(root, name, manifest, prompts={"base.md": "B"})
+        monkeypatch.setattr(pl, "PIPELINES_DIR", root)
+        pl.load_pipeline.cache_clear()
+        from app.manager import _roles_catalog_from_manifest
+        cat = _roles_catalog_from_manifest(name, "boss")
+        pl.load_pipeline.cache_clear()
+        return cat
+
+    @staticmethod
+    def _entry(cat, name):
+        return cat.split(f"### `{name}`")[1].split("###")[0]
+
+    def test_spawn_line_follows_can_spawn(self, tmp_path, monkeypatch):
+        """Строка о спавне выводится из can_spawn: правка манифеста меняет каталог."""
+        cat = self._catalog(tmp_path, monkeypatch, "[b]", "sp1")
+        assert "`b`" in self._entry(cat, "a")
+        assert "`b`" not in self._entry(cat, "b")
+        other = self._catalog(tmp_path, monkeypatch, "[]", "sp2")
+        assert self._entry(cat, "a") != self._entry(other, "a")
+
+
 class TestPromptIsolation:
     def test_app_prompts_not_read_in_manifest_path(self, pipeline_dir, db, monkeypatch):
         """Манифест-путь НЕ читает app/prompts/ — отсутствие _PROMPTS_DIR не ломает."""
