@@ -1,0 +1,387 @@
+[
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview19",
+  "sample": "vendor/vendor_elevenlabs_preview19.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/BSlMgGiodocQxUXJ7sAWKpDdR4m2/voices/vQxSi2EuaRWwBw3nn6dK/b233e874-5d29-4faf-89b1-467fe46c58c4.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview24",
+  "sample": "vendor/vendor_elevenlabs_preview24.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/Ws0NuxiaxGXfCa5Pjid7Cf3DXNI2/voices/ymDCYd8puC7gYjxIamPt/JIvpZszp6VTLxZ35YaHE.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview29",
+  "sample": "vendor/vendor_elevenlabs_preview29.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/eYUi2oZcB8RVHfP9GTnHUomZiby2/voices/rQOBu7YxCDxGiFdTm28w/6pAMjAxbXvyTDEXJySjr.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview31",
+  "sample": "vendor/vendor_elevenlabs_preview31.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/klYuYbXW20VUorOcLpOCEtvNJtv2/voices/huXlXYhtMIZkTYxM93t6/N0W16MieyAATOxeGRswD.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview32",
+  "sample": "vendor/vendor_elevenlabs_preview32.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/ojHbhh0ck6dDMxZb2N6lfq8KKSa2/voices/q5RNAd4899271dg9W2K8/8ec2c387-9d12-4aed-bae6-a0dfea42c513.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview34",
+  "sample": "vendor/vendor_elevenlabs_preview34.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/uzlHdClx3tehMYugzC22yfl8GWn1/voices/aG9q1I1wTbfHh5sbpJnp/bc360d41-00ce-48a6-9787-5f4a84ab3bd0.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview36",
+  "sample": "vendor/vendor_elevenlabs_preview36.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/x6s3kMcRvUg5Xia4Y7h2zg5emiA2/voices/X0jd19oPQ0cVJcbpmAuX/5b889152-a0ca-4b76-b347-d2f94f4c5fb1.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview37",
+  "sample": "vendor/vendor_elevenlabs_preview37.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/user/xeVMb0uHIWQ1npc8Ujp0uSLWn4Z2/voices/Vl27Cllkuw8BhyPqus2n/nxOC60PdjPZwpCtUPArs.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview39",
+  "sample": "vendor/vendor_elevenlabs_preview39.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/15d407b437b5436eb3fcbbe2d9b8fe73/voices/HcaxAsrhw4ByUo4CBCBN/eJ4w96VhyqVcEDyi4Nb6.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview52",
+  "sample": "vendor/vendor_elevenlabs_preview52.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/b91c9e2a029545e9b07b630cbe60251b/voices/ogi2DyUAKJb7CEdqqvlU/ey3unSMbRlFFOfGePC7z.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview56",
+  "sample": "vendor/vendor_elevenlabs_preview56.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/ccaada193edd45cb8501dd17fd1c3075/voices/0BcDz9UPwL3MpsnTeUlO/8slbP6V9zo96rm4BZtan.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "elevenlabs",
+  "voice": "preview57",
+  "sample": "vendor/vendor_elevenlabs_preview57.ogg",
+  "source_url": "https://storage.googleapis.com/eleven-public-prod/database/workspace/ed9b05e6324c457685490352e9a1ec90/voices/qJBO8ZmKp4te7NTtYgzz/CorbmjlZJD9DTalwmD12.mp3",
+  "note": "голосовая библиотека ElevenLabs, страница /text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice00",
+  "sample": "vendor/vendor_minimax_voice00.ogg",
+  "source_url": "https://cdn.hailuoai.video/moss/prod/2026-02-23-17/moss-audio/user_audio/1771839193453846108-369812813103327_2026-02-23_.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice01",
+  "sample": "vendor/vendor_minimax_voice01.ogg",
+  "source_url": "https://cdn.hailuoai.video/moss/prod/2026-02-23-17/moss-audio/user_audio/1771839348187120402-369813368291566_2026-02-23_.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice02",
+  "sample": "vendor/vendor_minimax_voice02.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/0eb49c7f-aca2-4bee-9681-2ae86d0cec82.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice03",
+  "sample": "vendor/vendor_minimax_voice03.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/2341f3a0-9205-4a12-9687-1593232ccac4.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice04",
+  "sample": "vendor/vendor_minimax_voice04.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/29dbcc52-a437-475c-aff4-424036c81292.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice05",
+  "sample": "vendor/vendor_minimax_voice05.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/361764c3-5954-4ac0-bf75-54069b828083.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice06",
+  "sample": "vendor/vendor_minimax_voice06.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/3757dabe-5199-4a3e-aab3-cc52ac5c2b95.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice07",
+  "sample": "vendor/vendor_minimax_voice07.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/37f2692a-6002-4006-bcbc-c0c4ad10577e.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice08",
+  "sample": "vendor/vendor_minimax_voice08.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/6e4d5ce0-c229-408c-ae2f-2d7010484a52.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice09",
+  "sample": "vendor/vendor_minimax_voice09.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/71e00147-2d8c-4cec-b0fd-a4550b6caa2f.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice10",
+  "sample": "vendor/vendor_minimax_voice10.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/7336f36a-d073-4515-af0e-d640f9eebcff.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice11",
+  "sample": "vendor/vendor_minimax_voice11.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/8c76cd8b-3822-4078-af5c-d3b629794d1f.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice12",
+  "sample": "vendor/vendor_minimax_voice12.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/968969de-f325-4ca6-addf-6c6a6eb37625.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice13",
+  "sample": "vendor/vendor_minimax_voice13.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/a0e6a419-14b8-4365-9e65-03ffc4513aee.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice14",
+  "sample": "vendor/vendor_minimax_voice14.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/a659e6aa-727d-4de9-ab7f-5cc455ba424f.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice15",
+  "sample": "vendor/vendor_minimax_voice15.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/aa30a953-cd40-4846-9cd2-2504427402c4.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice16",
+  "sample": "vendor/vendor_minimax_voice16.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/e366802e-769c-45a8-978c-8b3e170d3b2f.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice17",
+  "sample": "vendor/vendor_minimax_voice17.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/ed24201b-f947-452c-a25c-f0e2cb22a19f.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice18",
+  "sample": "vendor/vendor_minimax_voice18.ogg",
+  "source_url": "https://cdn.hailuoai.video/open-hailuo-video-web/public_assets/ed60ae25-1891-43ac-9d12-3c366ca3c4ee.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "minimax",
+  "voice": "voice19",
+  "sample": "vendor/vendor_minimax_voice19.ogg",
+  "source_url": "https://filecdn.minimax.chat/public/22dbbad0-8261-40c7-a827-eba18caef7a7.mp3",
+  "note": "minimax.io/audio/text-to-speech/russian; модель не указана"
+ },
+ {
+  "vendor": "salutespeech",
+  "voice": "boris",
+  "sample": "vendor/vendor_salutespeech_boris.ogg",
+  "source_url": "",
+  "note": "developers.sber.ru, голоса синтеза, hq"
+ },
+ {
+  "vendor": "salutespeech",
+  "voice": "marfa",
+  "sample": "vendor/vendor_salutespeech_marfa.ogg",
+  "source_url": "",
+  "note": "developers.sber.ru, голоса синтеза, hq"
+ },
+ {
+  "vendor": "salutespeech",
+  "voice": "natasha",
+  "sample": "vendor/vendor_salutespeech_natasha.ogg",
+  "source_url": "",
+  "note": "developers.sber.ru, голоса синтеза, hq"
+ },
+ {
+  "vendor": "salutespeech",
+  "voice": "sasha",
+  "sample": "vendor/vendor_salutespeech_sasha.ogg",
+  "source_url": "",
+  "note": "developers.sber.ru, голоса синтеза, hq"
+ },
+ {
+  "vendor": "salutespeech",
+  "voice": "sergey",
+  "sample": "vendor/vendor_salutespeech_sergey.ogg",
+  "source_url": "",
+  "note": "developers.sber.ru, голоса синтеза, hq"
+ },
+ {
+  "vendor": "salutespeech",
+  "voice": "taras",
+  "sample": "vendor/vendor_salutespeech_taras.ogg",
+  "source_url": "",
+  "note": "developers.sber.ru, голоса синтеза, hq"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Aoede",
+  "sample": "vendor/vendor_google_Chirp3-HD-Aoede.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Charon",
+  "sample": "vendor/vendor_google_Chirp3-HD-Charon.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Fenrir",
+  "sample": "vendor/vendor_google_Chirp3-HD-Fenrir.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Kore",
+  "sample": "vendor/vendor_google_Chirp3-HD-Kore.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Leda",
+  "sample": "vendor/vendor_google_Chirp3-HD-Leda.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Orus",
+  "sample": "vendor/vendor_google_Chirp3-HD-Orus.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Puck",
+  "sample": "vendor/vendor_google_Chirp3-HD-Puck.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Chirp3-HD-Zephyr",
+  "sample": "vendor/vendor_google_Chirp3-HD-Zephyr.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Standard-A",
+  "sample": "vendor/vendor_google_Standard-A.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Standard-D",
+  "sample": "vendor/vendor_google_Standard-D.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Wavenet-A",
+  "sample": "vendor/vendor_google_Wavenet-A.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Wavenet-B",
+  "sample": "vendor/vendor_google_Wavenet-B.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "google",
+  "voice": "Wavenet-D",
+  "sample": "vendor/vendor_google_Wavenet-D.ogg",
+  "source_url": "",
+  "note": "docs.cloud.google.com list-voices-and-types, ru-RU"
+ },
+ {
+  "vendor": "fish-audio",
+  "voice": "analyst-m",
+  "sample": "vendor/vendor_fish-audio_analyst-m.ogg",
+  "source_url": "https://fish.audio/m/868377a7b08f4c0d9acf8c9f059571aa",
+  "note": "публичный голос «Молодой Аналитик», образец по умолчанию; текст: Современная эпоха характеризуется стремительным усложнением глобальных процессов, в которых переплетаются технологические трансформации, экологические изменения и социокультурные сдвиги. Уже в начале двадцать первого века стало очевидно, что антропогенное воздействие на планетарные системы достигло критического уровня. И способны ли мы осознать масштаб происходящего в полной мере?"
+ },
+ {
+  "vendor": "fish-audio",
+  "voice": "professional-m",
+  "sample": "vendor/vendor_fish-audio_professional-m.ogg",
+  "source_url": "https://fish.audio/m/7312c38557eb4fb384e3874e8e9cea67",
+  "note": "публичный голос «Мужской Профессиональный213», образец по умолчанию; текст: Мы живем в эпоху перемен, когда способность адаптироваться становится ключевым навыком. Искусственный интеллект и глобальная автоматизация открывают новые возможности для тех, кто готов к изменениям. Развивайте когнитивную гибкость, чтобы быть успешным в этом новом мире."
+ },
+ {
+  "vendor": "fish-audio",
+  "voice": "news-f",
+  "sample": "vendor/vendor_fish-audio_news-f.ogg",
+  "source_url": "https://fish.audio/m/c2805221e4b544458014d610f82b5aa5",
+  "note": "публичный голос «новости», образец по умолчанию; текст: Важно понимать, что все решения принимаются с учетом актуальной ситуации. Необходимо внимательно следить за официальными источниками информации и избегать непроверенных данных. Это поможет сохранить спокойствие и принять взвешенные решения в любой ситуации."
+ },
+ {
+  "vendor": "fish-audio",
+  "voice": "calm-f",
+  "sample": "vendor/vendor_fish-audio_calm-f.ogg",
+  "source_url": "https://fish.audio/m/f14e1f9fb32d4dbd8cd5b40a0fef86a5",
+  "note": "публичный голос «Спокойный женский голос», образец по умолчанию; текст: Ведь Настоящая любовь — это не поиск идеального человека. Это — найти того, с кем даже обычные моменты становятся особенными. Это ежедневный выбор друг друга снова и снова"
+ }
+]
