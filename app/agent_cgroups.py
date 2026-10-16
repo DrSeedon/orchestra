@@ -14,6 +14,10 @@ from pathlib import Path
 # between the two limits for the API side.
 AGENTS_MEMORY_HIGH_SHARE = 0.75
 AGENTS_MEMORY_MAX_SHARE = 0.875
+# Agents may use at most a quarter of available host/service swap, with a 1 GiB ceiling.
+AGENTS_SWAP_MAX_SHARE = 0.25
+AGENTS_SWAP_MAX_CAP_BYTES = 1024 ** 3
+HOST_MEMINFO_PATH = Path("/proc/meminfo")
 logger = logging.getLogger(__name__)
 
 
@@ -94,6 +98,28 @@ def _read_limit(path: Path) -> int:
     return int(value)
 
 
+def _read_swap_total(path: Path | None = None) -> int:
+    path = path or HOST_MEMINFO_PATH
+    for line in path.read_text().splitlines():
+        name, separator, value = line.partition(":")
+        if name == "SwapTotal" and separator:
+            fields = value.split()
+            if len(fields) == 2 and fields[1] == "kB":
+                return int(fields[0]) * 1024
+    raise RuntimeError(f"cannot read SwapTotal from {path}")
+
+
+def _agents_swap_max(service: Path) -> int:
+    host_swap = _read_swap_total()
+    service_swap_path = service / "memory.swap.max"
+    if not service_swap_path.exists():
+        raise RuntimeError(f"memory swap controller unavailable: {service_swap_path}")
+    service_swap_value = service_swap_path.read_text().strip()
+    service_swap = host_swap if service_swap_value == "max" else int(service_swap_value)
+    available_swap = min(host_swap, service_swap)
+    return min(AGENTS_SWAP_MAX_CAP_BYTES, int(available_swap * AGENTS_SWAP_MAX_SHARE))
+
+
 def _read_weight(path: Path, prefix: str = "") -> int:
     value = path.read_text().split()
     if prefix:
@@ -159,11 +185,20 @@ def configure_agent_cgroup(service: Path | None = None) -> Path:
         "memory.high": str(int(_read_limit(service / "memory.high") * AGENTS_MEMORY_HIGH_SHARE)),
         "memory.max": str(int(_read_limit(service / "memory.max") * AGENTS_MEMORY_MAX_SHARE)),
     }
+    try:
+        values["memory.swap.max"] = str(_agents_swap_max(service))
+    except (OSError, RuntimeError, ValueError) as error:
+        logger.warning("agent swap limit unavailable; continuing without it: %s", error)
     for name, value in values.items():
         path = agents / name
-        if path.exists() and path.read_text().strip() == value:
-            continue
-        path.write_text(value)
+        try:
+            if path.exists() and path.read_text().strip() == value:
+                continue
+            path.write_text(value)
+        except OSError as error:
+            if name != "memory.swap.max":
+                raise
+            logger.warning("agent swap limit could not be applied; continuing without it: %s", error)
     return agents
 
 
