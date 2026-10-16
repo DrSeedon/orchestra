@@ -110,8 +110,9 @@ roles:
     when: Clear task for a known module, implementation from detailed spec, bug fix with known repro
     not_for: Tasks needing research or unknown scope — use full-cycle
     description: >
-      General-purpose worker. Implements tasks directly, no pipeline gates.
-      For system workers (permanent, module-scoped) and disposable one-shots.
+      General-purpose worker for one bounded task. Implements it directly, no pipeline
+      gates, and cannot spawn other agents. For system workers (permanent, module-scoped)
+      and disposable one-shots. (owner decision, 2026-10-16)
   full-cycle:
     kind: worker
     label: Full-Cycle
@@ -136,9 +137,11 @@ roles:
     when: New feature with unknowns, large refactoring (5+ files), external integration, deep research (find out everything about X), empirical measurement / benchmarks, anything where wrong approach = wasted day
     not_for: Trivial bug fixes, config changes, one-line implementation from a clear spec
     description: >
-      Owns an approved outcome end-to-end. Chooses research, planning, implementation
-      and verification depth; delegates only useful independent work. Research-only
+      Drives a task through the full cycle (research, plan, implementation, verification)
+      with the complete module set, and can spawn sub-workers for independent work. Owns an
+      approved outcome end-to-end and chooses the depth of each stage. Research-only
       assignments end at findings. Explicit approval boundaries remain in force.
+      (owner decision, 2026-10-16)
   reducer:
     kind: worker
     label: Reducer

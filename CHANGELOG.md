@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Added
+- **Role catalog states who can spawn** (`app/manager.py` `_fmt_role_catalog_entry`, `.orchestra/pipelines/default/pipeline.yaml`; V-889). Every entry in the orchestrator's "Available worker roles" now carries a "Can spawn" line generated from that role's `can_spawn` (the field the spawn check uses), so it cannot drift from enforcement. The `worker` and `full-cycle` descriptions now say which to pick: `worker` takes one bounded task and cannot spawn; `full-cycle` runs research, plan, implementation and verification with the full module set and can spawn sub-workers. Owner decision, 2026-10-16. Python change: takes effect after a restart.
+
 ### Changed
 - **Оценка шага чеклиста обязательна** (`app/checklists.py:validate_items`, `update_checklist`, модуль task-management; V-887). Решение владельца 15.10.2026. `update_checklist` отклоняется, если у нового или изменённого шага нет положительной оценки в минутах; отказ перечисляет такие шаги и что прислать. Шаг с неизменным текстом сохраняет прежнюю оценку, поэтому вызов, который только отмечает выполненные шаги или текущий, не требует переоценки. Нулевая и отрицательная оценка теперь тоже отказ. Known tradeoff: у старого чеклиста с null-оценками первое же обновление потребует прислать оценки для этих шагов; переименование шага считается новым шагом.
 
