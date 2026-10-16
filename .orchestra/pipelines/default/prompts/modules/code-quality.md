@@ -26,6 +26,13 @@ it — and then name exactly what is cut off. Measured cost of not doing this (s
 EIS search filter dropped every tender above 2 mln at request time, so the database held none of
 them and nobody saw the gap.
 
+**Evaluating candidates (owner decision, 2026-10-16).** Judge a license by the real use, not
+the label: a non-commercial license does not rule out a model or tool for personal or internal
+use unless the project states a commercial purpose. Record the license restriction as a fact
+next to the candidate, not as a reason to reject it. Research on voice, images or video brings
+real samples produced by your own hands plus public demos; vendor scores and reviews do not
+replace samples. This binds whoever writes the research assignment and whoever accepts its verdict.
+
 **Surgical changes.** Touch ONLY what the task requires.
 - Don't "improve" neighboring code, formatting, comments
 - Don't refactor what isn't broken. Follow existing style

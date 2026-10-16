@@ -6,6 +6,9 @@
 
 ## Unreleased
 
+### Changed
+- **Candidate evaluation judges licenses by real use and requires real samples for media** (`.orchestra/pipelines/default/prompts/modules/code-quality.md`; V-894). A non-commercial license no longer rules out a candidate for personal or internal use; the restriction is recorded as a fact. The text lives in the module delivered to the orchestrator, sub-orchestrator, worker and full-cycle roles (not only the one doing research). Voice, image and video research must bring samples produced by the researcher plus public demos, not vendor scores. Trigger: a voice study discarded three candidates as non-commercial although the installation is used personally. Owner decision, 2026-10-16.
+
 ### Added
 - **Role catalog states who can spawn** (`app/manager.py` `_fmt_role_catalog_entry`, `.orchestra/pipelines/default/pipeline.yaml`; V-889). Every entry in the orchestrator's "Available worker roles" now carries a "Can spawn" line generated from that role's `can_spawn` (the field the spawn check uses), so it cannot drift from enforcement. The `worker` and `full-cycle` descriptions now say which to pick: `worker` takes one bounded task and cannot spawn; `full-cycle` runs research, plan, implementation and verification with the full module set and can spawn sub-workers. Owner decision, 2026-10-16. Python change: takes effect after a restart.
 
